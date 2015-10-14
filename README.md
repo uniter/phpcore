@@ -7,7 +7,7 @@ Minimal PHP core library for PHP environments.
 
 Who would use this?
 -------------------
-After getting started with Uniter and PHPRuntime, you might want only a subset of the standard PHP library.
+After getting started with [Uniter]() and [PHPRuntime](), you might want only a subset of the standard PHP library.
 You can include PHPCore and then only expose the builtin functions, classes or constants you need.
 
 ```javascript
@@ -44,6 +44,7 @@ phpCore.install({
 });
 
 phpCore.compile(
+    // Example JS code transpiled from PHP by PHPToJS:
     function (stdin, stdout, stderr, tools, namespace) {
         var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;
         return tools.valueFactory.createInteger(
@@ -59,3 +60,6 @@ phpCore.compile(
 Keeping up to date
 ------------------
 - [Follow me on Twitter](https://twitter.com/@asmblah) for updates: [https://twitter.com/@asmblah](https://twitter.com/@asmblah)
+
+[Uniter]: https://github.com/asmblah/uniter
+[PHPRuntime]: https://github.com/uniter/phpruntime
