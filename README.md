@@ -7,7 +7,7 @@ Minimal PHP core library for PHP environments.
 
 Who would use this?
 -------------------
-After getting started with [Uniter]() and [PHPRuntime](), you might want only a subset of the standard PHP library.
+After getting started with [Uniter][] and [PHPRuntime][], you might want only a subset of the standard PHP library.
 You can include PHPCore and then only expose the builtin functions, classes or constants you need.
 
 ```javascript
