@@ -19,7 +19,7 @@ var _ = require('lodash'),
     ReferenceFactory = require('./ReferenceFactory'),
     Scope = require('./Scope'),
     ValueFactory = require('./ValueFactory'),
-    setUpState = function (state) {
+    setUpState = function (state, installedBuiltinTypes) {
         var globalNamespace = state.globalNamespace,
             internals = {
                 callStack: state.callStack,
@@ -31,15 +31,15 @@ var _ = require('lodash'),
                 valueFactory: state.valueFactory
             };
 
-        _.each(builtinTypes.functionGroups, function (groupFactory) {
+        function installFunctionGroup(groupFactory) {
             var groupBuiltins = groupFactory(internals);
 
             _.each(groupBuiltins, function (fn, name) {
                 globalNamespace.defineFunction(name, fn);
             });
-        });
+        }
 
-        _.each(builtinTypes.classes, function (classFactory, name) {
+        function installClass(classFactory, name) {
             var Class = classFactory(internals);
 
             if (name === EXCEPTION_CLASS) {
@@ -47,18 +47,28 @@ var _ = require('lodash'),
             }
 
             globalNamespace.defineClass(name, Class);
-        });
+        }
 
-        _.each(builtinTypes.constantGroups, function (groupFactory) {
+        function installConstantGroup(groupFactory) {
             var groupBuiltins = groupFactory(internals);
 
             _.each(groupBuiltins, function (value, name) {
                 globalNamespace.defineConstant(name, state.valueFactory.coerce(value));
             });
-        });
+        }
+
+        // Core builtins
+        _.each(builtinTypes.functionGroups, installFunctionGroup);
+        _.forOwn(builtinTypes.classes, installClass);
+        _.each(builtinTypes.constantGroups, installConstantGroup);
+
+        // Optional installed builtins
+        _.each(installedBuiltinTypes.functionGroups, installFunctionGroup);
+        _.forOwn(installedBuiltinTypes.classes, installClass);
+        _.each(installedBuiltinTypes.constantGroups, installConstantGroup);
     };
 
-function PHPState(stdin, stdout, stderr, pausable) {
+function PHPState(installedBuiltinTypes, stdin, stdout, stderr, pausable) {
     var callStack = new CallStack(stderr),
         valueFactory = new ValueFactory(pausable, callStack),
         classAutoloader = new ClassAutoloader(valueFactory),
@@ -81,7 +91,7 @@ function PHPState(stdin, stdout, stderr, pausable) {
     this.valueFactory = valueFactory;
     this.PHPException = null;
 
-    setUpState(this);
+    setUpState(this, installedBuiltinTypes);
 }
 
 _.extend(PHPState.prototype, {

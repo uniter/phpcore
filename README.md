@@ -3,7 +3,58 @@ PHPCore
 
 [![Build Status](https://secure.travis-ci.org/uniter/phpcore.png?branch=master)](http://travis-ci.org/uniter/phpcore)
 
-Runtime library for PHP environments.
+Minimal PHP core library for PHP environments.
+
+Who would use this?
+-------------------
+After getting started with Uniter and PHPRuntime, you might want only a subset of the standard PHP library.
+You can include PHPCore and then only expose the builtin functions, classes or constants you need.
+
+```javascript
+var phpCore = require('phpcore');
+
+phpCore.install({
+    functionGroups: [
+        function (internals) {
+            return {
+                'add_one_to': function (argReference) {
+                    return internals.valueFactory.createInteger(argReference.getNative() + 1);
+                }
+            };
+        }
+    ],
+    classes: {
+        'TwentyOne': function () {
+            function TwentyOne() {}
+
+            TwentyOne.prototype.getIt = function () {
+                return 21;
+            };
+
+            return TwentyOne;
+        }
+    },
+    constantGroups: [
+        function (internals) {
+            return {
+                'MY_CONSTANT': 1000
+            };
+        }
+    ]
+});
+
+phpCore.compile(
+    function (stdin, stdout, stderr, tools, namespace) {
+        var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;
+        return tools.valueFactory.createInteger(
+            namespaceScope.getConstant('MY_CONSTANT').getNative() +
+            namespaceScope.getFunction('add_one_to')(tools.valueFactory.createInteger(21)).getNative()
+        );
+    }
+)().execute().then(function (result) {
+    console.log(result.unwrapForJS()); // Prints "1022"
+});
+```
 
 Keeping up to date
 ------------------

@@ -14,6 +14,11 @@ var _ = require('lodash'),
     Stream = require('./Stream');
 
 function Runtime(Environment, Engine, phpCommon, pausable, phpToAST, phpToJS) {
+    this.builtins = {
+        classes: {},
+        constantGroups: [],
+        functionGroups: []
+    };
     this.Engine = Engine;
     this.Environment = Environment;
     this.pausable = pausable;
@@ -56,9 +61,17 @@ _.extend(Runtime.prototype, {
             stdout = new Stream(),
             stderr = new Stream(),
             parser = runtime.phpToAST.create(stderr),
-            state = new PHPState(stdin, stdout, stderr, runtime.pausable);
+            state = new PHPState(runtime.builtins, stdin, stdout, stderr, runtime.pausable);
 
         return new runtime.Environment(state, parser, options);
+    },
+
+    install: function (newBuiltins) {
+        var builtins = this.builtins;
+
+        [].push.apply(builtins.functionGroups, newBuiltins.functionGroups);
+        _.extend(builtins.classes, newBuiltins.classes);
+        [].push.apply(builtins.constantGroups, newBuiltins.constantGroups);
     }
 });
 
