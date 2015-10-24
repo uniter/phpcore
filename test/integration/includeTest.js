@@ -65,6 +65,27 @@ describe('PHP "include" statement integration', function () {
         }));
     });
 
+    it('should correctly trap when no include transport is configured', function (done) {
+        var module = new Function(
+                'require',
+                'return require(\'phpcore\').compile(function (stdin, stdout, stderr, tools, namespace) {' +
+                'var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;' +
+                'tools.include(tools.valueFactory.createString("abc.php").getNative());' +
+                'return tools.valueFactory.createNull();' +
+                '});'
+            )(function () {
+                return phpCore;
+            });
+
+        module().execute().then(function (result) {
+            done(new Error('Expected rejection, got resolve: ' + result));
+        }, when(done, function (error) {
+            expect(error.message).to.equal(
+                'include(abc.php) :: No "include" transport is available for loading the module.'
+            );
+        }));
+    });
+
     it('should use the same stdout stream for included modules', function (done) {
         var php = nowdoc(function () {/*<<<EOS
 <?php

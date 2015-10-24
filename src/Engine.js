@@ -325,7 +325,7 @@ _.extend(Engine.prototype, {
                     return;
                 }
 
-                throw error;
+                reject(error);
             }
 
             // Use asynchronous mode if Pausable is available
