@@ -342,7 +342,7 @@ _.extend(Engine.prototype, {
                         tools: tools,
                         globalNamespace: globalNamespace
                     }
-                }).done(handleResult).fail(handleError);
+                }).then(handleResult, handleError);
 
                 return;
             }

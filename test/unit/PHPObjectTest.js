@@ -12,7 +12,6 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     ObjectValue = require('../../src/Value/Object'),
-    PausablePromise = require('pausable/src/Promise'),
     PHPObject = require('../../src/PHPObject'),
     Promise = require('bluebird'),
     ValueFactory = require('../../src/ValueFactory');
@@ -20,7 +19,9 @@ var expect = require('chai').expect,
 describe('PHPObject', function () {
     beforeEach(function () {
         this.object = sinon.createStubInstance(ObjectValue);
-        this.pausableCallPromise = new PausablePromise();
+        this.pausableCallPromise = new Promise(function (resolve) {
+            this.resolveCall = resolve;
+        }.bind(this));
         this.pausable = {
             call: sinon.stub().returns(this.pausableCallPromise)
         };
@@ -52,7 +53,7 @@ describe('PHPObject', function () {
             it('should resolve the Promise when the call returns via Pausable', function () {
                 var promise = this.phpObject.callMethod('myMethod', 21, 23);
 
-                this.pausableCallPromise.resolve();
+                this.resolveCall();
 
                 return expect(promise).to.eventually.be.fulfilled;
             });
@@ -60,7 +61,7 @@ describe('PHPObject', function () {
             it('should resolve with the result when the call returns via Pausable', function () {
                 var promise = this.phpObject.callMethod('myMethod', 21, 23);
 
-                this.pausableCallPromise.resolve('my result');
+                this.resolveCall('my result');
 
                 return expect(promise).to.eventually.equal('my result');
             });

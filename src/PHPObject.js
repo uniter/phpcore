@@ -44,8 +44,7 @@ _.extend(PHPObject.prototype, {
                     [name, args],
                     phpObject.objectValue
                 )
-                    .done(resolve)
-                    .fail(reject);
+                    .then(resolve, reject);
             });
         }
 
