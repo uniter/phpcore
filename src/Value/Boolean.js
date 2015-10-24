@@ -107,4 +107,4 @@ module.exports = require('pausable').executeSync([require], function (require) {
     });
 
     return BooleanValue;
-});
+}, {strict: true});

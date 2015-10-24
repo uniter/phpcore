@@ -193,4 +193,4 @@ module.exports = require('pausable').executeSync([require], function (require) {
     });
 
     return Class;
-});
+}, {strict: true});

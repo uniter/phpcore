@@ -27,4 +27,4 @@ module.exports = require('pausable').executeSync([require], function (require) {
     });
 
     return BarewordStringValue;
-});
+}, {strict: true});

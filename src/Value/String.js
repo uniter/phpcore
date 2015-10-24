@@ -142,4 +142,4 @@ module.exports = require('pausable').executeSync([require], function (require) {
     });
 
     return StringValue;
-});
+}, {strict: true});

@@ -179,4 +179,4 @@ module.exports = require('pausable').executeSync([require], function (require) {
     });
 
     return NamespaceScope;
-});
+}, {strict: true});

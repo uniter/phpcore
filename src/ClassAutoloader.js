@@ -84,4 +84,4 @@ module.exports = require('pausable').executeSync([require], function (require) {
     });
 
     return ClassAutoloader;
-});
+}, {strict: true});
