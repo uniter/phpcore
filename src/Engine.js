@@ -335,6 +335,7 @@ _.extend(Engine.prototype, {
                     '(stdin, stdout, stderr, tools, globalNamespace));';
 
                 pausable.execute(code, {
+                    strict: true,
                     expose: {
                         stdin: stdin,
                         stdout: stdout,
