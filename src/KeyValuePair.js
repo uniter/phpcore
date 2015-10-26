@@ -9,7 +9,7 @@
 
 'use strict';
 
-var _ = require('lodash');
+var _ = require('microdash');
 
 function KeyValuePair(key, value) {
     this.key = key;

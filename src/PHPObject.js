@@ -9,7 +9,7 @@
 
 'use strict';
 
-var _ = require('lodash'),
+var _ = require('microdash'),
     Promise = require('bluebird');
 
 function PHPObject(pausable, valueFactory, objectValue) {

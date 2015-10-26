@@ -9,7 +9,7 @@
 
 'use strict';
 
-var _ = require('lodash');
+var _ = require('microdash');
 
 function Call(scope) {
     this.scope = scope;

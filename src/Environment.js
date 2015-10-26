@@ -9,7 +9,7 @@
 
 'use strict';
 
-var _ = require('lodash');
+var _ = require('microdash');
 
 function Environment(state, parser, options) {
     this.options = options;

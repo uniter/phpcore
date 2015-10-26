@@ -9,7 +9,7 @@
 
 'use strict';
 
-var _ = require('lodash');
+var _ = require('microdash');
 
 function VariableReference(variable) {
     this.variable = variable;

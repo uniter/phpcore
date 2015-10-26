@@ -9,7 +9,7 @@
 
 'use strict';
 
-var _ = require('lodash'),
+var _ = require('microdash'),
     ArrayValue = require('./Value/Array'),
     BarewordStringValue = require('./Value/BarewordString'),
     BooleanValue = require('./Value/Boolean'),

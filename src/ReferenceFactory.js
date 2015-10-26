@@ -9,7 +9,7 @@
 
 'use strict';
 
-var _ = require('lodash'),
+var _ = require('microdash'),
     NullReference = require('./Reference/Null');
 
 function ReferenceFactory(valueFactory) {

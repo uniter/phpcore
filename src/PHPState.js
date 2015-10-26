@@ -9,7 +9,7 @@
 
 'use strict';
 
-var _ = require('lodash'),
+var _ = require('microdash'),
     EXCEPTION_CLASS = 'Exception',
     builtinTypes = require('./builtin/builtins'),
     CallStack = require('./CallStack'),

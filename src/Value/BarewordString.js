@@ -10,7 +10,7 @@
 'use strict';
 
 module.exports = require('pausable').executeSync([require], function (require) {
-    var _ = require('lodash'),
+    var _ = require('microdash'),
         util = require('util'),
         StringValue = require('./String');
 
