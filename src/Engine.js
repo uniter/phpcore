@@ -172,7 +172,16 @@ _.extend(Engine.prototype, {
 
                 // Handle wrapper function being returned from loader for module
                 if (_.isFunction(module)) {
-                    module(subOptions, environment).execute().then(
+                    executeResult = module(subOptions, environment).execute();
+
+                    if (!pausable) {
+                        done = true;
+
+                        completeWith(executeResult);
+                        return;
+                    }
+
+                    executeResult.then(
                         completeWith,
                         function (error) {
                             pause.throw(error);

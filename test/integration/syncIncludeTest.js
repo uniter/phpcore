@@ -39,6 +39,45 @@ describe('PHP synchronous "include" statement integration', function () {
         expect(module(options).execute().getNative()).to.equal(22);
     });
 
+    it('should correctly handle an include where the loader returns a compiled wrapper function', function () {
+        var parentPHP = nowdoc(function () {/*<<<EOS
+<?php
+print 'before ';
+include 'my_module.php';
+print ' after';
+EOS
+*/;}), //jshint ignore:line
+            parentJS = phpToJS.transpile(phpToAST.create().parse(parentPHP)),
+            module = new Function(
+                'require',
+                'return ' + parentJS
+            )(function () {
+                return syncPHPCore;
+            }),
+            childPHP = nowdoc(function () {/*<<<EOS
+<?php
+print 'inside';
+EOS
+*/;}), //jshint ignore:line
+            childJS = phpToJS.transpile(phpToAST.create().parse(childPHP)),
+            childModule = new Function(
+                'require',
+                'return ' + childJS
+            )(function () {
+                return syncPHPCore;
+            }),
+            options = {
+                include: function (path, promise) {
+                    promise.resolve(childModule);
+                }
+            },
+            engine = module(options);
+
+        engine.execute();
+
+        expect(engine.getStdout().readAll()).to.equal('before inside after');
+    });
+
     it('should correctly trap a parse error in included file', function () {
         var module = new Function(
                 'require',
