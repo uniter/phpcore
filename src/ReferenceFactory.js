@@ -9,17 +9,22 @@
 
 'use strict';
 
-var _ = require('microdash'),
-    NullReference = require('./Reference/Null');
-
-function ReferenceFactory(valueFactory) {
-    this.valueFactory = valueFactory;
-}
-
-_.extend(ReferenceFactory.prototype, {
-    createNull: function () {
-        return new NullReference(this.valueFactory);
+module.exports = require('pauser')([
+    require('microdash'),
+    require('./Reference/Null')
+], function (
+    _,
+    NullReference
+) {
+    function ReferenceFactory(valueFactory) {
+        this.valueFactory = valueFactory;
     }
-});
 
-module.exports = ReferenceFactory;
+    _.extend(ReferenceFactory.prototype, {
+        createNull: function () {
+            return new NullReference(this.valueFactory);
+        }
+    });
+
+    return ReferenceFactory;
+}, {strict: true});

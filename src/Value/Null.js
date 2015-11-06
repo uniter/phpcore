@@ -9,12 +9,18 @@
 
 'use strict';
 
-module.exports = require('pausable').executeSync([require], function (require) {
-    var _ = require('microdash'),
-        phpCommon = require('phpcommon'),
-        util = require('util'),
-        PHPError = phpCommon.PHPError,
-        Value = require('../Value');
+module.exports = require('pauser')([
+    require('microdash'),
+    require('phpcommon'),
+    require('util'),
+    require('../Value')
+], function (
+    _,
+    phpCommon,
+    util,
+    Value
+) {
+    var PHPError = phpCommon.PHPError;
 
     function NullValue(factory, callStack) {
         Value.call(this, factory, callStack, 'null', null);

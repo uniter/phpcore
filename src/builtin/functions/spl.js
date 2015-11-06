@@ -9,26 +9,30 @@
 
 'use strict';
 
-var Variable = require('../../Variable');
+module.exports = require('pauser')([
+    require('../../Variable')
+], function (
+    Variable
+) {
+    return function (internals) {
+        var classAutoloader = internals.classAutoloader,
+            valueFactory = internals.valueFactory;
 
-module.exports = function (internals) {
-    var classAutoloader = internals.classAutoloader,
-        valueFactory = internals.valueFactory;
+        return {
+            'spl_autoload_register': function (callableReference) {
+                var isReference = (callableReference instanceof Variable),
+                    callableValue = isReference ? callableReference.getValue() : callableReference;
 
-    return {
-        'spl_autoload_register': function (callableReference) {
-            var isReference = (callableReference instanceof Variable),
-                callableValue = isReference ? callableReference.getValue() : callableReference;
+                classAutoloader.appendAutoloadCallable(callableValue);
+            },
+            'spl_autoload_unregister': function (callableReference) {
+                var isReference = (callableReference instanceof Variable),
+                    callableValue = isReference ? callableReference.getValue() : callableReference;
 
-            classAutoloader.appendAutoloadCallable(callableValue);
-        },
-        'spl_autoload_unregister': function (callableReference) {
-            var isReference = (callableReference instanceof Variable),
-                callableValue = isReference ? callableReference.getValue() : callableReference;
-
-            return valueFactory.createBoolean(
-                classAutoloader.removeAutoloadCallable(callableValue)
-            );
-        }
+                return valueFactory.createBoolean(
+                    classAutoloader.removeAutoloadCallable(callableValue)
+                );
+            }
+        };
     };
-};
+}, {strict: true});

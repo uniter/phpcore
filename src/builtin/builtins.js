@@ -9,21 +9,29 @@
 
 'use strict';
 
-var splFunctions = require('./functions/spl'),
-    stdClass = require('./classes/stdClass'),
-    Closure = require('./classes/Closure'),
-    Exception = require('./classes/Exception'),
-    JSObject = require('./classes/JSObject');
-
-module.exports = {
-    classes: {
-        'stdClass': stdClass,
-        'Closure': Closure,
-        'Exception': Exception,
-        'JSObject': JSObject
-    },
-    constantGroups: [],
-    functionGroups: [
-        splFunctions
-    ]
-};
+module.exports = require('pauser')([
+    require('./functions/spl'),
+    require('./classes/stdClass'),
+    require('./classes/Closure'),
+    require('./classes/Exception'),
+    require('./classes/JSObject')
+], function (
+    splFunctions,
+    stdClass,
+    Closure,
+    Exception,
+    JSObject
+) {
+    return {
+        classes: {
+            'stdClass': stdClass,
+            'Closure': Closure,
+            'Exception': Exception,
+            'JSObject': JSObject
+        },
+        constantGroups: [],
+        functionGroups: [
+            splFunctions
+        ]
+    };
+}, {strict: true});

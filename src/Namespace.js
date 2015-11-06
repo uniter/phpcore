@@ -9,12 +9,17 @@
 
 'use strict';
 
-module.exports = require('pausable').executeSync([require], function (require) {
-    var _ = require('microdash'),
-        IS_STATIC = 'isStatic',
+module.exports = require('pauser')([
+    require('microdash'),
+    require('phpcommon'),
+    require('./Class')
+], function (
+    _,
+    phpCommon,
+    Class
+) {
+    var IS_STATIC = 'isStatic',
         hasOwn = {}.hasOwnProperty,
-        phpCommon = require('phpcommon'),
-        Class = require('./Class'),
         PHPError = phpCommon.PHPError,
         PHPFatalError = phpCommon.PHPFatalError;
 

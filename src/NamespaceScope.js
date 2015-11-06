@@ -9,10 +9,14 @@
 
 'use strict';
 
-module.exports = require('pausable').executeSync([require], function (require) {
-    var _ = require('microdash'),
-        hasOwn = {}.hasOwnProperty,
-        phpCommon = require('phpcommon'),
+module.exports = require('pauser')([
+    require('microdash'),
+    require('phpcommon')
+], function (
+    _,
+    phpCommon
+) {
+    var hasOwn = {}.hasOwnProperty,
         PHPFatalError = phpCommon.PHPFatalError;
 
     function NamespaceScope(globalNamespace, namespace) {

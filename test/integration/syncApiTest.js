@@ -10,10 +10,10 @@
 'use strict';
 
 var expect = require('chai').expect,
-    phpCore = require('../..'),
-    Runtime = require('../../src/Runtime');
+    phpCore = require('../../sync'),
+    Runtime = require('../../src/Runtime').sync();
 
-describe('Public API', function () {
+describe('Public synchronous API', function () {
     it('should export an instance of Runtime', function () {
         expect(phpCore).to.be.an.instanceOf(Runtime);
     });

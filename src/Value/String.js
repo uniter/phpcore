@@ -9,12 +9,17 @@
 
 'use strict';
 
-module.exports = require('pausable').executeSync([require], function (require) {
-    var _ = require('microdash'),
-        util = require('util'),
-        NullReference = require('../Reference/Null'),
-        Value = require('../Value');
-
+module.exports = require('pauser')([
+    require('microdash'),
+    require('util'),
+    require('../Reference/Null'),
+    require('../Value')
+], function (
+    _,
+    util,
+    NullReference,
+    Value
+) {
     function StringValue(factory, callStack, value) {
         Value.call(this, factory, callStack, 'string', value);
     }

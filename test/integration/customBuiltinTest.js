@@ -18,7 +18,7 @@ var expect = require('chai').expect,
     when = require('../when'),
     Engine = require('../../src/Engine'),
     Environment = require('../../src/Environment'),
-    Runtime = require('../../src/Runtime');
+    Runtime = require('../../src/Runtime').async(pausable);
 
 describe('Custom builtin integration', function () {
     beforeEach(function () {

@@ -9,12 +9,18 @@
 
 'use strict';
 
-module.exports = require('pausable').executeSync([require], function (require) {
-    var _ = require('microdash'),
-        phpCommon = require('phpcommon'),
-        util = require('util'),
-        PHPFatalError = phpCommon.PHPFatalError,
-        Value = require('../Value');
+module.exports = require('pauser')([
+    require('microdash'),
+    require('phpcommon'),
+    require('util'),
+    require('../Value')
+], function (
+    _,
+    phpCommon,
+    util,
+    Value
+) {
+    var PHPFatalError = phpCommon.PHPFatalError;
 
     function BooleanValue(factory, callStack, value) {
         Value.call(this, factory, callStack, 'boolean', !!value);

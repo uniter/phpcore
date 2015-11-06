@@ -9,13 +9,4 @@
 
 'use strict';
 
-var pausable = require('pausable'),
-    phpCommon = require('phpcommon'),
-    phpToAST = require('phptoast'),
-    phpToJS = require('phptojs'),
-    Engine = require('./src/Engine'),
-    Environment = require('./src/Environment'),
-    Runtime = require('./src/Runtime'),
-    runtime = new Runtime(Environment, Engine, phpCommon, pausable, phpToAST, phpToJS);
-
-module.exports = runtime;
+module.exports = require('./async');

@@ -9,17 +9,26 @@
 
 'use strict';
 
-module.exports = require('pausable').executeSync([require], function (require) {
-    var _ = require('microdash'),
-        hasOwn = {}.hasOwnProperty,
-        phpCommon = require('phpcommon'),
-        util = require('util'),
-        KeyValuePair = require('../KeyValuePair'),
-        NullReference = require('../Reference/Null'),
+module.exports = require('pauser')([
+    require('microdash'),
+    require('phpcommon'),
+    require('util'),
+    require('../KeyValuePair'),
+    require('../Reference/Null'),
+    require('../Reference/Property'),
+    require('../Value')
+], function (
+    _,
+    phpCommon,
+    util,
+    KeyValuePair,
+    NullReference,
+    PropertyReference,
+    Value
+) {
+    var hasOwn = {}.hasOwnProperty,
         PHPError = phpCommon.PHPError,
-        PHPFatalError = phpCommon.PHPFatalError,
-        PropertyReference = require('../Reference/Property'),
-        Value = require('../Value');
+        PHPFatalError = phpCommon.PHPFatalError;
 
     function ObjectValue(factory, callStack, object, classObject, id) {
         Value.call(this, factory, callStack, 'object', object);

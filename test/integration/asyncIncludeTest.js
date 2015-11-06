@@ -11,12 +11,12 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    phpCore = require('../..'),
+    asyncPHPCore = require('../../async'),
     phpToAST = require('phptoast'),
     phpToJS = require('phptojs'),
     when = require('../when');
 
-describe('PHP "include" statement integration', function () {
+describe('PHP asynchronous "include" statement integration', function () {
     it('should correctly handle an include where the loader returns a PHP code string', function (done) {
         var module = new Function(
             'require',
@@ -27,7 +27,7 @@ describe('PHP "include" statement integration', function () {
             'return tools.valueFactory.createNull();' +
             '});'
         )(function () {
-            return phpCore;
+            return asyncPHPCore;
         }),
             options = {
                 include: function (path, promise) {
@@ -50,7 +50,7 @@ describe('PHP "include" statement integration', function () {
                 'return tools.valueFactory.createNull();' +
                 '});'
             )(function () {
-                return phpCore;
+                return asyncPHPCore;
             }),
             options = {
                 include: function (path, promise) {
@@ -74,7 +74,7 @@ describe('PHP "include" statement integration', function () {
                 'return tools.valueFactory.createNull();' +
                 '});'
             )(function () {
-                return phpCore;
+                return asyncPHPCore;
             });
 
         module().execute().then(function (result) {
@@ -99,7 +99,7 @@ EOS
                 'require',
                 'return ' + js
             )(function () {
-                return phpCore;
+                return asyncPHPCore;
             }),
             options = {
                 include: function (path, promise) {

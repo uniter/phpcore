@@ -12,13 +12,14 @@
 var _ = require('microdash'),
     INCLUDE_OPTION = 'include',
     PATH = 'path',
+    pauser = require('pauser'),
     Call = require('./Call'),
     KeyValuePair = require('./KeyValuePair'),
     List = require('./List'),
-    NamespaceScope = require('./NamespaceScope'),
-    ObjectValue = require('./Value/Object'),
+    NamespaceScopeWrapper = require('./NamespaceScope'),
+    ObjectValueWrapper = require('./Value/Object'),
     Promise = require('bluebird'),
-    Scope = require('./Scope');
+    ScopeWrapper = require('./Scope');
 
 function Engine(
     runtime,
@@ -47,7 +48,13 @@ function Engine(
 
 _.extend(Engine.prototype, {
     createPause: function () {
-        return this.pausable.createPause();
+        var engine = this;
+
+        if (!engine.pausable) {
+            throw new Error('Pausable is not available');
+        }
+
+        return engine.pausable.createPause();
     },
 
     execute: function () {
@@ -75,7 +82,13 @@ _.extend(Engine.prototype, {
             stdout = engine.getStdout(),
             tools,
             valueFactory,
-            wrapper = engine.wrapper;
+            wrapper = engine.wrapper,
+            unwrap = function (wrapper) {
+                return pausable ? wrapper.async(pausable) : wrapper.sync();
+            },
+            NamespaceScope = unwrap(NamespaceScopeWrapper),
+            ObjectValue = unwrap(ObjectValueWrapper),
+            Scope = unwrap(ScopeWrapper);
 
         function include(path) {
             var done = false,
@@ -100,7 +113,8 @@ _.extend(Engine.prototype, {
             }
 
             function resolve(module) {
-                var subWrapper,
+                var executeResult,
+                    subWrapper,
                     subModule;
 
                 // Handle PHP code string being returned from loader for module
@@ -137,8 +151,16 @@ _.extend(Engine.prototype, {
                     }
 
                     subModule = runtime.compile(subWrapper);
+                    executeResult = subModule(subOptions, environment).execute();
 
-                    subModule(subOptions, environment).execute().then(
+                    if (!pausable) {
+                        done = true;
+
+                        completeWith(executeResult);
+                        return;
+                    }
+
+                    executeResult.then(
                         completeWith,
                         function (error) {
                             pause.throw(error);
@@ -218,14 +240,14 @@ _.extend(Engine.prototype, {
                     globalNamespace.getClass('Closure')
                 );
             },
-            createInstance: pausable.executeSync([], function () {
+            createInstance: unwrap(pauser([], function () {
                 return function (namespaceScope, classNameValue, args) {
                     var className = classNameValue.getNative(),
                         classObject = namespaceScope.getClass(className);
 
                     return classObject.instantiate(args);
                 };
-            }),
+            })),
             createKeyValuePair: function (key, value) {
                 return new KeyValuePair(key, value);
             },
@@ -282,55 +304,49 @@ _.extend(Engine.prototype, {
         // Push the 'main' global scope call onto the stack
         callStack.push(new Call(globalScope));
 
-        return new Promise(function (resolve, reject) {
-            var code;
+        function handleError(error, reject) {
+            if (error instanceof ObjectValue) {
+                // Uncaught PHP Exceptions become E_FATAL errors
+                (function (value) {
+                    var error = value.getNative();
 
-            function handleResult(resultValue) {
-                resolve(resultValue);
-            }
+                    if (!(error instanceof PHPException)) {
+                        throw new Exception('Weird value class thrown: ' + value.getClassName());
+                    }
 
-            function handleError(error) {
-                if (error instanceof ObjectValue) {
-                    // Uncaught PHP Exceptions become E_FATAL errors
-                    (function (value) {
-                        var error = value.getNative();
-
-                        if (!(error instanceof PHPException)) {
-                            throw new Exception('Weird value class thrown: ' + value.getClassName());
+                    error = new PHPFatalError(
+                        PHPFatalError.UNCAUGHT_EXCEPTION,
+                        {
+                            name: value.getClassName()
                         }
+                    );
 
-                        error = new PHPFatalError(
-                            PHPFatalError.UNCAUGHT_EXCEPTION,
-                            {
-                                name: value.getClassName()
-                            }
-                        );
-
-                        if (isMainProgram) {
-                            stderr.write(error.message);
-                        }
-
-                        reject(error);
-                    }(error));
-
-                    return;
-                }
-
-                if (error instanceof PHPError) {
                     if (isMainProgram) {
                         stderr.write(error.message);
                     }
 
                     reject(error);
-                    return;
+                }(error));
+
+                return;
+            }
+
+            if (error instanceof PHPError) {
+                if (isMainProgram) {
+                    stderr.write(error.message);
                 }
 
                 reject(error);
+                return;
             }
 
-            // Use asynchronous mode if Pausable is available
-            if (pausable) {
-                code = 'return (' +
+            reject(error);
+        }
+
+        // Use asynchronous mode if Pausable is available
+        if (pausable) {
+            return new Promise(function (resolve, reject) {
+                var code = 'return (' +
                     wrapper.toString() +
                     '(stdin, stdout, stderr, tools, globalNamespace));';
 
@@ -343,18 +359,20 @@ _.extend(Engine.prototype, {
                         tools: tools,
                         globalNamespace: globalNamespace
                     }
-                }).then(handleResult, handleError);
+                }).then(resolve, function (error) {
+                    handleError(error, reject);
+                });
+            });
+        }
 
-                return;
-            }
-
-            // Otherwise load the module synchronously
-            try {
-                handleResult(wrapper(stdin, stdout, stderr, tools, globalNamespace));
-            } catch (error) {
-                handleError(error);
-            }
-        });
+        // Otherwise load the module synchronously
+        try {
+            return wrapper(stdin, stdout, stderr, tools, globalNamespace);
+        } catch (error) {
+            handleError(error, function (error) {
+                throw error;
+            });
+        }
     },
 
     expose: function (object, name) {

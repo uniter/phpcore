@@ -9,11 +9,16 @@
 
 'use strict';
 
-module.exports = require('pausable').executeSync([require], function (require) {
-    var _ = require('microdash'),
-        phpCommon = require('phpcommon'),
-        NullReference = require('./Reference/Null'),
-        PHPError = phpCommon.PHPError,
+module.exports = require('pauser')([
+    require('microdash'),
+    require('phpcommon'),
+    require('./Reference/Null')
+], function (
+    _,
+    phpCommon,
+    NullReference
+) {
+    var PHPError = phpCommon.PHPError,
         PHPFatalError = phpCommon.PHPFatalError;
 
     function Value(factory, callStack, type, value) {

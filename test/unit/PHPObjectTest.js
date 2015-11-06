@@ -10,11 +10,12 @@
 'use strict';
 
 var expect = require('chai').expect,
+    pausable = require('pausable'),
     sinon = require('sinon'),
-    ObjectValue = require('../../src/Value/Object'),
+    ObjectValue = require('../../src/Value/Object').async(pausable),
     PHPObject = require('../../src/PHPObject'),
     Promise = require('bluebird'),
-    ValueFactory = require('../../src/ValueFactory');
+    ValueFactory = require('../../src/ValueFactory').async(pausable);
 
 describe('PHPObject', function () {
     beforeEach(function () {

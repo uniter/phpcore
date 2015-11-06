@@ -9,9 +9,12 @@
 
 'use strict';
 
-module.exports = require('pausable').executeSync([require], function (require) {
-    var _ = require('microdash'),
-        MAGIC_AUTOLOAD_FUNCTION = '__autoload';
+module.exports = require('pauser')([
+    require('microdash')
+], function (
+    _
+) {
+    var MAGIC_AUTOLOAD_FUNCTION = '__autoload';
 
     function ClassAutoloader(valueFactory) {
         this.globalNamespace = null;

@@ -9,11 +9,15 @@
 
 'use strict';
 
-module.exports = require('pausable').executeSync([require], function (require) {
-    var _ = require('microdash'),
-        util = require('util'),
-        StringValue = require('./String');
-
+module.exports = require('pauser')([
+    require('microdash'),
+    require('util'),
+    require('./String')
+], function (
+    _,
+    util,
+    StringValue
+) {
     function BarewordStringValue(factory, callStack, value) {
         StringValue.call(this, factory, callStack, value);
     }
