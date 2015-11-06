@@ -78,7 +78,7 @@ module.exports = require('pauser')([
             var rightValue = this,
                 resultArray = leftValue.clone();
 
-            util.forOwn(rightValue.keysToElements, function (element, key) {
+            _.forOwn(rightValue.keysToElements, function (element, key) {
                 if (!hasOwn.call(resultArray.keysToElements, key)) {
                     resultArray.getElementByKey(element.getKey()).setValue(element.getValue());
                 }
@@ -270,7 +270,7 @@ module.exports = require('pauser')([
                 return factory.createBoolean(false);
             }
 
-            util.each(rightValue.keysToElements, function (element, nativeKey) {
+            _.forOwn(rightValue.keysToElements, function (element, nativeKey) {
                 if (!hasOwn.call(leftValue.keysToElements, nativeKey) || element.getValue().isNotEqualTo(leftValue.keysToElements[nativeKey].getValue()).getNative()) {
                     equal = false;
                     return false;
