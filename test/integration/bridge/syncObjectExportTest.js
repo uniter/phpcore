@@ -11,12 +11,12 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    phpCore = require('../../..'),
+    phpCore = require('../../../sync'),
     phpToAST = require('phptoast'),
     phpToJS = require('phptojs');
 
-describe('PHP JS<->PHP bridge object export integration', function () {
-    it('should return an object with instance methods returning promises', function () {
+describe('PHP JS<->PHP bridge object export synchronous mode integration', function () {
+    it('should return an object with instance methods', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyClass
@@ -30,7 +30,7 @@ class MyClass
 
     public function addAndGetWhat($toAdd)
     {
-        return $this->tools->giveMeAsync(2) + $toAdd;
+        return $this->tools->addOneTo(2) + $toAdd;
     }
 }
 
@@ -46,26 +46,17 @@ EOS
             )(function () {
                 return phpCore;
             }),
-            phpEngine = module();
+            phpEngine = module(),
+            myObject;
 
         phpEngine.expose({
-            giveMeAsync: function (what) {
-                var pause = phpEngine.createPause();
-
-                setTimeout(function () {
-                    pause.resume(what);
-                });
-
-                pause.now();
+            addOneTo: function (what) {
+                return what + 1;
             }
         }, 'tools');
 
-        return phpEngine.execute().then(function (valueObject) {
-            var myObject = valueObject.unwrapForJS();
+        myObject = phpEngine.execute().unwrapForJS();
 
-            return myObject.callMethod('addAndGetWhat', 20).then(function (resultValue) {
-                expect(resultValue.getNative()).to.equal(22);
-            });
-        });
+        expect(myObject.callMethod('addAndGetWhat', 20).getNative()).to.equal(23);
     });
 });

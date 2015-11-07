@@ -73,15 +73,11 @@ describe('PHPObject', function () {
                 this.phpObject = new PHPObject(null, this.valueFactory, this.object);
             });
 
-            it('should return a Promise', function () {
-                expect(this.phpObject.callMethod('myMethod', 21, 23)).to.be.an.instanceOf(Promise);
-            });
-
-            it('should resolve with the result when the call returns', function () {
+            it('should return the result', function () {
                 this.object.callMethod.returns('my synchronous result');
 
-                return expect(this.phpObject.callMethod('myMethod', 21, 23))
-                    .to.eventually.equal('my synchronous result');
+                expect(this.phpObject.callMethod('myMethod', 21, 23))
+                    .to.equal('my synchronous result');
             });
         });
     });

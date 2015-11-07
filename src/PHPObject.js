@@ -48,9 +48,8 @@ _.extend(PHPObject.prototype, {
             });
         }
 
-        // Pausable is unavailable (non-blocking mode),
-        // but still return a Promise for consistency
-        return Promise.resolve(phpObject.objectValue.callMethod(name, args));
+        // Pausable is unavailable (non-blocking mode)
+        return phpObject.objectValue.callMethod(name, args);
     }
 });
 
