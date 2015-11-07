@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     ObjectValue = require('../../src/Value/Object').async(pausable),
     PHPObject = require('../../src/PHPObject'),
-    Promise = require('bluebird'),
+    Promise = require('lie'),
     ValueFactory = require('../../src/ValueFactory').async(pausable);
 
 describe('PHPObject', function () {

@@ -10,7 +10,7 @@
 'use strict';
 
 var _ = require('microdash'),
-    Promise = require('bluebird');
+    Promise = require('lie');
 
 function PHPObject(pausable, valueFactory, objectValue) {
     this.objectValue = objectValue;

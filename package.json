@@ -23,9 +23,9 @@
     "test": "npm run jshint && npm run mocha"
   },
   "dependencies": {
-    "bluebird": "^2.9.34",
+    "lie": "^3.0.1",
     "microdash": "~1",
-    "pausable": "~3.1",
+    "pausable": "~4",
     "pauser": "~1",
     "phpcommon": "~1.3"
   },

@@ -18,7 +18,7 @@ var _ = require('microdash'),
     List = require('./List'),
     NamespaceScopeWrapper = require('./NamespaceScope'),
     ObjectValueWrapper = require('./Value/Object'),
-    Promise = require('bluebird'),
+    Promise = require('lie'),
     ScopeWrapper = require('./Scope');
 
 function Engine(
