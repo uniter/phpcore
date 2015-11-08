@@ -90,12 +90,12 @@ _.extend(Engine.prototype, {
             ObjectValue = unwrap(ObjectValueWrapper),
             Scope = unwrap(ScopeWrapper);
 
-        function include(path) {
+        function include(includedPath) {
             var done = false,
                 pause = null,
                 result,
                 subOptions = _.extend({}, options, {
-                    'path': path
+                    'path': includedPath
                 });
 
             function completeWith(moduleResult) {
@@ -108,7 +108,7 @@ _.extend(Engine.prototype, {
 
             if (!subOptions[INCLUDE_OPTION]) {
                 throw new Exception(
-                    'include(' + path + ') :: No "include" transport is available for loading the module.'
+                    'include(' + includedPath + ') :: No "include" transport is available for loading the module.'
                 );
             }
 
@@ -120,16 +120,16 @@ _.extend(Engine.prototype, {
                 // Handle PHP code string being returned from loader for module
                 if (_.isString(module)) {
                     if (!phpParser) {
-                        throw new Exception('include(' + path + ') :: PHP parser is not available');
+                        throw new Exception('include(' + includedPath + ') :: PHP parser is not available');
                     }
 
                     if (!phpToJS) {
-                        throw new Exception('include(' + path + ') :: PHPToJS is not available');
+                        throw new Exception('include(' + includedPath + ') :: PHPToJS is not available');
                     }
 
                     // Tell the parser the path to the current file
                     // so it can be included in error messages
-                    phpParser.getState().setPath(path);
+                    phpParser.getState().setPath(includedPath);
 
                     /*jshint evil: true */
                     try {
@@ -191,7 +191,7 @@ _.extend(Engine.prototype, {
                     return;
                 }
 
-                throw new Exception('include(' + path + ') :: Module is in a weird format');
+                throw new Exception('include(' + includedPath + ') :: Module is in a weird format');
             }
 
             function reject() {
@@ -199,20 +199,20 @@ _.extend(Engine.prototype, {
 
                 callStack.raiseError(
                     PHPError.E_WARNING,
-                    'include(' + path + '): failed to open stream: No such file or directory'
+                    'include(' + includedPath + '): failed to open stream: No such file or directory'
                 );
                 callStack.raiseError(
                     PHPError.E_WARNING,
-                    'include(): Failed opening \'' + path + '\' for inclusion'
+                    'include(): Failed opening \'' + includedPath + '\' for inclusion'
                 );
 
                 completeWith(valueFactory.createNull());
             }
 
-            subOptions[INCLUDE_OPTION](path, {
+            subOptions[INCLUDE_OPTION](includedPath, {
                 reject: reject,
                 resolve: resolve
-            });
+            }, path);
 
             if (done) {
                 return result;
@@ -220,7 +220,7 @@ _.extend(Engine.prototype, {
 
             if (!pausable) {
                 // Pausable is not available, so we cannot yield while the module is loaded
-                throw new Exception('include(' + path + ') :: Async support not enabled');
+                throw new Exception('include(' + includedPath + ') :: Async support not enabled');
             }
 
             pause = pausable.createPause();

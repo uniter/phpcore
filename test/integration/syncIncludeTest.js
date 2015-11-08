@@ -78,6 +78,28 @@ EOS
         expect(engine.getStdout().readAll()).to.equal('before inside after');
     });
 
+    it('should pass the calling file\s path to the transport', function () {
+        var module = new Function(
+            'require',
+            'return require(\'phpcore\').compile(function (stdin, stdout, stderr, tools, namespace) {' +
+            'var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;' +
+            'scope.getVariable("num").setValue(tools.include(tools.valueFactory.createString("abc.php").getNative()));' +
+            'return scope.getVariable("num").getValue();' +
+            'return tools.valueFactory.createNull();' +
+            '});'
+        )(function () {
+            return syncPHPCore;
+        }),
+            options = {
+                path: 'my/caller.php',
+                include: function (path, promise, callerPath) {
+                    promise.resolve('<?php return "Hello from ' + callerPath + '!";');
+                }
+            };
+
+        expect(module(options).execute().getNative()).to.equal('Hello from my/caller.php!');
+    });
+
     it('should correctly trap a parse error in included file', function () {
         var module = new Function(
                 'require',
