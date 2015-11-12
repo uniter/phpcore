@@ -14,6 +14,7 @@ var expect = require('chai').expect,
     phpCore = require('../..'),
     phpToAST = require('phptoast'),
     phpToJS = require('phptojs'),
+    tools = require('./tools'),
     when = require('../when');
 
 describe('PHP class autoload integration', function () {
@@ -40,7 +41,7 @@ describe('PHP class autoload integration', function () {
             options = {
                 include: function (path, promise) {
                     setTimeout(function () {
-                        promise.resolve(nowdoc(function () {/*<<<EOS
+                        promise.resolve(tools.asyncTranspile(path, nowdoc(function () {/*<<<EOS
 <?php
 class MyClass
 {
@@ -50,7 +51,7 @@ class MyClass
     }
 }
 EOS
-*/;})); //jshint ignore:line
+*/;}))); //jshint ignore:line
                     }, 10);
                 }
             };
@@ -83,14 +84,14 @@ EOS
             options = {
                 include: function (path, promise) {
                     setTimeout(function () {
-                        promise.resolve(nowdoc(function () {/*<<<EOS
+                        promise.resolve(tools.asyncTranspile(path, nowdoc(function () {/*<<<EOS
 <?php
 class MyClass
 {
     const MY_CONST = 21;
 }
 EOS
-*/;})); //jshint ignore:line
+*/;}))); //jshint ignore:line
                     }, 10);
                 }
             };
@@ -121,23 +122,23 @@ EOS
                 include: function (path, promise) {
                     setTimeout(function () {
                         if (path === 'MyClass.php') {
-                            promise.resolve(nowdoc(function () {/*<<<EOS
+                            promise.resolve(tools.asyncTranspile(path, nowdoc(function () {/*<<<EOS
 <?php
 class MyClass implements MyInterface
 {
     const NOT_MY_CONST = 23;
 }
 EOS
-*/;})); //jshint ignore:line
+*/;}))); //jshint ignore:line
                         } else if (path === 'MyInterface.php') {
-                            promise.resolve(nowdoc(function () {/*<<<EOS
+                            promise.resolve(tools.asyncTranspile(path, nowdoc(function () {/*<<<EOS
 <?php
 interface MyInterface
 {
     const MY_CONST = 21;
 }
 EOS
-*/;})); //jshint ignore:line
+*/;}))); //jshint ignore:line
                         } else {
                             promise.reject();
                         }

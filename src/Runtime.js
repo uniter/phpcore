@@ -18,7 +18,7 @@ module.exports = require('pauser')([
     PHPState,
     Stream
 ) {
-    function Runtime(Environment, Engine, phpCommon, pausable, phpToAST, phpToJS) {
+    function Runtime(Environment, Engine, phpCommon, pausable) {
         this.builtins = {
             classes: {},
             constantGroups: [],
@@ -28,17 +28,13 @@ module.exports = require('pauser')([
         this.Environment = Environment;
         this.pausable = pausable;
         this.phpCommon = phpCommon;
-        this.phpToAST = phpToAST;
-        this.phpToJS = phpToJS;
     }
 
     _.extend(Runtime.prototype, {
         compile: function (wrapper) {
             var runtime = this,
                 pausable = runtime.pausable,
-                phpCommon = runtime.phpCommon,
-                phpToAST = runtime.phpToAST,
-                phpToJS = runtime.phpToJS;
+                phpCommon = runtime.phpCommon;
 
             return function (options, environment) {
                 if (environment) {
@@ -48,14 +44,11 @@ module.exports = require('pauser')([
                 }
 
                 return new runtime.Engine(
-                    runtime,
                     environment,
                     phpCommon,
                     options,
                     wrapper,
-                    pausable,
-                    phpToAST,
-                    phpToJS
+                    pausable
                 );
             };
         },
@@ -65,10 +58,9 @@ module.exports = require('pauser')([
                 stdin = new Stream(),
                 stdout = new Stream(),
                 stderr = new Stream(),
-                parser = runtime.phpToAST.create(stderr),
                 state = new PHPState(runtime.builtins, stdin, stdout, stderr, runtime.pausable);
 
-            return new runtime.Environment(state, parser, options);
+            return new runtime.Environment(state, options);
         },
 
         install: function (newBuiltins) {

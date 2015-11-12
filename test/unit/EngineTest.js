@@ -10,12 +10,10 @@
 'use strict';
 
 var expect = require('chai').expect,
-    pausable = require('pausable'),
     sinon = require('sinon'),
     Engine = require('../../src/Engine'),
     Environment = require('../../src/Environment'),
-    PauseException = require('pausable/src/PauseException'),
-    Runtime = require('../../src/Runtime').async(pausable);
+    PauseException = require('pausable/src/PauseException');
 
 describe('Engine', function () {
     beforeEach(function () {
@@ -29,12 +27,10 @@ describe('Engine', function () {
         this.phpCommon = {};
         this.phpToAST = {};
         this.phpToJS = {};
-        this.runtime = sinon.createStubInstance(Runtime);
         this.wrapper = sinon.stub();
 
         this.createEngine = function () {
             this.engine = new Engine(
-                this.runtime,
                 this.environment,
                 this.phpCommon,
                 this.options,

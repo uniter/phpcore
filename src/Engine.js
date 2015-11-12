@@ -22,14 +22,11 @@ var _ = require('microdash'),
     ScopeWrapper = require('./Scope');
 
 function Engine(
-    runtime,
     environment,
     phpCommon,
     options,
     wrapper,
-    pausable,
-    phpToAST,
-    phpToJS
+    pausable
 ) {
     this.environment = environment;
     this.options = _.extend(
@@ -40,9 +37,6 @@ function Engine(
     );
     this.pausable = pausable;
     this.phpCommon = phpCommon;
-    this.phpToAST = phpToAST;
-    this.phpToJS = phpToJS;
-    this.runtime = runtime;
     this.wrapper = wrapper;
 }
 
@@ -68,14 +62,11 @@ _.extend(Engine.prototype, {
             isMainProgram = path === null,
             pausable = engine.pausable,
             phpCommon = engine.phpCommon,
-            phpParser,
-            phpToJS = engine.phpToJS,
             Exception = phpCommon.Exception,
             PHPError = phpCommon.PHPError,
             PHPException,
             PHPFatalError = phpCommon.PHPFatalError,
             referenceFactory,
-            runtime = engine.runtime,
             state,
             stderr = engine.getStderr(),
             stdin = engine.getStdin(),
@@ -113,62 +104,7 @@ _.extend(Engine.prototype, {
             }
 
             function resolve(module) {
-                var executeResult,
-                    subWrapper,
-                    subModule;
-
-                // Handle PHP code string being returned from loader for module
-                if (_.isString(module)) {
-                    if (!phpParser) {
-                        throw new Exception('include(' + includedPath + ') :: PHP parser is not available');
-                    }
-
-                    if (!phpToJS) {
-                        throw new Exception('include(' + includedPath + ') :: PHPToJS is not available');
-                    }
-
-                    // Tell the parser the path to the current file
-                    // so it can be included in error messages
-                    phpParser.getState().setPath(includedPath);
-
-                    /*jshint evil: true */
-                    try {
-                        subWrapper = new Function(
-                            'return ' +
-                            phpToJS.transpile(
-                                phpParser.parse(module),
-                                {'bare': true}
-                            ) +
-                            ';'
-                        )();
-                    } catch (error) {
-                        if (pause) {
-                            pause.throw(error);
-                            return;
-                        }
-
-                        throw error;
-                    }
-
-                    subModule = runtime.compile(subWrapper);
-                    executeResult = subModule(subOptions, environment).execute();
-
-                    if (!pausable) {
-                        done = true;
-
-                        completeWith(executeResult);
-                        return;
-                    }
-
-                    executeResult.then(
-                        completeWith,
-                        function (error) {
-                            pause.throw(error);
-                        }
-                    );
-
-                    return;
-                }
+                var executeResult;
 
                 // Handle wrapper function being returned from loader for module
                 if (_.isFunction(module)) {
@@ -189,6 +125,11 @@ _.extend(Engine.prototype, {
                     );
 
                     return;
+                }
+
+                // Handle PHP code string being returned from loader for module
+                if (_.isString(module)) {
+                    throw new Exception('include(' + includedPath + ') :: Returning a PHP string is not supported');
                 }
 
                 throw new Exception('include(' + includedPath + ') :: Module is in a weird format');
@@ -231,7 +172,6 @@ _.extend(Engine.prototype, {
             return path === null ? '(program)' : path;
         }
 
-        phpParser = environment.getParser();
         state = environment.getState();
         referenceFactory = state.getReferenceFactory();
         valueFactory = state.getValueFactory();

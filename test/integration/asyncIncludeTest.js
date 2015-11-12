@@ -14,24 +14,21 @@ var expect = require('chai').expect,
     asyncPHPCore = require('../../async'),
     phpToAST = require('phptoast'),
     phpToJS = require('phptojs'),
+    tools = require('./tools'),
     when = require('../when');
 
 describe('PHP asynchronous "include" statement integration', function () {
-    it('should correctly handle an include where the loader returns a PHP code string', function (done) {
-        var module = new Function(
-            'require',
-            'return require(\'phpcore\').compile(function (stdin, stdout, stderr, tools, namespace) {' +
-            'var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;' +
-            'scope.getVariable("num").setValue(tools.include(tools.valueFactory.createString("abc.php").getNative()));' +
-            'return scope.getVariable("num").getValue();' +
-            'return tools.valueFactory.createNull();' +
-            '});'
-        )(function () {
-            return asyncPHPCore;
-        }),
+    it('should correctly handle an include where the loader returns a compiled wrapper function', function (done) {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$num = include 'abc.php';
+return $num;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile(null, php),
             options = {
                 include: function (path, promise) {
-                    promise.resolve('<?php return 22;');
+                    promise.resolve(tools.asyncTranspile(path, '<?php return 22;'));
                 }
             };
 
@@ -41,20 +38,16 @@ describe('PHP asynchronous "include" statement integration', function () {
     });
 
     it('should correctly trap a parse error in included file', function (done) {
-        var module = new Function(
-                'require',
-                'return require(\'phpcore\').compile(function (stdin, stdout, stderr, tools, namespace) {' +
-                'var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;' +
-                'scope.getVariable("num").setValue(tools.include(tools.valueFactory.createString("abc.php").getNative()));' +
-                'return scope.getVariable("num").getValue();' +
-                'return tools.valueFactory.createNull();' +
-                '});'
-            )(function () {
-                return asyncPHPCore;
-            }),
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$num = include 'abc.php';
+return $num;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile(null, php),
             options = {
                 include: function (path, promise) {
-                    promise.resolve('<?php abab');
+                    promise.resolve(tools.asyncTranspile(path, '<?php abab'));
                 }
             };
 
@@ -66,22 +59,13 @@ describe('PHP asynchronous "include" statement integration', function () {
     });
 
     it('should correctly trap when no include transport is configured', function (done) {
-        var module = new Function(
-                'require',
-                'return require(\'phpcore\').compile(function (stdin, stdout, stderr, tools, namespace) {' +
-                'var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;' +
-                'tools.include(tools.valueFactory.createString("abc.php").getNative());' +
-                'return tools.valueFactory.createNull();' +
-                '});'
-            )(function () {
-                return asyncPHPCore;
-            });
+        var module = tools.asyncTranspile(null, '<?php include "no_transport.php";');
 
         module().execute().then(function (result) {
             done(new Error('Expected rejection, got resolve: ' + result));
         }, when(done, function (error) {
             expect(error.message).to.equal(
-                'include(abc.php) :: No "include" transport is available for loading the module.'
+                'include(no_transport.php) :: No "include" transport is available for loading the module.'
             );
         }));
     });
@@ -103,7 +87,7 @@ EOS
             }),
             options = {
                 include: function (path, promise) {
-                    promise.resolve('<?php print 21 + 2;');
+                    promise.resolve(tools.asyncTranspile(path, '<?php print 21 + 2;'));
                 }
             },
             engine = module(options);
