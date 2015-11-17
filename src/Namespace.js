@@ -104,16 +104,16 @@ module.exports = require('pauser')([
                 namespaceScope
             );
 
-            _.forOwn(methods, function (methodData, methodName) {
+            _.forOwn(methods, function (data, methodName) {
                 var method = namespace.functionFactory.create(
                         namespace,
                         classObject,
                         null,
-                        methodData.method,
+                        data.method,
                         methodName
                     );
 
-                method[IS_STATIC] = methodData[IS_STATIC];
+                method[IS_STATIC] = data[IS_STATIC];
                 method.data = methodData;
 
                 InternalClass.prototype[methodName] = method;
