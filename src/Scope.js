@@ -18,12 +18,23 @@ module.exports = require('pauser')([
 ) {
     var hasOwn = {}.hasOwnProperty;
 
-    function Scope(callStack, valueFactory, thisObject, currentClass) {
+    function Scope(
+        callStack,
+        functionFactory,
+        valueFactory,
+        namespace,
+        currentClass,
+        currentFunction,
+        thisObject
+    ) {
         var thisObjectVariable;
 
-        this.currentClass = currentClass;
-        this.errorsSuppressed = false;
         this.callStack = callStack;
+        this.currentClass = currentClass;
+        this.currentFunction = currentFunction;
+        this.errorsSuppressed = false;
+        this.functionFactory = functionFactory;
+        this.namespace = namespace;
         this.thisObject = thisObject;
         this.valueFactory = valueFactory;
         this.variables = {};
@@ -36,6 +47,17 @@ module.exports = require('pauser')([
     }
 
     _.extend(Scope.prototype, {
+        createClosure: function (func) {
+            var scope = this;
+
+            return scope.functionFactory.create(
+                scope.namespace,
+                scope.currentClass,
+                scope,
+                func
+            );
+        },
+
         defineVariable: function (name) {
             var scope = this,
                 variable = new Variable(scope.callStack, scope.valueFactory, name);
@@ -60,8 +82,31 @@ module.exports = require('pauser')([
             scope.defineVariable(name).setValue(valueFactory.coerce(object));
         },
 
+        getClassName: function () {
+            var scope = this;
+
+            return scope.valueFactory.createString(
+                scope.currentClass ? scope.currentClass.getName() : ''
+            );
+        },
+
         getCurrentClass: function () {
             return this.currentClass;
+        },
+
+        getFunctionName: function () {
+            var scope = this,
+                functionName = '';
+
+            if (scope.currentFunction) {
+                functionName = scope.currentFunction.funcName;
+
+                if (!scope.currentClass) {
+                    functionName = scope.namespace.getPrefix() + functionName;
+                }
+            }
+
+            return scope.valueFactory.createString(functionName);
         },
 
         getThisObject: function () {

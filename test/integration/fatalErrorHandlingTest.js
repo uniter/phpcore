@@ -10,21 +10,18 @@
 'use strict';
 
 var expect = require('chai').expect,
-    phpCore = require('../..'),
+    nowdoc = require('nowdoc'),
+    tools = require('./tools'),
     when = require('../when');
 
 describe('Fatal error handling integration', function () {
     it('should output the correct message to stderr', function (done) {
-        var module = new Function(
-                'require',
-                'return require(\'phpcore\').compile(function (stdin, stdout, stderr, tools, namespace) {' +
-                'var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;' +
-                '(tools.valueFactory.createBarewordString("myFunc").call([], namespaceScope) || tools.valueFactory.createNull());' +
-                'return tools.valueFactory.createNull();' +
-                '});'
-            )(function () {
-                return phpCore;
-            }),
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+myFunc();
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile(null, php),
             engine = module();
 
         engine.execute().catch(when(done, function () {

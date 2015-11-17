@@ -10,33 +10,25 @@
 'use strict';
 
 var expect = require('chai').expect,
+    nowdoc = require('nowdoc'),
+    tools = require('./tools'),
     phpCore = require('../..');
 
 describe('PHP environment reuse integration', function () {
-    beforeEach(function () {
-        this.require = function () {
-            return phpCore;
-        };
-    });
-
     it('should correctly handle accessing a previously defined variable', function (done) {
         var environment = phpCore.createEnvironment(),
-            module1 = new Function(
-                'require',
-                'return require(\'phpcore\').compile(function (stdin, stdout, stderr, tools, namespace) {' +
-                'var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;' +
-                'scope.getVariable("num").setValue(tools.valueFactory.createInteger(21));' +
-                'return tools.valueFactory.createNull();' +
-                '});'
-            )(this.require),
-            module2 = new Function(
-                'require',
-                'return require(\'phpcore\').compile(function (stdin, stdout, stderr, tools, namespace) {' +
-                'var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;' +
-                'return scope.getVariable("num").getValue().add(tools.valueFactory.createInteger(3));' +
-                'return tools.valueFactory.createNull();' +
-                '});'
-            )(this.require);
+            php1 = nowdoc(function () {/*<<<EOS
+<?php
+$num = 21;
+EOS
+*/;}),//jshint ignore:line
+            module1 = tools.asyncTranspile(null, php1),
+            php2 = nowdoc(function () {/*<<<EOS
+<?php
+return $num + 3;
+EOS
+*/;}),//jshint ignore:line
+            module2 = tools.asyncTranspile(null, php2);
 
         module1({}, environment).execute().then(function () {
             module2({}, environment).execute().then(function (result) {

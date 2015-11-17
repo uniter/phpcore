@@ -10,20 +10,17 @@
 'use strict';
 
 var expect = require('chai').expect,
-    phpCore = require('../..');
+    nowdoc = require('nowdoc'),
+    tools = require('./tools');
 
 describe('PHP "return" statement integration', function () {
     it('should return the expected result for a simple return statement', function (done) {
-        var module = new Function(
-            'require',
-            'return require(\'phpcore\').compile(function (stdin, stdout, stderr, tools, namespace) {' +
-            'var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;' +
-            'return tools.valueFactory.createInteger(4);' +
-            'return tools.valueFactory.createNull();' +
-            '});'
-        )(function () {
-            return phpCore;
-        });
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return 4;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile(null, php);
 
         module().execute().then(function (result) {
             expect(result.getNative()).to.equal(4);

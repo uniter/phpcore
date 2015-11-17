@@ -13,23 +13,33 @@ module.exports = require('pauser')([
     require('microdash'),
     require('./builtin/builtins'),
     require('util'),
+    require('./Call'),
+    require('./CallFactory'),
     require('./CallStack'),
     require('./ClassAutoloader'),
+    require('./FunctionFactory'),
     require('./INIState'),
     require('./Namespace'),
+    require('./NamespaceFactory'),
     require('./ReferenceFactory'),
     require('./Scope'),
+    require('./ScopeFactory'),
     require('./ValueFactory')
 ], function (
     _,
     builtinTypes,
     util,
+    Call,
+    CallFactory,
     CallStack,
     ClassAutoloader,
+    FunctionFactory,
     INIState,
     Namespace,
+    NamespaceFactory,
     ReferenceFactory,
     Scope,
+    ScopeFactory,
     ValueFactory
 ) {
     var EXCEPTION_CLASS = 'Exception',
@@ -84,16 +94,27 @@ module.exports = require('pauser')([
 
     function PHPState(installedBuiltinTypes, stdin, stdout, stderr, pausable) {
         var callStack = new CallStack(stderr),
+            callFactory = new CallFactory(Call),
             valueFactory = new ValueFactory(pausable, callStack),
             classAutoloader = new ClassAutoloader(valueFactory),
-            globalNamespace = new Namespace(callStack, valueFactory, classAutoloader, null, '');
+            scopeFactory = new ScopeFactory(Scope, callStack, valueFactory),
+            functionFactory = new FunctionFactory(scopeFactory, callFactory, valueFactory, callStack),
+            namespaceFactory = new NamespaceFactory(
+                Namespace,
+                callStack,
+                functionFactory,
+                valueFactory,
+                classAutoloader
+            ),
+            globalNamespace = namespaceFactory.create();
 
+        scopeFactory.setFunctionFactory(functionFactory);
         classAutoloader.setGlobalNamespace(globalNamespace);
         valueFactory.setGlobalNamespace(globalNamespace);
 
         this.callStack = callStack;
         this.globalNamespace = globalNamespace;
-        this.globalScope = new Scope(callStack, valueFactory, null, null);
+        this.globalScope = scopeFactory.create(globalNamespace);
         this.iniState = new INIState();
         this.referenceFactory = new ReferenceFactory(valueFactory);
         this.callStack = callStack;

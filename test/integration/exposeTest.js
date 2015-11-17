@@ -10,20 +10,17 @@
 'use strict';
 
 var expect = require('chai').expect,
-    phpCore = require('../..');
+    nowdoc = require('nowdoc'),
+    tools = require('./tools');
 
 describe('PHP<->JS Bridge integration', function () {
     it('should support exposing a number as a PHP global', function (done) {
-        var module = new Function(
-            'require',
-            'return require(\'phpcore\').compile(function (stdin, stdout, stderr, tools, namespace) {' +
-            'var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;' +
-            'return scope.getVariable("myNum").getValue().add(tools.valueFactory.createInteger(4));' +
-            'return tools.valueFactory.createNull();' +
-            '});'
-        )(function () {
-            return phpCore;
-        }),
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return $myNum + 4;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile(null, php),
             engine = module();
 
         engine.expose(18, 'myNum');

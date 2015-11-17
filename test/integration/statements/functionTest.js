@@ -10,24 +10,19 @@
 'use strict';
 
 var expect = require('chai').expect,
-    phpCore = require('../../..');
+    nowdoc = require('nowdoc'),
+    tools = require('../tools');
 
 describe('PHP "function" statement integration', function () {
     it('should return the expected result for a simple return statement', function (done) {
-        var module = new Function(
-            'require',
-            'return require(\'phpcore\').compile(function (stdin, stdout, stderr, tools, namespace) {' +
-            'var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;' +
-            'namespace.defineFunction("doNothing", function () {' +
-            'var scope = tools.pushCall(this, currentClass).getScope(); ' +
-            'try {  } finally { tools.popCall(); }' +
-            '});' +
-            'return (tools.valueFactory.createBarewordString("doNothing").call([], namespaceScope) || tools.valueFactory.createNull());' +
-            'return tools.valueFactory.createNull();' +
-            '});'
-        )(function () {
-            return phpCore;
-        });
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+function doNothing() {}
+
+return doNothing();
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile(null, php);
 
         module().execute().then(function (result) {
             expect(result.getNative()).to.equal(null);

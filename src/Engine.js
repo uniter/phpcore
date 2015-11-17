@@ -18,8 +18,7 @@ var _ = require('microdash'),
     List = require('./List'),
     NamespaceScopeWrapper = require('./NamespaceScope'),
     ObjectValueWrapper = require('./Value/Object'),
-    Promise = require('lie'),
-    ScopeWrapper = require('./Scope');
+    Promise = require('lie');
 
 function Engine(
     environment,
@@ -78,8 +77,7 @@ _.extend(Engine.prototype, {
                 return pausable ? wrapper.async(pausable) : wrapper.sync();
             },
             NamespaceScope = unwrap(NamespaceScopeWrapper),
-            ObjectValue = unwrap(ObjectValueWrapper),
-            Scope = unwrap(ScopeWrapper);
+            ObjectValue = unwrap(ObjectValueWrapper);
 
         function include(includedPath) {
             var done = false,
@@ -182,10 +180,8 @@ _.extend(Engine.prototype, {
 
         tools = {
             createClosure: function (func, scope) {
-                func.scopeWhenCreated = scope;
-
                 return tools.valueFactory.createObject(
-                    func,
+                    scope.createClosure(func),
                     globalNamespace.getClass('Closure')
                 );
             },
@@ -225,22 +221,6 @@ _.extend(Engine.prototype, {
                 return variable.getValue();
             },
             include: include,
-            popCall: function () {
-                callStack.pop();
-            },
-            pushCall: function (thisObject, currentClass) {
-                var call;
-
-                if (!valueFactory.isValue(thisObject)) {
-                    thisObject = null;
-                }
-
-                call = new Call(new Scope(callStack, valueFactory, thisObject, currentClass));
-
-                callStack.push(call);
-
-                return call;
-            },
             referenceFactory: referenceFactory,
             requireOnce: include,
             require: include,

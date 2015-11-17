@@ -23,14 +23,16 @@ module.exports = require('pauser')([
         PHPError = phpCommon.PHPError,
         PHPFatalError = phpCommon.PHPFatalError;
 
-    function Namespace(callStack, valueFactory, classAutoloader, parent, name) {
+    function Namespace(callStack, valueFactory, namespaceFactory, functionFactory, classAutoloader, parent, name) {
         this.callStack = callStack;
         this.children = {};
         this.classAutoloader = classAutoloader;
         this.classes = {};
         this.constants = {};
+        this.functionFactory = functionFactory;
         this.functions = {};
         this.name = name;
+        this.namespaceFactory = namespaceFactory;
         this.parent = parent;
         this.valueFactory = valueFactory;
     }
@@ -41,6 +43,7 @@ module.exports = require('pauser')([
                 constants,
                 constructorName = null,
                 methodData = {},
+                methods = {},
                 namespace = this,
                 staticProperties,
                 InternalClass;
@@ -81,10 +84,7 @@ module.exports = require('pauser')([
                         constructorName = methodName;
                     }
 
-                    data.method[IS_STATIC] = data[IS_STATIC];
-                    data.method.data = methodData;
-
-                    InternalClass.prototype[methodName] = data.method;
+                    methods[methodName] = data;
                 });
 
                 staticProperties = definition.staticProperties;
@@ -103,6 +103,21 @@ module.exports = require('pauser')([
                 definition.interfaces,
                 namespaceScope
             );
+
+            _.forOwn(methods, function (methodData, methodName) {
+                var method = namespace.functionFactory.create(
+                        namespace,
+                        classObject,
+                        null,
+                        methodData.method,
+                        methodName
+                    );
+
+                method[IS_STATIC] = methodData[IS_STATIC];
+                method.data = methodData;
+
+                InternalClass.prototype[methodName] = method;
+            });
 
             methodData.classObject = classObject;
 
@@ -137,7 +152,16 @@ module.exports = require('pauser')([
                 }
             }
 
-            namespace.functions[name] = func;
+            namespace.functions[name] = namespace.functionFactory.create(
+                namespace,
+                // Class will always be null for 'normal' functions
+                // as defining a function inside a class will define it
+                // inside the current namespace instead.
+                null,
+                null,
+                func,
+                name
+            );
         },
 
         getClass: function (name) {
@@ -207,10 +231,7 @@ module.exports = require('pauser')([
 
             _.each(name.split('\\'), function (part) {
                 if (!hasOwn.call(namespace.children, part)) {
-                    namespace.children[part] = new Namespace(
-                        namespace.callStack,
-                        namespace.valueFactory,
-                        namespace.classAutoloader,
+                    namespace.children[part] = namespace.namespaceFactory.create(
                         namespace,
                         part
                     );

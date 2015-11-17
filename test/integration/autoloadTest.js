@@ -19,25 +19,16 @@ var expect = require('chai').expect,
 
 describe('PHP class autoload integration', function () {
     it('should correctly handle instantiating an asynchronously autoloaded class', function (done) {
-        var module = new Function(
-                'require',
-                'return require(\'phpcore\').compile(function (stdin, stdout, stderr, tools, namespace) {' +
-                'var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;' +
-                '(tools.valueFactory.createBarewordString("spl_autoload_register").call([' +
-                'tools.createClosure(function () {var scope = tools.pushCall(this, currentClass).getScope();' +
-                'try { tools.require(tools.valueFactory.createString("the_module.php").getNative());' +
-                '} finally { tools.popCall(); }' +
-                '}, scope' +
-                ')], namespaceScope) || tools.valueFactory.createNull());' +
-                'scope.getVariable("object").setValue(' +
-                'tools.createInstance(namespaceScope, tools.valueFactory.createBarewordString("MyClass"), [])' +
-                ');' +
-                'return scope.getVariable("object").getValue().callMethod("getIt", []);' +
-                'return tools.valueFactory.createNull();' +
-                '});'
-            )(function () {
-                return phpCore;
-            }),
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+spl_autoload_register(function () {
+    require 'the_module.php';
+});
+$object = new MyClass();
+return $object->getIt();
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile(null, php),
             options = {
                 include: function (path, promise) {
                     setTimeout(function () {
@@ -62,25 +53,16 @@ EOS
     });
 
     it('should correctly handle reading a constant of an asynchronously autoloaded class', function (done) {
-        var module = new Function(
-                'require',
-                'return require(\'phpcore\').compile(function (stdin, stdout, stderr, tools, namespace) {' +
-                'var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;' +
-                '(tools.valueFactory.createBarewordString("spl_autoload_register").call([' +
-                'tools.createClosure(function () {var scope = tools.pushCall(this, currentClass).getScope();' +
-                'try { tools.require(tools.valueFactory.createString("the_module.php").getNative());' +
-                '} finally { tools.popCall(); }' +
-                '}, scope' +
-                ')], namespaceScope) || tools.valueFactory.createNull());' +
-                'scope.getVariable("object").setValue(' +
-                'tools.createInstance(namespaceScope, tools.valueFactory.createBarewordString("MyClass"), [])' +
-                ');' +
-                'return tools.valueFactory.createBarewordString("MyClass").getConstantByName("MY_CONST", namespaceScope);' +
-                'return tools.valueFactory.createNull();' +
-                '});'
-            )(function () {
-                return phpCore;
-            }),
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+spl_autoload_register(function () {
+    require 'the_module.php';
+});
+$object = new MyClass();
+return $object::MY_CONST;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile(null, php),
             options = {
                 include: function (path, promise) {
                     setTimeout(function () {

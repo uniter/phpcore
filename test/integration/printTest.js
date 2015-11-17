@@ -10,21 +10,17 @@
 'use strict';
 
 var expect = require('chai').expect,
-    phpCore = require('../..');
+    nowdoc = require('nowdoc'),
+    tools = require('./tools');
 
 describe('PHP "print" expression integration', function () {
     it('should correctly handle a print of "hello"', function (done) {
-        var module = new Function(
-                'require',
-                'return require(\'phpcore\').compile(function (stdin, stdout, stderr, tools, namespace) {' +
-                'var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;' +
-                '(stdout.write(namespaceScope.getConstant("hello").coerceToString().getNative()), ' +
-                'tools.valueFactory.createInteger(1));' +
-                'return tools.valueFactory.createNull();' +
-                '});'
-            )(function () {
-                return phpCore;
-            }),
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+print 'hello';
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile(null, php),
             engine = module(),
             stdoutResult = '';
 
