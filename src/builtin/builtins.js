@@ -10,12 +10,14 @@
 'use strict';
 
 module.exports = require('pauser')([
+    require('./constants/reserved'),
     require('./functions/spl'),
     require('./classes/stdClass'),
     require('./classes/Closure'),
     require('./classes/Exception'),
     require('./classes/JSObject')
 ], function (
+    reservedConstants,
     splFunctions,
     stdClass,
     Closure,
@@ -29,7 +31,9 @@ module.exports = require('pauser')([
             'Exception': Exception,
             'JSObject': JSObject
         },
-        constantGroups: [],
+        constantGroups: [
+            reservedConstants
+        ],
         functionGroups: [
             splFunctions
         ]
