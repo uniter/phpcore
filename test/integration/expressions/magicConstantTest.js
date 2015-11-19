@@ -56,6 +56,132 @@ EOS
         ]);
     });
 
+    it('should support the __DIR__ magic constant', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+namespace My\App;
+
+function myFunction()
+{
+    return __DIR__;
+}
+
+class MyClass
+{
+    public static function myStaticMethod()
+    {
+        return __DIR__;
+    }
+
+    public function myInstanceMethod()
+    {
+        return __DIR__;
+    }
+}
+
+$result = array(__DIR__);
+$result[] = myFunction();
+$result[] = MyClass::myStaticMethod();
+$result[] = (new MyClass())->myInstanceMethod();
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module({path: 'path/to/the/dir/of_my_module'});
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            'path/to/the/dir',
+            'path/to/the/dir',
+            'path/to/the/dir',
+            'path/to/the/dir'
+        ]);
+    });
+
+    it('should support the __FILE__ magic constant', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+namespace My\App;
+
+function myFunction()
+{
+    return __FILE__;
+}
+
+class MyClass
+{
+    public static function myStaticMethod()
+    {
+        return __FILE__;
+    }
+
+    public function myInstanceMethod()
+    {
+        return __FILE__;
+    }
+}
+
+$result = array(__FILE__);
+$result[] = myFunction();
+$result[] = MyClass::myStaticMethod();
+$result[] = (new MyClass())->myInstanceMethod();
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module({path: 'path/to/my_module'});
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            'path/to/my_module',
+            'path/to/my_module',
+            'path/to/my_module',
+            'path/to/my_module'
+        ]);
+    });
+
+    it('should support the __LINE__ magic constant', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+namespace My\App;
+
+function myFunction()
+{
+    return __LINE__;
+}
+
+class MyClass
+{
+    public static function myStaticMethod()
+    {
+        return __LINE__;
+    }
+
+    public function myInstanceMethod()
+    {
+        return __LINE__;
+    }
+}
+
+$result = array(__LINE__);
+$result[] = myFunction();
+$result[] = MyClass::myStaticMethod();
+$result[] = (new MyClass())->myInstanceMethod();
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            22,
+            6,
+            13,
+            18
+        ]);
+    });
+
     it('should support the __FUNCTION__ magic constant', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
