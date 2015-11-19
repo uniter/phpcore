@@ -109,6 +109,25 @@ module.exports = require('pauser')([
             return scope.valueFactory.createString(functionName);
         },
 
+        getMethodName: function () {
+            var scope = this,
+                functionName = '';
+
+            if (scope.currentFunction) {
+                functionName = scope.currentFunction.funcName;
+
+                if (scope.currentClass) {
+                    // Methods are prefixed with namespace, class and `::`
+                    functionName = scope.currentClass.getName() + '::' + functionName;
+                } else {
+                    // Normal functions are prefixed with namespace
+                    functionName = scope.namespace.getPrefix() + functionName;
+                }
+            }
+
+            return scope.valueFactory.createString(functionName);
+        },
+
         getThisObject: function () {
             return this.thisObject;
         },

@@ -155,4 +155,32 @@ describe('Scope', function () {
             expect(this.scope.getFunctionName().getNative()).to.equal('');
         });
     });
+
+    describe('getMethodName()', function () {
+        it('should return the namespace, class and name when function is a class method', function () {
+            this.whenCurrentClass();
+            this.whenCurrentFunction();
+            this.namespace.getPrefix.returns('My\\App\\Space\\');
+            this.currentClass.getName.returns('My\\App\\Space\\MyClass');
+            this.currentFunction.funcName = 'myMethod';
+            this.createScope();
+
+            expect(this.scope.getMethodName().getNative()).to.equal('My\\App\\Space\\MyClass::myMethod');
+        });
+
+        it('should prefix with the namespace when function is normal', function () {
+            this.whenCurrentFunction();
+            this.namespace.getPrefix.returns('My\\App\\Space\\');
+            this.currentFunction.funcName = 'myFunc';
+            this.createScope();
+
+            expect(this.scope.getMethodName().getNative()).to.equal('My\\App\\Space\\myFunc');
+        });
+
+        it('should return the empty string when there is no current function', function () {
+            this.createScope();
+
+            expect(this.scope.getMethodName().getNative()).to.equal('');
+        });
+    });
 });

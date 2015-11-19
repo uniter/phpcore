@@ -223,4 +223,50 @@ EOS
             'myInstanceMethod'  // Instance methods are not prefixed with the class name or namespace
         ]);
     });
+
+    it('should support the __METHOD__ magic constant', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+namespace My\App;
+
+function myFunction()
+{
+    return __METHOD__;
+}
+
+class MyClass
+{
+    public static function myStaticMethod()
+    {
+        return __METHOD__;
+    }
+
+    public function myInstanceMethod()
+    {
+        return __METHOD__;
+    }
+}
+
+$result = array(__METHOD__);
+$result[] = myFunction();
+$result[] = MyClass::myStaticMethod();
+$result[] = (new MyClass())->myInstanceMethod();
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            // No current method when in global scope
+            '',
+            // Normal functions are still supported and are prefixed with the namespace
+            'My\\App\\myFunction',
+            // Static methods are prefixed with class name and namespace and use ::
+            'My\\App\\MyClass::myStaticMethod',
+            // Instance methods are prefixed with class name and namespace and _do_ also use ::
+            'My\\App\\MyClass::myInstanceMethod'
+        ]);
+    });
 });
