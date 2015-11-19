@@ -58,10 +58,11 @@ describe('FunctionFactory', function () {
             expect(this.callCreate().funcName).to.equal('myFunction');
         });
 
-        it('should store null as the function name against the function when not specified', function () {
+        it('should store the correct function name against the function when not specified', function () {
             this.name = '';
+            this.namespace.getPrefix.returns('My\\Namespace\\');
 
-            expect(this.callCreate().funcName).to.be.null;
+            expect(this.callCreate().funcName).to.equal('My\\Namespace\\{closure}');
         });
 
         it('should store the current scope against the function', function () {

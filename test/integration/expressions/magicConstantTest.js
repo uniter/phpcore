@@ -203,12 +203,24 @@ class MyClass
     {
         return __FUNCTION__;
     }
+
+    public static function callClosure()
+    {
+        $closure = function () {
+            return __FUNCTION__;
+        };
+        return $closure();
+    }
 }
 
 $result = array(__FUNCTION__);
 $result[] = myFunction();
 $result[] = MyClass::myStaticMethod();
 $result[] = (new MyClass())->myInstanceMethod();
+$result[] = function () {
+    return __FUNCTION__;
+}();
+$result[] = MyClass::callClosure();
 
 return $result;
 EOS
@@ -218,9 +230,11 @@ EOS
 
         expect(engine.execute().getNative()).to.deep.equal([
             '', // No current function when in global scope
-            'My\\App\\myFunction', // Normal functions are prefixed with the namespace
-            'myStaticMethod',   // Static methods are not prefixed with the class name or namespace
-            'myInstanceMethod'  // Instance methods are not prefixed with the class name or namespace
+            'My\\App\\myFunction',  // Normal functions are prefixed with the namespace
+            'myStaticMethod',       // Static methods are not prefixed with the class name or namespace
+            'myInstanceMethod',     // Instance methods are not prefixed with the class name or namespace
+            '{closure}',            // Closure defined outside of class or function
+            'My\\App\\{closure}'  // Closure defined inside static method
         ]);
     });
 
@@ -245,12 +259,24 @@ class MyClass
     {
         return __METHOD__;
     }
+
+    public static function callClosure()
+    {
+        $closure = function () {
+            return __METHOD__;
+        };
+        return $closure();
+    }
 }
 
 $result = array(__METHOD__);
 $result[] = myFunction();
 $result[] = MyClass::myStaticMethod();
 $result[] = (new MyClass())->myInstanceMethod();
+$result[] = function () {
+    return __METHOD__;
+}();
+$result[] = MyClass::callClosure();
 
 return $result;
 EOS
@@ -266,7 +292,11 @@ EOS
             // Static methods are prefixed with class name and namespace and use ::
             'My\\App\\MyClass::myStaticMethod',
             // Instance methods are prefixed with class name and namespace and _do_ also use ::
-            'My\\App\\MyClass::myInstanceMethod'
+            'My\\App\\MyClass::myInstanceMethod',
+            // Closure defined outside of class or function
+            '{closure}',
+            // Closure defined inside static method
+            'My\\App\\MyClass::My\\App\\{closure}'
         ]);
     });
 });

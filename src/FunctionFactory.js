@@ -48,7 +48,7 @@ _.extend(FunctionFactory.prototype, {
                 return result;
             };
 
-        wrapperFunc.funcName = name || null;
+        wrapperFunc.funcName = name || namespace.getPrefix() + '{closure}';
         wrapperFunc.scopeWhenCreated = currentScope;
 
         return wrapperFunc;
