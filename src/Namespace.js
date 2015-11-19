@@ -288,6 +288,16 @@ module.exports = require('pauser')([
             return this.getGlobal();
         },
 
+        getName: function () {
+            var namespace = this;
+
+            if (namespace.name === '') {
+                return '';
+            }
+
+            return (namespace.parent ? namespace.parent.getPrefix() : '') + namespace.name;
+        },
+
         getOwnFunction: function (name) {
             var namespace = this;
 
@@ -303,13 +313,13 @@ module.exports = require('pauser')([
         },
 
         getPrefix: function () {
-            var namespace = this;
+            var name = this.getName();
 
-            if (namespace.name === '') {
-                return '';
+            if (name !== '') {
+                name += '\\';
             }
 
-            return (namespace.parent ? namespace.parent.getPrefix() : '') + namespace.name + '\\';
+            return name;
         },
 
         hasClass: function (name) {
