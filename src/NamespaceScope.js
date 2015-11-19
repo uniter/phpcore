@@ -19,10 +19,11 @@ module.exports = require('pauser')([
     var hasOwn = {}.hasOwnProperty,
         PHPFatalError = phpCommon.PHPFatalError;
 
-    function NamespaceScope(globalNamespace, namespace) {
+    function NamespaceScope(globalNamespace, valueFactory, namespace) {
         this.globalNamespace = globalNamespace;
         this.imports = {};
         this.namespace = namespace;
+        this.valueFactory = valueFactory;
     }
 
     _.extend(NamespaceScope.prototype, {
@@ -154,6 +155,12 @@ module.exports = require('pauser')([
 
         getGlobalNamespace: function () {
             return this.globalNamespace;
+        },
+
+        getNamespaceName: function () {
+            var scope = this;
+
+            return scope.valueFactory.createString(scope.namespace.getName());
         },
 
         use: function (source, alias) {

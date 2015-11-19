@@ -299,4 +299,54 @@ EOS
             'My\\App\\MyClass::My\\App\\{closure}'
         ]);
     });
+
+    it('should support the __NAMESPACE__ magic constant', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace {
+    $result = array(__NAMESPACE__);
+}
+
+namespace My\App {
+    function myFunction()
+    {
+        return __NAMESPACE__;
+    }
+
+    class MyClass
+    {
+        public static function myStaticMethod()
+        {
+            return __NAMESPACE__;
+        }
+
+        public function myInstanceMethod()
+        {
+            return __NAMESPACE__;
+        }
+    }
+
+    $result[] = myFunction();
+    $result[] = MyClass::myStaticMethod();
+    $result[] = (new MyClass())->myInstanceMethod();
+    $result[] = function () {
+        return __NAMESPACE__;
+    }();
+}
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            '',         // Global namespace has no name
+            'My\\App',  // Normal functions
+            'My\\App',  // Static methods
+            'My\\App',  // Instance methods
+            'My\\App'   // Closures
+        ]);
+    });
 });

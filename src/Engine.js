@@ -200,7 +200,7 @@ _.extend(Engine.prototype, {
                 return new List(elements);
             },
             createNamespaceScope: function (namespace) {
-                return new NamespaceScope(globalNamespace, namespace);
+                return new NamespaceScope(globalNamespace, valueFactory, namespace);
             },
             getPath: function () {
                 return valueFactory.createString(getNormalizedPath());
