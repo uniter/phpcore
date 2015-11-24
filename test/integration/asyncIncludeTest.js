@@ -96,4 +96,24 @@ EOS
             expect(engine.getStdout().readAll()).to.equal('before 23 after');
         }), done);
     });
+
+    it('should support include transports that return a return value for the module', function (done) {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$num = include 'abc.php';
+return $num + 1;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile(null, php),
+            options = {
+                path: 'my/caller.php',
+                include: function (path, promise, callerPath, valueFactory) {
+                    promise.resolve(valueFactory.createInteger(123));
+                }
+            };
+
+        module(options).execute().then(when(done, function (result) {
+            expect(result.getNative()).to.equal(124);
+        }), done);
+    });
 });

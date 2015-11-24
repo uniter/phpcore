@@ -88,6 +88,8 @@ _.extend(Engine.prototype, {
                 });
 
             function completeWith(moduleResult) {
+                done = true;
+
                 if (pause) {
                     pause.resume(moduleResult);
                 } else {
@@ -101,16 +103,14 @@ _.extend(Engine.prototype, {
                 );
             }
 
-            function resolve(module) {
+            function resolve(valueOrModule) {
                 var executeResult;
 
                 // Handle wrapper function being returned from loader for module
-                if (_.isFunction(module)) {
-                    executeResult = module(subOptions, environment).execute();
+                if (_.isFunction(valueOrModule)) {
+                    executeResult = valueOrModule(subOptions, environment).execute();
 
                     if (!pausable) {
-                        done = true;
-
                         completeWith(executeResult);
                         return;
                     }
@@ -130,12 +130,16 @@ _.extend(Engine.prototype, {
                     throw new Exception('include(' + includedPath + ') :: Returning a PHP string is not supported');
                 }
 
+                // Handle a value object being returned as the module's return value
+                if (valueFactory.isValue(valueOrModule)) {
+                    completeWith(valueOrModule);
+                    return;
+                }
+
                 throw new Exception('include(' + includedPath + ') :: Module is in a weird format');
             }
 
             function reject() {
-                done = true;
-
                 callStack.raiseError(
                     PHPError.E_WARNING,
                     'include(' + includedPath + '): failed to open stream: No such file or directory'
@@ -151,7 +155,7 @@ _.extend(Engine.prototype, {
             subOptions[INCLUDE_OPTION](includedPath, {
                 reject: reject,
                 resolve: resolve
-            }, path);
+            }, path, valueFactory);
 
             if (done) {
                 return result;

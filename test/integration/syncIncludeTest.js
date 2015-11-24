@@ -108,4 +108,22 @@ EOS
 
         expect(engine.getStdout().readAll()).to.equal('before 23 after');
     });
+
+    it('should support include transports that return a return value for the module', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$num = include 'abc.php';
+return $num + 1;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            options = {
+                path: 'my/caller.php',
+                include: function (path, promise, callerPath, valueFactory) {
+                    promise.resolve(valueFactory.createInteger(321));
+                }
+            };
+
+        expect(module(options).execute().getNative()).to.equal(322);
+    });
 });
