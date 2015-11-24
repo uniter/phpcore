@@ -158,6 +158,17 @@ module.exports = require('pauser')([
             return this.coerceToInteger();
         },
 
+        coerceToObject: function () {
+            var value = this,
+                object = value.factory.createStdClassObject();
+
+            _.each(value.value, function (element) {
+                object.getInstancePropertyByName(element.getKey()).setValue(element.getValue());
+            });
+
+            return object;
+        },
+
         coerceToString: function () {
             return this.factory.createString('Array');
         },
