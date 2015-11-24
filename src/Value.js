@@ -70,6 +70,25 @@ module.exports = require('pauser')([
             return value.factory.createFloat(Number(value.value));
         },
 
+        coerceToObject: function () {
+            var value = this,
+                object = value.factory.createStdClassObject();
+
+            /**
+             * Scalars are coerced to objects as follows:
+             *
+             * > var_dump((object)21);
+             *
+             * object(stdClass)#1 (1) {
+             *   ["scalar"]=>
+             *   int(21)
+             * }
+             */
+            object.getInstancePropertyByName(value.factory.createString('scalar')).setValue(value);
+
+            return object;
+        },
+
         coerceToString: function () {
             throw new Error('Unimplemented');
         },
