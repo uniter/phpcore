@@ -117,6 +117,11 @@ module.exports = require('pauser')([
 
             return new PHPObject(factory.pausable, factory, object);
         },
+        createStdClassObject: function () {
+            var factory = this;
+
+            return factory.globalNamespace.getClass('stdClass').instantiate();
+        },
         createString: function (value) {
             var factory = this;
 
