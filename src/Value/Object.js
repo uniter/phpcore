@@ -173,6 +173,11 @@ module.exports = require('pauser')([
             this.callStack.raiseError(PHPError.E_WARNING, 'Illegal offset type');
         },
 
+        coerceToObject: function () {
+            // Already an object: no coercion needed
+            return this;
+        },
+
         coerceToString: function () {
             return this.callMethod('__toString');
         },

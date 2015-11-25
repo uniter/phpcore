@@ -124,6 +124,10 @@ $result = [];
 $result[] = (object)21;
 $result[] = (object)['myEl' => 'my value'];
 
+class MyClass {}
+$object = new MyClass;
+$result[] = (object)$object;
+
 return $result;
 EOS
 */;}), //jshint ignore:line
@@ -137,6 +141,7 @@ EOS
         expect(value.getElementByIndex(1).getValue().getType()).to.equal('object');
         expect(value.getElementByIndex(1).getValue().getClassName()).to.equal('stdClass');
         expect(value.getElementByIndex(1).getValue().getNative().myEl.getNative()).to.equal('my value');
+        expect(value.getElementByIndex(2).getValue().getClassName()).to.equal('MyClass');
     });
 
     it('should support the (string) cast', function () {
