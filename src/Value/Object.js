@@ -169,6 +169,17 @@ module.exports = require('pauser')([
             return this.factory.createBoolean(true);
         },
 
+        coerceToInteger: function () {
+            var value = this;
+
+            value.callStack.raiseError(
+                PHPError.E_NOTICE,
+                'Object of class ' + value.classObject.getName() + ' could not be converted to int'
+            );
+
+            return value.factory.createInteger(1);
+        },
+
         coerceToKey: function () {
             this.callStack.raiseError(PHPError.E_WARNING, 'Illegal offset type');
         },

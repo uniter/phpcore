@@ -103,6 +103,7 @@ EOS
 $result = [];
 $result[] = (int)'21.12';
 $result[] = (integer)22.23;
+$result[] = (int)new stdClass;
 
 return $result;
 EOS
@@ -112,8 +113,16 @@ EOS
 
         expect(engine.execute().getNative()).to.deep.equal([
             21,
-            22
+            22,
+            1
         ]);
+        expect(engine.getStderr().readAll()).to.equal(
+            nowdoc(function () {/*<<<EOS
+PHP Notice: Object of class stdClass could not be converted to int
+
+EOS
+*/;}) //jshint ignore:line
+        );
     });
 
     it('should support the (object) cast', function () {
