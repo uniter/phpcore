@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
+    NullReference = require('../../src/Reference/Null'),
     ObjectValue = require('../../src/Value/Object').sync(),
     PropertyReference = require('../../src/Reference/Property'),
     StringValue = require('../../src/Value/String').sync(),
@@ -61,6 +62,12 @@ describe('ValueFactory', function () {
             this.value.coerceToObject();
 
             expect(this.nativeStdClassObject.scalar).to.equal('my value');
+        });
+    });
+
+    describe('getPushElement()', function () {
+        it('should return a NullReference', function () {
+            expect(this.value.getPushElement()).to.be.an.instanceOf(NullReference);
         });
     });
 });

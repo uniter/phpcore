@@ -19,7 +19,16 @@ module.exports = require('pauser')([
     NullReference
 ) {
     var PHPError = phpCommon.PHPError,
-        PHPFatalError = phpCommon.PHPFatalError;
+        PHPFatalError = phpCommon.PHPFatalError,
+        createNullReference = function (value) {
+            var callStack = value.callStack;
+
+            return new NullReference(value.factory, {
+                onSet: function () {
+                    callStack.raiseError(PHPError.E_WARNING, 'Cannot use a scalar value as an array');
+                }
+            });
+        };
 
     function Value(factory, callStack, type, value) {
         this.factory = factory;
@@ -106,13 +115,7 @@ module.exports = require('pauser')([
         },
 
         getElementByKey: function () {
-            var callStack = this.callStack;
-
-            return new NullReference(this.factory, {
-                onSet: function () {
-                    callStack.raiseError(PHPError.E_WARNING, 'Cannot use a scalar value as an array');
-                }
-            });
+            return createNullReference(this);
         },
 
         getForAssignment: function () {
@@ -129,6 +132,10 @@ module.exports = require('pauser')([
 
         getNative: function () {
             return this.value;
+        },
+
+        getPushElement: function () {
+            return createNullReference(this);
         },
 
         getStaticPropertyByName: function () {

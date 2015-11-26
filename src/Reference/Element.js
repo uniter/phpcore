@@ -66,6 +66,11 @@ _.extend(ElementReference.prototype, {
         var element = this,
             isFirstElement = (element.arrayValue.getLength() === 0);
 
+        if (element.key === null) {
+            // This reference refers to a new element to push onto the end of an array
+            element.key = element.arrayValue.pushElement(element);
+        }
+
         if (element.reference) {
             element.reference.setValue(value);
         } else {

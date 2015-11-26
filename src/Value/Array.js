@@ -252,6 +252,12 @@ module.exports = require('pauser')([
             return this.pointer;
         },
 
+        getPushElement: function () {
+            var value = this;
+
+            return new ElementReference(value.factory, value.callStack, value, null, null);
+        },
+
         getValues: function () {
             var values = [];
 
@@ -354,6 +360,16 @@ module.exports = require('pauser')([
             value.getElementByKey(index).setValue(otherValue);
 
             return value;
+        },
+
+        pushElement: function (elementReference) {
+            var value = this,
+                key = value.getLength();
+
+            value.keysToElements[key] = elementReference;
+            value.value.push(elementReference);
+
+            return value.factory.createInteger(key);
         },
 
         referToElement: function (key) {

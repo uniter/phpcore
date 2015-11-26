@@ -13,6 +13,8 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     ArrayValue = require('../../../src/Value/Array').sync(),
     CallStack = require('../../../src/CallStack'),
+    ElementReference = require('../../../src/Reference/Element'),
+    IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyValuePair = require('../../../src/KeyValuePair'),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PropertyReference = require('../../../src/Reference/Property'),
@@ -23,6 +25,12 @@ describe('Array', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.factory = sinon.createStubInstance(ValueFactory);
+        this.factory.createInteger.restore();
+        sinon.stub(this.factory, 'createInteger', function (nativeValue) {
+            var integerValue = sinon.createStubInstance(IntegerValue);
+            integerValue.getNative.returns(nativeValue);
+            return integerValue;
+        });
         this.factory.createString.restore();
         sinon.stub(this.factory, 'createString', function (nativeValue) {
             var stringValue = sinon.createStubInstance(StringValue);
@@ -73,6 +81,36 @@ describe('Array', function () {
 
             expect(this.nativeStdClassObject.firstEl).to.equal('value of first el');
             expect(this.nativeStdClassObject.secondEl).to.equal('value of second el');
+        });
+    });
+
+    describe('getPushElement()', function () {
+        it('should return an ElementReference', function () {
+            expect(this.value.getPushElement()).to.be.an.instanceOf(ElementReference);
+        });
+    });
+
+    describe('pushElement()', function () {
+        it('should add the element to the array', function () {
+            var element = sinon.createStubInstance(ElementReference);
+            element.getKey.returns(this.factory.createInteger(21));
+            element.getValue.returns(this.factory.createString('a value'));
+
+            this.value.pushElement(element);
+
+            expect(this.value.getNative()[21]).to.equal('a value');
+        });
+
+        it('should return an IntegerValue with the pushed element\'s key', function () {
+            var element = sinon.createStubInstance(ElementReference),
+                result;
+            element.getKey.returns(this.factory.createInteger(21));
+            element.getValue.returns(this.factory.createString('a value'));
+
+            result = this.value.pushElement(element);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(2); // 0 and 1 already taken by existing elements
         });
     });
 });

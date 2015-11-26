@@ -180,6 +180,7 @@ EOS
 $result = [];
 $myFunc = function () use (&$result) {
     $result[] = 22;
+    return 23;
 };
 $result[] = (unset)21;
 $result[] = (unset)$myFunc();
@@ -192,8 +193,8 @@ EOS
 
         expect(engine.execute().getNative()).to.deep.equal([
             null,
-            null,
-            22 // From $myFunc()
+            22, // From $myFunc()
+            null
         ]);
     });
 });
