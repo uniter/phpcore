@@ -60,6 +60,8 @@ _.extend(ElementReference.prototype, {
 
         element.reference = reference;
         element.value = null;
+
+        element.arrayValue.defineElement(element);
     },
 
     setValue: function (value) {
@@ -74,10 +76,9 @@ _.extend(ElementReference.prototype, {
         if (element.reference) {
             element.reference.setValue(value);
         } else {
+            element.arrayValue.defineElement(element);
             element.value = value.getForAssignment();
         }
-
-        element.arrayValue.defineElement(element);
 
         if (isFirstElement) {
             element.arrayValue.setPointer(element.arrayValue.getKeys().indexOf(element.key.getNative().toString()));

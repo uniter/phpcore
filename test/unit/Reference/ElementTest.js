@@ -48,6 +48,17 @@ describe('ElementReference', function () {
         );
     });
 
+    describe('setReference()', function () {
+        it('should define the element in its array', function () {
+            var reference = sinon.createStubInstance(Variable);
+
+            this.element.setReference(reference);
+
+            expect(this.arrayValue.defineElement).to.have.been.calledOnce;
+            expect(this.arrayValue.defineElement).to.have.been.calledWith(sinon.match.same(this.element));
+        });
+    });
+
     describe('setValue()', function () {
         describe('when the element is not a reference', function () {
             it('should define the element in its array', function () {
