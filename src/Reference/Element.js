@@ -74,9 +74,10 @@ _.extend(ElementReference.prototype, {
         if (element.reference) {
             element.reference.setValue(value);
         } else {
-            element.arrayValue.defineElement(element);
             element.value = value.getForAssignment();
         }
+
+        element.arrayValue.defineElement(element);
 
         if (isFirstElement) {
             element.arrayValue.setPointer(element.arrayValue.getKeys().indexOf(element.key.getNative().toString()));
