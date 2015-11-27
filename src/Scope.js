@@ -133,11 +133,17 @@ module.exports = require('pauser')([
         },
 
         getVariable: function (name) {
-            var scope = this;
+            var scope = this,
+                variable;
 
             if (!hasOwn.call(scope.variables, name)) {
                 // Implicitly define the variable
-                scope.variables[name] = new Variable(scope.callStack, scope.valueFactory, name);
+                variable = new Variable(scope.callStack, scope.valueFactory, name);
+                scope.variables[name] = variable;
+
+                if (scope.errorsSuppressed) {
+                    variable.setValue(scope.valueFactory.createNull());
+                }
             }
 
             return scope.variables[name];

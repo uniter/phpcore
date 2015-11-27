@@ -18,16 +18,27 @@ describe('PHP error control @(...) operator integration', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
-function myFunc() {
+function badFunc() {
     print $myUndefVar; // Should raise a notice
     return 21;
+}
+function goodFunc($msg) {
+    return 22;
+}
+function returnIt($it) {
+    return $it;
+}
+function badFunc2() {
+    return returnIt($anUndefVar);
 }
 
 $result = [];
 $result[] = @$anUnsetVar;
 @$result[] = $anotherUnsetVar;
-$result[] = @myFunc();
+$result[] = @badFunc();
+$result[] = goodFunc(@$andAnotherUnsetVar);
 $result[] = $undefVarWithNoSuppression;
+$result[] = @badFunc2();
 
 return $result;
 EOS
@@ -39,6 +50,8 @@ EOS
             null,
             null,
             21,
+            22,
+            null,
             null
         ]);
         // Only the unsuppressed expression should be able to raise an error
