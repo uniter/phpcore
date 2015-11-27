@@ -81,7 +81,7 @@ _.extend(ElementReference.prototype, {
         }
 
         if (isFirstElement) {
-            element.arrayValue.setPointer(element.arrayValue.getKeys().indexOf(element.key.getNative().toString()));
+            element.arrayValue.pointToElement(element);
         }
     }
 });

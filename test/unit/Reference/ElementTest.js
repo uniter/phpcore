@@ -86,5 +86,34 @@ describe('ElementReference', function () {
                 expect(this.arrayValue.defineElement).to.have.been.calledWith(sinon.match.same(this.element));
             });
         });
+
+        describe('when this element is the first one to be defined', function () {
+            beforeEach(function () {
+                this.arrayValue.getLength.returns(0);
+            });
+
+            it('should change the array pointer to point to this element', function () {
+                var newValue = this.factory.createString('my new value');
+
+                this.element.setValue(newValue);
+
+                expect(this.arrayValue.pointToElement).to.have.been.calledOnce;
+                expect(this.arrayValue.pointToElement).to.have.been.calledWith(sinon.match.same(this.element));
+            });
+        });
+
+        describe('when this element is the second one to be defined', function () {
+            beforeEach(function () {
+                this.arrayValue.getLength.returns(1);
+            });
+
+            it('should not change the array pointer', function () {
+                var newValue = this.factory.createString('my new value');
+
+                this.element.setValue(newValue);
+
+                expect(this.arrayValue.pointToElement).not.to.have.been.called;
+            });
+        });
     });
 });
