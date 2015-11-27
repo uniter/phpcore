@@ -74,6 +74,7 @@ _.extend(ElementReference.prototype, {
         if (element.reference) {
             element.reference.setValue(value);
         } else {
+            element.arrayValue.defineElement(element);
             element.value = value.getForAssignment();
         }
 

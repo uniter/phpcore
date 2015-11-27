@@ -173,6 +173,14 @@ module.exports = require('pauser')([
             return this.factory.createString('Array');
         },
 
+        defineElement: function (elementReference) {
+            var value = this;
+
+            if (value.value.indexOf(elementReference) === -1) {
+                value.value.push(elementReference);
+            }
+        },
+
         getForAssignment: function () {
             return this.clone();
         },
@@ -220,7 +228,6 @@ module.exports = require('pauser')([
             if (!hasOwn.call(value.keysToElements, keyValue)) {
                 element = new ElementReference(value.factory, value.callStack, value, key, null);
 
-                value.value.push(element);
                 value.keysToElements[keyValue] = element;
             }
 

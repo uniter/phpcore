@@ -147,12 +147,24 @@ module.exports = require('pauser')([
             this.errorsSuppressed = true;
         },
 
+        suppressOwnErrors: function () {
+            this.ownErrorsSuppressed = true;
+        },
+
         suppressesErrors: function () {
             return this.errorsSuppressed;
         },
 
+        suppressesOwnErrors: function () {
+            return this.ownErrorsSuppressed;
+        },
+
         unsuppressErrors: function () {
             this.errorsSuppressed = false;
+        },
+
+        unsuppressOwnErrors: function () {
+            this.ownErrorsSuppressed = false;
         }
     });
 

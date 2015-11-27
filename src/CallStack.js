@@ -38,7 +38,13 @@ _.extend(CallStack.prototype, {
             chain = this,
             calls = chain.calls,
             error,
-            index = 0;
+            index;
+
+        // Some constructs like isset(...) should only suppress errors
+        // for their own scope
+        if (chain.getCurrent().getScope().suppressesOwnErrors()) {
+            return;
+        }
 
         for (index = calls.length - 1; index >= 0; --index) {
             call = calls[index];
