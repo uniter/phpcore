@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     ArrayValue = require('../../../src/Value/Array').sync(),
+    BooleanValue = require('../../../src/Value/Boolean').sync(),
     CallStack = require('../../../src/CallStack'),
     ElementReference = require('../../../src/Reference/Element'),
     IntegerValue = require('../../../src/Value/Integer').sync(),
@@ -25,6 +26,12 @@ describe('Array', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.factory = sinon.createStubInstance(ValueFactory);
+        this.factory.createBoolean.restore();
+        sinon.stub(this.factory, 'createBoolean', function (nativeValue) {
+            var booleanValue = sinon.createStubInstance(BooleanValue);
+            booleanValue.getNative.returns(nativeValue);
+            return booleanValue;
+        });
         this.factory.createInteger.restore();
         sinon.stub(this.factory, 'createInteger', function (nativeValue) {
             var integerValue = sinon.createStubInstance(IntegerValue);
@@ -35,8 +42,12 @@ describe('Array', function () {
         sinon.stub(this.factory, 'createString', function (nativeValue) {
             var stringValue = sinon.createStubInstance(StringValue);
             stringValue.getNative.returns(nativeValue);
+            stringValue.isEqualTo.restore();
+            sinon.stub(stringValue, 'isEqualTo', function (otherValue) {
+                return this.factory.createBoolean(otherValue.getNative() === nativeValue);
+            }.bind(this));
             return stringValue;
-        });
+        }.bind(this));
 
         this.element1 = sinon.createStubInstance(KeyValuePair);
         this.element2 = sinon.createStubInstance(KeyValuePair);
@@ -87,6 +98,17 @@ describe('Array', function () {
     describe('getPushElement()', function () {
         it('should return an ElementReference', function () {
             expect(this.value.getPushElement()).to.be.an.instanceOf(ElementReference);
+        });
+    });
+
+    describe('pointToElement()', function () {
+        it('should set the pointer to the index of the key in the array', function () {
+            var element = sinon.createStubInstance(ElementReference);
+            element.getKey.returns(this.factory.createString('secondEl'));
+
+            this.value.pointToElement(element);
+
+            expect(this.value.getPointer()).to.equal(1);
         });
     });
 

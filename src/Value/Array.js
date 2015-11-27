@@ -360,6 +360,16 @@ module.exports = require('pauser')([
             throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
         },
 
+        pointToElement: function (elementReference) {
+            var value = this;
+
+            _.each(value.value, function (element, index) {
+                if (element.getKey().isEqualTo(elementReference.getKey()).getNative()) {
+                    value.setPointer(index);
+                }
+            });
+        },
+
         push: function (otherValue) {
             var value = this,
                 index = value.factory.createInteger(value.getLength());
