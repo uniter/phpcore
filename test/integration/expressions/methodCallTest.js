@@ -32,4 +32,23 @@ EOS
 
         expect(module().execute().getNative()).to.equal(21);
     });
+
+    it('should treat method names as case-insensitive', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+class MyClass
+{
+    public function myMethod()
+    {
+        return 21;
+    }
+}
+
+return (new MyClass)->MYMEthod();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.equal(21);
+    });
 });

@@ -18,12 +18,19 @@ var expect = require('chai').expect,
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
     StringValue = require('../../../src/Value/String').sync(),
+    Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('Object', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.factory = sinon.createStubInstance(ValueFactory);
+        this.factory.coerce.restore();
+        sinon.stub(this.factory, 'coerce', function (nativeValue) {
+            var value = sinon.createStubInstance(Value);
+            value.getNative.returns(nativeValue);
+            return value;
+        });
         this.factory.createInteger.restore();
         sinon.stub(this.factory, 'createInteger', function (nativeValue) {
             var integerValue = sinon.createStubInstance(IntegerValue);
@@ -48,6 +55,89 @@ describe('Object', function () {
             this.classObject,
             this.objectID
         );
+    });
+
+    describe('callMethod()', function () {
+        describe('when a wrapped native function is called directly with __invoke()', function () {
+            beforeEach(function () {
+                this.nativeObject = sinon.stub();
+
+                this.value = new ObjectValue(
+                    this.factory,
+                    this.callStack,
+                    this.nativeObject,
+                    this.classObject,
+                    this.objectID
+                );
+            });
+
+            it('should call the wrapped function once', function () {
+                this.value.callMethod('__invoke', []);
+
+                expect(this.nativeObject).to.have.been.calledOnce;
+            });
+
+            it('should use the wrapper ObjectValue as `this`', function () {
+                this.value.callMethod('__invoke', []);
+
+                expect(this.nativeObject).to.have.been.calledOn(sinon.match.same(this.value));
+            });
+
+            it('should be passed the arguments', function () {
+                var arg1 = sinon.createStubInstance(Value),
+                    arg2 = sinon.createStubInstance(Value);
+
+                this.value.callMethod('__invoke', [arg1, arg2]);
+
+                expect(this.nativeObject).to.have.been.calledWith(
+                    sinon.match.same(arg1),
+                    sinon.match.same(arg2)
+                );
+            });
+
+            it('should return the result', function () {
+                this.nativeObject.returns('my result');
+
+                expect(this.value.callMethod('__invoke').getNative()).to.equal('my result');
+            });
+        });
+
+        describe('when calling a method of the wrapped object', function () {
+            beforeEach(function () {
+                this.myMethod = sinon.stub();
+                this.nativeObject.myMethod = this.myMethod;
+            });
+
+            it('should call the method once', function () {
+                this.value.callMethod('myMethod', []);
+
+                expect(this.myMethod).to.have.been.calledOnce;
+            });
+
+            it('should use the wrapper ObjectValue as `this`', function () {
+                this.value.callMethod('myMethod', []);
+
+                expect(this.myMethod).to.have.been.calledOn(sinon.match.same(this.value));
+            });
+
+            it('should be passed the arguments', function () {
+                var arg1 = sinon.createStubInstance(Value),
+                    arg2 = sinon.createStubInstance(Value);
+
+                this.value.callMethod('myMethod', [arg1, arg2]);
+
+                expect(this.myMethod).to.have.been.calledWith(
+                    sinon.match.same(arg1),
+                    sinon.match.same(arg2)
+                );
+            });
+
+            it('should be case-insensitive', function () {
+                this.value.callMethod('MYMEthoD', []);
+
+                expect(this.myMethod).to.have.been.calledOnce;
+            });
+        });
     });
 
     describe('coerceToInteger()', function () {

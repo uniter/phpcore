@@ -27,6 +27,35 @@ module.exports = require('pauser')([
     Value
 ) {
     var hasOwn = {}.hasOwnProperty,
+        getPropertyCaseInsensitive = function (object, property) {
+            var found = false,
+                lowerCaseProperty = property.toLowerCase(),
+                otherObject,
+                value = null;
+
+            _.forOwn(object, function (propertyValue, propertyName) {
+                if (propertyName.toLowerCase() === lowerCaseProperty) {
+                    found = true;
+                    value = propertyValue;
+                    return false;
+                }
+            });
+
+            if (!found) {
+                otherObject = Object.getPrototypeOf(object);
+
+                if (!otherObject) {
+                    return null;
+                }
+
+                return getPropertyCaseInsensitive(otherObject, property);
+            }
+
+            return {
+                object: object,
+                value: value
+            };
+        },
         PHPError = phpCommon.PHPError,
         PHPFatalError = phpCommon.PHPFatalError;
 
@@ -85,9 +114,9 @@ module.exports = require('pauser')([
         callMethod: function (name, args) {
             var defined = true,
                 func,
+                match,
                 value = this,
                 object = value.value,
-                otherObject,
                 thisObject = value,
                 thisVariable;
 
@@ -96,19 +125,13 @@ module.exports = require('pauser')([
                 func = object;
             } else {
                 // Allow methods inherited via the prototype chain up to but not including Object.prototype
-                if (!hasOwn.call(object, name)) {
-                    otherObject = object;
+                match = getPropertyCaseInsensitive(object, name);
 
-                    do {
-                        otherObject = Object.getPrototypeOf(otherObject);
-                        if (!otherObject || otherObject === Object.prototype) {
-                            defined = false;
-                            break;
-                        }
-                    } while (!hasOwn.call(otherObject, name));
+                if (!match || match.object === Object.prototype) {
+                    defined = false;
+                } else {
+                    func = match.value;
                 }
-
-                func = object[name];
             }
 
             if (!defined || !_.isFunction(func)) {
