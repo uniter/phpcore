@@ -152,7 +152,7 @@ module.exports = require('pauser')([
                 }
             }
 
-            namespace.functions[name] = namespace.functionFactory.create(
+            namespace.functions[name.toLowerCase()] = namespace.functionFactory.create(
                 namespace,
                 // Class will always be null for 'normal' functions
                 // as defining a function inside a class will define it
@@ -265,14 +265,14 @@ module.exports = require('pauser')([
                 return subNamespace.getFunction(name);
             }
 
-            if (hasOwn.call(namespace.functions, name)) {
-                return namespace.functions[name];
+            if (hasOwn.call(namespace.functions, name.toLowerCase())) {
+                return namespace.functions[name.toLowerCase()];
             }
 
             globalNamespace = namespace.getGlobal();
 
-            if (hasOwn.call(globalNamespace.functions, name)) {
-                return globalNamespace.functions[name];
+            if (hasOwn.call(globalNamespace.functions, name.toLowerCase())) {
+                return globalNamespace.functions[name.toLowerCase()];
             }
 
             throw new PHPFatalError(PHPFatalError.CALL_TO_UNDEFINED_FUNCTION, {name: namespace.getPrefix() + name});

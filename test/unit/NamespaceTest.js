@@ -27,6 +27,19 @@ describe('Namespace', function () {
         this.parentNamespace = sinon.createStubInstance(Namespace);
         this.valueFactory = sinon.createStubInstance(ValueFactory);
 
+        this.functionFactory.create.restore();
+        sinon.stub(this.functionFactory, 'create', function (namespace, currentClass, currentScope, func, name) {
+            var wrapperFunc = sinon.stub();
+            wrapperFunc.testArgs = {
+                namespace: namespace,
+                currentClass: currentClass,
+                currentScope: currentScope,
+                func: func,
+                name: name
+            };
+            return wrapperFunc;
+        });
+
         this.createNamespace = function (namespaceName) {
             this.namespace = new Namespace(
                 this.callStack,
@@ -35,9 +48,58 @@ describe('Namespace', function () {
                 this.functionFactory,
                 this.classAutoloader,
                 this.parentNamespace,
-                namespaceName
+                namespaceName || ''
             );
         }.bind(this);
+    });
+
+    describe('getFunction()', function () {
+        beforeEach(function () {
+            this.function = sinon.stub();
+            this.createNamespace('MyNamespace');
+        });
+
+        it('should simply return a native function if specified', function () {
+            this.namespace.defineFunction('myFunction', this.function);
+
+            expect(this.namespace.getFunction(this.function)).to.equal(this.function);
+        });
+
+        it('should retrieve the function with correct case', function () {
+            this.namespace.defineFunction('myFunction', this.function);
+
+            expect(this.namespace.getFunction('myFunction').testArgs.func).to.equal(this.function);
+        });
+
+        it('should retrieve the function case-insensitively', function () {
+            this.namespace.defineFunction('myFunction', this.function);
+
+            expect(this.namespace.getFunction('MYFUNctioN').testArgs.func).to.equal(this.function);
+        });
+
+        it('should fall back to the global namespace if the function does not exist in this one', function () {
+            var theFunction = sinon.stub();
+            this.parentNamespace.functions = {
+                thefunction: theFunction
+            };
+            this.parentNamespace.name = '';
+            this.parentNamespace.getGlobal.returns(this.parentNamespace);
+
+            expect(this.namespace.getFunction('THEFunCTion')).to.equal(theFunction);
+        });
+
+        it('should allow functions in this namespace to override those in the global one', function () {
+            var functionInGlobalSpace = sinon.stub(),
+                functionInThisSpace = sinon.stub();
+            this.parentNamespace.functions = {
+                thefunction: functionInGlobalSpace
+            };
+            this.parentNamespace.name = '';
+            this.parentNamespace.getGlobal.returns(this.parentNamespace);
+            this.namespace.defineFunction('theFunction', functionInThisSpace);
+
+            expect(this.namespace.getFunction('theFunction').testArgs.func).to.equal(functionInThisSpace);
+        });
     });
 
     describe('getName()', function () {
