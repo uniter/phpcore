@@ -140,8 +140,8 @@ module.exports = require('pauser')([
                     path = match[2];
                     name = match[3];
 
-                    if (hasOwn.call(scope.imports, prefix)) {
-                        namespace = scope.globalNamespace.getDescendant(scope.imports[prefix].substr(1) + path);
+                    if (hasOwn.call(scope.imports, prefix.toLowerCase())) {
+                        namespace = scope.globalNamespace.getDescendant(scope.imports[prefix.toLowerCase()].substr(1) + path);
                     } else {
                         // Not an alias: look up the namespace path relative to this namespace
                         // (ie. 'namespace Test { Our\Func(); }' -> '\Test\Our\Func();')

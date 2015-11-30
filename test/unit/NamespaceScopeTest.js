@@ -109,6 +109,45 @@ describe('NamespaceScope', function () {
         });
     });
 
+    describe('getFunction()', function () {
+        it('should support fetching a function with no imports involved', function () {
+            var myFunction = sinon.stub();
+            this.namespace.getFunction.withArgs('myFunction').returns(myFunction);
+
+            expect(this.scope.getFunction('myFunction')).to.equal(myFunction);
+        });
+
+        it('should support fetching a relative function path with prefix aliased case-insensitively', function () {
+            var myFunction = sinon.stub(),
+                subNamespace = sinon.createStubInstance(Namespace);
+            this.globalNamespace.getDescendant.withArgs('The\\Namespace\\Of\\My').returns(subNamespace);
+            subNamespace.getFunction.withArgs('myFunction').returns(myFunction);
+            this.scope.use('The\\Namespace\\Of', 'TheAliasOfIt');
+
+            expect(this.scope.getFunction('thealIASOFit\\My\\myFunction')).to.equal(myFunction);
+        });
+
+        it('should support fetching a relative function path within the current namespace case-insensitively', function () {
+            var myFunction = sinon.stub(),
+                subNamespace = sinon.createStubInstance(Namespace);
+            this.globalNamespace.getDescendant.withArgs('My\\Current\\Namespace\\Relative\\Path\\To').returns(subNamespace);
+            subNamespace.getFunction.withArgs('myFunction').returns(myFunction);
+            this.namespace.getPrefix.returns('My\\Current\\Namespace\\');
+
+            expect(this.scope.getFunction('Relative\\Path\\To\\myFunction')).to.equal(myFunction);
+        });
+
+        it('should support fetching an absolute function path', function () {
+            var myFunction = sinon.stub(),
+                subNamespace = sinon.createStubInstance(Namespace);
+            this.globalNamespace.getDescendant.withArgs('The\\Absolute\\Path\\To\\My').returns(subNamespace);
+            subNamespace.getFunction.withArgs('myAbsoluteFunction').returns(myFunction);
+            this.scope.use('I\\Should\\Be\\Ignored', 'The');
+
+            expect(this.scope.getFunction('\\The\\Absolute\\Path\\To\\My\\myAbsoluteFunction')).to.equal(myFunction);
+        });
+    });
+
     describe('getNamespaceName()', function () {
         it('should return the name of the namespace', function () {
             this.namespace.getName.returns('My\\Namespace');
