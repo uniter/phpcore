@@ -35,8 +35,8 @@ module.exports = require('pauser')([
                 prefix;
 
             // Check whether the entire class name is aliased
-            if (hasOwn.call(scope.imports, name)) {
-                name = scope.imports[name];
+            if (hasOwn.call(scope.imports, name.toLowerCase())) {
+                name = scope.imports[name.toLowerCase()];
                 namespace = scope.globalNamespace;
             }
 
@@ -59,8 +59,8 @@ module.exports = require('pauser')([
                     prefix = match[1];
                     path = match[2];
 
-                    if (hasOwn.call(scope.imports, prefix)) {
-                        namespace = scope.globalNamespace.getDescendant(scope.imports[prefix].substr(1) + path);
+                    if (hasOwn.call(scope.imports, prefix.toLowerCase())) {
+                        namespace = scope.globalNamespace.getDescendant(scope.imports[prefix.toLowerCase()].substr(1) + path);
                         name = match[3];
                     }
                 }
@@ -175,7 +175,7 @@ module.exports = require('pauser')([
                 normalizedSource = '\\' + normalizedSource;
             }
 
-            if (scope.imports[alias]) {
+            if (scope.imports[alias.toLowerCase()]) {
                 throw new PHPFatalError(
                     PHPFatalError.NAME_ALREADY_IN_USE,
                     {
@@ -185,7 +185,7 @@ module.exports = require('pauser')([
                 );
             }
 
-            scope.imports[alias] = normalizedSource;
+            scope.imports[alias.toLowerCase()] = normalizedSource;
         }
     });
 
