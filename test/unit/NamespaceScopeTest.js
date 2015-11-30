@@ -70,6 +70,45 @@ describe('NamespaceScope', function () {
         });
     });
 
+    describe('getConstant()', function () {
+        it('should support fetching a constant with no imports involved', function () {
+            var myConstant = this.valueFactory.createString('The value of my constant');
+            this.namespace.getConstant.withArgs('MY_CONSTANT', false).returns(myConstant);
+
+            expect(this.scope.getConstant('MY_CONSTANT')).to.equal(myConstant);
+        });
+
+        it('should support fetching a relative constant path with prefix aliased case-insensitively', function () {
+            var myConstant = this.valueFactory.createString('a value'),
+                subNamespace = sinon.createStubInstance(Namespace);
+            this.globalNamespace.getDescendant.withArgs('The\\Namespace\\Of\\My').returns(subNamespace);
+            subNamespace.getConstant.withArgs('MY_CONS', true).returns(myConstant);
+            this.scope.use('The\\Namespace\\Of', 'TheAliasOfIt');
+
+            expect(this.scope.getConstant('thealIASOFit\\My\\MY_CONS')).to.equal(myConstant);
+        });
+
+        it('should support fetching a relative constant path within the current namespace case-insensitively', function () {
+            var myConstant = this.valueFactory.createString('a value'),
+                subNamespace = sinon.createStubInstance(Namespace);
+            this.globalNamespace.getDescendant.withArgs('My\\Current\\Namespace\\Relative\\Path\\To').returns(subNamespace);
+            subNamespace.getConstant.withArgs('MY_CONS', true).returns(myConstant);
+            this.namespace.getPrefix.returns('My\\Current\\Namespace\\');
+
+            expect(this.scope.getConstant('Relative\\Path\\To\\MY_CONS')).to.equal(myConstant);
+        });
+
+        it('should support fetching an absolute constant path', function () {
+            var myConstant = this.valueFactory.createString('the value of my constant'),
+                subNamespace = sinon.createStubInstance(Namespace);
+            this.globalNamespace.getDescendant.withArgs('The\\Absolute\\Path\\To\\My').returns(subNamespace);
+            subNamespace.getConstant.withArgs('THE_CONSTANT', true).returns(myConstant);
+            this.scope.use('I\\Should\\Be\\Ignored', 'The');
+
+            expect(this.scope.getConstant('\\The\\Absolute\\Path\\To\\My\\THE_CONSTANT')).to.equal(myConstant);
+        });
+    });
+
     describe('getNamespaceName()', function () {
         it('should return the name of the namespace', function () {
             this.namespace.getName.returns('My\\Namespace');

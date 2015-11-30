@@ -75,7 +75,7 @@ module.exports = require('pauser')([
                 namespace = scope.namespace,
                 path,
                 prefix,
-                usesNamespace;
+                usesNamespace = false;
 
             // Check whether the constant path is absolute, so no 'use's apply
             if (name.charAt(0) === '\\') {
@@ -99,8 +99,8 @@ module.exports = require('pauser')([
                     path = match[2];
                     name = match[3];
 
-                    if (hasOwn.call(scope.imports, prefix)) {
-                        namespace = scope.globalNamespace.getDescendant(scope.imports[prefix].substr(1) + path);
+                    if (hasOwn.call(scope.imports, prefix.toLowerCase())) {
+                        namespace = scope.globalNamespace.getDescendant(scope.imports[prefix.toLowerCase()].substr(1) + path);
                     } else {
                         // Not an alias: look up the namespace path relative to this namespace
                         // (ie. 'namespace Test { echo Our\CONSTANT; }' -> 'echo \Test\Our\CONSTANT;')
