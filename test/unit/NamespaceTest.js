@@ -117,6 +117,36 @@ describe('Namespace', function () {
         });
     });
 
+    describe('getOwnFunction()', function () {
+        beforeEach(function () {
+            this.function = sinon.stub();
+            this.createNamespace('MyNamespace');
+        });
+
+        it('should retrieve the function with correct case', function () {
+            this.namespace.defineFunction('myFunction', this.function);
+
+            expect(this.namespace.getOwnFunction('myFunction').testArgs.func).to.equal(this.function);
+        });
+
+        it('should retrieve the function case-insensitively', function () {
+            this.namespace.defineFunction('myFunction', this.function);
+
+            expect(this.namespace.getOwnFunction('MYFUNctioN').testArgs.func).to.equal(this.function);
+        });
+
+        it('should not fall back to the global namespace if the function does not exist in this one', function () {
+            var theFunction = sinon.stub();
+            this.parentNamespace.functions = {
+                thefunction: theFunction
+            };
+            this.parentNamespace.name = '';
+            this.parentNamespace.getGlobal.returns(this.parentNamespace);
+
+            expect(this.namespace.getOwnFunction('thefunction')).to.be.null;
+        });
+    });
+
     describe('getPrefix()', function () {
         it('should return the full path of the namespace suffixed with a backslash', function () {
             this.parentNamespace.getPrefix.returns('The\\Parent\\Of\\');

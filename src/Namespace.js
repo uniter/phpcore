@@ -301,8 +301,8 @@ module.exports = require('pauser')([
         getOwnFunction: function (name) {
             var namespace = this;
 
-            if (hasOwn.call(namespace.functions, name)) {
-                return namespace.functions[name];
+            if (hasOwn.call(namespace.functions, name.toLowerCase())) {
+                return namespace.functions[name.toLowerCase()];
             }
 
             return null;
