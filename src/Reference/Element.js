@@ -62,6 +62,8 @@ _.extend(ElementReference.prototype, {
         element.value = null;
 
         element.arrayValue.defineElement(element);
+
+        return reference;
     },
 
     setValue: function (value) {
@@ -83,6 +85,8 @@ _.extend(ElementReference.prototype, {
         if (isFirstElement) {
             element.arrayValue.pointToElement(element);
         }
+
+        return value;
     }
 });
 

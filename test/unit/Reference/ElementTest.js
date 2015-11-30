@@ -57,6 +57,12 @@ describe('ElementReference', function () {
             expect(this.arrayValue.defineElement).to.have.been.calledOnce;
             expect(this.arrayValue.defineElement).to.have.been.calledWith(sinon.match.same(this.element));
         });
+
+        it('should return the element reference', function () {
+            var reference = sinon.createStubInstance(Variable);
+
+            expect(this.element.setReference(reference)).to.equal(reference);
+        });
     });
 
     describe('setValue()', function () {
@@ -68,6 +74,12 @@ describe('ElementReference', function () {
 
                 expect(this.arrayValue.defineElement).to.have.been.calledOnce;
                 expect(this.arrayValue.defineElement).to.have.been.calledWith(sinon.match.same(this.element));
+            });
+
+            it('should return the value assigned', function () {
+                var newValue = this.factory.createString('my new value');
+
+                expect(this.element.setValue(newValue)).to.equal(newValue);
             });
         });
 
@@ -84,6 +96,12 @@ describe('ElementReference', function () {
 
                 expect(this.arrayValue.defineElement).to.have.been.calledOnce;
                 expect(this.arrayValue.defineElement).to.have.been.calledWith(sinon.match.same(this.element));
+            });
+
+            it('should return the value assigned', function () {
+                var newValue = this.factory.createString('my new value');
+
+                expect(this.element.setValue(newValue)).to.equal(newValue);
             });
         });
 
