@@ -227,20 +227,21 @@ module.exports = require('pauser')([
         },
 
         getDescendant: function (name) {
-            var namespace = this;
+            var namespace = this,
+                subNamespace = namespace;
 
             _.each(name.split('\\'), function (part) {
-                if (!hasOwn.call(namespace.children, part)) {
-                    namespace.children[part] = namespace.namespaceFactory.create(
-                        namespace,
+                if (!hasOwn.call(subNamespace.children, part.toLowerCase())) {
+                    subNamespace.children[part.toLowerCase()] = namespace.namespaceFactory.create(
+                        subNamespace,
                         part
                     );
                 }
 
-                namespace = namespace.children[part];
+                subNamespace = subNamespace.children[part.toLowerCase()];
             });
 
-            return namespace;
+            return subNamespace;
         },
 
         getFunction: function (name) {

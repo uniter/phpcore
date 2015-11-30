@@ -40,6 +40,17 @@ describe('Namespace', function () {
             return wrapperFunc;
         });
 
+        this.namespaceFactory.create.restore();
+        sinon.stub(this.namespaceFactory, 'create', function (parentNamespace, name) {
+            var subNamespace = sinon.createStubInstance(Namespace);
+            subNamespace.children = {};
+            subNamespace.testArgs = {
+                parentNamespace: parentNamespace,
+                name: name
+            };
+            return subNamespace;
+        });
+
         this.createNamespace = function (namespaceName) {
             this.namespace = new Namespace(
                 this.callStack,
@@ -51,6 +62,17 @@ describe('Namespace', function () {
                 namespaceName || ''
             );
         }.bind(this);
+    });
+
+    describe('getDescendant', function () {
+        it('should fetch descendant namespaces case-insensitively', function () {
+            var descendantNamespace;
+            this.createNamespace('MyNamespace');
+
+            descendantNamespace = this.namespace.getDescendant('My\\Namespace\\Path');
+
+            expect(this.namespace.getDescendant('mY\\NameSPACE\\PaTh')).to.equal(descendantNamespace);
+        });
     });
 
     describe('getFunction()', function () {
