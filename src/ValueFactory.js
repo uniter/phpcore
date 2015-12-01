@@ -15,6 +15,7 @@ module.exports = require('pauser')([
     require('./Value/Array'),
     require('./Value/BarewordString'),
     require('./Value/Boolean'),
+    require('./Value/Exit'),
     require('./Value/Float'),
     require('./Value/Integer'),
     require('./Value/Null'),
@@ -28,6 +29,7 @@ module.exports = require('pauser')([
     ArrayValue,
     BarewordStringValue,
     BooleanValue,
+    ExitValue,
     FloatValue,
     IntegerValue,
     NullValue,
@@ -65,6 +67,11 @@ module.exports = require('pauser')([
             var factory = this;
 
             return new BooleanValue(factory, factory.callStack, value);
+        },
+        createExit: function (statusValue) {
+            var factory = this;
+
+            return new ExitValue(factory, factory.callStack, statusValue);
         },
         createFloat: function (value) {
             var factory = this;

@@ -14,6 +14,7 @@ var _ = require('microdash'),
     PATH = 'path',
     pauser = require('pauser'),
     Call = require('./Call'),
+    ExitValueWrapper = require('./Value/Exit'),
     KeyValuePair = require('./KeyValuePair'),
     List = require('./List'),
     NamespaceScopeWrapper = require('./NamespaceScope'),
@@ -76,6 +77,7 @@ _.extend(Engine.prototype, {
             unwrap = function (wrapper) {
                 return pausable ? wrapper.async(pausable) : wrapper.sync();
             },
+            ExitValue = unwrap(ExitValueWrapper),
             NamespaceScope = unwrap(NamespaceScopeWrapper),
             ObjectValue = unwrap(ObjectValueWrapper);
 
@@ -91,8 +93,17 @@ _.extend(Engine.prototype, {
                 done = true;
 
                 if (pause) {
+                    if (moduleResult instanceof ExitValue) {
+                        pause.throw(moduleResult);
+                        return;
+                    }
+
                     pause.resume(moduleResult);
                 } else {
+                    if (moduleResult instanceof ExitValue) {
+                        throw moduleResult;
+                    }
+
                     result = moduleResult;
                 }
             }
@@ -206,6 +217,9 @@ _.extend(Engine.prototype, {
             createNamespaceScope: function (namespace) {
                 return new NamespaceScope(globalNamespace, valueFactory, namespace);
             },
+            exit: function (statusValue) {
+                throw valueFactory.createExit(statusValue);
+            },
             getPath: function () {
                 return valueFactory.createString(getNormalizedPath());
             },
@@ -238,6 +252,10 @@ _.extend(Engine.prototype, {
         callStack.push(new Call(globalScope));
 
         function handleError(error, reject) {
+            if (error instanceof ExitValue) {
+                return error;
+            }
+
             if (error instanceof ObjectValue) {
                 // Uncaught PHP Exceptions become E_FATAL errors
                 (function (value) {
@@ -293,7 +311,11 @@ _.extend(Engine.prototype, {
                         globalNamespace: globalNamespace
                     }
                 }).then(resolve, function (error) {
-                    handleError(error, reject);
+                    var result = handleError(error, reject);
+
+                    if (result) {
+                        resolve(result);
+                    }
                 });
             });
         }
@@ -302,7 +324,7 @@ _.extend(Engine.prototype, {
         try {
             return wrapper(stdin, stdout, stderr, tools, globalNamespace);
         } catch (error) {
-            handleError(error, function (error) {
+            return handleError(error, function (error) {
                 throw error;
             });
         }
