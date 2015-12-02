@@ -12,11 +12,13 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    BooleanValue = require('../../../src/Value/Boolean').sync(),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
+    PropertyReference = require('../../../src/Reference/Property'),
     StringValue = require('../../../src/Value/String').sync(),
     Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
@@ -31,6 +33,12 @@ describe('Object', function () {
             value.getNative.returns(nativeValue);
             return value;
         });
+        this.factory.createBoolean.restore();
+        sinon.stub(this.factory, 'createBoolean', function (nativeValue) {
+            var booleanValue = sinon.createStubInstance(BooleanValue);
+            booleanValue.getNative.returns(nativeValue);
+            return booleanValue;
+        });
         this.factory.createInteger.restore();
         sinon.stub(this.factory, 'createInteger', function (nativeValue) {
             var integerValue = sinon.createStubInstance(IntegerValue);
@@ -41,11 +49,24 @@ describe('Object', function () {
         sinon.stub(this.factory, 'createString', function (nativeValue) {
             var stringValue = sinon.createStubInstance(StringValue);
             stringValue.getNative.returns(nativeValue);
+            stringValue.isEqualTo.restore();
+            sinon.stub(stringValue, 'isEqualTo', function (otherValue) {
+                return this.factory.createBoolean(otherValue.getNative() === nativeValue);
+            }.bind(this));
             return stringValue;
-        });
+        }.bind(this));
 
         this.classObject = sinon.createStubInstance(Class);
-        this.nativeObject = {};
+        this.prop1 = sinon.createStubInstance(PropertyReference);
+        this.prop1.getKey.returns(this.factory.createString('firstProp'));
+        this.prop1.getValue.returns(this.factory.createString('the value of firstProp'));
+        this.prop2 = sinon.createStubInstance(PropertyReference);
+        this.prop2.getKey.returns(this.factory.createString('secondProp'));
+        this.prop2.getValue.returns(this.factory.createString('the value of secondProp'));
+        this.nativeObject = {
+            prop1: this.prop1,
+            prop2: this.prop2
+        };
         this.objectID = 21;
 
         this.value = new ObjectValue(
@@ -165,6 +186,17 @@ describe('Object', function () {
             var coercedValue = this.value.coerceToObject();
 
             expect(coercedValue).to.equal(this.value);
+        });
+    });
+
+    describe('pointToProperty()', function () {
+        it('should set the pointer to the index of the property', function () {
+            var element = sinon.createStubInstance(PropertyReference);
+            element.getKey.returns(this.factory.createString('secondProp'));
+
+            this.value.pointToProperty(element);
+
+            expect(this.value.getPointer()).to.equal(1);
         });
     });
 });

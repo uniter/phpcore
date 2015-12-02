@@ -97,6 +97,8 @@ _.extend(PropertyReference.prototype, {
         var property = this;
 
         property.reference = reference;
+
+        return reference;
     },
 
     setValue: function (value) {
@@ -121,12 +123,10 @@ _.extend(PropertyReference.prototype, {
         }
 
         if (isFirstProperty) {
-            property.objectValue.setPointer(
-                property.objectValue.getKeys().indexOf(
-                    property.key.getNative().toString()
-                )
-            );
+            property.objectValue.pointToProperty(property);
         }
+
+        return value;
     }
 });
 

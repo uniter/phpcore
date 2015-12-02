@@ -64,6 +64,7 @@ module.exports = require('pauser')([
 
         this.classObject = classObject;
         this.id = id;
+        this.pointer = 0;
         this.properties = {};
     }
 
@@ -307,6 +308,10 @@ module.exports = require('pauser')([
             return this.value;
         },
 
+        getPointer: function () {
+            return this.pointer;
+        },
+
         getStaticPropertyByName: function (nameValue) {
             return this.classObject.getStaticPropertyByName(nameValue.getNative());
         },
@@ -375,6 +380,19 @@ module.exports = require('pauser')([
                 factory = leftValue.factory;
 
             return factory.createBoolean(rightValue.value === leftValue.value);
+        },
+
+        pointToProperty: function (propertyReference) {
+            var index = 0,
+                value = this;
+
+            _.forOwn(value.value, function (property) {
+                if (property.getKey().isEqualTo(propertyReference.getKey()).getNative()) {
+                    value.setPointer(index);
+                }
+
+                index++;
+            });
         },
 
         referToElement: function (key) {
