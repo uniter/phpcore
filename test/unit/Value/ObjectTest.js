@@ -48,6 +48,7 @@ describe('Object', function () {
         this.factory.createString.restore();
         sinon.stub(this.factory, 'createString', function (nativeValue) {
             var stringValue = sinon.createStubInstance(StringValue);
+            stringValue.coerceToKey.returns(stringValue);
             stringValue.getNative.returns(nativeValue);
             stringValue.isEqualTo.restore();
             sinon.stub(stringValue, 'isEqualTo', function (otherValue) {
@@ -57,15 +58,11 @@ describe('Object', function () {
         }.bind(this));
 
         this.classObject = sinon.createStubInstance(Class);
-        this.prop1 = sinon.createStubInstance(PropertyReference);
-        this.prop1.getKey.returns(this.factory.createString('firstProp'));
-        this.prop1.getValue.returns(this.factory.createString('the value of firstProp'));
-        this.prop2 = sinon.createStubInstance(PropertyReference);
-        this.prop2.getKey.returns(this.factory.createString('secondProp'));
-        this.prop2.getValue.returns(this.factory.createString('the value of secondProp'));
+        this.prop1 = this.factory.createString('the value of firstProp');
+        this.prop2 = this.factory.createString('the value of secondProp');
         this.nativeObject = {
-            prop1: this.prop1,
-            prop2: this.prop2
+            firstProp: this.prop1,
+            secondProp: this.prop2
         };
         this.objectID = 21;
 
@@ -189,14 +186,73 @@ describe('Object', function () {
         });
     });
 
+    describe('getInstancePropertyNames()', function () {
+        it('should include properties on the native object', function () {
+            var names = this.value.getInstancePropertyNames();
+
+            expect(names).to.have.length(2);
+            expect(names[0].getNative()).to.equal('firstProp');
+            expect(names[1].getNative()).to.equal('secondProp');
+        });
+
+        it('should include properties added from PHP', function () {
+            var names;
+            this.value.getInstancePropertyByName(this.factory.createString('myNewProp'))
+                .setValue(this.factory.createString('a value'));
+
+            names = this.value.getInstancePropertyNames();
+
+            expect(names).to.have.length(3);
+            expect(names[0].getNative()).to.equal('firstProp');
+            expect(names[1].getNative()).to.equal('secondProp');
+            expect(names[2].getNative()).to.equal('myNewProp');
+        });
+
+        it('should not include undefined properties', function () {
+            var names;
+            // Fetch property reference but do not assign a value or reference to keep it undefined
+            this.value.getInstancePropertyByName(this.factory.createString('myNewProp'));
+
+            names = this.value.getInstancePropertyNames();
+
+            expect(names).to.have.length(2);
+            expect(names[0].getNative()).to.equal('firstProp');
+            expect(names[1].getNative()).to.equal('secondProp');
+        });
+
+        it('should handle a property called "length" correctly', function () {
+            var names;
+            this.value.getInstancePropertyByName(this.factory.createString('length'))
+                .setValue(this.factory.createString(127));
+
+            names = this.value.getInstancePropertyNames();
+
+            expect(names).to.have.length(3);
+            expect(names[0].getNative()).to.equal('firstProp');
+            expect(names[1].getNative()).to.equal('secondProp');
+            expect(names[2].getNative()).to.equal('length');
+        });
+    });
+
     describe('pointToProperty()', function () {
-        it('should set the pointer to the index of the property', function () {
+        it('should set the pointer to the index of the property when native', function () {
             var element = sinon.createStubInstance(PropertyReference);
             element.getKey.returns(this.factory.createString('secondProp'));
 
             this.value.pointToProperty(element);
 
             expect(this.value.getPointer()).to.equal(1);
+        });
+
+        it('should set the pointer to the index of the property when added from PHP', function () {
+            var element = sinon.createStubInstance(PropertyReference);
+            element.getKey.returns(this.factory.createString('myNewProp'));
+            this.value.getInstancePropertyByName(this.factory.createString('myNewProp'))
+                .setValue(this.factory.createString('a value'));
+
+            this.value.pointToProperty(element);
+
+            expect(this.value.getPointer()).to.equal(2);
         });
     });
 });

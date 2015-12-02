@@ -278,15 +278,17 @@ module.exports = require('pauser')([
                 names = [],
                 value = this;
 
-            _.each(value.value, function (value, name) {
+            _.forOwn(value.value, function (value, name) {
                 nameHash[name] = true;
             });
 
-            _.each(value.properties, function (value, name) {
-                nameHash[name] = true;
+            _.forOwn(value.properties, function (value, name) {
+                if (value.isDefined()) {
+                    nameHash[name] = true;
+                }
             });
 
-            _.each(nameHash, function (t, name) {
+            _.forOwn(nameHash, function (t, name) {
                 names.push(value.factory.coerce(name));
             });
 
@@ -384,10 +386,11 @@ module.exports = require('pauser')([
 
         pointToProperty: function (propertyReference) {
             var index = 0,
+                propertyName = propertyReference.getKey().getNative(),
                 value = this;
 
-            _.forOwn(value.value, function (property) {
-                if (property.getKey().isEqualTo(propertyReference.getKey()).getNative()) {
+            _.forOwn(value.value, function (property, name) {
+                if (name === propertyName) {
                     value.setPointer(index);
                 }
 
