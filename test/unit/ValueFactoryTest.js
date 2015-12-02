@@ -29,7 +29,7 @@ describe('ValueFactory', function () {
     });
 
     describe('createExit()', function () {
-        it('should return an ExitValue with the specified status balue', function () {
+        it('should return an ExitValue with the specified status value', function () {
             var statusValue = sinon.createStubInstance(IntegerValue);
             statusValue.getNative.returns(21);
 
