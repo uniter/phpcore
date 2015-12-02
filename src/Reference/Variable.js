@@ -16,12 +16,18 @@ function VariableReference(variable) {
 }
 
 _.extend(VariableReference.prototype, {
+    getForAssignment: function () {
+        return this.getValue();
+    },
+
     getValue: function () {
         return this.variable.getValue();
     },
 
     setValue: function (value) {
         this.variable.setValue(value);
+
+        return value;
     }
 });
 
