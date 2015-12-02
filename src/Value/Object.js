@@ -177,7 +177,7 @@ module.exports = require('pauser')([
                 value = this,
                 factory = value.factory;
 
-            _.each(value.value, function (propertyValue, propertyName) {
+            _.forOwn(value.value, function (propertyValue, propertyName) {
                 elements.push(
                     new KeyValuePair(
                         factory.coerce(propertyName),

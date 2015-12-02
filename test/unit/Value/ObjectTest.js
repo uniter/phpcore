@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    ArrayValue = require('../../../src/Value/Array').sync(),
     BooleanValue = require('../../../src/Value/Boolean').sync(),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
@@ -29,19 +30,33 @@ describe('Object', function () {
         this.factory = sinon.createStubInstance(ValueFactory);
         this.factory.coerce.restore();
         sinon.stub(this.factory, 'coerce', function (nativeValue) {
-            var value = sinon.createStubInstance(Value);
+            var value;
+            if (nativeValue instanceof Value) {
+                return nativeValue;
+            }
+            value = sinon.createStubInstance(Value);
             value.getNative.returns(nativeValue);
             return value;
+        });
+        this.factory.createArray.restore();
+        sinon.stub(this.factory, 'createArray', function (nativeValue) {
+            var arrayValue = sinon.createStubInstance(ArrayValue);
+            arrayValue.getForAssignment.returns(arrayValue);
+            arrayValue.getLength.returns(nativeValue.length);
+            arrayValue.getNative.returns(nativeValue);
+            return arrayValue;
         });
         this.factory.createBoolean.restore();
         sinon.stub(this.factory, 'createBoolean', function (nativeValue) {
             var booleanValue = sinon.createStubInstance(BooleanValue);
+            booleanValue.getForAssignment.returns(booleanValue);
             booleanValue.getNative.returns(nativeValue);
             return booleanValue;
         });
         this.factory.createInteger.restore();
         sinon.stub(this.factory, 'createInteger', function (nativeValue) {
             var integerValue = sinon.createStubInstance(IntegerValue);
+            integerValue.getForAssignment.returns(integerValue);
             integerValue.getNative.returns(nativeValue);
             return integerValue;
         });
@@ -49,6 +64,7 @@ describe('Object', function () {
         sinon.stub(this.factory, 'createString', function (nativeValue) {
             var stringValue = sinon.createStubInstance(StringValue);
             stringValue.coerceToKey.returns(stringValue);
+            stringValue.getForAssignment.returns(stringValue);
             stringValue.getNative.returns(nativeValue);
             stringValue.isEqualTo.restore();
             sinon.stub(stringValue, 'isEqualTo', function (otherValue) {
@@ -158,6 +174,51 @@ describe('Object', function () {
         });
     });
 
+    describe('coerceToArray()', function () {
+        it('should handle an empty object', function () {
+            var objectValue = new ObjectValue(
+                    this.factory,
+                    this.callStack,
+                    {},
+                    this.classObject,
+                    this.objectID
+                ),
+                arrayValue;
+
+            arrayValue = objectValue.coerceToArray();
+
+            expect(arrayValue.getLength()).to.equal(0);
+        });
+
+        it('should handle an object with native and PHP properties', function () {
+            var arrayValue;
+            this.value.getInstancePropertyByName(this.factory.createString('myNewProp'))
+                .setValue(this.factory.createString('the value of the new prop'));
+
+            arrayValue = this.value.coerceToArray();
+
+            expect(arrayValue.getLength()).to.equal(3);
+            expect(arrayValue.getNative()[0].getKey().getNative()).to.equal('firstProp');
+            expect(arrayValue.getNative()[0].getValue().getNative()).to.equal('the value of firstProp');
+            expect(arrayValue.getNative()[1].getKey().getNative()).to.equal('secondProp');
+            expect(arrayValue.getNative()[1].getValue().getNative()).to.equal('the value of secondProp');
+            expect(arrayValue.getNative()[2].getKey().getNative()).to.equal('myNewProp');
+            expect(arrayValue.getNative()[2].getValue().getNative()).to.equal('the value of the new prop');
+        });
+
+        it('should handle an object with property named "length"', function () {
+            var arrayValue;
+            this.value.getInstancePropertyByName(this.factory.createString('length'))
+                .setValue(this.factory.createInteger(321));
+
+            arrayValue = this.value.coerceToArray();
+
+            expect(arrayValue.getLength()).to.equal(3);
+            expect(arrayValue.getNative()[2].getKey().getNative()).to.equal('length');
+            expect(arrayValue.getNative()[2].getValue().getNative()).to.equal(321);
+        });
+    });
+
     describe('coerceToInteger()', function () {
         it('should raise a notice', function () {
             this.classObject.getName.returns('MyClass');
@@ -223,7 +284,7 @@ describe('Object', function () {
         it('should handle a property called "length" correctly', function () {
             var names;
             this.value.getInstancePropertyByName(this.factory.createString('length'))
-                .setValue(this.factory.createString(127));
+                .setValue(this.factory.createInteger(127));
 
             names = this.value.getInstancePropertyNames();
 
