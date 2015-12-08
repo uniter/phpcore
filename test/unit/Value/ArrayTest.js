@@ -10,14 +10,18 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     ArrayValue = require('../../../src/Value/Array').sync(),
     BooleanValue = require('../../../src/Value/Boolean').sync(),
     CallStack = require('../../../src/CallStack'),
     ElementReference = require('../../../src/Reference/Element'),
+    FloatValue = require('../../../src/Value/Float').sync(),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyValuePair = require('../../../src/KeyValuePair'),
+    NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
+    PHPFatalError = phpCommon.PHPFatalError,
     PropertyReference = require('../../../src/Reference/Property'),
     StringValue = require('../../../src/Value/String').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
@@ -29,18 +33,48 @@ describe('Array', function () {
         this.factory.createBoolean.restore();
         sinon.stub(this.factory, 'createBoolean', function (nativeValue) {
             var booleanValue = sinon.createStubInstance(BooleanValue);
+            booleanValue.coerceToKey.returns(booleanValue);
+            booleanValue.getForAssignment.returns(booleanValue);
             booleanValue.getNative.returns(nativeValue);
             return booleanValue;
-        });
+        }.bind(this));
+        this.factory.createFloat.restore();
+        sinon.stub(this.factory, 'createFloat', function (nativeValue) {
+            var floatValue = sinon.createStubInstance(FloatValue);
+            floatValue.coerceToKey.returns(floatValue);
+            floatValue.getForAssignment.returns(floatValue);
+            floatValue.getNative.returns(nativeValue);
+            return floatValue;
+        }.bind(this));
         this.factory.createInteger.restore();
         sinon.stub(this.factory, 'createInteger', function (nativeValue) {
             var integerValue = sinon.createStubInstance(IntegerValue);
+            integerValue.coerceToKey.returns(integerValue);
+            integerValue.getForAssignment.returns(integerValue);
             integerValue.getNative.returns(nativeValue);
             return integerValue;
-        });
+        }.bind(this));
+        this.factory.createNull.restore();
+        sinon.stub(this.factory, 'createNull', function (nativeValue) {
+            var nullValue = sinon.createStubInstance(NullValue);
+            nullValue.coerceToKey.returns(nullValue);
+            nullValue.getForAssignment.returns(nullValue);
+            nullValue.getNative.returns(nativeValue);
+            return nullValue;
+        }.bind(this));
+        this.factory.createObject.restore();
+        sinon.stub(this.factory, 'createObject', function (nativeValue) {
+            var objectValue = sinon.createStubInstance(IntegerValue);
+            objectValue.coerceToKey.returns(objectValue);
+            objectValue.getForAssignment.returns(objectValue);
+            objectValue.getNative.returns(nativeValue);
+            return objectValue;
+        }.bind(this));
         this.factory.createString.restore();
         sinon.stub(this.factory, 'createString', function (nativeValue) {
             var stringValue = sinon.createStubInstance(StringValue);
+            stringValue.coerceToKey.returns(stringValue);
+            stringValue.getForAssignment.returns(stringValue);
             stringValue.getNative.returns(nativeValue);
             stringValue.isEqualTo.restore();
             sinon.stub(stringValue, 'isEqualTo', function (otherValue) {
@@ -49,17 +83,120 @@ describe('Array', function () {
             return stringValue;
         }.bind(this));
 
-        this.element1 = sinon.createStubInstance(KeyValuePair);
-        this.element2 = sinon.createStubInstance(KeyValuePair);
-        this.element1.getKey.returns(this.factory.createString('firstEl'));
-        this.element1.getValue.returns(this.factory.createString('value of first el'));
-        this.element2.getKey.returns(this.factory.createString('secondEl'));
-        this.element2.getValue.returns(this.factory.createString('value of second el'));
+        this.createKeyValuePair = function (key, value) {
+            var keyValuePair = sinon.createStubInstance(KeyValuePair);
+            keyValuePair.getKey.returns(key);
+            keyValuePair.getValue.returns(value);
+            return keyValuePair;
+        };
+
+        this.element1 = this.createKeyValuePair(
+            this.factory.createString('firstEl'),
+            this.factory.createString('value of first el')
+        );
+        this.element2 = this.createKeyValuePair(
+            this.factory.createString('secondEl'),
+            this.factory.createString('value of second el')
+        );
 
         this.value = new ArrayValue(this.factory, this.callStack, [
             this.element1,
             this.element2
         ]);
+    });
+
+    describe('addToArray() - adding an array to another array', function () {
+        beforeEach(function () {
+            this.leftElement1 = this.createKeyValuePair(
+                this.factory.createString('firstEl'),
+                this.factory.createString('value of left first el')
+            );
+            this.leftElement2 = this.createKeyValuePair(
+                this.factory.createString('leftSecondEl'),
+                this.factory.createString('value of left second el')
+            );
+
+            this.leftValue = new ArrayValue(this.factory, this.callStack, [
+                this.leftElement1,
+                this.leftElement2
+            ]);
+        });
+
+        it('should return an array', function () {
+            expect(this.value.addToArray(this.leftValue)).to.be.an.instanceOf(ArrayValue);
+        });
+
+        it('should return a different array to the left operand', function () {
+            expect(this.value.addToArray(this.leftValue)).not.to.equal(this.leftValue);
+        });
+
+        it('should prefer elements from left array over elements from right array', function () {
+            var result = this.value.addToArray(this.leftValue);
+
+            expect(result.getNative().firstEl).to.equal('value of left first el');
+            expect(result.getNative().secondEl).to.equal('value of second el');
+            expect(result.getNative().leftSecondEl).to.equal('value of left second el');
+        });
+    });
+
+    describe('addToBoolean() - adding an array to a boolean', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var booleanValue = this.factory.createBoolean(true);
+
+            expect(function () {
+                this.value.addToBoolean(booleanValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('addToFloat() - adding an array to a float', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var floatValue = this.factory.createFloat(1.2);
+
+            expect(function () {
+                this.value.addToFloat(floatValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('addToInteger() - adding an array to an integer', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var integerValue = this.factory.createInteger(4);
+
+            expect(function () {
+                this.value.addToInteger(integerValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('addToNull() - adding an array to null', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var nullValue = this.factory.createNull();
+
+            expect(function () {
+                this.value.addToNull(nullValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('addToObject() - adding an array to an object', function () {
+        it('should hand off to ObjectValue.addToArray(...)', function () {
+            var objectValue = this.factory.createObject(),
+                result = {};
+            objectValue.addToArray.withArgs(this.value).returns(result);
+
+            expect(this.value.addToObject(objectValue)).to.equal(result);
+        });
+    });
+
+    describe('addToString() - adding an array to a string', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var stringValue = this.factory.createString('My string value');
+
+            expect(function () {
+                this.value.addToString(stringValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
     });
 
     describe('coerceToObject()', function () {
