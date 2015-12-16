@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
+    FloatValue = require('../../src/Value/Float').sync(),
     NullReference = require('../../src/Reference/Null'),
     ObjectValue = require('../../src/Value/Object').sync(),
     PropertyReference = require('../../src/Reference/Property'),
@@ -23,6 +24,14 @@ describe('ValueFactory', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.factory = sinon.createStubInstance(ValueFactory);
+        this.factory.createFloat.restore();
+        sinon.stub(this.factory, 'createFloat', function (nativeValue) {
+            var floatValue = sinon.createStubInstance(FloatValue);
+            floatValue.coerceToKey.returns(floatValue);
+            floatValue.getForAssignment.returns(floatValue);
+            floatValue.getNative.returns(nativeValue);
+            return floatValue;
+        });
         this.factory.createString.restore();
         sinon.stub(this.factory, 'createString', function (nativeValue) {
             var stringValue = sinon.createStubInstance(StringValue);
@@ -31,6 +40,16 @@ describe('ValueFactory', function () {
         });
 
         this.value = new Value(this.factory, this.callStack, 'my-type', 'my value');
+    });
+
+    describe('coerceToNumber()', function () {
+        it('should coerce the value to a float', function () {
+            var value = new Value(this.factory, this.callStack, 'my-type', '12'),
+                result = value.coerceToNumber();
+
+            expect(result).to.be.an.instanceOf(FloatValue);
+            expect(result.getNative()).to.equal(12); // Value should be coerced to a number
+        });
     });
 
     describe('coerceToObject()', function () {

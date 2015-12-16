@@ -20,7 +20,8 @@ module.exports = require('pauser')([
     util,
     Value
 ) {
-    var PHPFatalError = phpCommon.PHPFatalError;
+    var PHPError = phpCommon.PHPError,
+        PHPFatalError = phpCommon.PHPFatalError;
 
     function BooleanValue(factory, callStack, value) {
         Value.call(this, factory, callStack, 'boolean', !!value);
@@ -73,6 +74,54 @@ module.exports = require('pauser')([
             var value = this;
 
             return value.factory.createString(value.value ? '1' : '');
+        },
+
+        divide: function (rightValue) {
+            return rightValue.divideByBoolean(this);
+        },
+
+        divideByBoolean: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByFloat: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByInteger: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByNonArray: function (leftValue) {
+            var coercedLeftValue,
+                rightValue = this,
+                divisor = rightValue.getNative(),
+                quotient;
+
+            if (divisor === false) {
+                rightValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
+
+                return rightValue.factory.createBoolean(false);
+            }
+
+            coercedLeftValue = leftValue.coerceToNumber();
+            quotient = coercedLeftValue.getNative() / divisor;
+
+            return coercedLeftValue.getType() === 'float' ?
+                rightValue.factory.createFloat(quotient) :
+                rightValue.factory.createInteger(quotient);
+        },
+
+        divideByNull: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByObject: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByString: function (leftValue) {
+            return this.divideByNonArray(leftValue);
         },
 
         getElement: function () {

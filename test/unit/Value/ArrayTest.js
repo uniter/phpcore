@@ -24,6 +24,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError,
     PropertyReference = require('../../../src/Reference/Property'),
     StringValue = require('../../../src/Value/String').sync(),
+    Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('Array', function () {
@@ -55,11 +56,11 @@ describe('Array', function () {
             return integerValue;
         }.bind(this));
         this.factory.createNull.restore();
-        sinon.stub(this.factory, 'createNull', function (nativeValue) {
+        sinon.stub(this.factory, 'createNull', function () {
             var nullValue = sinon.createStubInstance(NullValue);
             nullValue.coerceToKey.returns(nullValue);
             nullValue.getForAssignment.returns(nullValue);
-            nullValue.getNative.returns(nativeValue);
+            nullValue.getNative.returns(null);
             return nullValue;
         }.bind(this));
         this.factory.createObject.restore();
@@ -229,6 +230,86 @@ describe('Array', function () {
 
             expect(this.nativeStdClassObject.firstEl).to.equal('value of first el');
             expect(this.nativeStdClassObject.secondEl).to.equal('value of second el');
+        });
+    });
+
+    describe('divide()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var rightValue = sinon.createStubInstance(Value);
+
+            expect(function () {
+                this.value.divide(rightValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('divideByArray()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createArray([]);
+
+            expect(function () {
+                this.value.divideByArray(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('divideByBoolean()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createBoolean(true);
+
+            expect(function () {
+                this.value.divideByBoolean(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('divideByFloat()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createFloat(1.2);
+
+            expect(function () {
+                this.value.divideByFloat(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('divideByInteger()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createInteger(4);
+
+            expect(function () {
+                this.value.divideByInteger(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('divideByNull()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createNull();
+
+            expect(function () {
+                this.value.divideByNull(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('divideByObject()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createObject({});
+
+            expect(function () {
+                this.value.divideByObject(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('divideByString()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createString('my string value');
+
+            expect(function () {
+                this.value.divideByString(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
         });
     });
 

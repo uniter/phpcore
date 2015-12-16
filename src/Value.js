@@ -79,6 +79,10 @@ module.exports = require('pauser')([
             return value.factory.createFloat(Number(value.value));
         },
 
+        coerceToNumber: function () {
+            return this.coerceToFloat();
+        },
+
         coerceToObject: function () {
             var value = this,
                 object = value.factory.createStdClassObject();
@@ -108,6 +112,38 @@ module.exports = require('pauser')([
             return leftValue.factory.createString(
                 leftValue.coerceToString().getNative() + rightValue.coerceToString().getNative()
             );
+        },
+
+        divide: function () {
+            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+        },
+
+        divideByArray: function () {
+            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+        },
+
+        divideByBoolean: function () {
+            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+        },
+
+        divideByFloat: function () {
+            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+        },
+
+        divideByInteger: function () {
+            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+        },
+
+        divideByNull: function () {
+            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+        },
+
+        divideByObject: function () {
+            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+        },
+
+        divideByString: function () {
+            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
         },
 
         getConstantByName: function () {
