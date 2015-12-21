@@ -11,13 +11,17 @@
 
 module.exports = require('pauser')([
     require('microdash'),
+    require('phpcommon'),
     require('util'),
     require('../Value')
 ], function (
     _,
+    phpCommon,
     util,
     Value
 ) {
+    var PHPError = phpCommon.PHPError;
+
     function FloatValue(factory, callStack, value) {
         Value.call(this, factory, callStack, 'float', value);
     }
@@ -78,6 +82,50 @@ module.exports = require('pauser')([
             var value = this;
 
             return value.factory.createString(value.value + '');
+        },
+
+        divide: function (rightValue) {
+            return rightValue.divideByFloat(this);
+        },
+
+        divideByBoolean: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByFloat: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByInteger: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByNonArray: function (leftValue) {
+            var coercedLeftValue,
+                rightValue = this,
+                divisor = rightValue.getNative();
+
+            if (divisor === 0) {
+                rightValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
+
+                return rightValue.factory.createBoolean(false);
+            }
+
+            coercedLeftValue = leftValue.coerceToNumber();
+
+            return rightValue.factory.createFloat(coercedLeftValue.getNative() / divisor);
+        },
+
+        divideByNull: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByObject: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByString: function (leftValue) {
+            return this.divideByNonArray(leftValue);
         },
 
         getElement: function () {
