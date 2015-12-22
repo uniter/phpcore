@@ -54,6 +54,42 @@ module.exports = require('pauser')([
             return this.factory.createString('');
         },
 
+        divide: function (rightValue) {
+            return rightValue.divideByNull(this);
+        },
+
+        divideByBoolean: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByFloat: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByInteger: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByNonArray: function () {
+            var rightValue = this;
+
+            rightValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
+
+            return rightValue.factory.createBoolean(false);
+        },
+
+        divideByNull: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByObject: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByString: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
         getInstancePropertyByName: function () {
             var value = this;
 
