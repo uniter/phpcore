@@ -11,13 +11,17 @@
 
 module.exports = require('pauser')([
     require('microdash'),
+    require('phpcommon'),
     require('util'),
     require('../Value')
 ], function (
     _,
+    phpCommon,
     util,
     Value
 ) {
+    var PHPError = phpCommon.PHPError;
+
     function IntegerValue(factory, callStack, value) {
         Value.call(this, factory, callStack, 'integer', value);
     }
@@ -75,6 +79,68 @@ module.exports = require('pauser')([
             var value = this;
 
             return value.factory.createInteger(value.value - 1);
+        },
+
+        divide: function (rightValue) {
+            return rightValue.divideByInteger(this);
+        },
+
+        divideByBoolean: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByFloat: function (leftValue) {
+            var coercedLeftValue,
+                rightValue = this,
+                divisor = rightValue.getNative();
+
+            if (divisor === 0) {
+                rightValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
+
+                return rightValue.factory.createBoolean(false);
+            }
+
+            coercedLeftValue = leftValue.coerceToNumber();
+
+            return rightValue.factory.createFloat(coercedLeftValue.getNative() / divisor);
+        },
+
+        divideByInteger: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByNonArray: function (leftValue) {
+            var coercedLeftValue,
+                rightValue = this,
+                divisor = rightValue.getNative(),
+                quotient;
+
+            if (divisor === 0) {
+                rightValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
+
+                return rightValue.factory.createBoolean(false);
+            }
+
+            coercedLeftValue = leftValue.coerceToNumber();
+
+            quotient = coercedLeftValue.getNative() / divisor;
+
+            // Return result as a float if needed, otherwise keep as integer
+            return Math.round(quotient) === quotient ?
+                rightValue.factory.createInteger(quotient) :
+                rightValue.factory.createFloat(quotient);
+        },
+
+        divideByNull: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByObject: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByString: function (leftValue) {
+            return this.divideByNonArray(leftValue);
         },
 
         getElement: function () {
