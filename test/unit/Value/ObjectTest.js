@@ -9,16 +9,20 @@
 
 'use strict';
 
-var expect = require('chai').expect,
+var _ = require('microdash'),
+    expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     ArrayValue = require('../../../src/Value/Array').sync(),
     BooleanValue = require('../../../src/Value/Boolean').sync(),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
+    FloatValue = require('../../../src/Value/Float').sync(),
     IntegerValue = require('../../../src/Value/Integer').sync(),
+    NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
+    PHPFatalError = phpCommon.PHPFatalError,
     PropertyReference = require('../../../src/Reference/Property'),
     StringValue = require('../../../src/Value/String').sync(),
     Value = require('../../../src/Value').sync(),
@@ -49,20 +53,58 @@ describe('Object', function () {
         this.factory.createBoolean.restore();
         sinon.stub(this.factory, 'createBoolean', function (nativeValue) {
             var booleanValue = sinon.createStubInstance(BooleanValue);
+            booleanValue.getType.returns('boolean');
+            booleanValue.coerceToKey.returns(booleanValue);
+            booleanValue.coerceToNumber.restore();
+            sinon.stub(booleanValue, 'coerceToNumber', function () {
+                return this.factory.createInteger(nativeValue ? 1 : 0);
+            }.bind(this));
             booleanValue.getForAssignment.returns(booleanValue);
             booleanValue.getNative.returns(nativeValue);
             return booleanValue;
-        });
+        }.bind(this));
+        this.factory.createFloat.restore();
+        sinon.stub(this.factory, 'createFloat', function (nativeValue) {
+            var floatValue = sinon.createStubInstance(FloatValue);
+            floatValue.getType.returns('float');
+            floatValue.coerceToKey.returns(floatValue);
+            floatValue.coerceToNumber.returns(floatValue);
+            floatValue.getForAssignment.returns(floatValue);
+            floatValue.getNative.returns(nativeValue);
+            return floatValue;
+        }.bind(this));
         this.factory.createInteger.restore();
         sinon.stub(this.factory, 'createInteger', function (nativeValue) {
             var integerValue = sinon.createStubInstance(IntegerValue);
+            integerValue.getType.returns('integer');
+            integerValue.coerceToKey.returns(integerValue);
+            integerValue.coerceToNumber.returns(integerValue);
             integerValue.getForAssignment.returns(integerValue);
             integerValue.getNative.returns(nativeValue);
             return integerValue;
-        });
+        }.bind(this));
+        this.factory.createNull.restore();
+        sinon.stub(this.factory, 'createNull', function (nativeValue) {
+            var nullValue = sinon.createStubInstance(NullValue);
+            nullValue.getType.returns('null');
+            nullValue.coerceToKey.returns(nullValue);
+            nullValue.getForAssignment.returns(nullValue);
+            nullValue.getNative.returns(nativeValue);
+            return nullValue;
+        }.bind(this));
+        this.factory.createObject.restore();
+        sinon.stub(this.factory, 'createObject', function (nativeValue) {
+            var objectValue = sinon.createStubInstance(IntegerValue);
+            objectValue.getType.returns('object');
+            objectValue.coerceToKey.returns(objectValue);
+            objectValue.getForAssignment.returns(objectValue);
+            objectValue.getNative.returns(nativeValue);
+            return objectValue;
+        }.bind(this));
         this.factory.createString.restore();
         sinon.stub(this.factory, 'createString', function (nativeValue) {
             var stringValue = sinon.createStubInstance(StringValue);
+            stringValue.getType.returns('string');
             stringValue.coerceToKey.returns(stringValue);
             stringValue.getForAssignment.returns(stringValue);
             stringValue.getNative.returns(nativeValue);
@@ -244,6 +286,275 @@ describe('Object', function () {
             var coercedValue = this.value.coerceToObject();
 
             expect(coercedValue).to.equal(this.value);
+        });
+    });
+
+    describe('divide()', function () {
+        it('should hand off to the right-hand operand to divide by this object', function () {
+            var rightOperand = sinon.createStubInstance(Value),
+                result = sinon.createStubInstance(Value);
+            rightOperand.divideByObject.withArgs(this.value).returns(result);
+
+            expect(this.value.divide(rightOperand)).to.equal(result);
+        });
+    });
+
+    describe('divideByArray()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createArray([]);
+
+            expect(function () {
+                this.value.divideByArray(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('divideByBoolean()', function () {
+        _.each([
+            {
+                left: true,
+                expectedResultType: IntegerValue,
+                expectedResult: 1
+            },
+            {
+                left: false,
+                expectedResultType: IntegerValue,
+                expectedResult: 0
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' / <object>`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createBoolean(scenario.left);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.divideByBoolean(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should raise a notice due to coercion of object to int', function () {
+                    this.classObject.getName.returns('MyClass');
+
+                    this.value.divideByBoolean(this.leftValue);
+
+                    expect(this.callStack.raiseError).to.have.been.calledOnce;
+                    expect(this.callStack.raiseError).to.have.been.calledWith(
+                        PHPError.E_NOTICE,
+                        'Object of class MyClass could not be converted to int'
+                    );
+                });
+            });
+        });
+    });
+
+    describe('divideByFloat()', function () {
+        _.each([
+            {
+                left: 12.0,
+                expectedResultType: FloatValue,
+                expectedResult: 12.0
+            },
+            {
+                left: 0.0,
+                expectedResultType: FloatValue,
+                expectedResult: 0.0
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' / <object>`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createFloat(scenario.left);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.divideByFloat(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should raise a notice due to coercion of object to int', function () {
+                    this.classObject.getName.returns('MyObjClass');
+
+                    this.value.divideByFloat(this.leftValue);
+
+                    expect(this.callStack.raiseError).to.have.been.calledOnce;
+                    expect(this.callStack.raiseError).to.have.been.calledWith(
+                        PHPError.E_NOTICE,
+                        'Object of class MyObjClass could not be converted to int'
+                    );
+                });
+            });
+        });
+    });
+
+    describe('divideByInteger()', function () {
+        _.each([
+            {
+                left: 100,
+                expectedResultType: IntegerValue,
+                expectedResult: 100
+            },
+            {
+                left: 0,
+                expectedResultType: IntegerValue,
+                expectedResult: 0
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' / <object>`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createInteger(scenario.left);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.divideByInteger(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should raise a notice due to coercion of object to int', function () {
+                    this.classObject.getName.returns('MyClass');
+
+                    this.value.divideByInteger(this.leftValue);
+
+                    expect(this.callStack.raiseError).to.have.been.calledOnce;
+                    expect(this.callStack.raiseError).to.have.been.calledWith(
+                        PHPError.E_NOTICE,
+                        'Object of class MyClass could not be converted to int'
+                    );
+                });
+            });
+        });
+    });
+
+    describe('divideByNull()', function () {
+        describe('for `null / <object>`', function () {
+            beforeEach(function () {
+                this.leftValue = sinon.createStubInstance(NullValue);
+                this.leftValue.getNative.returns(null);
+
+                this.coercedLeftValue = sinon.createStubInstance(IntegerValue);
+                this.coercedLeftValue.getNative.returns(0);
+                this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
+            });
+
+            it('should return int(0)', function () {
+                var result = this.value.divideByNull(this.leftValue);
+
+                expect(result).to.be.an.instanceOf(IntegerValue);
+                expect(result.getNative()).to.equal(0);
+            });
+
+            it('should raise a notice due to coercion of object to int', function () {
+                this.classObject.getName.returns('MyClass');
+
+                this.value.divideByNull(this.leftValue);
+
+                expect(this.callStack.raiseError).to.have.been.calledOnce;
+                expect(this.callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class MyClass could not be converted to int'
+                );
+            });
+        });
+    });
+
+    describe('divideByObject()', function () {
+        beforeEach(function () {
+            this.leftValue = sinon.createStubInstance(ObjectValue);
+            this.leftValue.getNative.returns({});
+
+            this.coercedLeftValue = sinon.createStubInstance(IntegerValue);
+            this.coercedLeftValue.getNative.returns(1);
+            this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
+        });
+
+        it('should return int(1)', function () {
+            var result = this.value.divideByObject(this.leftValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(1);
+        });
+
+        it('should raise a notice due to coercion of object to int', function () {
+            this.classObject.getName.returns('MyClass');
+
+            this.value.divideByObject(this.leftValue);
+
+            expect(this.callStack.raiseError).to.have.been.calledOnce;
+            expect(this.callStack.raiseError).to.have.been.calledWith(
+                PHPError.E_NOTICE,
+                'Object of class MyClass could not be converted to int'
+            );
+        });
+    });
+
+    describe('divideByString()', function () {
+        _.each([
+            {
+                left: 'my string',
+                coercedLeftClass: IntegerValue,
+                coercedLeftType: 'integer',
+                coercedLeft: 0,
+                expectedResultType: IntegerValue,
+                expectedResult: 0
+            },
+            {
+                left: '21', // Int string is coerced to int
+                coercedLeftClass: IntegerValue,
+                coercedLeftType: 'integer',
+                coercedLeft: 21,
+                expectedResultType: IntegerValue,
+                expectedResult: 21
+            },
+            {
+                left: '27.2', // Decimal string is coerced to float
+                coercedLeftClass: FloatValue,
+                coercedLeftType: 'float',
+                coercedLeft: 27.2,
+                expectedResultType: FloatValue,
+                expectedResult: 27.2
+            },
+            {
+                left: '25.4.7', // Decimal string prefix is coerced to float
+                coercedLeftClass: FloatValue,
+                coercedLeftType: 'float',
+                coercedLeft: 25.4,
+                expectedResultType: FloatValue,
+                expectedResult: 25.4
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' / <object>`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createString(scenario.left);
+
+                    this.coercedLeftValue = sinon.createStubInstance(scenario.coercedLeftClass);
+                    this.coercedLeftValue.getType.returns(scenario.coercedLeftType);
+                    this.coercedLeftValue.getNative.returns(scenario.coercedLeft);
+                    this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.divideByString(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should raise a notice due to coercion of object to int', function () {
+                    this.classObject.getName.returns('MyClass');
+
+                    this.value.divideByString(this.leftValue);
+
+                    expect(this.callStack.raiseError).to.have.been.calledOnce;
+                    expect(this.callStack.raiseError).to.have.been.calledWith(
+                        PHPError.E_NOTICE,
+                        'Object of class MyClass could not be converted to int'
+                    );
+                });
+            });
         });
     });
 

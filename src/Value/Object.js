@@ -217,6 +217,42 @@ module.exports = require('pauser')([
             return this.callMethod('__toString');
         },
 
+        divide: function (rightValue) {
+            return rightValue.divideByObject(this);
+        },
+
+        divideByBoolean: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByFloat: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByInteger: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByNonArray: function (leftValue) {
+            // Trigger notice due to coercion
+            this.coerceToInteger();
+
+            // Objects are always cast to int(1), so divisor will always be 1
+            return leftValue.coerceToNumber();
+        },
+
+        divideByNull: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByObject: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByString: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
         getClassName: function () {
             return this.classObject.getName();
         },
