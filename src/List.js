@@ -11,21 +11,25 @@
 
 var _ = require('microdash');
 
-function List(elements) {
+function List(valueFactory, elements) {
     this.elements = elements;
+    this.valueFactory = valueFactory;
 }
 
 _.extend(List.prototype, {
     setValue: function (value) {
-        var listElements = this.elements;
+        var list = this;
 
-        if (value.getType() !== 'array') {
-            throw new Error('Unsupported');
+        if (value.getType() === 'array') {
+            _.each(list.elements, function (reference, index) {
+                reference.setValue(value.getElementByIndex(index).getValue());
+            });
+        } else {
+            // Non-array value assigned to list, all references should just be nulled
+            _.each(list.elements, function (reference) {
+                reference.setValue(list.valueFactory.createNull());
+            });
         }
-
-        _.each(listElements, function (reference, index) {
-            reference.setValue(value.getElementByIndex(index).getValue());
-        });
 
         return value;
     }

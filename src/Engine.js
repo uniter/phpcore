@@ -212,7 +212,7 @@ _.extend(Engine.prototype, {
                 return new KeyValuePair(key, value);
             },
             createList: function (elements) {
-                return new List(elements);
+                return new List(valueFactory, elements);
             },
             createNamespaceScope: function (namespace) {
                 return new NamespaceScope(globalNamespace, valueFactory, namespace);
