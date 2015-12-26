@@ -11,15 +11,19 @@
 
 module.exports = require('pauser')([
     require('microdash'),
+    require('phpcommon'),
     require('util'),
     require('../Reference/Null'),
     require('../Value')
 ], function (
     _,
+    phpCommon,
     util,
     NullReference,
     Value
 ) {
+    var PHPError = phpCommon.PHPError;
+
     function StringValue(factory, callStack, value) {
         Value.call(this, factory, callStack, 'string', value);
     }
@@ -85,6 +89,68 @@ module.exports = require('pauser')([
 
         coerceToString: function () {
             return this;
+        },
+
+        divide: function (rightValue) {
+            return rightValue.divideByString(this);
+        },
+
+        divideByBoolean: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByFloat: function (leftValue) {
+            var coercedLeftValue,
+                rightValue = this,
+                divisor = rightValue.coerceToNumber().getNative();
+
+            if (divisor === 0) {
+                rightValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
+
+                return rightValue.factory.createBoolean(false);
+            }
+
+            coercedLeftValue = leftValue.coerceToNumber();
+
+            return rightValue.factory.createFloat(coercedLeftValue.getNative() / divisor);
+        },
+
+        divideByInteger: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByNonArray: function (leftValue) {
+            var coercedLeftValue,
+                rightValue = this,
+                divisorValue = rightValue.coerceToNumber(),
+                quotient;
+
+            if (divisorValue.getNative() === 0) {
+                rightValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
+
+                return rightValue.factory.createBoolean(false);
+            }
+
+            coercedLeftValue = leftValue.coerceToNumber();
+
+            quotient = coercedLeftValue.getNative() / divisorValue.getNative();
+
+            // Return result as a float if needed, otherwise keep as integer
+            return Math.round(quotient) !== quotient || divisorValue.getType() === 'float' ?
+                rightValue.factory.createFloat(quotient) :
+                rightValue.factory.createInteger(quotient);
+        },
+
+        divideByNull: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByObject: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        divideByString: function (leftValue) {
+            return this.divideByNonArray(leftValue);
         },
 
         getConstantByName: function (name, namespaceScope) {
