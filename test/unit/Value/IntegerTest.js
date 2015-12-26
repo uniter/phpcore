@@ -111,7 +111,7 @@ describe('Integer', function () {
         it('should hand off to the right-hand operand to divide by this integer', function () {
             var rightOperand = sinon.createStubInstance(Value),
                 result = sinon.createStubInstance(Value);
-            this.createValue(true);
+            this.createValue(1);
             rightOperand.divideByInteger.withArgs(this.value).returns(result);
 
             expect(this.value.divide(rightOperand)).to.equal(result);
@@ -121,7 +121,7 @@ describe('Integer', function () {
     describe('divideByArray()', function () {
         it('should throw an "Unsupported operand" error', function () {
             var leftValue = this.factory.createArray([]);
-            this.createValue(true);
+            this.createValue(1);
 
             expect(function () {
                 this.value.divideByArray(leftValue);
