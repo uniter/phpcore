@@ -204,6 +204,10 @@ module.exports = require('pauser')([
             return value.factory.createInteger(1);
         },
 
+        coerceToNumber: function () {
+            return this.coerceToInteger();
+        },
+
         coerceToKey: function () {
             this.callStack.raiseError(PHPError.E_WARNING, 'Illegal offset type');
         },

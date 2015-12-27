@@ -281,6 +281,26 @@ describe('Object', function () {
         });
     });
 
+    describe('coerceToNumber()', function () {
+        it('should raise a notice', function () {
+            this.classObject.getName.returns('MyClass');
+            this.value.coerceToNumber();
+
+            expect(this.callStack.raiseError).to.have.been.calledOnce;
+            expect(this.callStack.raiseError).to.have.been.calledWith(
+                PHPError.E_NOTICE,
+                'Object of class MyClass could not be converted to int'
+            );
+        });
+
+        it('should return int one', function () {
+            var result = this.value.coerceToNumber();
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(1);
+        });
+    });
+
     describe('coerceToObject()', function () {
         it('should return the same object value', function () {
             var coercedValue = this.value.coerceToObject();
