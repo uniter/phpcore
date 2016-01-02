@@ -91,6 +91,41 @@ EOS
         }), done);
     });
 
+    it('should support installing a custom class into a namespace', function (done) {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$myObject = new My\Stuff\AwesomeClass();
+
+return $myObject->getIt();
+EOS
+*/;}), //jshint ignore:line
+            js = phpToJS.transpile(phpToAST.create().parse(php)),
+            module = new Function(
+                'require',
+                'return ' + js
+            )(function () {
+                return this.runtime;
+            }.bind(this));
+
+        this.runtime.install({
+            classes: {
+                'My\\Stuff\\AwesomeClass': function () {
+                    function AwesomeClass() {}
+
+                    AwesomeClass.prototype.getIt = function () {
+                        return 21;
+                    };
+
+                    return AwesomeClass;
+                }
+            }
+        });
+
+        module().execute().then(when(done, function (result) {
+            expect(result.getNative()).to.equal(21);
+        }), done);
+    });
+
     it('should support installing a custom constant', function (done) {
         var php = nowdoc(function () {/*<<<EOS
 <?php

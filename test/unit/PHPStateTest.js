@@ -26,6 +26,46 @@ describe('PHPState', function () {
         this.state = new PHPState(this.installedBuiltinTypes, this.stdin, this.stdout, this.stderr, this.pausable);
     });
 
+    describe('constructor', function () {
+        it('should install non-namespaced classes into the global namespace', function () {
+            this.state = new PHPState(
+                {
+                    classes: {
+                        'MyClass': function () {
+                            return sinon.stub();
+                        }
+                    }
+                },
+                this.stdin,
+                this.stdout,
+                this.stderr,
+                this.pausable
+            );
+
+            expect(this.state.getGlobalNamespace().hasClass('MyClass')).to.be.true;
+        });
+
+        it('should install namespaced classes into the correct namespace', function () {
+            var MyClass = sinon.stub();
+            this.state = new PHPState(
+                {
+                    classes: {
+                        'Some\\Stuff\\AClass': function () {
+                            return MyClass;
+                        }
+                    }
+                },
+                this.stdin,
+                this.stdout,
+                this.stderr,
+                this.pausable
+            );
+
+            expect(this.state.getGlobalNamespace().hasClass('AClass')).to.be.false;
+            expect(this.state.getGlobalNamespace().getDescendant('Some\\Stuff').hasClass('AClass')).to.be.true;
+        });
+    });
+
     describe('getConstant()', function () {
         it('should return the native value of the constant from the global namespace when defined', function () {
             var value = sinon.createStubInstance(Value);

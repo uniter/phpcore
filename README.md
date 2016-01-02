@@ -32,6 +32,15 @@ phpCore.install({
             };
 
             return TwentyOne;
+        },
+        'My\\Tools\\Worker': function () {
+            function Worker() {}
+
+            Worker.prototype.run = function () {
+                console.log('running');
+            };
+
+            return Worker;
         }
     },
     constantGroups: [

@@ -64,13 +64,20 @@ module.exports = require('pauser')([
             }
 
             function installClass(classFactory, name) {
-                var Class = classFactory(internals);
+                var Class = classFactory(internals),
+                    namespace = globalNamespace,
+                    parsed = globalNamespace.parseClassName(name);
 
                 if (name === EXCEPTION_CLASS) {
                     state.PHPException = Class;
                 }
 
-                globalNamespace.defineClass(name, Class);
+                if (parsed) {
+                    namespace = parsed.namespace;
+                    name = parsed.name;
+                }
+
+                namespace.defineClass(name, Class);
             }
 
             function installConstantGroup(groupFactory) {
