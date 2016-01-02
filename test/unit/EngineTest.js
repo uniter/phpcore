@@ -65,4 +65,13 @@ describe('Engine', function () {
             }.bind(this)).to.throw('Pausable is not available');
         });
     });
+
+    describe('getConstant()', function () {
+        it('should return the value of the constant from the environment', function () {
+            this.createEngine();
+            this.environment.getConstant.withArgs('A_CONST').returns('my value');
+
+            expect(this.engine.getConstant('A_CONST')).to.equal('my value');
+        });
+    });
 });

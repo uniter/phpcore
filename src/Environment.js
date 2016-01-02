@@ -21,6 +21,10 @@ _.extend(Environment.prototype, {
         this.state.getGlobalScope().expose(object, name);
     },
 
+    getConstant: function (name) {
+        return this.state.getConstant(name);
+    },
+
     getOptions: function () {
         return this.options;
     },

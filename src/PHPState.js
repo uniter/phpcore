@@ -134,6 +134,18 @@ module.exports = require('pauser')([
             return this.callStack;
         },
 
+        getConstant: function (name) {
+            var value;
+
+            try {
+                value = this.globalNamespace.getConstant(name, true);
+            } catch (error) {
+                return null;
+            }
+
+            return value.getNative();
+        },
+
         getGlobalNamespace: function () {
             return this.globalNamespace;
         },

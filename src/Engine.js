@@ -334,6 +334,10 @@ _.extend(Engine.prototype, {
         this.environment.expose(object, name);
     },
 
+    getConstant: function (name) {
+        return this.environment.getConstant(name);
+    },
+
     getStderr: function () {
         return this.environment.getStderr();
     },
