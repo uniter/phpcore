@@ -27,7 +27,7 @@
     "microdash": "~1",
     "pausable": "~4",
     "pauser": "~1",
-    "phpcommon": "~1.3"
+    "phpcommon": "~1"
   },
   "devDependencies": {
     "chai": "^2.3.0",
