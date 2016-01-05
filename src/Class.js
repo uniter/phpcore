@@ -194,6 +194,20 @@ module.exports = require('pauser')([
             }
 
             return objectValue;
+        },
+
+        is: function (className) {
+            var classObject = this;
+
+            if (classObject.name.toLowerCase() === className.toLowerCase()) {
+                return true;
+            }
+
+            if (classObject.superClass) {
+                return classObject.superClass.is(className);
+            }
+
+            return false;
         }
     });
 
