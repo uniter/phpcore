@@ -156,6 +156,49 @@ describe('NamespaceScope', function () {
         });
     });
 
+    describe('resolveClass()', function () {
+        it('should support resolving a class with no imports involved', function () {
+            var result = this.scope.resolveClass('MyClass');
+
+            expect(result.namespace).to.equal(this.namespace);
+            expect(result.name).to.equal('MyClass');
+        });
+
+        it('should support resolving a class with whole name aliased case-insensitively', function () {
+            var result;
+            this.scope.use('MyClass', 'AnAliasForMyClass');
+
+            result = this.scope.resolveClass('analiasFORMYClAsS');
+
+            expect(result.namespace).to.equal(this.globalNamespace);
+            expect(result.name).to.equal('MyClass');
+        });
+
+        it('should support resolving a relative class path with prefix aliased case-insensitively', function () {
+            var result,
+                subNamespace = sinon.createStubInstance(Namespace);
+            this.globalNamespace.getDescendant.withArgs('The\\Namespace\\Of\\My').returns(subNamespace);
+            this.scope.use('The\\Namespace\\Of', 'TheAliasOfIt');
+
+            result = this.scope.resolveClass('thealIASOFit\\My\\PhpClass');
+
+            expect(result.namespace).to.equal(subNamespace);
+            expect(result.name).to.equal('PhpClass');
+        });
+
+        it('should support resolving an absolute class path', function () {
+            var result,
+                subNamespace = sinon.createStubInstance(Namespace);
+            this.globalNamespace.getDescendant.withArgs('The\\Absolute\\Path\\To\\My').returns(subNamespace);
+            this.scope.use('I\\Should\\Be\\Ignored', 'The');
+
+            result = this.scope.resolveClass('\\The\\Absolute\\Path\\To\\My\\AbsPhpClass');
+
+            expect(result.namespace).to.equal(subNamespace);
+            expect(result.name).to.equal('AbsPhpClass');
+        });
+    });
+
     describe('use()', function () {
         it('should recognise duplicate aliases case-insensitively', function () {
             this.scope.use('My\\App\\Stuff', 'MyStuff');

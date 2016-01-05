@@ -28,45 +28,9 @@ module.exports = require('pauser')([
 
     _.extend(NamespaceScope.prototype, {
         getClass: function (name) {
-            var match,
-                scope = this,
-                namespace = scope.namespace,
-                path,
-                prefix;
+            var resolvedClass = this.resolveClass(name);
 
-            // Check whether the entire class name is aliased
-            if (hasOwn.call(scope.imports, name.toLowerCase())) {
-                name = scope.imports[name.toLowerCase()];
-                namespace = scope.globalNamespace;
-            }
-
-            // Check whether the class path is absolute, so no 'use's apply
-            if (name.charAt(0) === '\\') {
-                match = name.match(/^\\(.*?)\\([^\\]+)$/);
-
-                if (match) {
-                    path = match[1];
-                    name = match[2];
-                    namespace = scope.globalNamespace.getDescendant(path);
-                } else {
-                    name = name.substr(1);
-                }
-                // Check whether the namespace prefix is an alias
-            } else {
-                match = name.match(/^([^\\]+)(.*?)\\([^\\]+)$/);
-
-                if (match) {
-                    prefix = match[1];
-                    path = match[2];
-
-                    if (hasOwn.call(scope.imports, prefix.toLowerCase())) {
-                        namespace = scope.globalNamespace.getDescendant(scope.imports[prefix.toLowerCase()].substr(1) + path);
-                        name = match[3];
-                    }
-                }
-            }
-
-            return namespace.getClass(name);
+            return resolvedClass.namespace.getClass(resolvedClass.name);
         },
 
         getConstant: function (name) {
@@ -161,6 +125,48 @@ module.exports = require('pauser')([
             var scope = this;
 
             return scope.valueFactory.createString(scope.namespace.getName());
+        },
+
+        resolveClass: function (name) {
+            var match,
+                scope = this,
+                namespace = scope.namespace,
+                path,
+                prefix;
+
+            // Check whether the entire class name is aliased
+            if (hasOwn.call(scope.imports, name.toLowerCase())) {
+                name = scope.imports[name.toLowerCase()];
+                namespace = scope.globalNamespace;
+            }
+
+            // Check whether the class path is absolute, so no 'use's apply
+            if (name.charAt(0) === '\\') {
+                match = name.match(/^\\(.*?)\\([^\\]+)$/);
+
+                if (match) {
+                    path = match[1];
+                    name = match[2];
+                    namespace = scope.globalNamespace.getDescendant(path);
+                } else {
+                    name = name.substr(1);
+                }
+            // Check whether the namespace prefix is an alias
+            } else {
+                match = name.match(/^([^\\]+)(.*?)\\([^\\]+)$/);
+
+                if (match) {
+                    prefix = match[1];
+                    path = match[2];
+
+                    if (hasOwn.call(scope.imports, prefix.toLowerCase())) {
+                        namespace = scope.globalNamespace.getDescendant(scope.imports[prefix.toLowerCase()].substr(1) + path);
+                        name = match[3];
+                    }
+                }
+            }
+
+            return {namespace: namespace, name: name};
         },
 
         use: function (source, alias) {
