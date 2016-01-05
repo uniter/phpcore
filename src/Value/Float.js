@@ -133,6 +133,10 @@ module.exports = require('pauser')([
             return this.factory.createNull();
         },
 
+        isAnInstanceOf: function (classNameValue) {
+            return classNameValue.isTheClassOfFloat(this);
+        },
+
         isEqualTo: function (rightValue) {
             return rightValue.isEqualToFloat(this);
         },

@@ -154,6 +154,10 @@ module.exports = require('pauser')([
             return value.factory.createInteger(value.value + 1);
         },
 
+        isAnInstanceOf: function (classNameValue) {
+            return classNameValue.isTheClassOfInteger(this);
+        },
+
         isEqualTo: function (rightValue) {
             return rightValue.isEqualToInteger(this);
         },

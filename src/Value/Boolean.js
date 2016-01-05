@@ -129,6 +129,10 @@ module.exports = require('pauser')([
             return this.factory.createNull();
         },
 
+        isAnInstanceOf: function (classNameValue) {
+            return classNameValue.isTheClassOfBoolean(this);
+        },
+
         isEqualTo: function (rightValue) {
             var leftValue = this,
                 factory = leftValue.factory;

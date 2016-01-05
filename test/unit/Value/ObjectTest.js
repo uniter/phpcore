@@ -19,6 +19,7 @@ var _ = require('microdash'),
     Class = require('../../../src/Class').sync(),
     FloatValue = require('../../../src/Value/Float').sync(),
     IntegerValue = require('../../../src/Value/Integer').sync(),
+    NamespaceScope = require('../../../src/NamespaceScope').sync(),
     NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
@@ -93,8 +94,9 @@ describe('Object', function () {
             return nullValue;
         }.bind(this));
         this.factory.createObject.restore();
-        sinon.stub(this.factory, 'createObject', function (nativeValue) {
+        sinon.stub(this.factory, 'createObject', function (nativeValue, classObject) {
             var objectValue = sinon.createStubInstance(IntegerValue);
+            objectValue.classObject = classObject;
             objectValue.getType.returns('object');
             objectValue.coerceToKey.returns(objectValue);
             objectValue.getForAssignment.returns(objectValue);
@@ -213,6 +215,20 @@ describe('Object', function () {
 
                 expect(this.myMethod).to.have.been.calledOnce;
             });
+        });
+    });
+
+    describe('classIs()', function () {
+        it('should return true when <class>.is(...) does', function () {
+            this.classObject.is.withArgs('My\\Class\\Path').returns(true);
+
+            expect(this.value.classIs('My\\Class\\Path')).to.be.true;
+        });
+
+        it('should return false when <class>.is(...) does', function () {
+            this.classObject.is.withArgs('My\\Class\\Path').returns(false);
+
+            expect(this.value.classIs('My\\Class\\Path')).to.be.false;
         });
     });
 
@@ -623,6 +639,113 @@ describe('Object', function () {
             expect(names[0].getNative()).to.equal('firstProp');
             expect(names[1].getNative()).to.equal('secondProp');
             expect(names[2].getNative()).to.equal('length');
+        });
+    });
+
+    describe('isAnInstanceOf()', function () {
+        it('should hand off to the right-hand operand to determine the result', function () {
+            var namespaceScope = sinon.createStubInstance(NamespaceScope),
+                rightOperand = sinon.createStubInstance(Value),
+                result = sinon.createStubInstance(Value);
+            rightOperand.isTheClassOfObject.withArgs(this.value, namespaceScope).returns(result);
+
+            expect(this.value.isAnInstanceOf(rightOperand, namespaceScope)).to.equal(result);
+        });
+    });
+
+    describe('isTheClassOfArray()', function () {
+        it('should return bool(false)', function () {
+            var classValue = sinon.createStubInstance(ArrayValue),
+                result = this.value.isTheClassOfArray(classValue);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.equal(false);
+        });
+    });
+
+    describe('isTheClassOfBoolean()', function () {
+        it('should return bool(false)', function () {
+            var classValue = this.factory.createBoolean(true),
+                result = this.value.isTheClassOfBoolean(classValue);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.equal(false);
+        });
+    });
+
+    describe('isTheClassOfFloat()', function () {
+        it('should return bool(false)', function () {
+            var classValue = this.factory.createFloat(21.2),
+                result = this.value.isTheClassOfFloat(classValue);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.equal(false);
+        });
+    });
+
+    describe('isTheClassOfInteger()', function () {
+        it('should return bool(false)', function () {
+            var classValue = this.factory.createInteger(21),
+                result = this.value.isTheClassOfInteger(classValue);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.equal(false);
+        });
+    });
+
+    describe('isTheClassOfNull()', function () {
+        it('should return bool(false)', function () {
+            var classValue = this.factory.createNull(),
+                result = this.value.isTheClassOfNull(classValue);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.equal(false);
+        });
+    });
+
+    describe('isTheClassOfObject()', function () {
+        it('should return bool(true) when the two objects have the same class', function () {
+            var subjectObjectValue = this.factory.createObject({}, this.classObject),
+                result = this.value.isTheClassOfObject(subjectObjectValue);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.equal(true);
+        });
+
+        it('should return bool(true) when the subject object\'s class extends this object\'s class', function () {
+            var subjectClassObject = sinon.createStubInstance(Class),
+                subjectObjectValue = this.factory.createObject({}, subjectClassObject),
+                result;
+            subjectClassObject.extends.withArgs(sinon.match.same(this.classObject)).returns(true);
+            this.classObject.extends.withArgs(sinon.match.same(subjectClassObject)).returns(false);
+
+            result = this.value.isTheClassOfObject(subjectObjectValue);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.equal(true);
+        });
+
+        it('should return bool(false) when this object\'s class extends the subject object\'s class', function () {
+            var subjectClassObject = sinon.createStubInstance(Class),
+                subjectObjectValue = this.factory.createObject({}, subjectClassObject),
+                result;
+            subjectClassObject.extends.withArgs(sinon.match.same(this.classObject)).returns(false);
+            this.classObject.extends.withArgs(sinon.match.same(subjectClassObject)).returns(true);
+
+            result = this.value.isTheClassOfObject(subjectObjectValue);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.equal(false);
+        });
+    });
+
+    describe('isTheClassOfString()', function () {
+        it('should return bool(false)', function () {
+            var classValue = this.factory.createString('my string'),
+                result = this.value.isTheClassOfString(classValue);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.equal(false);
         });
     });
 

@@ -275,6 +275,10 @@ module.exports = require('pauser')([
             return values;
         },
 
+        isAnInstanceOf: function (classNameValue) {
+            return classNameValue.isTheClassOfArray(this);
+        },
+
         isEqualTo: function (rightValue) {
             return rightValue.isEqualToArray(this);
         },

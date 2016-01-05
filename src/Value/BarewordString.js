@@ -27,6 +27,16 @@ module.exports = require('pauser')([
     _.extend(BarewordStringValue.prototype, {
         call: function (args, namespaceOrNamespaceScope) {
             return namespaceOrNamespaceScope.getFunction(this.value).apply(null, args);
+        },
+
+        isTheClassOfObject: function (objectValue, namespaceOrNamespaceScope) {
+            var rightValue = this,
+                resolvedClass = namespaceOrNamespaceScope.resolveClass(rightValue.value),
+                fqcn = resolvedClass.namespace.getPrefix() + resolvedClass.name;
+
+            return rightValue.factory.createBoolean(
+                objectValue.classIs(fqcn)
+            );
         }
     });
 

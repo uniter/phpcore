@@ -168,6 +168,10 @@ module.exports = require('pauser')([
             return this.classObject.callStaticMethod(nameValue.getNative(), args);
         },
 
+        classIs: function (className) {
+            return this.classObject.is(className);
+        },
+
         clone: function () {
             throw new Error('Unimplemented');
         },
@@ -358,6 +362,10 @@ module.exports = require('pauser')([
             return this.classObject.getStaticPropertyByName(nameValue.getNative());
         },
 
+        isAnInstanceOf: function (classNameValue, namespaceOrNamespaceScope) {
+            return classNameValue.isTheClassOfObject(this, namespaceOrNamespaceScope);
+        },
+
         isEqualTo: function (rightValue) {
             return rightValue.isEqualToObject(this);
         },
@@ -422,6 +430,39 @@ module.exports = require('pauser')([
                 factory = leftValue.factory;
 
             return factory.createBoolean(rightValue.value === leftValue.value);
+        },
+
+        isTheClassOfArray: function () {
+            return this.factory.createBoolean(false);
+        },
+
+        isTheClassOfBoolean: function () {
+            return this.factory.createBoolean(false);
+        },
+
+        isTheClassOfFloat: function () {
+            return this.factory.createBoolean(false);
+        },
+
+        isTheClassOfInteger: function () {
+            return this.factory.createBoolean(false);
+        },
+
+        isTheClassOfNull: function () {
+            return this.factory.createBoolean(false);
+        },
+
+        isTheClassOfObject: function (leftValue) {
+            var rightValue = this;
+
+            return rightValue.factory.createBoolean(
+                rightValue.classObject === leftValue.classObject ||
+                    leftValue.classObject.extends(rightValue.classObject)
+            );
+        },
+
+        isTheClassOfString: function () {
+            return this.factory.createBoolean(false);
         },
 
         pointToProperty: function (propertyReference) {

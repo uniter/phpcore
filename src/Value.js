@@ -186,6 +186,38 @@ module.exports = require('pauser')([
             return this;
         },
 
+        isAnInstanceOf: function () {
+            throw new Error('Unimplemented');
+        },
+
+        isTheClassOfArray: function () {
+            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+        },
+
+        isTheClassOfBoolean: function () {
+            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+        },
+
+        isTheClassOfFloat: function () {
+            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+        },
+
+        isTheClassOfInteger: function () {
+            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+        },
+
+        isTheClassOfNull: function () {
+            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+        },
+
+        isTheClassOfObject: function () {
+            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+        },
+
+        isTheClassOfString: function () {
+            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+        },
+
         isEqualTo: function (rightValue) {
             /*jshint eqeqeq:false */
             var leftValue = this;

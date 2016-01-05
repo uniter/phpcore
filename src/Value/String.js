@@ -187,6 +187,10 @@ module.exports = require('pauser')([
             return classObject.getStaticPropertyByName(nameValue.getNative());
         },
 
+        isAnInstanceOf: function (classNameValue) {
+            return classNameValue.isTheClassOfString(this);
+        },
+
         isEqualTo: function (rightValue) {
             return rightValue.isEqualToString(this);
         },
@@ -205,6 +209,38 @@ module.exports = require('pauser')([
             var leftValue = this;
 
             return leftValue.factory.createBoolean(leftValue.value === rightValue.value);
+        },
+
+        isTheClassOfArray: function () {
+            return this.factory.createBoolean(false);
+        },
+
+        isTheClassOfBoolean: function () {
+            return this.factory.createBoolean(false);
+        },
+
+        isTheClassOfFloat: function () {
+            return this.factory.createBoolean(false);
+        },
+
+        isTheClassOfInteger: function () {
+            return this.factory.createBoolean(false);
+        },
+
+        isTheClassOfNull: function () {
+            return this.factory.createBoolean(false);
+        },
+
+        isTheClassOfObject: function (objectValue) {
+            var rightValue = this;
+
+            return rightValue.factory.createBoolean(
+                objectValue.classIs(rightValue.value)
+            );
+        },
+
+        isTheClassOfString: function () {
+            return this.factory.createBoolean(false);
         },
 
         onesComplement: function () {

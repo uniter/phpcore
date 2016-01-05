@@ -65,7 +65,7 @@ describe('Array', function () {
         }.bind(this));
         this.factory.createObject.restore();
         sinon.stub(this.factory, 'createObject', function (nativeValue) {
-            var objectValue = sinon.createStubInstance(IntegerValue);
+            var objectValue = sinon.createStubInstance(ObjectValue);
             objectValue.coerceToKey.returns(objectValue);
             objectValue.getForAssignment.returns(objectValue);
             objectValue.getNative.returns(nativeValue);
@@ -316,6 +316,107 @@ describe('Array', function () {
     describe('getPushElement()', function () {
         it('should return an ElementReference', function () {
             expect(this.value.getPushElement()).to.be.an.instanceOf(ElementReference);
+        });
+    });
+
+    describe('isAnInstanceOf()', function () {
+        it('should hand off to the right-hand operand to determine the result', function () {
+            var rightOperand = sinon.createStubInstance(Value),
+                result = sinon.createStubInstance(Value);
+            rightOperand.isTheClassOfArray.withArgs(this.value).returns(result);
+
+            expect(this.value.isAnInstanceOf(rightOperand)).to.equal(result);
+        });
+    });
+
+    describe('isTheClassOfArray()', function () {
+        it('should raise a fatal error', function () {
+            var classValue = sinon.createStubInstance(ArrayValue);
+
+            expect(function () {
+                this.value.isTheClassOfArray(classValue);
+            }.bind(this)).to.throw(
+                PHPFatalError,
+                'Class name must be a valid object or a string'
+            );
+        });
+    });
+
+    describe('isTheClassOfBoolean()', function () {
+        it('should raise a fatal error', function () {
+            var classValue = this.factory.createBoolean(true);
+
+            expect(function () {
+                this.value.isTheClassOfBoolean(classValue);
+            }.bind(this)).to.throw(
+                PHPFatalError,
+                'Class name must be a valid object or a string'
+            );
+        });
+    });
+
+    describe('isTheClassOfFloat()', function () {
+        it('should raise a fatal error', function () {
+            var classValue = this.factory.createFloat(22.4);
+
+            expect(function () {
+                this.value.isTheClassOfFloat(classValue);
+            }.bind(this)).to.throw(
+                PHPFatalError,
+                'Class name must be a valid object or a string'
+            );
+        });
+    });
+
+    describe('isTheClassOfInteger()', function () {
+        it('should raise a fatal error', function () {
+            var classValue = this.factory.createInteger(21);
+
+            expect(function () {
+                this.value.isTheClassOfInteger(classValue);
+            }.bind(this)).to.throw(
+                PHPFatalError,
+                'Class name must be a valid object or a string'
+            );
+        });
+    });
+
+    describe('isTheClassOfNull()', function () {
+        it('should raise a fatal error', function () {
+            var classValue = this.factory.createNull();
+
+            expect(function () {
+                this.value.isTheClassOfNull(classValue);
+            }.bind(this)).to.throw(
+                PHPFatalError,
+                'Class name must be a valid object or a string'
+            );
+        });
+    });
+
+    describe('isTheClassOfObject()', function () {
+        it('should raise a fatal error', function () {
+            var classValue = this.factory.createObject({});
+
+            expect(function () {
+                this.value.isTheClassOfObject(classValue);
+            }.bind(this)).to.throw(
+                PHPFatalError,
+                'Class name must be a valid object or a string'
+            );
+        });
+    });
+
+    describe('isTheClassOfString()', function () {
+        it('should raise a fatal error', function () {
+            var classValue = this.factory.createString('a string');
+
+            expect(function () {
+                this.value.isTheClassOfString(classValue);
+            }.bind(this)).to.throw(
+                PHPFatalError,
+                'Class name must be a valid object or a string'
+            );
         });
     });
 

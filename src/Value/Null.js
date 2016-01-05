@@ -101,6 +101,10 @@ module.exports = require('pauser')([
             return value.factory.createNull();
         },
 
+        isAnInstanceOf: function (classNameValue) {
+            return classNameValue.isTheClassOfNull(this);
+        },
+
         isEqualTo: function (rightValue) {
             return rightValue.isEqualToNull(this);
         },

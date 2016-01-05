@@ -354,6 +354,10 @@ module.exports = require('pauser')([
             }
 
             return null;
+        },
+
+        resolveClass: function (name) {
+            return name;
         }
     });
 
