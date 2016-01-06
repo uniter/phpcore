@@ -16,6 +16,7 @@ var expect = require('chai').expect,
     FunctionFactory = require('../../src/FunctionFactory'),
     Namespace = require('../../src/Namespace').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
+    SuperGlobalScope = require('../../src/SuperGlobalScope').sync(),
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
 
@@ -24,11 +25,13 @@ describe('ScopeFactory', function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.functionFactory = sinon.createStubInstance(FunctionFactory);
         this.Scope = sinon.stub();
+        this.superGlobalScope = sinon.createStubInstance(SuperGlobalScope);
         this.valueFactory = sinon.createStubInstance(ValueFactory);
 
         this.factory = new ScopeFactory(
             this.Scope,
             this.callStack,
+            this.superGlobalScope,
             this.valueFactory
         );
         this.factory.setFunctionFactory(this.functionFactory);
@@ -67,10 +70,20 @@ describe('ScopeFactory', function () {
             expect(this.Scope).to.have.been.calledWith(sinon.match.same(this.callStack));
         });
 
+        it('should pass the SuperGlobalScope to the scope', function () {
+            this.callCreate();
+
+            expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.same(this.superGlobalScope)
+            );
+        });
+
         it('should pass the FunctionFactory to the scope', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.same(this.functionFactory)
             );
@@ -82,6 +95,7 @@ describe('ScopeFactory', function () {
             expect(this.Scope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
                 sinon.match.same(this.valueFactory)
             );
         });
@@ -90,6 +104,7 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -106,6 +121,7 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
                 null
             );
         });
@@ -114,6 +130,7 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -132,6 +149,7 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
                 null
             );
         });
@@ -140,6 +158,7 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -160,6 +179,7 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
                 null
             );
         });
@@ -168,6 +188,7 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -184,6 +205,7 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,

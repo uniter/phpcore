@@ -12,7 +12,8 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     Environment = require('../../src/Environment'),
-    PHPState = require('../../src/PHPState').sync();
+    PHPState = require('../../src/PHPState').sync(),
+    Value = require('../../src/Value').sync();
 
 describe('Environment', function () {
     beforeEach(function () {
@@ -20,6 +21,19 @@ describe('Environment', function () {
         this.options = {};
 
         this.environment = new Environment(this.state, this.options);
+    });
+
+    describe('defineSuperGlobal()', function () {
+        it('should define the super global on the state', function () {
+            var value = sinon.createStubInstance(Value);
+            this.environment.defineSuperGlobal('myGlobal', value);
+
+            expect(this.state.defineSuperGlobal).to.have.been.calledOnce;
+            expect(this.state.defineSuperGlobal).to.have.been.calledWith(
+                'myGlobal',
+                sinon.match.same(value)
+            );
+        });
     });
 
     describe('getConstant()', function () {

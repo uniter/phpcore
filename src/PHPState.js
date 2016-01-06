@@ -24,6 +24,7 @@ module.exports = require('pauser')([
     require('./ReferenceFactory'),
     require('./Scope'),
     require('./ScopeFactory'),
+    require('./SuperGlobalScope'),
     require('./ValueFactory')
 ], function (
     _,
@@ -40,6 +41,7 @@ module.exports = require('pauser')([
     ReferenceFactory,
     Scope,
     ScopeFactory,
+    SuperGlobalScope,
     ValueFactory
 ) {
     var EXCEPTION_CLASS = 'Exception',
@@ -104,7 +106,8 @@ module.exports = require('pauser')([
             callFactory = new CallFactory(Call),
             valueFactory = new ValueFactory(pausable, callStack),
             classAutoloader = new ClassAutoloader(valueFactory),
-            scopeFactory = new ScopeFactory(Scope, callStack, valueFactory),
+            superGlobalScope = new SuperGlobalScope(callStack, valueFactory),
+            scopeFactory = new ScopeFactory(Scope, callStack, superGlobalScope, valueFactory),
             functionFactory = new FunctionFactory(scopeFactory, callFactory, valueFactory, callStack),
             namespaceFactory = new NamespaceFactory(
                 Namespace,
@@ -130,6 +133,7 @@ module.exports = require('pauser')([
         this.stderr = stderr;
         this.stdin = stdin;
         this.stdout = stdout;
+        this.superGlobalScope = superGlobalScope;
         this.valueFactory = valueFactory;
         this.PHPException = null;
 
@@ -137,6 +141,10 @@ module.exports = require('pauser')([
     }
 
     _.extend(PHPState.prototype, {
+        defineSuperGlobal: function (name, value) {
+            this.superGlobalScope.defineVariable(name).setValue(value);
+        },
+
         getCallStack: function () {
             return this.callStack;
         },

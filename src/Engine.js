@@ -51,6 +51,14 @@ _.extend(Engine.prototype, {
         return engine.pausable.createPause();
     },
 
+    defineSuperGlobal: function (name, nativeValue) {
+        var engine = this,
+            valueFactory = engine.environment.getState().getValueFactory(),
+            value = valueFactory.coerce(nativeValue);
+
+        engine.environment.defineSuperGlobal(name, value);
+    },
+
     execute: function () {
         var callStack,
             engine = this,

@@ -17,7 +17,9 @@ var expect = require('chai').expect,
     Namespace = require('../../src/Namespace').sync(),
     Scope = require('../../src/Scope').sync(),
     StringValue = require('../../src/Value/String').sync(),
-    ValueFactory = require('../../src/ValueFactory').sync();
+    SuperGlobalScope = require('../../src/SuperGlobalScope').sync(),
+    ValueFactory = require('../../src/ValueFactory').sync(),
+    Variable = require('../../src/Variable').sync();
 
 describe('Scope', function () {
     beforeEach(function () {
@@ -27,6 +29,7 @@ describe('Scope', function () {
         this.currentFunction = null;
         this.functionFactory = sinon.createStubInstance(FunctionFactory);
         this.namespace = sinon.createStubInstance(Namespace);
+        this.superGlobalScope = sinon.createStubInstance(SuperGlobalScope);
         this.valueFactory = sinon.createStubInstance(ValueFactory);
 
         this.functionFactory.create.returns(this.closure);
@@ -46,6 +49,7 @@ describe('Scope', function () {
         this.createScope = function () {
             this.scope = new Scope(
                 this.callStack,
+                this.superGlobalScope,
                 this.functionFactory,
                 this.valueFactory,
                 this.namespace,
@@ -181,6 +185,38 @@ describe('Scope', function () {
             this.createScope();
 
             expect(this.scope.getMethodName().getNative()).to.equal('');
+        });
+    });
+
+    describe('getVariable()', function () {
+        it('should fetch the existing variable if already defined', function () {
+            var variable,
+                fetchedVariable;
+            this.createScope();
+            variable = this.scope.defineVariable('myVar');
+
+            fetchedVariable = this.scope.getVariable('myVar');
+
+            expect(fetchedVariable).to.be.an.instanceOf(Variable);
+            expect(fetchedVariable).to.equal(variable);
+        });
+
+        it('should implicitly define the variable if not already defined', function () {
+            var fetchedVariable;
+            this.createScope();
+
+            fetchedVariable = this.scope.getVariable('myUndefinedVar');
+
+            expect(fetchedVariable).to.be.an.instanceOf(Variable);
+            expect(fetchedVariable.getName()).to.equal('myUndefinedVar');
+        });
+
+        it('should fetch a super global if defined', function () {
+            var superGlobal = sinon.createStubInstance(Variable);
+            this.superGlobalScope.getVariable.withArgs('_ENV').returns(superGlobal);
+            this.createScope();
+
+            expect(this.scope.getVariable('_ENV')).to.equal(superGlobal);
         });
     });
 });

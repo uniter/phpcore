@@ -17,6 +17,10 @@ function Environment(state, options) {
 }
 
 _.extend(Environment.prototype, {
+    defineSuperGlobal: function (name, value) {
+        this.state.defineSuperGlobal(name, value);
+    },
+
     expose: function (object, name) {
         this.state.getGlobalScope().expose(object, name);
     },

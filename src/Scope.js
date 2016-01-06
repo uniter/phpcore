@@ -20,6 +20,7 @@ module.exports = require('pauser')([
 
     function Scope(
         callStack,
+        superGlobalScope,
         functionFactory,
         valueFactory,
         namespace,
@@ -35,6 +36,7 @@ module.exports = require('pauser')([
         this.errorsSuppressed = false;
         this.functionFactory = functionFactory;
         this.namespace = namespace;
+        this.superGlobalScope = superGlobalScope;
         this.thisObject = thisObject;
         this.valueFactory = valueFactory;
         this.variables = {};
@@ -136,8 +138,16 @@ module.exports = require('pauser')([
             var scope = this,
                 variable;
 
-            if (!hasOwn.call(scope.variables, name)) {
-                // Implicitly define the variable
+            // Look in the current scope for the variable first
+            if (hasOwn.call(scope.variables, name)) {
+                return scope.variables[name];
+            }
+
+            // If not found, look in the super global scope
+            variable = scope.superGlobalScope.getVariable(name);
+
+            if (!variable) {
+                // Variable is not local or a super-global: implicitly define it
                 variable = new Variable(scope.callStack, scope.valueFactory, name);
                 scope.variables[name] = variable;
 
@@ -146,7 +156,7 @@ module.exports = require('pauser')([
                 }
             }
 
-            return scope.variables[name];
+            return variable;
         },
 
         suppressErrors: function () {

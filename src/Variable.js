@@ -35,6 +35,10 @@ module.exports = require('pauser')([
             variable.setValue(variable.getValue().subtract(rightValue));
         },
 
+        getName: function () {
+            return this.name;
+        },
+
         getValue: function () {
             var variable = this;
 

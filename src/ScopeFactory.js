@@ -11,10 +11,11 @@
 
 var _ = require('microdash');
 
-function ScopeFactory(Scope, callStack, valueFactory) {
+function ScopeFactory(Scope, callStack, superGlobalScope, valueFactory) {
     this.callStack = callStack;
     this.functionFactory = null;
     this.Scope = Scope;
+    this.superGlobalScope = superGlobalScope;
     this.valueFactory = valueFactory;
 }
 
@@ -24,6 +25,7 @@ _.extend(ScopeFactory.prototype, {
 
         return new factory.Scope(
             factory.callStack,
+            factory.superGlobalScope,
             factory.functionFactory,
             factory.valueFactory,
             namespace || null,
