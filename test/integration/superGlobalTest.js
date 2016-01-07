@@ -64,4 +64,39 @@ EOS
             31
         ]);
     });
+
+    it('should support accessor superglobals', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+function giveItFour() {
+    $MY_MAGIC_SUPER_GLOBAL = 4;
+}
+
+$result[] = $MY_MAGIC_SUPER_GLOBAL;
+giveItFour();
+$result[] = $MY_MAGIC_SUPER_GLOBAL;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module(),
+            theValue = 21;
+
+        engine.defineSuperGlobalAccessor(
+            'MY_MAGIC_SUPER_GLOBAL',
+            function () {
+                return theValue;
+            },
+            function (newValue) {
+                theValue = newValue * 2;
+            }
+        );
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            21,
+            8
+        ]);
+    });
 });

@@ -59,6 +59,10 @@ _.extend(Engine.prototype, {
         engine.environment.defineSuperGlobal(name, value);
     },
 
+    defineSuperGlobalAccessor: function (name, valueGetter, valueSetter) {
+        this.environment.defineSuperGlobalAccessor(name, valueGetter, valueSetter);
+    },
+
     execute: function () {
         var callStack,
             engine = this,

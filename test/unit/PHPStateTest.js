@@ -66,6 +66,31 @@ describe('PHPState', function () {
         });
     });
 
+    describe('defineSuperGlobalAccessor()', function () {
+        it('should install a getter for the superglobal', function () {
+            var valueGetter = sinon.stub(),
+                valueSetter = sinon.spy();
+            valueGetter.returns(21);
+
+            this.state.defineSuperGlobalAccessor('MY_GLOB', valueGetter, valueSetter);
+
+            expect(this.state.getSuperGlobalScope().getVariable('MY_GLOB').getValue().getNative()).to.equal(21);
+        });
+
+        it('should install a setter for the superglobal', function () {
+            var value = sinon.createStubInstance(Value),
+                valueGetter = sinon.stub(),
+                valueSetter = sinon.spy();
+            value.unwrapForJS.returns(27);
+
+            this.state.defineSuperGlobalAccessor('MY_GLOB', valueGetter, valueSetter);
+            this.state.getSuperGlobalScope().getVariable('MY_GLOB').setValue(value);
+
+            expect(valueSetter).to.have.been.calledOnce;
+            expect(valueSetter).to.have.been.calledWith(27);
+        });
+    });
+
     describe('getConstant()', function () {
         it('should return the native value of the constant from the global namespace when defined', function () {
             var value = sinon.createStubInstance(Value);

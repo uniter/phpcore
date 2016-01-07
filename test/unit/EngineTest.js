@@ -66,6 +66,23 @@ describe('Engine', function () {
         });
     });
 
+    describe('defineSuperGlobalAccessor()', function () {
+        it('should define the superglobal on the environment', function () {
+            var valueGetter = sinon.stub(),
+                valueSetter = sinon.spy();
+            this.createEngine();
+
+            this.engine.defineSuperGlobalAccessor('MY_SUPER', valueGetter, valueSetter);
+
+            expect(this.environment.defineSuperGlobalAccessor).to.have.been.calledOnce;
+            expect(this.environment.defineSuperGlobalAccessor).to.have.been.calledWith(
+                'MY_SUPER',
+                sinon.match.same(valueGetter),
+                sinon.match.same(valueSetter)
+            );
+        });
+    });
+
     describe('getConstant()', function () {
         it('should return the value of the constant from the environment', function () {
             this.createEngine();

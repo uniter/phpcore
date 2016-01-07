@@ -13,6 +13,7 @@ module.exports = require('pauser')([
     require('microdash'),
     require('./builtin/builtins'),
     require('util'),
+    require('./Reference/AccessorReference'),
     require('./Call'),
     require('./CallFactory'),
     require('./CallStack'),
@@ -30,6 +31,7 @@ module.exports = require('pauser')([
     _,
     builtinTypes,
     util,
+    AccessorReference,
     Call,
     CallFactory,
     CallStack,
@@ -145,6 +147,13 @@ module.exports = require('pauser')([
             this.superGlobalScope.defineVariable(name).setValue(value);
         },
 
+        defineSuperGlobalAccessor: function (name, valueGetter, valueSetter) {
+            var state = this,
+                accessorReference = new AccessorReference(state.valueFactory, valueGetter, valueSetter);
+
+            state.superGlobalScope.defineVariable(name).setReference(accessorReference);
+        },
+
         getCallStack: function () {
             return this.callStack;
         },
@@ -187,6 +196,10 @@ module.exports = require('pauser')([
 
         getStdout: function () {
             return this.stdout;
+        },
+
+        getSuperGlobalScope: function () {
+            return this.superGlobalScope;
         },
 
         getValueFactory: function () {

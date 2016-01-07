@@ -21,6 +21,10 @@ _.extend(Environment.prototype, {
         this.state.defineSuperGlobal(name, value);
     },
 
+    defineSuperGlobalAccessor: function (name, valueGetter, valueSetter) {
+        this.state.defineSuperGlobalAccessor(name, valueGetter, valueSetter);
+    },
+
     expose: function (object, name) {
         this.state.getGlobalScope().expose(object, name);
     },
