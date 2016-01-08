@@ -12,6 +12,7 @@
 var _ = require('microdash'),
     INCLUDE_OPTION = 'include',
     PATH = 'path',
+    hasOwn = {}.hasOwnProperty,
     pauser = require('pauser'),
     Call = require('./Call'),
     ExitValueWrapper = require('./Value/Exit'),
@@ -69,6 +70,7 @@ _.extend(Engine.prototype, {
             environment = engine.environment,
             globalNamespace,
             globalScope,
+            includedPaths = {},
             options = engine.options,
             path = options[PATH],
             isMainProgram = path === null,
@@ -193,6 +195,16 @@ _.extend(Engine.prototype, {
             pause.now();
         }
 
+        function includeOnce(includedPath) {
+            if (hasOwn.call(includedPaths, includedPath)) {
+                return valueFactory.createInteger(1);
+            }
+
+            includedPaths[includedPath] = true;
+
+            return include(includedPath);
+        }
+
         function getNormalizedPath() {
             return path === null ? '(program)' : path;
         }
@@ -250,6 +262,7 @@ _.extend(Engine.prototype, {
             implyObject: function (variable) {
                 return variable.getValue();
             },
+            includeOnce: includeOnce,
             include: include,
             referenceFactory: referenceFactory,
             requireOnce: include,
