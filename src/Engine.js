@@ -172,7 +172,7 @@ _.extend(Engine.prototype, {
                     'include(): Failed opening \'' + includedPath + '\' for inclusion'
                 );
 
-                completeWith(valueFactory.createNull());
+                completeWith(valueFactory.createBoolean(false));
             }
 
             subOptions[INCLUDE_OPTION](includedPath, {

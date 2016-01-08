@@ -126,4 +126,28 @@ EOS
 
         expect(module(options).execute().getNative()).to.equal(322);
     });
+
+    it('should support including the same file multiple times', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+$result[] = include 'abc.php';
+$result[] = include 'abc.php';
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            results = ['first', 'second'],
+            options = {
+                path: 'my/caller.php',
+                include: function (path, promise, callerPath, valueFactory) {
+                    promise.resolve(valueFactory.createString(results.shift()));
+                }
+            };
+
+        expect(module(options).execute().getNative()).to.deep.equal([
+            'first',
+            'second'
+        ]);
+    });
 });

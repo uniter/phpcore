@@ -28,7 +28,9 @@ EOS
             module = tools.asyncTranspile(null, php),
             options = {
                 include: function (path, promise) {
-                    promise.resolve(tools.asyncTranspile(path, '<?php return 22;'));
+                    setTimeout(function () {
+                        promise.resolve(tools.asyncTranspile(path, '<?php return 22;'));
+                    });
                 }
             };
 
@@ -37,7 +39,7 @@ EOS
         }), done);
     });
 
-    it('should correctly trap a parse error in included file', function (done) {
+    it('should correctly handle an asynchronous rejection', function (done) {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $num = include 'abc.php';
@@ -47,15 +49,22 @@ EOS
             module = tools.asyncTranspile(null, php),
             options = {
                 include: function (path, promise) {
-                    promise.resolve(tools.asyncTranspile(path, '<?php abab'));
+                    setTimeout(function () {
+                        promise.reject();
+                    });
                 }
-            };
+            },
+            engine = module(options);
 
-        module(options).execute().then(function (result) {
-            done(new Error('Expected rejection, got resolve: ' + result));
-        }, when(done, function (error) {
-            expect(error.message).to.equal('PHP Parse error: syntax error, unexpected $end in abc.php on line 1');
-        }));
+        engine.execute().then(when(done, function (result) {
+            expect(result.getNative()).to.equal(false);
+            expect(engine.getStderr().readAll()).to.equal(nowdoc(function () {/*<<<EOS
+PHP Warning: include(abc.php): failed to open stream: No such file or directory
+PHP Warning: include(): Failed opening 'abc.php' for inclusion
+
+EOS
+*/;})); //jshint ignore:line
+        }), done);
     });
 
     it('should correctly trap when no include transport is configured', function (done) {
@@ -87,7 +96,9 @@ EOS
             }),
             options = {
                 include: function (path, promise) {
-                    promise.resolve(tools.asyncTranspile(path, '<?php print 21 + 2;'));
+                    setTimeout(function () {
+                        promise.resolve(tools.asyncTranspile(path, '<?php print 21 + 2;'));
+                    });
                 }
             },
             engine = module(options);
@@ -108,12 +119,42 @@ EOS
             options = {
                 path: 'my/caller.php',
                 include: function (path, promise, callerPath, valueFactory) {
-                    promise.resolve(valueFactory.createInteger(123));
+                    setTimeout(function () {
+                        promise.resolve(valueFactory.createInteger(123));
+                    });
                 }
             };
 
         module(options).execute().then(when(done, function (result) {
             expect(result.getNative()).to.equal(124);
+        }), done);
+    });
+
+    it('should support including the same file multiple times', function (done) {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+$result[] = include 'abc.php';
+$result[] = include 'abc.php';
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile(null, php),
+            results = ['first', 'second'],
+            options = {
+                path: 'my/caller.php',
+                include: function (path, promise, callerPath, valueFactory) {
+                    setTimeout(function () {
+                        promise.resolve(valueFactory.createString(results.shift()));
+                    });
+                }
+            };
+
+        module(options).execute().then(when(done, function (result) {
+            expect(result.getNative()).to.deep.equal([
+                'first',
+                'second'
+            ]);
         }), done);
     });
 });
