@@ -38,6 +38,7 @@ describe('ElementReference', function () {
 
         this.arrayValue = sinon.createStubInstance(ArrayValue);
         this.keyValue = this.factory.createString('my_element');
+        this.value = sinon.createStubInstance(StringValue);
 
         this.element = new ElementReference(
             this.factory,
@@ -46,6 +47,20 @@ describe('ElementReference', function () {
             this.keyValue,
             this.value
         );
+    });
+
+    describe('isSet()', function () {
+        it('should return true if the element\'s value is set', function () {
+            this.value.isSet.returns(true);
+
+            expect(this.element.isSet()).to.be.true;
+        });
+
+        it('should return false if the element\'s value is not set', function () {
+            this.value.isSet.returns(false);
+
+            expect(this.element.isSet()).to.be.false;
+        });
     });
 
     describe('setReference()', function () {

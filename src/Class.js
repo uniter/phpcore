@@ -197,9 +197,26 @@ module.exports = require('pauser')([
         },
 
         is: function (className) {
-            var classObject = this;
+            var classObject = this,
+                interfaceMatches = false;
 
+            // Case-insensitively compare the fully-qualified class paths
             if (classObject.name.toLowerCase() === className.toLowerCase()) {
+                return true;
+            }
+
+            // Iterate over all the interfaces implemented by this class: if any of them
+            // are the requested class or extend from it, return true
+            _.each(classObject.interfaceNames, function (interfaceName) {
+                var interfaceObject = classObject.namespaceScope.getClass(interfaceName);
+
+                if (interfaceObject.is(className)) {
+                    interfaceMatches = true;
+                    return false;
+                }
+            });
+
+            if (interfaceMatches) {
                 return true;
             }
 

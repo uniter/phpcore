@@ -23,6 +23,10 @@ _.extend(NullReference.prototype, {
         return this.valueFactory.createNull();
     },
 
+    isSet: function () {
+        return false;
+    },
+
     setValue: function () {
         var reference = this;
 

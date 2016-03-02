@@ -21,6 +21,7 @@ describe('PHP instanceof operator integration', function () {
 namespace My\Stuff
 {
     class MyClass {}
+    class SubClass extends MyClass {}
     $object = new MyClass;
 
     $fqcn = 'My\Stuff\MyClass';
@@ -31,6 +32,8 @@ namespace My\Stuff
     $result[] = $object instanceof $fqcn;
     $result[] = $object instanceof NonExistentClass;
     $result[] = $object instanceof $notFqcn;
+    $result[] = $object instanceof SubClass;
+    $result[] = (new SubClass) instanceof MyClass;
 
     return $result;
 }
@@ -43,6 +46,35 @@ EOS
             true,
             true,
             false,
+            false,
+            false,  // Instance of superclass is not also of subclass
+            true    // Instance of subclass is also instance of superclass
+        ]);
+    });
+
+    it('should return true when object is an instance of a class implementing the interface', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+namespace My\Stuff;
+
+interface MyInterface {}
+interface UnrelatedInterface {}
+class MyClass implements MyInterface {}
+
+$object = new MyClass;
+
+$result = [];
+$result[] = $object instanceof MyInterface;
+$result[] = $object instanceof UnrelatedInterface;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            true,
             false
         ]);
     });

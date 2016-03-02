@@ -23,6 +23,9 @@ describe('Class', function () {
         this.superClass = sinon.createStubInstance(Class);
         this.valueFactory = sinon.createStubInstance(ValueFactory);
         this.InternalClass = sinon.stub();
+        this.interfaceObject = sinon.createStubInstance(Class);
+        this.interfaceObject.is.withArgs('My\\Interface').returns(true);
+        this.namespaceScope.getClass.withArgs('My\\Interface').returns(this.interfaceObject);
 
         this.classObject = new Class(
             this.valueFactory,
@@ -33,7 +36,7 @@ describe('Class', function () {
             {},
             {},
             this.superClass,
-            [],
+            ['My\\Interface'],
             this.namespaceScope
         );
     });
@@ -53,6 +56,18 @@ describe('Class', function () {
             this.superClass.is.returns(false);
 
             expect(this.classObject.is('Some\\Class\\Or\\Other')).to.be.false;
+        });
+
+        it('should return true when this class implements the interface', function () {
+            this.superClass.is.returns(false);
+
+            expect(this.classObject.is('My\\Interface')).to.be.true;
+        });
+
+        it('should return false when this class does not implement the interface', function () {
+            this.superClass.is.returns(false);
+
+            expect(this.classObject.is('Not\\My\\Interface')).to.be.false;
         });
     });
 });

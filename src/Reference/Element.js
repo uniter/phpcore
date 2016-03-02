@@ -55,6 +55,10 @@ _.extend(ElementReference.prototype, {
         return !!this.reference;
     },
 
+    isSet: function () {
+        return this.getValue().isSet();
+    },
+
     setReference: function (reference) {
         var element = this;
 
