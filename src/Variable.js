@@ -166,6 +166,12 @@ module.exports = require('pauser')([
             return this.getValue();
         },
 
+        unset: function () {
+            var variable = this;
+
+            variable.value = variable.reference = null;
+        },
+
         unwrapForJS: function () {
             var value = this;
 

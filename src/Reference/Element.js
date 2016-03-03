@@ -56,7 +56,17 @@ _.extend(ElementReference.prototype, {
     },
 
     isSet: function () {
-        return this.getValue().isSet();
+        var element = this;
+
+        if (element.value) {
+            return element.value.isSet();
+        }
+
+        if (element.reference) {
+            return element.reference.getValue().isSet();
+        }
+
+        return false;
     },
 
     setReference: function (reference) {
@@ -91,6 +101,12 @@ _.extend(ElementReference.prototype, {
         }
 
         return value;
+    },
+
+    unset: function () {
+        var element = this;
+
+        element.value = element.reference = null;
     }
 });
 

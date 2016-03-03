@@ -149,4 +149,12 @@ describe('ElementReference', function () {
             });
         });
     });
+
+    describe('unset()', function () {
+        it('should leave the element no longer set', function () {
+            this.element.unset();
+
+            expect(this.element.isSet()).to.be.false;
+        });
+    });
 });

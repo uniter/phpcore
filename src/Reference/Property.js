@@ -93,6 +93,10 @@ _.extend(PropertyReference.prototype, {
         return !!this.reference;
     },
 
+    isSet: function () {
+        return this.isDefined();
+    },
+
     setReference: function (reference) {
         var property = this;
 
@@ -127,6 +131,18 @@ _.extend(PropertyReference.prototype, {
         }
 
         return value;
+    },
+
+    unset: function () {
+        var property = this,
+            nativeObject = property.objectValue.getNative(),
+            nativeKey = property.key.getNative();
+
+        // Clear value and/or reference to mark as unset
+        property.value = property.reference = null;
+
+        // Delete the property from the native object
+        delete nativeObject[nativeKey];
     }
 });
 

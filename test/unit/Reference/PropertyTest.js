@@ -36,7 +36,9 @@ describe('PropertyReference', function () {
             return stringValue;
         });
 
-        this.nativeObject = {};
+        this.nativeObject = {
+            'my_property': this.factory.createString('value for my prop')
+        };
         this.objectValue = sinon.createStubInstance(ObjectValue);
         this.objectValue.getNative.returns(this.nativeObject);
         this.keyValue = this.factory.createString('my_property');
@@ -47,6 +49,18 @@ describe('PropertyReference', function () {
             this.objectValue,
             this.keyValue
         );
+    });
+
+    describe('isSet()', function () {
+        it('should return true when the property is set', function () {
+            expect(this.property.isSet()).to.be.true;
+        });
+
+        it('should return false when the property is not set', function () {
+            this.keyValue.getNative.returns('not_my_property');
+
+            expect(this.property.isSet()).to.be.false;
+        });
     });
 
     describe('setReference()', function () {
@@ -106,6 +120,20 @@ describe('PropertyReference', function () {
 
                 expect(this.objectValue.pointToProperty).not.to.have.been.called;
             });
+        });
+    });
+
+    describe('unset()', function () {
+        it('should leave the property no longer set', function () {
+            this.property.unset();
+
+            expect(this.property.isSet()).to.be.false;
+        });
+
+        it('should delete the property from the native object', function () {
+            this.property.unset();
+
+            expect(this.nativeObject).not.to.have.property('my_property');
         });
     });
 });
