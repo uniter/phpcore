@@ -16,6 +16,7 @@ var expect = require('chai').expect,
     IntegerValue = require('../../../src/Value/Integer').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     StringValue = require('../../../src/Value/String').sync(),
+    Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync(),
     Variable = require('../../../src/Variable').sync();
 
@@ -23,6 +24,16 @@ describe('PropertyReference', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.factory = sinon.createStubInstance(ValueFactory);
+        this.factory.coerce.restore();
+        sinon.stub(this.factory, 'coerce', function (otherValue) {
+            var value;
+            if (otherValue instanceof Value) {
+                return otherValue;
+            }
+            value = sinon.createStubInstance(Value);
+            value.getNative.returns(otherValue);
+            return value;
+        });
         this.factory.createInteger.restore();
         sinon.stub(this.factory, 'createInteger', function (nativeValue) {
             var integerValue = sinon.createStubInstance(IntegerValue);
@@ -58,6 +69,12 @@ describe('PropertyReference', function () {
 
         it('should return false when the property is not set', function () {
             this.keyValue.getNative.returns('not_my_property');
+
+            expect(this.property.isSet()).to.be.false;
+        });
+
+        it('should return false when the property is set to null', function () {
+            this.nativeObject.my_property.getType.returns('null');
 
             expect(this.property.isSet()).to.be.false;
         });

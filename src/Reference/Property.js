@@ -86,6 +86,15 @@ _.extend(PropertyReference.prototype, {
             } while (!hasOwn.call(otherObject, nativeKey));
         }
 
+        // Check that the property resolves to something other than null,
+        // otherwise it is not set
+        if (
+            defined &&
+            property.valueFactory.coerce(nativeObject[nativeKey]).getType() === 'null'
+        ) {
+            return false;
+        }
+
         return defined;
     },
 
