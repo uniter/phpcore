@@ -15,6 +15,7 @@ module.exports = require('pauser')([
     require('util'),
     require('../KeyValuePair'),
     require('../Reference/Null'),
+    require('../Reference/ObjectElement'),
     require('../Reference/Property'),
     require('../Value')
 ], function (
@@ -23,6 +24,7 @@ module.exports = require('pauser')([
     util,
     KeyValuePair,
     NullReference,
+    ObjectElement,
     PropertyReference,
     Value
 ) {
@@ -283,6 +285,26 @@ module.exports = require('pauser')([
             }
 
             return value.getInstancePropertyByName(names[index]);
+        },
+
+        getElementByKey: function (key) {
+            var value = this;
+
+            key = key.coerceToKey(value.callStack);
+
+            if (!key) {
+                // Could not be coerced to a key: error will already have been handled, just return NULL
+                return new NullReference(value.factory);
+            }
+
+            if (value.classObject.is('ArrayAccess')) {
+                return new ObjectElement(value.factory, value, key);
+            }
+
+            throw new PHPFatalError(PHPFatalError.CANNOT_USE_WRONG_TYPE_AS, {
+                actual: value.classObject.getName(),
+                expected: 'array'
+            });
         },
 
         getForAssignment: function () {

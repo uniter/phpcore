@@ -13,6 +13,7 @@ module.exports = require('pauser')([
     require('./constants/reserved'),
     require('./functions/spl'),
     require('./classes/stdClass'),
+    require('./interfaces/ArrayAccess'),
     require('./classes/Closure'),
     require('./classes/Exception'),
     require('./classes/JSObject')
@@ -20,6 +21,7 @@ module.exports = require('pauser')([
     reservedConstants,
     splFunctions,
     stdClass,
+    ArrayAccess,
     Closure,
     Exception,
     JSObject
@@ -27,6 +29,7 @@ module.exports = require('pauser')([
     return {
         classes: {
             'stdClass': stdClass,
+            'ArrayAccess': ArrayAccess,
             'Closure': Closure,
             'Exception': Exception,
             'JSObject': JSObject
