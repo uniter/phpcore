@@ -93,6 +93,28 @@ module.exports = require('pauser')([
             return classObject.valueFactory.coerce(method.apply(null, args));
         },
 
+        /**
+         * Calls the constructor for the provided object
+         *
+         * @param {ObjectValue} objectValue
+         * @param {Value[]} args
+         */
+        construct: function (objectValue, args) {
+            var classObject = this;
+
+            if (!classObject.constructorName) {
+                // Class does not define a constructor: call the superclass' constructor
+                // if it has one, otherwise do nothing
+                if (classObject.superClass) {
+                    classObject.superClass.construct(objectValue, args);
+                }
+
+                return;
+            }
+
+            objectValue.callMethod(classObject.constructorName, args);
+        },
+
         extends: function (superClass) {
             var classObject = this;
 
@@ -184,14 +206,18 @@ module.exports = require('pauser')([
             return hasOwn.call(this.staticProperties, name);
         },
 
+        /**
+         * Creates a new instance of this class
+         *
+         * @param {Value[]} args
+         * @returns {ObjectValue}
+         */
         instantiate: function (args) {
             var classObject = this,
                 nativeObject = new classObject.InternalClass(),
                 objectValue = classObject.valueFactory.createObject(nativeObject, classObject);
 
-            if (classObject.constructorName) {
-                objectValue.callMethod(classObject.constructorName, args);
-            }
+            classObject.construct(objectValue, args);
 
             return objectValue;
         },
