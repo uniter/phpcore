@@ -37,6 +37,24 @@ describe('ValueFactory', function () {
         });
     });
 
+    describe('createFromNativeArray()', function () {
+        it('should push any non-indexed elements onto the end as KeyValuePair objects', function () {
+            var arrayValue,
+                nativeArray = [21, 27];
+            nativeArray.anotherProp = 'hello';
+
+            arrayValue = this.factory.createFromNativeArray(nativeArray);
+
+            expect(arrayValue.getLength()).to.equal(3);
+            expect(arrayValue.getElementByIndex(0).getKey().getNative()).to.equal(0);
+            expect(arrayValue.getElementByIndex(0).getValue().getNative()).to.equal(21);
+            expect(arrayValue.getElementByIndex(1).getKey().getNative()).to.equal(1);
+            expect(arrayValue.getElementByIndex(1).getValue().getNative()).to.equal(27);
+            expect(arrayValue.getElementByIndex(2).getKey().getNative()).to.equal('anotherProp');
+            expect(arrayValue.getElementByIndex(2).getValue().getNative()).to.equal('hello');
+        });
+    });
+
     describe('createStdClassObject()', function () {
         it('should return an ObjectValue wrapping the created stdClass instance', function () {
             var value = sinon.createStubInstance(ObjectValue),

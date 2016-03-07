@@ -30,4 +30,29 @@ EOS
             done();
         }, done).catch(done);
     });
+
+    it('should support exposing a JS array with non-numeric properties', function (done) {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+$result[] = $myArray[0];
+$result[] = $myArray['myProp'];
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile(null, php),
+            engine = module(),
+            myArray = [27];
+        myArray.myProp = 31;
+
+        engine.expose(myArray, 'myArray');
+
+        engine.execute().then(function (result) {
+            expect(result.getNative()).to.deep.equal([
+                27,
+                31
+            ]);
+            done();
+        }, done).catch(done);
+    });
 });

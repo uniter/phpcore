@@ -18,6 +18,7 @@ module.exports = require('pauser')([
     require('./Value/Exit'),
     require('./Value/Float'),
     require('./Value/Integer'),
+    require('./KeyValuePair'),
     require('./Value/Null'),
     require('./Value/Object'),
     require('./PHPObject'),
@@ -32,6 +33,7 @@ module.exports = require('pauser')([
     ExitValue,
     FloatValue,
     IntegerValue,
+    KeyValuePair,
     NullValue,
     ObjectValue,
     PHPObject,
@@ -98,10 +100,32 @@ module.exports = require('pauser')([
             }
 
             if (_.isArray(nativeValue)) {
-                return factory.createArray(nativeValue);
+                return factory.createFromNativeArray(nativeValue);
             }
 
             return factory.createObject(nativeValue, factory.globalNamespace.getClass('JSObject'));
+        },
+        /**
+         * Takes a native Array object and converts it to a wrapped ArrayValue for PHP
+         *
+         * @param {Array} nativeArray
+         * @returns {ArrayValue}
+         */
+        createFromNativeArray: function (nativeArray) {
+            var factory = this,
+                orderedElements = [];
+
+            _.each(nativeArray, function (value, index) {
+                orderedElements[index] = value;
+            });
+
+            _.forOwn(nativeArray, function (value, key) {
+                if (!isFinite(key) || key >= nativeArray.length) {
+                    orderedElements.push(new KeyValuePair(factory.coerce(key), factory.coerce(value)));
+                }
+            });
+
+            return factory.createArray(orderedElements);
         },
         createInteger: function (value) {
             var factory = this;
