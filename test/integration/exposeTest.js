@@ -55,4 +55,25 @@ EOS
             done();
         }, done).catch(done);
     });
+
+    it('should use null as the thisObj when calling a JS function directly', function (done) {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return $myJSFunc(21);
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile(null, php),
+            engine = module();
+
+        engine.expose(function (myArg) {
+            expect(this).to.be.null;
+
+            return myArg + 4;
+        }, 'myJSFunc');
+
+        engine.execute().then(function (result) {
+            expect(result.getNative()).to.equal(25);
+            done();
+        }, done).catch(done);
+    });
 });

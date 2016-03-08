@@ -103,10 +103,6 @@ module.exports = require('pauser')([
                 return factory.createFromNativeArray(nativeValue);
             }
 
-            if (_.isFunction(nativeValue)) {
-                return factory.createObject(nativeValue, factory.globalNamespace.getClass('Closure'));
-            }
-
             return factory.createObject(nativeValue, factory.globalNamespace.getClass('JSObject'));
         },
         /**

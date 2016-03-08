@@ -154,7 +154,7 @@ module.exports = require('pauser')([
             // Unwrap thisObj and argument Value objects when calling out
             // to a native JS object method
             if (value.classObject.getName() === 'JSObject') {
-                thisObject = object;
+                thisObject = _.isFunction(object) ? null : object;
                 _.each(args, function (arg, index) {
                     args[index] = arg.unwrapForJS();
                 });
