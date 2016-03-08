@@ -59,4 +59,34 @@ EOS
 
         expect(myObject.callMethod('addAndGetWhat', 20).getNative()).to.equal(23);
     });
+
+    it('should pass JS objects through unwrapped when calling a method', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$myObject->myMethod($jsObject);
+EOS
+*/;}), //jshint ignore:line
+            js = phpToJS.transpile(phpToAST.create().parse(php)),
+            module = new Function(
+                'require',
+                'return ' + js
+            )(function () {
+                return phpCore;
+            }),
+            phpEngine = module(),
+            jsObject = {
+                myProp: 21
+            };
+
+        phpEngine.expose({
+            myMethod: function (jsObjectFromPHP) {
+                jsObjectFromPHP.myProp = 27;
+            }
+        }, 'myObject');
+        phpEngine.expose(jsObject, 'jsObject');
+
+        phpEngine.execute();
+
+        expect(jsObject.myProp).to.equal(27);
+    });
 });

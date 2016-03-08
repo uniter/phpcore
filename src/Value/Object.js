@@ -537,6 +537,11 @@ module.exports = require('pauser')([
                 };
             }
 
+            // Don't wrap JS objects in PHPObject
+            if (value.classObject.getName() === 'JSObject') {
+                return value.value;
+            }
+
             // Return a wrapper object that presents a promise-based API
             // for calling methods of PHP objects in sync or async mode
             return value.factory.createPHPObject(value);
