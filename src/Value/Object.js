@@ -127,13 +127,17 @@ module.exports = require('pauser')([
             if (name === '__invoke' && _.isFunction(object)) {
                 func = object;
             } else {
-                // Allow methods inherited via the prototype chain up to but not including Object.prototype
-                match = getPropertyCaseInsensitive(object, name);
-
-                if (!match || match.object === Object.prototype) {
-                    defined = false;
+                if (value.classObject.getName() === 'JSObject') {
+                    func = object[name];
                 } else {
-                    func = match.value;
+                    // Allow methods inherited via the prototype chain up to but not including Object.prototype
+                    match = getPropertyCaseInsensitive(object, name);
+
+                    if (!match || match.object === Object.prototype) {
+                        defined = false;
+                    } else {
+                        func = match.value;
+                    }
                 }
             }
 

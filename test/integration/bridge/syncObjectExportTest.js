@@ -13,7 +13,8 @@ var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
     phpCore = require('../../../sync'),
     phpToAST = require('phptoast'),
-    phpToJS = require('phptojs');
+    phpToJS = require('phptojs'),
+    PHPFatalError = require('phpcommon').PHPFatalError;
 
 describe('PHP JS<->PHP bridge object export synchronous mode integration', function () {
     it('should return an object with instance methods', function () {
@@ -88,5 +89,39 @@ EOS
         phpEngine.execute();
 
         expect(jsObject.myProp).to.equal(27);
+    });
+
+    it('should not match JS object methods case-insensitively', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$myObject->myMETHODWithDifferentCase();
+EOS
+*/;}), //jshint ignore:line
+            js = phpToJS.transpile(phpToAST.create().parse(php)),
+            module = new Function(
+                'require',
+                'return ' + js
+            )(function () {
+                return phpCore;
+            }),
+            phpEngine = module(),
+            myObject = {
+                myMethodWithDifferentCase: function () {}
+            };
+
+        // Ensure we don't use property iteration - would break with DOM objects in Chrome
+        Object.defineProperty(myObject, 'toCheckForUnwantedIteration', {
+            get: function () {
+                throw new Error('Properties should not be iterated over');
+            }
+        });
+        phpEngine.expose(myObject, 'myObject');
+
+        expect(function () {
+            phpEngine.execute();
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Call to undefined method JSObject::myMETHODWithDifferentCase()'
+        );
     });
 });
