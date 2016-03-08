@@ -224,10 +224,28 @@ _.extend(Engine.prototype, {
                     globalNamespace.getClass('Closure')
                 );
             },
-            createInstance: unwrap(pauser([], function () {
+            createInstance: unwrap(pauser([_], function (_) {
                 return function (namespaceScope, classNameValue, args) {
                     var className = classNameValue.getNative(),
-                        classObject = namespaceScope.getClass(className);
+                        classObject,
+                        nativeObject,
+                        objectValue;
+
+                    // Detect whether a JS function is being instantiated as a class from PHP
+                    if (_.isFunction(className)) {
+                        // Create an instance of the class, not calling constructor
+                        nativeObject = Object.create(className.prototype);
+                        objectValue = valueFactory.createFromNative(nativeObject);
+
+                        // Call the constructor on the newly created instance, unwrapping arguments
+                        className.apply(nativeObject, _.map(args, function (argValue) {
+                            return argValue.getNative();
+                        }));
+
+                        return objectValue;
+                    }
+
+                    classObject = namespaceScope.getClass(className);
 
                     return classObject.instantiate(args);
                 };
