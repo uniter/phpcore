@@ -239,7 +239,7 @@ _.extend(Engine.prototype, {
 
                         // Call the constructor on the newly created instance, unwrapping arguments
                         className.apply(nativeObject, _.map(args, function (argValue) {
-                            return argValue.getNative();
+                            return argValue.unwrapForJS();
                         }));
 
                         return objectValue;

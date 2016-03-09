@@ -522,7 +522,8 @@ module.exports = require('pauser')([
         },
 
         unwrapForJS: function () {
-            var value = this;
+            var result,
+                value = this;
 
             if (value.classObject.getName() === 'Closure') {
                 // When calling a PHP closure from JS, preserve thisObj
@@ -544,6 +545,17 @@ module.exports = require('pauser')([
             // Don't wrap JS objects in PHPObject
             if (value.classObject.getName() === 'JSObject') {
                 return value.value;
+            }
+
+            // Don't wrap stdClass objects in PHPObject, unwrap them recursively
+            if (value.classObject.getName() === 'stdClass') {
+                result = {};
+
+                _.forOwn(value.value, function (propertyValue, propertyName) {
+                    result[propertyName] = propertyValue.unwrapForJS();
+                });
+
+                return result;
             }
 
             // Return a wrapper object that presents a promise-based API

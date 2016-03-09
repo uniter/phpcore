@@ -124,4 +124,45 @@ EOS
             'PHP Fatal error: Call to undefined method JSObject::myMETHODWithDifferentCase()'
         );
     });
+
+    it('should unwrap stdClass instances recursively rather than wrap as PHPObjects', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$myObject = new stdClass;
+$mySubObject = new stdClass;
+
+$myObject->aProp = 21;
+$mySubObject->anotherProp = 'hello';
+$myObject->aSub = $mySubObject;
+
+return $myObject;
+EOS
+*/;}), //jshint ignore:line
+            js = phpToJS.transpile(phpToAST.create().parse(php)),
+            module = new Function(
+                'require',
+                'return ' + js
+            )(function () {
+                return phpCore;
+            }),
+            phpEngine = module(),
+            myObject = {
+                myMethodWithDifferentCase: function () {}
+            };
+
+        // Ensure we don't use property iteration - would break with DOM objects in Chrome
+        Object.defineProperty(myObject, 'toCheckForUnwantedIteration', {
+            get: function () {
+                throw new Error('Properties should not be iterated over');
+            }
+        });
+        phpEngine.expose(myObject, 'myObject');
+
+        expect(phpEngine.execute().unwrapForJS()).to.deep.equal({
+            aProp: 21,
+            aSub: {
+                anotherProp: 'hello'
+            }
+        });
+    });
 });
