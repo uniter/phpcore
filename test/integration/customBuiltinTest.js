@@ -91,6 +91,43 @@ EOS
         }), done);
     });
 
+    it('should support installing a custom class with unwrapper', function (done) {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$myObject = new AwesomeClass(21);
+
+return $myObject;
+EOS
+*/;}), //jshint ignore:line
+            js = phpToJS.transpile(phpToAST.create().parse(php)),
+            module = new Function(
+                'require',
+                'return ' + js
+            )(function () {
+                return this.runtime;
+            }.bind(this));
+
+        this.runtime.install({
+            classes: {
+                'AwesomeClass': function (internals) {
+                    function AwesomeClass(myNumber) {
+                        this.myNumber = myNumber;
+                    }
+
+                    internals.defineUnwrapper(function () {
+                        return this.myNumber.getNative() * 2;
+                    });
+
+                    return AwesomeClass;
+                }
+            }
+        });
+
+        module().execute().then(when(done, function (result) {
+            expect(result.unwrapForJS()).to.equal(42);
+        }), done);
+    });
+
     it('should support installing a custom class into a namespace', function (done) {
         var php = nowdoc(function () {/*<<<EOS
 <?php

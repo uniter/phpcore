@@ -49,6 +49,7 @@ module.exports = require('pauser')([
         this.namespaceScope = namespaceScope;
         this.staticProperties = staticProperties;
         this.superClass = superClass;
+        this.unwrapper = null;
         this.valueFactory = valueFactory;
 
         _.each(staticPropertiesData, function (data, name) {
@@ -113,6 +114,17 @@ module.exports = require('pauser')([
             }
 
             objectValue.callMethod(classObject.constructorName, args);
+        },
+
+        /**
+         * Defines a function suitable for unwrapping instances of this class
+         * to be exported to JS-land
+         *
+         * @param {function} unwrapper
+         * @returns {*}
+         */
+        defineUnwrapper: function (unwrapper) {
+            this.unwrapper = unwrapper;
         },
 
         extends: function (superClass) {
@@ -214,8 +226,11 @@ module.exports = require('pauser')([
          */
         instantiate: function (args) {
             var classObject = this,
-                nativeObject = new classObject.InternalClass(),
-                objectValue = classObject.valueFactory.createObject(nativeObject, classObject);
+                nativeObject = Object.create(classObject.InternalClass.prototype),
+                objectValue;
+
+            classObject.InternalClass.apply(nativeObject, args);
+            objectValue = classObject.valueFactory.createObject(nativeObject, classObject);
 
             classObject.construct(objectValue, args);
 
@@ -251,6 +266,26 @@ module.exports = require('pauser')([
             }
 
             return false;
+        },
+
+        /**
+         * Unwraps instances of this class with the defined unwrapper if one has been set,
+         * otherwise wraps them in PHPObject
+         *
+         * @param {ObjectValue} instance
+         * @param {object} nativeObject
+         * @returns {*|PHPObject}
+         */
+        unwrapInstanceForJS: function (instance, nativeObject) {
+            var classObject = this;
+
+            if (classObject.unwrapper) {
+                return classObject.unwrapper.call(nativeObject);
+            }
+
+            // Return a wrapper object that presents a promise-based API
+            // for calling methods of PHP objects in sync or async mode
+            return classObject.valueFactory.createPHPObject(instance);
         }
     });
 

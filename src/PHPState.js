@@ -68,7 +68,13 @@ module.exports = require('pauser')([
             }
 
             function installClass(classFactory, name) {
-                var Class = classFactory(internals),
+                var definedUnwrapper = null,
+                    Class = classFactory(_.extend({}, internals, {
+                        defineUnwrapper: function (unwrapper) {
+                            definedUnwrapper = unwrapper;
+                        }
+                    })),
+                    classObject,
                     namespace = globalNamespace,
                     parsed = globalNamespace.parseClassName(name);
 
@@ -81,7 +87,11 @@ module.exports = require('pauser')([
                     name = parsed.name;
                 }
 
-                namespace.defineClass(name, Class);
+                classObject = namespace.defineClass(name, Class);
+
+                if (definedUnwrapper) {
+                    classObject.defineUnwrapper(definedUnwrapper);
+                }
             }
 
             function installConstantGroup(groupFactory) {
