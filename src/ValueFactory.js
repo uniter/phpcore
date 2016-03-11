@@ -80,6 +80,14 @@ module.exports = require('pauser')([
 
             return new FloatValue(factory, factory.callStack, value);
         },
+        /**
+         * Coerces a native JavaScript value to a suitable *Value object,
+         * based on its type. For example, a string primitive value from JS
+         * will be coerced to a StringValue instance for PHP
+         *
+         * @param {*} nativeValue
+         * @returns {Value}
+         */
         createFromNative: function (nativeValue) {
             var factory = this;
 
@@ -103,7 +111,42 @@ module.exports = require('pauser')([
                 return factory.createFromNativeArray(nativeValue);
             }
 
-            return factory.createObject(nativeValue, factory.globalNamespace.getClass('JSObject'));
+            return factory.createFromNativeObject(nativeValue);
+        },
+        /**
+         * Coerces a native JavaScript object to either an ArrayValue or ObjectValue object,
+         * depending on its suitability to be cast as an associative array
+         *
+         * @param {object} nativeObject
+         * @returns {ArrayValue|ObjectValue}
+         */
+        createFromNativeObject: function (nativeObject) {
+            var factory = this,
+                hasAMethod = false,
+                orderedElements = [];
+
+            // Handle plain objects -> associative arrays
+            if (Object.getPrototypeOf(nativeObject) === Object.prototype) {
+                _.forOwn(nativeObject, function (value) {
+                    if (_.isFunction(value)) {
+                        hasAMethod = true;
+                        return false;
+                    }
+                });
+
+                if (!hasAMethod) {
+                    // Plain object has no methods: can be safely cast to an associative array
+                    _.forOwn(nativeObject, function (value, key) {
+                        orderedElements.push(new KeyValuePair(factory.coerce(key), factory.coerce(value)));
+                    });
+
+                    return factory.createArray(orderedElements);
+                }
+
+                // Plain object, but has methods: needs to be cast to a JSObject
+            }
+
+            return factory.createObject(nativeObject, factory.globalNamespace.getClass('JSObject'));
         },
         /**
          * Takes a native Array object and converts it to a wrapped ArrayValue for PHP

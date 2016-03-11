@@ -76,6 +76,7 @@ EOS
             }),
             phpEngine = module(),
             jsObject = {
+                toForceObjectCast: function () {},
                 myProp: 21
             };
 

@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
+    ArrayValue = require('../../src/Value/Array').sync(),
     IntegerValue = require('../../src/Value/Integer').sync(),
     Namespace = require('../../src/Namespace').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
@@ -37,6 +38,57 @@ describe('ValueFactory', function () {
         });
     });
 
+    describe('createFromNative()', function () {
+        it('should return an indexed array when an indexed native array is given', function () {
+            var nativeArray = [25, 28],
+                arrayValue = this.factory.createFromNative(nativeArray);
+
+            expect(arrayValue).to.be.an.instanceOf(ArrayValue);
+            expect(arrayValue.getLength()).to.equal(2);
+            expect(arrayValue.getElementByIndex(0).getKey().getNative()).to.equal(0);
+            expect(arrayValue.getElementByIndex(0).getValue().getNative()).to.equal(25);
+            expect(arrayValue.getElementByIndex(1).getKey().getNative()).to.equal(1);
+            expect(arrayValue.getElementByIndex(1).getValue().getNative()).to.equal(28);
+        });
+
+        it('should return an associative array when object with non-numeric properties is given', function () {
+            var nativeObject = {
+                    'hello': 'world',
+                    'a-number': 21
+                },
+                arrayValue = this.factory.createFromNative(nativeObject);
+
+            expect(arrayValue).to.be.an.instanceOf(ArrayValue);
+            expect(arrayValue.getLength()).to.equal(2);
+            expect(arrayValue.getElementByIndex(0).getKey().getNative()).to.equal('hello');
+            expect(arrayValue.getElementByIndex(0).getValue().getNative()).to.equal('world');
+            expect(arrayValue.getElementByIndex(1).getKey().getNative()).to.equal('a-number');
+            expect(arrayValue.getElementByIndex(1).getValue().getNative()).to.equal(21);
+        });
+
+        it('should return a JSObject when object given and one property is a function', function () {
+            var aMethod = function () {},
+                nativeObject = {
+                    'hello': 'world',
+                    'a-method': aMethod
+                },
+                JSObjectClass = sinon.createStubInstance(Class),
+                objectValue;
+            JSObjectClass.is.withArgs('JSObject').returns(true);
+            JSObjectClass.is.returns(false);
+            this.globalNamespace.getClass.withArgs('JSObject').returns(JSObjectClass);
+
+            objectValue = this.factory.createFromNative(nativeObject);
+
+            expect(objectValue).to.be.an.instanceOf(ObjectValue);
+            expect(objectValue.classIs('JSObject')).to.be.true;
+            expect(objectValue.getElementByIndex(0).getKey().getNative()).to.equal('hello');
+            expect(objectValue.getElementByIndex(0).getValue().getNative()).to.equal('world');
+            expect(objectValue.getElementByIndex(1).getKey().getNative()).to.equal('a-method');
+            expect(objectValue.getElementByIndex(1).getValue().getNative()).to.equal(aMethod);
+        });
+    });
+
     describe('createFromNativeArray()', function () {
         it('should push any non-indexed elements onto the end as KeyValuePair objects', function () {
             var arrayValue,
@@ -45,6 +97,7 @@ describe('ValueFactory', function () {
 
             arrayValue = this.factory.createFromNativeArray(nativeArray);
 
+            expect(arrayValue).to.be.an.instanceOf(ArrayValue);
             expect(arrayValue.getLength()).to.equal(3);
             expect(arrayValue.getElementByIndex(0).getKey().getNative()).to.equal(0);
             expect(arrayValue.getElementByIndex(0).getValue().getNative()).to.equal(21);
