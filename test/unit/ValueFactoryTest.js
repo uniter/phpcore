@@ -87,6 +87,21 @@ describe('ValueFactory', function () {
             expect(objectValue.getElementByIndex(1).getKey().getNative()).to.equal('a-method');
             expect(objectValue.getElementByIndex(1).getValue().getNative()).to.equal(aMethod);
         });
+
+        it('should return a JSObject when a function is given', function () {
+            var nativeFunction = function () {},
+                JSObjectClass = sinon.createStubInstance(Class),
+                objectValue;
+            JSObjectClass.is.withArgs('JSObject').returns(true);
+            JSObjectClass.is.returns(false);
+            this.globalNamespace.getClass.withArgs('JSObject').returns(JSObjectClass);
+
+            objectValue = this.factory.createFromNative(nativeFunction);
+
+            expect(objectValue).to.be.an.instanceOf(ObjectValue);
+            expect(objectValue.classIs('JSObject')).to.be.true;
+            expect(objectValue.getNative()).to.equal(nativeFunction);
+        });
     });
 
     describe('createFromNativeArray()', function () {
