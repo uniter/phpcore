@@ -37,7 +37,7 @@
     "nowdoc": "^1.0.0",
     "phptoast": "~3",
     "phptojs": "~3",
-    "sinon": "~1.15",
+    "sinon": "^1.17.3",
     "sinon-chai": "^2.7.0"
   },
   "engines": {
