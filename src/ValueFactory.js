@@ -55,6 +55,15 @@ module.exports = require('pauser')([
 
             return this.createFromNative(value);
         },
+        coerceObject: function (value) {
+            var factory = this;
+
+            if (value instanceof Value) {
+                return value;
+            }
+
+            return factory.createObject(value, factory.globalNamespace.getClass('JSObject'));
+        },
         createArray: function (value) {
             var factory = this;
 

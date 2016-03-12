@@ -770,4 +770,29 @@ describe('Object', function () {
             expect(this.value.getPointer()).to.equal(2);
         });
     });
+
+    describe('unwrapForJS()', function () {
+        it('should coerce the thisObj passed to unwrapped Closures to an object', function () {
+            var coercedThisObject = {},
+                nativeFunction = sinon.stub(),
+                nativeThisObject = {},
+                unwrapped;
+            this.classObject.getName.returns('Closure');
+            this.factory.coerceObject.withArgs(sinon.match.same(nativeThisObject)).returns(coercedThisObject);
+            this.value = new ObjectValue(
+                this.factory,
+                this.callStack,
+                nativeFunction,
+                this.classObject,
+                this.objectID
+            );
+
+            unwrapped = this.value.unwrapForJS();
+            expect(unwrapped).to.be.a('function');
+
+            unwrapped.call(nativeThisObject);
+            expect(nativeFunction).to.have.been.calledOnce;
+            expect(nativeFunction).to.have.been.calledOn(coercedThisObject);
+        });
+    });
 });

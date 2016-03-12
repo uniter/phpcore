@@ -530,7 +530,7 @@ module.exports = require('pauser')([
                 // by passing it in (wrapped) as the first argument
                 return function () {
                     // Wrap thisObj in *Value object
-                    var thisObj = value.factory.coerce(this),
+                    var thisObj = value.factory.coerceObject(this),
                         args = [];
 
                     // Wrap all native JS values in *Value objects

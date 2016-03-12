@@ -17,6 +17,7 @@ var expect = require('chai').expect,
     IntegerValue = require('../../src/Value/Integer').sync(),
     Namespace = require('../../src/Namespace').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
+    Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('ValueFactory', function () {
@@ -27,6 +28,29 @@ describe('ValueFactory', function () {
 
         this.factory = new ValueFactory(this.pausable, this.callStack);
         this.factory.setGlobalNamespace(this.globalNamespace);
+    });
+
+    describe('coerceObject()', function () {
+        it('should return Value instances untouched', function () {
+            var value = sinon.createStubInstance(Value);
+
+            expect(this.factory.coerceObject(value)).to.equal(value);
+        });
+
+        it('should wrap other native values as JSObjects', function () {
+            var nativeArray = [21],
+                JSObjectClass = sinon.createStubInstance(Class),
+                objectValue;
+            JSObjectClass.is.withArgs('JSObject').returns(true);
+            JSObjectClass.is.returns(false);
+            this.globalNamespace.getClass.withArgs('JSObject').returns(JSObjectClass);
+
+            objectValue = this.factory.coerceObject(nativeArray);
+
+            expect(objectValue).to.be.an.instanceOf(ObjectValue);
+            expect(objectValue.classIs('JSObject')).to.be.true;
+            expect(objectValue.getNative()).to.equal(nativeArray);
+        });
     });
 
     describe('createExit()', function () {
