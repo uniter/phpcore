@@ -16,6 +16,7 @@ var expect = require('chai').expect,
     ArrayValue = require('../../src/Value/Array').sync(),
     IntegerValue = require('../../src/Value/Integer').sync(),
     Namespace = require('../../src/Namespace').sync(),
+    NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
@@ -37,7 +38,7 @@ describe('ValueFactory', function () {
             expect(this.factory.coerceObject(value)).to.equal(value);
         });
 
-        it('should wrap other native values as JSObjects', function () {
+        it('should wrap native arrays as JSObjects', function () {
             var nativeArray = [21],
                 JSObjectClass = sinon.createStubInstance(Class),
                 objectValue;
@@ -50,6 +51,22 @@ describe('ValueFactory', function () {
             expect(objectValue).to.be.an.instanceOf(ObjectValue);
             expect(objectValue.classIs('JSObject')).to.be.true;
             expect(objectValue.getNative()).to.equal(nativeArray);
+        });
+
+        it('should coerce native null to a NullValue', function () {
+            expect(this.factory.coerceObject(null)).to.be.an.instanceOf(NullValue);
+        });
+
+        it('should coerce native undefined to a NullValue', function () {
+            expect(this.factory.coerceObject(void 0)).to.be.an.instanceOf(NullValue);
+        });
+
+        it('should throw an error when a string value is provided', function () {
+            expect(function () {
+                this.factory.coerceObject('hello');
+            }.bind(this)).to.throw(
+                'Only objects, null or undefined may be coerced to an object'
+            );
         });
     });
 

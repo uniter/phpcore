@@ -62,6 +62,14 @@ module.exports = require('pauser')([
                 return value;
             }
 
+            if (value === null || typeof value === 'undefined') {
+                return factory.createNull();
+            }
+
+            if (typeof value !== 'object') {
+                throw new Error('Only objects, null or undefined may be coerced to an object');
+            }
+
             return factory.createObject(value, factory.globalNamespace.getClass('JSObject'));
         },
         createArray: function (value) {
