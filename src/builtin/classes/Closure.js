@@ -9,10 +9,12 @@
 
 'use strict';
 
-module.exports = function () {
+module.exports = function (internals) {
     function Closure() {
 
     }
+
+    internals.disableAutoCoercion();
 
     return Closure;
 };

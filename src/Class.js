@@ -40,6 +40,7 @@ module.exports = require('pauser')([
         var classObject = this,
             staticProperties = {};
 
+        this.autoCoercionEnabled = false;
         this.callStack = callStack;
         this.constants = constants;
         this.constructorName = constructorName;
@@ -125,6 +126,22 @@ module.exports = require('pauser')([
          */
         defineUnwrapper: function (unwrapper) {
             this.unwrapper = unwrapper;
+        },
+
+        /**
+         * Prevents constructor and method arguments from being unwrapped
+         * to native JS values when called
+         */
+        disableAutoCoercion: function () {
+            this.autoCoercionEnabled = false;
+        },
+
+        /**
+         * Ensures constructor and method arguments are always unwrapped
+         * to native JS values when called
+         */
+        enableAutoCoercion: function () {
+            this.autoCoercionEnabled = true;
         },
 
         extends: function (superClass) {
@@ -227,10 +244,18 @@ module.exports = require('pauser')([
         instantiate: function (args) {
             var classObject = this,
                 nativeObject = Object.create(classObject.InternalClass.prototype),
-                objectValue;
+                objectValue = classObject.valueFactory.createObject(nativeObject, classObject);
 
-            classObject.InternalClass.apply(nativeObject, args);
-            objectValue = classObject.valueFactory.createObject(nativeObject, classObject);
+            classObject.InternalClass.apply(
+                // Always use the native object as `this` regardless of coercion status,
+                // so that new native properties may be added to the object
+                nativeObject,
+                classObject.autoCoercionEnabled ?
+                    _.map(args, function (arg) {
+                        return arg.getNative();
+                    }) :
+                    args
+            );
 
             classObject.construct(objectValue, args);
 
@@ -266,6 +291,16 @@ module.exports = require('pauser')([
             }
 
             return false;
+        },
+
+        /**
+         * Returns true if auto-coercion is enabled, and false otherwise.
+         * Constructor and method arguments will be unwrapped to native JS values when enabled
+         *
+         * @returns {boolean}
+         */
+        isAutoCoercionEnabled: function () {
+            return this.autoCoercionEnabled;
         },
 
         /**

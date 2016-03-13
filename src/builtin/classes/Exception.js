@@ -14,7 +14,7 @@ var _ = require('microdash'),
     util = require('util'),
     PHPError = phpCommon.PHPError;
 
-module.exports = function () {
+module.exports = function (internals) {
     function Exception() {
 
     }
@@ -24,6 +24,8 @@ module.exports = function () {
     _.extend(Exception.prototype, {
 
     });
+
+    internals.disableAutoCoercion();
 
     return Exception;
 };

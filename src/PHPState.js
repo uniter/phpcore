@@ -69,9 +69,13 @@ module.exports = require('pauser')([
 
             function installClass(classFactory, name) {
                 var definedUnwrapper = null,
+                    enableAutoCoercion = true,
                     Class = classFactory(_.extend({}, internals, {
                         defineUnwrapper: function (unwrapper) {
                             definedUnwrapper = unwrapper;
+                        },
+                        disableAutoCoercion: function () {
+                            enableAutoCoercion = false;
                         }
                     })),
                     classObject,
@@ -91,6 +95,10 @@ module.exports = require('pauser')([
 
                 if (definedUnwrapper) {
                     classObject.defineUnwrapper(definedUnwrapper);
+                }
+
+                if (enableAutoCoercion) {
+                    classObject.enableAutoCoercion();
                 }
             }
 

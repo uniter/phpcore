@@ -118,6 +118,7 @@ describe('Object', function () {
         }.bind(this));
 
         this.classObject = sinon.createStubInstance(Class);
+        this.classObject.isAutoCoercionEnabled.returns(false);
         this.prop1 = this.factory.createString('the value of firstProp');
         this.prop2 = this.factory.createString('the value of secondProp');
         this.nativeObject = {
@@ -155,13 +156,33 @@ describe('Object', function () {
                 expect(this.nativeObject).to.have.been.calledOnce;
             });
 
-            it('should use the wrapper ObjectValue as `this`', function () {
+            it('should use null as `this` with auto-coercion enabled', function () {
+                this.classObject.isAutoCoercionEnabled.returns(true);
+
+                this.value.callMethod('__invoke', []);
+
+                expect(this.nativeObject).to.have.been.calledOn(null);
+            });
+
+            it('should use the wrapper ObjectValue as `this` with auto-coercion disabled', function () {
                 this.value.callMethod('__invoke', []);
 
                 expect(this.nativeObject).to.have.been.calledOn(sinon.match.same(this.value));
             });
 
-            it('should be passed the arguments', function () {
+            it('should be passed the arguments unwrapped with auto-coercion enabled', function () {
+                var arg1 = sinon.createStubInstance(Value),
+                    arg2 = sinon.createStubInstance(Value);
+                arg1.getNative.returns('first arg');
+                arg2.getNative.returns('second arg');
+                this.classObject.isAutoCoercionEnabled.returns(true);
+
+                this.value.callMethod('__invoke', [arg1, arg2]);
+
+                expect(this.nativeObject).to.have.been.calledWith('first arg', 'second arg');
+            });
+
+            it('should be passed the arguments wrapped with auto-coercion disabled', function () {
                 var arg1 = sinon.createStubInstance(Value),
                     arg2 = sinon.createStubInstance(Value);
 
@@ -173,7 +194,7 @@ describe('Object', function () {
                 );
             });
 
-            it('should return the result', function () {
+            it('should coerce the result to a value object and return it', function () {
                 this.nativeObject.returns('my result');
 
                 expect(this.value.callMethod('__invoke').getNative()).to.equal('my result');

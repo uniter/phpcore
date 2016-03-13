@@ -151,20 +151,20 @@ module.exports = require('pauser')([
                 );
             }
 
-            // Unwrap thisObj and argument Value objects when calling out
-            // to a native JS object method
-            if (value.classObject.getName() === 'JSObject') {
-                thisObject = _.isFunction(object) ? null : object;
-                _.each(args, function (arg, index) {
-                    args[index] = arg.getNative();
-                });
-                // Use the current object as $this for PHP closures by default
-            } else if (value.classObject.getName() === 'Closure') {
+            if (value.classObject.getName() === 'Closure') {
                 // Store the current PHP thisObj to set for the closure
                 thisVariable = object.scopeWhenCreated.getVariable('this');
                 thisObject = thisVariable.isDefined() ?
                     thisVariable.getValue() :
                     null;
+            }
+
+            if (value.classObject.isAutoCoercionEnabled()) {
+                thisObject = _.isFunction(object) ? null : object;
+
+                _.each(args, function (arg, index) {
+                    args[index] = arg.getNative();
+                });
             }
 
             return value.factory.coerce(func.apply(thisObject, args));

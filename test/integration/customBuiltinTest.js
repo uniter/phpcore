@@ -118,6 +118,8 @@ EOS
                         return this.myNumber.getNative() * 2;
                     });
 
+                    internals.disableAutoCoercion();
+
                     return AwesomeClass;
                 }
             }

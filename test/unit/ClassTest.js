@@ -15,6 +15,7 @@ var expect = require('chai').expect,
     Class = require('../../src/Class').sync(),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
+    Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('Class', function () {
@@ -96,6 +97,36 @@ describe('Class', function () {
             this.createClass('__construct');
         });
 
+        it('should call the internal constructor with arguments wrapped by default', function () {
+            var arg1 = sinon.createStubInstance(Value),
+                arg2 = sinon.createStubInstance(Value);
+            this.valueFactory.createObject.returns(this.objectValue);
+
+            this.classObject.instantiate([arg1, arg2]);
+
+            expect(this.InternalClass).to.have.been.calledOnce;
+            expect(this.InternalClass).to.have.been.calledOn(sinon.match.instanceOf(this.InternalClass));
+            expect(this.InternalClass).to.have.been.calledWith(
+                sinon.match.same(arg1),
+                sinon.match.same(arg2)
+            );
+        });
+
+        it('should call the internal constructor with arguments unwrapped with auto-coercion enabled', function () {
+            var arg1 = sinon.createStubInstance(Value),
+                arg2 = sinon.createStubInstance(Value);
+            this.valueFactory.createObject.returns(this.objectValue);
+            arg1.getNative.returns(21);
+            arg2.getNative.returns('second');
+            this.classObject.enableAutoCoercion();
+
+            this.classObject.instantiate([arg1, arg2]);
+
+            expect(this.InternalClass).to.have.been.calledOnce;
+            expect(this.InternalClass).to.have.been.calledOn(sinon.match.instanceOf(this.InternalClass));
+            expect(this.InternalClass).to.have.been.calledWith(21, 'second');
+        });
+
         it('should wrap an instance of the InternalClass in an ObjectValue', function () {
             this.valueFactory.createObject.returns(this.objectValue);
 
@@ -145,6 +176,25 @@ describe('Class', function () {
             this.superClass.is.returns(false);
 
             expect(this.classObject.is('Not\\My\\Interface')).to.be.false;
+        });
+    });
+
+    describe('isAutoCoercionEnabled()', function () {
+        it('should return false by default', function () {
+            expect(this.classObject.isAutoCoercionEnabled()).to.be.false;
+        });
+
+        it('should return true when enabled', function () {
+            this.classObject.enableAutoCoercion();
+
+            expect(this.classObject.isAutoCoercionEnabled()).to.be.true;
+        });
+
+        it('should return false when re-disabled', function () {
+            this.classObject.enableAutoCoercion();
+            this.classObject.disableAutoCoercion();
+
+            expect(this.classObject.isAutoCoercionEnabled()).to.be.false;
         });
     });
 });

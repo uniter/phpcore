@@ -43,7 +43,7 @@ EOS
     it('should allow instantiating a JS class function stored as a property', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
-$object = new ($myObject->MyClass)(5);
+$object = new $myObject->MyClass(5);
 
 return $object->double(21);
 EOS
