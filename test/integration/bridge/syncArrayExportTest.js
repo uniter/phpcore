@@ -40,7 +40,7 @@ EOS
             myResult = null;
 
         phpEngine.expose(function (myArray, callback) {
-            myArray.push('added by JS');
+            myArray.added_by_js = 'added by JS';
             callback(myArray, function (myArrayAgain) {
                 myResult = myArrayAgain;
             });
@@ -49,10 +49,14 @@ EOS
 
         phpEngine.execute();
 
-        expect(myResult).to.be.an('array');
-        expect(myResult).to.have.length(3);
-        expect(myResult.slice()).to.deep.equal(['hello', 21, 'added by JS']);
-        expect(myResult.php_prop).to.equal(27);
-        expect(myResult.another_php_prop).to.equal('yep');
+        expect(myResult).to.be.an('object');
+        expect(myResult).not.to.be.an('array');
+        expect(myResult).to.deep.equal({
+            '0': 'hello',
+            '1': 21,
+            'php_prop': 27,
+            'added_by_js': 'added by JS',
+            'another_php_prop': 'yep'
+        });
     });
 });

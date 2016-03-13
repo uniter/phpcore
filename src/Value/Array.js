@@ -195,10 +195,27 @@ module.exports = require('pauser')([
             return keys;
         },
 
+        /**
+         * Exports a wrapped PHP indexed array to a native array, or
+         * an associative array to a plain JS object
+         *
+         * @returns {Array|object}
+         */
         getNative: function () {
-            var result = [];
+            var hasNonNumericKey = false,
+                result = [],
+                value = this;
 
-            _.each(this.value, function (element) {
+            _.each(value.value, function (element) {
+                // Treat string keys that have a numeric value as numeric
+                if (!isFinite(element.getKey().getNative())) {
+                    hasNonNumericKey = true;
+                }
+            });
+
+            result = hasNonNumericKey ? {} : [];
+
+            _.each(value.value, function (element) {
                 result[element.getKey().getNative()] = element.getValue().getNative();
             });
 

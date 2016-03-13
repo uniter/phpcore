@@ -313,6 +313,53 @@ describe('Array', function () {
         });
     });
 
+    describe('getNative()', function () {
+        it('should unwrap to a native array when the array has no non-numeric keys', function () {
+            var result;
+            this.element1.getKey.returns(this.factory.createString('1'));
+            this.element2.getKey.returns(this.factory.createString('0'));
+            this.value = new ArrayValue(this.factory, this.callStack, [
+                this.element1,
+                this.element2
+            ]);
+
+            result = this.value.getNative();
+
+            expect(result).to.be.an('array');
+            expect(result).to.deep.equal(['value of second el', 'value of first el']);
+        });
+
+        it('should unwrap to a plain object when the array has a non-numeric key', function () {
+            var result;
+            this.element1.getKey.returns(this.factory.createString('nonNumeric'));
+            this.element2.getKey.returns(this.factory.createString('7'));
+            this.value = new ArrayValue(this.factory, this.callStack, [
+                this.element1,
+                this.element2
+            ]);
+
+            result = this.value.getNative();
+
+            expect(result).to.be.an('object');
+            expect(result).not.to.be.an('array');
+            expect(result).to.deep.equal({
+                nonNumeric: 'value of first el',
+                7: 'value of second el'
+            });
+        });
+
+        it('should unwrap to a native array when the array is empty', function () {
+            var result;
+            this.value = new ArrayValue(this.factory, this.callStack, []);
+
+            result = this.value.getNative();
+
+            expect(result).to.be.an('array');
+            expect(result).to.have.length(0);
+        });
+
+    });
+
     describe('getPushElement()', function () {
         it('should return an ElementReference', function () {
             expect(this.value.getPushElement()).to.be.an.instanceOf(ElementReference);
