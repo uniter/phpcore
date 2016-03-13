@@ -56,7 +56,7 @@ EOS
             }
         }, 'tools');
 
-        myObject = phpEngine.execute().unwrapForJS();
+        myObject = phpEngine.execute().getNative();
 
         expect(myObject.callMethod('addAndGetWhat', 20).getNative()).to.equal(23);
     });
@@ -159,7 +159,7 @@ EOS
         });
         phpEngine.expose(myObject, 'myObject');
 
-        expect(phpEngine.execute().unwrapForJS()).to.deep.equal({
+        expect(phpEngine.execute().getNative()).to.deep.equal({
             aProp: 21,
             aSub: {
                 anotherProp: 'hello'

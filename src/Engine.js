@@ -239,7 +239,7 @@ _.extend(Engine.prototype, {
 
                         // Call the constructor on the newly created instance, unwrapping arguments
                         className.apply(nativeObject, _.map(args, function (argValue) {
-                            return argValue.unwrapForJS();
+                            return argValue.getNative();
                         }));
 
                         return objectValue;
@@ -302,7 +302,7 @@ _.extend(Engine.prototype, {
             if (error instanceof ObjectValue) {
                 // Uncaught PHP Exceptions become E_FATAL errors
                 (function (value) {
-                    var error = value.getNative();
+                    var error = value.getForThrow();
 
                     if (!(error instanceof PHPException)) {
                         throw new Exception('Weird value class thrown: ' + value.getClassName());

@@ -42,6 +42,7 @@ describe('ValueFactory', function () {
             var nativeArray = [21],
                 JSObjectClass = sinon.createStubInstance(Class),
                 objectValue;
+            JSObjectClass.getName.returns('JSObject');
             JSObjectClass.is.withArgs('JSObject').returns(true);
             JSObjectClass.is.returns(false);
             this.globalNamespace.getClass.withArgs('JSObject').returns(JSObjectClass);
@@ -115,6 +116,7 @@ describe('ValueFactory', function () {
                 },
                 JSObjectClass = sinon.createStubInstance(Class),
                 objectValue;
+            JSObjectClass.getName.returns('JSObject');
             JSObjectClass.is.withArgs('JSObject').returns(true);
             JSObjectClass.is.returns(false);
             this.globalNamespace.getClass.withArgs('JSObject').returns(JSObjectClass);
@@ -133,6 +135,7 @@ describe('ValueFactory', function () {
             var nativeFunction = function () {},
                 JSObjectClass = sinon.createStubInstance(Class),
                 objectValue;
+            JSObjectClass.getName.returns('JSObject');
             JSObjectClass.is.withArgs('JSObject').returns(true);
             JSObjectClass.is.returns(false);
             this.globalNamespace.getClass.withArgs('JSObject').returns(JSObjectClass);

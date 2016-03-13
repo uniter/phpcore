@@ -170,12 +170,6 @@ module.exports = require('pauser')([
             var variable = this;
 
             variable.value = variable.reference = null;
-        },
-
-        unwrapForJS: function () {
-            var value = this;
-
-            return value.value ? value.value.unwrapForJS() : null;
         }
     });
 

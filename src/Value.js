@@ -300,10 +300,6 @@ module.exports = require('pauser')([
 
         toValue: function () {
             return this;
-        },
-
-        unwrapForJS: function () {
-            return this.getNative();
         }
     });
 

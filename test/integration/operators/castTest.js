@@ -146,10 +146,10 @@ EOS
 
         expect(value.getElementByIndex(0).getValue().getType()).to.equal('object');
         expect(value.getElementByIndex(0).getValue().getClassName()).to.equal('stdClass');
-        expect(value.getElementByIndex(0).getValue().getNative().scalar.getNative()).to.equal(21);
+        expect(value.getElementByIndex(0).getValue().getNative().scalar).to.equal(21);
         expect(value.getElementByIndex(1).getValue().getType()).to.equal('object');
         expect(value.getElementByIndex(1).getValue().getClassName()).to.equal('stdClass');
-        expect(value.getElementByIndex(1).getValue().getNative().myEl.getNative()).to.equal('my value');
+        expect(value.getElementByIndex(1).getValue().getNative().myEl).to.equal('my value');
         expect(value.getElementByIndex(2).getValue().getClassName()).to.equal('MyClass');
     });
 

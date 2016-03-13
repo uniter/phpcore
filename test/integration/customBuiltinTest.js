@@ -124,7 +124,7 @@ EOS
         });
 
         module().execute().then(when(done, function (result) {
-            expect(result.unwrapForJS()).to.equal(42);
+            expect(result.getNative()).to.equal(42);
         }), done);
     });
 

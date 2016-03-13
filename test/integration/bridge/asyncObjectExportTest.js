@@ -61,7 +61,7 @@ EOS
         }, 'tools');
 
         return phpEngine.execute().then(function (valueObject) {
-            var myObject = valueObject.unwrapForJS();
+            var myObject = valueObject.getNative();
 
             return myObject.callMethod('addAndGetWhat', 20).then(function (resultValue) {
                 expect(resultValue.getNative()).to.equal(22);

@@ -81,7 +81,7 @@ describe('PHPState', function () {
             var value = sinon.createStubInstance(Value),
                 valueGetter = sinon.stub(),
                 valueSetter = sinon.spy();
-            value.unwrapForJS.returns(27);
+            value.getNative.returns(27);
 
             this.state.defineSuperGlobalAccessor('MY_GLOB', valueGetter, valueSetter);
             this.state.getSuperGlobalScope().getVariable('MY_GLOB').setValue(value);

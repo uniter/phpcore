@@ -25,7 +25,7 @@ _.extend(AccessorReference.prototype, {
     },
 
     setValue: function (value) {
-        this.valueSetter(value.unwrapForJS());
+        this.valueSetter(value.getNative());
 
         return value;
     }

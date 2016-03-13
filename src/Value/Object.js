@@ -156,7 +156,7 @@ module.exports = require('pauser')([
             if (value.classObject.getName() === 'JSObject') {
                 thisObject = _.isFunction(object) ? null : object;
                 _.each(args, function (arg, index) {
-                    args[index] = arg.unwrapForJS();
+                    args[index] = arg.getNative();
                 });
                 // Use the current object as $this for PHP closures by default
             } else if (value.classObject.getName() === 'Closure') {
@@ -315,6 +315,10 @@ module.exports = require('pauser')([
             return this;
         },
 
+        getForThrow: function () {
+            return this.value;
+        },
+
         getID: function () {
             return this.id;
         },
@@ -336,6 +340,7 @@ module.exports = require('pauser')([
                     value.factory,
                     value.callStack,
                     value,
+                    value.value,
                     nameKey
                 );
             }
@@ -377,7 +382,43 @@ module.exports = require('pauser')([
         },
 
         getNative: function () {
-            return this.value;
+            var result,
+                value = this;
+
+            if (value.classObject.getName() === 'Closure') {
+                // When calling a PHP closure from JS, preserve thisObj
+                // by passing it in (wrapped) as the first argument
+                return function () {
+                    // Wrap thisObj in *Value object
+                    var thisObj = value.factory.coerceObject(this),
+                        args = [];
+
+                    // Wrap all native JS values in *Value objects
+                    _.each(arguments, function (arg) {
+                        args.push(value.factory.coerce(arg));
+                    });
+
+                    return value.value.apply(thisObj, args);
+                };
+            }
+
+            // Don't wrap JS objects in PHPObject
+            if (value.classObject.getName() === 'JSObject') {
+                return value.value;
+            }
+
+            // Don't wrap stdClass objects in PHPObject, unwrap them recursively
+            if (value.classObject.getName() === 'stdClass') {
+                result = {};
+
+                _.forOwn(value.value, function (propertyValue, propertyName) {
+                    result[propertyName] = propertyValue.getNative();
+                });
+
+                return result;
+            }
+
+            return value.classObject.unwrapInstanceForJS(value, value.value);
         },
 
         getPointer: function () {
@@ -519,46 +560,6 @@ module.exports = require('pauser')([
 
         setPointer: function (pointer) {
             this.pointer = pointer;
-        },
-
-        unwrapForJS: function () {
-            var result,
-                value = this;
-
-            if (value.classObject.getName() === 'Closure') {
-                // When calling a PHP closure from JS, preserve thisObj
-                // by passing it in (wrapped) as the first argument
-                return function () {
-                    // Wrap thisObj in *Value object
-                    var thisObj = value.factory.coerceObject(this),
-                        args = [];
-
-                    // Wrap all native JS values in *Value objects
-                    _.each(arguments, function (arg) {
-                        args.push(value.factory.coerce(arg));
-                    });
-
-                    return value.value.apply(thisObj, args);
-                };
-            }
-
-            // Don't wrap JS objects in PHPObject
-            if (value.classObject.getName() === 'JSObject') {
-                return value.value;
-            }
-
-            // Don't wrap stdClass objects in PHPObject, unwrap them recursively
-            if (value.classObject.getName() === 'stdClass') {
-                result = {};
-
-                _.forOwn(value.value, function (propertyValue, propertyName) {
-                    result[propertyName] = propertyValue.unwrapForJS();
-                });
-
-                return result;
-            }
-
-            return value.classObject.unwrapInstanceForJS(value, value.value);
         }
     });
 

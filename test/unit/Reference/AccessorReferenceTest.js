@@ -44,7 +44,7 @@ describe('AccessorReference', function () {
     describe('setValue()', function () {
         it('should call the setter with the value unwrapped for native JS', function () {
             var newValue = sinon.createStubInstance(Value);
-            newValue.unwrapForJS.returns(27);
+            newValue.getNative.returns(27);
 
             this.reference.setValue(newValue);
 

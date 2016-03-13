@@ -58,6 +58,7 @@ describe('PropertyReference', function () {
             this.factory,
             this.callStack,
             this.objectValue,
+            this.nativeObject,
             this.keyValue
         );
     });

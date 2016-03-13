@@ -14,9 +14,10 @@ var _ = require('microdash'),
     phpCommon = require('phpcommon'),
     PHPError = phpCommon.PHPError;
 
-function PropertyReference(valueFactory, callStack, objectValue, key) {
+function PropertyReference(valueFactory, callStack, objectValue, nativeObject, key) {
     this.objectValue = objectValue;
     this.key = key;
+    this.nativeObject = nativeObject;
     this.reference = null;
     this.callStack = callStack;
     this.valueFactory = valueFactory;
@@ -30,6 +31,7 @@ _.extend(PropertyReference.prototype, {
             property.valueFactory,
             property.callStack,
             property.objectValue,
+            property.nativeObject,
             property.key
         );
     },
@@ -40,7 +42,7 @@ _.extend(PropertyReference.prototype, {
 
     getValue: function () {
         var property = this,
-            nativeObject = property.objectValue.getNative(),
+            nativeObject = property.nativeObject,
             nativeKey = property.key.getNative();
 
         // Special value of native null (vs. NullValue) represents undefined
@@ -66,7 +68,7 @@ _.extend(PropertyReference.prototype, {
         var defined = true,
             otherObject,
             property = this,
-            nativeObject = property.objectValue.getNative(),
+            nativeObject = property.nativeObject,
             nativeKey = property.key.getNative();
 
         if (property.reference) {
@@ -116,7 +118,7 @@ _.extend(PropertyReference.prototype, {
 
     setValue: function (value) {
         var property = this,
-            nativeObject = property.objectValue.getNative(),
+            nativeObject = property.nativeObject,
             nativeKey = property.key.getNative(),
             isFirstProperty = (property.objectValue.getLength() === 0);
 
@@ -144,7 +146,7 @@ _.extend(PropertyReference.prototype, {
 
     unset: function () {
         var property = this,
-            nativeObject = property.objectValue.getNative(),
+            nativeObject = property.nativeObject,
             nativeKey = property.key.getNative();
 
         // Clear value and/or reference to mark as unset
