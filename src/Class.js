@@ -19,6 +19,7 @@ module.exports = require('pauser')([
     StaticPropertyReference
 ) {
     var IS_STATIC = 'isStatic',
+        MAGIC_CALL = '__call',
         VALUE = 'value',
         VISIBILITY = 'visibility',
         hasOwn = {}.hasOwnProperty,
@@ -59,6 +60,125 @@ module.exports = require('pauser')([
     }
 
     _.extend(Class.prototype, {
+        /**
+         * Calls a method of an instance of this class
+         *
+         * @param {object} object The current object on the prototype chain to search for the method
+         * @param {string} methodName The name of the method to call
+         * @param {Value[]} args The wrapped value objects to pass as arguments to the method
+         * @param {object} nativeObject The native JS object for this instance
+         * @param {ObjectValue} objectValue The wrapped ObjectValue for this instance
+         * @returns {Value}
+         * @throws {PHPFatalError} Throws when the method is not defined
+         */
+        callMethodForInstance: function (object, methodName, args, nativeObject, objectValue) {
+            var classObject = this,
+                result;
+
+            function unwrapArgs(args) {
+                if (classObject.autoCoercionEnabled) {
+                    return _.map(args, function (arg) {
+                        return arg.getNative();
+                    });
+                }
+
+                return args;
+            }
+
+            function callMethod(currentObject, methodName, args) {
+                var result = null;
+
+                _.forOwn(currentObject, function (value, propertyName) {
+                    if (
+                        propertyName.toLowerCase() === methodName.toLowerCase() &&
+                        _.isFunction(value)
+                    ) {
+                        result = classObject.valueFactory.coerce(
+                            value.apply(
+                                classObject.autoCoercionEnabled ? nativeObject : objectValue,
+                                unwrapArgs(args)
+                            )
+                        );
+                        return false;
+                    }
+                });
+
+                if (result !== null) {
+                    return result;
+                }
+
+                if (
+                    currentObject === classObject.InternalClass.prototype &&
+                    classObject.superClass
+                ) {
+                    return classObject.superClass.callMethodForInstance(
+                        Object.getPrototypeOf(currentObject),
+                        methodName,
+                        args,
+                        nativeObject,
+                        objectValue
+                    );
+                }
+
+                currentObject = Object.getPrototypeOf(currentObject);
+
+                if (!currentObject) {
+                    return null;
+                }
+
+                return callMethod(currentObject, methodName, args);
+            }
+
+            if (nativeObject instanceof classObject.InternalClass) {
+                // Ignore own properties of the native object when searching for methods
+                if (object === nativeObject) {
+                    object = Object.getPrototypeOf(object);
+                }
+
+                result = callMethod(object, methodName, args);
+
+                if (result !== null) {
+                    return result;
+                }
+
+                // Method was not found on object or its prototype chain: try the magic method
+                result = callMethod(object, MAGIC_CALL, [
+                    classObject.valueFactory.createString(methodName),
+                    classObject.valueFactory.createArray(args)
+                ]);
+
+                if (result !== null) {
+                    return result;
+                }
+            } else {
+                // For some special classes (eg. JSObject, Closure) the native object may not actually
+                // be an instance of the InternalClass, so fake inheritance of the native class
+                result = callMethod(classObject.InternalClass.prototype, methodName, args);
+
+                if (result !== null) {
+                    return result;
+                }
+
+                result = callMethod(classObject.InternalClass.prototype, MAGIC_CALL, [
+                    classObject.valueFactory.createString(methodName),
+                    classObject.valueFactory.createArray(args)
+                ]);
+
+                if (result !== null) {
+                    return result;
+                }
+            }
+
+            // Method was not found and no magic __call method is defined
+            throw new PHPFatalError(
+                PHPFatalError.UNDEFINED_METHOD,
+                {
+                    className: classObject.name,
+                    methodName: methodName
+                }
+            );
+        },
+
         callStaticMethod: function (name, args) {
             var classObject = this,
                 defined = true,

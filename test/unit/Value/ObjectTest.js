@@ -137,105 +137,20 @@ describe('Object', function () {
     });
 
     describe('callMethod()', function () {
-        describe('when a wrapped native function is called directly with __invoke()', function () {
-            beforeEach(function () {
-                this.nativeObject = sinon.stub();
+        it('should ask the class to call the method and return its result', function () {
+            var argValue = sinon.createStubInstance(Value),
+                resultValue = sinon.createStubInstance(Value);
+            this.classObject.callMethodForInstance.returns(resultValue);
 
-                this.value = new ObjectValue(
-                    this.factory,
-                    this.callStack,
-                    this.nativeObject,
-                    this.classObject,
-                    this.objectID
-                );
-            });
-
-            it('should call the wrapped function once', function () {
-                this.value.callMethod('__invoke', []);
-
-                expect(this.nativeObject).to.have.been.calledOnce;
-            });
-
-            it('should use null as `this` with auto-coercion enabled', function () {
-                this.classObject.isAutoCoercionEnabled.returns(true);
-
-                this.value.callMethod('__invoke', []);
-
-                expect(this.nativeObject).to.have.been.calledOn(null);
-            });
-
-            it('should use the wrapper ObjectValue as `this` with auto-coercion disabled', function () {
-                this.value.callMethod('__invoke', []);
-
-                expect(this.nativeObject).to.have.been.calledOn(sinon.match.same(this.value));
-            });
-
-            it('should be passed the arguments unwrapped with auto-coercion enabled', function () {
-                var arg1 = sinon.createStubInstance(Value),
-                    arg2 = sinon.createStubInstance(Value);
-                arg1.getNative.returns('first arg');
-                arg2.getNative.returns('second arg');
-                this.classObject.isAutoCoercionEnabled.returns(true);
-
-                this.value.callMethod('__invoke', [arg1, arg2]);
-
-                expect(this.nativeObject).to.have.been.calledWith('first arg', 'second arg');
-            });
-
-            it('should be passed the arguments wrapped with auto-coercion disabled', function () {
-                var arg1 = sinon.createStubInstance(Value),
-                    arg2 = sinon.createStubInstance(Value);
-
-                this.value.callMethod('__invoke', [arg1, arg2]);
-
-                expect(this.nativeObject).to.have.been.calledWith(
-                    sinon.match.same(arg1),
-                    sinon.match.same(arg2)
-                );
-            });
-
-            it('should coerce the result to a value object and return it', function () {
-                this.nativeObject.returns('my result');
-
-                expect(this.value.callMethod('__invoke').getNative()).to.equal('my result');
-            });
-        });
-
-        describe('when calling a method of the wrapped object', function () {
-            beforeEach(function () {
-                this.myMethod = sinon.stub();
-                this.nativeObject.myMethod = this.myMethod;
-            });
-
-            it('should call the method once', function () {
-                this.value.callMethod('myMethod', []);
-
-                expect(this.myMethod).to.have.been.calledOnce;
-            });
-
-            it('should use the wrapper ObjectValue as `this`', function () {
-                this.value.callMethod('myMethod', []);
-
-                expect(this.myMethod).to.have.been.calledOn(sinon.match.same(this.value));
-            });
-
-            it('should be passed the arguments', function () {
-                var arg1 = sinon.createStubInstance(Value),
-                    arg2 = sinon.createStubInstance(Value);
-
-                this.value.callMethod('myMethod', [arg1, arg2]);
-
-                expect(this.myMethod).to.have.been.calledWith(
-                    sinon.match.same(arg1),
-                    sinon.match.same(arg2)
-                );
-            });
-
-            it('should be case-insensitive', function () {
-                this.value.callMethod('MYMEthoD', []);
-
-                expect(this.myMethod).to.have.been.calledOnce;
-            });
+            expect(this.value.callMethod('myMethod', [argValue])).to.equal(resultValue);
+            expect(this.classObject.callMethodForInstance).to.have.been.calledOnce;
+            expect(this.classObject.callMethodForInstance).to.have.been.calledWith(
+                sinon.match.same(this.nativeObject),
+                'myMethod',
+                [sinon.match.same(argValue)],
+                sinon.match.same(this.nativeObject),
+                sinon.match.same(this.value)
+            );
         });
     });
 

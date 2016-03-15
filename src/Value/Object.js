@@ -114,60 +114,18 @@ module.exports = require('pauser')([
             return this.callMethod('__invoke', args);
         },
 
+        /**
+         * Calls the specified method of this object
+         *
+         * @param {string} name
+         * @param {Value[]} args
+         * @returns {Value}
+         */
         callMethod: function (name, args) {
-            var defined = true,
-                func,
-                match,
-                value = this,
-                object = value.value,
-                thisObject = value,
-                thisVariable;
+            var value = this,
+                object = value.value;
 
-            // Call functions directly when invoking the magic method
-            if (name === '__invoke' && _.isFunction(object)) {
-                func = object;
-            } else {
-                if (value.classObject.getName() === 'JSObject') {
-                    func = object[name];
-                } else {
-                    // Allow methods inherited via the prototype chain up to but not including Object.prototype
-                    match = getPropertyCaseInsensitive(object, name);
-
-                    if (!match || match.object === Object.prototype) {
-                        defined = false;
-                    } else {
-                        func = match.value;
-                    }
-                }
-            }
-
-            if (!defined || !_.isFunction(func)) {
-                throw new PHPFatalError(
-                    PHPFatalError.UNDEFINED_METHOD,
-                    {
-                        className: value.classObject.getName(),
-                        methodName: name
-                    }
-                );
-            }
-
-            if (value.classObject.getName() === 'Closure') {
-                // Store the current PHP thisObj to set for the closure
-                thisVariable = object.scopeWhenCreated.getVariable('this');
-                thisObject = thisVariable.isDefined() ?
-                    thisVariable.getValue() :
-                    null;
-            }
-
-            if (value.classObject.isAutoCoercionEnabled()) {
-                thisObject = _.isFunction(object) ? null : object;
-
-                _.each(args, function (arg, index) {
-                    args[index] = arg.getNative();
-                });
-            }
-
-            return value.factory.coerce(func.apply(thisObject, args));
+            return value.classObject.callMethodForInstance(object, name, args, object, value);
         },
 
         callStaticMethod: function (nameValue, args) {
@@ -427,6 +385,22 @@ module.exports = require('pauser')([
 
         getStaticPropertyByName: function (nameValue) {
             return this.classObject.getStaticPropertyByName(nameValue.getNative());
+        },
+
+        /**
+         * Invokes the native function this object wraps when it is an instance of Closure
+         *
+         * @param {Value[]} args
+         * @returns {Value}
+         */
+        invokeClosure: function (args) {
+            // Store the current PHP thisObj to set for the closure
+            var value = this,
+                nativeFunction = value.value,
+                thisVariable = nativeFunction.scopeWhenCreated.getVariable('this'),
+                thisObject = thisVariable.isDefined() ? thisVariable.getValue() : null;
+
+            return value.factory.coerce(nativeFunction.apply(thisObject, args));
         },
 
         isAnInstanceOf: function (classNameValue, namespaceOrNamespaceScope) {

@@ -9,10 +9,18 @@
 
 'use strict';
 
+var _ = require('microdash');
+
 module.exports = function (internals) {
     function Closure() {
 
     }
+
+    _.extend(Closure.prototype, {
+        '__invoke': function () {
+            return this.invokeClosure([].slice.call(arguments));
+        }
+    });
 
     internals.disableAutoCoercion();
 
