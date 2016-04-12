@@ -20,6 +20,10 @@ _.extend(VariableReference.prototype, {
         return this.getValue();
     },
 
+    getInstancePropertyByName: function (name) {
+        return this.getValue().getInstancePropertyByName(name);
+    },
+
     getValue: function () {
         return this.variable.getValue();
     },

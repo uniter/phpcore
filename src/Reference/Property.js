@@ -36,6 +36,10 @@ _.extend(PropertyReference.prototype, {
         );
     },
 
+    getInstancePropertyByName: function (name) {
+        return this.getValue().getInstancePropertyByName(name);
+    },
+
     getKey: function () {
         return this.key;
     },

@@ -29,6 +29,10 @@ _.extend(ElementReference.prototype, {
         return new ElementReference(element.valueFactory, element.callStack, element.arrayValue, element.key, element.value);
     },
 
+    getInstancePropertyByName: function (name) {
+        return this.getValue().getInstancePropertyByName(name);
+    },
+
     getKey: function () {
         return this.key;
     },

@@ -42,6 +42,10 @@ $anotherObject = (object)['prop1' => 'prop ref 1', 'prop2' => 'prop ref 2'];
 $result[] = ($myObject->myProp =& $anotherObject->prop1);
 $result[] = ($myArray[25] =& $anotherObject->prop2);
 
+// Assigning to property of array element should return the value assigned
+$myArray[21] = $myObject;
+$result[] = ($myArray[21]->myProp = 27);
+
 return $result;
 EOS
 */;}), //jshint ignore:line
@@ -56,7 +60,8 @@ EOS
             'element ref 1',
             'element ref 2',
             'prop ref 1',
-            'prop ref 2'
+            'prop ref 2',
+            27
         ]);
     });
 });

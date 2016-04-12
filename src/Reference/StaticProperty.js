@@ -20,6 +20,10 @@ function StaticPropertyReference(classObject, name, visibility, value) {
 }
 
 _.extend(StaticPropertyReference.prototype, {
+    getInstancePropertyByName: function (name) {
+        return this.getValue().getInstancePropertyByName(name);
+    },
+
     getName: function () {
         return this.name;
     },
