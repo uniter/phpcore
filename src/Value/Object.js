@@ -281,6 +281,13 @@ module.exports = require('pauser')([
             return this.id;
         },
 
+        getProperty: function (name) {
+            var value = this,
+                nameValue = value.factory.createString(name);
+
+            return value.getInstancePropertyByName(nameValue).getValue();
+        },
+
         getInstancePropertyByName: function (nameValue) {
             var nameKey = nameValue.coerceToKey(),
                 name = nameKey.getNative(),
@@ -377,6 +384,10 @@ module.exports = require('pauser')([
             }
 
             return value.classObject.unwrapInstanceForJS(value, value.value);
+        },
+
+        getObject: function () {
+            return this.value;
         },
 
         getPointer: function () {
@@ -534,6 +545,13 @@ module.exports = require('pauser')([
 
         setPointer: function (pointer) {
             this.pointer = pointer;
+        },
+
+        setProperty: function (name, newValue) {
+            var value = this,
+                nameValue = value.factory.createString(name);
+
+            value.getInstancePropertyByName(nameValue).setValue(newValue);
         }
     });
 

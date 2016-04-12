@@ -16,7 +16,8 @@ module.exports = require('pauser')([
     _,
     Variable
 ) {
-    var hasOwn = {}.hasOwnProperty;
+    var hasOwn = {}.hasOwnProperty,
+        IS_STATIC = 'isStatic';
 
     function Scope(
         callStack,
@@ -28,7 +29,7 @@ module.exports = require('pauser')([
         currentFunction,
         thisObject
     ) {
-        var thisObjectVariable;
+        var thisObjectVariable = new Variable(callStack, valueFactory, 'this');
 
         this.callStack = callStack;
         this.currentClass = currentClass;
@@ -37,14 +38,14 @@ module.exports = require('pauser')([
         this.functionFactory = functionFactory;
         this.namespace = namespace;
         this.superGlobalScope = superGlobalScope;
-        this.thisObject = thisObject;
+        this.thisObject = currentFunction && currentFunction[IS_STATIC] ? null : thisObject;
         this.valueFactory = valueFactory;
-        this.variables = {};
+        this.variables = {
+            'this': thisObjectVariable
+        };
 
-        if (thisObject) {
-            thisObjectVariable = new Variable(callStack, valueFactory, 'this');
+        if (thisObject && (!currentFunction || !currentFunction[IS_STATIC])) {
             thisObjectVariable.setValue(thisObject);
-            this.variables['this'] = thisObjectVariable;
         }
     }
 

@@ -91,12 +91,13 @@ EOS
         }), done);
     });
 
-    it('should support installing a custom class with unwrapper', function (done) {
+    it('should support installing custom classes with unwrappers', function (done) {
         var php = nowdoc(function () {/*<<<EOS
 <?php
-$myObject = new AwesomeClass(21);
+$myCoercingObject = new CoercingClass(27);
+$myNonCoercingObject = new NonCoercingClass(21);
 
-return $myObject;
+return [$myCoercingObject, $myNonCoercingObject];
 EOS
 */;}), //jshint ignore:line
             js = phpToJS.transpile(phpToAST.create().parse(php)),
@@ -109,24 +110,35 @@ EOS
 
         this.runtime.install({
             classes: {
-                'AwesomeClass': function (internals) {
-                    function AwesomeClass(myNumber) {
+                'CoercingClass': function (internals) {
+                    function CoercingClass(myNumber) {
                         this.myNumber = myNumber;
                     }
 
                     internals.defineUnwrapper(function () {
-                        return this.myNumber.getNative() * 2;
+                        return this.myNumber + 3;
+                    });
+
+                    return CoercingClass;
+                },
+                'NonCoercingClass': function (internals) {
+                    function NonCoercingClass(myNumberValue) {
+                        this.setProperty('myNumber', myNumberValue);
+                    }
+
+                    internals.defineUnwrapper(function () {
+                        return this.getProperty('myNumber').getNative() * 2;
                     });
 
                     internals.disableAutoCoercion();
 
-                    return AwesomeClass;
+                    return NonCoercingClass;
                 }
             }
         });
 
         module().execute().then(when(done, function (result) {
-            expect(result.getNative()).to.equal(42);
+            expect(result.getNative()).to.deep.equal([30, 42]);
         }), done);
     });
 

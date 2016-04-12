@@ -28,16 +28,20 @@ describe('PHP "class" statement integration', function () {
 <?php
 class FirstPHPClass extends CoercingJSClass
 {
+    public function __construct($base)
+    {
+        CoercingJSClass::__construct($base . ' php_ctor');
+    }
 }
 
 class SecondPHPClass extends NonCoercingJSClass
 {
 }
 
-$first = new FirstPHPClass();
-$second = new SecondPHPClass();
+$first = new FirstPHPClass('php_init1');
+$second = new SecondPHPClass('php_init2');
 
-return $first->addOneTo(10) + $second->addThreeTo(7);
+return $first->addOneTo(' php_10') . ' op ' . $second->addThreeTo(' php_7');
 EOS
 */;}),//jshint ignore:line
             js = phpToJS.transpile(phpToAST.create().parse(php)),
@@ -51,21 +55,41 @@ EOS
         this.runtime.install({
             classes: {
                 'CoercingJSClass': function () {
-                    function CoercingJSClass() {
+                    function CoercingJSClass(base) {
+                        this.base = base + ' js_ctor1';
                     }
 
-                    CoercingJSClass.prototype.addOneTo = function (number) {
-                        return number + 1;
+                    CoercingJSClass.prototype.__construct = function () {
+                        this.base += ' magic_coerce';
+                    };
+
+                    CoercingJSClass.prototype.addOneTo = function (string) {
+                        return this.base + string + ' one';
                     };
 
                     return CoercingJSClass;
                 },
                 'NonCoercingJSClass': function (internals) {
-                    function NonCoercingJSClass() {
+                    function NonCoercingJSClass(baseValue) {
+                        this.setProperty(
+                            'base',
+                            internals.valueFactory.createString(baseValue.getNative() + ' js_ctor2')
+                        );
                     }
 
-                    NonCoercingJSClass.prototype.addThreeTo = function (numberValue) {
-                        return internals.valueFactory.createInteger(numberValue.getNative() + 3);
+                    NonCoercingJSClass.prototype.__construct = function () {
+                        this.setProperty(
+                            'base',
+                            internals.valueFactory.createString(
+                                this.getProperty('base').getNative() + ' magic_non_coerce'
+                            )
+                        );
+                    };
+
+                    NonCoercingJSClass.prototype.addThreeTo = function (stringValue) {
+                        return internals.valueFactory.createString(
+                            this.getProperty('base').getNative() + stringValue.getNative() + ' three'
+                        );
                     };
 
                     internals.disableAutoCoercion();
@@ -75,6 +99,8 @@ EOS
             }
         });
 
-        expect(module().execute().getNative()).to.equal(21);
+        expect(module().execute().getNative()).to.equal(
+            'php_init1 php_ctor js_ctor1 magic_coerce php_10 one op php_init2 js_ctor2 magic_non_coerce php_7 three'
+        );
     });
 });

@@ -18,7 +18,8 @@ module.exports = require('pauser')([
     phpCommon,
     VariableReference
 ) {
-    var PHPError = phpCommon.PHPError;
+    var PHPError = phpCommon.PHPError,
+        PHPFatalError = phpCommon.PHPFatalError;
 
     function Variable(callStack, valueFactory, name) {
         this.name = name;
@@ -33,6 +34,19 @@ module.exports = require('pauser')([
             var variable = this;
 
             variable.setValue(variable.getValue().subtract(rightValue));
+        },
+
+        getInstancePropertyByName: function (name) {
+            var variable = this;
+
+            if (
+                variable.name === 'this' &&
+                (variable.value === null || variable.value.getType() === 'null')
+            ) {
+                throw new PHPFatalError(PHPFatalError.USED_THIS_OUTSIDE_OBJECT_CONTEXT);
+            }
+
+            return variable.getValue().getInstancePropertyByName(name);
         },
 
         getName: function () {

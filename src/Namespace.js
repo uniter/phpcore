@@ -19,6 +19,7 @@ module.exports = require('pauser')([
     Class
 ) {
     var IS_STATIC = 'isStatic',
+        MAGIC_CONSTRUCT = '__construct',
         hasOwn = {}.hasOwnProperty,
         PHPError = phpCommon.PHPError,
         PHPFatalError = phpCommon.PHPFatalError;
@@ -45,11 +46,27 @@ module.exports = require('pauser')([
                 methodData = {},
                 methods = {},
                 namespace = this,
+                proxyConstructor,
                 staticProperties,
                 InternalClass;
 
             if (_.isFunction(definition)) {
-                InternalClass = definition;
+                // Create a new, empty native constructor so that we can avoid calling
+                // the original if the derived class does not call parent::__construct(...)
+                InternalClass = function () {};
+                InternalClass.prototype = Object.create(definition.prototype);
+                proxyConstructor = function () {
+                    // Call the original native constructor
+                    definition.apply(this, arguments);
+
+                    // Call magic __construct method if defined for the original native class
+                    if (definition.prototype[MAGIC_CONSTRUCT]) {
+                        definition.prototype[MAGIC_CONSTRUCT].apply(this, arguments);
+                    }
+                };
+                proxyConstructor.data = methodData;
+                InternalClass.prototype[MAGIC_CONSTRUCT] = proxyConstructor;
+                constructorName = MAGIC_CONSTRUCT;
             } else {
                 InternalClass = function () {
                     var instance = this;

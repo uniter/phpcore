@@ -278,7 +278,7 @@ _.extend(Engine.prototype, {
                 return variable.getValue();
             },
             implyObject: function (variable) {
-                return variable.getValue();
+                return variable;
             },
             includeOnce: includeOnce,
             include: include,

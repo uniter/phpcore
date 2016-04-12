@@ -25,6 +25,10 @@ _.extend(CallStack.prototype, {
         return chain.calls[chain.calls.length - 1];
     },
 
+    getThisObject: function () {
+        return this.getCurrent().getScope().getThisObject();
+    },
+
     pop: function () {
         this.calls.pop();
     },

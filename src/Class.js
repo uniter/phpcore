@@ -24,7 +24,31 @@ module.exports = require('pauser')([
         VISIBILITY = 'visibility',
         hasOwn = {}.hasOwnProperty,
         PHPError = phpCommon.PHPError,
-        PHPFatalError = phpCommon.PHPFatalError;
+        PHPFatalError = phpCommon.PHPFatalError,
+        unwrapArgs = function (args, classObject) {
+            if (classObject.autoCoercionEnabled) {
+                return _.map(args, function (arg) {
+                    return arg.getNative();
+                });
+            }
+
+            return args;
+        },
+        getMethod = function (object, methodName) {
+            var result = null;
+
+            _.forOwn(object, function (value, propertyName) {
+                if (
+                    propertyName.toLowerCase() === methodName.toLowerCase() &&
+                    _.isFunction(value)
+                ) {
+                    result = value;
+                    return false;
+                }
+            });
+
+            return result;
+        };
 
     function Class(
         valueFactory,
@@ -75,36 +99,16 @@ module.exports = require('pauser')([
             var classObject = this,
                 result;
 
-            function unwrapArgs(args) {
-                if (classObject.autoCoercionEnabled) {
-                    return _.map(args, function (arg) {
-                        return arg.getNative();
-                    });
-                }
-
-                return args;
-            }
-
             function callMethod(currentObject, methodName, args) {
-                var result = null;
+                var method = getMethod(currentObject, methodName);
 
-                _.forOwn(currentObject, function (value, propertyName) {
-                    if (
-                        propertyName.toLowerCase() === methodName.toLowerCase() &&
-                        _.isFunction(value)
-                    ) {
-                        result = classObject.valueFactory.coerce(
-                            value.apply(
-                                classObject.autoCoercionEnabled ? nativeObject : objectValue,
-                                unwrapArgs(args)
-                            )
-                        );
-                        return false;
-                    }
-                });
-
-                if (result !== null) {
-                    return result;
+                if (method !== null) {
+                    return classObject.valueFactory.coerce(
+                        method.apply(
+                            classObject.autoCoercionEnabled ? nativeObject : objectValue,
+                            unwrapArgs(args, classObject)
+                        )
+                    );
                 }
 
                 if (
@@ -179,40 +183,103 @@ module.exports = require('pauser')([
             );
         },
 
-        callStaticMethod: function (name, args) {
+        /**
+         * Calls a method of a class statically (may be a static method
+         * or may be an instance method being called statically)
+         *
+         * @param {string} methodName
+         * @param {Value[]} args
+         * @param {ObjectValue|null} currentObject
+         * @returns {Value}
+         * @throws {PHPFatalError} Throws when method does not exist
+         */
+        callStaticMethod: function (methodName, args, currentObject) {
             var classObject = this,
-                defined = true,
-                method,
-                prototype = classObject.InternalClass.prototype,
-                otherPrototype;
+                result;
 
-            // Allow methods inherited via the prototype chain up to but not including Object.prototype
-            if (!hasOwn.call(prototype, name)) {
-                otherPrototype = prototype;
+            function callMethod(currentObject, methodName, args) {
+                var method = getMethod(currentObject, methodName),
+                    thisObject = null;
 
-                do {
-                    otherPrototype = Object.getPrototypeOf(otherPrototype);
-                    if (!otherPrototype || otherPrototype === Object.prototype) {
-                        defined = false;
-                        break;
+                if (method !== null) {
+                    if (!method[IS_STATIC]) {
+                        thisObject = classObject.callStack.getThisObject();
+
+                        if (!thisObject) {
+                            classObject.callStack.raiseError(
+                                PHPError.E_STRICT,
+                                'Non-static method ' + method.data.classObject.name +
+                                '::' + methodName + '() should not be called statically'
+                            );
+                        } else if (!thisObject.classIs(classObject.getName())) {
+                            classObject.callStack.raiseError(
+                                PHPError.E_STRICT,
+                                'Non-static method ' + method.data.classObject.name +
+                                '::' + methodName + '() should not be called statically, ' +
+                                'assuming $this from incompatible context'
+                            );
+                        }
                     }
-                } while (!hasOwn.call(otherPrototype, name));
+
+                    return classObject.valueFactory.coerce(
+                        method.apply(
+                            thisObject && classObject.autoCoercionEnabled ?
+                                thisObject.getObject() :
+                                thisObject,
+                            //thisObject ? thisObject.getObject() : null,
+                            unwrapArgs(args, classObject)
+                        )
+                    );
+                }
+
+                if (
+                    currentObject === classObject.InternalClass.prototype &&
+                    classObject.superClass
+                ) {
+                    return classObject.superClass.callStaticMethod(
+                        methodName,
+                        args,
+                        Object.getPrototypeOf(currentObject)
+                    );
+                }
+
+                currentObject = Object.getPrototypeOf(currentObject);
+
+                if (!currentObject) {
+                    return null;
+                }
+
+                return callMethod(currentObject, methodName, args);
             }
 
-            method = prototype[name];
+            if (!currentObject) {
+                currentObject = classObject.InternalClass.prototype;
+            }
 
-            if (!defined || !_.isFunction(method)) {
-                throw new PHPFatalError(PHPFatalError.CALL_TO_UNDEFINED_METHOD, {
+            result = callMethod(currentObject, methodName, args);
+
+            if (result !== null) {
+                return result;
+            }
+
+            // Method was not found on object or its prototype chain: try the magic method
+            result = callMethod(currentObject, MAGIC_CALL, [
+                classObject.valueFactory.createString(methodName),
+                classObject.valueFactory.createArray(args)
+            ]);
+
+            if (result !== null) {
+                return result;
+            }
+
+            // Method was not found and no magic __call method is defined
+            throw new PHPFatalError(
+                PHPFatalError.UNDEFINED_METHOD,
+                {
                     className: classObject.name,
-                    methodName: name
-                });
-            }
-
-            if (!method[IS_STATIC]) {
-                classObject.callStack.raiseError(PHPError.E_STRICT, 'Non-static method ' + method.data.classObject.name + '::' + name + '() should not be called statically');
-            }
-
-            return classObject.valueFactory.coerce(method.apply(null, args));
+                    methodName: methodName
+                }
+            );
         },
 
         /**
@@ -435,7 +502,9 @@ module.exports = require('pauser')([
             var classObject = this;
 
             if (classObject.unwrapper) {
-                return classObject.unwrapper.call(nativeObject);
+                return classObject.unwrapper.call(
+                    classObject.autoCoercionEnabled ? nativeObject : instance
+                );
             }
 
             // Return a wrapper object that presents a promise-based API
