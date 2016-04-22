@@ -18,11 +18,12 @@ var expect = require('chai').expect,
     when = require('../when'),
     Engine = require('../../src/Engine'),
     Environment = require('../../src/Environment'),
+    PHPState = require('../../src/PHPState').sync(),
     Runtime = require('../../src/Runtime').async(pausable);
 
 describe('Custom builtin integration', function () {
     beforeEach(function () {
-        this.runtime = new Runtime(Environment, Engine, phpCommon, pausable, phpToAST, phpToJS);
+        this.runtime = new Runtime(Environment, Engine, PHPState, phpCommon, pausable, phpToAST, phpToJS);
     });
 
     it('should support installing a custom function', function (done) {

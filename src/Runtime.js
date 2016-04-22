@@ -18,25 +18,69 @@ module.exports = require('pauser')([
     PHPState,
     Stream
 ) {
-    function Runtime(Environment, Engine, phpCommon, pausable) {
+    /**
+     * PHPCore API encapsulator.
+     *
+     * @param {class} Environment
+     * @param {class} Engine
+     * @param {class} PHPState
+     * @param {object} phpCommon
+     * @param {Resumable} pausable
+     * @constructor
+     */
+    function Runtime(Environment, Engine, PHPState, phpCommon, pausable) {
+        /**
+         * @type {{classes: {}, constantGroups: Array, functionGroups: Array}}
+         */
         this.builtins = {
             classes: {},
             constantGroups: [],
             functionGroups: []
         };
+        /**
+         * @type {class}
+         */
         this.Engine = Engine;
+        /**
+         * @type {class}
+         */
         this.Environment = Environment;
+        /**
+         * @type {Resumable}
+         */
         this.pausable = pausable;
+        /**
+         * @type {Object}
+         */
         this.phpCommon = phpCommon;
+        /**
+         * @type {class}
+         */
+        this.PHPState = PHPState;
     }
 
     _.extend(Runtime.prototype, {
+        /**
+         * Creates a factory function that can be called to create
+         * a new Engine instance using this runtime's context.
+         *
+         * @param {Function} wrapper
+         * @returns {Function}
+         */
         compile: function (wrapper) {
             var runtime = this,
                 pausable = runtime.pausable,
                 phpCommon = runtime.phpCommon;
 
-            return function (options, environment) {
+            /**
+             * Creates a new Engine instance using this runtime's context.
+             *
+             * @param {object} options
+             * @param {Environment|null} environment
+             * @param {Scope|null} topLevelScope
+             * @returns {Engine}
+             */
+            function factory(options, environment, topLevelScope) {
                 if (environment) {
                     options = _.extend({}, environment.getOptions(), options);
                 } else {
@@ -45,24 +89,46 @@ module.exports = require('pauser')([
 
                 return new runtime.Engine(
                     environment,
+                    topLevelScope || null,
                     phpCommon,
                     options,
                     wrapper,
                     pausable
                 );
-            };
+            }
+
+            return factory;
         },
 
+        /**
+         * Creates a new Environment instance, useful for sharing a runtime
+         * context between modules.
+         * A factory function returned from `.compile(...)` may be called
+         * passing an Environment instance in order to reuse it, eg.
+         * to make classes, functions and global variables from one module
+         * available in another outside the use of includes.
+         *
+         * @param {object} options
+         * @returns {Environment}
+         */
         createEnvironment: function (options) {
             var runtime = this,
                 stdin = new Stream(),
                 stdout = new Stream(),
                 stderr = new Stream(),
-                state = new PHPState(runtime.builtins, stdin, stdout, stderr, runtime.pausable);
+                state = new runtime.PHPState(runtime.builtins, stdin, stdout, stderr, runtime.pausable);
 
             return new runtime.Environment(state, options);
         },
 
+        /**
+         * Installs a new set of builtins, to be available to all modules
+         * compiled and executed by this runtime.
+         * All fields are optional - for example, this method can be used
+         * to only define a new class without also defining any constants or functions.
+         *
+         * @param {{classes: {}, constantGroups: Array, functionGroups: Array}} newBuiltins
+         */
         install: function (newBuiltins) {
             var builtins = this.builtins;
 

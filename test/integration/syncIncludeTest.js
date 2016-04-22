@@ -150,4 +150,32 @@ EOS
             'second'
         ]);
     });
+
+    it('should evaluate an included module in the scope the `include` statement is in', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+function myFunc() {
+    $myVar = 21;
+
+    return include 'my_module.php';
+}
+
+return myFunc();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            options = {
+                include: function (path, promise) {
+                    var php = nowdoc(function () {/*<<<EOS
+<?php
+return ($myVar * 2) . ' from ${path}';
+EOS
+*/;}, {path: path}); //jshint ignore:line
+                    promise.resolve(tools.syncTranspile(path, php));
+                }
+            },
+            engine = module(options);
+
+        expect(engine.execute().getNative()).to.equal('42 from my_module.php');
+    });
 });

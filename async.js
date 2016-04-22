@@ -13,7 +13,8 @@ var pausable = require('pausable'),
     phpCommon = require('phpcommon'),
     Engine = require('./src/Engine'),
     Environment = require('./src/Environment'),
+    PHPState = require('./src/PHPState').async(pausable),
     Runtime = require('./src/Runtime').async(pausable),
-    runtime = new Runtime(Environment, Engine, phpCommon, pausable);
+    runtime = new Runtime(Environment, Engine, PHPState, phpCommon, pausable);
 
 module.exports = runtime;

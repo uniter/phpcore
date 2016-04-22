@@ -24,6 +24,7 @@ var _ = require('microdash'),
 
 function Engine(
     environment,
+    topLevelScope,
     phpCommon,
     options,
     wrapper,
@@ -38,6 +39,7 @@ function Engine(
     );
     this.pausable = pausable;
     this.phpCommon = phpCommon;
+    this.topLevelScope = topLevelScope || null;
     this.wrapper = wrapper;
 }
 
@@ -93,9 +95,10 @@ _.extend(Engine.prototype, {
             },
             ExitValue = unwrap(ExitValueWrapper),
             NamespaceScope = unwrap(NamespaceScopeWrapper),
-            ObjectValue = unwrap(ObjectValueWrapper);
+            ObjectValue = unwrap(ObjectValueWrapper),
+            topLevelScope;
 
-        function include(includedPath) {
+        function include(includedPath, includeScope) {
             var done = false,
                 pause = null,
                 result,
@@ -133,7 +136,7 @@ _.extend(Engine.prototype, {
 
                 // Handle wrapper function being returned from loader for module
                 if (_.isFunction(valueOrModule)) {
-                    executeResult = valueOrModule(subOptions, environment).execute();
+                    executeResult = valueOrModule(subOptions, environment, includeScope).execute();
 
                     if (!pausable) {
                         completeWith(executeResult);
@@ -195,14 +198,14 @@ _.extend(Engine.prototype, {
             pause.now();
         }
 
-        function includeOnce(includedPath) {
+        function includeOnce(includedPath, scope) {
             if (hasOwn.call(includedPaths, includedPath)) {
                 return valueFactory.createInteger(1);
             }
 
             includedPaths[includedPath] = true;
 
-            return include(includedPath);
+            return include(includedPath, scope);
         }
 
         function getNormalizedPath() {
@@ -216,10 +219,13 @@ _.extend(Engine.prototype, {
         callStack = state.getCallStack();
         globalScope = state.getGlobalScope();
         PHPException = state.getPHPExceptionClass();
+        // Use the provided top-level scope if specified, otherwise use the global scope
+        // (used eg. when an `include(...)` is used inside a function)
+        topLevelScope = engine.topLevelScope || globalScope;
 
         tools = {
             createClosure: function (func, scope) {
-                return tools.valueFactory.createObject(
+                return valueFactory.createObject(
                     scope.createClosure(func),
                     globalNamespace.getClass('Closure')
                 );
@@ -268,7 +274,6 @@ _.extend(Engine.prototype, {
             getPathDirectory: function () {
                 return valueFactory.createString(getNormalizedPath().replace(/\/[^\/]+$/, ''));
             },
-            globalScope: globalScope,
             implyArray: function (variable) {
                 // Undefined variables and variables containing null may be implicitly converted to arrays
                 if (!variable.isDefined() || variable.getValue().getType() === 'null') {
@@ -288,6 +293,7 @@ _.extend(Engine.prototype, {
             throwNoActiveClassScope: function () {
                 throw new PHPFatalError(PHPFatalError.SELF_WHEN_NO_ACTIVE_CLASS);
             },
+            topLevelScope: topLevelScope,
             valueFactory: valueFactory
         };
 

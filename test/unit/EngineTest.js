@@ -13,7 +13,8 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     Engine = require('../../src/Engine'),
     Environment = require('../../src/Environment'),
-    PauseException = require('pausable/src/PauseException');
+    PauseException = require('pausable/src/PauseException'),
+    Scope = require('../../src/Scope').sync();
 
 describe('Engine', function () {
     beforeEach(function () {
@@ -27,11 +28,13 @@ describe('Engine', function () {
         this.phpCommon = {};
         this.phpToAST = {};
         this.phpToJS = {};
+        this.topLevelScope = sinon.createStubInstance(Scope);
         this.wrapper = sinon.stub();
 
         this.createEngine = function () {
             this.engine = new Engine(
                 this.environment,
+                this.topLevelScope,
                 this.phpCommon,
                 this.options,
                 this.wrapper,
