@@ -20,7 +20,7 @@ var expect = require('chai').expect,
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
 
-describe('ValueFactory', function () {
+describe('Value', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.factory = sinon.createStubInstance(ValueFactory);
