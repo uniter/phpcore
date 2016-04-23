@@ -15,11 +15,13 @@ var expect = require('chai').expect,
     Class = require('../../src/Class').sync(),
     FunctionFactory = require('../../src/FunctionFactory'),
     Namespace = require('../../src/Namespace').sync(),
+    ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     Scope = require('../../src/Scope').sync(),
     StringValue = require('../../src/Value/String').sync(),
     SuperGlobalScope = require('../../src/SuperGlobalScope').sync(),
     ValueFactory = require('../../src/ValueFactory').sync(),
-    Variable = require('../../src/Variable').sync();
+    Variable = require('../../src/Variable').sync(),
+    VariableReference = require('../../src/Reference/Variable');
 
 describe('Scope', function () {
     beforeEach(function () {
@@ -28,7 +30,9 @@ describe('Scope', function () {
         this.currentClass = null;
         this.currentFunction = null;
         this.functionFactory = sinon.createStubInstance(FunctionFactory);
+        this.globalScope = sinon.createStubInstance(Scope);
         this.namespace = sinon.createStubInstance(Namespace);
+        this.referenceFactory = sinon.createStubInstance(ReferenceFactory);
         this.superGlobalScope = sinon.createStubInstance(SuperGlobalScope);
         this.valueFactory = sinon.createStubInstance(ValueFactory);
 
@@ -49,9 +53,11 @@ describe('Scope', function () {
         this.createScope = function () {
             this.scope = new Scope(
                 this.callStack,
+                this.globalScope,
                 this.superGlobalScope,
                 this.functionFactory,
                 this.valueFactory,
+                this.referenceFactory,
                 this.namespace,
                 this.currentClass,
                 this.currentFunction,
@@ -217,6 +223,25 @@ describe('Scope', function () {
             this.createScope();
 
             expect(this.scope.getVariable('_ENV')).to.equal(superGlobal);
+        });
+    });
+
+    describe('importGlobal()', function () {
+        beforeEach(function () {
+            this.createScope();
+        });
+
+        it('should define variable in current scope as reference to variable in global scope', function () {
+            var globalVariable = sinon.createStubInstance(Variable),
+                reference = sinon.createStubInstance(VariableReference),
+                value = sinon.createStubInstance(StringValue);
+            this.referenceFactory.createVariable.withArgs(sinon.match.same(globalVariable)).returns(reference);
+            this.globalScope.getVariable.withArgs('myVar').returns(globalVariable);
+            reference.getValue.returns(value);
+
+            this.scope.importGlobal('myVar');
+
+            expect(this.scope.getVariable('myVar').getValue()).to.equal(value);
         });
     });
 });

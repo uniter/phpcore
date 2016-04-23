@@ -125,9 +125,10 @@ module.exports = require('pauser')([
         var callStack = new CallStack(stderr),
             callFactory = new CallFactory(Call),
             valueFactory = new ValueFactory(pausable, callStack),
+            referenceFactory = new ReferenceFactory(valueFactory),
             classAutoloader = new ClassAutoloader(valueFactory),
             superGlobalScope = new SuperGlobalScope(callStack, valueFactory),
-            scopeFactory = new ScopeFactory(Scope, callStack, superGlobalScope, valueFactory),
+            scopeFactory = new ScopeFactory(Scope, callStack, superGlobalScope, valueFactory, referenceFactory),
             functionFactory = new FunctionFactory(scopeFactory, callFactory, valueFactory, callStack),
             namespaceFactory = new NamespaceFactory(
                 Namespace,
@@ -136,17 +137,20 @@ module.exports = require('pauser')([
                 valueFactory,
                 classAutoloader
             ),
-            globalNamespace = namespaceFactory.create();
+            globalNamespace = namespaceFactory.create(),
+            globalScope;
 
         scopeFactory.setFunctionFactory(functionFactory);
+        globalScope = scopeFactory.create(globalNamespace);
+        scopeFactory.setGlobalScope(globalScope);
         classAutoloader.setGlobalNamespace(globalNamespace);
         valueFactory.setGlobalNamespace(globalNamespace);
 
         this.callStack = callStack;
         this.globalNamespace = globalNamespace;
-        this.globalScope = scopeFactory.create(globalNamespace);
+        this.globalScope = globalScope;
         this.iniState = new INIState();
-        this.referenceFactory = new ReferenceFactory(valueFactory);
+        this.referenceFactory = referenceFactory;
         this.callStack = callStack;
         this.classAutoloader = classAutoloader;
         this.pausable = pausable;

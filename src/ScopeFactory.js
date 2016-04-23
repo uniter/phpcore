@@ -11,23 +11,65 @@
 
 var _ = require('microdash');
 
-function ScopeFactory(Scope, callStack, superGlobalScope, valueFactory) {
+/**
+ * @param {class} Scope
+ * @param {CallStack} callStack
+ * @param {SuperGlobalScope} superGlobalScope
+ * @param {ValueFactory} valueFactory
+ * @param {ReferenceFactory} referenceFactory
+ * @constructor
+ */
+function ScopeFactory(Scope, callStack, superGlobalScope, valueFactory, referenceFactory) {
+    /**
+     * @type {CallStack}
+     */
     this.callStack = callStack;
+    /**
+     * @type {FunctionFactory}
+     */
     this.functionFactory = null;
+    /**
+     * @type {Scope}
+     */
+    this.globalScope = null;
+    /**
+     * @type {ReferenceFactory}
+     */
+    this.referenceFactory = referenceFactory;
+    /**
+     * @type {class}
+     */
     this.Scope = Scope;
+    /**
+     * @type {SuperGlobalScope}
+     */
     this.superGlobalScope = superGlobalScope;
+    /**
+     * @type {ValueFactory}
+     */
     this.valueFactory = valueFactory;
 }
 
 _.extend(ScopeFactory.prototype, {
+    /**
+     * Creates a new Scope
+     *
+     * @param {Namespace} namespace
+     * @param {Class|null} currentClass
+     * @param {Function|null} currentFunction
+     * @param {ObjectValue|null} thisObject
+     * @returns {Scope}
+     */
     create: function (namespace, currentClass, currentFunction, thisObject) {
         var factory = this;
 
         return new factory.Scope(
             factory.callStack,
+            factory.globalScope,
             factory.superGlobalScope,
             factory.functionFactory,
             factory.valueFactory,
+            factory.referenceFactory,
             namespace || null,
             currentClass || null,
             currentFunction || null,
@@ -35,8 +77,22 @@ _.extend(ScopeFactory.prototype, {
         );
     },
 
+    /**
+     * Sets the FunctionFactory service to pass to Scopes created by this factory
+     *
+     * @param {FunctionFactory} functionFactory
+     */
     setFunctionFactory: function (functionFactory) {
         this.functionFactory = functionFactory;
+    },
+
+    /**
+     * Sets the global Scope to pass to Scopes created by this factory
+     *
+     * @param {Scope} globalScope
+     */
+    setGlobalScope: function (globalScope) {
+        this.globalScope = globalScope;
     }
 });
 

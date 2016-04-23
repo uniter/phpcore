@@ -21,9 +21,11 @@ module.exports = require('pauser')([
 
     function Scope(
         callStack,
+        globalScope,
         superGlobalScope,
         functionFactory,
         valueFactory,
+        referenceFactory,
         namespace,
         currentClass,
         currentFunction,
@@ -36,7 +38,9 @@ module.exports = require('pauser')([
         this.currentFunction = currentFunction;
         this.errorsSuppressed = false;
         this.functionFactory = functionFactory;
+        this.globalScope = globalScope;
         this.namespace = namespace;
+        this.referenceFactory = referenceFactory;
         this.superGlobalScope = superGlobalScope;
         this.thisObject = currentFunction && currentFunction[IS_STATIC] ? null : thisObject;
         this.valueFactory = valueFactory;
@@ -158,6 +162,22 @@ module.exports = require('pauser')([
             }
 
             return variable;
+        },
+
+        /**
+         * Imports a global variable into this scope by defining the variable
+         * in this scope and setting its reference to point to the global one.
+         *
+         * @param {string} variableName
+         */
+        importGlobal: function (variableName) {
+            var scope = this;
+
+            scope.getVariable(variableName).setReference(
+                scope.referenceFactory.createVariable(
+                    scope.globalScope.getVariable(variableName)
+                )
+            );
         },
 
         suppressErrors: function () {

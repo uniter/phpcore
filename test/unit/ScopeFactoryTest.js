@@ -15,6 +15,7 @@ var expect = require('chai').expect,
     Class = require('../../src/Class').sync(),
     FunctionFactory = require('../../src/FunctionFactory'),
     Namespace = require('../../src/Namespace').sync(),
+    ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
     SuperGlobalScope = require('../../src/SuperGlobalScope').sync(),
     Value = require('../../src/Value').sync(),
@@ -25,6 +26,8 @@ describe('ScopeFactory', function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.functionFactory = sinon.createStubInstance(FunctionFactory);
         this.Scope = sinon.stub();
+        this.globalScope = sinon.createStubInstance(this.Scope);
+        this.referenceFactory = sinon.createStubInstance(ReferenceFactory);
         this.superGlobalScope = sinon.createStubInstance(SuperGlobalScope);
         this.valueFactory = sinon.createStubInstance(ValueFactory);
 
@@ -32,9 +35,11 @@ describe('ScopeFactory', function () {
             this.Scope,
             this.callStack,
             this.superGlobalScope,
-            this.valueFactory
+            this.valueFactory,
+            this.referenceFactory
         );
         this.factory.setFunctionFactory(this.functionFactory);
+        this.factory.setGlobalScope(this.globalScope);
     });
 
     describe('create()', function () {
@@ -70,10 +75,20 @@ describe('ScopeFactory', function () {
             expect(this.Scope).to.have.been.calledWith(sinon.match.same(this.callStack));
         });
 
+        it('should pass the global scope to the scope', function () {
+            this.callCreate();
+
+            expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.same(this.globalScope)
+            );
+        });
+
         it('should pass the SuperGlobalScope to the scope', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.same(this.superGlobalScope)
             );
@@ -83,6 +98,7 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.same(this.functionFactory)
@@ -96,7 +112,21 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
                 sinon.match.same(this.valueFactory)
+            );
+        });
+
+        it('should pass the ReferenceFactory to the scope', function () {
+            this.callCreate();
+
+            expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(this.referenceFactory)
             );
         });
 
@@ -104,6 +134,8 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -122,6 +154,8 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
                 null
             );
         });
@@ -130,6 +164,8 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -150,6 +186,8 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
                 null
             );
         });
@@ -158,6 +196,8 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -180,6 +220,8 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
                 null
             );
         });
@@ -188,6 +230,8 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -205,6 +249,8 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
