@@ -184,13 +184,6 @@ module.exports = require('pauser')([
             return integerValue.factory.createBoolean(integerValue.getNative() === parseFloat(stringValue.getNative()));
         },
 
-        isLessThan: function (rightValue) {
-            var leftValue = this,
-                factory = leftValue.factory;
-
-            return factory.createBoolean(leftValue.getNative() < rightValue.getNative());
-        },
-
         multiply: function (rightValue) {
             var leftValue = this,
                 factory = leftValue.factory,

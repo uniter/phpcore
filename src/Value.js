@@ -245,6 +245,38 @@ module.exports = require('pauser')([
             return this.isEqualTo(rightValue);
         },
 
+        /**
+         * Compares this value to another value, returning bool(true)
+         * if this value is greater than the other and false otherwise
+         *
+         * @param {Value} rightValue
+         * @returns {BooleanValue}
+         */
+        isGreaterThan: function (rightValue) {
+            var leftValue = this,
+                factory = leftValue.factory;
+
+            return factory.createBoolean(
+                leftValue.coerceToNumber().getNative() > rightValue.coerceToNumber().getNative()
+            );
+        },
+
+        /**
+         * Compares this value to another value, returning bool(true)
+         * if this value is greater than or equal to the other and false otherwise
+         *
+         * @param {Value} rightValue
+         * @returns {BooleanValue}
+         */
+        isGreaterThanOrEqual: function (rightValue) {
+            var leftValue = this,
+                factory = leftValue.factory;
+
+            return factory.createBoolean(
+                leftValue.coerceToNumber().getNative() >= rightValue.coerceToNumber().getNative()
+            );
+        },
+
         isIdenticalTo: function (rightValue) {
             var leftValue = this;
 
@@ -260,6 +292,38 @@ module.exports = require('pauser')([
 
         isIdenticalToObject: function (rightValue) {
             return this.isIdenticalTo(rightValue);
+        },
+
+        /**
+         * Compares this value to another value, returning bool(true)
+         * if this value is less than the other and false otherwise
+         *
+         * @param {Value} rightValue
+         * @returns {BooleanValue}
+         */
+        isLessThan: function (rightValue) {
+            var leftValue = this,
+                factory = leftValue.factory;
+
+            return factory.createBoolean(
+                leftValue.coerceToNumber().getNative() < rightValue.coerceToNumber().getNative()
+            );
+        },
+
+        /**
+         * Compares this value to another value, returning bool(true)
+         * if this value is less than or equal to the other and false otherwise
+         *
+         * @param {Value} rightValue
+         * @returns {BooleanValue}
+         */
+        isLessThanOrEqual: function (rightValue) {
+            var leftValue = this,
+                factory = leftValue.factory;
+
+            return factory.createBoolean(
+                leftValue.coerceToNumber().getNative() <= rightValue.coerceToNumber().getNative()
+            );
         },
 
         isNotEqualTo: function (rightValue) {

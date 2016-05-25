@@ -542,6 +542,122 @@ describe('Integer', function () {
         });
     });
 
+    describe('isGreaterThan()', function () {
+        it('should return true for two integers when left is greater than right', function () {
+            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
+                rhs = new Value(this.factory, this.callStack, 'integer', 15),
+                result = lhs.isGreaterThan(rhs);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.be.true;
+        });
+
+        it('should return false for two integers when left is equal to right', function () {
+            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
+                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+                result = lhs.isGreaterThan(rhs);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.be.false;
+        });
+
+        it('should return false for two integers when left is less than right', function () {
+            var lhs = new Value(this.factory, this.callStack, 'integer', 15),
+                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+                result = lhs.isGreaterThan(rhs);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.be.false;
+        });
+    });
+
+    describe('isGreaterThanOrEqual()', function () {
+        it('should return true for two integers when left is greater than right', function () {
+            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
+                rhs = new Value(this.factory, this.callStack, 'integer', 15),
+                result = lhs.isGreaterThanOrEqual(rhs);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.be.true;
+        });
+
+        it('should return true for two integers when left is equal to right', function () {
+            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
+                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+                result = lhs.isGreaterThanOrEqual(rhs);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.be.true;
+        });
+
+        it('should return false for two integers when left is less than right', function () {
+            var lhs = new Value(this.factory, this.callStack, 'integer', 15),
+                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+                result = lhs.isGreaterThanOrEqual(rhs);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.be.false;
+        });
+    });
+
+    describe('isLessThan()', function () {
+        it('should return false for two integers when left is greater than right', function () {
+            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
+                rhs = new Value(this.factory, this.callStack, 'integer', 15),
+                result = lhs.isLessThan(rhs);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.be.false;
+        });
+
+        it('should return false for two integers when left is equal to right', function () {
+            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
+                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+                result = lhs.isLessThan(rhs);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.be.false;
+        });
+
+        it('should return true for two integers when left is less than right', function () {
+            var lhs = new Value(this.factory, this.callStack, 'integer', 15),
+                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+                result = lhs.isLessThan(rhs);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.be.true;
+        });
+    });
+
+    describe('isLessThanOrEqual()', function () {
+        it('should return false for two integers when left is greater than right', function () {
+            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
+                rhs = new Value(this.factory, this.callStack, 'integer', 15),
+                result = lhs.isLessThanOrEqual(rhs);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.be.false;
+        });
+
+        it('should return true for two integers when left is equal to right', function () {
+            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
+                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+                result = lhs.isLessThanOrEqual(rhs);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.be.true;
+        });
+
+        it('should return true for two integers when left is less than right', function () {
+            var lhs = new Value(this.factory, this.callStack, 'integer', 15),
+                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+                result = lhs.isLessThanOrEqual(rhs);
+
+            expect(result).to.be.an.instanceOf(BooleanValue);
+            expect(result.getNative()).to.be.true;
+        });
+    });
+
     describe('isTheClassOfArray()', function () {
         it('should raise a fatal error', function () {
             var classValue = sinon.createStubInstance(ArrayValue);
