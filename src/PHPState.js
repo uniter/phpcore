@@ -22,11 +22,13 @@ module.exports = require('pauser')([
     require('./INIState'),
     require('./Namespace'),
     require('./NamespaceFactory'),
+    require('./Reference/Null'),
     require('./ReferenceFactory'),
     require('./Scope'),
     require('./ScopeFactory'),
     require('./SuperGlobalScope'),
-    require('./ValueFactory')
+    require('./ValueFactory'),
+    require('./Reference/Variable')
 ], function (
     _,
     builtinTypes,
@@ -40,11 +42,13 @@ module.exports = require('pauser')([
     INIState,
     Namespace,
     NamespaceFactory,
+    NullReference,
     ReferenceFactory,
     Scope,
     ScopeFactory,
     SuperGlobalScope,
-    ValueFactory
+    ValueFactory,
+    VariableReference
 ) {
     var EXCEPTION_CLASS = 'Exception',
         setUpState = function (state, installedBuiltinTypes) {
@@ -125,7 +129,12 @@ module.exports = require('pauser')([
         var callStack = new CallStack(stderr),
             callFactory = new CallFactory(Call),
             valueFactory = new ValueFactory(pausable, callStack),
-            referenceFactory = new ReferenceFactory(valueFactory),
+            referenceFactory = new ReferenceFactory(
+                AccessorReference,
+                NullReference,
+                VariableReference,
+                valueFactory
+            ),
             classAutoloader = new ClassAutoloader(valueFactory),
             superGlobalScope = new SuperGlobalScope(callStack, valueFactory),
             scopeFactory = new ScopeFactory(Scope, callStack, superGlobalScope, valueFactory, referenceFactory),
@@ -138,13 +147,36 @@ module.exports = require('pauser')([
                 classAutoloader
             ),
             globalNamespace = namespaceFactory.create(),
-            globalScope;
+            globalScope,
+            globalsSuperGlobal = superGlobalScope.defineVariable('GLOBALS');
 
         scopeFactory.setFunctionFactory(functionFactory);
         globalScope = scopeFactory.create(globalNamespace);
         scopeFactory.setGlobalScope(globalScope);
         classAutoloader.setGlobalNamespace(globalNamespace);
         valueFactory.setGlobalNamespace(globalNamespace);
+
+        // Set up the $GLOBALS superglobal
+        globalsSuperGlobal.setReference(
+            referenceFactory.createAccessor(
+                function () {
+                    var globalValues = globalScope.exportVariables(),
+                        globalsArray = valueFactory.coerce(globalValues);
+
+                    // $GLOBALS should have a recursive reference to itself
+                    globalsArray.getElementByKey(valueFactory.createString('GLOBALS'))
+                        .setValue(globalsArray);
+
+                    return globalsArray;
+                },
+                function (newNative) {
+                    // Clear these accessors first
+                    globalsSuperGlobal.unset();
+
+                    globalsSuperGlobal.setValue(valueFactory.coerce(newNative));
+                }
+            )
+        );
 
         this.callStack = callStack;
         this.globalNamespace = globalNamespace;

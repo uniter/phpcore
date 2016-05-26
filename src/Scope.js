@@ -82,6 +82,23 @@ module.exports = require('pauser')([
             });
         },
 
+        /**
+         * Returns a hash with the values of all variables defined
+         * for this scope, including all superglobals
+         *
+         * @returns {Object.<string, Value>}
+         */
+        exportVariables: function () {
+            var scope = this,
+                values = scope.superGlobalScope.exportVariables();
+
+            _.forOwn(scope.variables, function (variable, variableName) {
+                values[variableName] = variable.getValue();
+            });
+
+            return values;
+        },
+
         expose: function (object, name) {
             var scope = this,
                 valueFactory = scope.valueFactory;

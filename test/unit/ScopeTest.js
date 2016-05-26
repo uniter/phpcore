@@ -19,6 +19,7 @@ var expect = require('chai').expect,
     Scope = require('../../src/Scope').sync(),
     StringValue = require('../../src/Value/String').sync(),
     SuperGlobalScope = require('../../src/SuperGlobalScope').sync(),
+    Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync(),
     Variable = require('../../src/Variable').sync(),
     VariableReference = require('../../src/Reference/Variable');
@@ -119,6 +120,26 @@ describe('Scope', function () {
                 sinon.match.any,
                 sinon.match.same(this.func)
             );
+        });
+    });
+
+    describe('exportVariables()', function () {
+        it('should export all defined variables in addition to the super globals', function () {
+            var superGlobalValue = sinon.createStubInstance(Value),
+                variableValue = sinon.createStubInstance(Value),
+                variables;
+            this.createScope();
+            superGlobalValue.getForAssignment.returns(superGlobalValue);
+            variableValue.getForAssignment.returns(variableValue);
+            this.scope.defineVariable('firstVariable').setValue(variableValue);
+            this.superGlobalScope.exportVariables.returns({
+                '_STUFF': superGlobalValue
+            });
+
+            variables = this.scope.exportVariables();
+
+            expect(variables._STUFF).to.equal(superGlobalValue);
+            expect(variables.firstVariable).to.equal(variableValue);
         });
     });
 

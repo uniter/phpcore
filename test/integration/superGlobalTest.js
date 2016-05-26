@@ -99,4 +99,31 @@ EOS
             8
         ]);
     });
+
+    it('should support the standard superglobals', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+$myValue = 21;
+$result[] = $GLOBALS['myValue'];
+
+$result[] = $GLOBALS['GLOBALS']['myValue'];
+
+$GLOBALS = 27;
+$result[] = $GLOBALS;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            21, // Ensure global variables can be accessed
+            21, // $GLOBALS should have a reference to itself
+            27  // Allow superglobals' values to be overwritten
+        ]);
+    });
 });

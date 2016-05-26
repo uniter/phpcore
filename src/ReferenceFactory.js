@@ -10,33 +10,64 @@
 'use strict';
 
 module.exports = require('pauser')([
-    require('microdash'),
-    require('./Reference/Null'),
-    require('./Reference/Variable')
+    require('microdash')
 ], function (
-    _,
-    NullReference,
-    VariableReference
+    _
 ) {
     /**
+     * @param {class} AccessorReference
+     * @param {class} NullReference
+     * @param {class} VariableReference
      * @param {ValueFactory} valueFactory
      * @constructor
      */
-    function ReferenceFactory(valueFactory) {
+    function ReferenceFactory(
+        AccessorReference,
+        NullReference,
+        VariableReference,
+        valueFactory
+    ) {
+        /**
+         * @type {class}
+         */
+        this.AccessorReference = AccessorReference;
+        /**
+         * @type {class}
+         */
+        this.NullReference = NullReference;
         /**
          * @type {ValueFactory}
          */
         this.valueFactory = valueFactory;
+        /**
+         * @type {class}
+         */
+        this.VariableReference = VariableReference;
     }
 
     _.extend(ReferenceFactory.prototype, {
+        /**
+         * Creates an AccessorReference
+         *
+         * @param {function} valueGetter
+         * @param {function} valueSetter
+         * @returns {AccessorReference}
+         */
+        createAccessor: function (valueGetter, valueSetter) {
+            var factory = this;
+
+            return new factory.AccessorReference(factory.valueFactory, valueGetter, valueSetter);
+        },
+
         /**
          * Creates a NullReference
          *
          * @returns {NullReference}
          */
         createNull: function () {
-            return new NullReference(this.valueFactory);
+            var factory = this;
+
+            return new factory.NullReference(factory.valueFactory);
         },
 
         /**
@@ -46,7 +77,7 @@ module.exports = require('pauser')([
          * @returns {VariableReference}
          */
         createVariable: function (variable) {
-            return new VariableReference(variable);
+            return new this.VariableReference(variable);
         }
     });
 
