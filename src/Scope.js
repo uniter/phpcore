@@ -93,7 +93,9 @@ module.exports = require('pauser')([
                 values = scope.superGlobalScope.exportVariables();
 
             _.forOwn(scope.variables, function (variable, variableName) {
-                values[variableName] = variable.getValue();
+                if (variable.isDefined()) {
+                    values[variableName] = variable.getValue();
+                }
             });
 
             return values;

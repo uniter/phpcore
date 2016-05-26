@@ -132,6 +132,7 @@ describe('Scope', function () {
             superGlobalValue.getForAssignment.returns(superGlobalValue);
             variableValue.getForAssignment.returns(variableValue);
             this.scope.defineVariable('firstVariable').setValue(variableValue);
+            this.scope.defineVariable('anUndefinedVariable');
             this.superGlobalScope.exportVariables.returns({
                 '_STUFF': superGlobalValue
             });
@@ -140,6 +141,7 @@ describe('Scope', function () {
 
             expect(variables._STUFF).to.equal(superGlobalValue);
             expect(variables.firstVariable).to.equal(variableValue);
+            expect(variables).not.to.have.property('anUndefinedVariable');
         });
     });
 
