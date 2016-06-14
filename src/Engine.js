@@ -290,6 +290,12 @@ _.extend(Engine.prototype, {
             referenceFactory: referenceFactory,
             requireOnce: include,
             require: include,
+            throwCannotBreakOrContinue: function (levels) {
+                throw new PHPFatalError(PHPFatalError.CANNOT_BREAK_OR_CONTINUE, {
+                    'levels': levels,
+                    'suffix': levels === 1 ? '' : 's'
+                });
+            },
             throwNoActiveClassScope: function () {
                 throw new PHPFatalError(PHPFatalError.SELF_WHEN_NO_ACTIVE_CLASS);
             },
