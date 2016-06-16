@@ -25,9 +25,9 @@ try {
     $result[] = 1;
     throw new MyException('Oh no');
     $result[] = 2;
-} catch (MyException $ex1) {
-    $result[] = 3;
 } catch (NotMyException $ex2) {
+    $result[] = 3;
+} catch (MyException $ex1) {
     $result[] = 4;
 } finally {
     $result[] = 5;
@@ -39,6 +39,6 @@ EOS
 */;}),//jshint ignore:line
             module = tools.syncTranspile(null, php);
 
-        expect(module().execute().getNative()).to.deep.equal([1, 3, 5, 6]);
+        expect(module().execute().getNative()).to.deep.equal([1, 4, 5, 6]);
     });
 });
