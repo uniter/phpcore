@@ -29,14 +29,16 @@ try {
     $result[] = 3;
 } catch (NotMyException $ex2) {
     $result[] = 4;
+} finally {
+    $result[] = 5;
 }
-$result[] = 5;
+$result[] = 6;
 
 return $result;
 EOS
 */;}),//jshint ignore:line
             module = tools.syncTranspile(null, php);
 
-        expect(module().execute().getNative()).to.deep.equal([1, 3, 5]);
+        expect(module().execute().getNative()).to.deep.equal([1, 3, 5, 6]);
     });
 });
