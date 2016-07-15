@@ -225,6 +225,16 @@ module.exports = require('pauser')([
             return this.divideByNonArray(leftValue);
         },
 
+        getCallableName: function () {
+            var value = this;
+
+            if (value.classObject.is('Closure')) {
+                return value.value.funcName;
+            }
+
+            return value.getClassName() + '::__invoke()';
+        },
+
         getClassName: function () {
             return this.classObject.getName();
         },

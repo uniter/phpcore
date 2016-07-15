@@ -553,6 +553,20 @@ describe('String', function () {
         });
     });
 
+    describe('getCallableName()', function () {
+        it('should just return the value when it does not begin with a backslash', function () {
+            this.createValue('This\\Is\\My\\Class');
+
+            expect(this.value.getCallableName()).to.equal('This\\Is\\My\\Class');
+        });
+
+        it('should strip any leading backslash off of the value', function () {
+            this.createValue('\\This\\Is\\Also\\My\\Class');
+
+            expect(this.value.getCallableName()).to.equal('This\\Is\\Also\\My\\Class');
+        });
+    });
+
     describe('isAnInstanceOf()', function () {
         beforeEach(function () {
             this.createValue('a string');

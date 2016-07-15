@@ -29,10 +29,16 @@ module.exports = require('pauser')([
             return namespaceOrNamespaceScope.getFunction(this.value).apply(null, args);
         },
 
+        getCallableName: function (namespaceOrNamespaceScope) {
+            var rightValue = this,
+                resolvedClass = namespaceOrNamespaceScope.resolveClass(rightValue.value);
+
+            return resolvedClass.namespace.getPrefix() + resolvedClass.name;
+        },
+
         isTheClassOfObject: function (objectValue, namespaceOrNamespaceScope) {
             var rightValue = this,
-                resolvedClass = namespaceOrNamespaceScope.resolveClass(rightValue.value),
-                fqcn = resolvedClass.namespace.getPrefix() + resolvedClass.name;
+                fqcn = rightValue.getCallableName(namespaceOrNamespaceScope);
 
             return rightValue.factory.createBoolean(
                 objectValue.classIs(fqcn)

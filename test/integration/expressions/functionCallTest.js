@@ -11,7 +11,8 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../tools');
+    tools = require('../tools'),
+    PHPFatalError = require('phpcommon').PHPFatalError;
 
 describe('PHP synchronous function call integration', function () {
     it('should treat function names as case-insensitive', function () {
@@ -45,5 +46,56 @@ EOS
             22,
             23
         ]);
+    });
+
+    it('should allow by-ref parameters to have default values', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+function myFunc(&$myArg = 1000)
+{
+    $originalArg = $myArg;
+
+    $myArg = $myArg * 2;
+
+    return $originalArg;
+}
+
+$myVar = 21;
+
+$result = [];
+$result[] = myFunc($myVar);
+$result[] = $myVar;
+$result[] = myFunc();
+$result[] = $myVar;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.deep.equal([
+            21,
+            42,
+            1000,
+            42
+        ]);
+    });
+
+    it('should raise a fatal error if an integer is passed when a reference is expected', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+function myFunction(&$myRef)
+{
+    $myRef = 21;
+}
+
+myFunction(21);
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(function () {
+            module().execute();
+        }.bind(this)).to.throw(PHPFatalError, 'PHP Fatal error: Only variables can be passed by reference');
     });
 });

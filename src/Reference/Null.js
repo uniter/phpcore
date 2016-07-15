@@ -9,7 +9,9 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    util = require('util'),
+    Reference = require('./Reference');
 
 function NullReference(valueFactory, options) {
     options = options || {};
@@ -18,7 +20,13 @@ function NullReference(valueFactory, options) {
     this.valueFactory = valueFactory;
 }
 
+util.inherits(NullReference, Reference);
+
 _.extend(NullReference.prototype, {
+    getReference: function () {
+        return this;
+    },
+
     getValue: function () {
         return this.valueFactory.createNull();
     },

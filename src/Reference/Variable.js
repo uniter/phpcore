@@ -9,11 +9,15 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    util = require('util'),
+    Reference = require('./Reference');
 
 function VariableReference(variable) {
     this.variable = variable;
 }
+
+util.inherits(VariableReference, Reference);
 
 _.extend(VariableReference.prototype, {
     getForAssignment: function () {
@@ -22,6 +26,10 @@ _.extend(VariableReference.prototype, {
 
     getInstancePropertyByName: function (name) {
         return this.getValue().getInstancePropertyByName(name);
+    },
+
+    getReference: function () {
+        return this;
     },
 
     getValue: function () {

@@ -28,6 +28,9 @@ module.exports = require('pauser')([
                     callStack.raiseError(PHPError.E_WARNING, 'Cannot use a scalar value as an array');
                 }
             });
+        },
+        throwUnimplemented = function () {
+            throw new Error('Unimplemented');
         };
 
     function Value(factory, callStack, type, value) {
@@ -102,9 +105,7 @@ module.exports = require('pauser')([
             return object;
         },
 
-        coerceToString: function () {
-            throw new Error('Unimplemented');
-        },
+        coerceToString: throwUnimplemented,
 
         concat: function (rightValue) {
             var leftValue = this;
@@ -146,6 +147,8 @@ module.exports = require('pauser')([
             throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
         },
 
+        getCallableName: throwUnimplemented,
+
         getConstantByName: function () {
             throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
         },
@@ -158,9 +161,7 @@ module.exports = require('pauser')([
             return this;
         },
 
-        getInstancePropertyByName: function () {
-            throw new Error('Unimplemented');
-        },
+        getInstancePropertyByName: throwUnimplemented,
 
         getLength: function () {
             return this.coerceToString().getLength();
@@ -172,6 +173,10 @@ module.exports = require('pauser')([
 
         getPushElement: function () {
             return createNullReference(this);
+        },
+
+        getReference: function () {
+            throw new PHPFatalError(PHPFatalError.ONLY_VARIABLES_BY_REFERENCE);
         },
 
         getStaticPropertyByName: function () {
@@ -186,9 +191,7 @@ module.exports = require('pauser')([
             return this;
         },
 
-        isAnInstanceOf: function () {
-            throw new Error('Unimplemented');
-        },
+        isAnInstanceOf: throwUnimplemented,
 
         isTheClassOfArray: function () {
             throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);

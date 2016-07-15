@@ -153,6 +153,11 @@ module.exports = require('pauser')([
             return this.divideByNonArray(leftValue);
         },
 
+        getCallableName: function () {
+            // Strip any leading backslash off to normalise
+            return this.value.replace(/^\\/, '');
+        },
+
         getConstantByName: function (name, namespaceScope) {
             var value = this,
                 classObject = namespaceScope.getClass(value.value);

@@ -14,8 +14,10 @@ module.exports = require('pauser')([
     require('phpcommon'),
     require('util'),
     require('../Reference/Element'),
+    require('../KeyReferencePair'),
     require('../KeyValuePair'),
     require('../Reference/Null'),
+    require('../Reference/Reference'),
     require('../Value'),
     require('../Variable')
 ], function (
@@ -23,8 +25,10 @@ module.exports = require('pauser')([
     phpCommon,
     util,
     ElementReference,
+    KeyReferencePair,
     KeyValuePair,
     NullReference,
+    Reference,
     Value,
     Variable
 ) {
@@ -37,10 +41,17 @@ module.exports = require('pauser')([
             keysToElements = [],
             value = this;
 
-        _.each(orderedElements, function (element, key) {
-            if (element instanceof KeyValuePair) {
-                key = element.getKey();
-                element = element.getValue();
+        _.each(orderedElements, function (orderedElement, key) {
+            var element,
+                elementReference = null,
+                elementValue = null;
+
+            if (orderedElement instanceof KeyValuePair) {
+                key = orderedElement.getKey();
+                elementValue = orderedElement.getValue();
+            } else if (orderedElement instanceof KeyReferencePair) {
+                key = orderedElement.getKey();
+                elementReference = orderedElement.getReference();
             } else {
                 if (_.isNumber(key)) {
                     key = factory.createInteger(keysToElements.length);
@@ -48,14 +59,21 @@ module.exports = require('pauser')([
                     key = factory.createFromNative(key);
                 }
 
-                if (element instanceof Variable) {
-                    element = element.getValue();
+                if (orderedElement instanceof Reference) {
+                    elementReference = orderedElement;
+                } else if (orderedElement instanceof Variable) {
+                    // TODO: Prevent Variables ever being passed to the ArrayValue ctor, only References
+                    elementValue = orderedElement.getValue();
                 } else {
-                    element = factory.coerce(element);
+                    elementValue = factory.coerce(orderedElement);
                 }
             }
 
-            element = new ElementReference(factory, callStack, value, key, element);
+            if (elementValue) {
+                element = new ElementReference(factory, callStack, value, key, elementValue);
+            } else {
+                element = new ElementReference(factory, callStack, value, key, null, elementReference);
+            }
 
             elements.push(element);
             keysToElements[key.getNative()] = element;
@@ -127,7 +145,7 @@ module.exports = require('pauser')([
 
             _.each(arrayValue.value, function (element) {
                 if (element.isDefined()) {
-                    orderedElements.push(new KeyValuePair(element.getKey(), element.getValue()));
+                    orderedElements.push(element.getPair());
                 }
             });
 
@@ -259,6 +277,16 @@ module.exports = require('pauser')([
 
                     return new NullReference(value.factory);
                 }());
+        },
+
+        getValueReferences: function () {
+            var references = [];
+
+            _.each(this.value, function (element) {
+                references.push(element.getValueReference());
+            });
+
+            return references;
         },
 
         getKeyByIndex: function (index) {
@@ -432,6 +460,10 @@ module.exports = require('pauser')([
 
         shiftRightBy: function (rightValue) {
             return this.coerceToInteger().shiftRightBy(rightValue);
+        },
+
+        sort: function (callback) {
+            this.value.sort(callback);
         }
     });
 

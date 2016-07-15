@@ -105,6 +105,24 @@ describe('BarewordString', function () {
         }.bind(this);
     });
 
+    describe('getCallableName()', function () {
+        beforeEach(function () {
+            this.namespace = sinon.createStubInstance(Namespace);
+            this.namespace.getPrefix.returns('Full\\Path\\To\\Mine\\');
+            this.namespaceScope = sinon.createStubInstance(NamespaceScope);
+            this.namespaceScope.resolveClass.withArgs('Mine\\MyClass').returns({
+                namespace: this.namespace,
+                name: 'MyClass'
+            });
+        });
+
+        it('should return the resolved FQCN', function () {
+            this.createValue('Mine\\MyClass');
+
+            expect(this.value.getCallableName(this.namespaceScope)).to.equal('Full\\Path\\To\\Mine\\MyClass');
+        });
+    });
+
     describe('isTheClassOfObject()', function () {
         beforeEach(function () {
             this.namespace = sinon.createStubInstance(Namespace);

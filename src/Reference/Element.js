@@ -11,16 +11,26 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
-    PHPError = phpCommon.PHPError;
+    util = require('util'),
+    KeyReferencePair = require('../KeyReferencePair'),
+    KeyValuePair = require('../KeyValuePair'),
+    PHPError = phpCommon.PHPError,
+    Reference = require('./Reference');
 
-function ElementReference(valueFactory, callStack, arrayValue, key, value) {
+function ElementReference(valueFactory, callStack, arrayValue, key, value, reference) {
+    if (value && reference) {
+        throw new Error('Array elements can only have a value or be a reference, not both');
+    }
+
     this.arrayValue = arrayValue;
     this.key = key;
-    this.reference = null;
+    this.reference = reference || null;
     this.callStack = callStack;
-    this.value = value;
+    this.value = value || null;
     this.valueFactory = valueFactory;
 }
+
+util.inherits(ElementReference, Reference);
 
 _.extend(ElementReference.prototype, {
     clone: function () {
@@ -37,6 +47,24 @@ _.extend(ElementReference.prototype, {
         return this.key;
     },
 
+    getPair: function () {
+        var element = this;
+
+        if (element.value) {
+            return new KeyValuePair(element.key, element.value);
+        }
+
+        if (element.reference) {
+            return new KeyReferencePair(element.key, element.reference);
+        }
+
+        throw new Error('Element is not defined');
+    },
+
+    getReference: function () {
+        return this;
+    },
+
     getValue: function () {
         var element = this;
 
@@ -47,6 +75,12 @@ _.extend(ElementReference.prototype, {
         }
 
         return element.value ? element.value : element.reference.getValue();
+    },
+
+    getValueReference: function () {
+        var element = this;
+
+        return element.reference || element.value || null;
     },
 
     isDefined: function () {

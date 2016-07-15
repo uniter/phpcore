@@ -530,6 +530,22 @@ describe('Object', function () {
         });
     });
 
+    describe('getCallableName()', function () {
+        it('should return the FQN when the object is a Closure', function () {
+            this.classObject.is.withArgs('Closure').returns(true);
+            this.classObject.is.returns(false);
+            this.nativeObject.funcName = 'Fully\\Qualified\\Path\\To\\{closure}';
+
+            expect(this.value.getCallableName()).to.equal('Fully\\Qualified\\Path\\To\\{closure}');
+        });
+
+        it('should return the FQN to the __invoke(...) method when the object is not a Closure', function () {
+            this.classObject.getName.returns('Fully\\Qualified\\Path\\To\\MyClass');
+
+            expect(this.value.getCallableName()).to.equal('Fully\\Qualified\\Path\\To\\MyClass::__invoke()');
+        });
+    });
+
     describe('getInstancePropertyNames()', function () {
         it('should include properties on the native object', function () {
             var names = this.value.getInstancePropertyNames();

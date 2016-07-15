@@ -9,7 +9,9 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    util = require('util'),
+    Reference = require('./Reference');
 
 function ObjectElement(valueFactory, objectValue, keyValue) {
     this.keyValue = keyValue;
@@ -17,7 +19,13 @@ function ObjectElement(valueFactory, objectValue, keyValue) {
     this.valueFactory = valueFactory;
 }
 
+util.inherits(ObjectElement, Reference);
+
 _.extend(ObjectElement.prototype, {
+    getReference: function () {
+        return this;
+    },
+
     getValue: function () {
         var element = this;
 

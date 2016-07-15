@@ -9,7 +9,9 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    util = require('util'),
+    Reference = require('./Reference');
 
 function StaticPropertyReference(classObject, name, visibility, value) {
     this.classObject = classObject;
@@ -19,6 +21,8 @@ function StaticPropertyReference(classObject, name, visibility, value) {
     this.visibility = visibility;
 }
 
+util.inherits(StaticPropertyReference, Reference);
+
 _.extend(StaticPropertyReference.prototype, {
     getInstancePropertyByName: function (name) {
         return this.getValue().getInstancePropertyByName(name);
@@ -26,6 +30,10 @@ _.extend(StaticPropertyReference.prototype, {
 
     getName: function () {
         return this.name;
+    },
+
+    getReference: function () {
+        return this;
     },
 
     getValue: function () {

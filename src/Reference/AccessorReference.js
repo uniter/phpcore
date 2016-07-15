@@ -9,7 +9,9 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    util = require('util'),
+    Reference = require('./Reference');
 
 function AccessorReference(valueFactory, valueGetter, valueSetter) {
     this.valueFactory = valueFactory;
@@ -17,7 +19,13 @@ function AccessorReference(valueFactory, valueGetter, valueSetter) {
     this.valueSetter = valueSetter;
 }
 
+util.inherits(AccessorReference, Reference);
+
 _.extend(AccessorReference.prototype, {
+    getReference: function () {
+        return this;
+    },
+
     getValue: function () {
         var reference = this;
 

@@ -15,9 +15,12 @@ var expect = require('chai').expect,
     CallStack = require('../../../src/CallStack'),
     ElementReference = require('../../../src/Reference/Element'),
     IntegerValue = require('../../../src/Value/Integer').sync(),
+    KeyReferencePair = require('../../../src/KeyReferencePair'),
+    KeyValuePair = require('../../../src/KeyValuePair'),
     StringValue = require('../../../src/Value/String').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync(),
-    Variable = require('../../../src/Variable').sync();
+    Variable = require('../../../src/Variable').sync(),
+    VariableReference = require('../../../src/Reference/Variable');
 
 describe('ElementReference', function () {
     beforeEach(function () {
@@ -47,6 +50,65 @@ describe('ElementReference', function () {
             this.keyValue,
             this.value
         );
+    });
+
+    describe('getPair()', function () {
+        it('should return a KeyValuePair when the element has a value', function () {
+            var pair = this.element.getPair();
+
+            expect(pair).to.be.an.instanceOf(KeyValuePair);
+            expect(pair.getKey()).to.equal(this.keyValue);
+            expect(pair.getValue()).to.equal(this.value);
+        });
+
+        it('should return a KeyReferencePair when the element is a reference', function () {
+            var pair,
+                reference = sinon.createStubInstance(VariableReference);
+            this.element.setReference(reference);
+
+            pair = this.element.getPair();
+
+            expect(pair).to.be.an.instanceOf(KeyReferencePair);
+            expect(pair.getKey()).to.equal(this.keyValue);
+            expect(pair.getReference()).to.equal(reference);
+        });
+
+        it('should throw an error when the element is not defined', function () {
+            expect(function () {
+                var element = new ElementReference(
+                    this.factory,
+                    this.callStack,
+                    this.arrayValue,
+                    this.keyValue
+                );
+
+                element.getPair();
+            }.bind(this)).to.throw('Element is not defined');
+        });
+    });
+
+    describe('getValueReference()', function () {
+        it('should return the value when the element has a value', function () {
+            expect(this.element.getValueReference()).to.equal(this.value);
+        });
+
+        it('should return a KeyReferencePair when the element is a reference', function () {
+            var reference = sinon.createStubInstance(VariableReference);
+            this.element.setReference(reference);
+
+            expect(this.element.getValueReference()).to.equal(reference);
+        });
+
+        it('should return null when the element is not defined', function () {
+            var element = new ElementReference(
+                this.factory,
+                this.callStack,
+                this.arrayValue,
+                this.keyValue
+            );
+
+            expect(element.getValueReference()).to.be.null;
+        });
     });
 
     describe('isSet()', function () {

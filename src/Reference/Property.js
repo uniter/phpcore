@@ -12,7 +12,9 @@
 var _ = require('microdash'),
     hasOwn = {}.hasOwnProperty,
     phpCommon = require('phpcommon'),
-    PHPError = phpCommon.PHPError;
+    util = require('util'),
+    PHPError = phpCommon.PHPError,
+    Reference = require('./Reference');
 
 function PropertyReference(valueFactory, callStack, objectValue, nativeObject, key) {
     this.objectValue = objectValue;
@@ -22,6 +24,8 @@ function PropertyReference(valueFactory, callStack, objectValue, nativeObject, k
     this.callStack = callStack;
     this.valueFactory = valueFactory;
 }
+
+util.inherits(PropertyReference, Reference);
 
 _.extend(PropertyReference.prototype, {
     clone: function () {
@@ -42,6 +46,10 @@ _.extend(PropertyReference.prototype, {
 
     getKey: function () {
         return this.key;
+    },
+
+    getReference: function () {
+        return this;
     },
 
     getValue: function () {

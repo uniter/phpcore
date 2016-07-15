@@ -18,6 +18,7 @@ var expect = require('chai').expect,
     ElementReference = require('../../../src/Reference/Element'),
     FloatValue = require('../../../src/Value/Float').sync(),
     IntegerValue = require('../../../src/Value/Integer').sync(),
+    KeyReferencePair = require('../../../src/KeyReferencePair'),
     KeyValuePair = require('../../../src/KeyValuePair'),
     NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
@@ -25,7 +26,8 @@ var expect = require('chai').expect,
     PropertyReference = require('../../../src/Reference/Property'),
     StringValue = require('../../../src/Value/String').sync(),
     Value = require('../../../src/Value').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    ValueFactory = require('../../../src/ValueFactory').sync(),
+    VariableReference = require('../../../src/Reference/Variable');
 
 describe('Array', function () {
     beforeEach(function () {
@@ -89,6 +91,12 @@ describe('Array', function () {
             keyValuePair.getKey.returns(key);
             keyValuePair.getValue.returns(value);
             return keyValuePair;
+        };
+        this.createKeyReferencePair = function (key, reference) {
+            var keyReferencePair = sinon.createStubInstance(KeyReferencePair);
+            keyReferencePair.getKey.returns(key);
+            keyReferencePair.getReference.returns(reference);
+            return keyReferencePair;
         };
 
         this.element1 = this.createKeyValuePair(
@@ -499,6 +507,27 @@ describe('Array', function () {
 
             expect(result).to.be.an.instanceOf(IntegerValue);
             expect(result.getNative()).to.equal(2); // 0 and 1 already taken by existing elements
+        });
+    });
+
+    describe('when created with a reference used for an element', function () {
+        beforeEach(function () {
+            this.element3Reference = sinon.createStubInstance(VariableReference);
+            this.element3Reference.getValue.returns(this.factory.createInteger(21));
+            this.element3 = this.createKeyReferencePair(
+                this.factory.createString('thirdEl'),
+                this.element3Reference
+            );
+        });
+
+        it('should set the reference for the element', function () {
+            this.value = new ArrayValue(this.factory, this.callStack, [
+                this.element1,
+                this.element2,
+                this.element3
+            ]);
+
+            expect(this.value.getElementByIndex(2).getValue().getNative()).to.equal(21);
         });
     });
 });
