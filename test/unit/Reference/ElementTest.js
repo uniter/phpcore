@@ -73,6 +73,15 @@ describe('ElementReference', function () {
             expect(pair.getReference()).to.equal(reference);
         });
 
+        it('should allow the key to be overridden when specified', function () {
+            var overrideKey = this.factory.createInteger(21),
+                pair = this.element.getPair(overrideKey);
+
+            expect(pair).to.be.an.instanceOf(KeyValuePair);
+            expect(pair.getKey()).to.equal(overrideKey);
+            expect(pair.getValue()).to.equal(this.value);
+        });
+
         it('should throw an error when the element is not defined', function () {
             expect(function () {
                 var element = new ElementReference(

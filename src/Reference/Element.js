@@ -47,15 +47,28 @@ _.extend(ElementReference.prototype, {
         return this.key;
     },
 
-    getPair: function () {
+    /**
+     * Fetches the relevant type of Pair class to represent this array element.
+     * If the element is a reference (to a variable, another array element or object property)
+     * then a KeyReferencePair will be returned.
+     * Otherwise the element simply holds a value, in which case a KeyValuePair will be returned.
+     *
+     * @param {Value|undefined} overrideKey Optional key to use rather than this element's
+     * @returns {KeyReferencePair|KeyValuePair}
+     */
+    getPair: function (overrideKey) {
         var element = this;
 
+        if (!overrideKey) {
+            overrideKey = element.key;
+        }
+
         if (element.value) {
-            return new KeyValuePair(element.key, element.value);
+            return new KeyValuePair(overrideKey, element.value);
         }
 
         if (element.reference) {
-            return new KeyReferencePair(element.key, element.reference);
+            return new KeyReferencePair(overrideKey, element.reference);
         }
 
         throw new Error('Element is not defined');
