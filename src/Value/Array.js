@@ -279,6 +279,18 @@ module.exports = require('pauser')([
                 }());
         },
 
+        /**
+         * Fetches a KeyValuePair or KeyReferencePair for the specified array element,
+         * optionally allowing the key to be overridden
+         *
+         * @param {Value} key
+         * @param {Value|undefined} overrideKey
+         * @returns {KeyValuePair|KeyReferencePair}
+         */
+        getElementPairByKey: function (key, overrideKey) {
+            return this.getElementByKey(key).getPair(overrideKey);
+        },
+
         getValueReferences: function () {
             var references = [];
 

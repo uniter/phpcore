@@ -321,6 +321,31 @@ describe('Array', function () {
         });
     });
 
+    describe('getElementPairByKey()', function () {
+        it('should return the pair for the specified element', function () {
+            var pair = this.value.getElementPairByKey(this.factory.createString('firstEl'));
+
+            expect(pair).to.be.an.instanceOf(KeyValuePair);
+            expect(pair.getKey()).to.be.an.instanceOf(StringValue);
+            expect(pair.getKey().getNative()).to.equal('firstEl');
+            expect(pair.getValue()).to.be.an.instanceOf(StringValue);
+            expect(pair.getValue().getNative()).to.equal('value of first el');
+        });
+
+        it('should allow the key for the pair to be overridden', function () {
+            var pair = this.value.getElementPairByKey(
+                this.factory.createString('firstEl'),
+                this.factory.createInteger(21)
+            );
+
+            expect(pair).to.be.an.instanceOf(KeyValuePair);
+            expect(pair.getKey()).to.be.an.instanceOf(IntegerValue);
+            expect(pair.getKey().getNative()).to.equal(21);
+            expect(pair.getValue()).to.be.an.instanceOf(StringValue);
+            expect(pair.getValue().getNative()).to.equal('value of first el');
+        });
+    });
+
     describe('getNative()', function () {
         it('should unwrap to a native array when the array has no non-numeric keys', function () {
             var result;
