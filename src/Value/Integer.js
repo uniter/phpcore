@@ -184,6 +184,15 @@ module.exports = require('pauser')([
             return integerValue.factory.createBoolean(integerValue.getNative() === parseFloat(stringValue.getNative()));
         },
 
+        /**
+         * Integers are always numeric: always returns true
+         *
+         * @returns {boolean}
+         */
+        isNumeric: function () {
+            return true;
+        },
+
         multiply: function (rightValue) {
             var leftValue = this,
                 factory = leftValue.factory,

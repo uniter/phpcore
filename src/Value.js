@@ -341,6 +341,8 @@ module.exports = require('pauser')([
             return leftValue.factory.createBoolean(!leftValue.isIdenticalTo(rightValue).getNative());
         },
 
+        isNumeric: throwUnimplemented,
+
         isSet: function () {
             // All values except NULL are classed as 'set'
             return true;

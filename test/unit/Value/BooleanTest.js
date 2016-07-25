@@ -508,6 +508,12 @@ describe('Boolean', function () {
         });
     });
 
+    describe('isNumeric()', function () {
+        it('should return false', function () {
+            expect(this.value.isNumeric()).to.be.false;
+        });
+    });
+
     describe('isTheClassOfArray()', function () {
         it('should raise a fatal error', function () {
             var classValue = sinon.createStubInstance(ArrayValue);

@@ -630,6 +630,12 @@ describe('Object', function () {
         });
     });
 
+    describe('isNumeric()', function () {
+        it('should return false', function () {
+            expect(this.value.isNumeric()).to.be.false;
+        });
+    });
+
     describe('isTheClassOfArray()', function () {
         it('should return bool(false)', function () {
             var classValue = sinon.createStubInstance(ArrayValue),

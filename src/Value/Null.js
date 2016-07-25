@@ -125,6 +125,15 @@ module.exports = require('pauser')([
             return stringValue.isEqualToNull();
         },
 
+        /**
+         * Null is never numeric: always returns false
+         *
+         * @returns {boolean}
+         */
+        isNumeric: function () {
+            return false;
+        },
+
         isSet: function () {
             return false;
         },

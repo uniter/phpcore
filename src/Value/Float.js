@@ -169,6 +169,15 @@ module.exports = require('pauser')([
             return floatValue.factory.createBoolean(floatValue.value === stringValue.coerceToFloat().value);
         },
 
+        /**
+         * Floats are always numeric: always returns true
+         *
+         * @returns {boolean}
+         */
+        isNumeric: function () {
+            return true;
+        },
+
         onesComplement: function () {
             /*jshint bitwise: false */
             return this.factory.createInteger(~this.value);

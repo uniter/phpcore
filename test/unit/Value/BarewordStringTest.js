@@ -123,6 +123,12 @@ describe('BarewordString', function () {
         });
     });
 
+    describe('isNumeric()', function () {
+        it('should return false', function () {
+            expect(this.value.isNumeric()).to.be.false;
+        });
+    });
+
     describe('isTheClassOfObject()', function () {
         beforeEach(function () {
             this.namespace = sinon.createStubInstance(Namespace);

@@ -494,6 +494,15 @@ module.exports = require('pauser')([
             return factory.createBoolean(rightValue.value === leftValue.value);
         },
 
+        /**
+         * Objects are never numeric: always returns false
+         *
+         * @returns {boolean}
+         */
+        isNumeric: function () {
+            return false;
+        },
+
         isTheClassOfArray: function () {
             return this.factory.createBoolean(false);
         },

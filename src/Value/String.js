@@ -216,6 +216,15 @@ module.exports = require('pauser')([
             return leftValue.factory.createBoolean(leftValue.value === rightValue.value);
         },
 
+        /**
+         * Returns true if the string is numeric, false otherwise
+         *
+         * @returns {boolean}
+         */
+        isNumeric: function () {
+            return /(\d+(\.)?)?\d+([Ee][+-]\d+)?/.test(this.value);
+        },
+
         isTheClassOfArray: function () {
             return this.factory.createBoolean(false);
         },

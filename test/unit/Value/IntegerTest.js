@@ -658,6 +658,12 @@ describe('Integer', function () {
         });
     });
 
+    describe('isNumeric()', function () {
+        it('should return true', function () {
+            expect(this.value.isNumeric()).to.be.true;
+        });
+    });
+
     describe('isTheClassOfArray()', function () {
         it('should raise a fatal error', function () {
             var classValue = sinon.createStubInstance(ArrayValue);

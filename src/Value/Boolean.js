@@ -152,6 +152,15 @@ module.exports = require('pauser')([
             );
         },
 
+        /**
+         * Booleans are never numeric: always returns false
+         *
+         * @returns {boolean}
+         */
+        isNumeric: function () {
+            return false;
+        },
+
         onesComplement: function () {
             throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
         },

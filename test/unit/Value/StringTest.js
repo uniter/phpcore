@@ -581,6 +581,30 @@ describe('String', function () {
         });
     });
 
+    describe('isNumeric()', function () {
+        _.each([
+            '21',
+            '1e4',
+            '1e+5',
+            '1e-6',
+            '4E-7',
+            '-7',
+            '-21.2'
+        ], function (value) {
+            it('should return true when the value is numeric (' + value + ')', function () {
+                this.createValue(value);
+
+                expect(this.value.isNumeric()).to.be.true;
+            });
+        });
+
+        it('should return false when the value is not numeric', function () {
+            this.createValue('hello');
+
+            expect(this.value.isNumeric()).to.be.false;
+        });
+    });
+
     describe('isTheClassOfArray()', function () {
         beforeEach(function () {
             this.createValue('a string');

@@ -401,6 +401,15 @@ module.exports = require('pauser')([
             return factory.createBoolean(identical);
         },
 
+        /**
+         * Arrays are never numeric: always returns false
+         *
+         * @returns {boolean}
+         */
+        isNumeric: function () {
+            return false;
+        },
+
         next: function () {
             this.pointer++;
         },
