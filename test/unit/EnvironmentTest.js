@@ -18,9 +18,8 @@ var expect = require('chai').expect,
 describe('Environment', function () {
     beforeEach(function () {
         this.state = sinon.createStubInstance(PHPState);
-        this.options = {};
 
-        this.environment = new Environment(this.state, this.options);
+        this.environment = new Environment(this.state);
     });
 
     describe('defineSuperGlobal()', function () {
@@ -56,6 +55,16 @@ describe('Environment', function () {
             this.state.getConstant.withArgs('MY_CONST').returns(21);
 
             expect(this.environment.getConstant('MY_CONST')).to.equal(21);
+        });
+    });
+
+    describe('getOptions()', function () {
+        it('should return the raw options object from the PHPState', function () {
+            var options = {'my-option': 27};
+
+            this.state.getOptions.returns(options);
+
+            expect(this.environment.getOptions()).to.deep.equal(options);
         });
     });
 });

@@ -58,6 +58,7 @@ module.exports = require('pauser')([
                     classAutoloader: state.classAutoloader,
                     globalNamespace: globalNamespace,
                     iniState: state.iniState,
+                    optionSet: state.optionSet,
                     pausable: state.pausable,
                     stdout: state.stdout,
                     valueFactory: state.valueFactory
@@ -125,7 +126,7 @@ module.exports = require('pauser')([
             _.each(installedBuiltinTypes.constantGroups, installConstantGroup);
         };
 
-    function PHPState(installedBuiltinTypes, stdin, stdout, stderr, pausable) {
+    function PHPState(installedBuiltinTypes, stdin, stdout, stderr, pausable, optionSet) {
         var callStack = new CallStack(stderr),
             callFactory = new CallFactory(Call),
             valueFactory = new ValueFactory(pausable, callStack),
@@ -182,6 +183,7 @@ module.exports = require('pauser')([
         this.globalNamespace = globalNamespace;
         this.globalScope = globalScope;
         this.iniState = new INIState();
+        this.optionSet = optionSet;
         this.referenceFactory = referenceFactory;
         this.callStack = callStack;
         this.classAutoloader = classAutoloader;
@@ -230,6 +232,10 @@ module.exports = require('pauser')([
 
         getGlobalScope: function () {
             return this.globalScope;
+        },
+
+        getOptions: function () {
+            return this.optionSet.getOptions();
         },
 
         getPHPExceptionClass: function () {

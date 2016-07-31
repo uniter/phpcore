@@ -23,12 +23,13 @@ module.exports = require('pauser')([
      *
      * @param {class} Environment
      * @param {class} Engine
+     * @param {class} OptionSet
      * @param {class} PHPState
      * @param {object} phpCommon
      * @param {Resumable} pausable
      * @constructor
      */
-    function Runtime(Environment, Engine, PHPState, phpCommon, pausable) {
+    function Runtime(Environment, Engine, OptionSet, PHPState, phpCommon, pausable) {
         /**
          * @type {{classes: {}, constantGroups: Array, functionGroups: Array}}
          */
@@ -45,6 +46,10 @@ module.exports = require('pauser')([
          * @type {class}
          */
         this.Environment = Environment;
+        /**
+         * @type {class}
+         */
+        this.OptionSet = OptionSet;
         /**
          * @type {Resumable}
          */
@@ -116,9 +121,17 @@ module.exports = require('pauser')([
                 stdin = new Stream(),
                 stdout = new Stream(),
                 stderr = new Stream(),
-                state = new runtime.PHPState(runtime.builtins, stdin, stdout, stderr, runtime.pausable);
+                optionSet = new runtime.OptionSet(options),
+                state = new runtime.PHPState(
+                    runtime.builtins,
+                    stdin,
+                    stdout,
+                    stderr,
+                    runtime.pausable,
+                    optionSet
+                );
 
-            return new runtime.Environment(state, options);
+            return new runtime.Environment(state);
         },
 
         /**

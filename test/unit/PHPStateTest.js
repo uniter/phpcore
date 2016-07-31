@@ -11,6 +11,7 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    OptionSet = require('../../src/OptionSet'),
     PHPState = require('../../src/PHPState').sync(),
     Stream = require('../../src/Stream'),
     Value = require('../../src/Value').sync();
@@ -18,12 +19,20 @@ var expect = require('chai').expect,
 describe('PHPState', function () {
     beforeEach(function () {
         this.installedBuiltinTypes = {};
+        this.optionSet = sinon.createStubInstance(OptionSet);
         this.stdin = sinon.createStubInstance(Stream);
         this.stdout = sinon.createStubInstance(Stream);
         this.stderr = sinon.createStubInstance(Stream);
         this.pausable = {};
 
-        this.state = new PHPState(this.installedBuiltinTypes, this.stdin, this.stdout, this.stderr, this.pausable);
+        this.state = new PHPState(
+            this.installedBuiltinTypes,
+            this.stdin,
+            this.stdout,
+            this.stderr,
+            this.pausable,
+            this.optionSet
+        );
     });
 
     describe('constructor', function () {

@@ -11,8 +11,7 @@
 
 var _ = require('microdash');
 
-function Environment(state, options) {
-    this.options = options;
+function Environment(state) {
     this.state = state;
 }
 
@@ -34,7 +33,7 @@ _.extend(Environment.prototype, {
     },
 
     getOptions: function () {
-        return this.options;
+        return this.state.getOptions();
     },
 
     getState: function () {

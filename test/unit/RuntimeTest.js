@@ -18,13 +18,21 @@ describe('Runtime', function () {
     beforeEach(function () {
         this.Environment = sinon.stub();
         this.Engine = sinon.stub();
+        this.OptionSet = sinon.stub();
         this.pausable = {};
         this.phpCommon = {};
         this.PHPState = sinon.stub();
         this.state = sinon.createStubInstance(this.PHPState);
         this.PHPState.returns(this.state);
 
-        this.runtime = new Runtime(this.Environment, this.Engine, this.PHPState, this.phpCommon, this.pausable);
+        this.runtime = new Runtime(
+            this.Environment,
+            this.Engine,
+            this.OptionSet,
+            this.PHPState,
+            this.phpCommon,
+            this.pausable
+        );
     });
 
     describe('compile()', function () {
@@ -66,6 +74,9 @@ describe('Runtime', function () {
 
     describe('createEnvironment()', function () {
         it('should create a new State instance correctly', function () {
+            var optionSet = sinon.createStubInstance(this.OptionSet);
+            this.OptionSet.returns(optionSet);
+
             this.runtime.createEnvironment();
 
             expect(this.PHPState).to.have.been.calledOnce;
@@ -78,8 +89,16 @@ describe('Runtime', function () {
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
-                sinon.match.same(this.pausable)
+                sinon.match.same(this.pausable),
+                sinon.match.same(optionSet)
             );
+        });
+
+        it('should create a new OptionSet instance correctly', function () {
+            this.runtime.createEnvironment({option1: 21});
+
+            expect(this.OptionSet).to.have.been.calledOnce;
+            expect(this.OptionSet).to.have.been.calledWith({option1: 21});
         });
 
         it('should create a new Environment instance correctly', function () {
@@ -87,8 +106,7 @@ describe('Runtime', function () {
 
             expect(this.Environment).to.have.been.calledOnce;
             expect(this.Environment).to.have.been.calledWith(
-                sinon.match.same(this.state),
-                {option1: 21}
+                sinon.match.same(this.state)
             );
         });
 

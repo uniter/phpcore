@@ -16,12 +16,22 @@ var expect = require('chai').expect,
     phpToJS = require('phptojs'),
     Engine = require('../../../src/Engine'),
     Environment = require('../../../src/Environment'),
+    OptionSet = require('../../../src/OptionSet'),
     PHPState = require('../../../src/PHPState').sync(),
     Runtime = require('../../../src/Runtime').sync();
 
 describe('PHP "class" statement integration', function () {
     beforeEach(function () {
-        this.runtime = new Runtime(Environment, Engine, PHPState, phpCommon, null, phpToAST, phpToJS);
+        this.runtime = new Runtime(
+            Environment,
+            Engine,
+            OptionSet,
+            PHPState,
+            phpCommon,
+            null,
+            phpToAST,
+            phpToJS
+        );
     });
 
     it('should support extending JS classes with auto-coercion both on and off', function () {

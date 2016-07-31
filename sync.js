@@ -12,8 +12,9 @@
 var phpCommon = require('phpcommon'),
     Engine = require('./src/Engine'),
     Environment = require('./src/Environment'),
+    OptionSet = require('./src/OptionSet'),
     PHPState = require('./src/PHPState').sync(),
     Runtime = require('./src/Runtime').sync(),
-    runtime = new Runtime(Environment, Engine, PHPState, phpCommon, null);
+    runtime = new Runtime(Environment, Engine, OptionSet, PHPState, phpCommon, null);
 
 module.exports = runtime;
