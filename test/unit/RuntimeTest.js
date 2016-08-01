@@ -101,6 +101,13 @@ describe('Runtime', function () {
             expect(this.OptionSet).to.have.been.calledWith({option1: 21});
         });
 
+        it('should create a new OptionSet instance correctly when options arg is not specified', function () {
+            this.runtime.createEnvironment();
+
+            expect(this.OptionSet).to.have.been.calledOnce;
+            expect(this.OptionSet).to.have.been.calledWith({});
+        });
+
         it('should create a new Environment instance correctly', function () {
             this.runtime.createEnvironment({option1: 21});
 

@@ -121,7 +121,7 @@ module.exports = require('pauser')([
                 stdin = new Stream(),
                 stdout = new Stream(),
                 stderr = new Stream(),
-                optionSet = new runtime.OptionSet(options),
+                optionSet = new runtime.OptionSet(options || {}),
                 state = new runtime.PHPState(
                     runtime.builtins,
                     stdin,
