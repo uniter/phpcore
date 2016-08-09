@@ -11,7 +11,9 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    Environment = require('../../src/Environment'),
     Runtime = require('../../src/Runtime').sync(),
+    Scope = require('../../src/Scope').sync(),
     Stream = require('../../src/Stream');
 
 describe('Runtime', function () {
@@ -68,6 +70,96 @@ describe('Runtime', function () {
                 this.Engine.returns(engine);
 
                 expect(this.factory()).to.equal(engine);
+            });
+        });
+
+        describe('the .using() method of the factory function returned', function () {
+            beforeEach(function () {
+                this.factory = this.runtime.compile(this.wrapper);
+            });
+
+            it('should return another factory function', function () {
+                expect(this.factory.using({'another-option': 21})).to.be.a('function');
+            });
+
+            it('should return a factory function that provides default options', function () {
+                var subFactory = this.factory.using({'first-option': 21});
+
+                subFactory({'second-option': 101});
+
+                expect(this.Engine).to.have.been.calledOnce;
+                expect(this.Engine).to.have.been.calledWith(
+                    sinon.match.instanceOf(this.Environment),
+                    null,
+                    sinon.match.same(this.phpCommon),
+                    {'first-option': 21, 'second-option': 101},
+                    sinon.match.same(this.wrapper),
+                    sinon.match.same(this.pausable)
+                );
+            });
+
+            it('should return a factory function that provides overridable default options', function () {
+                var subFactory = this.factory.using({'my-option': 21});
+
+                subFactory({'my-option': 101}); // Overrides the default `my-option` with value 21
+
+                expect(this.Engine).to.have.been.calledOnce;
+                expect(this.Engine).to.have.been.calledWith(
+                    sinon.match.instanceOf(this.Environment),
+                    null,
+                    sinon.match.same(this.phpCommon),
+                    {'my-option': 101},
+                    sinon.match.same(this.wrapper),
+                    sinon.match.same(this.pausable)
+                );
+            });
+
+            it('should return a factory function that provides a default Environment', function () {
+                var environment = sinon.createStubInstance(Environment),
+                    subFactory = this.factory.using({}, environment);
+
+                subFactory();
+
+                expect(this.Engine).to.have.been.calledOnce;
+                expect(this.Engine).to.have.been.calledWith(sinon.match.same(environment));
+            });
+
+            it('should return a factory function that provides an overridable default Environment', function () {
+                var environment1 = sinon.createStubInstance(Environment),
+                    environment2 = sinon.createStubInstance(Environment),
+                    subFactory = this.factory.using({'my-option': 21}, environment1);
+
+                subFactory({}, environment2);
+
+                expect(this.Engine).to.have.been.calledOnce;
+                expect(this.Engine).to.have.been.calledWith(sinon.match.same(environment2));
+            });
+
+            it('should return a factory function that provides a default top-level Scope', function () {
+                var topLevelScope = sinon.createStubInstance(Scope),
+                    subFactory = this.factory.using({'my-option': 21}, null, topLevelScope);
+
+                subFactory();
+
+                expect(this.Engine).to.have.been.calledOnce;
+                expect(this.Engine).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.same(topLevelScope)
+                );
+            });
+
+            it('should return a factory function that provides an overridable default top-level Scope', function () {
+                var topLevelScope1 = sinon.createStubInstance(Scope),
+                    topLevelScope2 = sinon.createStubInstance(Scope),
+                    subFactory = this.factory.using({'my-option': 21}, null, topLevelScope1);
+
+                subFactory({}, null, topLevelScope2);
+
+                expect(this.Engine).to.have.been.calledOnce;
+                expect(this.Engine).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.same(topLevelScope2)
+                );
             });
         });
     });

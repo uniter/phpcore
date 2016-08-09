@@ -102,6 +102,36 @@ module.exports = require('pauser')([
                 );
             }
 
+            /**
+             * Creates a new factory function with some optional default options,
+             * environment and top-level Scope
+             *
+             * @param {object|null|undefined} defaultOptions
+             * @param {Environment|null|undefined} defaultEnvironment
+             * @param {Scope|null|undefined} defaultTopLevelScope
+             * @returns {Function}
+             */
+            factory.using = function (defaultOptions, defaultEnvironment, defaultTopLevelScope) {
+                /**
+                 * A proxying factory function that applies these defaults
+                 * and then forwards onto the original factory function
+                 *
+                 * @param {object|null|undefined} options
+                 * @param {Environment|null|undefined} environment
+                 * @param {Scope|null|undefined} topLevelScope
+                 * @returns {Engine}
+                 */
+                function proxy(options, environment, topLevelScope) {
+                    options = _.extend({}, defaultOptions, options);
+                    environment = environment || defaultEnvironment;
+                    topLevelScope = topLevelScope || defaultTopLevelScope;
+
+                    return factory(options, environment, topLevelScope);
+                }
+
+                return proxy;
+            };
+
             return factory;
         },
 
