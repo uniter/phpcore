@@ -143,12 +143,19 @@ module.exports = require('pauser')([
             return classObject;
         },
 
+        /**
+         * Defines a constant for the current namespace, optionally making it case-insensitive
+         *
+         * @param {string} name
+         * @param {Value} value
+         * @param {object|undefined} options
+         */
         defineConstant: function (name, value, options) {
             var caseInsensitive;
 
             options = options || {};
 
-            caseInsensitive = options.caseInsensitive;
+            caseInsensitive = !!options.caseInsensitive;
 
             if (caseInsensitive) {
                 name = name.toLowerCase();
@@ -203,35 +210,21 @@ module.exports = require('pauser')([
             return namespace.classes[lowerName];
         },
 
+        /**
+         * Fetches the value of a constant if it is defined. If it is not defined,
+         * then it will either raise a notice and return the name of the constant as a string,
+         * or throw an exception, depending on whether it is a namespaced constant
+         *
+         * @param {string} name
+         * @param {boolean} usesNamespace
+         * @returns {Value}
+         */
         getConstant: function (name, usesNamespace) {
-            var globalNamespace,
-                lowercaseName,
-                namespace = this;
+            var namespace = this,
+                constant = namespace.getConstantDefinition(name);
 
-            if (hasOwn.call(namespace.constants, name)) {
-                return namespace.constants[name].value;
-            }
-
-            lowercaseName = name.toLowerCase();
-
-            if (
-                hasOwn.call(namespace.constants, lowercaseName) &&
-                namespace.constants[lowercaseName].caseInsensitive
-            ) {
-                return namespace.constants[lowercaseName].value;
-            }
-
-            globalNamespace = namespace.getGlobal();
-
-            if (hasOwn.call(globalNamespace.constants, name)) {
-                return globalNamespace.constants[name].value;
-            }
-
-            if (
-                hasOwn.call(globalNamespace.constants, lowercaseName) &&
-                globalNamespace.constants[lowercaseName].caseInsensitive
-            ) {
-                return globalNamespace.constants[lowercaseName].value;
+            if (constant) {
+                return constant.value;
             }
 
             if (usesNamespace) {
@@ -340,6 +333,46 @@ module.exports = require('pauser')([
             return name;
         },
 
+        /**
+         * Fetches the definition object for a constant, or null if it is not defined
+         *
+         * @param {string} name
+         * @returns {object}
+         */
+        getConstantDefinition: function (name) {
+            var globalNamespace,
+                lowercaseName,
+                namespace = this;
+
+            if (hasOwn.call(namespace.constants, name)) {
+                return namespace.constants[name];
+            }
+
+            lowercaseName = name.toLowerCase();
+
+            if (
+                hasOwn.call(namespace.constants, lowercaseName) &&
+                namespace.constants[lowercaseName].caseInsensitive
+            ) {
+                return namespace.constants[lowercaseName];
+            }
+
+            globalNamespace = namespace.getGlobal();
+
+            if (hasOwn.call(globalNamespace.constants, name)) {
+                return globalNamespace.constants[name];
+            }
+
+            if (
+                hasOwn.call(globalNamespace.constants, lowercaseName) &&
+                globalNamespace.constants[lowercaseName].caseInsensitive
+            ) {
+                return globalNamespace.constants[lowercaseName];
+            }
+
+            return null;
+        },
+
         hasClass: function (name) {
             var lowerName = name.toLowerCase(),
                 namespace = this,
@@ -350,6 +383,17 @@ module.exports = require('pauser')([
             }
 
             return hasOwn.call(namespace.classes, lowerName);
+        },
+
+        /**
+         * Returns true if this namespace defines the specified constant, and false otherwise.
+         * If the constant is case-insensitive, then it will be returned for any case
+         *
+         * @param {string} name
+         * @returns {boolean}
+         */
+        hasConstant: function (name) {
+            return this.getConstantDefinition(name) !== null;
         },
 
         parseClassName: function (name) {

@@ -51,6 +51,8 @@ describe('Namespace', function () {
             return subNamespace;
         });
 
+        this.parentNamespace.getGlobal.returns(this.parentNamespace);
+
         this.createNamespace = function (namespaceName) {
             this.namespace = new Namespace(
                 this.callStack,
@@ -181,6 +183,38 @@ describe('Namespace', function () {
             this.createNamespace('');
 
             expect(this.namespace.getPrefix()).to.equal('');
+        });
+    });
+
+    describe('hasConstant()', function () {
+        beforeEach(function () {
+            this.parentNamespace.constants = {};
+        });
+
+        it('should return true after a case-sensitive constant has been defined in the namespace', function () {
+            this.createNamespace('MyNamespace');
+
+            this.namespace.defineConstant('MY_CONST', 21);
+
+            expect(this.namespace.hasConstant('MY_CONST')).to.be.true;
+            expect(this.namespace.hasConstant('my_COnst')).to.be.false;
+        });
+
+        it('should return true after a case-insensitive constant has been defined in the namespace', function () {
+            this.createNamespace('MyNamespace');
+
+            this.namespace.defineConstant('ANOTHER_CONST', 21, {caseInsensitive: true});
+
+            expect(this.namespace.hasConstant('ANOTHER_CONST')).to.be.true;
+            expect(this.namespace.hasConstant('aNOther_consT')).to.be.true;
+        });
+
+        it('should return false for an undefined constant', function () {
+            this.createNamespace('MyNamespace');
+
+            this.namespace.defineConstant('SOME_CONST', 21);
+
+            expect(this.namespace.hasConstant('A_DIFFERENT_CONST')).to.be.false;
         });
     });
 });
