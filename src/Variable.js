@@ -176,10 +176,6 @@ module.exports = require('pauser')([
             return this.value.toInteger();
         },
 
-        toValue: function () {
-            return this.getValue();
-        },
-
         unset: function () {
             var variable = this;
 

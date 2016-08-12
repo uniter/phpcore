@@ -365,10 +365,6 @@ module.exports = require('pauser')([
 
         subtractFromNull: function () {
             throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        toValue: function () {
-            return this;
         }
     });
 
