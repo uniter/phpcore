@@ -337,7 +337,7 @@ module.exports = require('pauser')([
             return classObject.superClass && (classObject.superClass.name === superClass.name || classObject.superClass.extends(superClass));
         },
 
-        getConstantByName: function self(name) {
+        getConstantByName: function (name) {
             var classObject = this,
                 i,
                 interfaceObject;
@@ -360,7 +360,7 @@ module.exports = require('pauser')([
                 try {
                     return interfaceObject.getConstantByName(name);
                 } catch (e) {
-                    console.log('hmm');
+                    // Not found, try the next interface
                 }
             }
 
