@@ -68,6 +68,13 @@ describe('NamespaceScope', function () {
 
             expect(this.scope.getClass('\\The\\Absolute\\Path\\To\\My\\PhpClass')).to.equal(myClass);
         });
+
+        it('should support fetching an absolute path to a class in the global namespace', function () {
+            var myClass = sinon.createStubInstance(Class);
+            this.globalNamespace.getClass.withArgs('MyClass').returns(myClass);
+
+            expect(this.scope.getClass('\\MyClass')).to.equal(myClass);
+        });
     });
 
     describe('getConstant()', function () {
@@ -196,6 +203,13 @@ describe('NamespaceScope', function () {
 
             expect(result.namespace).to.equal(subNamespace);
             expect(result.name).to.equal('AbsPhpClass');
+        });
+
+        it('should support resolving an absolute path to a class in the global namespace', function () {
+            var result = this.scope.resolveClass('\\MyClass');
+
+            expect(result.namespace).to.equal(this.globalNamespace);
+            expect(result.name).to.equal('MyClass');
         });
     });
 

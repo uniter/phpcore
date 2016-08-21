@@ -149,7 +149,9 @@ module.exports = require('pauser')([
                     name = match[2];
                     namespace = scope.globalNamespace.getDescendant(path);
                 } else {
+                    // A class in the global namespace with explicit absolute path, eg. `\MyClass`
                     name = name.substr(1);
+                    namespace = scope.globalNamespace;
                 }
             // Check whether the namespace prefix is an alias
             } else {
