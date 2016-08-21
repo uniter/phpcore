@@ -342,6 +342,10 @@ module.exports = require('pauser')([
                 i,
                 interfaceObject;
 
+            if (name.toLowerCase() === 'class') {
+                return classObject.valueFactory.createString(classObject.getName());
+            }
+
             if (hasOwn.call(classObject.constants, name)) {
                 return classObject.constants[name]();
             }

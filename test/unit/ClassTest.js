@@ -392,6 +392,14 @@ describe('Class', function () {
         });
     });
 
+    describe('getConstantByName()', function () {
+        it('should return the FQCN for the magic `::class` constant', function () {
+            this.createClass('__construct', this.superClass);
+
+            expect(this.classObject.getConstantByName('class').getNative()).to.equal('My\\Class\\Path\\Here');
+        });
+    });
+
     describe('instantiate()', function () {
         beforeEach(function () {
             this.objectValue = sinon.createStubInstance(ObjectValue);
