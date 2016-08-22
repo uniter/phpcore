@@ -140,17 +140,32 @@ describe('Object', function () {
         it('should ask the class to call the method and return its result', function () {
             var argValue = sinon.createStubInstance(Value),
                 resultValue = sinon.createStubInstance(Value);
-            this.classObject.callMethodForInstance.returns(resultValue);
+            this.classObject.callMethod.returns(resultValue);
 
             expect(this.value.callMethod('myMethod', [argValue])).to.equal(resultValue);
-            expect(this.classObject.callMethodForInstance).to.have.been.calledOnce;
-            expect(this.classObject.callMethodForInstance).to.have.been.calledWith(
-                sinon.match.same(this.nativeObject),
+            expect(this.classObject.callMethod).to.have.been.calledOnce;
+            expect(this.classObject.callMethod).to.have.been.calledWith(
                 'myMethod',
                 [sinon.match.same(argValue)],
-                sinon.match.same(this.nativeObject),
                 sinon.match.same(this.value)
             );
+        });
+    });
+
+    describe('callStaticMethod()', function () {
+        it('should ask the class to call the method and return its result', function () {
+            var argValue = sinon.createStubInstance(Value),
+                methodNameValue = this.factory.createString('myMethod'),
+                resultValue = sinon.createStubInstance(Value);
+            this.classObject.callMethod.returns(resultValue);
+
+            expect(this.value.callStaticMethod(methodNameValue, [argValue])).to.equal(resultValue);
+            expect(this.classObject.callMethod).to.have.been.calledOnce;
+            expect(this.classObject.callMethod).to.have.been.calledWith(
+                'myMethod',
+                [sinon.match.same(argValue)]
+            );
+            expect(this.classObject.callMethod.args[0]).to.have.length(2);
         });
     });
 

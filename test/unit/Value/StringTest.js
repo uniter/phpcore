@@ -16,9 +16,11 @@ var _ = require('microdash'),
     ArrayValue = require('../../../src/Value/Array').sync(),
     BooleanValue = require('../../../src/Value/Boolean').sync(),
     CallStack = require('../../../src/CallStack'),
+    Class = require('../../../src/Class').sync(),
     FloatValue = require('../../../src/Value/Float').sync(),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyValuePair = require('../../../src/KeyValuePair'),
+    NamespaceScope = require('../../../src/NamespaceScope').sync(),
     NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
@@ -95,6 +97,7 @@ describe('String', function () {
             }.bind(this));
             return stringValue;
         }.bind(this));
+        this.namespaceScope = sinon.createStubInstance(NamespaceScope);
 
         this.createKeyValuePair = function (key, value) {
             var keyValuePair = sinon.createStubInstance(KeyValuePair);
@@ -106,6 +109,29 @@ describe('String', function () {
         this.createValue = function (nativeValue) {
             this.value = new StringValue(this.factory, this.callStack, nativeValue);
         }.bind(this);
+    });
+
+    describe('callStaticMethod()', function () {
+        it('should ask the class to call the method and return its result', function () {
+            var argValue = sinon.createStubInstance(Value),
+                classObject = sinon.createStubInstance(Class),
+                methodNameValue = this.factory.createString('myMethod'),
+                result,
+                resultValue = sinon.createStubInstance(Value);
+            classObject.callMethod.returns(resultValue);
+            this.namespaceScope.getClass.withArgs('\\My\\Space\\MyClass').returns(classObject);
+            this.createValue('\\My\\Space\\MyClass');
+
+            result = this.value.callStaticMethod(methodNameValue, [argValue], this.namespaceScope);
+
+            expect(result).to.equal(resultValue);
+            expect(classObject.callMethod).to.have.been.calledOnce;
+            expect(classObject.callMethod).to.have.been.calledWith(
+                'myMethod',
+                [sinon.match.same(argValue)]
+            );
+            expect(classObject.callMethod.args[0]).to.have.length(2);
+        });
     });
 
     describe('divide()', function () {

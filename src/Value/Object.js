@@ -122,14 +122,16 @@ module.exports = require('pauser')([
          * @returns {Value}
          */
         callMethod: function (name, args) {
-            var value = this,
-                object = value.value;
+            var value = this;
 
-            return value.classObject.callMethodForInstance(object, name, args, object, value);
+            return value.classObject.callMethod(name, args, value);
         },
 
         callStaticMethod: function (nameValue, args) {
-            return this.classObject.callStaticMethod(nameValue.getNative(), args);
+            // Could be a static call in object context, in which case we want to pass
+            // the object value through.
+            // This will be handled by a fetch of `callStack.getThisObject()` inside `.callMethod(...)`
+            return this.classObject.callMethod(nameValue.getNative(), args);
         },
 
         classIs: function (className) {

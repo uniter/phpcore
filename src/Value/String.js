@@ -53,7 +53,7 @@ module.exports = require('pauser')([
             var value = this,
                 classObject = namespaceScope.getClass(value.value);
 
-            return classObject.callStaticMethod(nameValue.getNative(), args);
+            return classObject.callMethod(nameValue.getNative(), args);
         },
 
         coerceToBoolean: function () {

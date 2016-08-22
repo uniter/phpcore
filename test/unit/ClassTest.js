@@ -76,19 +76,18 @@ describe('Class', function () {
         }.bind(this);
     });
 
-    describe('callMethodForInstance()', function () {
+    describe('callMethod()', function () {
         describe('when the object is an instance of the native constructor', function () {
             beforeEach(function () {
                 this.nativeObject = sinon.createStubInstance(this.InternalClass);
                 this.objectValue = sinon.createStubInstance(ObjectValue);
+                this.objectValue.getObject.returns(this.nativeObject);
                 this.superClass = null;
 
                 this.callMethod = function (methodName, args) {
-                    return this.classObject.callMethodForInstance(
-                        this.nativeObject,
+                    return this.classObject.callMethod(
                         methodName,
                         args,
-                        this.nativeObject,
                         this.objectValue
                     );
                 }.bind(this);
@@ -218,11 +217,9 @@ describe('Class', function () {
                 this.superClass = null;
 
                 this.callMethod = function (methodName, args) {
-                    return this.classObject.callMethodForInstance(
-                        this.nativeObject,
+                    return this.classObject.callMethod(
                         methodName,
                         args,
-                        this.nativeObject,
                         this.objectValue
                     );
                 }.bind(this);

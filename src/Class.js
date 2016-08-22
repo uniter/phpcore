@@ -20,6 +20,7 @@ module.exports = require('pauser')([
 ) {
     var IS_STATIC = 'isStatic',
         MAGIC_CALL = '__call',
+        MAGIC_CALL_STATIC = '__callStatic',
         VALUE = 'value',
         VISIBILITY = 'visibility',
         hasOwn = {}.hasOwnProperty,
@@ -85,133 +86,38 @@ module.exports = require('pauser')([
 
     _.extend(Class.prototype, {
         /**
-         * Calls a method of an instance of this class
+         * Calls an instance or static method. If `objectValue` is passed, the call
+         * will be in an object context, otherwise it will be in a static context.
          *
-         * @param {object} object The current object on the prototype chain to search for the method
+         * Omit both `objectValue` and `currentNativeObject` for a static call.
+         *
          * @param {string} methodName The name of the method to call
          * @param {Value[]} args The wrapped value objects to pass as arguments to the method
-         * @param {object} nativeObject The native JS object for this instance
          * @param {ObjectValue} objectValue The wrapped ObjectValue for this instance
+         * @param {object} currentNativeObject The current native JS object on the prototype chain to search for the method
          * @returns {Value}
          * @throws {PHPFatalError} Throws when the method is not defined
          */
-        callMethodForInstance: function (object, methodName, args, nativeObject, objectValue) {
+        callMethod: function (methodName, args, objectValue, currentNativeObject) {
             var classObject = this,
-                result;
+                nativeObject = objectValue ? objectValue.getObject() : null,
+                result,
+                thisObject = classObject.callStack.getThisObject();
 
             function callMethod(currentObject, methodName, args) {
                 var method = getMethod(currentObject, methodName);
 
                 if (method !== null) {
-                    return classObject.valueFactory.coerce(
-                        method.apply(
-                            classObject.autoCoercionEnabled ? nativeObject : objectValue,
-                            unwrapArgs(args, classObject)
-                        )
-                    );
-                }
+                    if (!objectValue && !method[IS_STATIC]) {
+                        objectValue = thisObject;
 
-                if (
-                    currentObject === classObject.InternalClass.prototype &&
-                    classObject.superClass
-                ) {
-                    return classObject.superClass.callMethodForInstance(
-                        Object.getPrototypeOf(currentObject),
-                        methodName,
-                        args,
-                        nativeObject,
-                        objectValue
-                    );
-                }
-
-                currentObject = Object.getPrototypeOf(currentObject);
-
-                if (!currentObject) {
-                    return null;
-                }
-
-                return callMethod(currentObject, methodName, args);
-            }
-
-            if (nativeObject instanceof classObject.InternalClass) {
-                // Ignore own properties of the native object when searching for methods
-                if (object === nativeObject) {
-                    object = Object.getPrototypeOf(object);
-                }
-
-                result = callMethod(object, methodName, args);
-
-                if (result !== null) {
-                    return result;
-                }
-
-                // Method was not found on object or its prototype chain: try the magic method
-                result = callMethod(object, MAGIC_CALL, [
-                    classObject.valueFactory.createString(methodName),
-                    classObject.valueFactory.createArray(args)
-                ]);
-
-                if (result !== null) {
-                    return result;
-                }
-            } else {
-                // For some special classes (eg. JSObject, Closure) the native object may not actually
-                // be an instance of the InternalClass, so fake inheritance of the native class
-                result = callMethod(classObject.InternalClass.prototype, methodName, args);
-
-                if (result !== null) {
-                    return result;
-                }
-
-                result = callMethod(classObject.InternalClass.prototype, MAGIC_CALL, [
-                    classObject.valueFactory.createString(methodName),
-                    classObject.valueFactory.createArray(args)
-                ]);
-
-                if (result !== null) {
-                    return result;
-                }
-            }
-
-            // Method was not found and no magic __call method is defined
-            throw new PHPFatalError(
-                PHPFatalError.UNDEFINED_METHOD,
-                {
-                    className: classObject.name,
-                    methodName: methodName
-                }
-            );
-        },
-
-        /**
-         * Calls a method of a class statically (may be a static method
-         * or may be an instance method being called statically)
-         *
-         * @param {string} methodName
-         * @param {Value[]} args
-         * @param {ObjectValue|null} currentObject
-         * @returns {Value}
-         * @throws {PHPFatalError} Throws when method does not exist
-         */
-        callStaticMethod: function (methodName, args, currentObject) {
-            var classObject = this,
-                result;
-
-            function callMethod(currentObject, methodName, args) {
-                var method = getMethod(currentObject, methodName),
-                    thisObject = null;
-
-                if (method !== null) {
-                    if (!method[IS_STATIC]) {
-                        thisObject = classObject.callStack.getThisObject();
-
-                        if (!thisObject) {
+                        if (!objectValue) {
                             classObject.callStack.raiseError(
                                 PHPError.E_STRICT,
                                 'Non-static method ' + method.data.classObject.name +
                                 '::' + methodName + '() should not be called statically'
                             );
-                        } else if (!thisObject.classIs(classObject.getName())) {
+                        } else if (!objectValue.classIs(classObject.getName())) {
                             classObject.callStack.raiseError(
                                 PHPError.E_STRICT,
                                 'Non-static method ' + method.data.classObject.name +
@@ -223,10 +129,7 @@ module.exports = require('pauser')([
 
                     return classObject.valueFactory.coerce(
                         method.apply(
-                            thisObject && classObject.autoCoercionEnabled ?
-                                thisObject.getObject() :
-                                thisObject,
-                            //thisObject ? thisObject.getObject() : null,
+                            classObject.autoCoercionEnabled ? objectValue.getObject() : objectValue,
                             unwrapArgs(args, classObject)
                         )
                     );
@@ -236,9 +139,10 @@ module.exports = require('pauser')([
                     currentObject === classObject.InternalClass.prototype &&
                     classObject.superClass
                 ) {
-                    return classObject.superClass.callStaticMethod(
+                    return classObject.superClass.callMethod(
                         methodName,
                         args,
+                        objectValue,
                         Object.getPrototypeOf(currentObject)
                     );
                 }
@@ -252,21 +156,51 @@ module.exports = require('pauser')([
                 return callMethod(currentObject, methodName, args);
             }
 
-            if (!currentObject) {
-                currentObject = classObject.InternalClass.prototype;
+            if (!currentNativeObject) {
+                // Walk up the prototype chain from the native object
+                currentNativeObject = nativeObject;
             }
 
-            result = callMethod(currentObject, methodName, args);
+            if (nativeObject instanceof classObject.InternalClass) {
+                // Ignore own properties of the native object when searching for methods
+                if (currentNativeObject === nativeObject) {
+                    currentNativeObject = Object.getPrototypeOf(currentNativeObject);
+                }
+            } else {
+                // For some special classes (eg. JSObject, Closure) the native object may not actually
+                // be an instance of the InternalClass, so fake inheritance of the native class
+                currentNativeObject = classObject.InternalClass.prototype;
+            }
+
+            result = callMethod(currentNativeObject, methodName, args);
 
             if (result !== null) {
                 return result;
             }
 
-            // Method was not found on object or its prototype chain: try the magic method
-            result = callMethod(currentObject, MAGIC_CALL, [
-                classObject.valueFactory.createString(methodName),
-                classObject.valueFactory.createArray(args)
-            ]);
+            // Method was not found on object or its prototype chain: try the magic method(s)
+
+            if (!objectValue && thisObject) {
+                // Magic __call(...) should override __callStatic(...)
+                // when both present for static call in object context
+                result = callMethod(thisObject.getObject(), MAGIC_CALL, [
+                    classObject.valueFactory.createString(methodName),
+                    classObject.valueFactory.createArray(args)
+                ]);
+
+                if (result !== null) {
+                    return result;
+                }
+            }
+
+            result = callMethod(
+                currentNativeObject,
+                objectValue ? MAGIC_CALL : MAGIC_CALL_STATIC,
+                [
+                    classObject.valueFactory.createString(methodName),
+                    classObject.valueFactory.createArray(args)
+                ]
+            );
 
             if (result !== null) {
                 return result;
