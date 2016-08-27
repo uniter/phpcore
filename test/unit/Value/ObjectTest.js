@@ -17,6 +17,7 @@ var _ = require('microdash'),
     BooleanValue = require('../../../src/Value/Boolean').sync(),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
+    Closure = require('../../../src/Closure').sync(),
     FloatValue = require('../../../src/Value/Float').sync(),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
@@ -24,6 +25,7 @@ var _ = require('microdash'),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
     PHPFatalError = phpCommon.PHPFatalError,
+    PHPObject = require('../../../src/PHPObject'),
     PropertyReference = require('../../../src/Reference/Property'),
     StringValue = require('../../../src/Value/String').sync(),
     Value = require('../../../src/Value').sync(),
@@ -134,6 +136,60 @@ describe('Object', function () {
             this.classObject,
             this.objectID
         );
+    });
+
+    describe('bindClosure()', function () {
+        beforeEach(function () {
+            this.boundClosure = sinon.createStubInstance(Closure);
+            this.nativeObject = sinon.createStubInstance(Closure);
+            this.scopeClass = sinon.createStubInstance(Class);
+            this.thisValue = sinon.createStubInstance(ObjectValue);
+
+            this.nativeObject.bind.returns(this.boundClosure);
+
+            this.value = new ObjectValue(
+                this.factory,
+                this.callStack,
+                this.nativeObject,
+                this.classObject,
+                this.objectID
+            );
+        });
+
+        it('should pass the `$this` object to the Closure', function () {
+            this.value.bindClosure(this.thisValue, this.scopeClass);
+
+            expect(this.nativeObject.bind).to.have.been.calledWith(
+                sinon.match.same(this.thisValue)
+            );
+        });
+
+        it('should pass the scope Class to the Closure', function () {
+            this.value.bindClosure(this.thisValue, this.scopeClass);
+
+            expect(this.nativeObject.bind).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.same(this.scopeClass)
+            );
+        });
+
+        it('should return the bound Closure', function () {
+            expect(this.value.bindClosure(this.thisValue, this.scopeClass)).to.equal(this.boundClosure);
+        });
+
+        it('should throw when the wrapped object is not a Closure', function () {
+            this.value = new ObjectValue(
+                this.factory,
+                this.callStack,
+                {},
+                this.classObject,
+                this.objectID
+            );
+
+            expect(function () {
+                this.value.bindClosure(this.thisValue, this.scopeClass);
+            }.bind(this)).to.throw('bindClosure() :: Value is not a Closure');
+        });
     });
 
     describe('callMethod()', function () {
@@ -561,6 +617,12 @@ describe('Object', function () {
         });
     });
 
+    describe('getClass()', function () {
+        it('should return the Class of the object', function () {
+            expect(this.value.getClass()).to.equal(this.classObject);
+        });
+    });
+
     describe('getInstancePropertyNames()', function () {
         it('should include properties on the native object', function () {
             var names = this.value.getInstancePropertyNames();
@@ -610,27 +672,136 @@ describe('Object', function () {
     });
 
     describe('getNative()', function () {
-        it('should coerce the thisObj passed to unwrapped Closures to an object', function () {
-            var coercedThisObject = {},
-                nativeFunction = sinon.stub(),
-                nativeThisObject = {},
-                unwrapped;
-            this.classObject.getName.returns('Closure');
-            this.factory.coerceObject.withArgs(sinon.match.same(nativeThisObject)).returns(coercedThisObject);
+        describe('unwrapped Closure instances', function () {
+            beforeEach(function () {
+                this.coercedThisObject = {};
+                this.closure = sinon.createStubInstance(Closure);
+                this.nativeThisObject = {};
+                this.classObject.getName.returns('Closure');
+                this.factory.coerceObject
+                    .withArgs(sinon.match.same(this.nativeThisObject))
+                    .returns(this.coercedThisObject);
+                this.value = new ObjectValue(
+                    this.factory,
+                    this.callStack,
+                    this.closure,
+                    this.classObject,
+                    this.objectID
+                );
+            });
+
+            it('should pass the coerced arguments to Closure.invoke(...)', function () {
+                this.value.getNative()(21, 38);
+
+                expect(this.closure.invoke).to.have.been.calledOnce;
+                expect(this.closure.invoke.args[0][0][0].getNative()).to.equal(21);
+                expect(this.closure.invoke.args[0][0][1].getNative()).to.equal(38);
+            });
+
+            it('should coerce the `$this` object to an object', function () {
+                var unwrapped = this.value.getNative();
+
+                expect(unwrapped).to.be.a('function');
+
+                unwrapped.call(this.nativeThisObject);
+                expect(this.closure.invoke).to.have.been.calledOnce;
+                expect(this.closure.invoke).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.same(this.coercedThisObject)
+                );
+            });
+
+            it('should return the result from Closure.invoke(...)', function () {
+                var resultValue = sinon.createStubInstance(Value);
+                this.closure.invoke.returns(resultValue);
+
+                expect(this.value.getNative()()).to.equal(resultValue);
+            });
+        });
+
+        describe('JSObject instances', function () {
+            beforeEach(function () {
+                this.classObject.getName.returns('JSObject');
+            });
+
+            it('should be unwrapped by returning the original JS object', function () {
+                expect(this.value.getNative()).to.equal(this.nativeObject);
+            });
+        });
+
+        describe('stdClass instances', function () {
+            beforeEach(function () {
+                this.classObject.getName.returns('stdClass');
+            });
+
+            it('should be unwrapped as a plain object with properties unwrapped recursively', function () {
+                this.nativeObject.objectProp = new ObjectValue(
+                    this.factory,
+                    this.callStack,
+                    {
+                        firstNestedProp: this.factory.createString('value of first nested prop'),
+                        secondNestedProp: this.factory.createString('value of second nested prop')
+                    },
+                    this.classObject,
+                    this.objectID
+                );
+
+                expect(this.value.getNative()).to.deep.equal({
+                    firstProp: 'the value of firstProp',
+                    secondProp: 'the value of secondProp',
+                    objectProp: {
+                        firstNestedProp: 'value of first nested prop',
+                        secondNestedProp:  'value of second nested prop'
+                    }
+                });
+            });
+        });
+
+        describe('instances of other classes', function () {
+            beforeEach(function () {
+                this.classObject.getName.returns('Some\\Other\\MyClass');
+            });
+
+            it('should be unwrapped via the class', function () {
+                var wrapperPHPObject = sinon.createStubInstance(PHPObject);
+                this.classObject.unwrapInstanceForJS
+                    .withArgs(sinon.match.same(this.value), sinon.match.same(this.nativeObject))
+                    .returns(wrapperPHPObject);
+
+                expect(this.value.getNative()).to.equal(wrapperPHPObject);
+            });
+        });
+    });
+
+    describe('invokeClosure()', function () {
+        beforeEach(function () {
+            this.closure = sinon.createStubInstance(Closure);
             this.value = new ObjectValue(
                 this.factory,
                 this.callStack,
-                nativeFunction,
+                this.closure,
                 this.classObject,
                 this.objectID
             );
+        });
 
-            unwrapped = this.value.getNative();
-            expect(unwrapped).to.be.a('function');
+        it('should pass the provided arguments to Closure.invoke(...)', function () {
+            var arg1 = sinon.createStubInstance(Value),
+                arg2 = sinon.createStubInstance(Value);
 
-            unwrapped.call(nativeThisObject);
-            expect(nativeFunction).to.have.been.calledOnce;
-            expect(nativeFunction).to.have.been.calledOn(coercedThisObject);
+            this.value.invokeClosure([arg1, arg2]);
+
+            expect(this.closure.invoke).to.have.been.calledOnce;
+            expect(this.closure.invoke).to.have.been.calledWith(
+                [sinon.match.same(arg1), sinon.match.same(arg2)]
+            );
+        });
+
+        it('should return the result from Closure.invoke(...)', function () {
+            var resultValue = sinon.createStubInstance(Value);
+            this.closure.invoke.returns(resultValue);
+
+            expect(this.value.invokeClosure([])).to.equal(resultValue);
         });
     });
 

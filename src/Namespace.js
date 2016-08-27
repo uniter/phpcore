@@ -125,7 +125,6 @@ module.exports = require('pauser')([
                 var method = namespace.functionFactory.create(
                         namespace,
                         classObject,
-                        null,
                         data.method,
                         methodName
                     );
@@ -181,7 +180,6 @@ module.exports = require('pauser')([
                 // Class will always be null for 'normal' functions
                 // as defining a function inside a class will define it
                 // inside the current namespace instead.
-                null,
                 null,
                 func,
                 name

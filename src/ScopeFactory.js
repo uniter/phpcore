@@ -25,9 +25,9 @@ function ScopeFactory(Scope, callStack, superGlobalScope, valueFactory, referenc
      */
     this.callStack = callStack;
     /**
-     * @type {FunctionFactory}
+     * @type {ClosureFactory}
      */
-    this.functionFactory = null;
+    this.closureFactory = null;
     /**
      * @type {Scope}
      */
@@ -67,7 +67,7 @@ _.extend(ScopeFactory.prototype, {
             factory.callStack,
             factory.globalScope,
             factory.superGlobalScope,
-            factory.functionFactory,
+            factory.closureFactory,
             factory.valueFactory,
             factory.referenceFactory,
             namespace || null,
@@ -78,12 +78,12 @@ _.extend(ScopeFactory.prototype, {
     },
 
     /**
-     * Sets the FunctionFactory service to pass to Scopes created by this factory
+     * Sets the ClosureFactory service to pass to Scopes created by this factory
      *
-     * @param {FunctionFactory} functionFactory
+     * @param {ClosureFactory} closureFactory
      */
-    setFunctionFactory: function (functionFactory) {
-        this.functionFactory = functionFactory;
+    setClosureFactory: function (closureFactory) {
+        this.closureFactory = closureFactory;
     },
 
     /**

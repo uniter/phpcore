@@ -18,6 +18,8 @@ module.exports = require('pauser')([
     require('./CallFactory'),
     require('./CallStack'),
     require('./ClassAutoloader'),
+    require('./Closure'),
+    require('./ClosureFactory'),
     require('./FunctionFactory'),
     require('./INIState'),
     require('./Namespace'),
@@ -38,6 +40,8 @@ module.exports = require('pauser')([
     CallFactory,
     CallStack,
     ClassAutoloader,
+    Closure,
+    ClosureFactory,
     FunctionFactory,
     INIState,
     Namespace,
@@ -140,6 +144,7 @@ module.exports = require('pauser')([
             superGlobalScope = new SuperGlobalScope(callStack, valueFactory),
             scopeFactory = new ScopeFactory(Scope, callStack, superGlobalScope, valueFactory, referenceFactory),
             functionFactory = new FunctionFactory(scopeFactory, callFactory, valueFactory, callStack),
+            closureFactory = new ClosureFactory(functionFactory, valueFactory, Closure),
             namespaceFactory = new NamespaceFactory(
                 Namespace,
                 callStack,
@@ -151,7 +156,7 @@ module.exports = require('pauser')([
             globalScope,
             globalsSuperGlobal = superGlobalScope.defineVariable('GLOBALS');
 
-        scopeFactory.setFunctionFactory(functionFactory);
+        scopeFactory.setClosureFactory(closureFactory);
         globalScope = scopeFactory.create(globalNamespace);
         scopeFactory.setGlobalScope(globalScope);
         classAutoloader.setGlobalNamespace(globalNamespace);

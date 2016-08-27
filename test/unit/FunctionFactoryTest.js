@@ -19,6 +19,7 @@ var expect = require('chai').expect,
     Namespace = require('../../src/Namespace').sync(),
     Scope = require('../../src/Scope').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
+    Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('FunctionFactory', function () {
@@ -27,7 +28,6 @@ describe('FunctionFactory', function () {
         this.callFactory = sinon.createStubInstance(CallFactory);
         this.callStack = sinon.createStubInstance(CallStack);
         this.currentClass = sinon.createStubInstance(Class);
-        this.currentScope = sinon.createStubInstance(Scope);
         this.func = sinon.stub();
         this.name = 'myFunction';
         this.namespace = sinon.createStubInstance(Namespace);
@@ -38,18 +38,23 @@ describe('FunctionFactory', function () {
         this.callFactory.create.returns(this.call);
         this.scopeFactory.create.returns(this.scope);
 
+        this.valueFactory.isValue.restore();
+        sinon.stub(this.valueFactory, 'isValue', function (value) {
+            return value instanceof Value;
+        });
+
         this.factory = new FunctionFactory(this.scopeFactory, this.callFactory, this.valueFactory, this.callStack);
     });
 
     describe('create()', function () {
         beforeEach(function () {
-            this.callCreate = function () {
+            this.callCreate = function (currentObject) {
                 return this.factory.create(
                     this.namespace,
                     this.currentClass,
-                    this.currentScope,
                     this.func,
-                    this.name
+                    this.name,
+                    currentObject || null
                 );
             }.bind(this);
         });
@@ -65,10 +70,6 @@ describe('FunctionFactory', function () {
             expect(this.callCreate().funcName).to.equal('My\\Namespace\\{closure}');
         });
 
-        it('should store the current scope against the function', function () {
-            expect(this.callCreate().scopeWhenCreated).to.equal(this.currentScope);
-        });
-
         it('should return a wrapper function', function () {
             expect(this.callCreate()).to.be.a('function');
         });
@@ -78,6 +79,80 @@ describe('FunctionFactory', function () {
                 this.func.returns(123);
 
                 expect(this.callCreate()()).to.equal(123);
+            });
+
+            it('should pass the Namespace to the ScopeFactory', function () {
+                this.callCreate()();
+
+                expect(this.scopeFactory.create).to.have.been.calledOnce;
+                expect(this.scopeFactory.create).to.have.been.calledWith(
+                    sinon.match.same(this.namespace)
+                );
+            });
+
+            it('should pass the current Class to the ScopeFactory', function () {
+                this.callCreate()();
+
+                expect(this.scopeFactory.create).to.have.been.calledOnce;
+                expect(this.scopeFactory.create).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.same(this.currentClass)
+                );
+            });
+
+            it('should pass the wrapper function to the ScopeFactory', function () {
+                var wrapperFunction = this.callCreate();
+
+                wrapperFunction();
+
+                expect(this.scopeFactory.create).to.have.been.calledOnce;
+                expect(this.scopeFactory.create).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.same(wrapperFunction)
+                );
+            });
+
+            it('should pass the `$this` object to the ScopeFactory when provided', function () {
+                var currentObject = sinon.createStubInstance(Value);
+
+                this.callCreate(currentObject)();
+
+                expect(this.scopeFactory.create).to.have.been.calledOnce;
+                expect(this.scopeFactory.create).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.same(currentObject)
+                );
+            });
+
+            it('should pass the (JS) `this` object as the (PHP) `$this` object when not provided', function () {
+                var jsThisObjectValue = sinon.createStubInstance(Value);
+
+                this.callCreate(null).call(jsThisObjectValue);
+
+                expect(this.scopeFactory.create).to.have.been.calledOnce;
+                expect(this.scopeFactory.create).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.same(jsThisObjectValue)
+                );
+            });
+
+            it('should pass null as the `$this` object when not provided and a non-Value (JS) `this` object was used', function () {
+                var nonValueThisObject = {};
+
+                this.callCreate(null).call(nonValueThisObject);
+
+                expect(this.scopeFactory.create).to.have.been.calledOnce;
+                expect(this.scopeFactory.create).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    null
+                );
             });
 
             it('should push the call onto the stack', function () {

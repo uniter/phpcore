@@ -234,7 +234,7 @@ EOS
             'myStaticMethod',       // Static methods are not prefixed with the class name or namespace
             'myInstanceMethod',     // Instance methods are not prefixed with the class name or namespace
             '{closure}',            // Closure defined outside of class or function
-            'My\\App\\{closure}'  // Closure defined inside static method
+            'My\\App\\{closure}'    // Closure defined inside static method
         ]);
     });
 

@@ -13,8 +13,10 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
-    FunctionFactory = require('../../src/FunctionFactory'),
+    Closure = require('../../src/Closure').sync(),
+    ClosureFactory = require('../../src/ClosureFactory').sync(),
     Namespace = require('../../src/Namespace').sync(),
+    ObjectValue = require('../../src/Value/Object').sync(),
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     Scope = require('../../src/Scope').sync(),
     StringValue = require('../../src/Value/String').sync(),
@@ -27,17 +29,17 @@ var expect = require('chai').expect,
 describe('Scope', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
-        this.closure = sinon.stub();
+        this.closure = sinon.createStubInstance(Closure);
         this.currentClass = null;
         this.currentFunction = null;
-        this.functionFactory = sinon.createStubInstance(FunctionFactory);
+        this.closureFactory = sinon.createStubInstance(ClosureFactory);
         this.globalScope = sinon.createStubInstance(Scope);
         this.namespace = sinon.createStubInstance(Namespace);
         this.referenceFactory = sinon.createStubInstance(ReferenceFactory);
         this.superGlobalScope = sinon.createStubInstance(SuperGlobalScope);
         this.valueFactory = sinon.createStubInstance(ValueFactory);
 
-        this.functionFactory.create.returns(this.closure);
+        this.closureFactory.create.returns(this.closure);
         this.valueFactory.createString.restore();
         sinon.stub(this.valueFactory, 'createString', function (string) {
             var stringValue = sinon.createStubInstance(StringValue);
@@ -51,74 +53,100 @@ describe('Scope', function () {
         this.whenCurrentFunction = function () {
             this.currentFunction = sinon.stub();
         }.bind(this);
-        this.createScope = function () {
+        this.createScope = function (thisObject) {
             this.scope = new Scope(
                 this.callStack,
                 this.globalScope,
                 this.superGlobalScope,
-                this.functionFactory,
+                this.closureFactory,
                 this.valueFactory,
                 this.referenceFactory,
                 this.namespace,
                 this.currentClass,
                 this.currentFunction,
-                this.thisObject
+                thisObject || null
             );
         }.bind(this);
     });
 
     describe('createClosure()', function () {
         beforeEach(function () {
+            this.thisObject = sinon.createStubInstance(ObjectValue);
+
             this.whenCurrentClass();
             this.whenCurrentFunction();
-            this.createScope();
+            this.createScope(this.thisObject);
         });
 
-        it('should return the function from the FunctionFactory', function () {
+        it('should return the Closure from the ClosureFactory', function () {
             expect(this.scope.createClosure(this.func)).to.equal(this.closure);
         });
 
-        it('should create one function with the FunctionFactory', function () {
+        it('should create one Closure with the ClosureFactory', function () {
             this.scope.createClosure(this.func);
 
-            expect(this.functionFactory.create).to.have.been.calledOnce;
+            expect(this.closureFactory.create).to.have.been.calledOnce;
         });
 
-        it('should pass the namespace to the FunctionFactory', function () {
+        it('should pass the scope to the ClosureFactory', function () {
             this.scope.createClosure(this.func);
 
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            expect(this.closureFactory.create).to.have.been.calledWith(
+                sinon.match.same(this.scope)
+            );
+        });
+
+        it('should pass the unwrapped function to the ClosureFactory', function () {
+            this.scope.createClosure(this.func);
+
+            expect(this.closureFactory.create).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.same(this.func)
+            );
+        });
+
+        it('should pass the namespace to the ClosureFactory', function () {
+            this.scope.createClosure(this.func);
+
+            expect(this.closureFactory.create).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
                 sinon.match.same(this.namespace)
             );
         });
 
-        it('should pass the class to the FunctionFactory', function () {
+        it('should pass the class to the ClosureFactory', function () {
             this.scope.createClosure(this.func);
 
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            expect(this.closureFactory.create).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.same(this.currentClass)
             );
         });
 
-        it('should pass the scope to the FunctionFactory', function () {
+        it('should fetch and bind the closure to the `$this` object from the current scope', function () {
             this.scope.createClosure(this.func);
 
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            expect(this.closureFactory.create).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.scope)
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(this.thisObject)
             );
         });
 
-        it('should pass the wrapped function to the FunctionFactory', function () {
-            this.scope.createClosure(this.func);
+        it('should not bind the closure to an object when it is static', function () {
+            this.scope.createClosure(this.func, true);
 
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            expect(this.closureFactory.create).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.func)
+                sinon.match.any,
+                null // No `$this` object is to be bound
             );
         });
     });

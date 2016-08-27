@@ -12,18 +12,47 @@
 var _ = require('microdash'),
     slice = [].slice;
 
+/**
+ * @param {ScopeFactory} scopeFactory
+ * @param {CallFactory} callFactory
+ * @param {ValueFactory} valueFactory
+ * @param {CallStack} callStack
+ * @constructor
+ */
 function FunctionFactory(scopeFactory, callFactory, valueFactory, callStack) {
+    /**
+     * @type {CallFactory}
+     */
     this.callFactory = callFactory;
+    /**
+     * @type {CallStack}
+     */
     this.callStack = callStack;
+    /**
+     * @type {ScopeFactory}
+     */
     this.scopeFactory = scopeFactory;
+    /**
+     * @type {ValueFactory}
+     */
     this.valueFactory = valueFactory;
 }
 
 _.extend(FunctionFactory.prototype, {
-    create: function (namespace, currentClass, currentScope, func, name) {
+    /**
+     * Wraps the specified function in another that handles the PHP call stack and scoping
+     *
+     * @param {Namespace} namespace
+     * @param {Class|null} currentClass
+     * @param {Function} func
+     * @param {string|null} name
+     * @param {ObjectValue|null} currentObject
+     * @returns {Function}
+     */
+    create: function (namespace, currentClass, func, name, currentObject) {
         var factory = this,
             wrapperFunc = function () {
-                var thisObject = this,
+                var thisObject = currentObject || this,
                     scope,
                     call,
                     result;
@@ -49,7 +78,6 @@ _.extend(FunctionFactory.prototype, {
             };
 
         wrapperFunc.funcName = name || namespace.getPrefix() + '{closure}';
-        wrapperFunc.scopeWhenCreated = currentScope;
 
         return wrapperFunc;
     }

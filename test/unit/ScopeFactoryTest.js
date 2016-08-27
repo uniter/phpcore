@@ -13,7 +13,7 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
-    FunctionFactory = require('../../src/FunctionFactory'),
+    ClosureFactory = require('../../src/ClosureFactory').sync(),
     Namespace = require('../../src/Namespace').sync(),
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
@@ -24,7 +24,7 @@ var expect = require('chai').expect,
 describe('ScopeFactory', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
-        this.functionFactory = sinon.createStubInstance(FunctionFactory);
+        this.closureFactory = sinon.createStubInstance(ClosureFactory);
         this.Scope = sinon.stub();
         this.globalScope = sinon.createStubInstance(this.Scope);
         this.referenceFactory = sinon.createStubInstance(ReferenceFactory);
@@ -38,7 +38,7 @@ describe('ScopeFactory', function () {
             this.valueFactory,
             this.referenceFactory
         );
-        this.factory.setFunctionFactory(this.functionFactory);
+        this.factory.setClosureFactory(this.closureFactory);
         this.factory.setGlobalScope(this.globalScope);
     });
 
@@ -94,14 +94,14 @@ describe('ScopeFactory', function () {
             );
         });
 
-        it('should pass the FunctionFactory to the scope', function () {
+        it('should pass the ClosureFactory to the scope', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.functionFactory)
+                sinon.match.same(this.closureFactory)
             );
         });
 

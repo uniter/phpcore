@@ -23,7 +23,7 @@ module.exports = require('pauser')([
         callStack,
         globalScope,
         superGlobalScope,
-        functionFactory,
+        closureFactory,
         valueFactory,
         referenceFactory,
         namespace,
@@ -34,10 +34,10 @@ module.exports = require('pauser')([
         var thisObjectVariable = new Variable(callStack, valueFactory, 'this');
 
         this.callStack = callStack;
+        this.closureFactory = closureFactory;
         this.currentClass = currentClass;
         this.currentFunction = currentFunction;
         this.errorsSuppressed = false;
-        this.functionFactory = functionFactory;
         this.globalScope = globalScope;
         this.namespace = namespace;
         this.referenceFactory = referenceFactory;
@@ -54,14 +54,30 @@ module.exports = require('pauser')([
     }
 
     _.extend(Scope.prototype, {
-        createClosure: function (func) {
-            var scope = this;
+        /**
+         * Creates a closure, either static (with no `$this` object bound) or non-static
+         *
+         * @param {Function} func
+         * @param {boolean|undefined} isStatic
+         * @returns {Closure}
+         */
+        createClosure: function (func, isStatic) {
+            var scope = this,
+                thisObject = null;
 
-            return scope.functionFactory.create(
+            // Fetch the `$this` object to bind to the closure from the current scope,
+            // if the closure is a normal (non-static) one. Otherwise, if the closure is static
+            // then it will have no `$this` object bound to it
+            if (!isStatic) {
+                thisObject = scope.thisObject;
+            }
+
+            return scope.closureFactory.create(
+                scope,
+                func,
                 scope.namespace,
                 scope.currentClass,
-                scope,
-                func
+                thisObject
             );
         },
 

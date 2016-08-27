@@ -13,6 +13,7 @@ module.exports = require('pauser')([
     require('microdash'),
     require('phpcommon'),
     require('util'),
+    require('../Closure'),
     require('../KeyValuePair'),
     require('../Reference/Null'),
     require('../Reference/ObjectElement'),
@@ -22,6 +23,7 @@ module.exports = require('pauser')([
     _,
     phpCommon,
     util,
+    Closure,
     KeyValuePair,
     NullReference,
     ObjectElement,
@@ -108,6 +110,24 @@ module.exports = require('pauser')([
             );
 
             return value.factory.createFloat(floatValue.value + 1);
+        },
+
+        /**
+         * When this object is a Closure instance, returns a new Closure
+         * with the specified bound `$this` object and a new current class scope
+         *
+         * @param {ObjectValue} thisValue
+         * @param {Class|undefined} scopeClass
+         * @returns {Closure}
+         */
+        bindClosure: function (thisValue, scopeClass) {
+            var value = this;
+
+            if (!(value.value instanceof Closure)) {
+                throw new Error('bindClosure() :: Value is not a Closure');
+            }
+
+            return value.value.bind(thisValue, scopeClass);
         },
 
         call: function (args) {
@@ -237,6 +257,15 @@ module.exports = require('pauser')([
             return value.getClassName() + '::__invoke()';
         },
 
+        /**
+         * Fetches the Class of this object
+         *
+         * @returns {Class}
+         */
+        getClass: function () {
+            return this.classObject;
+        },
+
         getClassName: function () {
             return this.classObject.getName();
         },
@@ -358,6 +387,12 @@ module.exports = require('pauser')([
             return this.getInstancePropertyNames().length;
         },
 
+        /**
+         * Unwraps this PHP object value to something that non-PHPCore JS code will understand.
+         * Special PHP classes like Closure and stdClass are unwrapped specially
+         *
+         * @returns {Function|PHPObject|object|*}
+         */
         getNative: function () {
             var result,
                 value = this;
@@ -375,7 +410,7 @@ module.exports = require('pauser')([
                         args.push(value.factory.coerce(arg));
                     });
 
-                    return value.value.apply(thisObj, args);
+                    return value.value.invoke(args, thisObj);
                 };
             }
 
@@ -417,13 +452,7 @@ module.exports = require('pauser')([
          * @returns {Value}
          */
         invokeClosure: function (args) {
-            // Store the current PHP thisObj to set for the closure
-            var value = this,
-                nativeFunction = value.value,
-                thisVariable = nativeFunction.scopeWhenCreated.getVariable('this'),
-                thisObject = thisVariable.isDefined() ? thisVariable.getValue() : null;
-
-            return value.factory.coerce(nativeFunction.apply(thisObject, args));
+            return this.value.invoke(args);
         },
 
         isAnInstanceOf: function (classNameValue, namespaceOrNamespaceScope) {

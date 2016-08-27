@@ -28,12 +28,12 @@ describe('Namespace', function () {
         this.valueFactory = sinon.createStubInstance(ValueFactory);
 
         this.functionFactory.create.restore();
-        sinon.stub(this.functionFactory, 'create', function (namespace, currentClass, currentScope, func, name) {
+        sinon.stub(this.functionFactory, 'create', function (namespace, currentClass, func, name, currentObject) {
             var wrapperFunc = sinon.stub();
             wrapperFunc.testArgs = {
                 namespace: namespace,
                 currentClass: currentClass,
-                currentScope: currentScope,
+                currentObject: currentObject,
                 func: func,
                 name: name
             };
