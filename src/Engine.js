@@ -296,9 +296,6 @@ _.extend(Engine.prototype, {
                     'suffix': levels === 1 ? '' : 's'
                 });
             },
-            throwNoActiveClassScope: function () {
-                throw new PHPFatalError(PHPFatalError.SELF_WHEN_NO_ACTIVE_CLASS);
-            },
             topLevelScope: topLevelScope,
             valueFactory: valueFactory
         };

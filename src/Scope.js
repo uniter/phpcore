@@ -11,13 +11,16 @@
 
 module.exports = require('pauser')([
     require('microdash'),
+    require('phpcommon'),
     require('./Variable')
 ], function (
     _,
+    phpCommon,
     Variable
 ) {
     var hasOwn = {}.hasOwnProperty,
-        IS_STATIC = 'isStatic';
+        IS_STATIC = 'isStatic',
+        PHPFatalError = phpCommon.PHPFatalError;
 
     function Scope(
         callStack,
@@ -130,6 +133,22 @@ module.exports = require('pauser')([
             return scope.valueFactory.createString(
                 scope.currentClass ? scope.currentClass.getName() : ''
             );
+        },
+
+        /**
+         * Fetches the name of the current class scope
+         *
+         * @returns {StringValue}
+         * @throws {PHPFatalError} When there is no current class scope
+         */
+        getClassNameOrThrow: function () {
+            var scope = this;
+
+            if (!scope.currentClass) {
+                throw new PHPFatalError(PHPFatalError.SELF_WHEN_NO_ACTIVE_CLASS);
+            }
+
+            return scope.valueFactory.createString(scope.currentClass.getName());
         },
 
         getCurrentClass: function () {

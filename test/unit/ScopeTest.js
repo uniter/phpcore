@@ -17,6 +17,7 @@ var expect = require('chai').expect,
     ClosureFactory = require('../../src/ClosureFactory').sync(),
     Namespace = require('../../src/Namespace').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
+    PHPFatalError = require('phpcommon').PHPFatalError,
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     Scope = require('../../src/Scope').sync(),
     StringValue = require('../../src/Value/String').sync(),
@@ -187,6 +188,25 @@ describe('Scope', function () {
             this.createScope();
 
             expect(this.scope.getClassName().getNative()).to.equal('');
+        });
+    });
+
+    describe('getClassNameOrThrow()', function () {
+        it('should return the name of the current class when present', function () {
+            this.whenCurrentClass();
+            this.whenCurrentFunction();
+            this.currentClass.getName.returns('My\\Scope\\MyClass');
+            this.createScope();
+
+            expect(this.scope.getClassNameOrThrow().getNative()).to.equal('My\\Scope\\MyClass');
+        });
+
+        it('should throw when there is no current class', function () {
+            this.createScope();
+
+            expect(function () {
+                this.scope.getClassNameOrThrow();
+            }.bind(this)).to.throw(PHPFatalError, 'Cannot access self:: when no class scope is active');
         });
     });
 

@@ -68,7 +68,7 @@ module.exports = require('pauser')([
          * Creates a new closure identical to this one,
          * but bound to the specified `$this` object and class scope
          *
-         * @param {ObjectValue} thisObject
+         * @param {ObjectValue|NullValue} thisObject
          * @param {Class|undefined} scopeClass
          * @returns {closure.enclosingScope}
          */

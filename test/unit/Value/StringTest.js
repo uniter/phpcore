@@ -20,6 +20,7 @@ var _ = require('microdash'),
     FloatValue = require('../../../src/Value/Float').sync(),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyValuePair = require('../../../src/KeyValuePair'),
+    Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
@@ -97,7 +98,9 @@ describe('String', function () {
             }.bind(this));
             return stringValue;
         }.bind(this));
+        this.globalNamespace = sinon.createStubInstance(Namespace);
         this.namespaceScope = sinon.createStubInstance(NamespaceScope);
+        this.namespaceScope.getGlobalNamespace.returns(this.globalNamespace);
 
         this.createKeyValuePair = function (key, value) {
             var keyValuePair = sinon.createStubInstance(KeyValuePair);
@@ -111,6 +114,37 @@ describe('String', function () {
         }.bind(this);
     });
 
+    describe('call()', function () {
+        it('should call the function and return its result', function () {
+            var argValue = sinon.createStubInstance(Value),
+                result,
+                resultValue = sinon.createStubInstance(Value),
+                func = sinon.stub().returns(resultValue);
+            this.globalNamespace.getFunction.withArgs('My\\Space\\my_function').returns(func);
+            this.createValue('My\\Space\\my_function');
+
+            result = this.value.call([argValue], this.namespaceScope);
+
+            expect(result).to.equal(resultValue);
+            expect(func).to.have.been.calledOnce;
+            expect(func).to.have.been.calledOn(null);
+            expect(func).to.have.been.calledWith(sinon.match.same(argValue));
+        });
+    });
+
+    describe('callMethod()', function () {
+        it('should throw, as instance methods cannot exist on non-objects', function () {
+            this.createValue('something');
+
+            expect(function () {
+                this.value.callMethod('aMethod', [], this.namespaceScope);
+            }.bind(this)).to.throw(
+                PHPFatalError,
+                'PHP Fatal error: Call to a member function aMethod() on a non-object'
+            );
+        });
+    });
+
     describe('callStaticMethod()', function () {
         it('should ask the class to call the method and return its result', function () {
             var argValue = sinon.createStubInstance(Value),
@@ -119,7 +153,7 @@ describe('String', function () {
                 result,
                 resultValue = sinon.createStubInstance(Value);
             classObject.callMethod.returns(resultValue);
-            this.namespaceScope.getClass.withArgs('\\My\\Space\\MyClass').returns(classObject);
+            this.globalNamespace.getClass.withArgs('\\My\\Space\\MyClass').returns(classObject);
             this.createValue('\\My\\Space\\MyClass');
 
             result = this.value.callStaticMethod(methodNameValue, [argValue], this.namespaceScope);
@@ -590,6 +624,35 @@ describe('String', function () {
             this.createValue('\\This\\Is\\Also\\My\\Class');
 
             expect(this.value.getCallableName()).to.equal('This\\Is\\Also\\My\\Class');
+        });
+    });
+
+    describe('getConstantByName()', function () {
+        it('should fetch the constant from the class', function () {
+            var classObject = sinon.createStubInstance(Class),
+                resultValue = sinon.createStubInstance(Value);
+            this.globalNamespace.getClass.withArgs('My\\Space\\MyClass').returns(classObject);
+            classObject.getConstantByName.withArgs('MY_CONST').returns(resultValue);
+            this.createValue('My\\Space\\MyClass');
+
+            expect(this.value.getConstantByName('MY_CONST', this.namespaceScope)).to.equal(resultValue);
+        });
+    });
+
+    describe('getStaticPropertyByName()', function () {
+        it('should fetch the property\'s value from the class', function () {
+            var classObject = sinon.createStubInstance(Class),
+                resultValue = sinon.createStubInstance(Value);
+            this.globalNamespace.getClass.withArgs('My\\Space\\MyClass').returns(classObject);
+            classObject.getStaticPropertyByName.withArgs('myProp').returns(resultValue);
+            this.createValue('My\\Space\\MyClass');
+
+            expect(
+                this.value.getStaticPropertyByName(
+                    this.factory.createString('myProp'),
+                    this.namespaceScope
+                )
+            ).to.equal(resultValue);
         });
     });
 

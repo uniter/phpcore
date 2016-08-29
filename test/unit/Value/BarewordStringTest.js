@@ -10,10 +10,12 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     BarewordStringValue = require('../../../src/Value/BarewordString').sync(),
     BooleanValue = require('../../../src/Value/Boolean').sync(),
     CallStack = require('../../../src/CallStack'),
+    Class = require('../../../src/Class').sync(),
     FloatValue = require('../../../src/Value/Float').sync(),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyValuePair = require('../../../src/KeyValuePair'),
@@ -21,7 +23,9 @@ var expect = require('chai').expect,
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
+    PHPFatalError = phpCommon.PHPFatalError,
     StringValue = require('../../../src/Value/String').sync(),
+    Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('BarewordString', function () {
@@ -92,6 +96,7 @@ describe('BarewordString', function () {
             }.bind(this));
             return stringValue;
         }.bind(this));
+        this.namespaceScope = sinon.createStubInstance(NamespaceScope);
 
         this.createKeyValuePair = function (key, value) {
             var keyValuePair = sinon.createStubInstance(KeyValuePair);
@@ -105,11 +110,41 @@ describe('BarewordString', function () {
         }.bind(this);
     });
 
+    describe('call()', function () {
+        it('should call the function and return its result', function () {
+            var argValue = sinon.createStubInstance(Value),
+                result,
+                resultValue = sinon.createStubInstance(Value),
+                func = sinon.stub().returns(resultValue);
+            this.namespaceScope.getFunction.withArgs('This\\SubSpace\\my_function').returns(func);
+            this.createValue('This\\SubSpace\\my_function');
+
+            result = this.value.call([argValue], this.namespaceScope);
+
+            expect(result).to.equal(resultValue);
+            expect(func).to.have.been.calledOnce;
+            expect(func).to.have.been.calledOn(null);
+            expect(func).to.have.been.calledWith(sinon.match.same(argValue));
+        });
+    });
+
+    describe('callMethod()', function () {
+        it('should throw, as instance methods cannot exist on non-objects', function () {
+            this.createValue('something');
+
+            expect(function () {
+                this.value.callMethod('aMethod', [], this.namespaceScope);
+            }.bind(this)).to.throw(
+                PHPFatalError,
+                'PHP Fatal error: Call to a member function aMethod() on a non-object'
+            );
+        });
+    });
+
     describe('getCallableName()', function () {
         beforeEach(function () {
             this.namespace = sinon.createStubInstance(Namespace);
             this.namespace.getPrefix.returns('Full\\Path\\To\\Mine\\');
-            this.namespaceScope = sinon.createStubInstance(NamespaceScope);
             this.namespaceScope.resolveClass.withArgs('Mine\\MyClass').returns({
                 namespace: this.namespace,
                 name: 'MyClass'
@@ -123,6 +158,35 @@ describe('BarewordString', function () {
         });
     });
 
+    describe('getConstantByName()', function () {
+        it('should fetch the constant from the class', function () {
+            var classObject = sinon.createStubInstance(Class),
+                resultValue = sinon.createStubInstance(Value);
+            this.namespaceScope.getClass.withArgs('This\\SubSpace\\MyClass').returns(classObject);
+            classObject.getConstantByName.withArgs('MY_CONST').returns(resultValue);
+            this.createValue('This\\SubSpace\\MyClass');
+
+            expect(this.value.getConstantByName('MY_CONST', this.namespaceScope)).to.equal(resultValue);
+        });
+    });
+
+    describe('getStaticPropertyByName()', function () {
+        it('should fetch the property\'s value from the class', function () {
+            var classObject = sinon.createStubInstance(Class),
+                resultValue = sinon.createStubInstance(Value);
+            this.namespaceScope.getClass.withArgs('This\\SubSpace\\MyClass').returns(classObject);
+            classObject.getStaticPropertyByName.withArgs('myProp').returns(resultValue);
+            this.createValue('This\\SubSpace\\MyClass');
+
+            expect(
+                this.value.getStaticPropertyByName(
+                    this.factory.createString('myProp'),
+                    this.namespaceScope
+                )
+            ).to.equal(resultValue);
+        });
+    });
+
     describe('isNumeric()', function () {
         it('should return false', function () {
             expect(this.value.isNumeric()).to.be.false;
@@ -133,7 +197,6 @@ describe('BarewordString', function () {
         beforeEach(function () {
             this.namespace = sinon.createStubInstance(Namespace);
             this.namespace.getPrefix.returns('Full\\Path\\To\\Mine\\');
-            this.namespaceScope = sinon.createStubInstance(NamespaceScope);
             this.namespaceScope.resolveClass.withArgs('Mine\\MyClass').returns({
                 namespace: this.namespace,
                 name: 'MyClass'

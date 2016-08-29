@@ -43,15 +43,17 @@ module.exports = require('pauser')([
             return namespaceOrNamespaceScope.getGlobalNamespace().getFunction(this.value).apply(null, args);
         },
 
-        callMethod: function (name, args, namespaceScope) {
-            var value = this;
-
-            return value.callStaticMethod(value.factory.coerce(name), args, namespaceScope);
-        },
-
-        callStaticMethod: function (nameValue, args, namespaceScope) {
+        /**
+         * Calls a static method of the class this string refers to
+         *
+         * @param {StringValue} nameValue
+         * @param {Value[]} args
+         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
+         * @returns {Value}
+         */
+        callStaticMethod: function (nameValue, args, namespaceOrNamespaceScope) {
             var value = this,
-                classObject = namespaceScope.getClass(value.value);
+                classObject = namespaceOrNamespaceScope.getGlobalNamespace().getClass(value.value);
 
             return classObject.callMethod(nameValue.getNative(), args);
         },
@@ -158,9 +160,16 @@ module.exports = require('pauser')([
             return this.value.replace(/^\\/, '');
         },
 
-        getConstantByName: function (name, namespaceScope) {
+        /**
+         * Fetches the value of a constant from the class this string refers to
+         *
+         * @param {string} name
+         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
+         * @returns {Value}
+         */
+        getConstantByName: function (name, namespaceOrNamespaceScope) {
             var value = this,
-                classObject = namespaceScope.getClass(value.value);
+                classObject = namespaceOrNamespaceScope.getGlobalNamespace().getClass(value.value);
 
             return classObject.getConstantByName(name);
         },
@@ -185,9 +194,16 @@ module.exports = require('pauser')([
             return this.value.length;
         },
 
-        getStaticPropertyByName: function (nameValue, namespaceScope) {
+        /**
+         * Fetches the value of a static property of the class this string refers to
+         *
+         * @param {StringValue} nameValue
+         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
+         * @returns {Value}
+         */
+        getStaticPropertyByName: function (nameValue, namespaceOrNamespaceScope) {
             var value = this,
-                classObject = namespaceScope.getClass(value.value);
+                classObject = namespaceOrNamespaceScope.getGlobalNamespace().getClass(value.value);
 
             return classObject.getStaticPropertyByName(nameValue.getNative());
         },
