@@ -129,14 +129,38 @@ module.exports = require('pauser')([
             throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
         },
 
+        /**
+         * Calls a static or instance method, referenced by the first two elements of this array
+         *
+         * @param {Value[]} args
+         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
+         * @returns {Value}
+         */
         call: function (args, namespaceOrNamespaceScope) {
-            var value = this.value;
+            var methodNameValue,
+                objectOrClassValue,
+                value = this.value;
 
             if (value.length < 2) {
                 throw new PHPFatalError(PHPFatalError.FUNCTION_NAME_MUST_BE_STRING);
             }
 
-            return value[0].getValue().callMethod(value[1].getValue().getNative(), args, namespaceOrNamespaceScope);
+            objectOrClassValue = value[0].getValue();
+            methodNameValue = value[1].getValue();
+
+            if (objectOrClassValue.getType() === 'string') {
+                return objectOrClassValue.callStaticMethod(
+                    methodNameValue,
+                    args,
+                    namespaceOrNamespaceScope
+                );
+            }
+
+            return objectOrClassValue.callMethod(
+                methodNameValue.getNative(),
+                args,
+                namespaceOrNamespaceScope
+            );
         },
 
         clone: function () {

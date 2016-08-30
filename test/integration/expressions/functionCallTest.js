@@ -98,4 +98,39 @@ EOS
             module().execute();
         }.bind(this)).to.throw(PHPFatalError, 'PHP Fatal error: Only variables can be passed by reference');
     });
+
+    it('should support calling static and instance methods with arrays', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+class MyClass
+{
+    public static function myStaticMethod($start)
+    {
+        return $start + 4;
+    }
+
+    public function myInstanceMethod($start)
+    {
+        return $start * 2;
+    }
+}
+
+$object = new MyClass;
+$staticCallable = ['MyClass', 'myStaticMethod'];
+$instanceCallable = [$object, 'myInstanceMethod'];
+
+$result = [];
+$result[] = $staticCallable(10);
+$result[] = $instanceCallable(20);
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.deep.equal([
+            14, // 10 + 4
+            40  // 20 * 2
+        ]);
+    });
 });

@@ -20,6 +20,8 @@ var expect = require('chai').expect,
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyReferencePair = require('../../../src/KeyReferencePair'),
     KeyValuePair = require('../../../src/KeyValuePair'),
+    Namespace = require('../../../src/Namespace').sync(),
+    NamespaceScope = require('../../../src/NamespaceScope').sync(),
     NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPFatalError = phpCommon.PHPFatalError,
@@ -33,12 +35,22 @@ describe('Array', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.factory = sinon.createStubInstance(ValueFactory);
+        this.factory.coerce.restore();
+        sinon.stub(this.factory, 'coerce', function (value) {
+            if (value instanceof Value) {
+                return value;
+            }
+
+            throw new Error('Unimplemented');
+        });
         this.factory.createBoolean.restore();
         sinon.stub(this.factory, 'createBoolean', function (nativeValue) {
             var booleanValue = sinon.createStubInstance(BooleanValue);
             booleanValue.coerceToKey.returns(booleanValue);
             booleanValue.getForAssignment.returns(booleanValue);
             booleanValue.getNative.returns(nativeValue);
+            booleanValue.getType.returns('boolean');
+            booleanValue.getValue.returns(booleanValue);
             return booleanValue;
         }.bind(this));
         this.factory.createFloat.restore();
@@ -47,6 +59,8 @@ describe('Array', function () {
             floatValue.coerceToKey.returns(floatValue);
             floatValue.getForAssignment.returns(floatValue);
             floatValue.getNative.returns(nativeValue);
+            floatValue.getType.returns('float');
+            floatValue.getValue.returns(floatValue);
             return floatValue;
         }.bind(this));
         this.factory.createInteger.restore();
@@ -55,6 +69,8 @@ describe('Array', function () {
             integerValue.coerceToKey.returns(integerValue);
             integerValue.getForAssignment.returns(integerValue);
             integerValue.getNative.returns(nativeValue);
+            integerValue.getType.returns('integer');
+            integerValue.getValue.returns(integerValue);
             return integerValue;
         }.bind(this));
         this.factory.createNull.restore();
@@ -63,6 +79,8 @@ describe('Array', function () {
             nullValue.coerceToKey.returns(nullValue);
             nullValue.getForAssignment.returns(nullValue);
             nullValue.getNative.returns(null);
+            nullValue.getType.returns('null');
+            nullValue.getValue.returns(nullValue);
             return nullValue;
         }.bind(this));
         this.factory.createObject.restore();
@@ -71,6 +89,8 @@ describe('Array', function () {
             objectValue.coerceToKey.returns(objectValue);
             objectValue.getForAssignment.returns(objectValue);
             objectValue.getNative.returns(nativeValue);
+            objectValue.getType.returns('object');
+            objectValue.getValue.returns(objectValue);
             return objectValue;
         }.bind(this));
         this.factory.createString.restore();
@@ -79,12 +99,17 @@ describe('Array', function () {
             stringValue.coerceToKey.returns(stringValue);
             stringValue.getForAssignment.returns(stringValue);
             stringValue.getNative.returns(nativeValue);
+            stringValue.getType.returns('string');
+            stringValue.getValue.returns(stringValue);
             stringValue.isEqualTo.restore();
             sinon.stub(stringValue, 'isEqualTo', function (otherValue) {
                 return this.factory.createBoolean(otherValue.getNative() === nativeValue);
             }.bind(this));
             return stringValue;
         }.bind(this));
+        this.namespaceScope = sinon.createStubInstance(NamespaceScope);
+        this.globalNamespace = sinon.createStubInstance(Namespace);
+        this.namespaceScope.getGlobalNamespace.returns(this.globalNamespace);
 
         this.createKeyValuePair = function (key, value) {
             var keyValuePair = sinon.createStubInstance(KeyValuePair);
@@ -107,11 +132,15 @@ describe('Array', function () {
             this.factory.createString('secondEl'),
             this.factory.createString('value of second el')
         );
-
-        this.value = new ArrayValue(this.factory, this.callStack, [
+        this.elements = [
             this.element1,
             this.element2
-        ]);
+        ];
+
+        this.createValue = function () {
+            this.value = new ArrayValue(this.factory, this.callStack, this.elements);
+        }.bind(this);
+        this.createValue();
     });
 
     describe('addToArray() - adding an array to another array', function () {
@@ -205,6 +234,130 @@ describe('Array', function () {
             expect(function () {
                 this.value.addToString(stringValue);
             }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('call()', function () {
+        it('should throw when array is empty', function () {
+            this.elements.length = 0;
+            this.createValue();
+
+            expect(function () {
+                this.value.call([], this.namespaceScope);
+            }.bind(this)).to.throw(PHPFatalError, 'Function name must be a string');
+        });
+
+        it('should throw when array has only one element', function () {
+            this.elements.length = 0;
+            this.elements.push(this.factory.createInteger(21));
+            this.createValue();
+
+            expect(function () {
+                this.value.call([], this.namespaceScope);
+            }.bind(this)).to.throw(PHPFatalError, 'Function name must be a string');
+        });
+
+        describe('for a static method call', function () {
+            beforeEach(function () {
+                this.classNameValue = this.factory.createString('My\\Space\\MyClass');
+                this.elements.length = 0;
+                this.elements.push(this.classNameValue);
+                this.elements.push(this.factory.createString('myStaticMethod'));
+                this.createValue();
+            });
+
+            it('should ask the StringValue to call the method once', function () {
+                this.value.call([], this.namespaceScope);
+
+                expect(this.classNameValue.callStaticMethod).to.have.been.calledOnce;
+                expect(this.classNameValue.callStaticMethod.args[0][0]).to.be.an.instanceOf(StringValue);
+                expect(this.classNameValue.callStaticMethod.args[0][0].getNative()).to.equal('myStaticMethod');
+            });
+
+            it('should pass the args along', function () {
+                this.value.call(
+                    [
+                        this.factory.createString('first arg'),
+                        this.factory.createString('second arg')
+                    ],
+                    this.namespaceScope
+                );
+
+                expect(this.classNameValue.callStaticMethod).to.have.been.calledOnce;
+                expect(this.classNameValue.callStaticMethod.args[0][1]).to.have.length(2);
+                expect(this.classNameValue.callStaticMethod.args[0][1][0]).to.be.an.instanceOf(StringValue);
+                expect(this.classNameValue.callStaticMethod.args[0][1][0].getNative()).to.equal('first arg');
+                expect(this.classNameValue.callStaticMethod.args[0][1][1]).to.be.an.instanceOf(StringValue);
+                expect(this.classNameValue.callStaticMethod.args[0][1][1].getNative()).to.equal('second arg');
+            });
+
+            it('should pass the NamespaceScope along', function () {
+                this.value.call(
+                    [
+                        this.factory.createString('first arg'),
+                        this.factory.createString('second arg')
+                    ],
+                    this.namespaceScope
+                );
+
+                expect(this.classNameValue.callStaticMethod).to.have.been.calledOnce;
+                expect(this.classNameValue.callStaticMethod).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.same(this.namespaceScope)
+                );
+            });
+        });
+
+        describe('for an instance method call', function () {
+            beforeEach(function () {
+                this.objectValue = this.factory.createObject({});
+                this.elements.length = 0;
+                this.elements.push(this.objectValue);
+                this.elements.push(this.factory.createString('myInstanceMethod'));
+                this.createValue();
+            });
+
+            it('should ask the StringValue to call the method once', function () {
+                this.value.call([], this.namespaceScope);
+
+                expect(this.objectValue.callMethod).to.have.been.calledOnce;
+                expect(this.objectValue.callMethod.args[0][0]).to.equal('myInstanceMethod');
+            });
+
+            it('should pass the args along', function () {
+                this.value.call(
+                    [
+                        this.factory.createString('first arg'),
+                        this.factory.createString('second arg')
+                    ],
+                    this.namespaceScope
+                );
+
+                expect(this.objectValue.callMethod).to.have.been.calledOnce;
+                expect(this.objectValue.callMethod.args[0][1]).to.have.length(2);
+                expect(this.objectValue.callMethod.args[0][1][0]).to.be.an.instanceOf(StringValue);
+                expect(this.objectValue.callMethod.args[0][1][0].getNative()).to.equal('first arg');
+                expect(this.objectValue.callMethod.args[0][1][1]).to.be.an.instanceOf(StringValue);
+                expect(this.objectValue.callMethod.args[0][1][1].getNative()).to.equal('second arg');
+            });
+
+            it('should pass the NamespaceScope along', function () {
+                this.value.call(
+                    [
+                        this.factory.createString('first arg'),
+                        this.factory.createString('second arg')
+                    ],
+                    this.namespaceScope
+                );
+
+                expect(this.objectValue.callMethod).to.have.been.calledOnce;
+                expect(this.objectValue.callMethod).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.same(this.namespaceScope)
+                );
+            });
         });
     });
 
