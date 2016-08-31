@@ -16,6 +16,7 @@ var expect = require('chai').expect,
     ClosureFactory = require('../../src/ClosureFactory').sync(),
     FunctionFactory = require('../../src/FunctionFactory'),
     Namespace = require('../../src/Namespace').sync(),
+    NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     Scope = require('../../src/Scope').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
@@ -25,6 +26,13 @@ describe('ClosureFactory', function () {
         this.Closure = sinon.stub();
         this.functionFactory = sinon.createStubInstance(FunctionFactory);
         this.valueFactory = sinon.createStubInstance(ValueFactory);
+
+        this.valueFactory.createNull.restore();
+        sinon.stub(this.valueFactory, 'createNull', function () {
+            var nullValue = sinon.createStubInstance(NullValue);
+            nullValue.getType.returns('null');
+            return nullValue;
+        });
 
         this.factory = new ClosureFactory(this.functionFactory, this.valueFactory, this.Closure);
     });
@@ -95,6 +103,22 @@ describe('ClosureFactory', function () {
                 this.namespace,
                 null,
                 null
+            );
+
+            expect(this.functionFactory.create).to.have.been.calledOnce;
+            expect(this.functionFactory.create).to.have.been.calledWith(
+                sinon.match.any,
+                null
+            );
+        });
+
+        it('should pass null as scope Class to the FunctionFactory when NullValue provided and no `$this`', function () {
+            this.factory.create(
+                this.enclosingScope,
+                this.unwrappedFunction,
+                this.namespace,
+                null,
+                this.valueFactory.createNull()
             );
 
             expect(this.functionFactory.create).to.have.been.calledOnce;

@@ -47,7 +47,7 @@ module.exports = require('pauser')([
          * @param {Function} unwrappedFunction
          * @param {Namespace} namespace
          * @param {Class|undefined} scopeClass
-         * @param {ObjectValue|null} thisObject Null for a static closure, the object to use otherwise
+         * @param {ObjectValue|NullValue|null} thisObject Null for a static closure, the object to use otherwise
          * @returns {Closure}
          */
         create: function (enclosingScope, unwrappedFunction, namespace, scopeClass, thisObject) {
@@ -56,7 +56,9 @@ module.exports = require('pauser')([
 
             // If a bound object is specified but no class scope, use the class of the object
             if (!scopeClass) {
-                scopeClass = thisObject ? thisObject.getClass() : null;
+                scopeClass = thisObject && thisObject.getType() !== 'null' ?
+                    thisObject.getClass() :
+                    null;
             }
 
             wrappedFunction = factory.functionFactory.create(

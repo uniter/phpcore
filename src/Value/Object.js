@@ -116,7 +116,7 @@ module.exports = require('pauser')([
          * When this object is a Closure instance, returns a new Closure
          * with the specified bound `$this` object and a new current class scope
          *
-         * @param {ObjectValue} thisValue
+         * @param {ObjectValue|NullValue} thisValue
          * @param {Class|undefined} scopeClass
          * @returns {Closure}
          */
