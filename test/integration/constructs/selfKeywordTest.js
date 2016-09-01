@@ -135,4 +135,41 @@ EOS
             107
         ]);
     });
+
+    it('should support class constants that refer to others via self::', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace My\Space
+{
+    class MyClass
+    {
+        const FIRST_CONST = 21;
+        const SECOND_CONST = self::FIRST_CONST;
+    }
+
+    // Define a derived class to ensure that self:: still refers to the parent class above
+    class MyDerivedClass extends MyClass
+    {
+        const FIRST_CONST = 1001; // Should be ignored by the self:: references above
+    }
+}
+
+namespace
+{
+    $object = new My\Space\MyDerivedClass;
+
+    $result = [];
+    $result[] = My\Space\MyDerivedClass::SECOND_CONST;
+    return $result;
+}
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            21
+        ]);
+    });
 });
