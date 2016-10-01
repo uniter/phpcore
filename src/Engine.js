@@ -15,6 +15,7 @@ var _ = require('microdash'),
     hasOwn = {}.hasOwnProperty,
     pauser = require('pauser'),
     Call = require('./Call'),
+    DebugVariable = require('./Debug/DebugVariable'),
     ExitValueWrapper = require('./Value/Exit'),
     KeyValuePair = require('./KeyValuePair'),
     List = require('./List'),
@@ -229,6 +230,9 @@ _.extend(Engine.prototype, {
                     scope.createClosure(func),
                     globalNamespace.getClass('Closure')
                 );
+            },
+            createDebugVar: function (scope, variableName) {
+                return new DebugVariable(scope, variableName);
             },
             createInstance: unwrap(pauser([_], function (_) {
                 return function (namespaceScope, classNameValue, args) {
