@@ -30,6 +30,18 @@ module.exports = require('pauser')([
     }
 
     _.extend(Variable.prototype, {
+        /**
+         * Coerces this value and the specified one to strings,
+         * concatenates them together and then assigns the result back to this variable
+         *
+         * @param {Value} rightValue
+         */
+        concatWith: function (rightValue) {
+            var variable = this;
+
+            variable.setValue(variable.getValue().concat(rightValue));
+        },
+
         decrementBy: function (rightValue) {
             var variable = this;
 
