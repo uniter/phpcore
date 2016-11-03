@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
     FloatValue = require('../../src/Value/Float').sync(),
+    IntegerValue = require('../../src/Value/Integer').sync(),
     NullReference = require('../../src/Reference/Null'),
     ObjectValue = require('../../src/Value/Object').sync(),
     PropertyReference = require('../../src/Reference/Property'),
@@ -32,6 +33,14 @@ describe('Value', function () {
             floatValue.getNative.returns(nativeValue);
             return floatValue;
         });
+        this.factory.createInteger.restore();
+        sinon.stub(this.factory, 'createInteger', function (nativeValue) {
+            var integerValue = sinon.createStubInstance(IntegerValue);
+            integerValue.coerceToKey.returns(integerValue);
+            integerValue.getForAssignment.returns(integerValue);
+            integerValue.getNative.returns(nativeValue);
+            return integerValue;
+        });
         this.factory.createString.restore();
         sinon.stub(this.factory, 'createString', function (nativeValue) {
             var stringValue = sinon.createStubInstance(StringValue);
@@ -40,6 +49,44 @@ describe('Value', function () {
         });
 
         this.value = new Value(this.factory, this.callStack, 'my-type', 'my value');
+    });
+
+    describe('bitwiseAnd()', function () {
+        it('should return the correct result for 0b10101101 & 0b00001111', function () {
+            var left = parseInt('10101101', 2),
+                right = parseInt('00001011', 2),
+                expectedResult = parseInt('00001001', 2),
+                leftValue = new Value(this.factory, this.callStack, 'first-type', left),
+                rightValue = new Value(this.factory, this.callStack, 'second-type', right),
+                result = leftValue.bitwiseAnd(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+    });
+
+    describe('bitwiseOr()', function () {
+        it('should return the correct result for 0b10101001 | 0b11110000', function () {
+            var left = parseInt('10101001', 2),
+                right = parseInt('11110000', 2),
+                expectedResult = parseInt('11111001', 2),
+                leftValue = new Value(this.factory, this.callStack, 'first-type', left),
+                rightValue = new Value(this.factory, this.callStack, 'second-type', right),
+                result = leftValue.bitwiseOr(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+    });
+
+    describe('coerceToInteger()', function () {
+        it('should coerce the value to an integer', function () {
+            var value = new Value(this.factory, this.callStack, 'my-type', '127.632'),
+                result = value.coerceToInteger();
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(127); // Value should be coerced to an integer
+        });
     });
 
     describe('coerceToNumber()', function () {

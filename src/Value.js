@@ -60,6 +60,40 @@ module.exports = require('pauser')([
             return stringValue.coerceToNumber().add(this.coerceToNumber());
         },
 
+        /**
+         * Calculates the bitwise-AND of this and a right-operand
+         *
+         * @param {Value} rightValue
+         * @returns {IntegerValue}
+         */
+        bitwiseAnd: function (rightValue) {
+            var value = this;
+
+            /*jshint bitwise:false */
+            return value.factory.createInteger(
+                (
+                    value.coerceToInteger().getNative() & rightValue.coerceToInteger().getNative()
+                ) >>> 0 // Force unsigned native JS number
+            );
+        },
+
+        /**
+         * Calculates the bitwise-OR of this and a right-operand
+         *
+         * @param {Value} rightValue
+         * @returns {IntegerValue}
+         */
+        bitwiseOr: function (rightValue) {
+            var value = this;
+
+            /*jshint bitwise:false */
+            return value.factory.createInteger(
+                (
+                    value.coerceToInteger().getNative() | rightValue.coerceToInteger().getNative()
+                ) >>> 0 // Force unsigned native JS number
+            );
+        },
+
         callMethod: function (name) {
             throw new PHPFatalError(PHPFatalError.NON_OBJECT_METHOD_CALL, {
                 name: name
@@ -70,18 +104,46 @@ module.exports = require('pauser')([
             throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
         },
 
+        /**
+         * Coerces this value to an array. For all Value types except ArrayValue,
+         * the result will be wrapped in an array using this default implementation
+         *
+         * @returns {FloatValue}
+         */
         coerceToArray: function () {
             var value = this;
 
             return value.factory.createArray([value]);
         },
 
+        /**
+         * Coerces this value to a number as a FloatValue
+         *
+         * @returns {FloatValue}
+         */
         coerceToFloat: function () {
             var value = this;
 
             return value.factory.createFloat(Number(value.value));
         },
 
+        /**
+         * Coerces this value to an IntegerValue
+         *
+         * @returns {IntegerValue}
+         */
+        coerceToInteger: function () {
+            var value = this;
+
+            /*jshint bitwise:false */
+            return value.factory.createInteger(Number(value.value) >>> 0);
+        },
+
+        /**
+         * Coerces this value to a number as a FloatValue
+         *
+         * @returns {FloatValue}
+         */
         coerceToNumber: function () {
             return this.coerceToFloat();
         },
