@@ -22,7 +22,12 @@ module.exports = require('pauser')([
         MAGIC_CONSTRUCT = '__construct',
         hasOwn = {}.hasOwnProperty,
         PHPError = phpCommon.PHPError,
-        PHPFatalError = phpCommon.PHPFatalError;
+        PHPFatalError = phpCommon.PHPFatalError,
+        unwrapArgs = function (args) {
+            return _.map(args, function (arg) {
+                return arg.getNative();
+            });
+        };
 
     function Namespace(callStack, valueFactory, namespaceFactory, functionFactory, classAutoloader, parent, name) {
         this.callStack = callStack;
@@ -53,30 +58,57 @@ module.exports = require('pauser')([
             if (_.isFunction(definition)) {
                 // Create a new, empty native constructor so that we can avoid calling
                 // the original if the derived class does not call parent::__construct(...)
-                InternalClass = function () {};
+                // - Unless the class defines the special `shadowConstructor` property, which
+                //   is always called regardless of whether the parent constructor is called explicitly
+                InternalClass = function () {
+                    var objectValue = this;
+
+                    if (definition.shadowConstructor) {
+                        definition.shadowConstructor.call(
+                            // Use the native object as the `this` object inside the shadow constructor
+                            // if auto-coercion is enabled, otherwise use the ObjectValue
+                            classObject.isAutoCoercionEnabled() ? objectValue.getObject() : objectValue
+                        );
+                    }
+                };
                 InternalClass.prototype = Object.create(definition.prototype);
                 proxyConstructor = function () {
+                    var args = arguments,
+                        objectValue = this,
+                        unwrappedArgs = classObject.isAutoCoercionEnabled() ? unwrapArgs(args) : args,
+                        // Use the native object as the `this` object inside the (shadow) constructor
+                        // if auto-coercion is enabled, otherwise use the ObjectValue
+                        unwrappedThisObject = classObject.isAutoCoercionEnabled() ?
+                            objectValue.getObject() :
+                            objectValue;
+
                     // Call the original native constructor
-                    definition.apply(this, arguments);
+                    definition.apply(unwrappedThisObject, unwrappedArgs);
 
                     // Call magic __construct method if defined for the original native class
                     if (definition.prototype[MAGIC_CONSTRUCT]) {
-                        definition.prototype[MAGIC_CONSTRUCT].apply(this, arguments);
+                        definition.prototype[MAGIC_CONSTRUCT].apply(unwrappedThisObject, unwrappedArgs);
                     }
                 };
+                proxyConstructor.neverCoerce = true;
                 proxyConstructor.data = methodData;
                 InternalClass.prototype[MAGIC_CONSTRUCT] = proxyConstructor;
                 constructorName = MAGIC_CONSTRUCT;
             } else {
+                // Class has a definition, so it was defined using PHP
                 InternalClass = function () {
-                    var instance = this;
+                    var objectValue = this,
+                        nativeObject = objectValue.getObject();
 
                     if (definition.superClass) {
-                        definition.superClass.getInternalClass().call(this);
+                        // Class has a parent, call the parent's internal constructor
+                        definition.superClass.getInternalClass().call(objectValue);
                     }
 
+                    // Go through and define the properties and their default values
+                    // on the object from the class definition
                     _.each(definition.properties, function (value, name) {
-                        instance[name] = value;
+                        nativeObject[name] = value;
                     });
                 };
 
@@ -123,7 +155,7 @@ module.exports = require('pauser')([
 
             _.forOwn(methods, function (data, methodName) {
                 var method = namespace.functionFactory.create(
-                        namespace,
+                        namespaceScope,
                         classObject,
                         data.method,
                         methodName
@@ -166,7 +198,7 @@ module.exports = require('pauser')([
             };
         },
 
-        defineFunction: function (name, func) {
+        defineFunction: function (name, func, namespaceScope) {
             var namespace = this;
 
             if (namespace.name === '') {
@@ -176,7 +208,7 @@ module.exports = require('pauser')([
             }
 
             namespace.functions[name.toLowerCase()] = namespace.functionFactory.create(
-                namespace,
+                namespaceScope,
                 // Class will always be null for 'normal' functions
                 // as defining a function inside a class will define it
                 // inside the current namespace instead.

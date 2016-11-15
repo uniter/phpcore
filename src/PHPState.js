@@ -22,13 +22,17 @@ module.exports = require('pauser')([
     require('./ClosureFactory'),
     require('./FunctionFactory'),
     require('./INIState'),
+    require('./Module'),
+    require('./ModuleFactory'),
     require('./Namespace'),
     require('./NamespaceFactory'),
+    require('./NamespaceScope'),
     require('./Reference/Null'),
     require('./ReferenceFactory'),
     require('./Scope'),
     require('./ScopeFactory'),
     require('./SuperGlobalScope'),
+    require('./Value'),
     require('./ValueFactory'),
     require('./Reference/Variable')
 ], function (
@@ -44,75 +48,38 @@ module.exports = require('pauser')([
     ClosureFactory,
     FunctionFactory,
     INIState,
+    Module,
+    ModuleFactory,
     Namespace,
     NamespaceFactory,
+    NamespaceScope,
     NullReference,
     ReferenceFactory,
     Scope,
     ScopeFactory,
     SuperGlobalScope,
+    Value,
     ValueFactory,
     VariableReference
 ) {
     var EXCEPTION_CLASS = 'Exception',
         setUpState = function (state, installedBuiltinTypes) {
-            var globalNamespace = state.globalNamespace,
-                internals = {
-                    callStack: state.callStack,
-                    classAutoloader: state.classAutoloader,
-                    globalNamespace: globalNamespace,
-                    iniState: state.iniState,
-                    optionSet: state.optionSet,
-                    pausable: state.pausable,
-                    stdout: state.stdout,
-                    valueFactory: state.valueFactory
-                };
+            var globalNamespace = state.globalNamespace;
 
             function installFunctionGroup(groupFactory) {
-                var groupBuiltins = groupFactory(internals);
+                var groupBuiltins = groupFactory(state.internals);
 
                 _.each(groupBuiltins, function (fn, name) {
                     globalNamespace.defineFunction(name, fn);
                 });
             }
 
-            function installClass(classFactory, name) {
-                var definedUnwrapper = null,
-                    enableAutoCoercion = true,
-                    Class = classFactory(_.extend({}, internals, {
-                        defineUnwrapper: function (unwrapper) {
-                            definedUnwrapper = unwrapper;
-                        },
-                        disableAutoCoercion: function () {
-                            enableAutoCoercion = false;
-                        }
-                    })),
-                    classObject,
-                    namespace = globalNamespace,
-                    parsed = globalNamespace.parseClassName(name);
-
-                if (name === EXCEPTION_CLASS) {
-                    state.PHPException = Class;
-                }
-
-                if (parsed) {
-                    namespace = parsed.namespace;
-                    name = parsed.name;
-                }
-
-                classObject = namespace.defineClass(name, Class);
-
-                if (definedUnwrapper) {
-                    classObject.defineUnwrapper(definedUnwrapper);
-                }
-
-                if (enableAutoCoercion) {
-                    classObject.enableAutoCoercion();
-                }
+            function installClass(definitionFactory, name) {
+                state.defineClass(name, definitionFactory);
             }
 
             function installConstantGroup(groupFactory) {
-                var groupBuiltins = groupFactory(internals);
+                var groupBuiltins = groupFactory(state.internals);
 
                 _.each(groupBuiltins, function (value, name) {
                     globalNamespace.defineConstant(name, state.valueFactory.coerce(value));
@@ -133,6 +100,7 @@ module.exports = require('pauser')([
     function PHPState(installedBuiltinTypes, stdin, stdout, stderr, pausable, optionSet) {
         var callStack = new CallStack(stderr),
             callFactory = new CallFactory(Call),
+            moduleFactory = new ModuleFactory(Module),
             valueFactory = new ValueFactory(pausable, callStack),
             referenceFactory = new ReferenceFactory(
                 AccessorReference,
@@ -153,11 +121,15 @@ module.exports = require('pauser')([
                 classAutoloader
             ),
             globalNamespace = namespaceFactory.create(),
+            // The global/default module (not eg. the same as the command line module)
+            globalModule = moduleFactory.create(null),
+            // "Invisible" global namespace scope, not defined by any code
+            globalNamespaceScope = new NamespaceScope(globalNamespace, valueFactory, globalModule, globalNamespace),
             globalScope,
             globalsSuperGlobal = superGlobalScope.defineVariable('GLOBALS');
 
         scopeFactory.setClosureFactory(closureFactory);
-        globalScope = scopeFactory.create(globalNamespace);
+        globalScope = scopeFactory.create(globalNamespaceScope);
         scopeFactory.setGlobalScope(globalScope);
         classAutoloader.setGlobalNamespace(globalNamespace);
         valueFactory.setGlobalNamespace(globalNamespace);
@@ -184,10 +156,23 @@ module.exports = require('pauser')([
             )
         );
 
+        this.callFactory = callFactory;
         this.callStack = callStack;
         this.globalNamespace = globalNamespace;
+        this.globalNamespaceScope = globalNamespaceScope;
         this.globalScope = globalScope;
         this.iniState = new INIState();
+        this.internals = {
+            callStack: callStack,
+            classAutoloader: classAutoloader,
+            globalNamespace: globalNamespace,
+            iniState: this.iniState,
+            optionSet: optionSet,
+            pausable: pausable,
+            stdout: stdout,
+            valueFactory: valueFactory
+        };
+        this.moduleFactory = moduleFactory;
         this.optionSet = optionSet;
         this.referenceFactory = referenceFactory;
         this.callStack = callStack;
@@ -204,6 +189,56 @@ module.exports = require('pauser')([
     }
 
     _.extend(PHPState.prototype, {
+        /**
+         * Defines a new class (in any namespace)
+         *
+         * @param {string} name FQCN of the class to define
+         * @param {function} definitionFactory Called with `internals` object, returns the class definition
+         * @returns {Class} Returns the instance of Class that represents a PHP class
+         */
+        defineClass: function (name, definitionFactory) {
+            var state = this,
+                definedUnwrapper = null,
+                enableAutoCoercion = true,
+                Class = definitionFactory(_.extend({}, state.internals, {
+                    defineUnwrapper: function (unwrapper) {
+                        definedUnwrapper = unwrapper;
+                    },
+                    disableAutoCoercion: function () {
+                        enableAutoCoercion = false;
+                    }
+                })),
+                classObject,
+                namespace = state.globalNamespace,
+                parsed = state.globalNamespace.parseClassName(name);
+
+            if (name === EXCEPTION_CLASS) {
+                if (state.PHPException) {
+                    throw new Error('PHPState.defineClass(...) :: Exception class is already defined');
+                }
+
+                state.PHPException = Class;
+            }
+
+            if (parsed) {
+                namespace = parsed.namespace;
+                name = parsed.name;
+            }
+
+            classObject = namespace.defineClass(name, Class, state.globalNamespaceScope);
+
+            if (definedUnwrapper) {
+                // Custom unwrappers may be used to eg. unwrap a PHP \DateTime object to a JS Date object
+                classObject.defineUnwrapper(definedUnwrapper);
+            }
+
+            if (enableAutoCoercion) {
+                classObject.enableAutoCoercion();
+            }
+
+            return classObject;
+        },
+
         defineSuperGlobal: function (name, value) {
             this.superGlobalScope.defineVariable(name).setValue(value);
         },
@@ -213,6 +248,10 @@ module.exports = require('pauser')([
                 accessorReference = new AccessorReference(state.valueFactory, valueGetter, valueSetter);
 
             state.superGlobalScope.defineVariable(name).setReference(accessorReference);
+        },
+
+        getCallFactory: function () {
+            return this.callFactory;
         },
 
         getCallStack: function () {
@@ -237,6 +276,10 @@ module.exports = require('pauser')([
 
         getGlobalScope: function () {
             return this.globalScope;
+        },
+
+        getModuleFactory: function () {
+            return this.moduleFactory;
         },
 
         getOptions: function () {

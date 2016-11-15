@@ -352,6 +352,14 @@ describe('Null', function () {
         });
     });
 
+    describe('formatAsString()', function () {
+        it('should just return "NULL"', function () {
+            this.createValue();
+
+            expect(this.value.formatAsString()).to.equal('NULL');
+        });
+    });
+
     describe('isAnInstanceOf()', function () {
         it('should hand off to the right-hand operand to determine the result', function () {
             var rightOperand = sinon.createStubInstance(Value),

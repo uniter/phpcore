@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     ClosureFactory = require('../../src/ClosureFactory').sync(),
-    Namespace = require('../../src/Namespace').sync(),
+    NamespaceScope = require('../../src/NamespaceScope').sync(),
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
     SuperGlobalScope = require('../../src/SuperGlobalScope').sync(),
@@ -47,11 +47,11 @@ describe('ScopeFactory', function () {
             this.name = 'MyNamespace';
             this.currentClass = sinon.createStubInstance(Class);
             this.currentFunction = sinon.stub();
-            this.namespace = sinon.createStubInstance(Namespace);
+            this.namespaceScope = sinon.createStubInstance(NamespaceScope);
             this.thisObject = sinon.createStubInstance(Value);
             this.callCreate = function () {
                 return this.factory.create(
-                    this.namespace,
+                    this.namespaceScope,
                     this.currentClass,
                     this.currentFunction,
                     this.thisObject
@@ -130,7 +130,7 @@ describe('ScopeFactory', function () {
             );
         });
 
-        it('should pass the namespace to the scope when specified', function () {
+        it('should pass the NamespaceScope to the scope when specified', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
@@ -140,12 +140,12 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.namespace)
+                sinon.match.same(this.namespaceScope)
             );
         });
 
-        it('should pass null as the namespace to the scope when not specified', function () {
-            this.namespace = false;
+        it('should pass null as the NamespaceScope to the scope when not specified', function () {
+            this.namespaceScope = false;
 
             this.callCreate();
 

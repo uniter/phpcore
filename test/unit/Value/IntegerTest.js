@@ -532,6 +532,14 @@ describe('Integer', function () {
         });
     });
 
+    describe('formatAsString()', function () {
+        it('should return the value coerced to a string', function () {
+            this.createValue(128);
+
+            expect(this.value.formatAsString()).to.equal('128');
+        });
+    });
+
     describe('isAnInstanceOf()', function () {
         it('should hand off to the right-hand operand to determine the result', function () {
             var rightOperand = sinon.createStubInstance(Value),

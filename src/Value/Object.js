@@ -68,6 +68,7 @@ module.exports = require('pauser')([
 
         this.classObject = classObject;
         this.id = id;
+        this.internalProperties = {};
         this.pointer = 0;
         this.properties = {};
     }
@@ -247,6 +248,10 @@ module.exports = require('pauser')([
             return this.divideByNonArray(leftValue);
         },
 
+        formatAsString: function () {
+            return 'Object(' + this.getClassName() + ')';
+        },
+
         getCallableName: function () {
             var value = this;
 
@@ -374,6 +379,26 @@ module.exports = require('pauser')([
             });
 
             return names;
+        },
+
+        /**
+         * Sets the value of an internal property for this object. Internal properties
+         * have nothing to do with the native object they wrap, so this mechanism
+         * is useful for native classes to store data without PHP code having access to it
+         *
+         * @param {string} name
+         * @returns {*}
+         */
+        getInternalProperty: function (name) {
+            var value = this;
+
+            if (!hasOwn.call(value.internalProperties, name)) {
+                throw new Error(
+                    'Object of class "' + value.getClassName() + '" has no internal property "' + name + '"'
+                );
+            }
+
+            return value.internalProperties[name];
         },
 
         getKeyByIndex: function (index) {
@@ -591,6 +616,18 @@ module.exports = require('pauser')([
             value.pointer = 0;
 
             return value;
+        },
+
+        /**
+         * Sets the value of an internal property for this object. Internal properties
+         * have nothing to do with the native object they wrap, so this mechanism
+         * is useful for native classes to store data without PHP code having access to it
+         *
+         * @param {string} name
+         * @param {*} newValue
+         */
+        setInternalProperty: function (name, newValue) {
+            this.internalProperties[name] = newValue;
         },
 
         setPointer: function (pointer) {

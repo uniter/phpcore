@@ -42,17 +42,18 @@ _.extend(FunctionFactory.prototype, {
     /**
      * Wraps the specified function in another that handles the PHP call stack and scoping
      *
-     * @param {Namespace} namespace
+     * @param {NamespaceScope|null} namespaceScope
      * @param {Class|null} currentClass
      * @param {Function} func
      * @param {string|null} name
      * @param {ObjectValue|null} currentObject
      * @returns {Function}
      */
-    create: function (namespace, currentClass, func, name, currentObject) {
+    create: function (namespaceScope, currentClass, func, name, currentObject) {
         var factory = this,
             wrapperFunc = function () {
-                var thisObject = currentObject || this,
+                var args = slice.call(arguments),
+                    thisObject = currentObject || this,
                     scope,
                     call,
                     result;
@@ -61,14 +62,14 @@ _.extend(FunctionFactory.prototype, {
                     thisObject = null;
                 }
 
-                scope = factory.scopeFactory.create(namespace, currentClass, wrapperFunc, thisObject);
-                call = factory.callFactory.create(scope);
+                scope = factory.scopeFactory.create(namespaceScope, currentClass, wrapperFunc, thisObject);
+                call = factory.callFactory.create(scope, namespaceScope, args);
 
                 // Push the call onto the stack
                 factory.callStack.push(call);
 
                 try {
-                    result = func.apply(scope, slice.call(arguments));
+                    result = func.apply(scope, args);
                 } finally {
                     // Pop the call off the stack when done
                     factory.callStack.pop();
@@ -77,7 +78,7 @@ _.extend(FunctionFactory.prototype, {
                 return result;
             };
 
-        wrapperFunc.funcName = name || namespace.getPrefix() + '{closure}';
+        wrapperFunc.funcName = name || namespaceScope.getNamespacePrefix() + '{closure}';
 
         return wrapperFunc;
     }

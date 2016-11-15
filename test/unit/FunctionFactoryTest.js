@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     FunctionFactory = require('../../src/FunctionFactory'),
-    Namespace = require('../../src/Namespace').sync(),
+    NamespaceScope = require('../../src/NamespaceScope').sync(),
     Scope = require('../../src/Scope').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
     Value = require('../../src/Value').sync(),
@@ -30,7 +30,7 @@ describe('FunctionFactory', function () {
         this.currentClass = sinon.createStubInstance(Class);
         this.func = sinon.stub();
         this.name = 'myFunction';
-        this.namespace = sinon.createStubInstance(Namespace);
+        this.namespaceScope = sinon.createStubInstance(NamespaceScope);
         this.scope = sinon.createStubInstance(Scope);
         this.scopeFactory = sinon.createStubInstance(ScopeFactory);
         this.valueFactory = sinon.createStubInstance(ValueFactory);
@@ -50,7 +50,7 @@ describe('FunctionFactory', function () {
         beforeEach(function () {
             this.callCreate = function (currentObject) {
                 return this.factory.create(
-                    this.namespace,
+                    this.namespaceScope,
                     this.currentClass,
                     this.func,
                     this.name,
@@ -65,7 +65,7 @@ describe('FunctionFactory', function () {
 
         it('should store the correct function name against the function when not specified', function () {
             this.name = '';
-            this.namespace.getPrefix.returns('My\\Namespace\\');
+            this.namespaceScope.getNamespacePrefix.returns('My\\Namespace\\');
 
             expect(this.callCreate().funcName).to.equal('My\\Namespace\\{closure}');
         });
@@ -81,12 +81,12 @@ describe('FunctionFactory', function () {
                 expect(this.callCreate()()).to.equal(123);
             });
 
-            it('should pass the Namespace to the ScopeFactory', function () {
+            it('should pass the NamespaceScope to the ScopeFactory', function () {
                 this.callCreate()();
 
                 expect(this.scopeFactory.create).to.have.been.calledOnce;
                 expect(this.scopeFactory.create).to.have.been.calledWith(
-                    sinon.match.same(this.namespace)
+                    sinon.match.same(this.namespaceScope)
                 );
             });
 
@@ -124,6 +124,42 @@ describe('FunctionFactory', function () {
                     sinon.match.any,
                     sinon.match.any,
                     sinon.match.same(currentObject)
+                );
+            });
+
+            it('should pass the Scope to the CallFactory', function () {
+                var currentObject = sinon.createStubInstance(Value);
+
+                this.callCreate(currentObject)();
+
+                expect(this.callFactory.create).to.have.been.calledOnce;
+                expect(this.callFactory.create).to.have.been.calledWith(
+                    sinon.match.same(this.scope)
+                );
+            });
+
+            it('should pass the NamespaceScope to the CallFactory', function () {
+                var currentObject = sinon.createStubInstance(Value);
+
+                this.callCreate(currentObject)();
+
+                expect(this.callFactory.create).to.have.been.calledOnce;
+                expect(this.callFactory.create).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.same(this.namespaceScope)
+                );
+            });
+
+            it('should pass the arguments to the CallFactory', function () {
+                var currentObject = sinon.createStubInstance(Value);
+
+                this.callCreate(currentObject)(21, 27);
+
+                expect(this.callFactory.create).to.have.been.calledOnce;
+                expect(this.callFactory.create).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    [21, 27]
                 );
             });
 

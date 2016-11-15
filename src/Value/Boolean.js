@@ -124,6 +124,10 @@ module.exports = require('pauser')([
             return this.divideByNonArray(leftValue);
         },
 
+        formatAsString: function () {
+            return this.value ? 'true' : 'false';
+        },
+
         getElement: function () {
             // Array access on booleans always returns null, no notice or warning is raised
             return this.factory.createNull();

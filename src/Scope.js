@@ -29,7 +29,7 @@ module.exports = require('pauser')([
         closureFactory,
         valueFactory,
         referenceFactory,
-        namespace,
+        namespaceScope,
         currentClass,
         currentFunction,
         thisObject
@@ -42,7 +42,7 @@ module.exports = require('pauser')([
         this.currentFunction = currentFunction;
         this.errorsSuppressed = false;
         this.globalScope = globalScope;
-        this.namespace = namespace;
+        this.namespaceScope = namespaceScope;
         this.referenceFactory = referenceFactory;
         this.superGlobalScope = superGlobalScope;
         this.thisObject = currentFunction && currentFunction[IS_STATIC] ? null : thisObject;
@@ -78,7 +78,7 @@ module.exports = require('pauser')([
             return scope.closureFactory.create(
                 scope,
                 func,
-                scope.namespace,
+                scope.namespaceScope,
                 scope.currentClass,
                 thisObject
             );
@@ -163,7 +163,7 @@ module.exports = require('pauser')([
                 functionName = scope.currentFunction.funcName;
 
                 if (!scope.currentClass) {
-                    functionName = scope.namespace.getPrefix() + functionName;
+                    functionName = scope.namespaceScope.getNamespacePrefix() + functionName;
                 }
             }
 
@@ -182,7 +182,7 @@ module.exports = require('pauser')([
                     functionName = scope.currentClass.getName() + '::' + functionName;
                 } else {
                     // Normal functions are prefixed with namespace
-                    functionName = scope.namespace.getPrefix() + functionName;
+                    functionName = scope.namespaceScope.getNamespacePrefix() + functionName;
                 }
             }
 

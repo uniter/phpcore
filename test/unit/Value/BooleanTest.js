@@ -498,6 +498,20 @@ describe('Boolean', function () {
         });
     });
 
+    describe('formatAsString()', function () {
+        it('should return "true" when true', function () {
+            this.createValue(true);
+
+            expect(this.value.formatAsString()).to.equal('true');
+        });
+
+        it('should return "false" when true', function () {
+            this.createValue(false);
+
+            expect(this.value.formatAsString()).to.equal('false');
+        });
+    });
+
     describe('isAnInstanceOf()', function () {
         it('should hand off to the right-hand operand to determine the result', function () {
             var rightOperand = sinon.createStubInstance(Value),

@@ -45,12 +45,12 @@ module.exports = require('pauser')([
          *
          * @param {Scope} enclosingScope
          * @param {Function} unwrappedFunction
-         * @param {Namespace} namespace
+         * @param {NamespaceScope} namespaceScope
          * @param {Class|undefined} scopeClass
          * @param {ObjectValue|NullValue|null} thisObject Null for a static closure, the object to use otherwise
          * @returns {Closure}
          */
-        create: function (enclosingScope, unwrappedFunction, namespace, scopeClass, thisObject) {
+        create: function (enclosingScope, unwrappedFunction, namespaceScope, scopeClass, thisObject) {
             var factory = this,
                 wrappedFunction;
 
@@ -62,7 +62,7 @@ module.exports = require('pauser')([
             }
 
             wrappedFunction = factory.functionFactory.create(
-                namespace,
+                namespaceScope,
                 scopeClass,
                 unwrappedFunction
             );
@@ -70,7 +70,7 @@ module.exports = require('pauser')([
             return new factory.Closure(
                 factory,
                 factory.valueFactory,
-                namespace,
+                namespaceScope,
                 enclosingScope,
                 unwrappedFunction,
                 wrappedFunction,

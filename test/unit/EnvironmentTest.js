@@ -22,6 +22,20 @@ describe('Environment', function () {
         this.environment = new Environment(this.state);
     });
 
+    describe('defineClass()', function () {
+        it('should define the class on the state', function () {
+            var definitionFactory = sinon.stub();
+
+            this.environment.defineClass('My\\Namespaced\\CoolClass', definitionFactory);
+
+            expect(this.state.defineClass).to.have.been.calledOnce;
+            expect(this.state.defineClass).to.have.been.calledWith(
+                'My\\Namespaced\\CoolClass',
+                sinon.match.same(definitionFactory)
+            );
+        });
+    });
+
     describe('defineSuperGlobal()', function () {
         it('should define the super global on the state', function () {
             var value = sinon.createStubInstance(Value);

@@ -15,7 +15,7 @@ var expect = require('chai').expect,
     Class = require('../../src/Class').sync(),
     Closure = require('../../src/Closure').sync(),
     ClosureFactory = require('../../src/ClosureFactory').sync(),
-    Namespace = require('../../src/Namespace').sync(),
+    NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPFatalError = require('phpcommon').PHPFatalError,
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
@@ -35,7 +35,7 @@ describe('Scope', function () {
         this.currentFunction = null;
         this.closureFactory = sinon.createStubInstance(ClosureFactory);
         this.globalScope = sinon.createStubInstance(Scope);
-        this.namespace = sinon.createStubInstance(Namespace);
+        this.namespaceScope = sinon.createStubInstance(NamespaceScope);
         this.referenceFactory = sinon.createStubInstance(ReferenceFactory);
         this.superGlobalScope = sinon.createStubInstance(SuperGlobalScope);
         this.valueFactory = sinon.createStubInstance(ValueFactory);
@@ -62,7 +62,7 @@ describe('Scope', function () {
                 this.closureFactory,
                 this.valueFactory,
                 this.referenceFactory,
-                this.namespace,
+                this.namespaceScope,
                 this.currentClass,
                 this.currentFunction,
                 thisObject || null
@@ -106,13 +106,13 @@ describe('Scope', function () {
             );
         });
 
-        it('should pass the namespace to the ClosureFactory', function () {
+        it('should pass the NamespaceScope to the ClosureFactory', function () {
             this.scope.createClosure(this.func);
 
             expect(this.closureFactory.create).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.namespace)
+                sinon.match.same(this.namespaceScope)
             );
         });
 
@@ -214,7 +214,7 @@ describe('Scope', function () {
         it('should return only the name when function is a class method', function () {
             this.whenCurrentClass();
             this.whenCurrentFunction();
-            this.namespace.getPrefix.returns('My\\App\\Space\\');
+            this.namespaceScope.getNamespacePrefix.returns('My\\App\\Space\\');
             this.currentFunction.funcName = 'myMethod';
             this.createScope();
 
@@ -223,7 +223,7 @@ describe('Scope', function () {
 
         it('should prefix with the namespace when function is normal', function () {
             this.whenCurrentFunction();
-            this.namespace.getPrefix.returns('My\\App\\Space\\');
+            this.namespaceScope.getNamespacePrefix.returns('My\\App\\Space\\');
             this.currentFunction.funcName = 'myFunc';
             this.createScope();
 
@@ -241,7 +241,7 @@ describe('Scope', function () {
         it('should return the namespace, class and name when function is a class method', function () {
             this.whenCurrentClass();
             this.whenCurrentFunction();
-            this.namespace.getPrefix.returns('My\\App\\Space\\');
+            this.namespaceScope.getNamespacePrefix.returns('My\\App\\Space\\');
             this.currentClass.getName.returns('My\\App\\Space\\MyClass');
             this.currentFunction.funcName = 'myMethod';
             this.createScope();
@@ -251,7 +251,7 @@ describe('Scope', function () {
 
         it('should prefix with the namespace when function is normal', function () {
             this.whenCurrentFunction();
-            this.namespace.getPrefix.returns('My\\App\\Space\\');
+            this.namespaceScope.getNamespacePrefix.returns('My\\App\\Space\\');
             this.currentFunction.funcName = 'myFunc';
             this.createScope();
 

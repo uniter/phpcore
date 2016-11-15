@@ -223,6 +223,10 @@ module.exports = require('pauser')([
             }
         },
 
+        formatAsString: function () {
+            return 'Array';
+        },
+
         getForAssignment: function () {
             return this.clone();
         },

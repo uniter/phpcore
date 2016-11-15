@@ -11,15 +11,30 @@
 
 var _ = require('microdash');
 
+/**
+ * @param {class} Call
+ * @constructor
+ */
 function CallFactory(Call) {
+    /**
+     * @type {class}
+     */
     this.Call = Call;
 }
 
 _.extend(CallFactory.prototype, {
-    create: function (scope) {
+    /**
+     * Creates a new Call
+     *
+     * @param {Scope} scope
+     * @param {NamespaceScope} namespaceScope
+     * @param {Value[]|null} args
+     * @returns {Call}
+     */
+    create: function (scope, namespaceScope, args) {
         var factory = this;
 
-        return new factory.Call(scope);
+        return new factory.Call(scope, namespaceScope, args || []);
     }
 });
 

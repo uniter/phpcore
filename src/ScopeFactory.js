@@ -54,13 +54,13 @@ _.extend(ScopeFactory.prototype, {
     /**
      * Creates a new Scope
      *
-     * @param {Namespace} namespace
+     * @param {NamespaceScope} namespaceScope
      * @param {Class|null} currentClass
      * @param {Function|null} currentFunction
      * @param {ObjectValue|null} thisObject
      * @returns {Scope}
      */
-    create: function (namespace, currentClass, currentFunction, thisObject) {
+    create: function (namespaceScope, currentClass, currentFunction, thisObject) {
         var factory = this;
 
         return new factory.Scope(
@@ -70,7 +70,7 @@ _.extend(ScopeFactory.prototype, {
             factory.closureFactory,
             factory.valueFactory,
             factory.referenceFactory,
-            namespace || null,
+            namespaceScope || null,
             currentClass || null,
             currentFunction || null,
             thisObject || null

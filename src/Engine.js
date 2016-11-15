@@ -14,7 +14,6 @@ var _ = require('microdash'),
     PATH = 'path',
     hasOwn = {}.hasOwnProperty,
     pauser = require('pauser'),
-    Call = require('./Call'),
     DebugVariable = require('./Debug/DebugVariable'),
     ExitValueWrapper = require('./Value/Exit'),
     KeyValuePair = require('./KeyValuePair'),
@@ -68,12 +67,15 @@ _.extend(Engine.prototype, {
     },
 
     execute: function () {
-        var callStack,
+        var callFactory,
+            callStack,
             engine = this,
             environment = engine.environment,
             globalNamespace,
             globalScope,
             includedPaths = {},
+            module,
+            moduleFactory,
             options = engine.options,
             path = options[PATH],
             isMainProgram = path === null,
@@ -97,7 +99,12 @@ _.extend(Engine.prototype, {
             ExitValue = unwrap(ExitValueWrapper),
             NamespaceScope = unwrap(NamespaceScopeWrapper),
             ObjectValue = unwrap(ObjectValueWrapper),
+            topLevelNamespaceScope,
             topLevelScope;
+
+        function createNamespaceScope(namespace) {
+            return new NamespaceScope(globalNamespace, valueFactory, module, namespace);
+        }
 
         function include(includedPath, includeScope) {
             var done = false,
@@ -214,6 +221,8 @@ _.extend(Engine.prototype, {
         }
 
         state = environment.getState();
+        callFactory = state.getCallFactory();
+        moduleFactory = state.getModuleFactory();
         referenceFactory = state.getReferenceFactory();
         valueFactory = state.getValueFactory();
         globalNamespace = state.getGlobalNamespace();
@@ -223,6 +232,8 @@ _.extend(Engine.prototype, {
         // Use the provided top-level scope if specified, otherwise use the global scope
         // (used eg. when an `include(...)` is used inside a function)
         topLevelScope = engine.topLevelScope || globalScope;
+        module = moduleFactory.create(path);
+        topLevelNamespaceScope = createNamespaceScope(globalNamespace);
 
         tools = {
             createClosure: function (func, scope) {
@@ -266,9 +277,7 @@ _.extend(Engine.prototype, {
             createList: function (elements) {
                 return new List(valueFactory, elements);
             },
-            createNamespaceScope: function (namespace) {
-                return new NamespaceScope(globalNamespace, valueFactory, namespace);
-            },
+            createNamespaceScope: createNamespaceScope,
             exit: function (statusValue) {
                 throw valueFactory.createExit(statusValue);
             },
@@ -291,6 +300,14 @@ _.extend(Engine.prototype, {
             },
             includeOnce: includeOnce,
             include: include,
+            /**
+             * Used for providing a function for fetching the last line executed in the current scope
+             *
+             * @param {function} finder
+             */
+            instrument: function (finder) {
+                callStack.instrumentCurrent(finder);
+            },
             referenceFactory: referenceFactory,
             requireOnce: include,
             require: include,
@@ -300,12 +317,13 @@ _.extend(Engine.prototype, {
                     'suffix': levels === 1 ? '' : 's'
                 });
             },
+            topLevelNamespaceScope: topLevelNamespaceScope,
             topLevelScope: topLevelScope,
             valueFactory: valueFactory
         };
 
         // Push the 'main' global scope call onto the stack
-        callStack.push(new Call(globalScope));
+        callStack.push(callFactory.create(topLevelScope, topLevelNamespaceScope));
 
         function handleError(error, reject) {
             if (error instanceof ExitValue) {

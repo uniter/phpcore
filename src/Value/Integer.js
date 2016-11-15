@@ -143,6 +143,10 @@ module.exports = require('pauser')([
             return this.divideByNonArray(leftValue);
         },
 
+        formatAsString: function () {
+            return this.value + '';
+        },
+
         getElement: function () {
             // Array access on integers always returns null, no notice or warning is raised
             return this.factory.createNull();

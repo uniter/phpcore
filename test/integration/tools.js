@@ -13,15 +13,19 @@ var asyncPHPCore = require('../../async'),
     phpToAST = require('phptoast'),
     phpToJS = require('phptojs'),
     syncPHPCore = require('../../sync'),
-    transpile = function (path, php, phpCore) {
+    transpile = function (path, php, phpCore, options) {
         var js,
-            phpParser = phpToAST.create();
+            phpParser;
+
+        options = options || {};
+
+        phpParser = phpToAST.create(null, options.phpToAST);
 
         if (path) {
             phpParser.getState().setPath(path);
         }
 
-        js = phpToJS.transpile(phpParser.parse(php));
+        js = phpToJS.transpile(phpParser.parse(php), options.phpToJS);
 
         return new Function(
             'require',
@@ -32,11 +36,11 @@ var asyncPHPCore = require('../../async'),
     };
 
 module.exports = {
-    asyncTranspile: function (path, php) {
-        return transpile(path, php, asyncPHPCore);
+    asyncTranspile: function (path, php, options) {
+        return transpile(path, php, asyncPHPCore, options);
     },
 
-    syncTranspile: function (path, php) {
-        return transpile(path, php, syncPHPCore);
+    syncTranspile: function (path, php, options) {
+        return transpile(path, php, syncPHPCore, options);
     }
 };

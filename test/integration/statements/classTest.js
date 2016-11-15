@@ -67,8 +67,12 @@ EOS
             classes: {
                 'CoercingJSClass': function () {
                     function CoercingJSClass(base) {
-                        this.base = base + ' js_ctor1';
+                        this.base = this.shadow + ' '  + base + ' js_ctor1';
                     }
+
+                    CoercingJSClass.shadowConstructor = function () {
+                        this.shadow = 'shadow_coerce';
+                    };
 
                     CoercingJSClass.prototype.__construct = function () {
                         this.base += ' magic_coerce';
@@ -84,9 +88,16 @@ EOS
                     function NonCoercingJSClass(baseValue) {
                         this.setProperty(
                             'base',
-                            internals.valueFactory.createString(baseValue.getNative() + ' js_ctor2')
+                            internals.valueFactory.createString(
+                                this.getProperty('shadow').getNative() + ' ' + baseValue.getNative() + ' js_ctor2'
+                            )
                         );
                     }
+
+                    NonCoercingJSClass.shadowConstructor = function () {
+                        // Shadow constructor will be called before the real one
+                        this.setProperty('shadow', internals.valueFactory.createString('shadow_non_coerce'));
+                    };
 
                     NonCoercingJSClass.prototype.__construct = function () {
                         this.setProperty(
@@ -111,7 +122,7 @@ EOS
         });
 
         expect(module().execute().getNative()).to.equal(
-            'php_init1 php_ctor js_ctor1 magic_coerce php_10 one op php_init2 js_ctor2 magic_non_coerce php_7 three'
+            'shadow_coerce php_init1 php_ctor js_ctor1 magic_coerce php_10 one op shadow_non_coerce php_init2 js_ctor2 magic_non_coerce php_7 three'
         );
     });
 });

@@ -90,6 +90,10 @@ module.exports = require('pauser')([
             return this.divideByNonArray(leftValue);
         },
 
+        formatAsString: function () {
+            return 'NULL';
+        },
+
         getInstancePropertyByName: function () {
             var value = this;
 

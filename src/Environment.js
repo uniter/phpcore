@@ -16,6 +16,17 @@ function Environment(state) {
 }
 
 _.extend(Environment.prototype, {
+    /**
+     * Defines a new class (in any namespace)
+     *
+     * @param {string} name FQCN for the class to define
+     * @param {function} definitionFactory Called with `internals` object, returns the class definition
+     * @returns {Class} Returns the instance of Class that represents a PHP class
+     */
+    defineClass: function (name, definitionFactory) {
+        return this.state.defineClass(name, definitionFactory);
+    },
+
     defineSuperGlobal: function (name, value) {
         this.state.defineSuperGlobal(name, value);
     },

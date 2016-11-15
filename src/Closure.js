@@ -17,7 +17,7 @@ module.exports = require('pauser')([
     /**
      * @param {ClosureFactory} closureFactory
      * @param {ValueFactory} valueFactory
-     * @param {Namespace} namespace
+     * @param {NamespaceScope} namespaceScope
      * @param {Function} unwrappedFunction
      * @param {Function} wrappedFunction
      * @param {Scope} enclosingScope
@@ -27,7 +27,7 @@ module.exports = require('pauser')([
     function Closure(
         closureFactory,
         valueFactory,
-        namespace,
+        namespaceScope,
         enclosingScope,
         unwrappedFunction,
         wrappedFunction,
@@ -42,9 +42,9 @@ module.exports = require('pauser')([
          */
         this.enclosingScope = enclosingScope;
         /**
-         * @type {Namespace}
+         * @type {NamespaceScope}
          */
-        this.namespace = namespace;
+        this.namespaceScope = namespaceScope;
         /**
          * @type {ObjectValue|null}
          */
@@ -78,7 +78,7 @@ module.exports = require('pauser')([
             return closure.closureFactory.create(
                 closure.enclosingScope,
                 closure.unwrappedFunction,
-                closure.namespace,
+                closure.namespaceScope,
                 scopeClass || null,
                 thisObject
             );

@@ -155,6 +155,12 @@ module.exports = require('pauser')([
             return this.divideByNonArray(leftValue);
         },
 
+        formatAsString: function () {
+            // To match Zend's output, simply wrap the string value in single-quotes,
+            // leaving any embedded single-quotes unescaped
+            return '\'' + this.value + '\'';
+        },
+
         getCallableName: function () {
             // Strip any leading backslash off to normalise
             return this.value.replace(/^\\/, '');

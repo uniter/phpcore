@@ -411,7 +411,7 @@ describe('Class', function () {
             this.classObject.instantiate([arg1, arg2]);
 
             expect(this.InternalClass).to.have.been.calledOnce;
-            expect(this.InternalClass).to.have.been.calledOn(sinon.match.instanceOf(this.InternalClass));
+            expect(this.InternalClass).to.have.been.calledOn(sinon.match.same(this.objectValue));
             expect(this.InternalClass).to.have.been.calledWith(
                 sinon.match.same(arg1),
                 sinon.match.same(arg2)
@@ -429,7 +429,7 @@ describe('Class', function () {
             this.classObject.instantiate([arg1, arg2]);
 
             expect(this.InternalClass).to.have.been.calledOnce;
-            expect(this.InternalClass).to.have.been.calledOn(sinon.match.instanceOf(this.InternalClass));
+            expect(this.InternalClass).to.have.been.calledOn(sinon.match.same(this.objectValue));
             expect(this.InternalClass).to.have.been.calledWith(21, 'second');
         });
 

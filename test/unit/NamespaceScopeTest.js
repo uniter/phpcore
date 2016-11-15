@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     Class = require('../../src/Class').sync(),
+    Module = require('../../src/Module'),
     Namespace = require('../../src/Namespace').sync(),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     StringValue = require('../../src/Value/String').sync(),
@@ -20,6 +21,7 @@ var expect = require('chai').expect,
 describe('NamespaceScope', function () {
     beforeEach(function () {
         this.globalNamespace = sinon.createStubInstance(Namespace);
+        this.module = sinon.createStubInstance(Module);
         this.namespace = sinon.createStubInstance(Namespace);
         this.valueFactory = sinon.createStubInstance(ValueFactory);
 
@@ -30,7 +32,7 @@ describe('NamespaceScope', function () {
             return stringValue;
         });
 
-        this.scope = new NamespaceScope(this.globalNamespace, this.valueFactory, this.namespace);
+        this.scope = new NamespaceScope(this.globalNamespace, this.valueFactory, this.module, this.namespace);
     });
 
     describe('getClass()', function () {
@@ -155,11 +157,27 @@ describe('NamespaceScope', function () {
         });
     });
 
+    describe('getFilePath()', function () {
+        it('should return the file path from the module', function () {
+            this.module.getFilePath.returns('/my/module.php');
+
+            expect(this.scope.getFilePath()).to.equal('/my/module.php');
+        });
+    });
+
     describe('getNamespaceName()', function () {
         it('should return the name of the namespace', function () {
             this.namespace.getName.returns('My\\Namespace');
 
             expect(this.scope.getNamespaceName().getNative()).to.equal('My\\Namespace');
+        });
+    });
+
+    describe('getNamespacePrefix()', function () {
+        it('should return the prefix string from the namespace', function () {
+            this.namespace.getPrefix.returns('My\\Name\\Space');
+
+            expect(this.scope.getNamespacePrefix()).to.equal('My\\Name\\Space');
         });
     });
 

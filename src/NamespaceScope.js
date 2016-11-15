@@ -19,10 +19,35 @@ module.exports = require('pauser')([
     var hasOwn = {}.hasOwnProperty,
         PHPFatalError = phpCommon.PHPFatalError;
 
-    function NamespaceScope(globalNamespace, valueFactory, namespace) {
+    /**
+     * @param {Namespace} globalNamespace
+     * @param {ValueFactory} valueFactory
+     * @param {Module} module
+     * @param {Namespace} namespace
+     * @constructor
+     */
+    function NamespaceScope(globalNamespace, valueFactory, module, namespace) {
+        /**
+         * @type {Namespace}
+         */
         this.globalNamespace = globalNamespace;
+        /**
+         * Imports from `use` statements
+         *
+         * @type {object}
+         */
         this.imports = {};
+        /**
+         * @type {Module}
+         */
+        this.module = module;
+        /**
+         * @type {Namespace}
+         */
         this.namespace = namespace;
+        /**
+         * @type {ValueFactory}
+         */
         this.valueFactory = valueFactory;
     }
 
@@ -76,6 +101,15 @@ module.exports = require('pauser')([
             return namespace.getConstant(name, usesNamespace);
         },
 
+        /**
+         * Fetches the path to the file this scope's parent module originates from
+         *
+         * @returns {number|null}
+         */
+        getFilePath: function () {
+            return this.module.getFilePath();
+        },
+
         getFunction: function (name) {
             var match,
                 scope = this,
@@ -125,6 +159,15 @@ module.exports = require('pauser')([
             var scope = this;
 
             return scope.valueFactory.createString(scope.namespace.getName());
+        },
+
+        /**
+         * Fetches the backslash-delimited prefix string for this scope's namespace
+         *
+         * @returns {string}
+         */
+        getNamespacePrefix: function () {
+            return this.namespace.getPrefix();
         },
 
         resolveClass: function (name) {

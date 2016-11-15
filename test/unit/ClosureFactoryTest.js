@@ -15,7 +15,7 @@ var expect = require('chai').expect,
     Closure = require('../../src/Closure').sync(),
     ClosureFactory = require('../../src/ClosureFactory').sync(),
     FunctionFactory = require('../../src/FunctionFactory'),
-    Namespace = require('../../src/Namespace').sync(),
+    NamespaceScope = require('../../src/NamespaceScope').sync(),
     NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     Scope = require('../../src/Scope').sync(),
@@ -40,7 +40,7 @@ describe('ClosureFactory', function () {
     describe('create()', function () {
         beforeEach(function () {
             this.enclosingScope = sinon.createStubInstance(Scope);
-            this.namespace = sinon.createStubInstance(Namespace);
+            this.namespaceScope = sinon.createStubInstance(NamespaceScope);
             this.scopeClass = sinon.createStubInstance(Class);
             this.thisObject = sinon.createStubInstance(ObjectValue);
             this.thisObjectClass = sinon.createStubInstance(Class);
@@ -54,19 +54,19 @@ describe('ClosureFactory', function () {
                 return this.factory.create(
                     this.enclosingScope,
                     this.unwrappedFunction,
-                    this.namespace,
+                    this.namespaceScope,
                     this.scopeClass,
                     this.thisObject
                 );
             }.bind(this);
         });
 
-        it('should pass the Namespace to the FunctionFactory', function () {
+        it('should pass the NamespaceScope to the FunctionFactory', function () {
             this.callCreate();
 
             expect(this.functionFactory.create).to.have.been.calledOnce;
             expect(this.functionFactory.create).to.have.been.calledWith(
-                sinon.match.same(this.namespace)
+                sinon.match.same(this.namespaceScope)
             );
         });
 
@@ -84,7 +84,7 @@ describe('ClosureFactory', function () {
             this.factory.create(
                 this.enclosingScope,
                 this.unwrappedFunction,
-                this.namespace,
+                this.namespaceScope,
                 null,
                 this.thisObject
             );
@@ -100,7 +100,7 @@ describe('ClosureFactory', function () {
             this.factory.create(
                 this.enclosingScope,
                 this.unwrappedFunction,
-                this.namespace,
+                this.namespaceScope,
                 null,
                 null
             );
@@ -116,7 +116,7 @@ describe('ClosureFactory', function () {
             this.factory.create(
                 this.enclosingScope,
                 this.unwrappedFunction,
-                this.namespace,
+                this.namespaceScope,
                 null,
                 this.valueFactory.createNull()
             );
@@ -158,14 +158,14 @@ describe('ClosureFactory', function () {
             );
         });
 
-        it('should pass the Namespace to the Closure', function () {
+        it('should pass the NamespaceScope to the Closure', function () {
             this.callCreate();
 
             expect(this.Closure).to.have.been.calledOnce;
             expect(this.Closure).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.namespace)
+                sinon.match.same(this.namespaceScope)
             );
         });
 

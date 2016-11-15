@@ -474,6 +474,12 @@ describe('Array', function () {
         });
     });
 
+    describe('formatAsString()', function () {
+        it('should just return "Array"', function () {
+            expect(this.value.formatAsString()).to.equal('Array');
+        });
+    });
+
     describe('getElementPairByKey()', function () {
         it('should return the pair for the specified element', function () {
             var pair = this.value.getElementPairByKey(this.factory.createString('firstEl'));

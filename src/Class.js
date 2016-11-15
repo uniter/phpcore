@@ -129,8 +129,12 @@ module.exports = require('pauser')([
 
                     return classObject.valueFactory.coerce(
                         method.apply(
-                            classObject.autoCoercionEnabled ? objectValue.getObject() : objectValue,
-                            unwrapArgs(args, classObject)
+                            // Some methods should never have their `this` object and args auto-coerced,
+                            // eg the magic `__construct` method as it is proxied in Namespace.js
+                            classObject.autoCoercionEnabled && !method.neverCoerce ?
+                                objectValue.getObject() :
+                                objectValue,
+                            method.neverCoerce ? args : unwrapArgs(args, classObject)
                         )
                     );
                 }
@@ -372,14 +376,10 @@ module.exports = require('pauser')([
                 objectValue = classObject.valueFactory.createObject(nativeObject, classObject);
 
             classObject.InternalClass.apply(
-                // Always use the native object as `this` regardless of coercion status,
-                // so that new native properties may be added to the object
-                nativeObject,
-                classObject.autoCoercionEnabled ?
-                    _.map(args, function (arg) {
-                        return arg.getNative();
-                    }) :
-                    args
+                // Always use the wrapped object value as `this` regardless of coercion status,
+                // so that non-native properties/methods may be accessed
+                objectValue,
+                unwrapArgs(args, classObject)
             );
 
             classObject.construct(objectValue, args);

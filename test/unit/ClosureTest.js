@@ -15,7 +15,7 @@ var expect = require('chai').expect,
     Closure = require('../../src/Closure').sync(),
     ClosureFactory = require('../../src/ClosureFactory').sync(),
     FunctionFactory = require('../../src/FunctionFactory'),
-    Namespace = require('../../src/Namespace').sync(),
+    NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     Scope = require('../../src/Scope').sync(),
     Value = require('../../src/Value').sync(),
@@ -26,7 +26,7 @@ describe('Closure', function () {
         this.closureFactory = sinon.createStubInstance(ClosureFactory);
         this.enclosingScope = sinon.createStubInstance(Scope);
         this.functionFactory = sinon.createStubInstance(FunctionFactory);
-        this.namespace = sinon.createStubInstance(Namespace);
+        this.namespaceScope = sinon.createStubInstance(NamespaceScope);
         this.thisObject = sinon.createStubInstance(ObjectValue);
         this.unwrappedFunction = sinon.stub();
         this.valueFactory = sinon.createStubInstance(ValueFactory);
@@ -35,7 +35,7 @@ describe('Closure', function () {
         this.closure = new Closure(
             this.closureFactory,
             this.valueFactory,
-            this.namespace,
+            this.namespaceScope,
             this.enclosingScope,
             this.unwrappedFunction,
             this.wrappedFunction,
@@ -75,14 +75,14 @@ describe('Closure', function () {
             );
         });
 
-        it('should pass the namespace to the ClosureFactory', function () {
+        it('should pass the NamespaceScope to the ClosureFactory', function () {
             this.callBind();
 
             expect(this.closureFactory.create).to.have.been.calledOnce;
             expect(this.closureFactory.create).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.namespace)
+                sinon.match.same(this.namespaceScope)
             );
         });
 

@@ -613,6 +613,21 @@ describe('String', function () {
         });
     });
 
+    describe('formatAsString()', function () {
+        it('should wrap the value in single quotes', function () {
+            this.createValue('my string text here');
+
+            expect(this.value.formatAsString()).to.equal('\'my string text here\'');
+        });
+
+        // NB: This is how Zend's engine behaves, so we duplicate that behaviour here
+        it('should not do anything special with embedded single quotes', function () {
+            this.createValue('my embedded single quote \' here');
+
+            expect(this.value.formatAsString()).to.equal('\'my embedded single quote \' here\'');
+        });
+    });
+
     describe('getCallableName()', function () {
         it('should just return the value when it does not begin with a backslash', function () {
             this.createValue('This\\Is\\My\\Class');

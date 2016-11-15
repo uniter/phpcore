@@ -601,6 +601,14 @@ describe('Object', function () {
         });
     });
 
+    describe('formatAsString()', function () {
+        it('should include the class of the object', function () {
+            this.classObject.getName.returns('My\\Namespaced\\FunClass');
+
+            expect(this.value.formatAsString()).to.equal('Object(My\\Namespaced\\FunClass)');
+        });
+    });
+
     describe('getCallableName()', function () {
         it('should return the FQN when the object is a Closure', function () {
             this.classObject.is.withArgs('Closure').returns(true);
@@ -668,6 +676,24 @@ describe('Object', function () {
             expect(names[0].getNative()).to.equal('firstProp');
             expect(names[1].getNative()).to.equal('secondProp');
             expect(names[2].getNative()).to.equal('length');
+        });
+    });
+
+    describe('getInternalProperty()', function () {
+        it('should retrieve a stored internal property', function () {
+            this.value.setInternalProperty('myProp', 21);
+
+            expect(this.value.getInternalProperty('myProp')).to.equal(21);
+        });
+
+        it('should error when the internal property is not defined', function () {
+            this.classObject.getName.returns('My\\SpecialClass');
+
+            expect(function () {
+                this.value.getInternalProperty('myUndefinedProperty');
+            }.bind(this)).to.throw(
+                'Object of class "My\\SpecialClass" has no internal property "myUndefinedProperty"'
+            );
         });
     });
 

@@ -13,30 +13,117 @@ var _ = require('microdash'),
     phpCommon = require('phpcommon'),
     PHPError = phpCommon.PHPError;
 
+/**
+ * @param {Stream} stderr
+ * @constructor
+ */
 function CallStack(stderr) {
+    /**
+     * @type {Call[]}
+     */
     this.calls = [];
+    /**
+     * @type {Stream}
+     */
     this.stderr = stderr;
 }
 
 _.extend(CallStack.prototype, {
+    /**
+     * Fetches the current Call on the top of the stack, or null if none
+     *
+     * @returns {Call}
+     */
     getCurrent: function () {
         var chain = this;
 
-        return chain.calls[chain.calls.length - 1];
+        return chain.calls[chain.calls.length - 1] || null;
     },
 
+    /**
+     * Fetches the path to the file containing the last line of code executed
+     *
+     * @returns {string|null}
+     */
+    getLastFilePath: function () {
+        return this.getCurrent().getFilePath();
+    },
+
+    /**
+     * Fetches the number of the last line of code executed
+     *
+     * @returns {number|null}
+     */
+    getLastLine: function () {
+        return this.getCurrent().getLastLine();
+    },
+
+    /**
+     * Fetches the ObjectValue that is the current `$this` object
+     *
+     * @returns {ObjectValue}
+     */
     getThisObject: function () {
         return this.getCurrent().getScope().getThisObject();
     },
 
+    /**
+     * Fetches a call stack trace array, with one element for each stack frame (call)
+     *
+     * @returns {{index: number, file: string, line: number, func: function, args: *[]}[]}
+     */
+    getTrace: function () {
+        var callStack = this,
+            trace = [],
+            chronoIndex = callStack.calls.length - 1;
+
+        _.each(callStack.calls, function (call, index) {
+            trace.unshift({
+                // Most recent call should have index 0
+                index: chronoIndex--,
+                file: call.getFilePath(),
+                // Fetch the line number the call _occurred on_, rather than the line
+                // last executed inside the called function
+                line: index > 0 ? callStack.calls[index - 1].getLastLine() : null,
+                func: call.getFunctionName(),
+                args: call.getFunctionArgs()
+            });
+        });
+
+        return trace;
+    },
+
+    /**
+     * Instruments the current call
+     *
+     * @param {function} finder
+     */
+    instrumentCurrent: function (finder) {
+        this.getCurrent().instrument(finder);
+    },
+
+    /**
+     * Removes the current call from the stack
+     */
     pop: function () {
         this.calls.pop();
     },
 
+    /**
+     * Pushes a new current call onto the top of the stack
+     *
+     * @param {Call} call
+     */
     push: function (call) {
         this.calls.push(call);
     },
 
+    /**
+     * Raises an error/warning with the specified level and message
+     *
+     * @param {string} level One of the PHPError.E_* constants, eg. `PHPError.E_WARNING`
+     * @param {string} message String text message representing the error
+     */
     raiseError: function (level, message) {
         var call,
             chain = this,
