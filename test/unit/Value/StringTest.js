@@ -168,6 +168,231 @@ describe('String', function () {
         });
     });
 
+    describe('coerceToFloat()', function () {
+        _.each({
+            'coercing a positive plain integer to float': {
+                string: '21',
+                expectedResult: 21.0
+            },
+            'coercing a negative plain integer to float': {
+                string: '-21',
+                expectedResult: -21.0
+            },
+            'coercing a positive plain float': {
+                string: '27.123',
+                expectedResult: 27.123
+            },
+            'coercing a negative plain float': {
+                string: '-27.123',
+                expectedResult: -27.123
+            },
+            'coercing a non-numeric string': {
+                string: 'not a num',
+                expectedResult: 0
+            },
+            'coercing a non-numeric string containing lowercase "e"': {
+                string: 'my number',
+                expectedResult: 0
+            },
+            'coercing a non-numeric string containing uppercase "E"': {
+                string: 'my numbEr',
+                expectedResult: 0
+            },
+            'coercing an integer followed by lowercase "e"': {
+                string: '21 e',
+                expectedResult: 21.0
+            },
+            'coercing an exponent with integer result': {
+                string: '1e4',
+                expectedResult: 10000
+            },
+            'coercing a lowercase exponent with float result': {
+                string: '1e-3',
+                expectedResult: 0.001
+            },
+            'coercing an uppercase exponent with float result': {
+                string: '1E-3',
+                expectedResult: 0.001
+            }
+        }, function (scenario, description) {
+            describe(description, function () {
+                beforeEach(function () {
+                    this.createValue(scenario.string);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.coerceToFloat();
+
+                    expect(result).to.be.an.instanceOf(FloatValue);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should not raise any warnings', function () {
+                    this.value.coerceToFloat();
+
+                    expect(this.callStack.raiseError).not.to.have.been.called;
+                });
+            });
+        });
+    });
+
+    describe('coerceToInteger()', function () {
+        _.each({
+            'coercing a positive plain integer to int': {
+                string: '21',
+                expectedResult: 21
+            },
+            'coercing a negative plain integer to int': {
+                string: '-21',
+                expectedResult: -21
+            },
+            'coercing a positive plain float to integer': {
+                string: '27.123',
+                expectedResult: 27
+            },
+            'coercing a negative plain float to integer': {
+                string: '-27.123',
+                expectedResult: -27
+            },
+            'coercing a non-numeric string': {
+                string: 'not a num',
+                expectedResult: 0
+            },
+            'coercing a non-numeric string containing lowercase "e"': {
+                string: 'my number',
+                expectedResult: 0
+            },
+            'coercing a non-numeric string containing uppercase "E"': {
+                string: 'my numbEr',
+                expectedResult: 0
+            },
+            'coercing an integer followed by lowercase "e"': {
+                string: '21 e',
+                expectedResult: 21
+            },
+            'coercing an exponent with integer result': {
+                string: '1e4',
+                expectedResult: 1 // Can only be parsed as a float despite actually having integer value
+            },
+            'coercing a lowercase exponent with float result': {
+                string: '1e-3',
+                expectedResult: 1
+            },
+            'coercing an uppercase exponent with float result': {
+                string: '1E-3',
+                expectedResult: 1
+            }
+        }, function (scenario, description) {
+            describe(description, function () {
+                beforeEach(function () {
+                    this.createValue(scenario.string);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.coerceToInteger();
+
+                    expect(result).to.be.an.instanceOf(IntegerValue);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should not raise any warnings', function () {
+                    this.value.coerceToInteger();
+
+                    expect(this.callStack.raiseError).not.to.have.been.called;
+                });
+            });
+        });
+    });
+
+    describe('coerceToNumber()', function () {
+        _.each({
+            'coercing a positive plain integer to int': {
+                string: '21',
+                expectedResultType: IntegerValue,
+                expectedResult: 21
+            },
+            'coercing a negative plain integer to int': {
+                string: '-21',
+                expectedResultType: IntegerValue,
+                expectedResult: -21
+            },
+            'coercing a positive plain float to float': {
+                string: '27.123',
+                expectedResultType: FloatValue,
+                expectedResult: 27.123
+            },
+            'coercing a negative plain float to float': {
+                string: '-27.123',
+                expectedResultType: FloatValue,
+                expectedResult: -27.123
+            },
+            'coercing a negative plain float without leading zero to float': {
+                string: '-.123',
+                expectedResultType: FloatValue,
+                expectedResult: -0.123
+            },
+            'coercing a non-numeric string': {
+                string: 'not a num',
+                expectedResultType: IntegerValue,
+                expectedResult: 0
+            },
+            'coercing a non-numeric string containing lowercase "e"': {
+                string: 'my number',
+                expectedResultType: IntegerValue,
+                expectedResult: 0
+            },
+            'coercing a non-numeric string containing uppercase "E"': {
+                string: 'my numbEr',
+                expectedResultType: IntegerValue,
+                expectedResult: 0
+            },
+            'coercing an integer followed by lowercase "e"': {
+                string: '21 e',
+                expectedResultType: IntegerValue,
+                expectedResult: 21
+            },
+            'coercing an implicitly positive exponent (will give an integer result, but as a float)': {
+                string: '1e4',
+                expectedResultType: FloatValue, // Exponents are always evaluated to floats
+                expectedResult: 10000
+            },
+            'coercing an explicitly positive exponent (will give an integer result, but as a float)': {
+                string: '1e+4',
+                expectedResultType: FloatValue, // Exponents are always evaluated to floats
+                expectedResult: 10000
+            },
+            'coercing a lowercase exponent with float result': {
+                string: '1e-3',
+                expectedResultType: FloatValue,
+                expectedResult: 0.001
+            },
+            'coercing an uppercase exponent with float result': {
+                string: '1E-3',
+                expectedResultType: FloatValue,
+                expectedResult: 0.001
+            }
+        }, function (scenario, description) {
+            describe(description, function () {
+                beforeEach(function () {
+                    this.createValue(scenario.string);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.coerceToNumber();
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should not raise any warnings', function () {
+                    this.value.coerceToNumber();
+
+                    expect(this.callStack.raiseError).not.to.have.been.called;
+                });
+            });
+        });
+    });
+
     describe('divide()', function () {
         it('should hand off to the right-hand operand to divide by this string', function () {
             var rightOperand = sinon.createStubInstance(Value),
@@ -818,6 +1043,377 @@ describe('String', function () {
 
             expect(result).to.be.an.instanceOf(BooleanValue);
             expect(result.getNative()).to.equal(false);
+        });
+    });
+
+    describe('multiply()', function () {
+        it('should hand off to the right-hand operand to multiply by this string', function () {
+            var rightOperand = sinon.createStubInstance(Value),
+                result = sinon.createStubInstance(Value);
+            this.createValue('my string');
+            rightOperand.multiplyByString.withArgs(this.value).returns(result);
+
+            expect(this.value.multiply(rightOperand)).to.equal(result);
+        });
+    });
+
+    describe('multiplyByArray()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createArray([]);
+            this.createValue('my string');
+
+            expect(function () {
+                this.value.multiplyByArray(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('multiplyByBoolean()', function () {
+        _.each([
+            {
+                left: true,
+                right: '1.25',
+                expectedResultType: FloatValue,
+                expectedResult: 1.25
+            },
+            {
+                left: true,
+                right: '0.0',
+                expectedResultType: FloatValue,
+                expectedResult: 0.0
+            },
+            {
+                left: false,
+                right: '1.0',
+                expectedResultType: FloatValue,
+                expectedResult: 0.0
+            },
+            {
+                left: true,
+                right: 'not a number',
+                expectedResultType: IntegerValue,
+                expectedResult: 0.0
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' * ' + scenario.right + '`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createBoolean(scenario.left);
+                    this.createValue(scenario.right);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.multiplyByBoolean(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should not raise any warnings', function () {
+                    this.value.multiplyByBoolean(this.leftValue);
+
+                    expect(this.callStack.raiseError).not.to.have.been.called;
+                });
+            });
+        });
+    });
+
+    describe('multiplyByFloat()', function () {
+        _.each([
+            {
+                left: 12.4,
+                right: '1.0',
+                expectedResultType: FloatValue,
+                expectedResult: 12.4
+            },
+            {
+                left: 20.5,
+                right: '0.5',
+                expectedResultType: FloatValue,
+                expectedResult: 10.25
+            },
+            {
+                left: 11.0,
+                right: '0',
+                expectedResultType: FloatValue,
+                expectedResult: 0.0
+            },
+            {
+                left: 21.0,
+                right: 'not a number',
+                expectedResultType: FloatValue,
+                expectedResult: 0.0
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' * ' + scenario.right + '`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createFloat(scenario.left);
+                    this.createValue(scenario.right);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.multiplyByFloat(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should not raise any warnings', function () {
+                    this.value.multiplyByFloat(this.leftValue);
+
+                    expect(this.callStack.raiseError).not.to.have.been.called;
+                });
+            });
+        });
+    });
+
+    describe('multiplyByInteger()', function () {
+        _.each([
+            {
+                left: 15,
+                right: '1.0',
+                expectedResultType: FloatValue,
+                expectedResult: 15.0
+            },
+            {
+                left: 100,
+                right: '2.5',
+                expectedResultType: FloatValue,
+                expectedResult: 250.0
+            },
+            {
+                left: 11,
+                right: '0.0',
+                expectedResultType: FloatValue,
+                expectedResult: 0.0
+            },
+            {
+                left: 21,
+                right: 'not a number',
+                expectedResultType: IntegerValue, // No float operands, so product will be an integer
+                expectedResult: 0
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' * ' + scenario.right + '`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createInteger(scenario.left);
+                    this.createValue(scenario.right);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.multiplyByInteger(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should not raise any warnings', function () {
+                    this.value.multiplyByInteger(this.leftValue);
+
+                    expect(this.callStack.raiseError).not.to.have.been.called;
+                });
+            });
+        });
+    });
+
+    describe('multiplyByNull()', function () {
+        _.each([
+            {
+                right: '1',
+                expectedResultType: IntegerValue,
+                expectedResult: 0
+            },
+            {
+                right: '1.0',
+                expectedResultType: FloatValue,
+                expectedResult: 0.0
+            },
+            {
+                right: '0.0',
+                expectedResultType: FloatValue,
+                expectedResult: 0.0
+            },
+            {
+                right: 'not my number',
+                expectedResultType: IntegerValue,
+                expectedResult: 0
+            }
+        ], function (scenario) {
+            describe('for `null * ' + scenario.right + '`', function () {
+                beforeEach(function () {
+                    this.leftValue = sinon.createStubInstance(NullValue);
+                    this.createValue(scenario.right);
+                    this.leftValue.getNative.returns(null);
+
+                    this.coercedLeftValue = sinon.createStubInstance(IntegerValue);
+                    this.coercedLeftValue.getNative.returns(0);
+                    this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.multiplyByNull(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should not raise any warnings', function () {
+                    this.value.multiplyByNull(this.leftValue);
+
+                    expect(this.callStack.raiseError).not.to.have.been.called;
+                });
+            });
+        });
+    });
+
+    describe('multiplyByObject()', function () {
+        beforeEach(function () {
+            this.leftValue = sinon.createStubInstance(ObjectValue);
+            this.leftValue.getNative.returns({});
+
+            this.coercedLeftValue = sinon.createStubInstance(IntegerValue);
+            this.coercedLeftValue.getNative.returns(1);
+            this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
+        });
+
+        describe('when the multiplier is `1`', function () {
+            beforeEach(function () {
+                this.createValue('1');
+            });
+
+            it('should return int(1)', function () {
+                var result = this.value.multiplyByObject(this.leftValue);
+
+                expect(result).to.be.an.instanceOf(IntegerValue);
+                expect(result.getNative()).to.equal(1);
+            });
+
+            it('should not raise any extra notices', function () {
+                this.value.multiplyByObject(this.leftValue);
+
+                expect(this.callStack.raiseError).not.to.have.been.called;
+            });
+        });
+
+        describe('when the multiplier is `1.0`', function () {
+            beforeEach(function () {
+                this.createValue('1.0');
+            });
+
+            it('should return float(1.0)', function () {
+                var result = this.value.multiplyByObject(this.leftValue);
+
+                expect(result).to.be.an.instanceOf(FloatValue);
+                expect(result.getNative()).to.equal(1.0);
+            });
+
+            it('should not raise any extra notices', function () {
+                this.value.multiplyByObject(this.leftValue);
+
+                expect(this.callStack.raiseError).not.to.have.been.called;
+            });
+        });
+
+        describe('when the multiplier is `0`', function () {
+            beforeEach(function () {
+                this.createValue('0');
+            });
+
+            it('should return int(0)', function () {
+                var result = this.value.multiplyByObject(this.leftValue);
+
+                expect(result).to.be.an.instanceOf(IntegerValue);
+                expect(result.getNative()).to.equal(0);
+            });
+
+            it('should not raise any extra notices', function () {
+                this.value.multiplyByObject(this.leftValue);
+
+                expect(this.callStack.raiseError).not.to.have.been.called;
+            });
+        });
+    });
+
+    describe('multiplyByString()', function () {
+        _.each([
+            {
+                left: 'my string',
+                coercedLeftClass: IntegerValue,
+                coercedLeftType: 'integer',
+                coercedLeft: 0,
+                right: '1.0',
+                expectedResultType: FloatValue,
+                expectedResult: 0.0
+            },
+            {
+                left: '21', // Int string is coerced to int
+                coercedLeftClass: IntegerValue,
+                coercedLeftType: 'integer',
+                coercedLeft: 21,
+                right: '1.0',
+                expectedResultType: FloatValue,
+                expectedResult: 21.0
+            },
+            {
+                left: '22.4', // Decimal string is coerced to float
+                coercedLeftClass: FloatValue,
+                coercedLeftType: 'float',
+                coercedLeft: 22.4,
+                right: '2',
+                expectedResultType: FloatValue,
+                expectedResult: 44.8
+            },
+            {
+                left: '16.2', // Decimal string is coerced to float
+                coercedLeftClass: FloatValue,
+                coercedLeftType: 'float',
+                coercedLeft: 16.2,
+                right: '2.5',
+                expectedResultType: FloatValue,
+                expectedResult: 40.5
+            },
+            {
+                left: '25.4.7', // Decimal string prefix is coerced to float
+                coercedLeftClass: FloatValue,
+                coercedLeftType: 'float',
+                coercedLeft: 25.4,
+                right: '2.0',
+                expectedResultType: FloatValue,
+                expectedResult: 50.8
+            },
+            {
+                left: '23',
+                coercedLeftClass: IntegerValue,
+                coercedLeftType: 'integer',
+                coercedLeft: 23,
+                right: '0',
+                expectedResultType: IntegerValue,
+                expectedResult: 0
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' * ' + scenario.right + '`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createString(scenario.left);
+                    this.createValue(scenario.right);
+
+                    this.coercedLeftValue = sinon.createStubInstance(scenario.coercedLeftClass);
+                    this.coercedLeftValue.getType.returns(scenario.coercedLeftType);
+                    this.coercedLeftValue.getNative.returns(scenario.coercedLeft);
+                    this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.multiplyByString(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should not raise any warnings', function () {
+                    this.value.multiplyByString(this.leftValue);
+
+                    expect(this.callStack.raiseError).not.to.have.been.called;
+                });
+            });
         });
     });
 });

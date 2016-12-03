@@ -76,22 +76,22 @@ module.exports = require('pauser')([
             return value.factory.createString(value.value ? '1' : '');
         },
 
+        /**
+         * Divides this boolean by another value
+         *
+         * @param {Value} rightValue
+         * @returns {Value}
+         */
         divide: function (rightValue) {
             return rightValue.divideByBoolean(this);
         },
 
-        divideByBoolean: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        divideByFloat: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        divideByInteger: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
+        /**
+         * Divides a non-array value by this boolean
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
         divideByNonArray: function (leftValue) {
             var coercedLeftValue,
                 rightValue = this,
@@ -110,18 +110,6 @@ module.exports = require('pauser')([
             return coercedLeftValue.getType() === 'float' ?
                 rightValue.factory.createFloat(quotient) :
                 rightValue.factory.createInteger(quotient);
-        },
-
-        divideByNull: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        divideByObject: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        divideByString: function (leftValue) {
-            return this.divideByNonArray(leftValue);
         },
 
         formatAsString: function () {
@@ -163,6 +151,33 @@ module.exports = require('pauser')([
          */
         isNumeric: function () {
             return false;
+        },
+
+        /**
+         * Multiplies this boolean by the specified value
+         *
+         * @param {Value} rightValue
+         * @returns {Value}
+         */
+        multiply: function (rightValue) {
+            return rightValue.multiplyByBoolean(this);
+        },
+
+        /**
+         * Multiplies a non-array value by this boolean
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        multiplyByNonArray: function (leftValue) {
+            var coercedLeftValue = leftValue.coerceToNumber(),
+                rightValue = this,
+                multiplier = rightValue.getNative(),
+                product = coercedLeftValue.getNative() * multiplier;
+
+            return coercedLeftValue.getType() === 'float' ?
+                rightValue.factory.createFloat(product) :
+                rightValue.factory.createInteger(product);
         },
 
         onesComplement: function () {

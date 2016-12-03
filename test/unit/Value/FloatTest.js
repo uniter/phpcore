@@ -632,4 +632,344 @@ describe('Float', function () {
             );
         });
     });
+
+    describe('multiply()', function () {
+        it('should hand off to the right-hand operand to multiply by this float', function () {
+            var rightOperand = sinon.createStubInstance(Value),
+                result = sinon.createStubInstance(Value);
+            this.createValue(true);
+            rightOperand.multiplyByFloat.withArgs(this.value).returns(result);
+
+            expect(this.value.multiply(rightOperand)).to.equal(result);
+        });
+    });
+
+    describe('multiplyByArray()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createArray([]);
+            this.createValue(true);
+
+            expect(function () {
+                this.value.multiplyByArray(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('multiplyByBoolean()', function () {
+        _.each([
+            {
+                left: true,
+                right: 1.25,
+                expectedResultType: FloatValue,
+                expectedResult: 1.25
+            },
+            {
+                left: true,
+                right: 0.0,
+                expectedResultType: FloatValue,
+                expectedResult: 0
+            },
+            {
+                left: false,
+                right: 1.0,
+                expectedResultType: FloatValue,
+                expectedResult: 0
+            },
+            {
+                left: false,
+                right: 0.0,
+                expectedResultType: FloatValue,
+                expectedResult: 0
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' * ' + scenario.right + '`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createBoolean(scenario.left);
+                    this.createValue(scenario.right);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.multiplyByBoolean(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should not raise any warnings', function () {
+                    this.value.multiplyByBoolean(this.leftValue);
+
+                    expect(this.callStack.raiseError).not.to.have.been.called;
+                });
+            });
+        });
+    });
+
+    describe('multiplyByFloat()', function () {
+        _.each([
+            {
+                left: 12.4,
+                right: 1.0,
+                expectedResultType: FloatValue,
+                expectedResult: 12.4
+            },
+            {
+                left: 20.5,
+                right: 0.5,
+                expectedResultType: FloatValue,
+                expectedResult: 10.25
+            },
+            {
+                left: 11.0,
+                right: 0.0,
+                expectedResultType: FloatValue,
+                expectedResult: 0.0
+            },
+            {
+                left: 0.0,
+                right: 0.0,
+                expectedResultType: FloatValue,
+                expectedResult: 0.0
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' * ' + scenario.right + '`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createFloat(scenario.left);
+                    this.createValue(scenario.right);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.multiplyByFloat(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should not raise any warnings', function () {
+                    this.value.multiplyByFloat(this.leftValue);
+
+                    expect(this.callStack.raiseError).not.to.have.been.called;
+                });
+            });
+        });
+    });
+
+    describe('multiplyByInteger()', function () {
+        _.each([
+            {
+                left: 15,
+                right: 1.0,
+                expectedResultType: FloatValue,
+                expectedResult: 15
+            },
+            {
+                left: 100,
+                right: 2.5,
+                expectedResultType: FloatValue,
+                expectedResult: 250.0
+            },
+            {
+                left: 11,
+                right: 0.0,
+                expectedResultType: FloatValue,
+                expectedResult: 0
+            },
+            {
+                left: 0,
+                right: 0.0,
+                expectedResultType: FloatValue,
+                expectedResult: 0.0
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' * ' + scenario.right + '`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createInteger(scenario.left);
+                    this.createValue(scenario.right);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.multiplyByInteger(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should not raise any warnings', function () {
+                    this.value.multiplyByInteger(this.leftValue);
+
+                    expect(this.callStack.raiseError).not.to.have.been.called;
+                });
+            });
+        });
+    });
+
+    describe('multiplyByNull()', function () {
+        _.each([
+            {
+                right: 1.0,
+                expectedResultType: FloatValue,
+                expectedResult: 0.0
+            },
+            {
+                right: 0.5,
+                expectedResultType: FloatValue,
+                expectedResult: 0
+            },
+            {
+                right: 0.0,
+                expectedResultType: FloatValue,
+                expectedResult: 0
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' * ' + scenario.right + '`', function () {
+                beforeEach(function () {
+                    this.leftValue = sinon.createStubInstance(NullValue);
+                    this.createValue(scenario.right);
+                    this.leftValue.getNative.returns(null);
+
+                    this.coercedLeftValue = sinon.createStubInstance(IntegerValue);
+                    this.coercedLeftValue.getNative.returns(0);
+                    this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.multiplyByNull(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should not raise any warnings', function () {
+                    this.value.multiplyByNull(this.leftValue);
+
+                    expect(this.callStack.raiseError).not.to.have.been.called;
+                });
+            });
+        });
+    });
+
+    describe('multiplyByObject()', function () {
+        beforeEach(function () {
+            this.leftValue = sinon.createStubInstance(ObjectValue);
+            this.leftValue.getNative.returns({});
+
+            this.coercedLeftValue = sinon.createStubInstance(IntegerValue);
+            this.coercedLeftValue.getNative.returns(1);
+            this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
+        });
+
+        describe('when the multiplicand is `1.0`', function () {
+            beforeEach(function () {
+                this.createValue(1.0);
+            });
+
+            it('should return float(1)', function () {
+                var result = this.value.multiplyByObject(this.leftValue);
+
+                // One operand (this one) is a float, so the result will be a float
+                expect(result).to.be.an.instanceOf(FloatValue);
+                expect(result.getNative()).to.equal(1);
+            });
+
+            it('should not raise any extra notices', function () {
+                this.value.multiplyByObject(this.leftValue);
+
+                expect(this.callStack.raiseError).not.to.have.been.called;
+            });
+        });
+
+        describe('when the multiplicand is `0.0`', function () {
+            beforeEach(function () {
+                this.createValue(0.0);
+            });
+
+            it('should return float(0)', function () {
+                var result = this.value.multiplyByObject(this.leftValue);
+
+                // One operand (this one) is a float, so the result will be a float
+                expect(result).to.be.an.instanceOf(FloatValue);
+                expect(result.getNative()).to.equal(0);
+            });
+
+            it('should not raise any extra notices', function () {
+                this.value.multiplyByObject(this.leftValue);
+
+                expect(this.callStack.raiseError).not.to.have.been.called;
+            });
+        });
+    });
+
+    describe('multiplyByString()', function () {
+        _.each([
+            {
+                left: 'my string',
+                coercedLeftClass: IntegerValue,
+                coercedLeftType: 'integer',
+                coercedLeft: 0,
+                right: 1.0,
+                expectedResultType: FloatValue,
+                expectedResult: 0.0
+            },
+            {
+                left: '21', // Int string is coerced to int
+                coercedLeftClass: IntegerValue,
+                coercedLeftType: 'integer',
+                coercedLeft: 21,
+                right: 1.0,
+                expectedResultType: FloatValue,
+                expectedResult: 21.0
+            },
+            {
+                left: '24.2', // Decimal string is coerced to float
+                coercedLeftClass: FloatValue,
+                coercedLeftType: 'float',
+                coercedLeft: 24.2,
+                right: 1.5,
+                expectedResultType: FloatValue,
+                expectedResult: 36.3
+            },
+            {
+                left: '25.4.7', // Decimal string prefix is coerced to float
+                coercedLeftClass: FloatValue,
+                coercedLeftType: 'float',
+                coercedLeft: 25.4,
+                right: 2.0,
+                expectedResultType: FloatValue,
+                expectedResult: 50.8
+            },
+            {
+                left: '23',
+                coercedLeftClass: IntegerValue,
+                coercedLeftType: 'integer',
+                coercedLeft: 23,
+                right: 0.0,
+                expectedResultType: FloatValue,
+                expectedResult: 0
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' * ' + scenario.right + '`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createString(scenario.left);
+                    this.createValue(scenario.right);
+
+                    this.coercedLeftValue = sinon.createStubInstance(scenario.coercedLeftClass);
+                    this.coercedLeftValue.getType.returns(scenario.coercedLeftType);
+                    this.coercedLeftValue.getNative.returns(scenario.coercedLeft);
+                    this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.multiplyByString(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should not raise any warnings', function () {
+                    this.value.multiplyByString(this.leftValue);
+
+                    expect(this.callStack.raiseError).not.to.have.been.called;
+                });
+            });
+        });
+    });
 });

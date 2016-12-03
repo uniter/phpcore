@@ -54,40 +54,27 @@ module.exports = require('pauser')([
             return this.factory.createString('');
         },
 
+        /**
+         * Divides this null by another value
+         *
+         * @param {Value} rightValue
+         * @returns {Value}
+         */
         divide: function (rightValue) {
             return rightValue.divideByNull(this);
         },
 
-        divideByBoolean: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        divideByFloat: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        divideByInteger: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
+        /**
+         * Divides a non-array value by this null
+         *
+         * @returns {Value}
+         */
         divideByNonArray: function () {
             var rightValue = this;
 
             rightValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
 
             return rightValue.factory.createBoolean(false);
-        },
-
-        divideByNull: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        divideByObject: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        divideByString: function (leftValue) {
-            return this.divideByNonArray(leftValue);
         },
 
         formatAsString: function () {
@@ -140,6 +127,39 @@ module.exports = require('pauser')([
 
         isSet: function () {
             return false;
+        },
+
+        /**
+         * Multiplies this null by another value
+         *
+         * @param {Value} rightValue
+         * @returns {Value}
+         */
+        multiply: function (rightValue) {
+            return rightValue.multiplyByNull(this);
+        },
+
+        /**
+         * Multiplies this value by a float
+         *
+         * @returns {FloatValue}
+         */
+        multiplyByFloat: function () {
+            return this.factory.createFloat(0);
+        },
+
+        /**
+         * Multiplies a non-array value by this null
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        multiplyByNonArray: function (leftValue) {
+            var value = this;
+
+            return leftValue.coerceToNumber().getType() === 'float' ?
+                value.factory.createFloat(0) :
+                value.factory.createInteger(0);
         },
 
         subtract: function (rightValue) {

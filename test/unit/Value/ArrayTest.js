@@ -665,6 +665,86 @@ describe('Array', function () {
         });
     });
 
+    describe('multiply()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var rightValue = sinon.createStubInstance(Value);
+
+            expect(function () {
+                this.value.multiply(rightValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('multiplyByArray()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createArray([]);
+
+            expect(function () {
+                this.value.multiplyByArray(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('multiplyByBoolean()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createBoolean(true);
+
+            expect(function () {
+                this.value.multiplyByBoolean(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('multiplyByFloat()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createFloat(1.2);
+
+            expect(function () {
+                this.value.multiplyByFloat(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('multiplyByInteger()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createInteger(4);
+
+            expect(function () {
+                this.value.multiplyByInteger(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('multiplyByNull()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createNull();
+
+            expect(function () {
+                this.value.multiplyByNull(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('multiplyByObject()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createObject({});
+
+            expect(function () {
+                this.value.multiplyByObject(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('multiplyByString()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createString('my string value');
+
+            expect(function () {
+                this.value.multiplyByString(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
     describe('pointToElement()', function () {
         it('should set the pointer to the index of the key in the array', function () {
             var element = sinon.createStubInstance(ElementReference);

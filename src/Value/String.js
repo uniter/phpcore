@@ -62,30 +62,45 @@ module.exports = require('pauser')([
             return this.factory.createBoolean(this.value !== '' && this.value !== '0');
         },
 
+        /**
+         * Coerces this string to a float value
+         *
+         * @returns {FloatValue}
+         */
         coerceToFloat: function () {
             var value = this;
 
-            return value.factory.createFloat(/^(\d|-\d)/.test(value.value) ? parseFloat(value.value) : 0);
+            return value.factory.createFloat(/^(\d|-[\d.])/.test(value.value) ? parseFloat(value.value) : 0);
         },
 
+        /**
+         * Coerces this string to an integer value
+         *
+         * @returns {IntegerValue}
+         */
         coerceToInteger: function () {
             var value = this;
 
-            return value.factory.createInteger(/^(\d|-\d)/.test(value.value) ? parseInt(value.value, 10) : 0);
+            return value.factory.createInteger(/^(\d|-[\d.])/.test(value.value) ? parseInt(value.value, 10) : 0);
         },
 
         coerceToKey: function () {
             return this;
         },
 
+        /**
+         * Coerces this string to either a FloatValue or IntegerValue, depending on its contents
+         *
+         * @returns {FloatValue|IntegerValue}
+         */
         coerceToNumber: function () {
             var value = this,
-                isInteger = /^[^.eE]*$/.test(value.value);
+                isFloat = /^-?\d*(\.|[eE][-+]?)\d/.test(value.value);
 
-            if (isInteger) {
-                return value.coerceToInteger();
-            } else {
+            if (isFloat) {
                 return value.coerceToFloat();
+            } else {
+                return value.coerceToInteger();
             }
         },
 
@@ -93,14 +108,22 @@ module.exports = require('pauser')([
             return this;
         },
 
+        /**
+         * Divides this string by another value
+         *
+         * @param {Value} rightValue
+         * @returns {Value}
+         */
         divide: function (rightValue) {
             return rightValue.divideByString(this);
         },
 
-        divideByBoolean: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
+        /**
+         * Divides a float by this string
+         *
+         * @param {FloatValue} leftValue
+         * @returns {Value}
+         */
         divideByFloat: function (leftValue) {
             var coercedLeftValue,
                 rightValue = this,
@@ -117,10 +140,12 @@ module.exports = require('pauser')([
             return rightValue.factory.createFloat(coercedLeftValue.getNative() / divisor);
         },
 
-        divideByInteger: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
+        /**
+         * Divides a non-array value by this string
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
         divideByNonArray: function (leftValue) {
             var coercedLeftValue,
                 rightValue = this,
@@ -141,18 +166,6 @@ module.exports = require('pauser')([
             return Math.round(quotient) !== quotient || divisorValue.getType() === 'float' ?
                 rightValue.factory.createFloat(quotient) :
                 rightValue.factory.createInteger(quotient);
-        },
-
-        divideByNull: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        divideByObject: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        divideByString: function (leftValue) {
-            return this.divideByNonArray(leftValue);
         },
 
         formatAsString: function () {
@@ -277,6 +290,48 @@ module.exports = require('pauser')([
 
         isTheClassOfString: function () {
             return this.factory.createBoolean(false);
+        },
+
+        /**
+         * Multiplies this string by another value
+         *
+         * @param {Value} rightValue
+         * @returns {Value}
+         */
+        multiply: function (rightValue) {
+            return rightValue.multiplyByString(this);
+        },
+
+        /**
+         * Multiplies a float by this string
+         *
+         * @param {FloatValue} leftValue
+         * @returns {Value}
+         */
+        multiplyByFloat: function (leftValue) {
+            var coercedMultiplicandValue = leftValue.coerceToNumber(),
+                rightValue = this,
+                multiplier = rightValue.coerceToNumber().getNative();
+
+            return rightValue.factory.createFloat(coercedMultiplicandValue.getNative() * multiplier);
+        },
+
+        /**
+         * Multiplies a non-array value by this string
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        multiplyByNonArray: function (leftValue) {
+            var coercedMultiplicandValue = leftValue.coerceToNumber(),
+                rightValue = this,
+                coercedMultiplierValue = rightValue.coerceToNumber(),
+                product = coercedMultiplicandValue.getNative() * coercedMultiplierValue.getNative();
+
+            // Return result as a float if either coerced operand is a float, otherwise keep as integer
+            return coercedMultiplicandValue.getType() === 'float' || coercedMultiplierValue.getType() === 'float' ?
+                rightValue.factory.createFloat(product) :
+                rightValue.factory.createInteger(product);
         },
 
         onesComplement: function () {

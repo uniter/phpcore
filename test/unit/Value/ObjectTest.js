@@ -944,6 +944,275 @@ describe('Object', function () {
         });
     });
 
+    describe('multiply()', function () {
+        it('should hand off to the right-hand operand to multiply by this object', function () {
+            var rightOperand = sinon.createStubInstance(Value),
+                result = sinon.createStubInstance(Value);
+            rightOperand.multiplyByObject.withArgs(this.value).returns(result);
+
+            expect(this.value.multiply(rightOperand)).to.equal(result);
+        });
+    });
+
+    describe('multiplyByArray()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createArray([]);
+
+            expect(function () {
+                this.value.multiplyByArray(leftValue);
+            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+        });
+    });
+
+    describe('multiplyByBoolean()', function () {
+        _.each([
+            {
+                left: true,
+                expectedResultType: IntegerValue,
+                expectedResult: 1
+            },
+            {
+                left: false,
+                expectedResultType: IntegerValue,
+                expectedResult: 0
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' * <object>`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createBoolean(scenario.left);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.multiplyByBoolean(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should raise a notice due to coercion of object to int', function () {
+                    this.classObject.getName.returns('MyClass');
+
+                    this.value.multiplyByBoolean(this.leftValue);
+
+                    expect(this.callStack.raiseError).to.have.been.calledOnce;
+                    expect(this.callStack.raiseError).to.have.been.calledWith(
+                        PHPError.E_NOTICE,
+                        'Object of class MyClass could not be converted to int'
+                    );
+                });
+            });
+        });
+    });
+
+    describe('multiplyByFloat()', function () {
+        _.each([
+            {
+                left: 12.0,
+                expectedResultType: FloatValue,
+                expectedResult: 12.0
+            },
+            {
+                left: 0.0,
+                expectedResultType: FloatValue,
+                expectedResult: 0.0
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' * <object>`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createFloat(scenario.left);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.multiplyByFloat(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should raise a notice due to coercion of object to int', function () {
+                    this.classObject.getName.returns('MyObjClass');
+
+                    this.value.multiplyByFloat(this.leftValue);
+
+                    expect(this.callStack.raiseError).to.have.been.calledOnce;
+                    expect(this.callStack.raiseError).to.have.been.calledWith(
+                        PHPError.E_NOTICE,
+                        'Object of class MyObjClass could not be converted to int'
+                    );
+                });
+            });
+        });
+    });
+
+    describe('multiplyByInteger()', function () {
+        _.each([
+            {
+                left: 100,
+                expectedResultType: IntegerValue,
+                expectedResult: 100
+            },
+            {
+                left: 0,
+                expectedResultType: IntegerValue,
+                expectedResult: 0
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' * <object>`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createInteger(scenario.left);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.multiplyByInteger(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should raise a notice due to coercion of object to int', function () {
+                    this.classObject.getName.returns('MyClass');
+
+                    this.value.multiplyByInteger(this.leftValue);
+
+                    expect(this.callStack.raiseError).to.have.been.calledOnce;
+                    expect(this.callStack.raiseError).to.have.been.calledWith(
+                        PHPError.E_NOTICE,
+                        'Object of class MyClass could not be converted to int'
+                    );
+                });
+            });
+        });
+    });
+
+    describe('multiplyByNull()', function () {
+        describe('for `null * <object>`', function () {
+            beforeEach(function () {
+                this.leftValue = sinon.createStubInstance(NullValue);
+                this.leftValue.getNative.returns(null);
+
+                this.coercedLeftValue = sinon.createStubInstance(IntegerValue);
+                this.coercedLeftValue.getNative.returns(0);
+                this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
+            });
+
+            it('should return int(0)', function () {
+                var result = this.value.multiplyByNull(this.leftValue);
+
+                expect(result).to.be.an.instanceOf(IntegerValue);
+                expect(result.getNative()).to.equal(0);
+            });
+
+            it('should raise a notice due to coercion of object to int', function () {
+                this.classObject.getName.returns('MyClass');
+
+                this.value.multiplyByNull(this.leftValue);
+
+                expect(this.callStack.raiseError).to.have.been.calledOnce;
+                expect(this.callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class MyClass could not be converted to int'
+                );
+            });
+        });
+    });
+
+    describe('multiplyByObject()', function () {
+        beforeEach(function () {
+            this.leftValue = sinon.createStubInstance(ObjectValue);
+            this.leftValue.getNative.returns({});
+
+            this.coercedLeftValue = sinon.createStubInstance(IntegerValue);
+            this.coercedLeftValue.getNative.returns(1);
+            this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
+        });
+
+        it('should return int(1)', function () {
+            var result = this.value.multiplyByObject(this.leftValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(1);
+        });
+
+        it('should raise a notice due to coercion of object to int', function () {
+            this.classObject.getName.returns('MyClass');
+
+            this.value.multiplyByObject(this.leftValue);
+
+            expect(this.callStack.raiseError).to.have.been.calledOnce;
+            expect(this.callStack.raiseError).to.have.been.calledWith(
+                PHPError.E_NOTICE,
+                'Object of class MyClass could not be converted to int'
+            );
+        });
+    });
+
+    describe('multiplyByString()', function () {
+        _.each([
+            {
+                left: 'my string',
+                coercedLeftClass: IntegerValue,
+                coercedLeftType: 'integer',
+                coercedLeft: 0,
+                expectedResultType: IntegerValue,
+                expectedResult: 0
+            },
+            {
+                left: '21', // Int string is coerced to int
+                coercedLeftClass: IntegerValue,
+                coercedLeftType: 'integer',
+                coercedLeft: 21,
+                expectedResultType: IntegerValue,
+                expectedResult: 21
+            },
+            {
+                left: '27.2', // Decimal string is coerced to float
+                coercedLeftClass: FloatValue,
+                coercedLeftType: 'float',
+                coercedLeft: 27.2,
+                expectedResultType: FloatValue,
+                expectedResult: 27.2
+            },
+            {
+                left: '25.4.7', // Decimal string prefix is coerced to float
+                coercedLeftClass: FloatValue,
+                coercedLeftType: 'float',
+                coercedLeft: 25.4,
+                expectedResultType: FloatValue,
+                expectedResult: 25.4
+            }
+        ], function (scenario) {
+            describe('for `' + scenario.left + ' * <object>`', function () {
+                beforeEach(function () {
+                    this.leftValue = this.factory.createString(scenario.left);
+
+                    this.coercedLeftValue = sinon.createStubInstance(scenario.coercedLeftClass);
+                    this.coercedLeftValue.getType.returns(scenario.coercedLeftType);
+                    this.coercedLeftValue.getNative.returns(scenario.coercedLeft);
+                    this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
+                });
+
+                it('should return the correct value', function () {
+                    var result = this.value.multiplyByString(this.leftValue);
+
+                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
+                    expect(result.getNative()).to.equal(scenario.expectedResult);
+                });
+
+                it('should raise a notice due to coercion of object to int', function () {
+                    this.classObject.getName.returns('MyClass');
+
+                    this.value.multiplyByString(this.leftValue);
+
+                    expect(this.callStack.raiseError).to.have.been.calledOnce;
+                    expect(this.callStack.raiseError).to.have.been.calledWith(
+                        PHPError.E_NOTICE,
+                        'Object of class MyClass could not be converted to int'
+                    );
+                });
+            });
+        });
+    });
+
     describe('pointToProperty()', function () {
         it('should set the pointer to the index of the property when native', function () {
             var element = sinon.createStubInstance(PropertyReference);

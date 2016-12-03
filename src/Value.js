@@ -177,36 +177,87 @@ module.exports = require('pauser')([
             );
         },
 
+        /**
+         * Divides this value by another
+         */
         divide: function () {
             throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
         },
 
+        /**
+         * Divides an array value by this one
+         */
         divideByArray: function () {
             throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
         },
 
-        divideByBoolean: function () {
+        /**
+         * Divides a boolean value by this value
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        divideByBoolean: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        /**
+         * Divides a float value by this value
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        divideByFloat: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        /**
+         * Divides an integer value by this value
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        divideByInteger: function (leftValue) {
+            return this.divideByNonArray(leftValue);
+        },
+
+        /**
+         * Divides a non-array value by this value
+         *
+         * @throws {PHPFatalError}
+         */
+        divideByNonArray: function () {
             throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
         },
 
-        divideByFloat: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+        /**
+         * Divides a null value by this value
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        divideByNull: function (leftValue) {
+            return this.divideByNonArray(leftValue);
         },
 
-        divideByInteger: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+        /**
+         * Divides an object value by this value
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        divideByObject: function (leftValue) {
+            return this.divideByNonArray(leftValue);
         },
 
-        divideByNull: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        divideByObject: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        divideByString: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+        /**
+         * Divides a string value by this value
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        divideByString: function (leftValue) {
+            return this.divideByNonArray(leftValue);
         },
 
         getCallableName: throwUnimplemented,
@@ -423,6 +474,91 @@ module.exports = require('pauser')([
             var value = this;
 
             return value.factory.createBoolean(!value.coerceToBoolean().getNative());
+        },
+
+        /**
+         * Multiplies this value with another
+         */
+        multiply: function () {
+            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+        },
+
+        /**
+         * Multiplies an array value by this value
+         *
+         * @throws {PHPFatalError}
+         */
+        multiplyByArray: function () {
+            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+        },
+
+        /**
+         * Multiplies a boolean value by this value
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        multiplyByBoolean: function (leftValue) {
+            return this.multiplyByNonArray(leftValue);
+        },
+
+        /**
+         * Multiplies a float value by this value
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        multiplyByFloat: function (leftValue) {
+            return this.multiplyByNonArray(leftValue);
+        },
+
+        /**
+         * Multiplies an integer value by this value
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        multiplyByInteger: function (leftValue) {
+            return this.multiplyByNonArray(leftValue);
+        },
+
+        /**
+         * Multiplies a non-array value by this value
+         *
+         * @throws {PHPFatalError}
+         */
+        multiplyByNonArray: function () {
+            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+        },
+
+        /**
+         * Multiplies a null value by this value
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        multiplyByNull: function (leftValue) {
+            return this.multiplyByNonArray(leftValue);
+        },
+
+        /**
+         * Multiplies an object value by this value
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        multiplyByObject: function (leftValue) {
+            return this.multiplyByNonArray(leftValue);
+        },
+
+        /**
+         * Multiplies a string value by this value
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        multiplyByString: function (leftValue) {
+            return this.multiplyByNonArray(leftValue);
         },
 
         subtractFromNull: function () {

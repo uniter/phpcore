@@ -84,22 +84,22 @@ module.exports = require('pauser')([
             return value.factory.createString(value.value + '');
         },
 
+        /**
+         * Divides this float by another value
+         *
+         * @param {Value} rightValue
+         * @returns {Value}
+         */
         divide: function (rightValue) {
             return rightValue.divideByFloat(this);
         },
 
-        divideByBoolean: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        divideByFloat: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        divideByInteger: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
+        /**
+         * Divides a non-array value by this float
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
         divideByNonArray: function (leftValue) {
             var coercedLeftValue,
                 rightValue = this,
@@ -114,18 +114,6 @@ module.exports = require('pauser')([
             coercedLeftValue = leftValue.coerceToNumber();
 
             return rightValue.factory.createFloat(coercedLeftValue.getNative() / divisor);
-        },
-
-        divideByNull: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        divideByObject: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        divideByString: function (leftValue) {
-            return this.divideByNonArray(leftValue);
         },
 
         formatAsString: function () {
@@ -180,6 +168,30 @@ module.exports = require('pauser')([
          */
         isNumeric: function () {
             return true;
+        },
+
+        /**
+         * Multiplies this float by another value
+         *
+         * @param {Value} rightValue
+         * @returns {Value}
+         */
+        multiply: function (rightValue) {
+            return rightValue.multiplyByFloat(this);
+        },
+
+        /**
+         * Multiplies a non-array value by this float
+         *
+         * @param {Value} leftValue
+         * @returns {Value}
+         */
+        multiplyByNonArray: function (leftValue) {
+            var coercedMultiplicand = leftValue.coerceToNumber(),
+                rightValue = this,
+                multiplier = rightValue.value;
+
+            return rightValue.factory.createFloat(coercedMultiplicand.getNative() * multiplier);
         },
 
         onesComplement: function () {
