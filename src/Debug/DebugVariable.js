@@ -39,6 +39,11 @@ _.extend(DebugVariable.prototype, {
         return variable.scope.getVariable(variable.variableName).getValue();
     },
 
+    /**
+     * Determines whether the wrapped Value is defined
+     *
+     * @returns {boolean}
+     */
     isDefined: function () {
         var variable = this;
 

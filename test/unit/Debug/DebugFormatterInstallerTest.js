@@ -11,49 +11,38 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    DebugFactory = require('../../../src/Debug/DebugFactory'),
+    DebugFormatter = require('../../../src/Debug/DebugFormatter'),
     DebugFormatterInstaller = require('../../../src/Debug/DebugFormatterInstaller');
 
 describe('DebugFormatterInstaller', function () {
     beforeEach(function () {
-        this.DebugFormatter = sinon.stub();
-        this.ValueFormatter = sinon.stub();
+        this.debugFormatter = sinon.createStubInstance(DebugFormatter);
+        this.debugFactory = sinon.createStubInstance(DebugFactory);
         this.window = {};
 
-        this.formatter = new DebugFormatterInstaller(this.window, this.DebugFormatter, this.ValueFormatter);
+        this.debugFactory.createDebugFormatter.returns(this.debugFormatter);
+
+        this.formatter = new DebugFormatterInstaller(this.window, this.debugFactory);
     });
 
     describe('install()', function () {
         it('should define the devtools formatter global and add formatter if it does not exist', function () {
-            var debugFormatter = sinon.createStubInstance(this.DebugFormatter);
-            this.DebugFormatter.returns(debugFormatter);
-
             this.formatter.install();
 
             expect(this.window.devtoolsFormatters).to.be.an('array');
             expect(this.window.devtoolsFormatters).to.have.length(1);
-            expect(this.window.devtoolsFormatters[0]).to.equal(debugFormatter);
+            expect(this.window.devtoolsFormatters[0]).to.equal(this.debugFormatter);
         });
 
         it('should append the formatter to devtools global if it does already exist', function () {
-            var debugFormatter = sinon.createStubInstance(this.DebugFormatter);
-            this.DebugFormatter.returns(debugFormatter);
             this.window.devtoolsFormatters = [{}];
 
             this.formatter.install();
 
             expect(this.window.devtoolsFormatters).to.be.an('array');
             expect(this.window.devtoolsFormatters).to.have.length(2);
-            expect(this.window.devtoolsFormatters[1]).to.equal(debugFormatter);
-        });
-
-        it('should pass the created ValueFormatter to the DebugFormatter', function () {
-            var valueFormatter = sinon.createStubInstance(this.ValueFormatter);
-            this.ValueFormatter.returns(valueFormatter);
-
-            this.formatter.install();
-
-            expect(this.DebugFormatter).to.have.been.calledOnce;
-            expect(this.DebugFormatter).to.have.been.calledWith(sinon.match.same(valueFormatter));
+            expect(this.window.devtoolsFormatters[1]).to.equal(this.debugFormatter);
         });
     });
 });

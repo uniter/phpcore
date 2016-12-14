@@ -10,16 +10,19 @@
 'use strict';
 
 var phpCommon = require('phpcommon'),
+    DebugFactory = require('./src/Debug/DebugFactory'),
     DebugFormatter = require('./src/Debug/DebugFormatter'),
     DebugFormatterInstaller = require('./src/Debug/DebugFormatterInstaller'),
+    DebugValue = require('./src/Debug/DebugValue'),
     Engine = require('./src/Engine'),
     Environment = require('./src/Environment'),
     OptionSet = require('./src/OptionSet'),
     PHPState = require('./src/PHPState').sync(),
     Runtime = require('./src/Runtime').sync(),
     ValueFormatter = require('./src/Debug/ValueFormatter'),
-    runtime = new Runtime(Environment, Engine, OptionSet, PHPState, phpCommon, null);
+    runtime = new Runtime(Environment, Engine, OptionSet, PHPState, phpCommon, null),
+    debugFactory = new DebugFactory(DebugFormatter, DebugValue, ValueFormatter);
 
-new DebugFormatterInstaller(global, DebugFormatter, ValueFormatter).install();
+new DebugFormatterInstaller(global, debugFactory).install();
 
 module.exports = runtime;

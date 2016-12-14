@@ -9,15 +9,64 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    /**
+     * Formats the elements of an ArrayValue as a devtools formatter structure
+     *
+     * @param {ArrayValue} arrayValue
+     * @param {DebugFactory} debugFactory
+     * @returns {*[]}
+     */
+    formatArrayElements = function (arrayValue, debugFactory) {
+        var elements = [
+                'table',
+                {}
+            ];
+
+        _.each(arrayValue.getKeys(), function (keyValue) {
+            var element = arrayValue.getElementByKey(keyValue),
+                keyString = keyValue.getNative();
+
+            // Display the keys of elements with string keys in quotes
+            if (keyValue.getType() === 'string') {
+                keyString = '"' + keyString + '"';
+            }
+
+            elements.push([
+                'tr',
+                {},
+                [
+                    'td',
+                    {
+                        'style': 'font-weight: bold;'
+                    },
+                    // Prefix the key of elements that are references with an ampersand
+                    (element.isReference() ? '&' : '') + keyString + ':'
+                ],
+                [
+                    'td',
+                    {},
+                    // Format the element recursively with a DebugValue
+                    // (custom object formatter should be called again if/when expanded in debugger)
+                    ['object', {object: debugFactory.createValue(element.getValue())}]
+                ]
+            ]);
+        });
+
+        return elements;
+    };
 
 /**
  * Debugging value formatter for Chrome's Developer Tools
  *
+ * @param {DebugFactory} debugFactory
  * @constructor
  */
-function ValueFormatter() {
-
+function ValueFormatter(debugFactory) {
+    /**
+     * @type {DebugFactory}
+     */
+    this.debugFactory = debugFactory;
 }
 
 _.extend(ValueFormatter.prototype, {
@@ -25,44 +74,89 @@ _.extend(ValueFormatter.prototype, {
      * Formats a value for display in Chrome's dev tools
      *
      * @param {Value} value
-     * @returns {{displayValue: (string|number), style: string}}
+     * @returns {{headingStyle: string, headingValue: (string|number), attributes: object[]}}
      */
     format: function (value) {
-        var nativeValue = value.getNative(),
-            displayValue = nativeValue,
-            prototype,
-            style = '';
+        var attributes = [],
+            formatter = this,
+            headingValue = null,
+            headingStyle = '',
+            nativeValue = value.getNative(),
+            prototype;
 
-        if (value.getType() === 'null') {
-            displayValue = '<null>';
-            style += 'font-weight: bold;';
+        if (value.getType() === 'array') {
+            headingValue = 'Array[' + value.getLength() + ']';
+            attributes.push(
+                {
+                    name: 'length',
+                    value: value.getLength(),
+                    style: 'color: blue;'
+                },
+                {
+                    name: 'elements',
+                    value: formatArrayElements(value, formatter.debugFactory)
+                }
+            );
+        } else if (value.getType() === 'null') {
+            headingValue = '<null>';
+            headingStyle = 'font-weight: bold;';
         } else if (value.getType() === 'object') {
             if (value.getClassName() === 'JSObject') {
+                attributes.push({
+                    name: 'PHP class',
+                    value: 'JSObject'
+                });
+
                 if (typeof nativeValue === 'function') {
-                    displayValue = '<JS:function ' + nativeValue.name + '()>';
+                    headingValue = '<JS:function ' + nativeValue.name + '()>';
+
+                    attributes.push({
+                        name: 'JS class',
+                        value: '(Function)'
+                    });
                 } else {
                     prototype = Object.getPrototypeOf(nativeValue);
-                    displayValue = prototype.constructor ?
-                    '<JS:' + prototype.constructor.name + '>' :
-                        '<JS:Object>';
+
+                    if (prototype.constructor) {
+                        headingValue = '<JS:' + prototype.constructor.name + '>';
+
+                        attributes.push({
+                            name: 'JS class',
+                            value: prototype.constructor.name
+                        });
+                    } else {
+                        headingValue = '<JS:Object>';
+
+                        attributes.push({
+                            name: 'JS class',
+                            value: '(anonymous)'
+                        });
+                    }
                 }
             } else {
-                displayValue = '<' + value.getClassName() + '>';
+                headingValue = '<' + value.getClassName() + '>';
+
+                attributes.push({
+                    name: 'class',
+                    value: value.getClassName()
+                });
             }
         } else if (
             value.getType() === 'integer' ||
             value.getType() === 'float' ||
             value.getType() === 'boolean'
         ) {
-            style += 'color: blue;';
+            headingValue = nativeValue;
+            headingStyle = 'color: blue;';
         } else if (value.getType() === 'string') {
-            displayValue = '"' + nativeValue + '"';
-            style += 'color: red;';
+            headingValue = '"' + nativeValue + '"';
+            headingStyle = 'color: red;';
         }
 
         return {
-            displayValue: displayValue,
-            style: style
+            attributes: attributes,
+            headingStyle: headingStyle,
+            headingValue: headingValue
         };
     }
 });

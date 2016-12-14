@@ -16,19 +16,14 @@ var _ = require('microdash');
  * for Chrome's Developer Tools
  *
  * @param {Window} window
- * @param {class} DebugFormatter
- * @param {class} ValueFormatter
+ * @param {DebugFactory} debugFactory
  * @constructor
  */
-function DebugFormatterInstaller(window, DebugFormatter, ValueFormatter) {
+function DebugFormatterInstaller(window, debugFactory) {
     /**
-     * @type {class}
+     * @type {DebugFactory}
      */
-    this.DebugFormatter = DebugFormatter;
-    /**
-     * @type {class}
-     */
-    this.ValueFormatter = ValueFormatter;
+    this.debugFactory = debugFactory;
     /**
      * @type {Window}
      */
@@ -42,8 +37,7 @@ _.extend(DebugFormatterInstaller.prototype, {
      */
     install: function () {
         var installer = this,
-            valueFormatter = new installer.ValueFormatter(),
-            debugFormatter = new installer.DebugFormatter(valueFormatter);
+            debugFormatter = installer.debugFactory.createDebugFormatter();
 
         if (!installer.window.devtoolsFormatters) {
             installer.window.devtoolsFormatters = [];

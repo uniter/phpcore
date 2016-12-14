@@ -10,6 +10,7 @@
 'use strict';
 
 var _ = require('microdash'),
+    DebugValue = require('./DebugValue'),
     DebugVariable = require('./DebugVariable');
 
 /**
@@ -29,33 +30,35 @@ _.extend(DebugFormatter.prototype, {
     /**
      * Formats an "expanded" view of a PHP variable in Chrome's dev tools
      *
-     * @param {DebugVariable|*} debugVariable
+     * @param {DebugVariable|DebugValue} debugVariable
      * @returns {[]}
      */
     body: function (debugVariable) {
         var value = debugVariable.getValue(),
-            formattedValue = this.valueFormatter.format(value);
-
-        return [
-            'table',
-            {},
-            [
-                'tr',
+            formattedValue = this.valueFormatter.format(value),
+            structure = [
+                'table',
                 {},
                 [
-                    'td',
-                    {
-                        'style': 'font-weight: bold;'
-                    },
-                    'type:'
-                ],
-                [
-                    'td',
+                    'tr',
                     {},
-                    value.getType()
+                    [
+                        'td',
+                        {
+                            'style': 'font-weight: bold;'
+                        },
+                        'type:'
+                    ],
+                    [
+                        'td',
+                        {},
+                        value.getType()
+                    ]
                 ]
-            ],
-            [
+            ];
+
+        function addAttribute(name, value, style) {
+            structure.push([
                 'tr',
                 {},
                 [
@@ -63,40 +66,53 @@ _.extend(DebugFormatter.prototype, {
                     {
                         'style': 'font-weight: bold;'
                     },
-                    'value:'
+                    name + ':'
                 ],
                 [
                     'td',
                     {
-                        'style': formattedValue.style
+                        'style': style
                     },
-                    formattedValue.displayValue
+                    value
                 ]
-            ]
-        ];
+            ]);
+        }
+
+        if (formattedValue.attributes.length === 0) {
+            // No attributes provided, only value, so add value as the only attribute
+            // so that the value can be expanded in the debugger to see its type along with value
+            addAttribute('value', formattedValue.headingValue, formattedValue.headingStyle);
+        } else {
+            _.each(formattedValue.attributes, function (attribute) {
+                addAttribute(attribute.name, attribute.value, attribute.style);
+            });
+        }
+
+        return structure;
     },
 
     /**
      * Returns true if the value can be expanded with .body(...) above, false otherwise
      *
-     * @param {DebugVariable|*} debugVariable
-     * @returns {boolean|*}
+     * @param {DebugVariable|DebugValue|*} debugVariable
+     * @returns {boolean}
      */
     hasBody: function (debugVariable) {
-        return debugVariable instanceof DebugVariable && debugVariable.isDefined();
+        return (debugVariable instanceof DebugVariable && debugVariable.isDefined()) ||
+            debugVariable instanceof DebugValue;
     },
 
     /**
      * Formats a minimal/inline view of a PHP variable in Chrome's dev tools
      *
-     * @param {DebugVariable|object} debugVariable
+     * @param {DebugVariable|DebugValue|*} debugVariable
      * @returns {[]}
      */
     header: function (debugVariable) {
         var formattedValue,
             value;
 
-        if (!(debugVariable instanceof DebugVariable)) {
+        if (!(debugVariable instanceof DebugVariable) && !(debugVariable instanceof DebugValue)) {
             return null;
         }
 
@@ -108,7 +124,7 @@ _.extend(DebugFormatter.prototype, {
 
         formattedValue = this.valueFormatter.format(value);
 
-        return ['span', {'style': formattedValue.style}, formattedValue.displayValue];
+        return ['span', {'style': formattedValue.headingStyle}, formattedValue.headingValue];
     }
 });
 
