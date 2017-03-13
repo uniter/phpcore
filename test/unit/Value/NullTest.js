@@ -370,6 +370,12 @@ describe('Null', function () {
         });
     });
 
+    describe('isEmpty()', function () {
+        it('should return true', function () {
+            expect(this.value.isEmpty()).to.be.true;
+        });
+    });
+
     describe('isNumeric()', function () {
         it('should return false', function () {
             expect(this.value.isNumeric()).to.be.false;

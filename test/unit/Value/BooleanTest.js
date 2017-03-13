@@ -522,6 +522,20 @@ describe('Boolean', function () {
         });
     });
 
+    describe('isEmpty()', function () {
+        it('should return true for boolean false', function () {
+            this.createValue(false);
+
+            expect(this.value.isEmpty()).to.be.true;
+        });
+
+        it('should return false for boolean true', function () {
+            this.createValue(true);
+
+            expect(this.value.isEmpty()).to.be.false;
+        });
+    });
+
     describe('isNumeric()', function () {
         it('should return false', function () {
             expect(this.value.isNumeric()).to.be.false;

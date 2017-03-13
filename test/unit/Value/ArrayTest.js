@@ -568,6 +568,19 @@ describe('Array', function () {
         });
     });
 
+    describe('isEmpty()', function () {
+        it('should return true when the array is empty', function () {
+            this.elements.length = 0;
+            this.createValue();
+
+            expect(this.value.isEmpty()).to.be.true;
+        });
+
+        it('should return false when the array is not empty', function () {
+            expect(this.value.isEmpty()).to.be.false;
+        });
+    });
+
     describe('isNumeric()', function () {
         it('should return false', function () {
             expect(this.value.isNumeric()).to.be.false;

@@ -31,6 +31,16 @@ _.extend(NullReference.prototype, {
         return this.valueFactory.createNull();
     },
 
+    /**
+     * Determines whether this reference is empty or not
+     * (NULL references are always empty)
+     *
+     * @returns {boolean}
+     */
+    isEmpty: function () {
+        return true; // PHP NULL is classed as empty
+    },
+
     isSet: function () {
         return false;
     },

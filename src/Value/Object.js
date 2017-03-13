@@ -472,6 +472,15 @@ module.exports = require('pauser')([
             return classNameValue.isTheClassOfObject(this, namespaceOrNamespaceScope);
         },
 
+        /**
+         * Objects are never classed as empty
+         *
+         * @returns {boolean}
+         */
+        isEmpty: function () {
+            return false;
+        },
+
         isEqualTo: function (rightValue) {
             return rightValue.isEqualToObject(this);
         },

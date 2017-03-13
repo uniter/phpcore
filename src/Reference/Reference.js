@@ -11,7 +11,13 @@
 
 var _ = require('microdash');
 
+/**
+ * Interface for references to extend to allow instanceof checking
+ *
+ * @constructor
+ */
 function Reference() {
+    throw new Error('Reference is an interface, no need to instantiate it');
 }
 
 _.extend(Reference.prototype, {
@@ -20,6 +26,15 @@ _.extend(Reference.prototype, {
     },
 
     getValue: function () {
+        throw new Error('Not implemented');
+    },
+
+    /**
+     * Determines whether the reference is classed as "empty" or not
+     *
+     * @returns {boolean}
+     */
+    isEmpty: function () {
         throw new Error('Not implemented');
     },
 

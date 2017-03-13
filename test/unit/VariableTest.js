@@ -58,4 +58,28 @@ describe('Variable', function () {
             expect(this.variable.getName()).to.equal('myVar');
         });
     });
+
+    describe('isEmpty()', function () {
+        it('should return true when the variable is unset', function () {
+            this.variable.unset();
+
+            expect(this.variable.isEmpty()).to.be.true;
+        });
+
+        it('should return true when the variable is set to an empty value', function () {
+            var value = this.valueFactory.createString('');
+            value.isEmpty.returns(true);
+            this.variable.setValue(value);
+
+            expect(this.variable.isEmpty()).to.be.true;
+        });
+
+        it('should return false when the variable is set to a non-empty value', function () {
+            var value = this.valueFactory.createString('hello');
+            value.isEmpty.returns(false);
+            this.variable.setValue(value);
+
+            expect(this.variable.isEmpty()).to.be.false;
+        });
+    });
 });

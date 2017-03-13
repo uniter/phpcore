@@ -101,6 +101,17 @@ module.exports = require('pauser')([
             return variable.value || variable.reference;
         },
 
+        /**
+         * Determines whether this variable is classed as "empty" or not
+         *
+         * @returns {boolean}
+         */
+        isEmpty: function () {
+            var variable = this;
+
+            return !variable.isDefined() || variable.getValue().isEmpty();
+        },
+
         isSet: function () {
             var variable = this;
 

@@ -10,14 +10,38 @@
 'use strict';
 
 var _ = require('microdash'),
+    phpCommon = require('phpcommon'),
     util = require('util'),
+    PHPFatalError = phpCommon.PHPFatalError,
     Reference = require('./Reference');
 
+/**
+ * @param {Class} classObject
+ * @param {string} name
+ * @param {string} visibility "private", "protected" or "public"
+ * @param {Value} value
+ * @constructor
+ */
 function StaticPropertyReference(classObject, name, visibility, value) {
+    /**
+     * @type {Class}
+     */
     this.classObject = classObject;
+    /**
+     * @type {string}
+     */
     this.name = name;
+    /**
+     * @type {Reference|null}
+     */
     this.reference = null;
+    /**
+     * @type {Value}
+     */
     this.value = value;
+    /**
+     * @type {string}
+     */
     this.visibility = visibility;
 }
 
@@ -46,8 +70,26 @@ _.extend(StaticPropertyReference.prototype, {
         return this.visibility;
     },
 
+    /**
+     * Determines whether this class property is "empty" or not
+     *
+     * @returns {boolean}
+     */
+    isEmpty: function () {
+        return this.getValue().isEmpty();
+    },
+
     isReference: function () {
         return !!this.reference;
+    },
+
+    /**
+     * Determines whether this class property is "set" (assigned a non-NULL value) or not
+     *
+     * @returns {boolean}
+     */
+    isSet: function () {
+        return this.getValue().isSet();
     },
 
     setReference: function (reference) {
@@ -65,6 +107,20 @@ _.extend(StaticPropertyReference.prototype, {
         } else {
             property.value = value.getForAssignment();
         }
+    },
+
+    /**
+     * Static properties cannot be unset, so this always raises an error
+     *
+     * @throws {PHPFatalError}
+     */
+    unset: function () {
+        var property = this;
+
+        throw new PHPFatalError(PHPFatalError.CANNOT_UNSET_STATIC_PROPERTY, {
+            className: property.classObject.getName(),
+            propertyName: property.name
+        });
     }
 });
 

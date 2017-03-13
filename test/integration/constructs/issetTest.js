@@ -14,16 +14,24 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP isset(...) construct integration', function () {
-    it('should correctly handle accessing undefined variables, elements and properties', function () {
+    it('should correctly handle accessing set variables, elements and properties', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
+class MyClass {
+    public static $myProp = 0;
+}
+
 $object = new stdClass;
+$aRandomVar = 21;
+$anArray = ['anElement' => 100];
+$anObject = (object)['aProp' => 27];
 
 $result = [];
 $result[] = isset($aRandomVar);
-$result[] = isset($result['aRandomElement']);
-$result[] = isset($object->aProp);
+$result[] = isset($anArray['anElement']);
+$result[] = isset($anObject->aProp);
+$result[] = isset(MyClass::$myProp);
 
 return $result;
 EOS
@@ -32,6 +40,36 @@ EOS
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
+            true,
+            true,
+            true,
+            true
+        ]);
+        expect(engine.getStderr().readAll()).to.equal('');
+    });
+
+    it('should correctly handle accessing undefined variables, elements and properties', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass {}
+
+$object = new stdClass;
+
+$result = [];
+$result[] = isset($aRandomVar);
+$result[] = isset($result['aRandomElement']);
+$result[] = isset($object->aProp);
+$result[] = isset(MyClass::$myProp);
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            false,
             false,
             false,
             false

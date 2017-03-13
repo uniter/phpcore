@@ -842,6 +842,12 @@ describe('Object', function () {
         });
     });
 
+    describe('isEmpty()', function () {
+        it('should return false', function () {
+            expect(this.value.isEmpty()).to.be.false;
+        });
+    });
+
     describe('isNumeric()', function () {
         it('should return false', function () {
             expect(this.value.isNumeric()).to.be.false;

@@ -231,6 +231,18 @@ module.exports = require('pauser')([
             return classNameValue.isTheClassOfString(this);
         },
 
+        /**
+         * Determines whether this value is classed as "empty" or not
+         *
+         * @returns {boolean}
+         */
+        isEmpty: function () {
+            var value = this;
+
+            // NB: string("0.0") is _not_ classed as empty
+            return value.value === '' || value.value === '0';
+        },
+
         isEqualTo: function (rightValue) {
             return rightValue.isEqualToString(this);
         },

@@ -550,6 +550,26 @@ describe('Integer', function () {
         });
     });
 
+    describe('isEmpty()', function () {
+        it('should return false for a positive integer', function () {
+            this.createValue(7);
+
+            expect(this.value.isEmpty()).to.be.false;
+        });
+
+        it('should return false for a negative integer', function () {
+            this.createValue(-21);
+
+            expect(this.value.isEmpty()).to.be.false;
+        });
+
+        it('should return true for zero', function () {
+            this.createValue(0);
+
+            expect(this.value.isEmpty()).to.be.true;
+        });
+    });
+
     describe('isGreaterThan()', function () {
         it('should return true for two integers when left is greater than right', function () {
             var lhs = new Value(this.factory, this.callStack, 'integer', 21),

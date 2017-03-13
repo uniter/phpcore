@@ -32,6 +32,22 @@ _.extend(ObjectElement.prototype, {
         return element.objectValue.callMethod('offsetGet', [element.keyValue]);
     },
 
+    /**
+     * Determines whether an element of an object is classed as empty.
+     * Objects may only have an element fetched if they can be treated as an array,
+     * by implementing ArrayAccess
+     *
+     * @returns {boolean}
+     */
+    isEmpty: function () {
+        var element = this;
+
+        // When using empty() ArrayAccess::offsetGet() will be called and checked
+        // if empty only if ArrayAccess::offsetExists() returns TRUE.
+        return !element.objectValue.callMethod('offsetExists', [element.keyValue]).getNative() ||
+            element.objectValue.callMethod('offsetGet', [element.keyValue]).isEmpty();
+    },
+
     isSet: function () {
         var element = this;
 

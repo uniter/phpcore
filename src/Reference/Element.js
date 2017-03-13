@@ -102,6 +102,25 @@ _.extend(ElementReference.prototype, {
         return element.value || element.reference;
     },
 
+    /**
+     * Determines whether the specified array element is "empty" or not
+     *
+     * @returns {boolean}
+     */
+    isEmpty: function () {
+        var element = this;
+
+        if (element.value) {
+            return element.value.isEmpty();
+        }
+
+        if (element.reference) {
+            return element.reference.getValue().isEmpty();
+        }
+
+        return false;
+    },
+
     isReference: function () {
         return !!this.reference;
     },

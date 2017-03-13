@@ -125,6 +125,16 @@ module.exports = require('pauser')([
             return classNameValue.isTheClassOfBoolean(this);
         },
 
+        /**
+         * Determines whether this boolean is classed as "empty" or not.
+         * Only false is classed as empty
+         *
+         * @returns {boolean}
+         */
+        isEmpty: function () {
+            return this.value === false;
+        },
+
         isEqualTo: function (rightValue) {
             var leftValue = this,
                 factory = leftValue.factory;

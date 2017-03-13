@@ -12,11 +12,13 @@
 module.exports = require('pauser')([
     require('microdash'),
     require('phpcommon'),
-    require('./Reference/StaticProperty')
+    require('./Reference/StaticProperty'),
+    require('./Reference/UndeclaredStaticProperty')
 ], function (
     _,
     phpCommon,
-    StaticPropertyReference
+    StaticPropertyReference,
+    UndeclaredStaticPropertyReference
 ) {
     var IS_STATIC = 'isStatic',
         MAGIC_CALL = '__call',
@@ -319,16 +321,21 @@ module.exports = require('pauser')([
             return this.name.replace(/^.*\\/, '');
         },
 
+        /**
+         * Fetches a reference to a static property of this class by its name
+         *
+         * @param {string} name
+         * @returns {StaticPropertyReference|UndeclaredStaticPropertyReference}
+         */
         getStaticPropertyByName: function (name) {
             var classObject = this,
                 currentClass,
                 staticProperty;
 
             if (!hasOwn.call(classObject.staticProperties, name)) {
-                throw new PHPFatalError(PHPFatalError.UNDECLARED_STATIC_PROPERTY, {
-                    className: classObject.name,
-                    propertyName: name
-                });
+                // Undeclared static properties cannot be accessed _except_ by isset(...) or empty(...),
+                // which return the relevant boolean result (`false` and `true` respectively)
+                return new UndeclaredStaticPropertyReference(classObject, name);
             }
 
             staticProperty = classObject.staticProperties[name];

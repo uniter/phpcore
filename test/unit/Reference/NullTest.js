@@ -35,6 +35,12 @@ describe('NullReference', function () {
         });
     });
 
+    describe('isEmpty()', function () {
+        it('should return true', function () {
+            expect(this.reference.isEmpty()).to.be.true;
+        });
+    });
+
     describe('isSet()', function () {
         it('should return false', function () {
             expect(this.reference.isSet()).to.be.false;

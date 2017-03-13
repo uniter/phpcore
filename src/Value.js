@@ -334,6 +334,13 @@ module.exports = require('pauser')([
             throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
         },
 
+        /**
+         * Determines whether the value is classed as "empty" or not
+         *
+         * @returns {boolean}
+         */
+        isEmpty: throwUnimplemented,
+
         isEqualTo: function (rightValue) {
             /*jshint eqeqeq:false */
             var leftValue = this;

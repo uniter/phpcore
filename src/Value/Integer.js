@@ -160,6 +160,16 @@ module.exports = require('pauser')([
             return classNameValue.isTheClassOfInteger(this);
         },
 
+        /**
+         * Determines whether this integer is classed as "empty" or not.
+         * Only zero is classed as empty
+         *
+         * @returns {boolean}
+         */
+        isEmpty: function () {
+            return this.value === 0;
+        },
+
         isEqualTo: function (rightValue) {
             return rightValue.isEqualToInteger(this);
         },

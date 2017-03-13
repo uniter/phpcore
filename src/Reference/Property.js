@@ -16,12 +16,38 @@ var _ = require('microdash'),
     PHPError = phpCommon.PHPError,
     Reference = require('./Reference');
 
+/**
+ * @param {ValueFactory} valueFactory
+ * @param {CallStack} callStack
+ * @param {ObjectValue} objectValue
+ * @param {object} nativeObject
+ * @param {Value} key
+ * @constructor
+ */
 function PropertyReference(valueFactory, callStack, objectValue, nativeObject, key) {
+    /**
+     * @type {ObjectValue}
+     */
     this.objectValue = objectValue;
+    /**
+     * @type {Value}
+     */
     this.key = key;
+    /**
+     * @type {object}
+     */
     this.nativeObject = nativeObject;
+    /**
+     * @type {Reference|null}
+     */
     this.reference = null;
+    /**
+     * @type {CallStack}
+     */
     this.callStack = callStack;
+    /**
+     * @type {ValueFactory}
+     */
     this.valueFactory = valueFactory;
 }
 
@@ -110,6 +136,17 @@ _.extend(PropertyReference.prototype, {
         }
 
         return defined;
+    },
+
+    /**
+     * Determines whether this object property is "empty" or not
+     *
+     * @returns {boolean}
+     */
+    isEmpty: function () {
+        var property = this;
+
+        return !property.isDefined() || property.getValue().isEmpty();
     },
 
     isReference: function () {

@@ -120,6 +120,44 @@ describe('ElementReference', function () {
         });
     });
 
+    describe('isEmpty()', function () {
+        it('should return false for an unset element', function () {
+            this.element.unset();
+
+            expect(this.element.isEmpty()).to.be.false;
+        });
+
+        it('should return true when the element has a value that is empty', function () {
+            this.value.isEmpty.returns(true);
+
+            expect(this.element.isEmpty()).to.be.true;
+        });
+
+        it('should return false when the element has a value that is not empty', function () {
+            this.value.isEmpty.returns(false);
+
+            expect(this.element.isEmpty()).to.be.false;
+        });
+
+        it('should return true when the element has a reference to a value that is empty', function () {
+            var reference = sinon.createStubInstance(Variable);
+            reference.getValue.returns(this.value);
+            this.value.isEmpty.returns(true);
+            this.element.setReference(reference);
+
+            expect(this.element.isEmpty()).to.be.true;
+        });
+
+        it('should return false when the element has a reference to a value that is not empty', function () {
+            var reference = sinon.createStubInstance(Variable);
+            reference.getValue.returns(this.value);
+            this.value.isEmpty.returns(false);
+            this.element.setReference(reference);
+
+            expect(this.element.isEmpty()).to.be.false;
+        });
+    });
+
     describe('isSet()', function () {
         it('should return true if the element\'s value is set', function () {
             this.value.isSet.returns(true);

@@ -129,6 +129,16 @@ module.exports = require('pauser')([
             return classNameValue.isTheClassOfFloat(this);
         },
 
+        /**
+         * Determines whether this float is classed as "empty" or not.
+         * Only zero is classed as empty
+         *
+         * @returns {boolean}
+         */
+        isEmpty: function () {
+            return this.value === 0;
+        },
+
         isEqualTo: function (rightValue) {
             return rightValue.isEqualToFloat(this);
         },

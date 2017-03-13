@@ -47,8 +47,9 @@ describe('PropertyReference', function () {
             return stringValue;
         });
 
+        this.propertyValue = this.factory.createString('value for my prop');
         this.nativeObject = {
-            'my_property': this.factory.createString('value for my prop')
+            'my_property': this.propertyValue
         };
         this.objectValue = sinon.createStubInstance(ObjectValue);
         this.objectValue.getNative.returns(this.nativeObject);
@@ -63,6 +64,26 @@ describe('PropertyReference', function () {
         );
     });
 
+    describe('isEmpty()', function () {
+        it('should return true when the property is not set', function () {
+            this.property.unset();
+
+            expect(this.property.isEmpty()).to.be.true;
+        });
+
+        it('should return true when the property is set to an empty value', function () {
+            this.propertyValue.isEmpty.returns(true);
+
+            expect(this.property.isEmpty()).to.be.true;
+        });
+
+        it('should return false when the property is set to a non-empty value', function () {
+            this.propertyValue.isEmpty.returns(false);
+
+            expect(this.property.isEmpty()).to.be.false;
+        });
+    });
+
     describe('isSet()', function () {
         it('should return true when the property is set', function () {
             expect(this.property.isSet()).to.be.true;
@@ -75,7 +96,7 @@ describe('PropertyReference', function () {
         });
 
         it('should return false when the property is set to null', function () {
-            this.nativeObject.my_property.getType.returns('null');
+            this.propertyValue.getType.returns('null');
 
             expect(this.property.isSet()).to.be.false;
         });

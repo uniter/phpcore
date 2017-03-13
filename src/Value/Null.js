@@ -96,6 +96,15 @@ module.exports = require('pauser')([
             return classNameValue.isTheClassOfNull(this);
         },
 
+        /**
+         * Null is always classed as empty
+         *
+         * @returns {boolean}
+         */
+        isEmpty: function () {
+            return true;
+        },
+
         isEqualTo: function (rightValue) {
             return rightValue.isEqualToNull(this);
         },

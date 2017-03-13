@@ -536,6 +536,26 @@ describe('Float', function () {
         });
     });
 
+    describe('isEmpty()', function () {
+        it('should return false for a positive float', function () {
+            this.createValue(2.7);
+
+            expect(this.value.isEmpty()).to.be.false;
+        });
+
+        it('should return false for a negative float', function () {
+            this.createValue(-101.4);
+
+            expect(this.value.isEmpty()).to.be.false;
+        });
+
+        it('should return true for zero', function () {
+            this.createValue(0);
+
+            expect(this.value.isEmpty()).to.be.true;
+        });
+    });
+
     describe('isNumeric()', function () {
         it('should return true', function () {
             expect(this.value.isNumeric()).to.be.true;

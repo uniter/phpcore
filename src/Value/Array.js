@@ -364,6 +364,16 @@ module.exports = require('pauser')([
             return classNameValue.isTheClassOfArray(this);
         },
 
+        /**
+         * Determines whether this array is classed as "empty" or not.
+         * Only empty arrays (with no elements) are classed as empty
+         *
+         * @returns {boolean}
+         */
+        isEmpty: function () {
+            return this.value.length === 0;
+        },
+
         isEqualTo: function (rightValue) {
             return rightValue.isEqualToArray(this);
         },

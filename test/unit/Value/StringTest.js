@@ -910,6 +910,32 @@ describe('String', function () {
         });
     });
 
+    describe('isEmpty()', function () {
+        it('should return true for the empty string', function () {
+            this.createValue('');
+
+            expect(this.value.isEmpty()).to.be.true;
+        });
+
+        it('should return true for the string "0"', function () {
+            this.createValue('0');
+
+            expect(this.value.isEmpty()).to.be.true;
+        });
+
+        it('should return false for a string of text', function () {
+            this.createValue('my text');
+
+            expect(this.value.isEmpty()).to.be.false;
+        });
+
+        it('should return false for the string "0.0", in contrast to the integer version', function () {
+            this.createValue('0.0');
+
+            expect(this.value.isEmpty()).to.be.false;
+        });
+    });
+
     describe('isNumeric()', function () {
         _.each([
             '21',
