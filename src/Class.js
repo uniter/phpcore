@@ -367,6 +367,15 @@ module.exports = require('pauser')([
             return staticProperty;
         },
 
+        /**
+         * Fetches the parent class of this one, or null if it has no parent
+         *
+         * @returns {Class|null}
+         */
+        getSuperClass: function () {
+            return this.superClass;
+        },
+
         hasStaticPropertyByName: function (name) {
             return hasOwn.call(this.staticProperties, name);
         },

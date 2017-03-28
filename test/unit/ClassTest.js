@@ -397,6 +397,20 @@ describe('Class', function () {
         });
     });
 
+    describe('getSuperClass()', function () {
+        it('should return the parent of this class when it has one', function () {
+            this.createClass('__construct', this.superClass);
+
+            expect(this.classObject.getSuperClass()).to.equal(this.superClass);
+        });
+
+        it('should return null when this class does not have a parent', function () {
+            this.createClass('__construct', null);
+
+            expect(this.classObject.getSuperClass()).to.be.null;
+        });
+    });
+
     describe('instantiate()', function () {
         beforeEach(function () {
             this.objectValue = sinon.createStubInstance(ObjectValue);
