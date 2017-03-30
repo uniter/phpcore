@@ -360,6 +360,17 @@ describe('Null', function () {
         });
     });
 
+    describe('instantiate()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                this.value.instantiate();
+            }.bind(this)).to.throw(
+                PHPFatalError,
+                'Class name must be a valid object or a string'
+            );
+        });
+    });
+
     describe('isAnInstanceOf()', function () {
         it('should hand off to the right-hand operand to determine the result', function () {
             var rightOperand = sinon.createStubInstance(Value),

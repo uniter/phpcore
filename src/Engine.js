@@ -13,7 +13,6 @@ var _ = require('microdash'),
     INCLUDE_OPTION = 'include',
     PATH = 'path',
     hasOwn = {}.hasOwnProperty,
-    pauser = require('pauser'),
     DebugVariable = require('./Debug/DebugVariable'),
     ExitValueWrapper = require('./Value/Exit'),
     KeyValuePair = require('./KeyValuePair'),
@@ -245,32 +244,9 @@ _.extend(Engine.prototype, {
             createDebugVar: function (scope, variableName) {
                 return new DebugVariable(scope, variableName);
             },
-            createInstance: unwrap(pauser([_], function (_) {
-                return function (namespaceScope, classNameValue, args) {
-                    var className = classNameValue.getNative(),
-                        classObject,
-                        nativeObject,
-                        objectValue;
-
-                    // Detect whether a JS function is being instantiated as a class from PHP
-                    if (_.isFunction(className)) {
-                        // Create an instance of the class, not calling constructor
-                        nativeObject = Object.create(className.prototype);
-                        objectValue = valueFactory.createFromNative(nativeObject);
-
-                        // Call the constructor on the newly created instance, unwrapping arguments
-                        className.apply(nativeObject, _.map(args, function (argValue) {
-                            return argValue.getNative();
-                        }));
-
-                        return objectValue;
-                    }
-
-                    classObject = namespaceScope.getClass(className);
-
-                    return classObject.instantiate(args);
-                };
-            })),
+            createInstance: function (namespaceScope, classNameValue, args) {
+                return classNameValue.instantiate(args, namespaceScope);
+            },
             createKeyValuePair: function (key, value) {
                 return new KeyValuePair(key, value);
             },
@@ -280,6 +256,31 @@ _.extend(Engine.prototype, {
             createNamespaceScope: createNamespaceScope,
             exit: function (statusValue) {
                 throw valueFactory.createExit(statusValue);
+            },
+            /**
+             * Fetches the name of the specified class, wrapped as a StringValue
+             *
+             * @param {Class} classObject
+             * @returns {StringValue}
+             */
+            getClassName: function (classObject) {
+                return valueFactory.createString(classObject.getName());
+            },
+            /**
+             * Fetches the name of the parent of the specified class, wrapped as a StringValue
+             *
+             * @param {Class} classObject
+             * @returns {StringValue}
+             */
+            getParentClassName: function (classObject) {
+                var superClass = classObject.getSuperClass();
+
+                if (!superClass) {
+                    // Fatal error: Uncaught Error: Cannot access parent:: when current class scope has no parent
+                    throw new PHPFatalError(PHPFatalError.NO_PARENT_CLASS);
+                }
+
+                return valueFactory.createString(superClass.getName());
             },
             getPath: function () {
                 return valueFactory.createString(getNormalizedPath());
@@ -384,8 +385,20 @@ _.extend(Engine.prototype, {
                         tools: tools,
                         globalNamespace: globalNamespace
                     }
-                }).then(resolve, function (error) {
-                    var result = handleError(error, reject);
+                }).then(function (resultValue) {
+                    // Pop the top-level scope (of the include, if this module was included) off the stack
+                    // regardless of whether an error occurred
+                    callStack.pop();
+
+                    resolve(resultValue);
+                }, function (error) {
+                    var result;
+
+                    // Pop the top-level scope (of the include, if this module was included) off the stack
+                    // regardless of whether an error occurred
+                    callStack.pop();
+
+                    result = handleError(error, reject);
 
                     if (result) {
                         resolve(result);
@@ -396,7 +409,13 @@ _.extend(Engine.prototype, {
 
         // Otherwise load the module synchronously
         try {
-            return wrapper(stdin, stdout, stderr, tools, globalNamespace);
+            try {
+                return wrapper(stdin, stdout, stderr, tools, globalNamespace);
+            } finally {
+                // Pop the top-level scope (of the include, if this module was included) off the stack
+                // regardless of whether an error occurred
+                callStack.pop();
+            }
         } catch (error) {
             return handleError(error, function (error) {
                 throw error;

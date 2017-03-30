@@ -67,7 +67,7 @@ namespace My\Space
         public function myMethod($multiplier)
         {
             $myClosure = function () use ($multiplier) {
-                return self::$myProp * $multiplier;
+                return self::$firstProp * static::$secondProp * $multiplier;
             };
 
             return $myClosure;
@@ -79,7 +79,8 @@ namespace Your\Space
 {
     class SecondClass
     {
-        private static $myProp = 8;
+        private static $firstProp = 2;
+        private static $secondProp = 8;
     }
 }
 
@@ -104,7 +105,7 @@ EOS
                 result = engine.execute();
 
             expect(engine.getStderr().readAll()).to.equal('');
-            expect(result.getNative()).to.equal(24);
+            expect(result.getNative()).to.equal(48);
         });
     });
 

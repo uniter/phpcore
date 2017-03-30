@@ -49,13 +49,14 @@ module.exports = require('pauser')([
          * @param {StringValue} nameValue
          * @param {Value[]} args
          * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
+         * @param {bool} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
          * @returns {Value}
          */
-        callStaticMethod: function (nameValue, args, namespaceOrNamespaceScope) {
+        callStaticMethod: function (nameValue, args, namespaceOrNamespaceScope, isForwarding) {
             var value = this,
                 classObject = namespaceOrNamespaceScope.getGlobalNamespace().getClass(value.value);
 
-            return classObject.callMethod(nameValue.getNative(), args);
+            return classObject.callMethod(nameValue.getNative(), args, null, null, null, isForwarding);
         },
 
         coerceToBoolean: function () {
@@ -225,6 +226,20 @@ module.exports = require('pauser')([
                 classObject = namespaceOrNamespaceScope.getGlobalNamespace().getClass(value.value);
 
             return classObject.getStaticPropertyByName(nameValue.getNative());
+        },
+
+        /**
+         * Creates an instance of the class this string contains the FQCN of
+         *
+         * @param {Value[]} args
+         * @param {NamespaceScope} namespaceScope
+         * @returns {ObjectValue}
+         */
+        instantiate: function (args, namespaceScope) {
+            var value = this,
+                classObject = namespaceScope.getGlobalNamespace().getClass(value.value);
+
+            return classObject.instantiate(args);
         },
 
         isAnInstanceOf: function (classNameValue) {

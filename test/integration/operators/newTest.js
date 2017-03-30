@@ -63,4 +63,96 @@ EOS
 
         expect(engine.execute().getNative()).to.equal(47);
     });
+
+    it('should resolve a bareword string class name relative to the current namespace', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace My\Stuff
+{
+    class MyClass
+    {
+        public function fetchIt()
+        {
+            $otherObject = new In\Here\MyOtherClass(21);
+
+            return $otherObject->getIt();
+        }
+    }
+}
+
+namespace My\Stuff\In\Here
+{
+    class MyOtherClass
+    {
+        private $it;
+
+        public function __construct($it)
+        {
+            $this->it = $it;
+        }
+
+        public function getIt()
+        {
+            return $this->it;
+        }
+    }
+}
+
+return (new My\Stuff\MyClass)->fetchIt();
+
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.equal(21);
+    });
+
+    it('should resolve a string class name as a FQCN relative to the root namespace', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace My\Space
+{
+    class MyClass
+    {
+        public function fetchIt()
+        {
+            $className = 'Your\Space\YourClass';
+
+            $yourObject = new $className(101);
+
+            return $yourObject->getIt();
+        }
+    }
+}
+
+namespace Your\Space
+{
+    class YourClass
+    {
+        private $it;
+
+        public function __construct($it)
+        {
+            $this->it = $it;
+        }
+
+        public function getIt()
+        {
+            return $this->it;
+        }
+    }
+}
+
+return (new My\Space\MyClass)->fetchIt();
+
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.equal(101);
+    });
 });

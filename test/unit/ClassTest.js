@@ -15,6 +15,7 @@ var _ = require('microdash'),
     ArrayValue = require('../../src/Value/Array').sync(),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
+    FunctionFactory = require('../../src/FunctionFactory').sync(),
     PHPFatalError = require('phpcommon').PHPFatalError,
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
@@ -25,6 +26,7 @@ var _ = require('microdash'),
 describe('Class', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
+        this.functionFactory = sinon.createStubInstance(FunctionFactory);
         this.namespaceScope = sinon.createStubInstance(NamespaceScope);
         this.superClass = sinon.createStubInstance(Class);
         this.valueFactory = sinon.createStubInstance(ValueFactory);
@@ -63,6 +65,7 @@ describe('Class', function () {
         this.createClass = function (constructorName, superClass) {
             this.classObject = new Class(
                 this.valueFactory,
+                this.functionFactory,
                 this.callStack,
                 'My\\Class\\Path\\Here',
                 constructorName,
@@ -82,13 +85,15 @@ describe('Class', function () {
                 this.nativeObject = sinon.createStubInstance(this.InternalClass);
                 this.objectValue = sinon.createStubInstance(ObjectValue);
                 this.objectValue.getObject.returns(this.nativeObject);
-                this.superClass = null;
 
-                this.callMethod = function (methodName, args) {
+                this.callMethod = function (methodName, args, isForwardingStaticCall) {
                     return this.classObject.callMethod(
                         methodName,
                         args,
-                        this.objectValue
+                        this.objectValue,
+                        null,
+                        null,
+                        !!isForwardingStaticCall
                     );
                 }.bind(this);
             });
@@ -124,6 +129,34 @@ describe('Class', function () {
                     expect(resultValue.getNative()).to.equal('the result');
                     expect(this.methodFunction).to.have.been.calledOnce;
                     expect(this.methodFunction).to.have.been.calledWith('the arg');
+                });
+
+                describe('for a forwarding static call', function () {
+                    it('should not pass along the static class', function () {
+                        var resultValue = sinon.createStubInstance(Value);
+                        this.methodFunction.returns(resultValue);
+                        this.classObject.disableAutoCoercion();
+
+                        this.callMethod('myMethod', [], true);
+
+                        expect(this.functionFactory.setNewStaticClassIfWrapped).not.to.have.been.called;
+                    });
+                });
+
+                describe('for a non-forwarding static call', function () {
+                    it('should pass along the static class', function () {
+                        var resultValue = sinon.createStubInstance(Value);
+                        this.methodFunction.returns(resultValue);
+                        this.classObject.disableAutoCoercion();
+
+                        this.callMethod('myMethod', [], false);
+
+                        expect(this.functionFactory.setNewStaticClassIfWrapped).to.have.been.calledOnce;
+                        expect(this.functionFactory.setNewStaticClassIfWrapped).to.have.been.calledWith(
+                            sinon.match.same(this.methodFunction),
+                            sinon.match.same(this.classObject)
+                        );
+                    });
                 });
             });
 

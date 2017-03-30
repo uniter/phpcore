@@ -64,6 +64,24 @@ describe('PropertyReference', function () {
         );
     });
 
+    describe('isDefined()', function () {
+        it('should return true when the property is assigned a non-NULL value', function () {
+            expect(this.property.isDefined()).to.be.true;
+        });
+
+        it('should return true when the property is assigned a NULL value', function () {
+            this.propertyValue.getType.returns('null');
+
+            expect(this.property.isDefined()).to.be.true;
+        });
+
+        it('should return false when the property is not assigned a value', function () {
+            this.keyValue.getNative.returns('not_my_property');
+
+            expect(this.property.isDefined()).to.be.false;
+        });
+    });
+
     describe('isEmpty()', function () {
         it('should return true when the property is not set', function () {
             this.property.unset();

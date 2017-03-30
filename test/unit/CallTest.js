@@ -12,7 +12,10 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     Call = require('../../src/Call'),
+    Class = require('../../src/Class').sync(),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
+    NullValue = require('../../src/Value/Null').sync(),
+    ObjectValue = require('../../src/Value/Object').sync(),
     Scope = require('../../src/Scope').sync(),
     StringValue = require('../../src/Value/String').sync(),
     Value = require('../../src/Value').sync();
@@ -22,9 +25,10 @@ describe('Call', function () {
         this.argValue1 = sinon.createStubInstance(Value);
         this.argValue2 = sinon.createStubInstance(Value);
         this.namespaceScope = sinon.createStubInstance(NamespaceScope);
+        this.newStaticClass = sinon.createStubInstance(Class);
         this.scope = sinon.createStubInstance(Scope);
 
-        this.call = new Call(this.scope, this.namespaceScope, [this.argValue1, this.argValue2]);
+        this.call = new Call(this.scope, this.namespaceScope, [this.argValue1, this.argValue2], this.newStaticClass);
     });
 
     describe('getFilePath()', function () {
@@ -71,6 +75,41 @@ describe('Call', function () {
     describe('getScope()', function () {
         it('should return the scope', function () {
             expect(this.call.getScope()).to.equal(this.scope);
+        });
+    });
+
+    describe('getStaticClass()', function () {
+        it('should return the class of the $this object when an ObjectValue is set', function () {
+            var classObject = sinon.createStubInstance(Class),
+                thisObject = sinon.createStubInstance(ObjectValue);
+            thisObject.getClass.returns(classObject);
+            thisObject.getType.returns('object');
+            this.scope.getThisObject.returns(thisObject);
+
+            expect(this.call.getStaticClass()).to.equal(classObject);
+        });
+
+        it('should return the new static class when $this is a NullValue', function () {
+            var thisObject = sinon.createStubInstance(NullValue);
+            thisObject.getType.returns('null');
+            this.scope.getThisObject.returns(thisObject);
+
+            expect(this.call.getStaticClass()).to.equal(this.newStaticClass);
+        });
+
+        it('should return the new static class for this call when no $this object is set', function () {
+            expect(this.call.getStaticClass()).to.equal(this.newStaticClass);
+        });
+
+        it('should return null when neither a $this object nor a new static class are set', function () {
+            this.call = new Call(
+                this.scope,
+                this.namespaceScope,
+                [this.argValue1, this.argValue2],
+                null // No new static class (eg. forwarding static call)
+            );
+
+            expect(this.call.getStaticClass()).to.be.null;
         });
     });
 });

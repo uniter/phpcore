@@ -17,14 +17,20 @@ module.exports = require('pauser')([
     /**
      * @param {FunctionFactory} functionFactory
      * @param {ValueFactory} valueFactory
+     * @param {CallStack} callStack
      * @param {class} Closure
      * @constructor
      */
     function ClosureFactory(
         functionFactory,
         valueFactory,
+        callStack,
         Closure
     ) {
+        /**
+         * @type {CallStack}
+         */
+        this.callStack = callStack;
         /**
          * @type {class}
          */
@@ -64,7 +70,12 @@ module.exports = require('pauser')([
             wrappedFunction = factory.functionFactory.create(
                 namespaceScope,
                 scopeClass,
-                unwrappedFunction
+                unwrappedFunction,
+                null,
+                null,
+                // Inside a closure, static:: will either refer to the current bound static class
+                // or, if none, then the current/owning class of the method that created it
+                factory.callStack.getStaticClass() || scopeClass || null
             );
 
             return new factory.Closure(

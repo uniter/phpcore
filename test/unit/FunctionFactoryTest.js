@@ -15,7 +15,7 @@ var expect = require('chai').expect,
     CallFactory = require('../../src/CallFactory'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
-    FunctionFactory = require('../../src/FunctionFactory'),
+    FunctionFactory = require('../../src/FunctionFactory').sync(),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     Scope = require('../../src/Scope').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
@@ -48,13 +48,14 @@ describe('FunctionFactory', function () {
 
     describe('create()', function () {
         beforeEach(function () {
-            this.callCreate = function (currentObject) {
+            this.callCreate = function (currentObject, staticClass) {
                 return this.factory.create(
                     this.namespaceScope,
                     this.currentClass,
                     this.func,
                     this.name,
-                    currentObject || null
+                    currentObject || null,
+                    staticClass || null
                 );
             }.bind(this);
         });
@@ -160,6 +161,48 @@ describe('FunctionFactory', function () {
                     sinon.match.any,
                     sinon.match.any,
                     [21, 27]
+                );
+            });
+
+            it('should pass any "next" static class set', function () {
+                var newStaticClass = sinon.createStubInstance(Class),
+                    func = this.callCreate();
+                this.factory.setNewStaticClassIfWrapped(func, newStaticClass);
+
+                func();
+
+                expect(this.callFactory.create).to.have.been.calledOnce;
+                expect(this.callFactory.create).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.same(newStaticClass)
+                );
+            });
+
+            it('should pass any explicit static class set', function () {
+                var explicitStaticClass = sinon.createStubInstance(Class);
+
+                this.callCreate(null, explicitStaticClass)();
+
+                expect(this.callFactory.create).to.have.been.calledOnce;
+                expect(this.callFactory.create).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.same(explicitStaticClass)
+                );
+            });
+
+            it('should pass null as the new static class when no explicit or "next" one is set', function () {
+                this.callCreate()();
+
+                expect(this.callFactory.create).to.have.been.calledOnce;
+                expect(this.callFactory.create).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    null
                 );
             });
 

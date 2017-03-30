@@ -29,12 +29,13 @@ _.extend(CallFactory.prototype, {
      * @param {Scope} scope
      * @param {NamespaceScope} namespaceScope
      * @param {Value[]|null} args
+     * @param {Class|null} newStaticClass
      * @returns {Call}
      */
-    create: function (scope, namespaceScope, args) {
+    create: function (scope, namespaceScope, args, newStaticClass) {
         var factory = this;
 
-        return new factory.Call(scope, namespaceScope, args || []);
+        return new factory.Call(scope, namespaceScope, args || [], newStaticClass || null);
     }
 });
 

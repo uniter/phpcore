@@ -136,7 +136,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches the name of the current class scope
+         * Fetches the name of the class in which this scope's function is defined
          *
          * @returns {StringValue}
          * @throws {PHPFatalError} When there is no current class scope
@@ -145,7 +145,10 @@ module.exports = require('pauser')([
             var scope = this;
 
             if (!scope.currentClass) {
-                throw new PHPFatalError(PHPFatalError.SELF_WHEN_NO_ACTIVE_CLASS);
+                // PHP Fatal error: Uncaught Error: Cannot access self:: when no class scope is active
+                throw new PHPFatalError(PHPFatalError.CANNOT_ACCESS_WHEN_NO_ACTIVE_CLASS, {
+                    className: 'self'
+                });
             }
 
             return scope.valueFactory.createString(scope.currentClass.getName());
@@ -187,6 +190,54 @@ module.exports = require('pauser')([
             }
 
             return scope.valueFactory.createString(functionName);
+        },
+
+        /**
+         * Fetches the name of the parent of the current class in scope
+         *
+         * @returns {StringValue}
+         * @throws {PHPFatalError} When there is no current class scope or current class has no parent
+         */
+        getParentClassNameOrThrow: function () {
+            var scope = this,
+                superClass;
+
+            if (!scope.currentClass) {
+                // PHP Fatal error: Uncaught Error: Cannot access parent:: when no class scope is active
+                throw new PHPFatalError(PHPFatalError.CANNOT_ACCESS_WHEN_NO_ACTIVE_CLASS, {
+                    className: 'parent'
+                });
+            }
+
+            superClass = scope.currentClass.getSuperClass();
+
+            if (!superClass) {
+                // PHP Fatal error: Uncaught Error: Cannot access parent:: when current class scope has no parent
+                throw new PHPFatalError(PHPFatalError.NO_PARENT_CLASS);
+            }
+
+            return scope.valueFactory.createString(superClass.getName());
+        },
+
+        /**
+         * Fetches the name of the current static class scope, which may be different
+         * from the class in which its function is defined (eg. after a forward_static_call(...))
+         *
+         * @returns {StringValue}
+         * @throws {PHPFatalError} When there is no static class scope
+         */
+        getStaticClassNameOrThrow: function () {
+            var scope = this,
+                staticClass = scope.callStack.getStaticClass();
+
+            if (!staticClass) {
+                // PHP Fatal error: Uncaught Error: Cannot access static:: when no class scope is active
+                throw new PHPFatalError(PHPFatalError.CANNOT_ACCESS_WHEN_NO_ACTIVE_CLASS, {
+                    className: 'static'
+                });
+            }
+
+            return scope.valueFactory.createString(staticClass.getName());
         },
 
         getThisObject: function () {

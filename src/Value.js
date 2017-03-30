@@ -304,6 +304,15 @@ module.exports = require('pauser')([
             return this;
         },
 
+        /**
+         * Creates an instance of the class this value refers to
+         *
+         * @throws {PHPFatalError}
+         */
+        instantiate: function () {
+            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+        },
+
         isAnInstanceOf: throwUnimplemented,
 
         isTheClassOfArray: function () {

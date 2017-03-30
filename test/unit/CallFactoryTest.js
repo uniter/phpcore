@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     CallFactory = require('../../src/CallFactory'),
+    Class = require('../../src/Class').sync(),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     Scope = require('../../src/Scope').sync(),
     Value = require('../../src/Value').sync();
@@ -66,6 +67,32 @@ describe('CallFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match([])
+            );
+        });
+
+        it('should pass the new static class to the Call constructor if specified', function () {
+            var newStaticClass = sinon.createStubInstance(Class);
+
+            this.factory.create(this.scope, this.namespaceScope, [], newStaticClass);
+
+            expect(this.Call).to.have.been.calledOnce;
+            expect(this.Call).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(newStaticClass)
+            );
+        });
+
+        it('should pass null as the new static class to the Call constructor if none specified', function () {
+            this.factory.create(this.scope, this.namespaceScope);
+
+            expect(this.Call).to.have.been.calledOnce;
+            expect(this.Call).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                null
             );
         });
     });

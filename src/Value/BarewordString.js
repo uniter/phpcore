@@ -35,13 +35,14 @@ module.exports = require('pauser')([
          * @param {StringValue} nameValue
          * @param {Value[]} args
          * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
+         * @param {bool} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
          * @returns {Value}
          */
-        callStaticMethod: function (nameValue, args, namespaceOrNamespaceScope) {
+        callStaticMethod: function (nameValue, args, namespaceOrNamespaceScope, isForwarding) {
             var value = this,
                 classObject = namespaceOrNamespaceScope.getClass(value.value);
 
-            return classObject.callMethod(nameValue.getNative(), args);
+            return classObject.callMethod(nameValue.getNative(), args, null, null, null, isForwarding);
         },
 
         /**
@@ -85,6 +86,28 @@ module.exports = require('pauser')([
             return classObject.getStaticPropertyByName(nameValue.getNative());
         },
 
+        /**
+         * Creates an instance of the class this string contains the name of,
+         * relative to the current namespace
+         *
+         * @param {Value[]} args
+         * @param {NamespaceScope} namespaceScope
+         * @returns {ObjectValue}
+         */
+        instantiate: function (args, namespaceScope) {
+            var value = this,
+                classObject = namespaceScope.getClass(value.value);
+
+            return classObject.instantiate(args);
+        },
+
+        /**
+         * Determines whether the class this string references is the class of the specified object
+         *
+         * @param {ObjectValue} objectValue
+         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
+         * @returns {BooleanValue}
+         */
         isTheClassOfObject: function (objectValue, namespaceOrNamespaceScope) {
             var rightValue = this,
                 fqcn = rightValue.getCallableName(namespaceOrNamespaceScope);

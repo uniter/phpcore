@@ -15,9 +15,10 @@ var _ = require('microdash');
  * @param {Scope} scope
  * @param {NamespaceScope} namespaceScope
  * @param {Value[]} args
+ * @param {Class|null} newStaticClass
  * @constructor
  */
-function Call(scope, namespaceScope, args) {
+function Call(scope, namespaceScope, args, newStaticClass) {
     /**
      * @type {Value[]}
      */
@@ -30,6 +31,10 @@ function Call(scope, namespaceScope, args) {
      * @type {NamespaceScope}
      */
     this.namespaceScope = namespaceScope;
+    /**
+     * @type {Class|null}
+     */
+    this.newStaticClass = newStaticClass;
     /**
      * @type {Scope}
      */
@@ -86,6 +91,23 @@ _.extend(Call.prototype, {
      */
     getScope: function () {
         return this.scope;
+    },
+
+    /**
+     * Fetches the static class introduced by this call's scope. If null,
+     * the call was a forwarding call, and so the parent call's static class should be used
+     *
+     * @returns {Class|null}
+     */
+    getStaticClass: function () {
+        var call = this,
+            thisObject = call.scope.getThisObject();
+
+        if (thisObject && thisObject.getType() !== 'null') {
+            return thisObject.getClass();
+        }
+
+        return call.newStaticClass;
     },
 
     /**

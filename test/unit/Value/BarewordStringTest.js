@@ -141,6 +141,56 @@ describe('BarewordString', function () {
         });
     });
 
+    describe('callStaticMethod()', function () {
+        it('should ask the class to call the method and return its result when non-forwarding', function () {
+            var argValue = sinon.createStubInstance(Value),
+                classObject = sinon.createStubInstance(Class),
+                methodNameValue = this.factory.createString('myMethod'),
+                result,
+                resultValue = sinon.createStubInstance(Value);
+            classObject.callMethod.returns(resultValue);
+            this.namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(classObject);
+            this.createValue('My\\Space\\MyClass');
+
+            result = this.value.callStaticMethod(methodNameValue, [argValue], this.namespaceScope, false);
+
+            expect(result).to.equal(resultValue);
+            expect(classObject.callMethod).to.have.been.calledOnce;
+            expect(classObject.callMethod).to.have.been.calledWith(
+                'myMethod',
+                [sinon.match.same(argValue)],
+                null,
+                null,
+                null,
+                false
+            );
+        });
+
+        it('should ask the class to call the method and return its result when forwarding', function () {
+            var argValue = sinon.createStubInstance(Value),
+                classObject = sinon.createStubInstance(Class),
+                methodNameValue = this.factory.createString('myMethod'),
+                result,
+                resultValue = sinon.createStubInstance(Value);
+            classObject.callMethod.returns(resultValue);
+            this.namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(classObject);
+            this.createValue('My\\Space\\MyClass');
+
+            result = this.value.callStaticMethod(methodNameValue, [argValue], this.namespaceScope, true);
+
+            expect(result).to.equal(resultValue);
+            expect(classObject.callMethod).to.have.been.calledOnce;
+            expect(classObject.callMethod).to.have.been.calledWith(
+                'myMethod',
+                [sinon.match.same(argValue)],
+                null,
+                null,
+                null,
+                true
+            );
+        });
+    });
+
     describe('getCallableName()', function () {
         beforeEach(function () {
             this.namespace = sinon.createStubInstance(Namespace);
@@ -184,6 +234,31 @@ describe('BarewordString', function () {
                     this.namespaceScope
                 )
             ).to.equal(resultValue);
+        });
+    });
+
+    describe('instantiate()', function () {
+        beforeEach(function () {
+            this.classObject = sinon.createStubInstance(Class);
+            this.namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(this.classObject);
+            this.newObjectValue = sinon.createStubInstance(ObjectValue);
+            this.classObject.instantiate.returns(this.newObjectValue);
+        });
+
+        it('should pass the args along', function () {
+            var argValue = sinon.createStubInstance(IntegerValue);
+            this.createValue('My\\Space\\MyClass');
+
+            this.value.instantiate([argValue], this.namespaceScope);
+
+            expect(this.classObject.instantiate).to.have.been.calledOnce;
+            expect(this.classObject.instantiate).to.have.been.calledWith([sinon.match.same(argValue)]);
+        });
+
+        it('should return the new instance created by the class', function () {
+            this.createValue('My\\Space\\MyClass');
+
+            expect(this.value.instantiate([], this.namespaceScope)).to.equal(this.newObjectValue);
         });
     });
 

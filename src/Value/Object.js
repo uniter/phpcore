@@ -148,11 +148,20 @@ module.exports = require('pauser')([
             return value.classObject.callMethod(name, args, value);
         },
 
-        callStaticMethod: function (nameValue, args) {
+        /**
+         * Calls a static method of the class this object is an instance of
+         *
+         * @param {StringValue} nameValue
+         * @param {Value[]} args
+         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
+         * @param {bool} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
+         * @returns {Value}
+         */
+        callStaticMethod: function (nameValue, args, namespaceOrNamespaceScope, isForwarding) {
             // Could be a static call in object context, in which case we want to pass
             // the object value through.
             // This will be handled by a fetch of `callStack.getThisObject()` inside `.callMethod(...)`
-            return this.classObject.callMethod(nameValue.getNative(), args);
+            return this.classObject.callMethod(nameValue.getNative(), args, null, null, null, isForwarding);
         },
 
         classIs: function (className) {
@@ -456,6 +465,44 @@ module.exports = require('pauser')([
 
         getStaticPropertyByName: function (nameValue) {
             return this.classObject.getStaticPropertyByName(nameValue.getNative());
+        },
+
+        /**
+         * Creates a new instance of the class of this object for a normal PHP object.
+         * For a JSObject, if the wrapped object is a function then it will create
+         * a new instance of the wrapped JS class instead,
+         * returning the resulting new JSObject instance
+         *
+         * @param {Value[]} args
+         * @returns {ObjectValue}
+         */
+        instantiate: function (args) {
+            var value = this,
+                nativeObject,
+                objectValue;
+
+            if (value.getClassName() !== 'JSObject') {
+                // A normal PHP object is being instantiated as a class -
+                // we just need to create a new instance of this object's class
+                return value.classObject.instantiate(args);
+            }
+
+            // A JS function is being instantiated as a class from PHP (bridge integration)
+
+            if (!_.isFunction(value.value)) {
+                throw new Error('Cannot create a new instance of a non-function JSObject');
+            }
+
+            // Create an instance of the class, not calling constructor
+            nativeObject = Object.create(value.value.prototype);
+            objectValue = value.factory.createFromNative(nativeObject);
+
+            // Call the constructor on the newly created instance, unwrapping arguments
+            value.value.apply(nativeObject, _.map(args, function (argValue) {
+                return argValue.getNative();
+            }));
+
+            return objectValue;
         },
 
         /**

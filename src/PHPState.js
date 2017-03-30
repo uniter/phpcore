@@ -112,7 +112,7 @@ module.exports = require('pauser')([
             superGlobalScope = new SuperGlobalScope(callStack, valueFactory),
             scopeFactory = new ScopeFactory(Scope, callStack, superGlobalScope, valueFactory, referenceFactory),
             functionFactory = new FunctionFactory(scopeFactory, callFactory, valueFactory, callStack),
-            closureFactory = new ClosureFactory(functionFactory, valueFactory, Closure),
+            closureFactory = new ClosureFactory(functionFactory, valueFactory, callStack, Closure),
             namespaceFactory = new NamespaceFactory(
                 Namespace,
                 callStack,

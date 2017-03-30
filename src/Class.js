@@ -55,6 +55,7 @@ module.exports = require('pauser')([
 
     function Class(
         valueFactory,
+        functionFactory,
         callStack,
         name,
         constructorName,
@@ -72,6 +73,7 @@ module.exports = require('pauser')([
         this.callStack = callStack;
         this.constants = constants;
         this.constructorName = constructorName;
+        this.functionFactory = functionFactory;
         this.interfaceNames = interfaceNames || [];
         this.InternalClass = InternalClass;
         this.name = name;
@@ -97,10 +99,12 @@ module.exports = require('pauser')([
          * @param {Value[]} args The wrapped value objects to pass as arguments to the method
          * @param {ObjectValue} objectValue The wrapped ObjectValue for this instance
          * @param {object} currentNativeObject The current native JS object on the prototype chain to search for the method
+         * @param {Class|null} currentClass The original called class (this function is called recursively for inherited methods)
+         * @param {bool} isForwardingStaticCall eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
          * @returns {Value}
          * @throws {PHPFatalError} Throws when the method is not defined
          */
-        callMethod: function (methodName, args, objectValue, currentNativeObject) {
+        callMethod: function (methodName, args, objectValue, currentNativeObject, currentClass, isForwardingStaticCall) {
             var classObject = this,
                 nativeObject = objectValue ? objectValue.getObject() : null,
                 result,
@@ -129,6 +133,13 @@ module.exports = require('pauser')([
                         }
                     }
 
+                    // For a non-forwarding static call, pass the new static class through.
+                    // (For a forwarding static call, we will pass `null` through as the "new static class"
+                    // inside FunctionFactory, because we just want to use the one the caller has.)
+                    if (!isForwardingStaticCall) {
+                        classObject.functionFactory.setNewStaticClassIfWrapped(method, currentClass);
+                    }
+
                     return classObject.valueFactory.coerce(
                         method.apply(
                             // Some methods should never have their `this` object and args auto-coerced,
@@ -149,7 +160,9 @@ module.exports = require('pauser')([
                         methodName,
                         args,
                         objectValue,
-                        Object.getPrototypeOf(currentObject)
+                        Object.getPrototypeOf(currentObject),
+                        currentClass,
+                        isForwardingStaticCall
                     );
                 }
 
@@ -162,9 +175,15 @@ module.exports = require('pauser')([
                 return callMethod(currentObject, methodName, args);
             }
 
+            isForwardingStaticCall = !!isForwardingStaticCall;
+
             if (!currentNativeObject) {
                 // Walk up the prototype chain from the native object
                 currentNativeObject = nativeObject;
+            }
+
+            if (!currentClass) {
+                currentClass = classObject;
             }
 
             if (nativeObject instanceof classObject.InternalClass) {

@@ -120,6 +120,7 @@ describe('Object', function () {
         }.bind(this));
 
         this.classObject = sinon.createStubInstance(Class);
+        this.classObject.getName.returns('My\\Space\\AwesomeClass');
         this.classObject.isAutoCoercionEnabled.returns(false);
         this.prop1 = this.factory.createString('the value of firstProp');
         this.prop2 = this.factory.createString('the value of secondProp');
@@ -209,19 +210,40 @@ describe('Object', function () {
     });
 
     describe('callStaticMethod()', function () {
-        it('should ask the class to call the method and return its result', function () {
+        it('should ask the class to call the method and return its result when non-forwarding', function () {
             var argValue = sinon.createStubInstance(Value),
                 methodNameValue = this.factory.createString('myMethod'),
                 resultValue = sinon.createStubInstance(Value);
             this.classObject.callMethod.returns(resultValue);
 
-            expect(this.value.callStaticMethod(methodNameValue, [argValue])).to.equal(resultValue);
+            expect(this.value.callStaticMethod(methodNameValue, [argValue], null, false)).to.equal(resultValue);
             expect(this.classObject.callMethod).to.have.been.calledOnce;
             expect(this.classObject.callMethod).to.have.been.calledWith(
                 'myMethod',
-                [sinon.match.same(argValue)]
+                [sinon.match.same(argValue)],
+                null,
+                null,
+                null,
+                false
             );
-            expect(this.classObject.callMethod.args[0]).to.have.length(2);
+        });
+
+        it('should ask the class to call the method and return its result when forwarding', function () {
+            var argValue = sinon.createStubInstance(Value),
+                methodNameValue = this.factory.createString('myMethod'),
+                resultValue = sinon.createStubInstance(Value);
+            this.classObject.callMethod.returns(resultValue);
+
+            expect(this.value.callStaticMethod(methodNameValue, [argValue], null, true)).to.equal(resultValue);
+            expect(this.classObject.callMethod).to.have.been.calledOnce;
+            expect(this.classObject.callMethod).to.have.been.calledWith(
+                'myMethod',
+                [sinon.match.same(argValue)],
+                null,
+                null,
+                null,
+                true
+            );
         });
     });
 
@@ -795,6 +817,87 @@ describe('Object', function () {
                     .returns(wrapperPHPObject);
 
                 expect(this.value.getNative()).to.equal(wrapperPHPObject);
+            });
+        });
+    });
+
+    describe('instantiate()', function () {
+        beforeEach(function () {
+            this.arg1Value = this.factory.createInteger(21);
+        });
+
+        describe('for an instance of a PHP class', function () {
+            it('should return a new instance of that class', function () {
+                var newObjectValue = sinon.createStubInstance(ObjectValue),
+                    resultObjectValue;
+                this.classObject.instantiate.withArgs([sinon.match.same(this.arg1Value)]).returns(newObjectValue);
+
+                resultObjectValue = this.value.instantiate([this.arg1Value]);
+
+                expect(resultObjectValue).to.equal(newObjectValue);
+            });
+        });
+
+        describe('for a JSObject instance wrapping a JS function', function () {
+            beforeEach(function () {
+                this.classObject.getName.returns('JSObject');
+                this.JSClass = sinon.stub();
+                this.nativeObject = this.JSClass;
+
+                this.factory.createFromNative.restore();
+                sinon.stub(this.factory, 'createFromNative', function (nativeObject) {
+                    var newObjectValue = sinon.createStubInstance(ObjectValue);
+                    newObjectValue.getObject.returns(nativeObject);
+                    return newObjectValue;
+                }.bind(this));
+
+                this.value = new ObjectValue(
+                    this.factory,
+                    this.callStack,
+                    this.nativeObject,
+                    this.classObject,
+                    this.objectID
+                );
+            });
+
+            it('should return a JSObject wrapping a new instance of the JS function/class', function () {
+                var resultObjectValue;
+
+                resultObjectValue = this.value.instantiate([this.arg1Value]);
+
+                expect(resultObjectValue).to.be.an.instanceOf(ObjectValue);
+                expect(resultObjectValue.getObject()).to.be.an.instanceOf(this.JSClass);
+            });
+
+            it('should call the native JS function/class/constructor on the new native JS object with unwrapped args', function () {
+                var resultObjectValue;
+
+                resultObjectValue = this.value.instantiate([this.arg1Value]);
+
+                expect(this.JSClass).to.have.been.calledOnce;
+                expect(this.JSClass).to.have.been.calledOn(sinon.match.same(resultObjectValue.getObject()));
+                expect(this.JSClass).to.have.been.calledWith(21);
+            });
+        });
+
+        describe('for a JSObject instance wrapping a non-function JS object', function () {
+            beforeEach(function () {
+                this.classObject.getName.returns('JSObject');
+                this.nativeObject = {};
+
+                this.value = new ObjectValue(
+                    this.factory,
+                    this.callStack,
+                    this.nativeObject,
+                    this.classObject,
+                    this.objectID
+                );
+            });
+
+            it('should throw, as only native JS functions are supported by the bridge integration', function () {
+                expect(function () {
+                    this.value.instantiate([this.arg1Value]);
+                }.bind(this)).to.throw('Cannot create a new instance of a non-function JSObject');
             });
         });
     });

@@ -102,6 +102,12 @@ _.extend(PropertyReference.prototype, {
             );
     },
 
+    /**
+     * Determines whether this property is defined. If assigned a value of NULL,
+     * the property will still be considered defined
+     *
+     * @returns {boolean}
+     */
     isDefined: function () {
         var defined = true,
             otherObject,
@@ -126,15 +132,6 @@ _.extend(PropertyReference.prototype, {
             } while (!hasOwn.call(otherObject, nativeKey));
         }
 
-        // Check that the property resolves to something other than null,
-        // otherwise it is not set
-        if (
-            defined &&
-            property.valueFactory.coerce(nativeObject[nativeKey]).getType() === 'null'
-        ) {
-            return false;
-        }
-
         return defined;
     },
 
@@ -153,8 +150,25 @@ _.extend(PropertyReference.prototype, {
         return !!this.reference;
     },
 
+    /**
+     * Determines whether this property is "set".
+     * A set property must be both defined and have a non-NULL value
+     *
+     * @returns {boolean}
+     */
     isSet: function () {
-        return this.isDefined();
+        var property = this,
+            defined = property.isDefined(),
+            nativeObject = property.nativeObject,
+            nativeKey = property.key.getNative();
+
+        if (!defined) {
+            return false;
+        }
+
+        // Check that the property resolves to something other than null,
+        // otherwise it is not set
+        return property.valueFactory.coerce(nativeObject[nativeKey]).getType() !== 'null';
     },
 
     setReference: function (reference) {

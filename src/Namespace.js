@@ -142,6 +142,7 @@ module.exports = require('pauser')([
 
             classObject = new Class(
                 namespace.valueFactory,
+                namespace.functionFactory,
                 namespace.callStack,
                 namespace.getPrefix() + name,
                 constructorName,

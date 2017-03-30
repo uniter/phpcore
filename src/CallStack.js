@@ -30,9 +30,21 @@ function CallStack(stderr) {
 
 _.extend(CallStack.prototype, {
     /**
+     * Fetches the scope of the previous Call near the top of the stack, or null if none
+     *
+     * @returns {Scope|null}
+     */
+    getCallerScope: function () {
+        var chain = this,
+            callerCall = chain.calls[chain.calls.length - 2] || null;
+
+        return callerCall ? callerCall.getScope() : null;
+    },
+
+    /**
      * Fetches the current Call on the top of the stack, or null if none
      *
-     * @returns {Call}
+     * @returns {Call|null}
      */
     getCurrent: function () {
         var chain = this;
@@ -59,12 +71,45 @@ _.extend(CallStack.prototype, {
     },
 
     /**
+     * Fetches the class that is currently considered the static context,
+     * referenced with static:: in PHP-land
+     *
+     * @returns {Class|null}
+     */
+    getStaticClass: function () {
+        var call,
+            callStack = this,
+            index,
+            newStaticClass,
+            staticClass = null;
+
+        for (index = callStack.calls.length - 1; index >= 0; index--) {
+            call = callStack.calls[index];
+            newStaticClass = call.getStaticClass();
+
+            if (newStaticClass) {
+                staticClass = newStaticClass;
+
+                break;
+            }
+        }
+
+        return staticClass;
+    },
+
+    /**
      * Fetches the ObjectValue that is the current `$this` object
      *
-     * @returns {ObjectValue}
+     * @returns {ObjectValue|null}
      */
     getThisObject: function () {
-        return this.getCurrent().getScope().getThisObject();
+        var currentCall = this.getCurrent();
+
+        if (!currentCall) {
+            return null;
+        }
+
+        return currentCall.getScope().getThisObject();
     },
 
     /**

@@ -36,6 +36,7 @@ describe('Scope', function () {
         this.closureFactory = sinon.createStubInstance(ClosureFactory);
         this.globalScope = sinon.createStubInstance(Scope);
         this.namespaceScope = sinon.createStubInstance(NamespaceScope);
+        this.parentClass = null;
         this.referenceFactory = sinon.createStubInstance(ReferenceFactory);
         this.superGlobalScope = sinon.createStubInstance(SuperGlobalScope);
         this.valueFactory = sinon.createStubInstance(ValueFactory);
@@ -50,9 +51,14 @@ describe('Scope', function () {
 
         this.whenCurrentClass = function () {
             this.currentClass = sinon.createStubInstance(Class);
+            this.currentClass.getSuperClass.returns(null);
         }.bind(this);
         this.whenCurrentFunction = function () {
             this.currentFunction = sinon.stub();
+        }.bind(this);
+        this.whenParentClass = function () {
+            this.parentClass = sinon.createStubInstance(Class);
+            this.currentClass.getSuperClass.returns(this.parentClass);
         }.bind(this);
         this.createScope = function (thisObject) {
             this.scope = new Scope(
@@ -262,6 +268,56 @@ describe('Scope', function () {
             this.createScope();
 
             expect(this.scope.getMethodName().getNative()).to.equal('');
+        });
+    });
+
+    describe('getParentClassNameOrThrow()', function () {
+        it('should return the name of the parent class when present', function () {
+            this.whenCurrentClass();
+            this.whenParentClass();
+            this.currentClass.getName.returns('My\\Scope\\MyClass');
+            this.parentClass.getName.returns('Your\\Scope\\YourParentClass');
+            this.createScope();
+
+            expect(this.scope.getParentClassNameOrThrow().getNative()).to.equal('Your\\Scope\\YourParentClass');
+        });
+
+        it('should throw when there is a current class but it has no parent', function () {
+            this.whenCurrentClass();
+            this.currentClass.getName.returns('My\\Scope\\MyClass');
+            this.createScope();
+
+            expect(function () {
+                this.scope.getParentClassNameOrThrow();
+            }.bind(this)).to.throw(PHPFatalError, 'Cannot access parent:: when current class scope has no parent');
+        });
+
+        it('should throw when there is no current class', function () {
+            this.createScope();
+
+            expect(function () {
+                this.scope.getParentClassNameOrThrow();
+            }.bind(this)).to.throw(PHPFatalError, 'Cannot access parent:: when no class scope is active');
+        });
+    });
+
+    describe('getStaticClassNameOrThrow()', function () {
+        it('should return the name of the current static class when present', function () {
+            var staticClass = sinon.createStubInstance(Class);
+            this.callStack.getStaticClass.returns(staticClass);
+            staticClass.getName.returns('My\\Scope\\MyClass');
+            this.createScope();
+
+            expect(this.scope.getStaticClassNameOrThrow().getNative()).to.equal('My\\Scope\\MyClass');
+        });
+
+        it('should throw when there is no current static class', function () {
+            this.callStack.getStaticClass.returns(null);
+            this.createScope();
+
+            expect(function () {
+                this.scope.getStaticClassNameOrThrow();
+            }.bind(this)).to.throw(PHPFatalError, 'Cannot access static:: when no class scope is active');
         });
     });
 

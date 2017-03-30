@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     Call = require('../../src/Call'),
     CallStack = require('../../src/CallStack'),
+    Class = require('../../src/Class').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     Scope = require('../../src/Scope').sync(),
     Stream = require('../../src/Stream'),
@@ -23,6 +24,30 @@ describe('CallStack', function () {
         this.stderr = sinon.createStubInstance(Stream);
 
         this.callStack = new CallStack(this.stderr);
+    });
+
+    describe('getCallerScope()', function () {
+        it('should return the scope of the caller call when there is one', function () {
+            var callerCall = sinon.createStubInstance(Call),
+                callerScope = sinon.createStubInstance(Scope),
+                currentCall = sinon.createStubInstance(Call);
+            callerCall.getScope.returns(callerScope);
+            this.callStack.push(callerCall);
+            this.callStack.push(currentCall);
+
+            expect(this.callStack.getCallerScope()).to.equal(callerScope);
+        });
+
+        it('should return null when the current call is the top-level one', function () {
+            var currentCall = sinon.createStubInstance(Call);
+            this.callStack.push(currentCall);
+
+            expect(this.callStack.getCallerScope()).to.be.null;
+        });
+
+        it('should return null when the call stack is empty', function () {
+            expect(this.callStack.getCallerScope()).to.be.null;
+        });
     });
 
     describe('getCurrent()', function () {
@@ -58,6 +83,35 @@ describe('CallStack', function () {
         });
     });
 
+    describe('getStaticClass()', function () {
+        it('should return the static class for the current call, if it has one specified', function () {
+            var callerCall = sinon.createStubInstance(Call),
+                currentCall = sinon.createStubInstance(Call),
+                currentStaticClass = sinon.createStubInstance(Class);
+            currentCall.getStaticClass.returns(currentStaticClass);
+            this.callStack.push(callerCall);
+            this.callStack.push(currentCall);
+
+            expect(this.callStack.getStaticClass()).to.equal(currentStaticClass);
+        });
+
+        it('should return the static class for the caller, if it has one specified', function () {
+            var callerCall = sinon.createStubInstance(Call),
+                callerStaticClass = sinon.createStubInstance(Class),
+                currentCall = sinon.createStubInstance(Call);
+            currentCall.getStaticClass.returns(null);
+            callerCall.getStaticClass.returns(callerStaticClass);
+            this.callStack.push(callerCall);
+            this.callStack.push(currentCall);
+
+            expect(this.callStack.getStaticClass()).to.equal(callerStaticClass);
+        });
+
+        it('should return null when the call stack is empty', function () {
+            expect(this.callStack.getStaticClass()).to.be.null;
+        });
+    });
+
     describe('getThisObject()', function () {
         it('should return the `$this` object from the scope of the current Call', function () {
             var currentCall = sinon.createStubInstance(Call),
@@ -69,6 +123,10 @@ describe('CallStack', function () {
             scope.getThisObject.returns(thisObjectValue);
 
             expect(this.callStack.getThisObject()).to.equal(thisObjectValue);
+        });
+
+        it('should return null when the call stack is empty', function () {
+            expect(this.callStack.getThisObject()).to.be.null;
         });
     });
 

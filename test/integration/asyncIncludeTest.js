@@ -157,4 +157,58 @@ EOS
             ]);
         }), done);
     });
+
+    it('should push and pop a call for the top level of the included module', function (done) {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+class MyClass
+{
+    private static $firstProp = 21;
+
+    public static function includeIt()
+    {
+        // Call here, before the static:: access below, to ensure the correct static class scope
+        // is restored after the include (see below)
+        $fetchedValue = YourClass::getIt();
+
+        return static::$firstProp + $fetchedValue;
+    }
+}
+
+class YourClass
+{
+    private static $secondProp = 100;
+
+    public static function getIt()
+    {
+        // The scope of the top-level of the included module will be this method's,
+        // so the caller's use of static:: will ensure that the top-level call
+        // for this include is correctly popped off the stack again.
+        $includedValue = include 'my_module.php';
+
+        return static::$secondProp + $includedValue;
+    }
+}
+
+return MyClass::includeIt();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile(null, php),
+            options = {
+                include: function (path, promise) {
+                    var php = nowdoc(function () {/*<<<EOS
+<?php
+return 10;
+EOS
+*/;}, {path: path}); //jshint ignore:line
+                    setTimeout(function () {
+                        promise.resolve(tools.asyncTranspile(path, php));
+                    });
+                }
+            };
+
+        module(options).execute().then(when(done, function (result) {
+            expect(result.getNative()).to.equal(131);
+        }), done);
+    });
 });
