@@ -432,7 +432,8 @@ module.exports = require('pauser')([
                         args.push(value.factory.coerce(arg));
                     });
 
-                    return value.value.invoke(args, thisObj);
+                    // Call the closure, and then unwrap its result value back to a native one
+                    return value.value.invoke(args, thisObj).getNative();
                 };
             }
 

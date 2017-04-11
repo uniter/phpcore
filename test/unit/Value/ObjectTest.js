@@ -724,6 +724,9 @@ describe('Object', function () {
             beforeEach(function () {
                 this.coercedThisObject = {};
                 this.closure = sinon.createStubInstance(Closure);
+                this.closureReturnValue = sinon.createStubInstance(Value);
+                this.closureReturnValue.getNative.returns('my result native');
+                this.closure.invoke.returns(this.closureReturnValue);
                 this.nativeThisObject = {};
                 this.classObject.getName.returns('Closure');
                 this.factory.coerceObject
@@ -759,11 +762,8 @@ describe('Object', function () {
                 );
             });
 
-            it('should return the result from Closure.invoke(...)', function () {
-                var resultValue = sinon.createStubInstance(Value);
-                this.closure.invoke.returns(resultValue);
-
-                expect(this.value.getNative()()).to.equal(resultValue);
+            it('should return the native value of the result from Closure.invoke(...)', function () {
+                expect(this.value.getNative()()).to.equal('my result native');
             });
         });
 
