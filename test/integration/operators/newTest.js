@@ -64,7 +64,7 @@ EOS
         expect(engine.execute().getNative()).to.equal(47);
     });
 
-    it('should resolve a bareword string class name relative to the current namespace', function () {
+    it('should resolve an unprefixed bareword string class name relative to the current namespace', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -82,6 +82,51 @@ namespace My\Stuff
 }
 
 namespace My\Stuff\In\Here
+{
+    class MyOtherClass
+    {
+        private $it;
+
+        public function __construct($it)
+        {
+            $this->it = $it;
+        }
+
+        public function getIt()
+        {
+            return $this->it;
+        }
+    }
+}
+
+return (new My\Stuff\MyClass)->fetchIt();
+
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.equal(21);
+    });
+
+    it('should resolve a prefixed bareword string class name relative to the root namespace', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace My\Stuff
+{
+    class MyClass
+    {
+        public function fetchIt()
+        {
+            $otherObject = new \There\MyOtherClass(21);
+
+            return $otherObject->getIt();
+        }
+    }
+}
+
+namespace There
 {
     class MyOtherClass
     {
