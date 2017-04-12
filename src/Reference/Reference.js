@@ -17,7 +17,7 @@ var _ = require('microdash');
  * @constructor
  */
 function Reference() {
-    throw new Error('Reference is an interface, no need to instantiate it');
+    throw new Error('Reference is abstract, no need to instantiate it');
 }
 
 _.extend(Reference.prototype, {
@@ -40,6 +40,64 @@ _.extend(Reference.prototype, {
 
     isSet: function () {
         throw new Error('Not implemented');
+    },
+
+    /**
+     * Decrements the stored value, returning its original value
+     *
+     * @returns {Value}
+     */
+    postDecrement: function () {
+        var reference = this,
+            originalValue = reference.getValue(),
+            decrementedValue = originalValue.decrement();
+
+        reference.setValue(decrementedValue);
+
+        return originalValue;
+    },
+
+    /**
+     * Increments the stored value, returning its original value
+     *
+     * @returns {Value}
+     */
+    postIncrement: function () {
+        var reference = this,
+            originalValue = reference.getValue(),
+            incrementedValue = originalValue.increment();
+
+        reference.setValue(incrementedValue);
+
+        return originalValue;
+    },
+
+    /**
+     * Decrements the stored value, returning its new value
+     *
+     * @returns {Value}
+     */
+    preDecrement: function () {
+        var reference = this,
+            decrementedValue = reference.getValue().decrement();
+
+        reference.setValue(decrementedValue);
+
+        return decrementedValue;
+    },
+
+    /**
+     * Increments the stored value, returning its new value
+     *
+     * @returns {Value}
+     */
+    preIncrement: function () {
+        var reference = this,
+            incrementedValue = reference.getValue().increment();
+
+        reference.setValue(incrementedValue);
+
+        return incrementedValue;
     },
 
     setValue: function () {

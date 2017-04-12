@@ -17,13 +17,14 @@ module.exports = require('pauser')([
     var slice = [].slice;
 
     /**
+     * @param {class} MethodSpec
      * @param {ScopeFactory} scopeFactory
      * @param {CallFactory} callFactory
      * @param {ValueFactory} valueFactory
      * @param {CallStack} callStack
      * @constructor
      */
-    function FunctionFactory(scopeFactory, callFactory, valueFactory, callStack) {
+    function FunctionFactory(MethodSpec, scopeFactory, callFactory, valueFactory, callStack) {
         /**
          * @type {CallFactory}
          */
@@ -32,6 +33,10 @@ module.exports = require('pauser')([
          * @type {CallStack}
          */
         this.callStack = callStack;
+        /**
+         * @type {class}
+         */
+        this.MethodSpec = MethodSpec;
         /**
          * @type {Class|null}
          */
@@ -100,6 +105,18 @@ module.exports = require('pauser')([
             wrapperFunc.isPHPCoreWrapped = true;
 
             return wrapperFunc;
+        },
+
+        /**
+         * Creates a new MethodSpec, that describes the specified method of a class
+         *
+         * @param {Class} originalClass The original class checked against (eg. a derived class for an inherited method)
+         * @param {Class} classObject The class the method is actually defined on (may be an ancestor)
+         * @param {string} methodName
+         * @param {Function} method
+         */
+        createMethodSpec: function (originalClass, classObject, methodName, method) {
+            return new this.MethodSpec(originalClass, classObject, methodName, method);
         },
 
         /**

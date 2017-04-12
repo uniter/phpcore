@@ -13,6 +13,8 @@ var _ = require('microdash'),
     hasOwn = {}.hasOwnProperty,
     phpCommon = require('phpcommon'),
     util = require('util'),
+    MAGIC_GET = '__get',
+    MAGIC_SET = '__set',
     PHPError = phpCommon.PHPError,
     Reference = require('./Reference');
 
@@ -78,6 +80,13 @@ _.extend(PropertyReference.prototype, {
         return this;
     },
 
+    /**
+     * Fetches the value of this property on its object. If it is not defined,
+     * and a magic __get getter method is defined, it will be called,
+     * otherwise a notice will be raised and NULL returned
+     *
+     * @returns {Value}
+     */
     getValue: function () {
         var property = this,
             nativeObject = property.nativeObject,
@@ -85,6 +94,11 @@ _.extend(PropertyReference.prototype, {
 
         // Special value of native null (vs. NullValue) represents undefined
         if (!property.isDefined()) {
+            if (property.objectValue.isMethodDefined(MAGIC_GET)) {
+                // Magic getter method is defined, so use it
+                return property.objectValue.callMethod(MAGIC_GET, [property.key]);
+            }
+
             property.callStack.raiseError(
                 PHPError.E_NOTICE,
                 'Undefined ' + property.objectValue.referToElement(
@@ -179,11 +193,20 @@ _.extend(PropertyReference.prototype, {
         return reference;
     },
 
+    /**
+     * Sets the value of this property on its object. If it is not defined,
+     * and a magic __set setter method is defined, it will be called,
+     * otherwise the property will be dynamically defined on the object
+     *
+     * @param {Value} value
+     * @returns {Value}
+     */
     setValue: function (value) {
         var property = this,
             nativeObject = property.nativeObject,
             nativeKey = property.key.getNative(),
-            isFirstProperty = (property.objectValue.getLength() === 0);
+            isFirstProperty = (property.objectValue.getLength() === 0),
+            valueForAssignment;
 
         // Ensure we write the native value to properties on native JS objects
         function getValueForAssignment() {
@@ -194,15 +217,35 @@ _.extend(PropertyReference.prototype, {
             return value.getForAssignment();
         }
 
-        if (property.reference) {
-            property.reference.setValue(value);
-        } else {
-            nativeObject[nativeKey] = getValueForAssignment();
+        function pointIfFirstProperty() {
+            if (isFirstProperty) {
+                property.objectValue.pointToProperty(property);
+            }
         }
 
-        if (isFirstProperty) {
-            property.objectValue.pointToProperty(property);
+        if (property.reference) {
+            property.reference.setValue(value);
+
+            pointIfFirstProperty();
+
+            return value;
         }
+
+        valueForAssignment = getValueForAssignment();
+
+        if (!property.isDefined()) {
+            // Property is not defined - attempt to call magic setter method first,
+            // otherwise just dynamically define the new property
+            if (property.objectValue.isMethodDefined(MAGIC_SET)) {
+                property.objectValue.callMethod(MAGIC_SET, [property.key, valueForAssignment]);
+
+                return value;
+            }
+        }
+
+        nativeObject[nativeKey] = valueForAssignment;
+
+        pointIfFirstProperty();
 
         return value;
     },

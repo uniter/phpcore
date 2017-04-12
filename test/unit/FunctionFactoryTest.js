@@ -29,6 +29,7 @@ describe('FunctionFactory', function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.currentClass = sinon.createStubInstance(Class);
         this.func = sinon.stub();
+        this.MethodSpec = sinon.stub();
         this.name = 'myFunction';
         this.namespaceScope = sinon.createStubInstance(NamespaceScope);
         this.scope = sinon.createStubInstance(Scope);
@@ -43,7 +44,13 @@ describe('FunctionFactory', function () {
             return value instanceof Value;
         });
 
-        this.factory = new FunctionFactory(this.scopeFactory, this.callFactory, this.valueFactory, this.callStack);
+        this.factory = new FunctionFactory(
+            this.MethodSpec,
+            this.scopeFactory,
+            this.callFactory,
+            this.valueFactory,
+            this.callStack
+        );
     });
 
     describe('create()', function () {
@@ -268,6 +275,34 @@ describe('FunctionFactory', function () {
 
                 expect(this.func).to.have.been.calledWith(123, 'second', 'another');
             });
+        });
+    });
+
+    describe('createMethodSpec()', function () {
+        it('should create the MethodSpec using the correct constructor args', function () {
+            var classObject = sinon.createStubInstance(Class),
+                myMethod = sinon.stub(),
+                originalClass = sinon.createStubInstance(Class);
+
+            this.factory.createMethodSpec(originalClass, classObject, 'myMethod', myMethod);
+
+            expect(this.MethodSpec).to.have.been.calledOnce;
+            expect(this.MethodSpec).to.have.been.calledWith(
+                sinon.match.same(originalClass),
+                sinon.match.same(classObject),
+                'myMethod',
+                sinon.match.same(myMethod)
+            );
+        });
+
+        it('should return the created MethodSpec', function () {
+            var classObject = sinon.createStubInstance(Class),
+                methodSpec = sinon.createStubInstance(this.MethodSpec),
+                myMethod = sinon.stub(),
+                originalClass = sinon.createStubInstance(Class);
+            this.MethodSpec.returns(methodSpec);
+
+            expect(this.factory.createMethodSpec(originalClass, classObject, 'myMethod', myMethod)).to.equal(methodSpec);
         });
     });
 });

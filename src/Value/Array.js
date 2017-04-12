@@ -135,6 +135,7 @@ module.exports = require('pauser')([
          * @param {Value[]} args
          * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
          * @returns {Value}
+         * @throws {PHPFatalError} Throws when the given function name is not a string
          */
         call: function (args, namespaceOrNamespaceScope) {
             var methodNameValue,

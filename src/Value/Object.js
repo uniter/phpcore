@@ -140,7 +140,7 @@ module.exports = require('pauser')([
          *
          * @param {string} name
          * @param {Value[]} args
-         * @returns {Value}
+         * @returns {Value|null} Returns the result of the method if it exists, or null if it does not exist
          */
         callMethod: function (name, args) {
             var value = this;
@@ -593,6 +593,16 @@ module.exports = require('pauser')([
                 factory = leftValue.factory;
 
             return factory.createBoolean(rightValue.value === leftValue.value);
+        },
+
+        /**
+         * Determines whether the class of this object defines an instance or static method with the given name
+         *
+         * @param {string} methodName
+         * @returns {boolean}
+         */
+        isMethodDefined: function (methodName) {
+            return this.classObject.getMethodSpec(methodName) !== null;
         },
 
         /**

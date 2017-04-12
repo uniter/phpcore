@@ -177,6 +177,8 @@ module.exports = require('pauser')([
             );
         },
 
+        decrement: throwUnimplemented,
+
         /**
          * Divides this value by another
          */
@@ -303,6 +305,8 @@ module.exports = require('pauser')([
         getValue: function () {
             return this;
         },
+
+        increment: throwUnimplemented,
 
         /**
          * Creates an instance of the class this value refers to

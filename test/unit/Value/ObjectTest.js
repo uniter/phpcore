@@ -20,6 +20,7 @@ var _ = require('microdash'),
     Closure = require('../../../src/Closure').sync(),
     FloatValue = require('../../../src/Value/Float').sync(),
     IntegerValue = require('../../../src/Value/Integer').sync(),
+    MethodSpec = require('../../../src/MethodSpec'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
@@ -120,6 +121,7 @@ describe('Object', function () {
         }.bind(this));
 
         this.classObject = sinon.createStubInstance(Class);
+        this.classObject.getMethodSpec.returns(null);
         this.classObject.getName.returns('My\\Space\\AwesomeClass');
         this.classObject.isAutoCoercionEnabled.returns(false);
         this.prop1 = this.factory.createString('the value of firstProp');
@@ -948,6 +950,20 @@ describe('Object', function () {
     describe('isEmpty()', function () {
         it('should return false', function () {
             expect(this.value.isEmpty()).to.be.false;
+        });
+    });
+
+    describe('isMethodDefined()', function () {
+        it('should return true when the method is defined', function () {
+            this.classObject.getMethodSpec.withArgs('myMethod').returns(sinon.createStubInstance(MethodSpec));
+
+            expect(this.value.isMethodDefined('myMethod')).to.be.true;
+        });
+
+        it('should return false when the method is not defined', function () {
+            this.classObject.getMethodSpec.withArgs('myMethod').returns(null);
+
+            expect(this.value.isMethodDefined('myMethod')).to.be.false;
         });
     });
 

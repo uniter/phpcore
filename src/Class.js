@@ -101,7 +101,7 @@ module.exports = require('pauser')([
          * @param {object} currentNativeObject The current native JS object on the prototype chain to search for the method
          * @param {Class|null} currentClass The original called class (this function is called recursively for inherited methods)
          * @param {bool} isForwardingStaticCall eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
-         * @returns {Value}
+         * @returns {Value} Returns the result of the method if it is defined
          * @throws {PHPFatalError} Throws when the method is not defined
          */
         callMethod: function (methodName, args, objectValue, currentNativeObject, currentClass, isForwardingStaticCall) {
@@ -330,6 +330,70 @@ module.exports = require('pauser')([
 
         getInternalClass: function () {
             return this.InternalClass;
+        },
+
+        /**
+         * Fetches the spec for an instance or static method
+         *
+         * @param {string} methodName The name of the method to fetch the spec for
+         * @param {ObjectValue=null} objectValue The wrapped ObjectValue for this instance
+         * @param {object=null} currentNativeObject The current native JS object on the prototype chain to search for the method
+         * @param {Class=null} originalClass The original class (this function is called recursively for inherited methods)
+         * @returns {MethodSpec|null} Returns the spec of the method if it exists, or null if it does not
+         */
+        getMethodSpec: function (methodName, objectValue, currentNativeObject, originalClass) {
+            var classObject = this,
+                nativeObject = objectValue ? objectValue.getObject() : null;
+
+            function getMethodSpec(currentObject, methodName) {
+                var method = getMethod(currentObject, methodName);
+
+                if (method !== null) {
+                    return classObject.functionFactory.createMethodSpec(originalClass, classObject, methodName, method);
+                }
+
+                if (
+                    currentObject === classObject.InternalClass.prototype &&
+                    classObject.superClass
+                ) {
+                    return classObject.superClass.getMethodSpec(
+                        methodName,
+                        objectValue,
+                        Object.getPrototypeOf(currentObject),
+                        originalClass
+                    );
+                }
+
+                currentObject = Object.getPrototypeOf(currentObject);
+
+                if (!currentObject) {
+                    return null;
+                }
+
+                return getMethodSpec(currentObject, methodName);
+            }
+
+            if (!currentNativeObject) {
+                // Walk up the prototype chain from the native object
+                currentNativeObject = nativeObject;
+            }
+
+            if (!originalClass) {
+                originalClass = classObject;
+            }
+
+            if (nativeObject instanceof classObject.InternalClass) {
+                // Ignore own properties of the native object when searching for methods
+                if (currentNativeObject === nativeObject) {
+                    currentNativeObject = Object.getPrototypeOf(currentNativeObject);
+                }
+            } else {
+                // For some special classes (eg. JSObject, Closure) the native object may not actually
+                // be an instance of the InternalClass, so fake inheritance of the native class
+                currentNativeObject = classObject.InternalClass.prototype;
+            }
+
+            return getMethodSpec(currentNativeObject, methodName);
         },
 
         getName: function () {

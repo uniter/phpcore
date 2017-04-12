@@ -10,11 +10,15 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     CallStack = require('../../../src/CallStack'),
     PropertyReference = require('../../../src/Reference/Property'),
     IntegerValue = require('../../../src/Value/Integer').sync(),
+    MethodSpec = require('../../../src/MethodSpec'),
+    NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
+    PHPError = phpCommon.PHPError,
     StringValue = require('../../../src/Value/String').sync(),
     Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync(),
@@ -37,13 +41,24 @@ describe('PropertyReference', function () {
         this.factory.createInteger.restore();
         sinon.stub(this.factory, 'createInteger', function (nativeValue) {
             var integerValue = sinon.createStubInstance(IntegerValue);
+            integerValue.getForAssignment.returns(integerValue);
             integerValue.getNative.returns(nativeValue);
+            integerValue.getType.returns('integer');
             return integerValue;
+        });
+        this.factory.createNull.restore();
+        sinon.stub(this.factory, 'createNull', function () {
+            var nullValue = sinon.createStubInstance(NullValue);
+            nullValue.getNative.returns(null);
+            nullValue.getType.returns('null');
+            return nullValue;
         });
         this.factory.createString.restore();
         sinon.stub(this.factory, 'createString', function (nativeValue) {
             var stringValue = sinon.createStubInstance(StringValue);
+            stringValue.getForAssignment.returns(stringValue);
             stringValue.getNative.returns(nativeValue);
+            stringValue.getType.returns('string');
             return stringValue;
         });
 
@@ -53,6 +68,7 @@ describe('PropertyReference', function () {
         };
         this.objectValue = sinon.createStubInstance(ObjectValue);
         this.objectValue.getNative.returns(this.nativeObject);
+        this.objectValue.isMethodDefined.returns(false);
         this.keyValue = this.factory.createString('my_property');
 
         this.property = new PropertyReference(
@@ -62,6 +78,69 @@ describe('PropertyReference', function () {
             this.nativeObject,
             this.keyValue
         );
+    });
+
+    describe('getValue()', function () {
+        describe('when the property is defined', function () {
+            it('should return the value assigned to the native object property, when it is not a reference', function () {
+                expect(this.property.getValue()).to.equal(this.propertyValue);
+            });
+
+            it('should coerce the value assigned to the native object property when fetched', function () {
+                this.nativeObject.my_property = 21;
+
+                expect(this.property.getValue().getNative()).to.equal(21);
+            });
+
+            it('should return the value assigned, when the property is a reference', function () {
+                var reference = sinon.createStubInstance(Variable),
+                    value = this.factory.createString('my current value');
+                reference.getValue.returns(value);
+                this.property.setReference(reference);
+
+                expect(this.property.getValue()).to.equal(value);
+            });
+        });
+
+        describe('when the property is not defined, but magic __get is', function () {
+            beforeEach(function () {
+                delete this.nativeObject.my_property;
+                this.objectValue.isMethodDefined.withArgs('__get').returns(true);
+            });
+
+            it('should fetch the value via the magic getter', function () {
+                var value = this.factory.createString('my current value');
+                this.objectValue.callMethod.withArgs('__get').returns(value);
+
+                expect(this.property.getValue()).to.equal(value);
+                expect(this.objectValue.callMethod).to.have.been.calledOnce;
+                expect(this.objectValue.callMethod).to.have.been.calledWith(
+                    '__get',
+                    [sinon.match.same(this.keyValue)]
+                );
+            });
+        });
+
+        describe('when the property is not defined, and magic __get is not either', function () {
+            beforeEach(function () {
+                delete this.nativeObject.my_property;
+                this.objectValue.referToElement.withArgs('my_property').returns('property: MyClass::$my_property');
+            });
+
+            it('should raise a notice', function () {
+                this.property.getValue();
+
+                expect(this.callStack.raiseError).to.have.been.calledOnce;
+                expect(this.callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Undefined property: MyClass::$my_property'
+                );
+            });
+
+            it('should return NULL', function () {
+                expect(this.property.getValue().getType()).to.equal('null');
+            });
+        });
     });
 
     describe('isDefined()', function () {
@@ -129,11 +208,19 @@ describe('PropertyReference', function () {
     });
 
     describe('setValue()', function () {
-        describe('when the property is not a reference', function () {
-            it('should return the value assigned', function () {
-                var newValue = this.factory.createString('my new value');
+        beforeEach(function () {
+            this.newValue = this.factory.createString('my new value');
+        });
 
-                expect(this.property.setValue(newValue)).to.equal(newValue);
+        describe('when the property is not a reference', function () {
+            it('should set the property on the native object', function () {
+                this.property.setValue(this.newValue);
+
+                expect(this.nativeObject.my_property.getNative()).to.equal('my new value');
+            });
+
+            it('should return the value assigned', function () {
+                expect(this.property.setValue(this.newValue)).to.equal(this.newValue);
             });
         });
 
@@ -143,10 +230,15 @@ describe('PropertyReference', function () {
                 this.property.setReference(this.reference);
             });
 
-            it('should return the value assigned', function () {
-                var newValue = this.factory.createString('my new value');
+            it('should set the property via the reference', function () {
+                this.property.setValue(this.newValue);
 
-                expect(this.property.setValue(newValue)).to.equal(newValue);
+                expect(this.reference.setValue).to.have.been.calledOnce;
+                expect(this.reference.setValue).to.have.been.calledWith(sinon.match.same(this.newValue));
+            });
+
+            it('should return the value assigned', function () {
+                expect(this.property.setValue(this.newValue)).to.equal(this.newValue);
             });
         });
 
@@ -156,9 +248,7 @@ describe('PropertyReference', function () {
             });
 
             it('should change the object\'s array-like pointer to point to this property', function () {
-                var newValue = this.factory.createString('my new value');
-
-                this.property.setValue(newValue);
+                this.property.setValue(this.newValue);
 
                 expect(this.objectValue.pointToProperty).to.have.been.calledOnce;
                 expect(this.objectValue.pointToProperty).to.have.been.calledWith(sinon.match.same(this.property));
@@ -171,11 +261,54 @@ describe('PropertyReference', function () {
             });
 
             it('should not change the array-like pointer', function () {
-                var newValue = this.factory.createString('my new value');
-
-                this.property.setValue(newValue);
+                this.property.setValue(this.newValue);
 
                 expect(this.objectValue.pointToProperty).not.to.have.been.called;
+            });
+        });
+
+        describe('when this property is not defined', function () {
+            beforeEach(function () {
+                this.objectValue.getLength.returns(0); // Property is the first to be defined
+
+                this.keyValue.getNative.returns('my_new_property');
+            });
+
+            describe('when magic __set is not defined either', function () {
+                it('should dynamically define the property on the native object', function () {
+                    this.property.setValue(this.newValue);
+
+                    expect(this.nativeObject.my_new_property.getNative()).to.equal('my new value');
+                });
+
+                it('should change the object\'s array-like pointer to point to this property', function () {
+                    this.property.setValue(this.newValue);
+
+                    expect(this.objectValue.pointToProperty).to.have.been.calledOnce;
+                    expect(this.objectValue.pointToProperty).to.have.been.calledWith(sinon.match.same(this.property));
+                });
+            });
+
+            describe('when magic __set is defined', function () {
+                beforeEach(function () {
+                    this.objectValue.isMethodDefined.withArgs('__set').returns(sinon.createStubInstance(MethodSpec));
+                });
+
+                it('should call the magic setter', function () {
+                    this.property.setValue(this.newValue);
+
+                    expect(this.objectValue.callMethod).to.have.been.calledOnce;
+                    expect(this.objectValue.callMethod).to.have.been.calledWith('__set', [
+                        sinon.match.same(this.keyValue),
+                        sinon.match.same(this.newValue)
+                    ]);
+                });
+
+                it('should not change the array-like pointer', function () {
+                    this.property.setValue(this.newValue);
+
+                    expect(this.objectValue.pointToProperty).not.to.have.been.called;
+                });
             });
         });
     });

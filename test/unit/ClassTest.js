@@ -17,6 +17,7 @@ var _ = require('microdash'),
     Class = require('../../src/Class').sync(),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     PHPFatalError = require('phpcommon').PHPFatalError,
+    MethodSpec = require('../../src/MethodSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     StringValue = require('../../src/Value/String').sync(),
@@ -427,6 +428,161 @@ describe('Class', function () {
             this.createClass('__construct', this.superClass);
 
             expect(this.classObject.getConstantByName('class').getNative()).to.equal('My\\Class\\Path\\Here');
+        });
+    });
+
+    describe('getMethodSpec()', function () {
+        beforeEach(function () {
+            this.methodSpec = sinon.createStubInstance(MethodSpec);
+            this.functionFactory.createMethodSpec.returns(this.methodSpec);
+        });
+
+        describe('when the object is an instance of the native constructor', function () {
+            beforeEach(function () {
+                this.nativeObject = sinon.createStubInstance(this.InternalClass);
+                this.objectValue = sinon.createStubInstance(ObjectValue);
+                this.objectValue.getObject.returns(this.nativeObject);
+            });
+
+            describe('when the method is defined with the same case', function () {
+                beforeEach(function () {
+                    this.methodFunction = sinon.stub();
+                    this.InternalClass.prototype.myMethod = this.methodFunction;
+                    this.createClass('__construct', null);
+                });
+
+                it('should create and return a MethodSpec with the correct info', function () {
+                    expect(this.classObject.getMethodSpec('myMethod')).to.equal(this.methodSpec);
+                    expect(this.functionFactory.createMethodSpec).to.have.been.calledOnce;
+                    expect(this.functionFactory.createMethodSpec).to.have.been.calledWith(
+                        sinon.match.same(this.classObject),
+                        sinon.match.same(this.classObject),
+                        'myMethod',
+                        sinon.match.same(this.methodFunction)
+                    );
+                });
+            });
+
+            describe('when the method is defined with differing case', function () {
+                beforeEach(function () {
+                    this.methodFunction = sinon.stub();
+                    this.InternalClass.prototype.myMethodWITHWRONGcase = this.methodFunction;
+                    this.createClass('__construct', null);
+                });
+
+                it('should create and return a MethodSpec with the correct info', function () {
+                    expect(this.classObject.getMethodSpec('myMethodWithWrongCase')).to.equal(this.methodSpec);
+                    expect(this.functionFactory.createMethodSpec).to.have.been.calledOnce;
+                    expect(this.functionFactory.createMethodSpec).to.have.been.calledWith(
+                        sinon.match.same(this.classObject),
+                        sinon.match.same(this.classObject),
+                        'myMethodWithWrongCase',
+                        sinon.match.same(this.methodFunction)
+                    );
+                });
+            });
+
+            describe('when an own property is defined with the same name as the method', function () {
+                beforeEach(function () {
+                    this.methodFunction = sinon.stub();
+                    this.InternalClass.prototype.myMethod = this.methodFunction;
+                    this.nativeObject.myMethod = sinon.stub(); // Should be ignored
+                    this.createClass('__construct', null);
+                });
+
+                it('should ignore the property and create and return a MethodSpec with the correct info', function () {
+                    expect(this.classObject.getMethodSpec('myMethod')).to.equal(this.methodSpec);
+                    expect(this.functionFactory.createMethodSpec).to.have.been.calledOnce;
+                    expect(this.functionFactory.createMethodSpec).to.have.been.calledWith(
+                        sinon.match.same(this.classObject),
+                        sinon.match.same(this.classObject),
+                        'myMethod',
+                        sinon.match.same(this.methodFunction)
+                    );
+                });
+            });
+
+            describe('when the method is not defined', function () {
+                it('should return null', function () {
+                    this.createClass('__construct', null);
+
+                    expect(this.classObject.getMethodSpec('myMethod')).to.be.null;
+                });
+            });
+        });
+
+        describe('when the object is not an instance of the native constructor (eg. JSObject/Closure)', function () {
+            beforeEach(function () {
+                this.nativeObject = {};
+                this.objectValue = sinon.createStubInstance(ObjectValue);
+                this.superClass = null;
+            });
+
+            describe('when the method is defined with the same case', function () {
+                beforeEach(function () {
+                    this.methodFunction = sinon.stub();
+                    this.InternalClass.prototype.myMethod = this.methodFunction;
+                    this.createClass('__construct', null);
+                });
+
+                it('should create and return a MethodSpec with the correct info', function () {
+                    expect(this.classObject.getMethodSpec('myMethod')).to.equal(this.methodSpec);
+                    expect(this.functionFactory.createMethodSpec).to.have.been.calledOnce;
+                    expect(this.functionFactory.createMethodSpec).to.have.been.calledWith(
+                        sinon.match.same(this.classObject),
+                        sinon.match.same(this.classObject),
+                        'myMethod',
+                        sinon.match.same(this.methodFunction)
+                    );
+                });
+            });
+
+            describe('when the method is defined with differing case', function () {
+                beforeEach(function () {
+                    this.methodFunction = sinon.stub();
+                    this.InternalClass.prototype.myMethodWITHWRONGcase = this.methodFunction;
+                    this.createClass('__construct', null);
+                });
+
+                it('should create and return a MethodSpec with the correct info', function () {
+                    expect(this.classObject.getMethodSpec('myMethodWithWrongCase')).to.equal(this.methodSpec);
+                    expect(this.functionFactory.createMethodSpec).to.have.been.calledOnce;
+                    expect(this.functionFactory.createMethodSpec).to.have.been.calledWith(
+                        sinon.match.same(this.classObject),
+                        sinon.match.same(this.classObject),
+                        'myMethodWithWrongCase',
+                        sinon.match.same(this.methodFunction)
+                    );
+                });
+            });
+
+            describe('when an own property is defined with the same name as the method', function () {
+                beforeEach(function () {
+                    this.methodFunction = sinon.stub();
+                    this.InternalClass.prototype.myMethod = this.methodFunction;
+                    this.nativeObject.myMethod = sinon.stub(); // Should be ignored
+                    this.createClass('__construct', null);
+                });
+
+                it('should create and return a MethodSpec with the correct info', function () {
+                    expect(this.classObject.getMethodSpec('myMethod')).to.equal(this.methodSpec);
+                    expect(this.functionFactory.createMethodSpec).to.have.been.calledOnce;
+                    expect(this.functionFactory.createMethodSpec).to.have.been.calledWith(
+                        sinon.match.same(this.classObject),
+                        sinon.match.same(this.classObject),
+                        'myMethod',
+                        sinon.match.same(this.methodFunction)
+                    );
+                });
+            });
+
+            describe('when the method is not defined', function () {
+                it('should return null', function () {
+                    this.createClass('__construct', null);
+
+                    expect(this.classObject.getMethodSpec('myMethod')).to.be.null;
+                });
+            });
         });
     });
 
