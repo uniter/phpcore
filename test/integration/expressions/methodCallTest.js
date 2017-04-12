@@ -53,6 +53,32 @@ EOS
         expect(module().execute().getNative()).to.equal(21);
     });
 
+    it('should allow a variable containing an array to be passed by-reference', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+class MyClass
+{
+    public function myMethod(array &$theArray)
+    {
+        $theArray[] = 'added';
+    }
+}
+
+$myArray = [21, 101];
+(new MyClass)->myMethod($myArray);
+
+return $myArray;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.deep.equal([
+            21,
+            101,
+            'added'
+        ]);
+    });
+
     it('should correctly handle calling a parent instance method statically from a child instance method call', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

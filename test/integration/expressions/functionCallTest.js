@@ -99,6 +99,30 @@ EOS
         }.bind(this)).to.throw(PHPFatalError, 'PHP Fatal error: Only variables can be passed by reference');
     });
 
+    it('should allow a variable containing an array to be passed by-reference', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+function myFunction(array &$theArray)
+{
+    $theArray[] = 'added';
+}
+
+$myArray = [21, 101];
+
+myFunction($myArray);
+
+return $myArray;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.deep.equal([
+            21,
+            101,
+            'added'
+        ]);
+    });
+
     it('should support calling static and instance methods with arrays', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
