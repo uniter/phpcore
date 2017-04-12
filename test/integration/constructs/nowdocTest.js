@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP nowdoc construct integration', function () {
-    it('should support nowdocx with strings that look like variables interpolated', function () {
+    it('should support nowdocs with strings that look like variables interpolated', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
