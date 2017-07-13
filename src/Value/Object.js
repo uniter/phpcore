@@ -478,7 +478,8 @@ module.exports = require('pauser')([
          * @returns {ObjectValue}
          */
         instantiate: function (args) {
-            var value = this,
+            var constructorReturnValue,
+                value = this,
                 nativeObject,
                 objectValue;
 
@@ -496,12 +497,19 @@ module.exports = require('pauser')([
 
             // Create an instance of the class, not calling constructor
             nativeObject = Object.create(value.value.prototype);
-            objectValue = value.factory.createFromNative(nativeObject);
 
             // Call the constructor on the newly created instance, unwrapping arguments
-            value.value.apply(nativeObject, _.map(args, function (argValue) {
+            constructorReturnValue = value.value.apply(nativeObject, _.map(args, function (argValue) {
                 return argValue.getNative();
             }));
+
+            if (constructorReturnValue) {
+                // JS constructor functions can override the normal constructor process
+                // and return a completely different object
+                nativeObject = constructorReturnValue;
+            }
+
+            objectValue = value.factory.coerceObject(nativeObject);
 
             return objectValue;
         },

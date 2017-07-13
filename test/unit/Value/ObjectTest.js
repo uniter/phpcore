@@ -846,9 +846,10 @@ describe('Object', function () {
                 this.JSClass = sinon.stub();
                 this.nativeObject = this.JSClass;
 
-                this.factory.createFromNative.restore();
-                sinon.stub(this.factory, 'createFromNative', function (nativeObject) {
+                this.factory.coerceObject.restore();
+                sinon.stub(this.factory, 'coerceObject', function (nativeObject) {
                     var newObjectValue = sinon.createStubInstance(ObjectValue);
+                    newObjectValue.getClass.returns(this.classObject);
                     newObjectValue.getObject.returns(nativeObject);
                     return newObjectValue;
                 }.bind(this));
@@ -868,6 +869,7 @@ describe('Object', function () {
                 resultObjectValue = this.value.instantiate([this.arg1Value]);
 
                 expect(resultObjectValue).to.be.an.instanceOf(ObjectValue);
+                expect(resultObjectValue.getClass()).to.equal(this.classObject);
                 expect(resultObjectValue.getObject()).to.be.an.instanceOf(this.JSClass);
             });
 
@@ -879,6 +881,18 @@ describe('Object', function () {
                 expect(this.JSClass).to.have.been.calledOnce;
                 expect(this.JSClass).to.have.been.calledOn(sinon.match.same(resultObjectValue.getObject()));
                 expect(this.JSClass).to.have.been.calledWith(21);
+            });
+
+            it('should allow a native JS constructor function to return a different object to use', function () {
+                var resultObjectValue,
+                    resultNativeObject = {my: 'native object'};
+                this.JSClass.returns(resultNativeObject);
+
+                resultObjectValue = this.value.instantiate([this.arg1Value]);
+
+                expect(resultObjectValue).to.be.an.instanceOf(ObjectValue);
+                expect(resultObjectValue.getClass()).to.equal(this.classObject);
+                expect(resultObjectValue.getObject()).to.equal(resultNativeObject);
             });
         });
 
