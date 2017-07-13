@@ -55,7 +55,7 @@ module.exports = require('pauser')([
         /**
          * Wraps the specified function in another that handles the PHP call stack and scoping
          *
-         * @param {NamespaceScope|null} namespaceScope
+         * @param {NamespaceScope} namespaceScope
          * @param {Class|null} currentClass Used by eg. self::
          * @param {Function} func
          * @param {string|null} name
