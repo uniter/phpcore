@@ -66,6 +66,7 @@ describe('Array', function () {
         this.factory.createInteger.restore();
         sinon.stub(this.factory, 'createInteger', function (nativeValue) {
             var integerValue = sinon.createStubInstance(IntegerValue);
+            integerValue.coerceToInteger.returns(integerValue);
             integerValue.coerceToKey.returns(integerValue);
             integerValue.getForAssignment.returns(integerValue);
             integerValue.getNative.returns(nativeValue);
@@ -686,6 +687,43 @@ describe('Array', function () {
                 PHPFatalError,
                 'Class name must be a valid object or a string'
             );
+        });
+    });
+
+    describe('modulo()', function () {
+        it('should always return 0 for an empty array, as it will always coerce to 0', function () {
+            var result,
+                rightValue = this.factory.createInteger(21);
+            this.elements.length = 0;
+            this.createValue();
+
+            result = this.value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(0);
+        });
+
+        it('should return 1 for a populated array when the remainder is 1', function () {
+            var result,
+                rightValue = this.factory.createInteger(2);
+            this.createValue();
+
+            result = this.value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(1);
+        });
+
+        it('should return 0 for a populated array when there is no remainder', function () {
+            var result,
+                rightValue = this.factory.createInteger(1);
+            this.elements.length = 1;
+            this.createValue();
+
+            result = this.value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(0);
         });
     });
 

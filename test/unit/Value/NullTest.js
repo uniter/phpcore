@@ -58,6 +58,7 @@ describe('Null', function () {
         sinon.stub(this.factory, 'createInteger', function (nativeValue) {
             var integerValue = sinon.createStubInstance(IntegerValue);
             integerValue.getType.returns('integer');
+            integerValue.coerceToInteger.returns(integerValue);
             integerValue.coerceToKey.returns(integerValue);
             integerValue.coerceToNumber.returns(integerValue);
             integerValue.getForAssignment.returns(integerValue);
@@ -106,6 +107,7 @@ describe('Null', function () {
         this.createValue = function () {
             this.value = new NullValue(this.factory, this.callStack);
         }.bind(this);
+        this.createValue();
     });
 
     describe('divide()', function () {
@@ -481,6 +483,18 @@ describe('Null', function () {
                 PHPFatalError,
                 'Class name must be a valid object or a string'
             );
+        });
+    });
+
+    describe('modulo()', function () {
+        it('should always return 0, as null will always coerce to 0', function () {
+            var result,
+                rightValue = this.factory.createInteger(5);
+
+            result = this.value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(0);
         });
     });
 

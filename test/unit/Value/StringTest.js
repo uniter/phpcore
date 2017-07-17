@@ -61,6 +61,7 @@ describe('String', function () {
         sinon.stub(this.factory, 'createInteger', function (nativeValue) {
             var integerValue = sinon.createStubInstance(IntegerValue);
             integerValue.getType.returns('integer');
+            integerValue.coerceToInteger.returns(integerValue);
             integerValue.coerceToKey.returns(integerValue);
             integerValue.coerceToNumber.returns(integerValue);
             integerValue.getForAssignment.returns(integerValue);
@@ -1121,6 +1122,41 @@ describe('String', function () {
 
             expect(result).to.be.an.instanceOf(BooleanValue);
             expect(result.getNative()).to.equal(false);
+        });
+    });
+
+    describe('modulo()', function () {
+        it('should return the correct remainder of 3 for 23 mod 5', function () {
+            var result,
+                rightValue = this.factory.createInteger(5);
+            this.createValue('23');
+
+            result = this.value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(3);
+        });
+
+        it('should return the correct remainder of 0 for 10 mod 2', function () {
+            var result,
+                rightValue = this.factory.createInteger(2);
+            this.createValue('10');
+
+            result = this.value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(0);
+        });
+
+        it('should return the correct remainder of 4 for 24 mod 5', function () {
+            var result,
+                rightValue = this.factory.createInteger(5);
+            this.createValue('24');
+
+            result = this.value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(4);
         });
     });
 

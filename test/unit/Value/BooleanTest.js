@@ -58,6 +58,7 @@ describe('Boolean', function () {
         sinon.stub(this.factory, 'createInteger', function (nativeValue) {
             var integerValue = sinon.createStubInstance(IntegerValue);
             integerValue.getType.returns('integer');
+            integerValue.coerceToInteger.returns(integerValue);
             integerValue.coerceToKey.returns(integerValue);
             integerValue.coerceToNumber.returns(integerValue);
             integerValue.getForAssignment.returns(integerValue);
@@ -106,6 +107,7 @@ describe('Boolean', function () {
         this.createValue = function (nativeValue) {
             this.value = new BooleanValue(this.factory, this.callStack, nativeValue);
         }.bind(this);
+        this.createValue(true);
     });
 
     describe('divide()', function () {
@@ -641,6 +643,41 @@ describe('Boolean', function () {
                 PHPFatalError,
                 'Class name must be a valid object or a string'
             );
+        });
+    });
+
+    describe('modulo()', function () {
+        it('should always return 0 for false, as it will always coerce to 0', function () {
+            var result,
+                rightValue = this.factory.createInteger(21);
+            this.createValue(false);
+
+            result = this.value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(0);
+        });
+
+        it('should return 1 for true when the remainder is 1', function () {
+            var result,
+                rightValue = this.factory.createInteger(2);
+            this.createValue(true);
+
+            result = this.value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(1);
+        });
+
+        it('should return 0 for true when there is no remainder', function () {
+            var result,
+                rightValue = this.factory.createInteger(1);
+            this.createValue(true);
+
+            result = this.value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(0);
         });
     });
 

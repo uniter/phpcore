@@ -497,6 +497,27 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Calculates the modulo (remainder of an integer division) of this value with another
+         *
+         * @param {Value} rightValue
+         * @returns {IntegerValue}
+         */
+        modulo: function (rightValue) {
+            var value = this,
+                // Coerce both operands to integers first, to ensure an integer division
+                dividend = value.coerceToInteger().getNative(),
+                divisor = rightValue.coerceToInteger().getNative();
+
+            if (divisor === 0) {
+                value.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
+
+                return value.factory.createBoolean(false);
+            }
+
+            return value.factory.createInteger(dividend % divisor);
+        },
+
+        /**
          * Multiplies this value with another
          */
         multiply: function () {

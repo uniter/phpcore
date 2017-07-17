@@ -58,6 +58,7 @@ describe('Float', function () {
         sinon.stub(this.factory, 'createInteger', function (nativeValue) {
             var integerValue = sinon.createStubInstance(IntegerValue);
             integerValue.getType.returns('integer');
+            integerValue.coerceToInteger.returns(integerValue);
             integerValue.coerceToKey.returns(integerValue);
             integerValue.coerceToNumber.returns(integerValue);
             integerValue.getForAssignment.returns(integerValue);
@@ -106,13 +107,13 @@ describe('Float', function () {
         this.createValue = function (nativeValue) {
             this.value = new FloatValue(this.factory, this.callStack, nativeValue);
         }.bind(this);
+        this.createValue(21);
     });
 
     describe('divide()', function () {
         it('should hand off to the right-hand operand to divide by this float', function () {
             var rightOperand = sinon.createStubInstance(Value),
                 result = sinon.createStubInstance(Value);
-            this.createValue(true);
             rightOperand.divideByFloat.withArgs(this.value).returns(result);
 
             expect(this.value.divide(rightOperand)).to.equal(result);
@@ -122,7 +123,6 @@ describe('Float', function () {
     describe('divideByArray()', function () {
         it('should throw an "Unsupported operand" error', function () {
             var leftValue = this.factory.createArray([]);
-            this.createValue(true);
 
             expect(function () {
                 this.value.divideByArray(leftValue);
@@ -664,11 +664,45 @@ describe('Float', function () {
         });
     });
 
+    describe('modulo()', function () {
+        it('should return the correct remainder of 3 for 23.0 mod 5', function () {
+            var result,
+                rightValue = this.factory.createInteger(5);
+            this.createValue(23.0);
+
+            result = this.value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(3);
+        });
+
+        it('should return the correct remainder of 0 for 10.0 mod 2', function () {
+            var result,
+                rightValue = this.factory.createInteger(2);
+            this.createValue(10.0);
+
+            result = this.value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(0);
+        });
+
+        it('should return the correct remainder of 4 for 24.3 mod 5 (integer division)', function () {
+            var result,
+                rightValue = this.factory.createInteger(5);
+            this.createValue(24.3);
+
+            result = this.value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(4);
+        });
+    });
+
     describe('multiply()', function () {
         it('should hand off to the right-hand operand to multiply by this float', function () {
             var rightOperand = sinon.createStubInstance(Value),
                 result = sinon.createStubInstance(Value);
-            this.createValue(true);
             rightOperand.multiplyByFloat.withArgs(this.value).returns(result);
 
             expect(this.value.multiply(rightOperand)).to.equal(result);
@@ -678,7 +712,6 @@ describe('Float', function () {
     describe('multiplyByArray()', function () {
         it('should throw an "Unsupported operand" error', function () {
             var leftValue = this.factory.createArray([]);
-            this.createValue(true);
 
             expect(function () {
                 this.value.multiplyByArray(leftValue);
