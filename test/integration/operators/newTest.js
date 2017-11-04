@@ -176,4 +176,81 @@ EOS
 
         expect(engine.execute().getNative()).to.equal(101);
     });
+
+    it('should resolve the special string "self" to the current class', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace My\Space
+{
+    class MyClass
+    {
+        public $myProp;
+
+        public function __construct($myProp)
+        {
+            $this->myProp = $myProp;
+        }
+
+        public function cloneMeWith($newProp)
+        {
+            return new self($newProp);
+        }
+    }
+}
+
+$result = [];
+$myObject = new My\Space\MyClass(21);
+$newObject = $myObject->cloneMeWith(101);
+
+$result[] = $myObject->myProp;
+$result[] = $newObject->myProp;
+
+return $result;
+
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            21,
+            101
+        ]);
+    });
+
+    it('should support classes with a property called "length"', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass {
+    public $firstProp = 'first';
+    public $secondProp = 'second';
+    public $thirdProp = 'third';
+
+    public $length = 1;
+}
+
+$result = [];
+$myObject = new MyClass();
+
+$result[] = $myObject->firstProp;
+$result[] = $myObject->secondProp;
+$result[] = $myObject->thirdProp;
+$result[] = $myObject->length;
+
+return $result;
+
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            'first',
+            'second',
+            'third',
+            1
+        ]);
+    });
 });
