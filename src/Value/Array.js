@@ -514,6 +514,49 @@ module.exports = require('pauser')([
             this.pointer = pointer;
         },
 
+        /**
+         * Removes the first element from the array, returning it
+         * and renumbering any numeric keys
+         *
+         * @returns {Value}
+         */
+        shift: function () {
+            var value = this,
+                elements = value.value,
+                newElements = [],
+                newKeysToElements = {},
+                nextNumericKey = 0;
+
+            if (elements.length === 0) {
+                return value.factory.createNull();
+            }
+
+            _.each(elements.slice(1), function (element) {
+                var key = element.getKey(),
+                    nativeKey = key.getNative();
+
+                if (isFinite(nativeKey)) {
+                    // All numeric keys need to be renumbered to start from zero
+                    nativeKey = nextNumericKey++;
+                    key = value.factory.createInteger(nativeKey);
+                }
+
+                element = new ElementReference(value.factory, value.callStack, value, key, element.getValue());
+
+                newKeysToElements[nativeKey] = element;
+                newElements.push(element);
+            });
+
+            // Internal array pointer needs to be reset to the start of the array.
+            // As we are removing an element and renumbering any numerically indexed ones,
+            // the pointer could be left invalid if we didn't anyway
+            value.pointer = 0;
+            value.keysToElements = newKeysToElements;
+            value.value = newElements;
+
+            return elements[0].getValue();
+        },
+
         shiftLeftBy: function (rightValue) {
             return this.coerceToInteger().shiftLeftBy(rightValue);
         },

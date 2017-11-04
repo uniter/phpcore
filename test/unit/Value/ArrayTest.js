@@ -125,13 +125,17 @@ describe('Array', function () {
             return keyReferencePair;
         };
 
+        this.elementKey1 = this.factory.createString('firstEl');
+        this.elementValue1 = this.factory.createString('value of first el');
         this.element1 = this.createKeyValuePair(
-            this.factory.createString('firstEl'),
-            this.factory.createString('value of first el')
+            this.elementKey1,
+            this.elementValue1
         );
+        this.elementKey2 = this.factory.createString('secondEl');
+        this.elementValue2 = this.factory.createString('value of second el');
         this.element2 = this.createKeyValuePair(
-            this.factory.createString('secondEl'),
-            this.factory.createString('value of second el')
+            this.elementKey2,
+            this.elementValue2
         );
         this.elements = [
             this.element1,
@@ -884,6 +888,33 @@ describe('Array', function () {
 
             expect(result).to.be.an.instanceOf(IntegerValue);
             expect(result.getNative()).to.equal(2); // 0 and 1 already taken by existing elements
+        });
+    });
+
+    describe('shift()', function () {
+        it('should return the first element of the array', function () {
+            expect(this.value.shift()).to.equal(this.elementValue1);
+        });
+
+        it('should return null if the array is empty', function () {
+            this.elements.length = 0;
+            this.createValue();
+
+            expect(this.value.shift().getNative()).to.be.null;
+        });
+
+        it('should remove the first element from the array', function () {
+            this.value.shift();
+
+            expect(this.value.getLength()).to.equal(1);
+        });
+
+        it('should reset the internal pointer to the start of the array', function () {
+            this.value.setPointer(1);
+
+            this.value.shift();
+
+            expect(this.value.getPointer()).to.equal(0);
         });
     });
 
