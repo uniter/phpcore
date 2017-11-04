@@ -514,6 +514,34 @@ describe('Boolean', function () {
         });
     });
 
+    describe('getNative()', function () {
+        it('should return true when true', function () {
+            this.createValue(true);
+
+            expect(this.value.getNative()).to.be.true;
+        });
+
+        it('should return false when false', function () {
+            this.createValue(false);
+
+            expect(this.value.getNative()).to.be.false;
+        });
+    });
+
+    describe('getProxy()', function () {
+        it('should return true when true', function () {
+            this.createValue(true);
+
+            expect(this.value.getProxy()).to.be.true;
+        });
+
+        it('should return false when false', function () {
+            this.createValue(false);
+
+            expect(this.value.getProxy()).to.be.false;
+        });
+    });
+
     describe('instantiate()', function () {
         it('should raise a fatal error', function () {
             expect(function () {

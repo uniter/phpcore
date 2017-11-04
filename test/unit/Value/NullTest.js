@@ -362,6 +362,18 @@ describe('Null', function () {
         });
     });
 
+    describe('getNative()', function () {
+        it('should return null', function () {
+            expect(this.value.getNative()).to.be.null;
+        });
+    });
+
+    describe('getProxy()', function () {
+        it('should return null', function () {
+            expect(this.value.getProxy()).to.be.null;
+        });
+    });
+
     describe('instantiate()', function () {
         it('should raise a fatal error', function () {
             expect(function () {

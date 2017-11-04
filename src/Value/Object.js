@@ -464,6 +464,18 @@ module.exports = require('pauser')([
             return this.pointer;
         },
 
+        /**
+         * Exports a proxy object that allows JS code to call any method of this object
+         * (including magic ones implemented with __call)
+         *
+         * @returns {PHPObject}
+         */
+        getProxy: function () {
+            var value = this;
+
+            return value.classObject.proxyInstanceForJS(value);
+        },
+
         getStaticPropertyByName: function (nameValue) {
             return this.classObject.getStaticPropertyByName(nameValue.getNative());
         },

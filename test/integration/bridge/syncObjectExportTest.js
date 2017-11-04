@@ -58,7 +58,7 @@ EOS
 
         myObject = phpEngine.execute().getNative();
 
-        expect(myObject.callMethod('addAndGetWhat', 20).getNative()).to.equal(23);
+        expect(myObject.addAndGetWhat(20)).to.equal(23);
     });
 
     it('should pass JS objects through unwrapped when calling a method', function () {

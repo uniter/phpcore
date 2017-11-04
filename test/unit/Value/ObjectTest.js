@@ -813,13 +813,24 @@ describe('Object', function () {
             });
 
             it('should be unwrapped via the class', function () {
-                var wrapperPHPObject = sinon.createStubInstance(PHPObject);
+                var unwrappedObject = {};
                 this.classObject.unwrapInstanceForJS
                     .withArgs(sinon.match.same(this.value), sinon.match.same(this.nativeObject))
-                    .returns(wrapperPHPObject);
+                    .returns(unwrappedObject);
 
-                expect(this.value.getNative()).to.equal(wrapperPHPObject);
+                expect(this.value.getNative()).to.equal(unwrappedObject);
             });
+        });
+    });
+
+    describe('getProxy()', function () {
+        it('should wrap the instance in a proxying PHPObject instance via the class', function () {
+            var wrapperPHPObject = sinon.createStubInstance(PHPObject);
+            this.classObject.proxyInstanceForJS
+                .withArgs(sinon.match.same(this.value))
+                .returns(wrapperPHPObject);
+
+            expect(this.value.getProxy()).to.equal(wrapperPHPObject);
         });
     });
 

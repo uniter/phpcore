@@ -542,6 +542,34 @@ describe('Integer', function () {
         });
     });
 
+    describe('getNative()', function () {
+        it('should return 27 when expected', function () {
+            this.createValue(27);
+
+            expect(this.value.getNative()).to.equal(27);
+        });
+
+        it('should return 0 when expected', function () {
+            this.createValue(0);
+
+            expect(this.value.getNative()).to.equal(0);
+        });
+    });
+
+    describe('getProxy()', function () {
+        it('should return 27 when expected', function () {
+            this.createValue(27);
+
+            expect(this.value.getProxy()).to.equal(27);
+        });
+
+        it('should return 0 when expected', function () {
+            this.createValue(0);
+
+            expect(this.value.getProxy()).to.equal(0);
+        });
+    });
+
     describe('instantiate()', function () {
         it('should raise a fatal error', function () {
             expect(function () {

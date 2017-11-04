@@ -526,6 +526,34 @@ describe('Float', function () {
         });
     });
 
+    describe('getNative()', function () {
+        it('should return 21.5 when expected', function () {
+            this.createValue(21.5);
+
+            expect(this.value.getNative()).to.equal(21.5);
+        });
+
+        it('should return 0.0 when expected', function () {
+            this.createValue(0.0);
+
+            expect(this.value.getNative()).to.equal(0.0);
+        });
+    });
+
+    describe('getProxy()', function () {
+        it('should return 21.5 when expected', function () {
+            this.createValue(21.5);
+
+            expect(this.value.getProxy()).to.equal(21.5);
+        });
+
+        it('should return 0.0 when expected', function () {
+            this.createValue(0.0);
+
+            expect(this.value.getProxy()).to.equal(0.0);
+        });
+    });
+
     describe('instantiate()', function () {
         it('should raise a fatal error', function () {
             expect(function () {

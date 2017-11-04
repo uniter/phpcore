@@ -63,8 +63,8 @@ EOS
         return phpEngine.execute().then(function (valueObject) {
             var myObject = valueObject.getNative();
 
-            return myObject.callMethod('addAndGetWhat', 20).then(function (resultValue) {
-                expect(resultValue.getNative()).to.equal(22);
+            return myObject.addAndGetWhat(20).then(function (resultValue) {
+                expect(resultValue).to.equal(22);
             });
         });
     });

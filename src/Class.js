@@ -28,6 +28,49 @@ module.exports = require('pauser')([
         hasOwn = {}.hasOwnProperty,
         PHPError = phpCommon.PHPError,
         PHPFatalError = phpCommon.PHPFatalError,
+        /**
+         * Defines an "unwrapped" internal class, used to export objects to JS-land
+         * with an API that provides a JS method for each PHP class method,
+         * unlike PHPObject which requires all method calls to be made via .callMethod(...)
+         *
+         * @param {Class} classObject
+         */
+        defineUnwrappedClass = function (classObject) {
+            var currentClass;
+
+            /**
+             * @param {PHPObject} phpObject
+             * @constructor
+             */
+            function UnwrappedClass(phpObject) {
+                /**
+                 * @type {PHPObject}
+                 */
+                this.phpObject = phpObject;
+            }
+            UnwrappedClass.prototype = Object.create(classObject.InternalClass.prototype);
+
+            function defineProxyMethod(methodName) {
+                UnwrappedClass.prototype[methodName] = function () {
+                    var args = [methodName].concat([].slice.call(arguments));
+
+                    return this.phpObject.callMethod.apply(this.phpObject, args);
+                };
+            }
+
+            currentClass = classObject;
+
+            while (currentClass) {
+                /*jshint loopfunc: true */
+                _.forOwn(currentClass.InternalClass.prototype, function (method, methodName) {
+                    defineProxyMethod(methodName);
+                });
+
+                currentClass = currentClass.superClass;
+            }
+
+            classObject.UnwrappedClass = UnwrappedClass;
+        },
         unwrapArgs = function (args, classObject) {
             if (classObject.autoCoercionEnabled) {
                 return _.map(args, function (arg) {
@@ -528,15 +571,30 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Wraps instances of this class in instances of the proxying PHPObject class
+         *
+         * @param {ObjectValue} instance
+         * @returns {PHPObject}
+         */
+        proxyInstanceForJS: function (instance) {
+            var classObject = this;
+
+            // Return a wrapper object that presents a promise-based API
+            // for calling methods of PHP objects in sync or async mode
+            return classObject.valueFactory.createPHPObject(instance);
+        },
+
+        /**
          * Unwraps instances of this class with the defined unwrapper if one has been set,
-         * otherwise wraps them in PHPObject
+         * otherwise wraps them in a native JS class that extends the PHP class' internal class
          *
          * @param {ObjectValue} instance
          * @param {object} nativeObject
-         * @returns {*|PHPObject}
+         * @returns {*|object}
          */
         unwrapInstanceForJS: function (instance, nativeObject) {
-            var classObject = this;
+            var classObject = this,
+                unwrappedObject;
 
             if (classObject.unwrapper) {
                 return classObject.unwrapper.call(
@@ -544,9 +602,20 @@ module.exports = require('pauser')([
                 );
             }
 
-            // Return a wrapper object that presents a promise-based API
-            // for calling methods of PHP objects in sync or async mode
-            return classObject.valueFactory.createPHPObject(instance);
+            // We'll need an "unwrapped class", which is a native JS class
+            // that extends this PHP class' internal class and defines a native method
+            // for each method of the PHP class
+            if (!classObject.UnwrappedClass) {
+                defineUnwrappedClass(classObject);
+            }
+
+            unwrappedObject = new classObject.UnwrappedClass(classObject.valueFactory.createPHPObject(instance));
+
+            // Store a map from the new unwrapped object back to its object value
+            // so that we can re-wrap if/when the object is passed back to PHP-land again from JS-land
+            classObject.valueFactory.mapUnwrappedObjectToValue(unwrappedObject, instance);
+
+            return unwrappedObject;
         }
     });
 

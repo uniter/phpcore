@@ -16,7 +16,9 @@ var _ = require('microdash'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
+    IntegerValue = require('../../src/Value/Integer').sync(),
     PHPFatalError = require('phpcommon').PHPFatalError,
+    PHPObject = require('../../src/PHPObject'),
     MethodSpec = require('../../src/MethodSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
@@ -49,6 +51,13 @@ describe('Class', function () {
             throw new Error('Unsupported value: ' + nativeValue);
         }.bind(this));
 
+        this.valueFactory.createInteger.restore();
+        sinon.stub(this.valueFactory, 'createInteger', function (nativeValue) {
+            var integerValue = sinon.createStubInstance(IntegerValue);
+            integerValue.getNative.returns(nativeValue);
+            return integerValue;
+        }.bind(this));
+
         this.valueFactory.createString.restore();
         sinon.stub(this.valueFactory, 'createString', function (nativeValue) {
             var stringValue = sinon.createStubInstance(StringValue);
@@ -78,6 +87,7 @@ describe('Class', function () {
                 this.namespaceScope
             );
         }.bind(this);
+        this.createClass('__construct', null);
     });
 
     describe('callMethod()', function () {
@@ -704,6 +714,82 @@ describe('Class', function () {
             this.classObject.disableAutoCoercion();
 
             expect(this.classObject.isAutoCoercionEnabled()).to.be.false;
+        });
+    });
+
+    describe('proxyInstanceForJS()', function () {
+        it('should return a PHPObject that wraps the provided instance of this class', function () {
+            var instance = sinon.createStubInstance(ObjectValue),
+                phpObject = sinon.createStubInstance(PHPObject);
+            this.valueFactory.createPHPObject.withArgs(sinon.match.same(instance)).returns(phpObject);
+
+            expect(this.classObject.proxyInstanceForJS(instance)).to.equal(phpObject);
+        });
+    });
+
+    describe('unwrapInstanceForJS()', function () {
+        describe('when an unwrapper is defined', function () {
+            it('should use the unwrapper to unwrap correctly when auto-coercion is disabled', function () {
+                var instance = sinon.createStubInstance(ObjectValue),
+                    nativeObject = {};
+                instance.getProperty.withArgs('myProp').returns(this.valueFactory.createString('my first result'));
+                this.classObject.defineUnwrapper(function () {
+                    return {yourProp: this.getProperty('myProp').getNative()};
+                });
+
+                expect(this.classObject.unwrapInstanceForJS(instance, nativeObject)).to.deep.equal({
+                    yourProp: 'my first result'
+                });
+            });
+
+            it('should use the unwrapper to unwrap correctly when auto-coercion is enabled', function () {
+                var instance = sinon.createStubInstance(ObjectValue),
+                    nativeObject = {myProp: 'my second result'};
+                this.classObject.defineUnwrapper(function () {
+                    return {yourProp: this.myProp};
+                });
+                this.classObject.enableAutoCoercion();
+
+                expect(this.classObject.unwrapInstanceForJS(instance, nativeObject)).to.deep.equal({
+                    yourProp: 'my second result'
+                });
+            });
+        });
+
+        describe('when no unwrapper is defined', function () {
+            it('should return an instance of the generated UnwrappedClass, able to call methods', function () {
+                var instance = sinon.createStubInstance(ObjectValue),
+                    nativeObject = {myProp: 4},
+                    unwrapped;
+                instance.callMethod.withArgs('doubleMyPropAndAdd', 21).returns(this.valueFactory.createInteger(29));
+                this.valueFactory.createPHPObject.restore();
+                sinon.stub(this.valueFactory, 'createPHPObject', function (objectValue) {
+                    var phpObject = sinon.createStubInstance(PHPObject);
+                    phpObject.callMethod.restore();
+                    sinon.stub(phpObject, 'callMethod', function (name, args) {
+                        return objectValue.callMethod(name, args).getNative();
+                    });
+                    return phpObject;
+                });
+                this.InternalClass.prototype.doubleMyPropAndAdd = function () {};
+
+                unwrapped = this.classObject.unwrapInstanceForJS(instance, nativeObject);
+
+                expect(unwrapped.doubleMyPropAndAdd(21)).to.equal(29);
+            });
+
+            it('should map the unwrapped object back to the original ObjectValue', function () {
+                var instance = sinon.createStubInstance(ObjectValue),
+                    nativeObject = {myProp: 'my second result'};
+
+                this.classObject.unwrapInstanceForJS(instance, nativeObject);
+
+                expect(this.valueFactory.mapUnwrappedObjectToValue).to.have.been.calledOnce;
+                expect(this.valueFactory.mapUnwrappedObjectToValue).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.same(instance)
+                );
+            });
         });
     });
 });

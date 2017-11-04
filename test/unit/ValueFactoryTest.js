@@ -18,6 +18,7 @@ var expect = require('chai').expect,
     Namespace = require('../../src/Namespace').sync(),
     NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
+    PHPObject = require('../../src/PHPObject'),
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
 
@@ -145,6 +146,22 @@ describe('ValueFactory', function () {
             expect(objectValue).to.be.an.instanceOf(ObjectValue);
             expect(objectValue.classIs('JSObject')).to.be.true;
             expect(objectValue.getNative()).to.equal(nativeFunction);
+        });
+
+        it('should unwrap an object exported as a PHPObject instance back to its original ObjectValue', function () {
+            var objectValue = sinon.createStubInstance(ObjectValue),
+                phpObject = sinon.createStubInstance(PHPObject);
+            phpObject.getObjectValue.returns(objectValue);
+
+            expect(this.factory.createFromNative(phpObject)).to.equal(objectValue);
+        });
+
+        it('should unwrap an object exported as an Unwrapped back to its original ObjectValue', function () {
+            var objectValue = sinon.createStubInstance(ObjectValue),
+                unwrappedObject = {};
+            this.factory.mapUnwrappedObjectToValue(unwrappedObject, objectValue);
+
+            expect(this.factory.createFromNative(unwrappedObject)).to.equal(objectValue);
         });
     });
 

@@ -286,6 +286,17 @@ module.exports = require('pauser')([
             return this.value;
         },
 
+        /**
+         * Exports a "proxying" version of the native value. For normal primitive values
+         * (string, boolean, int, float) this will just be the native value,
+         * but for objects it will be an instance of PHPObject (see ObjectValue.prototype.getProxy())
+         *
+         * @returns {*}
+         */
+        getProxy: function () {
+            return this.getNative();
+        },
+
         getPushElement: function () {
             return createNullReference(this);
         },

@@ -15,6 +15,7 @@ var expect = require('chai').expect,
     ObjectValue = require('../../src/Value/Object').async(pausable),
     PHPObject = require('../../src/PHPObject'),
     Promise = require('lie'),
+    StringValue = require('../../src/Value/String').async(pausable),
     ValueFactory = require('../../src/ValueFactory').async(pausable);
 
 describe('PHPObject', function () {
@@ -27,6 +28,13 @@ describe('PHPObject', function () {
             call: sinon.stub().returns(this.pausableCallPromise)
         };
         this.valueFactory = sinon.createStubInstance(ValueFactory);
+
+        this.valueFactory.createString.restore();
+        sinon.stub(this.valueFactory, 'createString', function (nativeValue) {
+            var stringValue = sinon.createStubInstance(StringValue);
+            stringValue.getNative.returns(nativeValue);
+            return stringValue;
+        });
     });
 
     describe('callMethod()', function () {
@@ -54,7 +62,7 @@ describe('PHPObject', function () {
             it('should resolve the Promise when the call returns via Pausable', function () {
                 var promise = this.phpObject.callMethod('myMethod', 21, 23);
 
-                this.resolveCall();
+                this.resolveCall(this.valueFactory.createString('my result'));
 
                 return expect(promise).to.eventually.be.fulfilled;
             });
@@ -62,7 +70,7 @@ describe('PHPObject', function () {
             it('should resolve with the result when the call returns via Pausable', function () {
                 var promise = this.phpObject.callMethod('myMethod', 21, 23);
 
-                this.resolveCall('my result');
+                this.resolveCall(this.valueFactory.createString('my result'));
 
                 return expect(promise).to.eventually.equal('my result');
             });
@@ -73,12 +81,20 @@ describe('PHPObject', function () {
                 this.phpObject = new PHPObject(null, this.valueFactory, this.object);
             });
 
-            it('should return the result', function () {
-                this.object.callMethod.returns('my synchronous result');
+            it('should return the unwrapped native result', function () {
+                this.object.callMethod.returns(this.valueFactory.createString('my synchronous result'));
 
                 expect(this.phpObject.callMethod('myMethod', 21, 23))
                     .to.equal('my synchronous result');
             });
+        });
+    });
+
+    describe('getObjectValue()', function () {
+        it('should return the unwrapped ObjectValue', function () {
+            var phpObject = new PHPObject(null, this.valueFactory, this.object);
+
+            expect(phpObject.getObjectValue()).to.equal(this.object);
         });
     });
 });

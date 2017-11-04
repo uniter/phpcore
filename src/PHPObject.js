@@ -12,9 +12,30 @@
 var _ = require('microdash'),
     Promise = require('lie');
 
+/**
+ * Provides a proxy for accessing all data/methods of an instance of a PHP-defined class.
+ *
+ * Objects that implement __call(), __get(), __set() or define a public property
+ * anywhere along their class ancestry could benefit from being unwrapped to a PHPObject
+ * as this will permit access to those from native JS code, at the expense of a more complex API.
+ *
+ * @param {Resumable} pausable
+ * @param {ValueFactory} valueFactory
+ * @param {ObjectValue} objectValue
+ * @constructor
+ */
 function PHPObject(pausable, valueFactory, objectValue) {
+    /**
+     * @type {ObjectValue}
+     */
     this.objectValue = objectValue;
+    /**
+     * @type {Resumable}
+     */
     this.pausable = pausable;
+    /**
+     * @type {ValueFactory}
+     */
     this.valueFactory = valueFactory;
 }
 
@@ -44,12 +65,26 @@ _.extend(PHPObject.prototype, {
                     [name, args],
                     phpObject.objectValue
                 )
-                    .then(resolve, reject);
+                    .then(
+                        function (resultValue) {
+                            resolve(resultValue.getNative());
+                        },
+                        reject
+                    );
             });
         }
 
         // Pausable is unavailable (non-blocking mode)
-        return phpObject.objectValue.callMethod(name, args);
+        return phpObject.objectValue.callMethod(name, args).getNative();
+    },
+
+    /**
+     * Fetches the unwrapped ObjectValue that this PHPObject was created from
+     *
+     * @returns {ObjectValue}
+     */
+    getObjectValue: function () {
+        return this.objectValue;
     }
 });
 

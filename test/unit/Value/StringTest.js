@@ -907,6 +907,34 @@ describe('String', function () {
         });
     });
 
+    describe('getNative()', function () {
+        it('should return "hello" when expected', function () {
+            this.createValue('hello');
+
+            expect(this.value.getNative()).to.equal('hello');
+        });
+
+        it('should return "world" when expected', function () {
+            this.createValue('world');
+
+            expect(this.value.getNative()).to.equal('world');
+        });
+    });
+
+    describe('getProxy()', function () {
+        it('should return "hello" when expected', function () {
+            this.createValue('hello');
+
+            expect(this.value.getProxy()).to.equal('hello');
+        });
+
+        it('should return "world" when expected', function () {
+            this.createValue('world');
+
+            expect(this.value.getProxy()).to.equal('world');
+        });
+    });
+
     describe('getStaticPropertyByName()', function () {
         it('should fetch the property\'s value from the class', function () {
             var classObject = sinon.createStubInstance(Class),

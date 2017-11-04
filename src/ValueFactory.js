@@ -23,7 +23,8 @@ module.exports = require('pauser')([
     require('./Value/Object'),
     require('./PHPObject'),
     require('./Value/String'),
-    require('./Value')
+    require('./Value'),
+    require('es6-weak-map')
 ], function (
     _,
     phpCommon,
@@ -38,13 +39,21 @@ module.exports = require('pauser')([
     ObjectValue,
     PHPObject,
     StringValue,
-    Value
+    Value,
+    WeakMap
 ) {
     function ValueFactory(pausable, callStack) {
         this.nextObjectID = 1;
         this.callStack = callStack;
         this.globalNamespace = null;
         this.pausable = pausable;
+        /**
+         * Used for mapping exported unwrapped objects back to their original ObjectValue
+         * when they are passed back to PHP-land
+         *
+         * @type {WeakMap}
+         */
+        this.unwrappedObjectToValueMap = new WeakMap();
     }
 
     _.extend(ValueFactory.prototype, {
@@ -142,6 +151,16 @@ module.exports = require('pauser')([
                 hasAMethod = false,
                 orderedElements = [];
 
+            if (nativeObject instanceof PHPObject) {
+                // PHPObjects wrap instances of PHP classes when exported with .getProxy()
+                return nativeObject.getObjectValue();
+            }
+
+            if (factory.unwrappedObjectToValueMap.has(nativeObject)) {
+                // Objects exported with .getNative() are mapped back to their original ObjectValue
+                return factory.unwrappedObjectToValueMap.get(nativeObject);
+            }
+
             // Handle plain objects -> associative arrays
             if (Object.getPrototypeOf(nativeObject) === Object.prototype) {
                 _.forOwn(nativeObject, function (value) {
@@ -220,6 +239,16 @@ module.exports = require('pauser')([
         },
         isValue: function (object) {
             return object instanceof Value;
+        },
+        /**
+         * Allows an unwrapped object to later be mapped back to its original ObjectValue
+         * (eg. when passed back to PHP-land from JS-land as a method argument)
+         *
+         * @param {object} unwrappedObject
+         * @param {ObjectValue} objectValue
+         */
+        mapUnwrappedObjectToValue: function (unwrappedObject, objectValue) {
+            this.unwrappedObjectToValueMap.set(unwrappedObject, objectValue);
         },
         setGlobalNamespace: function (globalNamespace) {
             this.globalNamespace = globalNamespace;
