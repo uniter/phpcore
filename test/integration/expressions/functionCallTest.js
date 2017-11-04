@@ -157,4 +157,26 @@ EOS
             40  // 20 * 2
         ]);
     });
+
+    it('should allow a closure to be called where an argument is an array literal containing a named element with a variable as a value', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+$myVar = 101;
+$myFunc = function (array $arg) use (&$result) {
+    $result[] = 'Result: ' . $arg['named'];
+};
+
+$myFunc([21, 'named' => $myVar]);
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.deep.equal([
+            'Result: 101'
+        ]);
+    });
 });

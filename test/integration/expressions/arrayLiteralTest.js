@@ -33,4 +33,25 @@ EOS
             27
         ]);
     });
+
+    it('should allow elements to be defined with the value of a property', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+class MyClass {
+    public $myProp = 101;
+}
+
+$myObject = new MyClass;
+$myArray = [21, $myObject->myProp];
+
+return $myArray;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.deep.equal([
+            21,
+            101
+        ]);
+    });
 });
