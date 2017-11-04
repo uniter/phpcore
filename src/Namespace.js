@@ -107,8 +107,8 @@ module.exports = require('pauser')([
 
                     // Go through and define the properties and their default values
                     // on the object from the class definition
-                    _.each(definition.properties, function (value, name) {
-                        nativeObject[name] = value;
+                    _.forOwn(definition.properties, function (value, name) {
+                        nativeObject[name] = value();
                     });
                 };
 

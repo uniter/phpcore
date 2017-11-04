@@ -36,8 +36,8 @@
     "jshint": "^2.8.0",
     "mocha": "^2.3.3",
     "nowdoc": "^1.0.0",
-    "phptoast": "~4",
-    "phptojs": "~4",
+    "phptoast": "~5",
+    "phptojs": "~5",
     "sinon": "^1.17.3",
     "sinon-chai": "^2.7.0"
   },

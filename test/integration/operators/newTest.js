@@ -40,30 +40,6 @@ EOS
         expect(engine.execute().getNative()).to.equal('Fred');
     });
 
-    it('should allow instantiating a JS class function stored as a property', function () {
-        var php = nowdoc(function () {/*<<<EOS
-<?php
-$object = new $myObject->MyClass(5);
-
-return $object->double(21);
-EOS
-*/;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
-            engine = module(),
-            myObject = {};
-        function MyClass(additional) {
-            this.additional = additional;
-        }
-        MyClass.prototype.double = function (number) {
-            return this.additional + number * 2;
-        };
-        myObject.MyClass = MyClass;
-
-        engine.expose(myObject, 'myObject');
-
-        expect(engine.execute().getNative()).to.equal(47);
-    });
-
     it('should resolve an unprefixed bareword string class name relative to the current namespace', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
