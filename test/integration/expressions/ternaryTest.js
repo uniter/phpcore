@@ -17,9 +17,12 @@ describe('PHP ternary expression integration', function () {
     it('should support basic ternary operator expressions', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
+$myTruthyVar = 1;
+
 $result = [];
 $result[] = 21 ? 10 : 12;
 $result[] = 0 ? 'yep, truthy' : 'nope, falsy';
+$result[] = $myTruthyVar ? 'yes' : 'no';
 
 return $result;
 EOS
@@ -29,7 +32,8 @@ EOS
 
         expect(engine.execute().getNative()).to.deep.equal([
             10,
-            'nope, falsy'
+            'nope, falsy',
+            'yes'
         ]);
     });
 

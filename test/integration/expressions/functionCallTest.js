@@ -179,4 +179,26 @@ EOS
             'Result: 101'
         ]);
     });
+
+    it('should allow an arg to have a ternary with just a variable as the condition', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+function doubleIt($myNumber) {
+    return $myNumber * 2;
+}
+
+$truthy = 21;
+$result[] = doubleIt($truthy ? 10 : 4);
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.deep.equal([
+            20
+        ]);
+    });
 });
