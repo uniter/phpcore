@@ -19,7 +19,8 @@ var expect = require('chai').expect,
     ScopeFactory = require('../../src/ScopeFactory'),
     SuperGlobalScope = require('../../src/SuperGlobalScope').sync(),
     Value = require('../../src/Value').sync(),
-    ValueFactory = require('../../src/ValueFactory').sync();
+    ValueFactory = require('../../src/ValueFactory').sync(),
+    VariableFactory = require('../../src/VariableFactory').sync();
 
 describe('ScopeFactory', function () {
     beforeEach(function () {
@@ -30,12 +31,14 @@ describe('ScopeFactory', function () {
         this.referenceFactory = sinon.createStubInstance(ReferenceFactory);
         this.superGlobalScope = sinon.createStubInstance(SuperGlobalScope);
         this.valueFactory = sinon.createStubInstance(ValueFactory);
+        this.variableFactory = sinon.createStubInstance(VariableFactory);
 
         this.factory = new ScopeFactory(
             this.Scope,
             this.callStack,
             this.superGlobalScope,
             this.valueFactory,
+            this.variableFactory,
             this.referenceFactory
         );
         this.factory.setClosureFactory(this.closureFactory);
@@ -117,10 +120,24 @@ describe('ScopeFactory', function () {
             );
         });
 
+        it('should pass the VariableFactory to the scope', function () {
+            this.callCreate();
+
+            expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(this.variableFactory)
+            );
+        });
+
         it('should pass the ReferenceFactory to the scope', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -134,6 +151,7 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -156,6 +174,7 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
                 null
             );
         });
@@ -164,6 +183,7 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -188,6 +208,7 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
                 null
             );
         });
@@ -196,6 +217,7 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -222,6 +244,7 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
                 null
             );
         });
@@ -230,6 +253,7 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -249,6 +273,7 @@ describe('ScopeFactory', function () {
             this.callCreate();
 
             expect(this.Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,

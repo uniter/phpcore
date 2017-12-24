@@ -16,10 +16,11 @@ var _ = require('microdash');
  * @param {CallStack} callStack
  * @param {SuperGlobalScope} superGlobalScope
  * @param {ValueFactory} valueFactory
+ * @param {VariableFactory} variableFactory
  * @param {ReferenceFactory} referenceFactory
  * @constructor
  */
-function ScopeFactory(Scope, callStack, superGlobalScope, valueFactory, referenceFactory) {
+function ScopeFactory(Scope, callStack, superGlobalScope, valueFactory, variableFactory, referenceFactory) {
     /**
      * @type {CallStack}
      */
@@ -48,6 +49,10 @@ function ScopeFactory(Scope, callStack, superGlobalScope, valueFactory, referenc
      * @type {ValueFactory}
      */
     this.valueFactory = valueFactory;
+    /**
+     * @type {VariableFactory}
+     */
+    this.variableFactory = variableFactory;
 }
 
 _.extend(ScopeFactory.prototype, {
@@ -69,6 +74,7 @@ _.extend(ScopeFactory.prototype, {
             factory.superGlobalScope,
             factory.closureFactory,
             factory.valueFactory,
+            factory.variableFactory,
             factory.referenceFactory,
             namespaceScope || null,
             currentClass || null,

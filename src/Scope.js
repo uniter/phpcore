@@ -11,42 +11,56 @@
 
 module.exports = require('pauser')([
     require('microdash'),
-    require('phpcommon'),
-    require('./Variable')
+    require('phpcommon')
 ], function (
     _,
-    phpCommon,
-    Variable
+    phpCommon
 ) {
     var hasOwn = {}.hasOwnProperty,
         IS_STATIC = 'isStatic',
         PHPFatalError = phpCommon.PHPFatalError;
 
+    /**
+     * @param {CallStack} callStack
+     * @param {Scope} globalScope
+     * @param {SuperGlobalScope} superGlobalScope
+     * @param {ClosureFactory} closureFactory
+     * @param {ValueFactory} valueFactory
+     * @param {VariableFactory} variableFactory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {NamespaceScope} namespaceScope
+     * @param {Class|null} currentClass
+     * @param {Function|null} currentFunction
+     * @param {ObjectValue|null} thisObject
+     * @constructor
+     */
     function Scope(
         callStack,
         globalScope,
         superGlobalScope,
         closureFactory,
         valueFactory,
+        variableFactory,
         referenceFactory,
         namespaceScope,
         currentClass,
         currentFunction,
         thisObject
     ) {
-        var thisObjectVariable = new Variable(callStack, valueFactory, 'this');
+        var thisObjectVariable = variableFactory.createVariable('this');
 
         this.callStack = callStack;
         this.closureFactory = closureFactory;
         this.currentClass = currentClass;
         this.currentFunction = currentFunction;
         this.errorsSuppressed = false;
-        this.globalScope = globalScope;
+        this.globalScope = globalScope || this;
         this.namespaceScope = namespaceScope;
         this.referenceFactory = referenceFactory;
         this.superGlobalScope = superGlobalScope;
         this.thisObject = currentFunction && currentFunction[IS_STATIC] ? null : thisObject;
         this.valueFactory = valueFactory;
+        this.variableFactory = variableFactory;
         this.variables = {
             'this': thisObjectVariable
         };
@@ -86,7 +100,7 @@ module.exports = require('pauser')([
 
         defineVariable: function (name) {
             var scope = this,
-                variable = new Variable(scope.callStack, scope.valueFactory, name);
+                variable = scope.variableFactory.createVariable(name);
 
             scope.variables[name] = variable;
 
@@ -258,7 +272,7 @@ module.exports = require('pauser')([
 
             if (!variable) {
                 // Variable is not local or a super-global: implicitly define it
-                variable = new Variable(scope.callStack, scope.valueFactory, name);
+                variable = scope.variableFactory.createVariable(name);
                 scope.variables[name] = variable;
 
                 if (scope.errorsSuppressed) {
@@ -283,6 +297,51 @@ module.exports = require('pauser')([
                     scope.globalScope.getVariable(variableName)
                 )
             );
+        },
+
+        /**
+         * Imports a static variable into this scope by defining the variable
+         * in this scope and setting its reference to point to the "static" one,
+         * stored against the current function/method. The first time the variable
+         * is declared, it will be assigned the initial value (if any).
+         *
+         * @param {string} variableName
+         * @param {Value|null} initialValue
+         */
+        importStatic: function (variableName, initialValue) {
+            var scope = this,
+                staticVariables,
+                staticVariable;
+
+            if (scope.currentFunction) {
+                if (scope.currentFunction.staticVariables) {
+                    staticVariables = scope.currentFunction.staticVariables;
+                } else {
+                    staticVariables = {};
+                    scope.currentFunction.staticVariables = staticVariables;
+                }
+
+                if (!hasOwn.call(staticVariables, variableName)) {
+                    staticVariables[variableName] = scope.variableFactory.createVariable(variableName);
+
+                    if (initialValue) {
+                        // Initialiser is optional
+                        staticVariables[variableName].setValue(initialValue);
+                    }
+                }
+
+                staticVariable = staticVariables[variableName];
+
+                // Define a variable in the current scope that is a reference
+                // to the static variable stored against either the current function or the global scope if none
+                scope.getVariable(variableName).setReference(
+                    scope.referenceFactory.createVariable(
+                        staticVariable
+                    )
+                );
+            } else {
+                scope.getVariable(variableName).setValue(initialValue);
+            }
         },
 
         suppressErrors: function () {

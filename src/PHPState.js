@@ -35,6 +35,8 @@ module.exports = require('pauser')([
     require('./SuperGlobalScope'),
     require('./Value'),
     require('./ValueFactory'),
+    require('./Variable'),
+    require('./VariableFactory'),
     require('./Reference/Variable')
 ], function (
     _,
@@ -62,6 +64,8 @@ module.exports = require('pauser')([
     SuperGlobalScope,
     Value,
     ValueFactory,
+    Variable,
+    VariableFactory,
     VariableReference
 ) {
     var EXCEPTION_CLASS = 'Exception',
@@ -112,7 +116,15 @@ module.exports = require('pauser')([
             ),
             classAutoloader = new ClassAutoloader(valueFactory),
             superGlobalScope = new SuperGlobalScope(callStack, valueFactory),
-            scopeFactory = new ScopeFactory(Scope, callStack, superGlobalScope, valueFactory, referenceFactory),
+            variableFactory = new VariableFactory(Variable, callStack, valueFactory),
+            scopeFactory = new ScopeFactory(
+                Scope,
+                callStack,
+                superGlobalScope,
+                valueFactory,
+                variableFactory,
+                referenceFactory
+            ),
             functionFactory = new FunctionFactory(MethodSpec, scopeFactory, callFactory, valueFactory, callStack),
             closureFactory = new ClosureFactory(functionFactory, valueFactory, callStack, Closure),
             namespaceFactory = new NamespaceFactory(
