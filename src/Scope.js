@@ -292,6 +292,11 @@ module.exports = require('pauser')([
         importGlobal: function (variableName) {
             var scope = this;
 
+            if (scope.globalScope === scope) {
+                // Nothing to do; we're trying to import a global into the global scope
+                return;
+            }
+
             scope.getVariable(variableName).setReference(
                 scope.referenceFactory.createVariable(
                     scope.globalScope.getVariable(variableName)

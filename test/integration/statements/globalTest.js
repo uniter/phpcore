@@ -57,4 +57,27 @@ EOS
 
         expect(module().execute().getNative()).to.equal('original value');
     });
+
+    it('should support unnecessary global variables in the global scope', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+global $myVar;
+$myVar = 21;
+
+$result = [];
+$result[] = $myVar++;
+$result[] = $myVar++;
+
+return $result;
+
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.deep.equal([
+            21,
+            22
+        ]);
+    });
 });

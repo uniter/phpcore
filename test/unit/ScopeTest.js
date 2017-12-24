@@ -386,6 +386,19 @@ describe('Scope', function () {
 
             expect(this.scope.getVariable('myVar').getValue()).to.equal(value);
         });
+
+        it('should silently allow a global to be unnecessarily imported into the global scope', function () {
+            this.referenceFactory.createVariable.restore();
+            sinon.stub(this.referenceFactory, 'createVariable', function (variable) {
+                return new VariableReference(variable);
+            });
+            this.createScope(null, null);
+            this.scope.defineVariable('myVar').setValue(this.valueFactory.createString('my result'));
+
+            this.scope.importGlobal('myVar');
+
+            expect(this.scope.getVariable('myVar').getValue().getNative()).to.equal('my result');
+        });
     });
 
     describe('importStatic()', function () {
