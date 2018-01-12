@@ -11,9 +11,7 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    phpCore = require('../../../sync'),
-    phpToAST = require('phptoast'),
-    phpToJS = require('phptojs'),
+    tools = require('../tools'),
     PHPFatalError = require('phpcommon').PHPFatalError;
 
 describe('PHP JS<->PHP bridge object export synchronous mode integration', function () {
@@ -40,13 +38,7 @@ $myObject = new MyClass($tools);
 return $myObject;
 EOS
 */;}), //jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return phpCore;
-            }),
+            module = tools.syncTranspile(null, php),
             phpEngine = module(),
             myObject;
 
@@ -67,13 +59,7 @@ EOS
 $myObject->myMethod($jsObject);
 EOS
 */;}), //jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return phpCore;
-            }),
+            module = tools.syncTranspile(null, php),
             phpEngine = module(),
             jsObject = {
                 toForceObjectCast: function () {},
@@ -98,13 +84,7 @@ EOS
 $myObject->myMETHODWithDifferentCase();
 EOS
 */;}), //jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return phpCore;
-            }),
+            module = tools.syncTranspile(null, php),
             phpEngine = module(),
             myObject = {
                 myMethodWithDifferentCase: function () {}
@@ -139,13 +119,7 @@ $myObject->aSub = $mySubObject;
 return $myObject;
 EOS
 */;}), //jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return phpCore;
-            }),
+            module = tools.syncTranspile(null, php),
             phpEngine = module(),
             myObject = {
                 myMethodWithDifferentCase: function () {}
@@ -165,5 +139,37 @@ EOS
                 anotherProp: 'hello'
             }
         });
+    });
+
+    it('should extract the error details from a custom Exception thrown by an instance method and throw an appropriate JS Error', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class YourException extends Exception
+{
+    public function __construct($message)
+    {
+        parent::__construct($message . ' (custom!)');
+    }
+}
+
+class MyClass
+{
+    public function throwIt($what)
+    {
+        throw new YourException('Oh no - ' . $what);
+    }
+}
+
+return new MyClass();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            phpEngine = module(),
+            myObject = phpEngine.execute().getNative();
+
+        expect(function () {
+            myObject.throwIt(9001);
+        }).to.throw(Error, 'PHP YourException: Oh no - 9001 (custom!)');
     });
 });

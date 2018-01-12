@@ -157,8 +157,6 @@ namespace My\Space
 
 namespace
 {
-    $object = new My\Space\MyDerivedClass;
-
     $result = [];
     $result[] = My\Space\MyDerivedClass::SECOND_CONST;
     return $result;
@@ -169,6 +167,47 @@ EOS
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
+            21
+        ]);
+    });
+
+    it('should support instance and static properties that refer to constants via self::', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace My\Space
+{
+    class MyClass
+    {
+        const MY_CONST = 21;
+
+        public $myInstanceProp = self::MY_CONST;
+        public static $myStaticProp = self::MY_CONST;
+    }
+
+    // Define a derived class to ensure that self:: still refers to the parent class above
+    class MyDerivedClass extends MyClass
+    {
+        const MY_CONST = 1001; // Should be ignored by the self:: references above
+    }
+}
+
+namespace
+{
+    $object = new My\Space\MyDerivedClass;
+
+    $result = [];
+    $result[] = $object->myInstanceProp;
+    $result[] = My\Space\MyDerivedClass::$myStaticProp;
+    return $result;
+}
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            21,
             21
         ]);
     });

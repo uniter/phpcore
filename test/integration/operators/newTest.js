@@ -219,6 +219,58 @@ EOS
         ]);
     });
 
+    it('should resolve the special string "static" to the called class in static context', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace My\Space
+{
+    class MyParentClass
+    {
+        protected $myProp;
+
+        public function __construct($myProp)
+        {
+            $this->myProp = $myProp;
+        }
+
+        public function cloneMeWith($newProp)
+        {
+            return new static($newProp);
+        }
+    }
+
+    class MyChildClass extends MyParentClass
+    {
+        // Define this only in the child class, to prove that the `new static(...)` above
+        // creates a new instance of this derived class and not a new instance of the parent
+        public function getProp()
+        {
+            return $this->myProp;
+        }
+    }
+}
+
+$result = [];
+$myObject = new My\Space\MyChildClass(21);
+$newObject = $myObject->cloneMeWith(101);
+
+$result[] = $myObject->getProp();
+$result[] = $newObject->getProp();
+
+return $result;
+
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            21,
+            101
+        ]);
+    });
+
     it('should support classes with a property called "length"', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

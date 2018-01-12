@@ -204,6 +204,24 @@ module.exports = require('pauser')([
             return value.factory.createInteger(1);
         },
 
+        /**
+         * Unwraps this instance of Exception to a native JS error
+         *
+         * @returns {Error}
+         */
+        coerceToNativeError: function () {
+            var value = this;
+
+            if (!value.classObject.is('Exception')) {
+                throw new Error('Cannot coerce non-Exception instance to a native JS error');
+            }
+
+            return new Error(
+                'PHP ' + value.getClassName() + ': ' +
+                value.callMethod('getMessage', []).getNative()
+            );
+        },
+
         coerceToNumber: function () {
             return this.coerceToInteger();
         },
@@ -418,24 +436,6 @@ module.exports = require('pauser')([
         getNative: function () {
             var result,
                 value = this;
-
-            if (value.classObject.getName() === 'Closure') {
-                // When calling a PHP closure from JS, preserve thisObj
-                // by passing it in (wrapped) as the first argument
-                return function () {
-                    // Wrap thisObj in *Value object
-                    var thisObj = value.factory.coerceObject(this),
-                        args = [];
-
-                    // Wrap all native JS values in *Value objects
-                    _.each(arguments, function (arg) {
-                        args.push(value.factory.coerce(arg));
-                    });
-
-                    // Call the closure, and then unwrap its result value back to a native one
-                    return value.value.invoke(args, thisObj).getNative();
-                };
-            }
 
             // Don't wrap JS objects in PHPObject
             if (value.classObject.getName() === 'JSObject') {

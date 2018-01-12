@@ -181,6 +181,8 @@ module.exports = require('pauser')([
 
             variable.reference = reference;
             variable.value = null;
+
+            return variable;
         },
 
         toArray: function () {

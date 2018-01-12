@@ -18,7 +18,11 @@ module.exports = function (internals) {
     var callStack = internals.callStack,
         valueFactory = internals.valueFactory;
 
-    function Exception() {
+    /**
+     * @param {Value} messageValue
+     * @constructor
+     */
+    function Exception(messageValue) {
         /**
          * The internal `line` property is defined by the shadow constructor.
          *
@@ -28,6 +32,9 @@ module.exports = function (internals) {
          * To run code regardless of whether the parent constructor is called, we use
          * a "shadow constructor", defined below.
          */
+
+        // The default exception message is the empty string
+        this.setInternalProperty('messageValue', messageValue || valueFactory.createString(''));
     }
 
     Exception.shadowConstructor = function () {
@@ -36,6 +43,8 @@ module.exports = function (internals) {
         // except for read-only via the ->getLine() method.
         this.setInternalProperty('file', callStack.getLastFilePath());
         this.setInternalProperty('line', callStack.getLastLine());
+        // Unless overridden by calling the constructor defined above
+        this.setInternalProperty('messageValue', valueFactory.createString(''));
         this.setInternalProperty('trace', callStack.getTrace());
     };
 
@@ -64,6 +73,17 @@ module.exports = function (internals) {
          */
         getLine: function () {
             return valueFactory.createInteger(this.getInternalProperty('line'));
+        },
+
+        /**
+         * Fetches the message for the exception
+         *
+         * @see {@link https://secure.php.net/manual/en/exception.getmessage.php}
+         *
+         * @returns {StringValue}
+         */
+        getMessage: function () {
+            return this.getInternalProperty('messageValue');
         },
 
         /**

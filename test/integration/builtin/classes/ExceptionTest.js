@@ -152,6 +152,39 @@ EOS
         });
     });
 
+    describe('getMessage()', function () {
+        it('should return the message for the Exception', function () {
+            var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class CustomException extends Exception
+{
+    public function __construct($message)
+    {
+        parent::__construct('[Custom] ' . $message);
+    }
+}
+
+$result = [];
+
+$result[] = (new Exception('First bang'))->getMessage();
+$result[] = (new CustomException('Second bang'))->getMessage();
+$result[] = (new Exception())->getMessage(); // No message specified - should default to the empty string
+
+return $result;
+
+EOS
+*/;}),//jshint ignore:line
+                module = tools.syncTranspile(null, php);
+
+            expect(module().execute().getNative()).to.deep.equal([
+                'First bang',
+                '[Custom] Second bang',
+                ''
+            ]);
+        });
+    });
+
     describe('getTraceAsString()', function () {
         it('should return the correct file paths and line numbers for an Exception instance when tracked', function () {
             var php = nowdoc(function () {/*<<<EOS

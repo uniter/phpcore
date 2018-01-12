@@ -127,7 +127,14 @@ module.exports = require('pauser')([
         this.valueFactory = valueFactory;
 
         _.each(staticPropertiesData, function (data, name) {
-            staticProperties[name] = new StaticPropertyReference(classObject, name, data[VISIBILITY], data[VALUE]);
+            // Pass the class object to the property initialiser (if any),
+            // so that it may refer to other properties/constants of this class with self::*
+            staticProperties[name] = new StaticPropertyReference(
+                classObject,
+                name,
+                data[VISIBILITY],
+                data[VALUE](classObject)
+            );
         });
     }
 
@@ -459,6 +466,11 @@ module.exports = require('pauser')([
                 staticProperty;
 
             if (!hasOwn.call(classObject.staticProperties, name)) {
+                if (classObject.superClass) {
+                    // Inherit static properties from the parent class, if we extend one
+                    return classObject.superClass.getStaticPropertyByName(name);
+                }
+
                 // Undeclared static properties cannot be accessed _except_ by isset(...) or empty(...),
                 // which return the relevant boolean result (`false` and `true` respectively)
                 return new UndeclaredStaticPropertyReference(classObject, name);

@@ -12,7 +12,7 @@
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
     tools = require('../tools'),
-    PHPObject = require('../../../src/PHPObject');
+    PHPObject = require('../../../src/PHPObject').sync();
 
 describe('PHP JS<->PHP bridge PHP object import synchronous mode integration', function () {
     describe('when importing an exported PHP object from JS-land back into PHP-land', function () {

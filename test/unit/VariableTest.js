@@ -15,7 +15,8 @@ var expect = require('chai').expect,
     NullValue = require('../../src/Value/Null').sync(),
     StringValue = require('../../src/Value/String').sync(),
     ValueFactory = require('../../src/ValueFactory').sync(),
-    Variable = require('../../src/Variable').sync();
+    Variable = require('../../src/Variable').sync(),
+    VariableReference = require('../../src/Reference/Variable');
 
 describe('Variable', function () {
     beforeEach(function () {
@@ -80,6 +81,14 @@ describe('Variable', function () {
             this.variable.setValue(value);
 
             expect(this.variable.isEmpty()).to.be.false;
+        });
+    });
+
+    describe('setReference()', function () {
+        it('should return the variable', function () {
+            var reference = sinon.createStubInstance(VariableReference);
+
+            expect(this.variable.setReference(reference)).to.equal(this.variable);
         });
     });
 });

@@ -18,7 +18,7 @@ var expect = require('chai').expect,
     Namespace = require('../../src/Namespace').sync(),
     NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
-    PHPObject = require('../../src/PHPObject'),
+    PHPObject = require('../../src/PHPObject').sync(),
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
 

@@ -18,11 +18,13 @@ var _ = require('microdash'),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     IntegerValue = require('../../src/Value/Integer').sync(),
     PHPFatalError = require('phpcommon').PHPFatalError,
-    PHPObject = require('../../src/PHPObject'),
+    PHPObject = require('../../src/PHPObject').sync(),
     MethodSpec = require('../../src/MethodSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
+    StaticPropertyReference = require('../../src/Reference/StaticProperty'),
     StringValue = require('../../src/Value/String').sync(),
+    UndeclaredStaticPropertyReference = require('../../src/Reference/UndeclaredStaticProperty'),
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
 
@@ -80,7 +82,14 @@ describe('Class', function () {
                 'My\\Class\\Path\\Here',
                 constructorName,
                 this.InternalClass,
-                {},
+                {
+                    myFirstStaticProp: {
+                        visibility: 'public',
+                        value: function () {
+                            return this.valueFactory.createString('my static prop value');
+                        }.bind(this)
+                    }
+                },
                 {},
                 superClass,
                 ['My\\Interface'],
@@ -593,6 +602,37 @@ describe('Class', function () {
                     expect(this.classObject.getMethodSpec('myMethod')).to.be.null;
                 });
             });
+        });
+    });
+
+    describe('getStaticPropertyByName()', function () {
+        it('should be able to fetch a static property defined by the current class', function () {
+            this.createClass('__construct', null);
+
+            expect(this.classObject.getStaticPropertyByName('myFirstStaticProp').getValue().getNative())
+                .to.equal('my static prop value');
+        });
+
+        it('should be able to fetch a static property defined by the parent class', function () {
+            var staticProperty = sinon.createStubInstance(StaticPropertyReference);
+            staticProperty.getValue.returns(this.valueFactory.createString('my inherited static prop value'));
+            this.superClass.getStaticPropertyByName
+                .withArgs('myInheritedStaticProp')
+                .returns(staticProperty);
+
+            this.createClass('__construct', this.superClass);
+
+            expect(this.classObject.getStaticPropertyByName('myInheritedStaticProp').getValue().getNative())
+                .to.equal('my inherited static prop value');
+        });
+
+        it('should return an UndeclaredStaticPropertyReference when the property is not defined', function () {
+            var propertyReference;
+            this.createClass('__construct', null);
+
+            propertyReference = this.classObject.getStaticPropertyByName('myUndeclaredStaticProp');
+
+            expect(propertyReference).to.be.an.instanceOf(UndeclaredStaticPropertyReference);
         });
     });
 

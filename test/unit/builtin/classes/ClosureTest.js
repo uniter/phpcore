@@ -12,7 +12,9 @@ var closureClassFactory = require('../../../../src/builtin/classes/Closure'),
     NullValue = require('../../../../src/Value/Null').sync(),
     ObjectValue = require('../../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
+    Promise = require('lie'),
     StringValue = require('../../../../src/Value/String').sync(),
+    Value = require('../../../../src/Value').sync(),
     ValueFactory = require('../../../../src/ValueFactory').sync(),
     Variable = require('../../../../src/Variable').sync();
 
@@ -24,8 +26,10 @@ describe('PHP builtin Closure class', function () {
         this.disableAutoCoercion = sinon.stub();
         this.internals = {
             callStack: this.callStack,
+            defineUnwrapper: sinon.stub(),
             disableAutoCoercion: this.disableAutoCoercion,
             globalNamespace: this.globalNamespace,
+            pausable: null,
             valueFactory: this.valueFactory
         };
         this.Closure = closureClassFactory(this.internals);
@@ -35,6 +39,18 @@ describe('PHP builtin Closure class', function () {
         this.stdClassClass.getName.returns('stdClass');
         this.globalNamespace.getClass.withArgs('Closure').returns(this.closureClass);
 
+        this.valueFactory.coerce.restore();
+        sinon.stub(this.valueFactory, 'coerce', function (nativeValue) {
+            if (nativeValue instanceof Value) {
+                return nativeValue;
+            }
+
+            if (typeof nativeValue === 'number') {
+                return this.valueFactory.createInteger(nativeValue);
+            }
+
+            throw new Error('Unsupported value: ' + nativeValue);
+        }.bind(this));
         this.valueFactory.createInteger.restore();
         sinon.stub(this.valueFactory, 'createInteger', function (nativeValue) {
             var integerValue = sinon.createStubInstance(IntegerValue);
@@ -65,6 +81,10 @@ describe('PHP builtin Closure class', function () {
             stringValue.getNative.returns(nativeValue);
             stringValue.getType.returns('string');
             return stringValue;
+        });
+        this.valueFactory.isValue.restore();
+        sinon.stub(this.valueFactory, 'isValue', function (value) {
+            return value instanceof Value;
         });
     });
 
@@ -292,6 +312,142 @@ describe('PHP builtin Closure class', function () {
                 sinon.match.any,
                 sinon.match.same(this.stdClassClass)
             );
+        });
+    });
+
+    describe('the unwrapper defined', function () {
+        beforeEach(function () {
+            this.coercedThisObject = {};
+            this.closure = sinon.createStubInstance(Closure);
+            this.closureReturnValue = this.valueFactory.createString('my result native');
+            this.closure.invoke.returns(this.closureReturnValue);
+            this.nativeThisObject = {};
+            this.valueFactory.coerceObject
+                .withArgs(sinon.match.same(this.nativeThisObject))
+                .returns(this.coercedThisObject);
+            this.closureValue = this.valueFactory.createObject(this.closure, this.closureClass);
+
+            this.callUnwrapper = function () {
+                this.unwrappedClosure = this.internals.defineUnwrapper.args[0][0].call(this.closureValue);
+            }.bind(this);
+        });
+
+        describe('in synchronous mode (when Pausable is not available)', function () {
+            it('should pass the coerced arguments to Closure.invoke(...)', function () {
+                this.callUnwrapper();
+
+                this.unwrappedClosure(21, 38);
+
+                expect(this.closure.invoke).to.have.been.calledOnce;
+                expect(this.closure.invoke.args[0][0][0].getNative()).to.equal(21);
+                expect(this.closure.invoke.args[0][0][1].getNative()).to.equal(38);
+            });
+
+            it('should coerce the `$this` object to an object', function () {
+                this.callUnwrapper();
+
+                expect(this.unwrappedClosure).to.be.a('function');
+                this.unwrappedClosure.call(this.nativeThisObject);
+                expect(this.closure.invoke).to.have.been.calledOnce;
+                expect(this.closure.invoke).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.same(this.coercedThisObject)
+                );
+            });
+
+            it('should return the native value of the result from Closure.invoke(...)', function () {
+                this.callUnwrapper();
+
+                expect(this.unwrappedClosure()).to.equal('my result native');
+            });
+
+            it('should not catch a non-PHP error', function () {
+                this.closure.invoke.throws(new TypeError('A type error occurred'));
+                this.callUnwrapper();
+
+                expect(function () {
+                    this.unwrappedClosure();
+                }.bind(this)).to.throw(TypeError, 'A type error occurred');
+            });
+
+            it('should coerce a PHP error to a native JS one and rethrow it as that', function () {
+                var errorValue = sinon.createStubInstance(ObjectValue);
+                errorValue.getType.returns('object');
+                errorValue.coerceToNativeError.returns(new Error('My error, coerced from a PHP exception'));
+                this.closure.invoke.throws(errorValue);
+                this.callUnwrapper();
+
+                expect(function () {
+                    this.unwrappedClosure();
+                }.bind(this)).to.throw(Error, 'My error, coerced from a PHP exception');
+            });
+        });
+
+        describe('in asynchronous mode (when Pausable is available)', function () {
+            beforeEach(function () {
+                this.pausableCall = sinon.spy(function (func, args, thisObj) {
+                    return new Promise(function (resolve, reject) {
+                        setTimeout(function () {
+                            try {
+                                resolve(func.apply(thisObj, args));
+                            } catch (error) {
+                                reject(error);
+                            }
+                        }, 1);
+                    });
+                });
+                this.internals.pausable = {
+                    call: this.pausableCall
+                };
+            });
+
+            it('should pass the coerced arguments to Closure.invoke(...)', function () {
+                this.callUnwrapper();
+
+                return this.unwrappedClosure(21, 38).then(function () {
+                    expect(this.closure.invoke).to.have.been.calledOnce;
+                    expect(this.closure.invoke.args[0][0][0].getNative()).to.equal(21);
+                    expect(this.closure.invoke.args[0][0][1].getNative()).to.equal(38);
+                }.bind(this));
+            });
+
+            it('should coerce the `$this` object to an object', function () {
+                this.callUnwrapper();
+
+                expect(this.unwrappedClosure).to.be.a('function');
+                return this.unwrappedClosure.call(this.nativeThisObject).then(function () {
+                    expect(this.closure.invoke).to.have.been.calledOnce;
+                    expect(this.closure.invoke).to.have.been.calledWith(
+                        sinon.match.any,
+                        sinon.match.same(this.coercedThisObject)
+                    );
+                }.bind(this));
+            });
+
+            it('should return the native value of the result from Closure.invoke(...)', function () {
+                this.callUnwrapper();
+
+                return expect(this.unwrappedClosure()).to.eventually.equal('my result native');
+            });
+
+            it('should not catch a non-PHP error', function () {
+                this.closure.invoke.throws(new TypeError('A type error occurred'));
+                this.callUnwrapper();
+
+                return expect(this.unwrappedClosure())
+                    .to.eventually.be.rejectedWith(TypeError, 'A type error occurred');
+            });
+
+            it('should coerce a PHP error to a native JS one and rethrow it as that', function () {
+                var errorValue = sinon.createStubInstance(ObjectValue);
+                errorValue.getType.returns('object');
+                errorValue.coerceToNativeError.returns(new Error('My error, coerced from a PHP exception'));
+                this.closure.invoke.throws(errorValue);
+                this.callUnwrapper();
+
+                return expect(this.unwrappedClosure())
+                    .to.eventually.be.rejectedWith(Error, 'My error, coerced from a PHP exception');
+            });
         });
     });
 });

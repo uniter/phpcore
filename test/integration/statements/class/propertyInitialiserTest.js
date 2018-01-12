@@ -44,4 +44,57 @@ EOS
             21
         ]);
     });
+
+    it('should allow instance and property initialisers to forward-reference constants further down', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass {
+    public $myInstanceProp = self::FIRST_CONST;
+    public static $myStaticProp = self::SECOND_CONST;
+
+    const FIRST_CONST = 1001;
+    const SECOND_CONST = 2222;
+}
+
+$myObject = new MyClass;
+
+$result = [];
+$result[] = $myObject->myInstanceProp;
+$result[] = MyClass::$myStaticProp;
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.deep.equal([
+            1001,
+            2222
+        ]);
+    });
+
+    it('should default empty instance or static property initialisers to null', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass {
+    public $myInstanceProp;
+    public static $myStaticProp;
+}
+
+$myObject = new MyClass;
+
+$result = [];
+$result[] = $myObject->myInstanceProp;
+$result[] = MyClass::$myStaticProp;
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.deep.equal([
+            null,
+            null
+        ]);
+    });
 });

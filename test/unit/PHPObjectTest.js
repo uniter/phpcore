@@ -13,7 +13,7 @@ var expect = require('chai').expect,
     pausable = require('pausable'),
     sinon = require('sinon'),
     ObjectValue = require('../../src/Value/Object').async(pausable),
-    PHPObject = require('../../src/PHPObject'),
+    PHPObject = require('../../src/PHPObject').async(pausable),
     Promise = require('lie'),
     StringValue = require('../../src/Value/String').async(pausable),
     ValueFactory = require('../../src/ValueFactory').async(pausable);
@@ -86,6 +86,24 @@ describe('PHPObject', function () {
 
                 expect(this.phpObject.callMethod('myMethod', 21, 23))
                     .to.equal('my synchronous result');
+            });
+
+            it('should not catch a non-PHP error', function () {
+                this.object.callMethod.throws(new TypeError('A type error occurred'));
+
+                expect(function () {
+                    this.phpObject.callMethod('myMethod');
+                }.bind(this)).to.throw(TypeError, 'A type error occurred');
+            });
+
+            it('should coerce a PHP error to a native JS one and rethrow it as that', function () {
+                var errorValue = sinon.createStubInstance(ObjectValue);
+                errorValue.coerceToNativeError.returns(new Error('My error, coerced from a PHP exception'));
+                this.object.callMethod.throws(errorValue);
+
+                expect(function () {
+                    this.phpObject.callMethod('myMethod');
+                }.bind(this)).to.throw(Error, 'My error, coerced from a PHP exception');
             });
         });
     });

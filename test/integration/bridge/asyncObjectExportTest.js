@@ -11,9 +11,7 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    phpCore = require('../../../async'),
-    phpToAST = require('phptoast'),
-    phpToJS = require('phptojs');
+    tools = require('../tools');
 
 describe('PHP JS<->PHP bridge object export asynchronous mode integration', function () {
     it('should return an object with instance methods returning promises', function () {
@@ -39,13 +37,7 @@ $myObject = new MyClass($tools);
 return $myObject;
 EOS
 */;}), //jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return phpCore;
-            }),
+            module = tools.asyncTranspile(null, php),
             phpEngine = module();
 
         phpEngine.expose({
@@ -67,5 +59,44 @@ EOS
                 expect(resultValue).to.equal(22);
             });
         });
+    });
+
+    it('should extract the error details from a custom Exception thrown by an instance method and throw an appropriate JS Error', function (done) {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class YourException extends Exception
+{
+    public function __construct($message)
+    {
+        parent::__construct($message . ' (custom!)');
+    }
+}
+
+class MyClass
+{
+    public function throwIt($what)
+    {
+        throw new YourException('Oh no - ' . $what);
+    }
+}
+
+return new MyClass();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile(null, php);
+
+        module().execute().then(function (result) {
+            result.getNative().throwIt(9001).then(function () {
+                done(new Error('Expected an error to be thrown, but none was'));
+            }, function (error) {
+                try {
+                    expect(error.message).to.equal('PHP YourException: Oh no - 9001 (custom!)');
+                    done();
+                } catch (error) {
+                    done(error);
+                }
+            });
+        }, done);
     });
 });

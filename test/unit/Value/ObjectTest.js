@@ -26,7 +26,7 @@ var _ = require('microdash'),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
     PHPFatalError = phpCommon.PHPFatalError,
-    PHPObject = require('../../../src/PHPObject'),
+    PHPObject = require('../../../src/PHPObject').sync(),
     PropertyReference = require('../../../src/Reference/Property'),
     StringValue = require('../../../src/Value/String').sync(),
     Value = require('../../../src/Value').sync(),
@@ -325,6 +325,30 @@ describe('Object', function () {
 
             expect(result).to.be.an.instanceOf(IntegerValue);
             expect(result.getNative()).to.equal(1);
+        });
+    });
+
+    describe('coerceToNativeError()', function () {
+        it('should coerce an instance of Exception correctly', function () {
+            var error;
+            this.classObject.callMethod
+                .withArgs('getMessage', [], sinon.match.same(this.value))
+                .returns(this.factory.createString('My PHP exception message'));
+            this.classObject.getName.returns('My\\Stuff\MyException');
+            this.classObject.is.withArgs('Exception').returns(true);
+
+            error = this.value.coerceToNativeError();
+
+            expect(error).to.be.an.instanceOf(Error);
+            expect(error.message).to.equal('PHP My\\StuffMyException: My PHP exception message');
+        });
+
+        it('should throw when the ObjectValue is not an instance of Exception', function () {
+            this.classObject.is.withArgs('Exception').returns(false);
+
+            expect(function () {
+                this.value.coerceToNativeError();
+            }.bind(this)).to.throw('Cannot coerce non-Exception instance to a native JS error');
         });
     });
 
@@ -722,53 +746,6 @@ describe('Object', function () {
     });
 
     describe('getNative()', function () {
-        describe('unwrapped Closure instances', function () {
-            beforeEach(function () {
-                this.coercedThisObject = {};
-                this.closure = sinon.createStubInstance(Closure);
-                this.closureReturnValue = sinon.createStubInstance(Value);
-                this.closureReturnValue.getNative.returns('my result native');
-                this.closure.invoke.returns(this.closureReturnValue);
-                this.nativeThisObject = {};
-                this.classObject.getName.returns('Closure');
-                this.factory.coerceObject
-                    .withArgs(sinon.match.same(this.nativeThisObject))
-                    .returns(this.coercedThisObject);
-                this.value = new ObjectValue(
-                    this.factory,
-                    this.callStack,
-                    this.closure,
-                    this.classObject,
-                    this.objectID
-                );
-            });
-
-            it('should pass the coerced arguments to Closure.invoke(...)', function () {
-                this.value.getNative()(21, 38);
-
-                expect(this.closure.invoke).to.have.been.calledOnce;
-                expect(this.closure.invoke.args[0][0][0].getNative()).to.equal(21);
-                expect(this.closure.invoke.args[0][0][1].getNative()).to.equal(38);
-            });
-
-            it('should coerce the `$this` object to an object', function () {
-                var unwrapped = this.value.getNative();
-
-                expect(unwrapped).to.be.a('function');
-
-                unwrapped.call(this.nativeThisObject);
-                expect(this.closure.invoke).to.have.been.calledOnce;
-                expect(this.closure.invoke).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.same(this.coercedThisObject)
-                );
-            });
-
-            it('should return the native value of the result from Closure.invoke(...)', function () {
-                expect(this.value.getNative()()).to.equal('my result native');
-            });
-        });
-
         describe('JSObject instances', function () {
             beforeEach(function () {
                 this.classObject.getName.returns('JSObject');

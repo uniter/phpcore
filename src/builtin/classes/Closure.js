@@ -10,7 +10,8 @@
 'use strict';
 
 var _ = require('microdash'),
-    PHPError = require('phpcommon').PHPError;
+    PHPError = require('phpcommon').PHPError,
+    Promise = require('lie');
 
 module.exports = function (internals) {
     var callStack = internals.callStack,
@@ -187,6 +188,66 @@ module.exports = function (internals) {
     });
 
     internals.disableAutoCoercion();
+
+    /**
+     * This unwrapper will be used when an instance of this builtin PHP class Closure
+     * is returned from PHP-land to JS-land. We need to export a callable native JS function
+     * so that JS-land code can neatly call into the PHP-land closure like this.
+     */
+    internals.defineUnwrapper(function () {
+        var objectValue = this;
+
+        // Unwrap PHP Closures to native JS functions that may be called
+        // just like any other (with arguments coerced from JS->PHP
+        // and the return value coerced from PHP->JS automatically)
+        return function () {
+            // Wrap thisObj in *Value object
+            var thisObj = valueFactory.coerceObject(this),
+                args = [];
+
+            // Wrap all native JS values in *Value objects
+            _.each(arguments, function (arg) {
+                args.push(valueFactory.coerce(arg));
+            });
+
+            if (internals.pausable) {
+                return new Promise(function (resolve, reject) {
+                    // Call the method via Pausable to allow for blocking operation
+                    internals.pausable.call(
+                        objectValue.getObject().invoke,
+                        [args, thisObj],
+                        objectValue.getObject()
+                    )
+                        .then(
+                            function (resultValue) {
+                                resolve(resultValue.getNative());
+                            },
+                            function (error) {
+                                if (valueFactory.isValue(error) && error.getType() === 'object') {
+                                    // Method threw a PHP Exception, so throw a native JS error for it
+                                    reject(error.coerceToNativeError());
+                                    return;
+                                }
+
+                                // Normal error: just pass it up to the caller
+                                reject(error);
+                            }
+                        );
+                });
+            }
+
+            // Call the closure, and then unwrap its result value back to a native one
+            try {
+                return objectValue.getObject().invoke(args, thisObj).getNative();
+            } catch (error) {
+                if (valueFactory.isValue(error) && error.getType() === 'object') {
+                    throw error.coerceToNativeError();
+                }
+
+                throw error;
+            }
+        };
+    });
 
     return Closure;
 };
