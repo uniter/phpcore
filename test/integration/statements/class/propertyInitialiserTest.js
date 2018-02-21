@@ -79,14 +79,18 @@ EOS
 
 class MyClass {
     public $myInstanceProp;
-    public static $myStaticProp;
+    private static $myStaticProp;
+
+    public static function getStatic() {
+        return self::$myStaticProp;
+    }
 }
 
 $myObject = new MyClass;
 
 $result = [];
 $result[] = $myObject->myInstanceProp;
-$result[] = MyClass::$myStaticProp;
+$result[] = MyClass::getStatic();
 return $result;
 EOS
 */;}),//jshint ignore:line
