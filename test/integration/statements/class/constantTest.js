@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP class statement class constant integration', function () {
-    it('should allow a forward reference from one constant to another above it', function () {
+    it('should allow a backward reference from one constant to another above it', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
