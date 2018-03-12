@@ -40,6 +40,10 @@ module.exports = {
         return transpile(path, php, asyncPHPCore, options);
     },
 
+    createSyncEnvironment: function (options) {
+        return syncPHPCore.createEnvironment(options);
+    },
+
     syncTranspile: function (path, php, options) {
         return transpile(path, php, syncPHPCore, options);
     }

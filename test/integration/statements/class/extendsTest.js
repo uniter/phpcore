@@ -53,4 +53,65 @@ EOS
             1001
         ]);
     });
+
+    it('should allow a JS class to call its superconstructor', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace Your\Space {
+    use My\Space\TheParent;
+
+    class TheChild extends TheParent {
+        public function __construct($arg) {
+            parent::__construct($arg . '[child]');
+        }
+    }
+}
+
+namespace {
+    $object = new \Your\Space\TheChild('[call]');
+
+    return $object->getTheArg();
+}
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            environment = tools.createSyncEnvironment();
+        environment.defineClass('My\\Space\\TheGrandparent', function (internals) {
+            function TheGrandparent(theArg) {
+                var theArgExtended = internals.valueFactory.createString(
+                    theArg.getNative() + '[grandparent]'
+                );
+
+                this.setInternalProperty('theArg', theArgExtended);
+            }
+
+            TheGrandparent.prototype.getTheArg = function () {
+                return this.getInternalProperty('theArg');
+            };
+
+            internals.disableAutoCoercion();
+
+            return TheGrandparent;
+        });
+        environment.defineClass('My\\Space\\TheParent', function (internals) {
+            var TheGrandparent = internals.globalNamespace.getClass('My\\Space\\TheGrandparent');
+
+            function TheParent(theArg) {
+                var theArgExtended = internals.valueFactory.createString(
+                    theArg.getNative() + '[parent]'
+                );
+
+                TheGrandparent.construct(this, [theArgExtended]);
+            }
+
+            TheParent.superClass = TheGrandparent;
+
+            internals.disableAutoCoercion();
+
+            return TheParent;
+        });
+
+        expect(module({}, environment).execute().getNative()).to.equal('[call][child][parent][grandparent]');
+    });
 });

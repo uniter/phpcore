@@ -310,7 +310,9 @@ module.exports = require('pauser')([
                 return;
             }
 
-            objectValue.callMethod(classObject.constructorName, args);
+            // Call the constructor for the current class and not via the object value,
+            // as the method may have been overridden by descendant classes
+            classObject.callMethod(classObject.constructorName, args, objectValue);
         },
 
         /**

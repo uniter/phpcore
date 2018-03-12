@@ -21,6 +21,7 @@ var _ = require('microdash'),
     PHPObject = require('../../src/PHPObject').sync(),
     MethodSpec = require('../../src/MethodSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
+    NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     StaticPropertyReference = require('../../src/Reference/StaticProperty'),
     StringValue = require('../../src/Value/String').sync(),
@@ -50,6 +51,10 @@ describe('Class', function () {
                 return this.valueFactory.createString(nativeValue);
             }
 
+            if (nativeValue === null || nativeValue === undefined) {
+                return this.valueFactory.createNull();
+            }
+
             throw new Error('Unsupported value: ' + nativeValue);
         }.bind(this));
 
@@ -58,6 +63,13 @@ describe('Class', function () {
             var integerValue = sinon.createStubInstance(IntegerValue);
             integerValue.getNative.returns(nativeValue);
             return integerValue;
+        }.bind(this));
+
+        this.valueFactory.createNull.restore();
+        sinon.stub(this.valueFactory, 'createNull', function () {
+            var nullValue = sinon.createStubInstance(NullValue);
+            nullValue.getNative.returns(null);
+            return nullValue;
         }.bind(this));
 
         this.valueFactory.createString.restore();
@@ -399,6 +411,10 @@ describe('Class', function () {
     describe('construct()', function () {
         beforeEach(function () {
             this.objectValue = sinon.createStubInstance(ObjectValue);
+            this.constructorMethod = sinon.stub();
+            this.nativeObject = new this.InternalClass();
+            this.InternalClass.prototype.__construct = this.constructorMethod;
+            this.objectValue.getObject.returns(this.nativeObject);
         });
 
         describe('when this class defines a constructor', function () {
@@ -413,10 +429,14 @@ describe('Class', function () {
             });
 
             it('should call the constructor method', function () {
-                this.classObject.construct(this.objectValue, [1, 2]);
+                var arg1Value = this.valueFactory.createString('hello'),
+                    arg2Value = this.valueFactory.createString('world');
 
-                expect(this.objectValue.callMethod).to.have.been.calledOnce;
-                expect(this.objectValue.callMethod).to.have.been.calledWith('__construct', [1, 2]);
+                this.classObject.construct(this.objectValue, [arg1Value, arg2Value]);
+
+                expect(this.constructorMethod).to.have.been.calledOnce;
+                expect(this.constructorMethod.args[0][0].getNative()).to.equal('hello');
+                expect(this.constructorMethod.args[0][1].getNative()).to.equal('world');
             });
         });
 
