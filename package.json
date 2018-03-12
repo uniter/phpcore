@@ -1,5 +1,5 @@
 {
-  "version": "5.2.1",
+  "version": "5.2.2",
   "name": "phpcore",
   "description": "Minimal PHP core library for PHP environments",
   "keywords": [
