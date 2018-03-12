@@ -11,12 +11,11 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    phpCore = require('../../sync'),
     tools = require('./tools');
 
 describe('PHP class shadow constructor integration', function () {
     beforeEach(function () {
-        this.environment = phpCore.createEnvironment();
+        this.environment = tools.createSyncEnvironment();
     });
 
     describe('a non-coercing JS class', function () {
@@ -54,7 +53,7 @@ EOS
             expect(module({}, this.environment).execute().getNative()).to.equal(27);
         });
 
-        it('should call the shadow constructor of JS class when extended but constructor is not overridden', function () {
+        it('should call the shadow constructor of JS class when extended from PHP-land but constructor is not overridden', function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -73,7 +72,34 @@ EOS
             expect(module({}, this.environment).execute().getNative()).to.equal(27);
         });
 
-        it('should still call the shadow constructor of JS class when extended and constructor is overridden', function () {
+        it('should call the shadow constructor of JS class when extended from JS-land but constructor is not overridden', function () {
+            var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$myObject = new MyDerivedClass();
+
+return $myObject->getSecret();
+
+EOS
+*/;}),//jshint ignore:line
+                module = tools.syncTranspile(null, php);
+            this.environment.defineClass('MyDerivedClass', function (internals) {
+                var MyClass = internals.globalNamespace.getClass('MyClass');
+
+                function MyDerivedClass() {
+                }
+
+                MyDerivedClass.superClass = MyClass;
+
+                internals.disableAutoCoercion();
+
+                return MyDerivedClass;
+            });
+
+            expect(module({}, this.environment).execute().getNative()).to.equal(27);
+        });
+
+        it('should still call the shadow constructor of JS class when extended from PHP-land and constructor is overridden', function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -92,6 +118,37 @@ return $myObject->getSecret();
 EOS
 */;}),//jshint ignore:line
                 module = tools.syncTranspile(null, php);
+
+            expect(module({}, this.environment).execute().getNative()).to.equal(27);
+        });
+
+        it('should still call the shadow constructor of JS class when extended from JS-land and constructor is overridden', function () {
+            var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$myObject = new MyDerivedClass();
+
+return $myObject->getSecret();
+
+EOS
+*/;}),//jshint ignore:line
+                module = tools.syncTranspile(null, php);
+            this.environment.defineClass('MyDerivedClass', function (internals) {
+                var MyClass = internals.globalNamespace.getClass('MyClass');
+
+                function MyDerivedClass() {
+                }
+
+                MyDerivedClass.prototype.__construct = function () {
+                    // No parent constructor call here - should still call the shadow constructor though
+                };
+
+                MyDerivedClass.superClass = MyClass;
+
+                internals.disableAutoCoercion();
+
+                return MyDerivedClass;
+            });
 
             expect(module({}, this.environment).execute().getNative()).to.equal(27);
         });
@@ -130,7 +187,7 @@ EOS
             expect(module({}, this.environment).execute().getNative()).to.equal(101);
         });
 
-        it('should call the shadow constructor of JS class when extended but constructor is not overridden', function () {
+        it('should call the shadow constructor of JS class when extended from PHP-land but constructor is not overridden', function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -149,7 +206,34 @@ EOS
             expect(module({}, this.environment).execute().getNative()).to.equal(101);
         });
 
-        it('should still call the shadow constructor of JS class when extended and constructor is overridden', function () {
+        it('should call the shadow constructor of JS class when extended from JS-land but constructor is not overridden', function () {
+            var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$myObject = new MyDerivedClass();
+
+return $myObject->getSecret();
+
+EOS
+*/;}),//jshint ignore:line
+                module = tools.syncTranspile(null, php);
+            this.environment.defineClass('MyDerivedClass', function (internals) {
+                var MyClass = internals.globalNamespace.getClass('MyClass');
+
+                function MyDerivedClass() {
+                }
+
+                MyDerivedClass.superClass = MyClass;
+
+                internals.disableAutoCoercion();
+
+                return MyDerivedClass;
+            });
+
+            expect(module({}, this.environment).execute().getNative()).to.equal(101);
+        });
+
+        it('should still call the shadow constructor of JS class when extended from PHP-land and constructor is overridden', function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -168,6 +252,37 @@ return $myObject->getSecret();
 EOS
 */;}),//jshint ignore:line
                 module = tools.syncTranspile(null, php);
+
+            expect(module({}, this.environment).execute().getNative()).to.equal(101);
+        });
+
+        it('should still call the shadow constructor of JS class when extended from JS-land and constructor is overridden', function () {
+            var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$myObject = new MyDerivedClass();
+
+return $myObject->getSecret();
+
+EOS
+*/;}),//jshint ignore:line
+                module = tools.syncTranspile(null, php);
+            this.environment.defineClass('MyDerivedClass', function (internals) {
+                var MyClass = internals.globalNamespace.getClass('MyClass');
+
+                function MyDerivedClass() {
+                }
+
+                MyDerivedClass.prototype.__construct = function () {
+                    // No parent constructor call here - should still call the shadow constructor though
+                };
+
+                MyDerivedClass.superClass = MyClass;
+
+                internals.disableAutoCoercion();
+
+                return MyDerivedClass;
+            });
 
             expect(module({}, this.environment).execute().getNative()).to.equal(101);
         });

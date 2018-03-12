@@ -70,6 +70,11 @@ module.exports = require('pauser')([
                             classObject.isAutoCoercionEnabled() ? objectValue.getObject() : objectValue
                         );
                     }
+
+                    if (definition.superClass) {
+                        // Class has a parent, call the parent's internal constructor
+                        definition.superClass.getInternalClass().call(objectValue);
+                    }
                 };
                 InternalClass.prototype = Object.create(definition.prototype);
                 proxyConstructor = function () {
