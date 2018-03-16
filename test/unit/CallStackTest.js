@@ -26,6 +26,28 @@ describe('CallStack', function () {
         this.callStack = new CallStack(this.stderr);
     });
 
+    describe('getCaller()', function () {
+        it('should return the caller call when there is one', function () {
+            var callerCall = sinon.createStubInstance(Call),
+                currentCall = sinon.createStubInstance(Call);
+            this.callStack.push(callerCall);
+            this.callStack.push(currentCall);
+
+            expect(this.callStack.getCaller()).to.equal(callerCall);
+        });
+
+        it('should return null when the current call is the top-level one', function () {
+            var currentCall = sinon.createStubInstance(Call);
+            this.callStack.push(currentCall);
+
+            expect(this.callStack.getCaller()).to.be.null;
+        });
+
+        it('should return null when the call stack is empty', function () {
+            expect(this.callStack.getCaller()).to.be.null;
+        });
+    });
+
     describe('getCallerScope()', function () {
         it('should return the scope of the caller call when there is one', function () {
             var callerCall = sinon.createStubInstance(Call),

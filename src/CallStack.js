@@ -30,6 +30,17 @@ function CallStack(stderr) {
 
 _.extend(CallStack.prototype, {
     /**
+     * Fetches the previous Call near the top of the stack, or null if none
+     *
+     * @returns {Call|null}
+     */
+    getCaller: function () {
+        var chain = this;
+
+        return chain.calls[chain.calls.length - 2] || null;
+    },
+
+    /**
      * Fetches the scope of the previous Call near the top of the stack, or null if none
      *
      * @returns {Scope|null}
