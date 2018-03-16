@@ -26,6 +26,16 @@ describe('NullReference', function () {
         });
     });
 
+    describe('getNative()', function () {
+        it('should return null', function () {
+            var nullValue = sinon.createStubInstance(NullValue);
+            nullValue.getNative.returns(null);
+            this.valueFactory.createNull.returns(nullValue);
+
+            expect(this.reference.getNative()).to.be.null;
+        });
+    });
+
     describe('getValue()', function () {
         it('should return the value Null', function () {
             var nullValue = sinon.createStubInstance(NullValue);

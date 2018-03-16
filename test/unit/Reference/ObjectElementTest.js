@@ -38,6 +38,14 @@ describe('ObjectElementReference', function () {
         this.reference = new ObjectElementReference(this.valueFactory, this.objectValue, this.keyValue);
     });
 
+    describe('getNative()', function () {
+        it('should return the native value of the result from ArrayAccess::offsetGet(...)', function () {
+            this.offsetGetResultValue.getNative.returns('my native value');
+
+            expect(this.reference.getNative()).to.equal('my native value');
+        });
+    });
+
     describe('isEmpty()', function () {
         it('should return true when ArrayAccess::offsetExists(...) returns false', function () {
             this.offsetExistsResultValue.getNative.returns(false);

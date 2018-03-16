@@ -21,6 +21,15 @@ function Reference() {
 }
 
 _.extend(Reference.prototype, {
+    /**
+     * Fetches the native value of the PHP value being referred to
+     *
+     * @returns {*}
+     */
+    getNative: function () {
+        return this.getValue().getNative();
+    },
+
     getReference: function () {
         return this;
     },

@@ -52,6 +52,14 @@ describe('ElementReference', function () {
         );
     });
 
+    describe('getNative()', function () {
+        it('should return the native value of the element\'s value', function () {
+            this.value.getNative.returns('my native value');
+
+            expect(this.element.getNative()).to.equal('my native value');
+        });
+    });
+
     describe('getPair()', function () {
         it('should return a KeyValuePair when the element has a value', function () {
             var pair = this.element.getPair();

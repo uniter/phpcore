@@ -31,6 +31,16 @@ describe('VariableReference', function () {
         });
     });
 
+    describe('getNative()', function () {
+        it('should return the native value of the referenced variable', function () {
+            var variableValue = sinon.createStubInstance(Value);
+            variableValue.getNative.returns('the native value of my var');
+            this.variable.getValue.returns(variableValue);
+
+            expect(this.reference.getNative()).to.equal('the native value of my var');
+        });
+    });
+
     describe('getValue()', function () {
         it('should return the value of the variabe', function () {
             var result = sinon.createStubInstance(Value);

@@ -19,11 +19,27 @@ describe('AccessorReference', function () {
     beforeEach(function () {
         this.valueFactory = sinon.createStubInstance(ValueFactory);
         this.coercedValue = sinon.createStubInstance(Value);
+        this.coercedValue.getNative.returns(21);
         this.valueFactory.coerce.returns(this.coercedValue);
         this.valueGetter = sinon.stub();
         this.valueSetter = sinon.spy();
 
         this.reference = new AccessorReference(this.valueFactory, this.valueGetter, this.valueSetter);
+    });
+
+    describe('getNative()', function () {
+        it('should coerce the result of the getter to a PHP value', function () {
+            this.valueGetter.returns(21);
+
+            this.reference.getNative();
+
+            expect(this.valueFactory.coerce).to.have.been.calledOnce;
+            expect(this.valueFactory.coerce).to.have.been.calledWith(21);
+        });
+
+        it('should return the native coerced result', function () {
+            expect(this.reference.getNative()).to.equal(21);
+        });
     });
 
     describe('getValue()', function () {

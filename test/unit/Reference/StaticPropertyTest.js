@@ -54,6 +54,12 @@ describe('StaticPropertyReference', function () {
         );
     });
 
+    describe('getNative()', function () {
+        it('should return the native value of the property\'s value', function () {
+            expect(this.property.getNative()).to.equal('my_property');
+        });
+    });
+
     describe('isEmpty()', function () {
         it('should return true when the property has an empty value', function () {
             this.propertyValue.isEmpty.returns(true);

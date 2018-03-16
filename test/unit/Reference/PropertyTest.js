@@ -80,6 +80,12 @@ describe('PropertyReference', function () {
         );
     });
 
+    describe('getNative()', function () {
+        it('should return the native value of the property\'s value', function () {
+            expect(this.property.getNative()).to.equal('value for my prop');
+        });
+    });
+
     describe('getValue()', function () {
         describe('when the property is defined', function () {
             it('should return the value assigned to the native object property, when it is not a reference', function () {
