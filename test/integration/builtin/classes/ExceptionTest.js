@@ -56,6 +56,39 @@ EOS
                 '/my/test/module.php'  // From the top-level scope exception
             ]);
         });
+
+        it('should return any custom value set for the protected ->file property', function () {
+            var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyException extends Exception
+{
+    public function __construct()
+    {
+        $this->file = '/my/custom/file/path';
+    }
+}
+
+$result = [];
+
+$myException = new MyException();
+$result[] = $myException->getFile();
+
+return $result;
+
+EOS
+*/;}),//jshint ignore:line
+                module = tools.syncTranspile(null, php, {
+                    // Capture offsets of all nodes for line tracking
+                    phpToAST: {captureAllOffsets: true},
+                    // Record line numbers for statements/expressions
+                    phpToJS: {lineNumbers: true}
+                });
+
+            expect(module({path: '/my/test/module.php'}).execute().getNative()).to.deep.equal([
+                '/my/custom/file/path'
+            ]);
+        });
     });
 
     describe('getLine()', function () {
@@ -150,6 +183,39 @@ EOS
                 28  // From the top-level scope exception
             ]);
         });
+
+        it('should return any custom value set for the protected ->line property', function () {
+            var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyException extends Exception
+{
+    public function __construct()
+    {
+        $this->line = 4127;
+    }
+}
+
+$result = [];
+
+$myException = new MyException();
+$result[] = $myException->getLine();
+
+return $result;
+
+EOS
+*/;}),//jshint ignore:line
+                module = tools.syncTranspile(null, php, {
+                    // Capture offsets of all nodes for line tracking
+                    phpToAST: {captureAllOffsets: true},
+                    // Record line numbers for statements/expressions
+                    phpToJS: {lineNumbers: true}
+                });
+
+            expect(module({path: '/my/test/module.php'}).execute().getNative()).to.deep.equal([
+                4127
+            ]);
+        });
     });
 
     describe('getMessage()', function () {
@@ -181,6 +247,39 @@ EOS
                 'First bang',
                 '[Custom] Second bang',
                 ''
+            ]);
+        });
+
+        it('should return any custom value set for the protected ->message property', function () {
+            var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyException extends Exception
+{
+    public function __construct()
+    {
+        $this->message = 'My custom message';
+    }
+}
+
+$result = [];
+
+$myException = new MyException();
+$result[] = $myException->getMessage();
+
+return $result;
+
+EOS
+*/;}),//jshint ignore:line
+                module = tools.syncTranspile(null, php, {
+                    // Capture offsets of all nodes for line tracking
+                    phpToAST: {captureAllOffsets: true},
+                    // Record line numbers for statements/expressions
+                    phpToJS: {lineNumbers: true}
+                });
+
+            expect(module({path: '/my/test/module.php'}).execute().getNative()).to.deep.equal([
+                'My custom message'
             ]);
         });
     });

@@ -19,12 +19,17 @@ module.exports = function (internals) {
         valueFactory = internals.valueFactory;
 
     /**
+     * Base class for all user Exceptions
+     *
+     * @see {@link https://secure.php.net/manual/en/class.exception.php}
+     * @see {@link https://secure.php.net/manual/en/exception.construct.php}
+     *
      * @param {Value} messageValue
      * @constructor
      */
     function Exception(messageValue) {
         /**
-         * The internal `line` property is defined by the shadow constructor.
+         * The internal `trace` property is defined by the shadow constructor.
          *
          * If this class is extended but a parent constructor call is not used,
          * then no parent constructor will be called (even this native constructor function).
@@ -34,17 +39,39 @@ module.exports = function (internals) {
          */
 
         // The default exception message is the empty string
-        this.setInternalProperty('messageValue', messageValue || valueFactory.createString(''));
+        this.setProperty('message', messageValue || valueFactory.createString(''));
     }
 
     Exception.shadowConstructor = function () {
         // Define these data properties here, so they are always defined for any derived class of Exception,
-        // regardless of whether a parent constructor call is used or not. It will not be visible to PHP code
-        // except for read-only via the ->getLine() method.
-        this.setInternalProperty('file', callStack.getLastFilePath());
-        this.setInternalProperty('line', callStack.getLastLine());
-        // Unless overridden by calling the constructor defined above
-        this.setInternalProperty('messageValue', valueFactory.createString(''));
+        // regardless of whether a parent constructor call is used or not
+
+        /**
+         * The file the exception was created inside
+         *
+         * @see {@link https://secure.php.net/manual/en/class.exception.php#exception.props.file}
+         */
+        this.setProperty('file', valueFactory.createString(callStack.getLastFilePath()));
+
+        /**
+         * The line the exception was created on
+         *
+         * @see {@link https://secure.php.net/manual/en/class.exception.php#exception.props.line}
+         */
+        this.setProperty('line', valueFactory.createInteger(callStack.getLastLine()));
+
+        /**
+         * A message describing the exception
+         *
+         * (Default to empty here - unless overridden by calling the constructor defined above
+         * or overridden by a subclass)
+         *
+         * @see {@link https://secure.php.net/manual/en/class.exception.php#exception.props.message}
+         */
+        this.setProperty('message', valueFactory.createString(''));
+
+        // This internal trace prop will not be visible to PHP code
+        // except for read-only via the ->getTraceAsString() method.
         this.setInternalProperty('trace', callStack.getTrace());
     };
 
@@ -60,7 +87,7 @@ module.exports = function (internals) {
          * @returns {StringValue}
          */
         getFile: function () {
-            return valueFactory.createString(this.getInternalProperty('file'));
+            return this.getProperty('file');
         },
 
         /**
@@ -72,7 +99,7 @@ module.exports = function (internals) {
          * @returns {IntegerValue}
          */
         getLine: function () {
-            return valueFactory.createInteger(this.getInternalProperty('line'));
+            return this.getProperty('line');
         },
 
         /**
@@ -83,7 +110,7 @@ module.exports = function (internals) {
          * @returns {StringValue}
          */
         getMessage: function () {
-            return this.getInternalProperty('messageValue');
+            return this.getProperty('message');
         },
 
         /**
