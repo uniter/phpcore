@@ -485,6 +485,54 @@ describe('Array', function () {
         });
     });
 
+    describe('getElementByKey()', function () {
+        beforeEach(function () {
+            this.elementKey1.getNative.returns('length');
+            this.elementKey2.getNative.returns('_length');
+            this.elementKey3 = this.factory.createString('__length');
+            this.elementValue3 = this.factory.createString('value of third el');
+            this.element3 = this.createKeyValuePair(
+                this.elementKey3,
+                this.elementValue3
+            );
+            this.elements.push(this.element3);
+            this.elementKey4 = this.factory.createString('my_key');
+            this.elementValue4 = this.factory.createString('value of fourth el, my_key');
+            this.element4 = this.createKeyValuePair(
+                this.elementKey4,
+                this.elementValue4
+            );
+            this.elements.push(this.element4);
+            this.createValue();
+        });
+
+        it('should allow fetching an element with the key "my_key"', function () {
+            var element = this.value.getElementByKey(this.factory.createString('my_key'));
+
+            expect(element.getValue().getNative()).to.equal('value of fourth el, my_key');
+        });
+
+        it('should allow fetching an element with the key "length"', function () {
+            var element = this.value.getElementByKey(this.factory.createString('length'));
+
+            expect(element.getValue().getNative()).to.equal('value of first el');
+        });
+
+        // Check that the sanitisation does not then cause collisions when the underscore is already present
+        it('should allow fetching an element with the key "_length"', function () {
+            var element = this.value.getElementByKey(this.factory.createString('_length'));
+
+            expect(element.getValue().getNative()).to.equal('value of second el');
+        });
+
+        // Check that the sanitisation does not then cause collisions when the underscore is already present
+        it('should allow fetching an element with the key "__length"', function () {
+            var element = this.value.getElementByKey(this.factory.createString('__length'));
+
+            expect(element.getValue().getNative()).to.equal('value of third el');
+        });
+    });
+
     describe('getElementPairByKey()', function () {
         it('should return the pair for the specified element', function () {
             var pair = this.value.getElementPairByKey(this.factory.createString('firstEl'));

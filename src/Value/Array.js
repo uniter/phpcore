@@ -34,7 +34,26 @@ module.exports = require('pauser')([
 ) {
     var hasOwn = {}.hasOwnProperty,
         PHPError = phpCommon.PHPError,
-        PHPFatalError = phpCommon.PHPFatalError;
+        PHPFatalError = phpCommon.PHPFatalError,
+        /**
+         * Prefixes any key called `length` with an underscore to avoid collisions
+         * with the native array `length` property (an array is used to maintain numeric indices).
+         * Any key that is already `_length` must also be prefixed again to avoid collisions there too.
+         *
+         * @param {*} keyNative
+         * @returns {*}
+         */
+        sanitiseKey = function (keyNative) {
+            if (typeof keyNative === 'number') {
+                return keyNative;
+            }
+
+            if (typeof keyNative === 'string') {
+                return keyNative.replace(/^_*length/, '_$&');
+            }
+
+            return keyNative;
+        };
 
     function ArrayValue(factory, callStack, orderedElements, type) {
         var elements = [],
@@ -76,7 +95,7 @@ module.exports = require('pauser')([
             }
 
             elements.push(element);
-            keysToElements[key.getNative()] = element;
+            keysToElements[sanitiseKey(key.getNative())] = element;
         });
 
         Value.call(this, factory, callStack, type || 'array', elements);
@@ -287,7 +306,7 @@ module.exports = require('pauser')([
                 return new NullReference(value.factory);
             }
 
-            keyValue = key.getNative();
+            keyValue = sanitiseKey(key.getNative());
 
             if (!hasOwn.call(value.keysToElements, keyValue)) {
                 element = new ElementReference(value.factory, value.callStack, value, key, null);
@@ -543,7 +562,7 @@ module.exports = require('pauser')([
 
                 element = new ElementReference(value.factory, value.callStack, value, key, element.getValue());
 
-                newKeysToElements[nativeKey] = element;
+                newKeysToElements[sanitiseKey(nativeKey)] = element;
                 newElements.push(element);
             });
 

@@ -54,4 +54,21 @@ EOS
             101
         ]);
     });
+
+    it('should allow elements to be defined with the key "length"', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$myArray = ['length' => 21, 101];
+
+return $myArray;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.deep.equal({
+            length: 21,
+            0: 101
+        });
+    });
 });
