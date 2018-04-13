@@ -75,15 +75,64 @@ describe('PHPState', function () {
         });
     });
 
+    describe('defineGlobal()', function () {
+        it('should define the global and assign it the given value', function () {
+            var value = sinon.createStubInstance(Value);
+            value.getForAssignment.returns(value);
+            value.getNative.returns(27);
+
+            this.state.defineGlobal('MY_GLOB', value);
+
+            expect(this.state.getGlobalScope().getVariable('MY_GLOB').getValue().getNative()).to.equal(27);
+        });
+    });
+
+    describe('defineGlobalAccessor()', function () {
+        it('should install a getter for the global', function () {
+            var valueGetter = sinon.stub(),
+                valueSetter = sinon.spy();
+            valueGetter.returns(21);
+
+            this.state.defineGlobalAccessor('MY_GLOB', valueGetter, valueSetter);
+
+            expect(this.state.getGlobalScope().getVariable('MY_GLOB').getValue().getNative()).to.equal(21);
+        });
+
+        it('should install a setter for the global', function () {
+            var value = sinon.createStubInstance(Value),
+                valueGetter = sinon.stub(),
+                valueSetter = sinon.spy();
+            value.getNative.returns(27);
+
+            this.state.defineGlobalAccessor('MY_GLOB', valueGetter, valueSetter);
+            this.state.getGlobalScope().getVariable('MY_GLOB').setValue(value);
+
+            expect(valueSetter).to.have.been.calledOnce;
+            expect(valueSetter).to.have.been.calledWith(27);
+        });
+    });
+
+    describe('defineSuperGlobal()', function () {
+        it('should define the superglobal and assign it the given value', function () {
+            var value = sinon.createStubInstance(Value);
+            value.getForAssignment.returns(value);
+            value.getNative.returns(101);
+
+            this.state.defineSuperGlobal('MY_SUPER_GLOB', value);
+
+            expect(this.state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').getValue().getNative()).to.equal(101);
+        });
+    });
+
     describe('defineSuperGlobalAccessor()', function () {
         it('should install a getter for the superglobal', function () {
             var valueGetter = sinon.stub(),
                 valueSetter = sinon.spy();
             valueGetter.returns(21);
 
-            this.state.defineSuperGlobalAccessor('MY_GLOB', valueGetter, valueSetter);
+            this.state.defineSuperGlobalAccessor('MY_SUPER_GLOB', valueGetter, valueSetter);
 
-            expect(this.state.getSuperGlobalScope().getVariable('MY_GLOB').getValue().getNative()).to.equal(21);
+            expect(this.state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').getValue().getNative()).to.equal(21);
         });
 
         it('should install a setter for the superglobal', function () {
@@ -92,8 +141,8 @@ describe('PHPState', function () {
                 valueSetter = sinon.spy();
             value.getNative.returns(27);
 
-            this.state.defineSuperGlobalAccessor('MY_GLOB', valueGetter, valueSetter);
-            this.state.getSuperGlobalScope().getVariable('MY_GLOB').setValue(value);
+            this.state.defineSuperGlobalAccessor('MY_SUPER_GLOB', valueGetter, valueSetter);
+            this.state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').setValue(value);
 
             expect(valueSetter).to.have.been.calledOnce;
             expect(valueSetter).to.have.been.calledWith(27);

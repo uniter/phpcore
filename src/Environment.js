@@ -27,6 +27,27 @@ _.extend(Environment.prototype, {
         return this.state.defineClass(name, definitionFactory);
     },
 
+    /**
+     * Defines a global variable and gives it the provided value
+     *
+     * @param {string} name
+     * @param {Value} value
+     */
+    defineGlobal: function (name, value) {
+        this.state.defineGlobal(name, value);
+    },
+
+    /**
+     * Defines a global variable using a getter/setter pair
+     *
+     * @param {string} name
+     * @param {Function} valueGetter
+     * @param {Function} valueSetter
+     */
+    defineGlobalAccessor: function (name, valueGetter, valueSetter) {
+        this.state.defineGlobalAccessor(name, valueGetter, valueSetter);
+    },
+
     defineSuperGlobal: function (name, value) {
         this.state.defineSuperGlobal(name, value);
     },

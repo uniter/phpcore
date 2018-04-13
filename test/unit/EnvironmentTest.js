@@ -36,6 +36,34 @@ describe('Environment', function () {
         });
     });
 
+    describe('defineGlobal()', function () {
+        it('should define the global on the state', function () {
+            var value = sinon.createStubInstance(Value);
+            this.environment.defineGlobal('myGlobal', value);
+
+            expect(this.state.defineGlobal).to.have.been.calledOnce;
+            expect(this.state.defineGlobal).to.have.been.calledWith(
+                'myGlobal',
+                sinon.match.same(value)
+            );
+        });
+    });
+
+    describe('defineGlobalAccessor()', function () {
+        it('should define the global on the state', function () {
+            var valueGetter = sinon.stub(),
+                valueSetter = sinon.spy();
+            this.environment.defineGlobalAccessor('myGlobal', valueGetter, valueSetter);
+
+            expect(this.state.defineGlobalAccessor).to.have.been.calledOnce;
+            expect(this.state.defineGlobalAccessor).to.have.been.calledWith(
+                'myGlobal',
+                sinon.match.same(valueGetter),
+                sinon.match.same(valueSetter)
+            );
+        });
+    });
+
     describe('defineSuperGlobal()', function () {
         it('should define the super global on the state', function () {
             var value = sinon.createStubInstance(Value);

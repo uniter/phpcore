@@ -253,13 +253,52 @@ module.exports = require('pauser')([
             return classObject;
         },
 
+        /**
+         * Defines a global variable and gives it the provided value
+         *
+         * @param {string} name
+         * @param {Value} value
+         */
+        defineGlobal: function (name, value) {
+            this.globalScope.defineVariable(name).setValue(value);
+        },
+
+        /**
+         * Defines a global variable using a getter/setter pair
+         *
+         * @param {string} name
+         * @param {Function} valueGetter
+         * @param {Function} valueSetter
+         */
+        defineGlobalAccessor: function (name, valueGetter, valueSetter) {
+            var state = this,
+                accessorReference = state.referenceFactory.createAccessor(valueGetter, valueSetter);
+
+            state.globalScope.defineVariable(name).setReference(accessorReference);
+        },
+
+        /**
+         * Defines a super global variable (available in all scopes implicitly,
+         * unlike a normal global which is not available unless imported with a `global` statement)
+         * and gives it the provided value
+         *
+         * @param {string} name
+         * @param {Value} value
+         */
         defineSuperGlobal: function (name, value) {
             this.superGlobalScope.defineVariable(name).setValue(value);
         },
 
+        /**
+         * Defines a super global variable (see above) using a getter/setter pair
+         *
+         * @param {string} name
+         * @param {Function} valueGetter
+         * @param {Function} valueSetter
+         */
         defineSuperGlobalAccessor: function (name, valueGetter, valueSetter) {
             var state = this,
-                accessorReference = new AccessorReference(state.valueFactory, valueGetter, valueSetter);
+                accessorReference = state.referenceFactory.createAccessor(valueGetter, valueSetter);
 
             state.superGlobalScope.defineVariable(name).setReference(accessorReference);
         },
