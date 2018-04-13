@@ -190,6 +190,7 @@ module.exports = require('pauser')([
         this.moduleFactory = moduleFactory;
         this.optionSet = optionSet;
         this.referenceFactory = referenceFactory;
+        this.scopeFactory = scopeFactory;
         this.callStack = callStack;
         this.classAutoloader = classAutoloader;
         this.pausable = pausable;
@@ -346,6 +347,15 @@ module.exports = require('pauser')([
 
         getReferenceFactory: function () {
             return this.referenceFactory;
+        },
+
+        /**
+         * Fetches the ScopeFactory for the runtime state
+         *
+         * @return {ScopeFactory}
+         */
+        getScopeFactory: function () {
+            return this.scopeFactory;
         },
 
         getStderr: function () {
