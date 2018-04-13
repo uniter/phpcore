@@ -13,6 +13,7 @@ var _ = require('microdash');
 
 /**
  * @param {class} Scope
+ * @param {class} NamespaceScope
  * @param {CallStack} callStack
  * @param {SuperGlobalScope} superGlobalScope
  * @param {ValueFactory} valueFactory
@@ -20,7 +21,15 @@ var _ = require('microdash');
  * @param {ReferenceFactory} referenceFactory
  * @constructor
  */
-function ScopeFactory(Scope, callStack, superGlobalScope, valueFactory, variableFactory, referenceFactory) {
+function ScopeFactory(
+    Scope,
+    NamespaceScope,
+    callStack,
+    superGlobalScope,
+    valueFactory,
+    variableFactory,
+    referenceFactory
+) {
     /**
      * @type {CallStack}
      */
@@ -33,6 +42,10 @@ function ScopeFactory(Scope, callStack, superGlobalScope, valueFactory, variable
      * @type {Scope}
      */
     this.globalScope = null;
+    /**
+     * @type {class}
+     */
+    this.NamespaceScope = NamespaceScope;
     /**
      * @type {ReferenceFactory}
      */
@@ -81,6 +94,20 @@ _.extend(ScopeFactory.prototype, {
             currentFunction || null,
             thisObject || null
         );
+    },
+
+    /**
+     * Creates a new NamespaceScope
+     *
+     * @param {Namespace} namespace
+     * @param {Namespace} globalNamespace
+     * @param {Module} module
+     * @return {NamespaceScope}
+     */
+    createNamespaceScope: function (namespace, globalNamespace, module) {
+        var factory = this;
+
+        return new factory.NamespaceScope(globalNamespace, factory.valueFactory, module, namespace);
     },
 
     /**

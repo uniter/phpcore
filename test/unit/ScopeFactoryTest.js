@@ -14,7 +14,8 @@ var expect = require('chai').expect,
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     ClosureFactory = require('../../src/ClosureFactory').sync(),
-    NamespaceScope = require('../../src/NamespaceScope').sync(),
+    Module = require('../../src/Module'),
+    Namespace = require('../../src/Namespace').sync(),
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
     SuperGlobalScope = require('../../src/SuperGlobalScope').sync(),
@@ -26,6 +27,7 @@ describe('ScopeFactory', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.closureFactory = sinon.createStubInstance(ClosureFactory);
+        this.NamespaceScope = sinon.stub();
         this.Scope = sinon.stub();
         this.globalScope = sinon.createStubInstance(this.Scope);
         this.referenceFactory = sinon.createStubInstance(ReferenceFactory);
@@ -35,6 +37,7 @@ describe('ScopeFactory', function () {
 
         this.factory = new ScopeFactory(
             this.Scope,
+            this.NamespaceScope,
             this.callStack,
             this.superGlobalScope,
             this.valueFactory,
@@ -50,7 +53,7 @@ describe('ScopeFactory', function () {
             this.name = 'MyNamespace';
             this.currentClass = sinon.createStubInstance(Class);
             this.currentFunction = sinon.stub();
-            this.namespaceScope = sinon.createStubInstance(NamespaceScope);
+            this.namespaceScope = sinon.createStubInstance(this.NamespaceScope);
             this.thisObject = sinon.createStubInstance(Value);
             this.callCreate = function () {
                 return this.factory.create(
@@ -284,6 +287,64 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 null
+            );
+        });
+    });
+
+    describe('createNamespaceScope()', function () {
+        beforeEach(function () {
+            this.globalNamespace = sinon.createStubInstance(Namespace);
+            this.module = sinon.createStubInstance(Module);
+            this.namespace = sinon.createStubInstance(Namespace);
+
+            this.callCreateNamespaceScope = function () {
+                return this.factory.createNamespaceScope(this.namespace, this.globalNamespace, this.module);
+            }.bind(this);
+        });
+
+        it('should return an instance of NamespaceScope', function () {
+            expect(this.callCreateNamespaceScope()).to.be.an.instanceOf(this.NamespaceScope);
+        });
+
+        it('should pass the global namespace to the scope', function () {
+            this.callCreateNamespaceScope();
+
+            expect(this.NamespaceScope).to.have.been.calledOnce;
+            expect(this.NamespaceScope).to.have.been.calledWith(
+                sinon.match.same(this.globalNamespace)
+            );
+        });
+
+        it('should pass the ValueFactory to the scope', function () {
+            this.callCreateNamespaceScope();
+
+            expect(this.NamespaceScope).to.have.been.calledOnce;
+            expect(this.NamespaceScope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.same(this.valueFactory)
+            );
+        });
+
+        it('should pass the module to the scope', function () {
+            this.callCreateNamespaceScope();
+
+            expect(this.NamespaceScope).to.have.been.calledOnce;
+            expect(this.NamespaceScope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(this.module)
+            );
+        });
+
+        it('should pass the namespace to the scope', function () {
+            this.callCreateNamespaceScope();
+
+            expect(this.NamespaceScope).to.have.been.calledOnce;
+            expect(this.NamespaceScope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(this.namespace)
             );
         });
     });
