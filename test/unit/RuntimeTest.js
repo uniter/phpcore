@@ -20,17 +20,26 @@ describe('Runtime', function () {
     beforeEach(function () {
         this.Environment = sinon.stub();
         this.Engine = sinon.stub();
-        this.OptionSet = sinon.stub();
         this.pausable = {};
         this.phpCommon = {};
         this.PHPState = sinon.stub();
-        this.state = sinon.createStubInstance(this.PHPState);
-        this.PHPState.returns(this.state);
+
+        this.Environment.callsFake(function (state) {
+            this.state = state;
+        });
+        this.Environment.prototype.getOptions = function () {
+            return this.state.getOptions();
+        };
+        this.PHPState.callsFake(function (runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, optionGroups, options) {
+            this.options = options;
+        });
+        this.PHPState.prototype.getOptions = function () {
+            return this.options;
+        };
 
         this.runtime = new Runtime(
             this.Environment,
             this.Engine,
-            this.OptionSet,
             this.PHPState,
             this.phpCommon,
             this.pausable
@@ -166,13 +175,13 @@ describe('Runtime', function () {
 
     describe('createEnvironment()', function () {
         it('should create a new State instance correctly', function () {
-            var optionSet = sinon.createStubInstance(this.OptionSet);
-            this.OptionSet.returns(optionSet);
-
-            this.runtime.createEnvironment();
+            this.runtime.createEnvironment({
+                myOption: 21
+            });
 
             expect(this.PHPState).to.have.been.calledOnce;
             expect(this.PHPState).to.have.been.calledWith(
+                sinon.match.same(this.runtime),
                 {
                     classes: {},
                     constantGroups: [],
@@ -182,30 +191,20 @@ describe('Runtime', function () {
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
                 sinon.match.same(this.pausable),
-                sinon.match.same(optionSet)
+                [],
+                {myOption: 21}
             );
         });
 
-        it('should create a new OptionSet instance correctly', function () {
-            this.runtime.createEnvironment({option1: 21});
-
-            expect(this.OptionSet).to.have.been.calledOnce;
-            expect(this.OptionSet).to.have.been.calledWith({option1: 21});
-        });
-
-        it('should create a new OptionSet instance correctly when options arg is not specified', function () {
-            this.runtime.createEnvironment();
-
-            expect(this.OptionSet).to.have.been.calledOnce;
-            expect(this.OptionSet).to.have.been.calledWith({});
-        });
-
         it('should create a new Environment instance correctly', function () {
+            var state = sinon.createStubInstance(this.PHPState);
+            this.PHPState.returns(state);
+
             this.runtime.createEnvironment({option1: 21});
 
             expect(this.Environment).to.have.been.calledOnce;
             expect(this.Environment).to.have.been.calledWith(
-                sinon.match.same(this.state)
+                sinon.match.same(state)
             );
         });
 
@@ -230,6 +229,7 @@ describe('Runtime', function () {
 
             expect(this.PHPState).to.have.been.calledOnce;
             expect(this.PHPState).to.have.been.calledWith(
+                sinon.match.any,
                 {
                     classes: {
                         MyClass: sinon.match.same(MyClass)
@@ -237,6 +237,34 @@ describe('Runtime', function () {
                     constantGroups: [],
                     functionGroups: []
                 }
+            );
+        });
+
+        it('should cause created environments to have the provided option groups', function () {
+            var optionGroupFactory = sinon.stub();
+
+            this.runtime.install({
+                optionGroups: [
+                    optionGroupFactory
+                ]
+            });
+            this.runtime.createEnvironment();
+
+            expect(this.PHPState).to.have.been.calledOnce;
+            expect(this.PHPState).to.have.been.calledWith(
+                sinon.match.any,
+                {
+                    classes: {},
+                    constantGroups: [],
+                    functionGroups: []
+                },
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                [
+                    sinon.match.same(optionGroupFactory)
+                ]
             );
         });
     });

@@ -16,11 +16,10 @@ var phpCommon = require('phpcommon'),
     DebugValue = require('./src/Debug/DebugValue'),
     Engine = require('./src/Engine'),
     Environment = require('./src/Environment'),
-    OptionSet = require('./src/OptionSet'),
     PHPState = require('./src/PHPState').sync(),
     Runtime = require('./src/Runtime').sync(),
     ValueFormatter = require('./src/Debug/ValueFormatter'),
-    runtime = new Runtime(Environment, Engine, OptionSet, PHPState, phpCommon, null),
+    runtime = new Runtime(Environment, Engine, PHPState, phpCommon, null),
     debugFactory = new DebugFactory(DebugFormatter, DebugValue, ValueFormatter);
 
 new DebugFormatterInstaller(global, debugFactory).install();

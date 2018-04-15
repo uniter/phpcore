@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     OptionSet = require('../../src/OptionSet'),
     PHPState = require('../../src/PHPState').sync(),
+    Runtime = require('../../src/Runtime').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
     Stream = require('../../src/Stream'),
     Value = require('../../src/Value').sync();
@@ -25,20 +26,22 @@ describe('PHPState', function () {
         this.stdout = sinon.createStubInstance(Stream);
         this.stderr = sinon.createStubInstance(Stream);
         this.pausable = {};
+        this.runtime = sinon.createStubInstance(Runtime);
 
         this.state = new PHPState(
+            this.runtime,
             this.installedBuiltinTypes,
             this.stdin,
             this.stdout,
             this.stderr,
-            this.pausable,
-            this.optionSet
+            this.pausable
         );
     });
 
     describe('constructor', function () {
         it('should install non-namespaced classes into the global namespace', function () {
             this.state = new PHPState(
+                this.runtime,
                 {
                     classes: {
                         'MyClass': function () {
@@ -58,6 +61,7 @@ describe('PHPState', function () {
         it('should install namespaced classes into the correct namespace', function () {
             var MyClass = sinon.stub();
             this.state = new PHPState(
+                this.runtime,
                 {
                     classes: {
                         'Some\\Stuff\\AClass': function () {
@@ -73,6 +77,44 @@ describe('PHPState', function () {
 
             expect(this.state.getGlobalNamespace().hasClass('AClass')).to.be.false;
             expect(this.state.getGlobalNamespace().getDescendant('Some\\Stuff').hasClass('AClass')).to.be.true;
+        });
+
+        it('should install any option groups as options', function () {
+            this.state = new PHPState(
+                this.runtime,
+                {},
+                this.stdin,
+                this.stdout,
+                this.stderr,
+                this.pausable,
+                [
+                    function (internals) {
+                        return {
+                            myOption: internals.valueFactory.createString('my option value')
+                        };
+                    }
+                ]
+            );
+
+            expect(this.state.getOptions().myOption.getType()).to.equal('string');
+            expect(this.state.getOptions().myOption.getNative()).to.equal('my option value');
+        });
+
+        it('should install any initial options as options', function () {
+            this.state = new PHPState(
+                this.runtime,
+                {},
+                this.stdin,
+                this.stdout,
+                this.stderr,
+                this.pausable,
+                [],
+                {
+                    yourOption: 21
+                }
+            );
+
+            expect(this.state.getOptions().yourOption).to.equal(21);
         });
     });
 

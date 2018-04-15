@@ -23,13 +23,12 @@ module.exports = require('pauser')([
      *
      * @param {class} Environment
      * @param {class} Engine
-     * @param {class} OptionSet
      * @param {class} PHPState
      * @param {object} phpCommon
      * @param {Resumable} pausable
      * @constructor
      */
-    function Runtime(Environment, Engine, OptionSet, PHPState, phpCommon, pausable) {
+    function Runtime(Environment, Engine, PHPState, phpCommon, pausable) {
         /**
          * @type {{classes: {}, constantGroups: Array, functionGroups: Array}}
          */
@@ -47,9 +46,9 @@ module.exports = require('pauser')([
          */
         this.Environment = Environment;
         /**
-         * @type {class}
+         * @type {Function[]}
          */
-        this.OptionSet = OptionSet;
+        this.optionGroups = [];
         /**
          * @type {Resumable}
          */
@@ -90,6 +89,7 @@ module.exports = require('pauser')([
                     options = _.extend({}, environment.getOptions(), options);
                 } else {
                     environment = runtime.createEnvironment(options);
+                    options = environment.getOptions();
                 }
 
                 return new runtime.Engine(
@@ -151,14 +151,15 @@ module.exports = require('pauser')([
                 stdin = new Stream(),
                 stdout = new Stream(),
                 stderr = new Stream(),
-                optionSet = new runtime.OptionSet(options || {}),
                 state = new runtime.PHPState(
+                    runtime,
                     runtime.builtins,
                     stdin,
                     stdout,
                     stderr,
                     runtime.pausable,
-                    optionSet
+                    runtime.optionGroups,
+                    options
                 );
 
             return new runtime.Environment(state);
@@ -178,6 +179,7 @@ module.exports = require('pauser')([
             [].push.apply(builtins.functionGroups, newBuiltins.functionGroups);
             _.extend(builtins.classes, newBuiltins.classes);
             [].push.apply(builtins.constantGroups, newBuiltins.constantGroups);
+            [].push.apply(this.optionGroups, newBuiltins.optionGroups);
         }
     });
 

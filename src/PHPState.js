@@ -29,6 +29,7 @@ module.exports = require('pauser')([
     require('./NamespaceFactory'),
     require('./NamespaceScope'),
     require('./Reference/Null'),
+    require('./OptionSet'),
     require('./ReferenceFactory'),
     require('./Scope'),
     require('./ScopeFactory'),
@@ -58,6 +59,7 @@ module.exports = require('pauser')([
     NamespaceFactory,
     NamespaceScope,
     NullReference,
+    OptionSet,
     ReferenceFactory,
     Scope,
     ScopeFactory,
@@ -69,7 +71,7 @@ module.exports = require('pauser')([
     VariableReference
 ) {
     var EXCEPTION_CLASS = 'Exception',
-        setUpState = function (state, installedBuiltinTypes) {
+        setUpState = function (state, installedBuiltinTypes, optionGroups) {
             var globalNamespace = state.globalNamespace;
 
             function installFunctionGroup(groupFactory) {
@@ -92,18 +94,25 @@ module.exports = require('pauser')([
                 });
             }
 
+            function installOptionGroup(groupFactory) {
+                var groupOptions = groupFactory(state.internals);
+
+                _.extend(state.options, groupOptions);
+            }
+
             // Core builtins
             _.each(builtinTypes.functionGroups, installFunctionGroup);
             _.forOwn(builtinTypes.classes, installClass);
             _.each(builtinTypes.constantGroups, installConstantGroup);
 
             // Optional installed builtins
+            _.each(optionGroups, installOptionGroup);
             _.each(installedBuiltinTypes.functionGroups, installFunctionGroup);
             _.forOwn(installedBuiltinTypes.classes, installClass);
             _.each(installedBuiltinTypes.constantGroups, installConstantGroup);
         };
 
-    function PHPState(installedBuiltinTypes, stdin, stdout, stderr, pausable, optionSet) {
+    function PHPState(runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, optionGroups, options) {
         var callStack = new CallStack(stderr),
             callFactory = new CallFactory(Call),
             moduleFactory = new ModuleFactory(Module),
@@ -171,24 +180,29 @@ module.exports = require('pauser')([
             )
         );
 
+        // Make a copy of the options object so we don't mutate it
+        options = _.extend({}, options || {});
+
         this.callFactory = callFactory;
         this.callStack = callStack;
         this.globalNamespace = globalNamespace;
         this.globalNamespaceScope = globalNamespaceScope;
         this.globalScope = globalScope;
         this.iniState = new INIState();
+        this.options = options;
+        this.optionSet = new OptionSet(options);
         this.internals = {
             callStack: callStack,
             classAutoloader: classAutoloader,
             globalNamespace: globalNamespace,
             iniState: this.iniState,
-            optionSet: optionSet,
+            optionSet: this.optionSet,
             pausable: pausable,
+            runtime: runtime,
             stdout: stdout,
             valueFactory: valueFactory
         };
         this.moduleFactory = moduleFactory;
-        this.optionSet = optionSet;
         this.referenceFactory = referenceFactory;
         this.scopeFactory = scopeFactory;
         this.callStack = callStack;
@@ -201,7 +215,7 @@ module.exports = require('pauser')([
         this.valueFactory = valueFactory;
         this.PHPException = null;
 
-        setUpState(this, installedBuiltinTypes);
+        setUpState(this, installedBuiltinTypes, optionGroups || []);
     }
 
     _.extend(PHPState.prototype, {
