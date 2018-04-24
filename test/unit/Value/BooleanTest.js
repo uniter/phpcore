@@ -793,7 +793,7 @@ describe('Boolean', function () {
                 expectedResult: 0
             }
         ], function (scenario) {
-            describe('for `' + scenario.left + ' * ' + scenario.right + '`', function () {
+            describe('for `null * ' + scenario.right + '`', function () {
                 beforeEach(function () {
                     this.leftValue = sinon.createStubInstance(NullValue);
                     this.createValue(scenario.right);
