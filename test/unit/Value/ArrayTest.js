@@ -854,6 +854,42 @@ describe('Array', function () {
         });
     });
 
+    describe('pop()', function () {
+        it('should remove the last element from the array', function () {
+            this.elements.unshift(this.createKeyValuePair(
+                this.factory.createString('unshiftedEl'),
+                this.factory.createString('value of unshifted el')
+            ));
+            this.createValue();
+
+            this.value.pop();
+
+            expect(this.value.getNative()).to.deep.equal({
+                unshiftedEl: 'value of unshifted el',
+                firstEl: 'value of first el'
+                // secondEl should have been popped off
+            });
+        });
+
+        it('should return the last element in the array', function () {
+            var element = this.value.pop();
+
+            expect(element).to.be.an.instanceOf(Value);
+            expect(element.getNative()).to.equal('value of second el');
+        });
+
+        it('should return NULL when the array is empty', function () {
+            var element;
+            this.elements.length = 0;
+            this.createValue();
+
+            element = this.value.pop();
+
+            expect(element).to.be.an.instanceOf(Value);
+            expect(element.getType()).to.equal('null');
+        });
+    });
+
     describe('pushElement()', function () {
         it('should add the element to the array', function () {
             var element = sinon.createStubInstance(ElementReference);

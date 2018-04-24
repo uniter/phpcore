@@ -498,6 +498,26 @@ module.exports = require('pauser')([
             });
         },
 
+        /**
+         * Removes the last element from the array and then returns it, if any.
+         * If the array is empty (so that there is no last element), NULL is returned
+         *
+         * @return {Value}
+         */
+        pop: function () {
+            var value = this,
+                length = value.getLength();
+
+            if (length === 0) {
+                // Array is empty: nothing to pop off
+                return value.factory.createNull();
+            }
+
+            delete value.keysToElements[value.getKeyByIndex(length - 1).getNative()];
+
+            return value.value.pop().getValue();
+        },
+
         push: function (otherValue) {
             var value = this,
                 index = value.factory.createInteger(value.getLength());
