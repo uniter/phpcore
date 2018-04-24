@@ -12,13 +12,12 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     NullReference = require('../../../src/Reference/Null'),
-    NullValue = require('../../../src/Value/Null').sync(),
     Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('NullReference', function () {
     beforeEach(function () {
-        this.valueFactory = sinon.createStubInstance(ValueFactory);
+        this.valueFactory = new ValueFactory();
         this.onSet = sinon.spy();
 
         this.reference = new NullReference(this.valueFactory, {
@@ -26,22 +25,45 @@ describe('NullReference', function () {
         });
     });
 
+    describe('concatWith()', function () {
+        it('should call the `onSet()` callback once', function () {
+            this.reference.concatWith(this.valueFactory.createString(' world'));
+
+            expect(this.onSet).to.have.been.calledOnce;
+        });
+    });
+
+    describe('decrementBy()', function () {
+        it('should call the `onSet()` callback once', function () {
+            this.reference.setValue(this.valueFactory.createInteger(20));
+            this.onSet.resetHistory();
+
+            this.reference.decrementBy(this.valueFactory.createInteger(4));
+
+            expect(this.onSet).to.have.been.calledOnce;
+        });
+    });
+
     describe('getNative()', function () {
         it('should return null', function () {
-            var nullValue = sinon.createStubInstance(NullValue);
-            nullValue.getNative.returns(null);
-            this.valueFactory.createNull.returns(nullValue);
-
             expect(this.reference.getNative()).to.be.null;
         });
     });
 
     describe('getValue()', function () {
         it('should return the value Null', function () {
-            var nullValue = sinon.createStubInstance(NullValue);
-            this.valueFactory.createNull.returns(nullValue);
+            expect(this.reference.getValue().getType()).to.equal('null');
+        });
+    });
 
-            expect(this.reference.getValue()).to.equal(nullValue);
+    describe('incrementBy()', function () {
+        it('should call the `onSet()` callback once', function () {
+            this.reference.setValue(this.valueFactory.createInteger(20));
+            this.onSet.resetHistory();
+
+            this.reference.incrementBy(this.valueFactory.createInteger(4));
+
+            expect(this.onSet).to.have.been.calledOnce;
         });
     });
 

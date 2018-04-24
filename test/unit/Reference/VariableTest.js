@@ -12,14 +12,41 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     Value = require('../../../src/Value').sync(),
+    ValueFactory = require('../../../src/ValueFactory').sync(),
     Variable = require('../../../src/Variable').sync(),
     VariableReference = require('../../../src/Reference/Variable');
 
 describe('VariableReference', function () {
     beforeEach(function () {
+        this.factory = new ValueFactory();
         this.variable = sinon.createStubInstance(Variable);
+        this.variable.getValue.returns(this.factory.createString('my variable\'s value'));
+
+        this.variable.setValue.callsFake(function (value) {
+            this.variable.getValue.returns(value);
+        }.bind(this));
 
         this.reference = new VariableReference(this.variable);
+    });
+
+    describe('concatWith()', function () {
+        it('should append the given value to the variable\'s value and assign it back to the variable', function () {
+            this.reference.setValue(this.factory.createString('value for my variable'));
+
+            this.reference.concatWith(this.factory.createString(' with world on the end'));
+
+            expect(this.reference.getNative()).to.equal('value for my variable with world on the end');
+        });
+    });
+
+    describe('decrementBy()', function () {
+        it('should subtract the given value from the variable\'s value and assign it back to the variable', function () {
+            this.reference.setValue(this.factory.createInteger(20));
+
+            this.reference.decrementBy(this.factory.createInteger(4));
+
+            expect(this.reference.getNative()).to.equal(16);
+        });
     });
 
     describe('getForAssignment()', function () {
@@ -47,6 +74,16 @@ describe('VariableReference', function () {
             this.variable.getValue.returns(result);
 
             expect(this.reference.getValue()).to.equal(result);
+        });
+    });
+
+    describe('incrementBy()', function () {
+        it('should add the given value to the variable\'s value and assign it back to the variable', function () {
+            this.reference.setValue(this.factory.createInteger(20));
+
+            this.reference.incrementBy(this.factory.createInteger(4));
+
+            expect(this.reference.getNative()).to.equal(24);
         });
     });
 

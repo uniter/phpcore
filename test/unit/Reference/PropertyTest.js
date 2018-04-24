@@ -14,12 +14,9 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     CallStack = require('../../../src/CallStack'),
     PropertyReference = require('../../../src/Reference/Property'),
-    IntegerValue = require('../../../src/Value/Integer').sync(),
     MethodSpec = require('../../../src/MethodSpec'),
-    NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
-    StringValue = require('../../../src/Value/String').sync(),
     Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync(),
     Variable = require('../../../src/Variable').sync();
@@ -27,49 +24,20 @@ var expect = require('chai').expect,
 describe('PropertyReference', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
-        this.factory = sinon.createStubInstance(ValueFactory);
-        this.factory.coerce.restore();
-        sinon.stub(this.factory, 'coerce', function (otherValue) {
-            var value;
-            if (otherValue instanceof Value) {
-                return otherValue;
-            }
-            value = sinon.createStubInstance(Value);
-            value.getNative.returns(otherValue);
-            return value;
-        });
-        this.factory.createInteger.restore();
-        sinon.stub(this.factory, 'createInteger', function (nativeValue) {
-            var integerValue = sinon.createStubInstance(IntegerValue);
-            integerValue.getForAssignment.returns(integerValue);
-            integerValue.getNative.returns(nativeValue);
-            integerValue.getType.returns('integer');
-            return integerValue;
-        });
-        this.factory.createNull.restore();
-        sinon.stub(this.factory, 'createNull', function () {
-            var nullValue = sinon.createStubInstance(NullValue);
-            nullValue.getNative.returns(null);
-            nullValue.getType.returns('null');
-            return nullValue;
-        });
-        this.factory.createString.restore();
-        sinon.stub(this.factory, 'createString', function (nativeValue) {
-            var stringValue = sinon.createStubInstance(StringValue);
-            stringValue.getForAssignment.returns(stringValue);
-            stringValue.getNative.returns(nativeValue);
-            stringValue.getType.returns('string');
-            return stringValue;
-        });
-
-        this.propertyValue = this.factory.createString('value for my prop');
+        this.factory = new ValueFactory();
+        this.propertyValue = sinon.createStubInstance(Value);
         this.nativeObject = {
             'my_property': this.propertyValue
         };
         this.objectValue = sinon.createStubInstance(ObjectValue);
         this.objectValue.getNative.returns(this.nativeObject);
         this.objectValue.isMethodDefined.returns(false);
-        this.keyValue = this.factory.createString('my_property');
+        this.keyValue = sinon.createStubInstance(Value);
+
+        this.keyValue.getNative.returns('my_property');
+        this.keyValue.getType.returns('string');
+        this.propertyValue.getNative.returns('value for my prop');
+        this.propertyValue.getType.returns('string');
 
         this.property = new PropertyReference(
             this.factory,
@@ -78,6 +46,26 @@ describe('PropertyReference', function () {
             this.nativeObject,
             this.keyValue
         );
+    });
+
+    describe('concatWith()', function () {
+        it('should append the given value to the property\'s value and assign it back to the property', function () {
+            this.property.setValue(this.factory.createString('value for my prop'));
+
+            this.property.concatWith(this.factory.createString(' with world on the end'));
+
+            expect(this.property.getNative()).to.equal('value for my prop with world on the end');
+        });
+    });
+
+    describe('decrementBy()', function () {
+        it('should subtract the given value from the property\'s value and assign it back to the property', function () {
+            this.property.setValue(this.factory.createInteger(20));
+
+            this.property.decrementBy(this.factory.createInteger(4));
+
+            expect(this.property.getNative()).to.equal(16);
+        });
     });
 
     describe('getNative()', function () {
@@ -149,13 +137,23 @@ describe('PropertyReference', function () {
         });
     });
 
+    describe('incrementBy()', function () {
+        it('should add the given value to the property\'s value and assign it back to the property', function () {
+            this.property.setValue(this.factory.createInteger(20));
+
+            this.property.incrementBy(this.factory.createInteger(4));
+
+            expect(this.property.getNative()).to.equal(24);
+        });
+    });
+
     describe('isDefined()', function () {
         it('should return true when the property is assigned a non-NULL value', function () {
             expect(this.property.isDefined()).to.be.true;
         });
 
         it('should return true when the property is assigned a NULL value', function () {
-            this.propertyValue.getType.returns('null');
+            this.property.setValue(this.factory.createNull());
 
             expect(this.property.isDefined()).to.be.true;
         });

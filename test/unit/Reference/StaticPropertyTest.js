@@ -17,34 +17,19 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError,
     StaticPropertyReference = require('../../../src/Reference/StaticProperty'),
     StringValue = require('../../../src/Value/String').sync(),
-    Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('StaticPropertyReference', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
-        this.factory = sinon.createStubInstance(ValueFactory);
-        this.factory.coerce.restore();
-        sinon.stub(this.factory, 'coerce', function (otherValue) {
-            var value;
-            if (otherValue instanceof Value) {
-                return otherValue;
-            }
-            value = sinon.createStubInstance(Value);
-            value.getNative.returns(otherValue);
-            return value;
-        });
-        this.factory.createString.restore();
-        sinon.stub(this.factory, 'createString', function (nativeValue) {
-            var stringValue = sinon.createStubInstance(StringValue);
-            stringValue.getNative.returns(nativeValue);
-            return stringValue;
-        });
-
+        this.factory = new ValueFactory();
         this.classObject = sinon.createStubInstance(Class);
-        this.propertyValue = this.factory.createString('my_property');
+        this.propertyValue = sinon.createStubInstance(StringValue);
 
         this.classObject.getName.returns('My\\Namespaced\\ClassName');
+
+        this.propertyValue.getNative.returns('the value of my property');
+        this.propertyValue.getType.returns('string');
 
         this.property = new StaticPropertyReference(
             this.classObject,
@@ -54,9 +39,39 @@ describe('StaticPropertyReference', function () {
         );
     });
 
+    describe('concatWith()', function () {
+        it('should append the given value to the property\'s value and assign it back to the property', function () {
+            this.property.setValue(this.factory.createString('value for my prop'));
+
+            this.property.concatWith(this.factory.createString(' with world on the end'));
+
+            expect(this.property.getNative()).to.equal('value for my prop with world on the end');
+        });
+    });
+
+    describe('decrementBy()', function () {
+        it('should subtract the given value from the property\'s value and assign it back to the property', function () {
+            this.property.setValue(this.factory.createInteger(20));
+
+            this.property.decrementBy(this.factory.createInteger(4));
+
+            expect(this.property.getNative()).to.equal(16);
+        });
+    });
+
     describe('getNative()', function () {
         it('should return the native value of the property\'s value', function () {
-            expect(this.property.getNative()).to.equal('my_property');
+            expect(this.property.getNative()).to.equal('the value of my property');
+        });
+    });
+
+    describe('incrementBy()', function () {
+        it('should add the given value to the property\'s value and assign it back to the property', function () {
+            this.property.setValue(this.factory.createInteger(20));
+
+            this.property.incrementBy(this.factory.createInteger(4));
+
+            expect(this.property.getNative()).to.equal(24);
         });
     });
 

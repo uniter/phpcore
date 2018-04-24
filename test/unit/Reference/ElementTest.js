@@ -14,10 +14,9 @@ var expect = require('chai').expect,
     ArrayValue = require('../../../src/Value/Array').sync(),
     CallStack = require('../../../src/CallStack'),
     ElementReference = require('../../../src/Reference/Element'),
-    IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyReferencePair = require('../../../src/KeyReferencePair'),
     KeyValuePair = require('../../../src/KeyValuePair'),
-    StringValue = require('../../../src/Value/String').sync(),
+    Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync(),
     Variable = require('../../../src/Variable').sync(),
     VariableReference = require('../../../src/Reference/Variable');
@@ -25,23 +24,14 @@ var expect = require('chai').expect,
 describe('ElementReference', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
-        this.factory = sinon.createStubInstance(ValueFactory);
-        this.factory.createInteger.restore();
-        sinon.stub(this.factory, 'createInteger', function (nativeValue) {
-            var integerValue = sinon.createStubInstance(IntegerValue);
-            integerValue.getNative.returns(nativeValue);
-            return integerValue;
-        });
-        this.factory.createString.restore();
-        sinon.stub(this.factory, 'createString', function (nativeValue) {
-            var stringValue = sinon.createStubInstance(StringValue);
-            stringValue.getNative.returns(nativeValue);
-            return stringValue;
-        });
-
+        this.factory = new ValueFactory();
         this.arrayValue = sinon.createStubInstance(ArrayValue);
         this.keyValue = this.factory.createString('my_element');
-        this.value = sinon.createStubInstance(StringValue);
+        this.value = sinon.createStubInstance(Value);
+
+        this.value.getForAssignment.returns(this.value);
+        this.value.getNative.returns('the value of my element');
+        this.value.getType.returns('string');
 
         this.element = new ElementReference(
             this.factory,
@@ -52,9 +42,29 @@ describe('ElementReference', function () {
         );
     });
 
+    describe('concatWith()', function () {
+        it('should append the given value to the element\'s value and assign it back to the element', function () {
+            this.element.setValue(this.factory.createString('hello'));
+
+            this.element.concatWith(this.factory.createString(' world'));
+
+            expect(this.element.getNative()).to.equal('hello world');
+        });
+    });
+
+    describe('decrementBy()', function () {
+        it('should subtract the given value from the element\'s value and assign it back to the element', function () {
+            this.element.setValue(this.factory.createInteger(20));
+
+            this.element.decrementBy(this.factory.createInteger(4));
+
+            expect(this.element.getNative()).to.equal(16);
+        });
+    });
+
     describe('getNative()', function () {
         it('should return the native value of the element\'s value', function () {
-            this.value.getNative.returns('my native value');
+            this.element.setValue(this.factory.createString('my native value'));
 
             expect(this.element.getNative()).to.equal('my native value');
         });
@@ -125,6 +135,16 @@ describe('ElementReference', function () {
             );
 
             expect(element.getValueReference()).to.be.null;
+        });
+    });
+
+    describe('incrementBy()', function () {
+        it('should add the given value to the element\'s value and assign it back to the element', function () {
+            this.element.setValue(this.factory.createInteger(20));
+
+            this.element.incrementBy(this.factory.createInteger(4));
+
+            expect(this.element.getNative()).to.equal(24);
         });
     });
 

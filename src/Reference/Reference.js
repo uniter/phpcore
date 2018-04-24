@@ -22,6 +22,34 @@ function Reference() {
 
 _.extend(Reference.prototype, {
     /**
+     * Coerces the value from this reference and the specified one to strings,
+     * concatenates them together and then assigns the result back to this reference.
+     *
+     * Used by the `.=` operator
+     *
+     * @param {Value} rightValue
+     */
+    concatWith: function (rightValue) {
+        var reference = this;
+
+        reference.setValue(reference.getValue().concat(rightValue));
+    },
+
+    /**
+     * Subtracts the specified value from the value from this reference
+     * and then assigns the result back to this reference
+     *
+     * Used by the `-=` operator
+     *
+     * @param {Value} rightValue
+     */
+    decrementBy: function (rightValue) {
+        var reference = this;
+
+        reference.setValue(reference.getValue().subtract(rightValue));
+    },
+
+    /**
      * Fetches the native value of the PHP value being referred to
      *
      * @returns {*}
@@ -36,6 +64,20 @@ _.extend(Reference.prototype, {
 
     getValue: function () {
         throw new Error('Not implemented');
+    },
+
+    /**
+     * Adds the specified value to the value from this reference
+     * and then assigns the result back to this reference
+     *
+     * Used by the `+=` operator
+     *
+     * @param {Value} rightValue
+     */
+    incrementBy: function (rightValue) {
+        var reference = this;
+
+        reference.setValue(reference.getValue().add(rightValue));
     },
 
     /**

@@ -12,55 +12,73 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     AccessorReference = require('../../../src/Reference/AccessorReference'),
-    Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('AccessorReference', function () {
     beforeEach(function () {
-        this.valueFactory = sinon.createStubInstance(ValueFactory);
-        this.coercedValue = sinon.createStubInstance(Value);
-        this.coercedValue.getNative.returns(21);
-        this.valueFactory.coerce.returns(this.coercedValue);
+        this.valueFactory = new ValueFactory();
         this.valueGetter = sinon.stub();
         this.valueSetter = sinon.spy();
 
         this.reference = new AccessorReference(this.valueFactory, this.valueGetter, this.valueSetter);
     });
 
-    describe('getNative()', function () {
-        it('should coerce the result of the getter to a PHP value', function () {
+    describe('concatWith()', function () {
+        it('should append the given value to the result of the getter and pass it to the setter', function () {
+            this.valueGetter.returns('hello');
+
+            this.reference.concatWith(this.valueFactory.createString(' world'));
+
+            expect(this.valueSetter).to.have.been.calledOnce;
+            expect(this.valueSetter).to.have.been.calledWith('hello world');
+        });
+    });
+
+    describe('decrementBy()', function () {
+        it('should subtract the given value from the result of the getter and pass it to the setter', function () {
             this.valueGetter.returns(21);
 
-            this.reference.getNative();
+            this.reference.decrementBy(this.valueFactory.createInteger(10));
 
-            expect(this.valueFactory.coerce).to.have.been.calledOnce;
-            expect(this.valueFactory.coerce).to.have.been.calledWith(21);
+            expect(this.valueSetter).to.have.been.calledOnce;
+            expect(this.valueSetter).to.have.been.calledWith(11);
         });
+    });
 
-        it('should return the native coerced result', function () {
+    describe('getNative()', function () {
+        it('should return result of the getter coerced to a PHP value', function () {
+            this.valueGetter.returns(21);
+
             expect(this.reference.getNative()).to.equal(21);
         });
     });
 
     describe('getValue()', function () {
-        it('should coerce the result of the getter to a PHP value', function () {
+        it('should return the result of the getter coerced to a PHP value', function () {
+            var value;
+            this.valueGetter.returns(101);
+
+            value = this.reference.getValue();
+
+            expect(value.getType()).to.equal('integer');
+            expect(value.getNative()).to.equal(101);
+        });
+    });
+
+    describe('incrementBy()', function () {
+        it('should add the given value to the result of the getter and pass it to the setter', function () {
             this.valueGetter.returns(21);
 
-            this.reference.getValue();
+            this.reference.incrementBy(this.valueFactory.createInteger(6));
 
-            expect(this.valueFactory.coerce).to.have.been.calledOnce;
-            expect(this.valueFactory.coerce).to.have.been.calledWith(21);
-        });
-
-        it('should return the coerced result', function () {
-            expect(this.reference.getValue()).to.equal(this.coercedValue);
+            expect(this.valueSetter).to.have.been.calledOnce;
+            expect(this.valueSetter).to.have.been.calledWith(27);
         });
     });
 
     describe('setValue()', function () {
         it('should call the setter with the value unwrapped for native JS', function () {
-            var newValue = sinon.createStubInstance(Value);
-            newValue.getNative.returns(27);
+            var newValue = this.valueFactory.createInteger(27);
 
             this.reference.setValue(newValue);
 
@@ -69,7 +87,7 @@ describe('AccessorReference', function () {
         });
 
         it('should return the new value', function () {
-            var newValue = sinon.createStubInstance(Value);
+            var newValue = this.valueFactory.createString('my new value');
 
             expect(this.reference.setValue(newValue)).to.equal(newValue);
         });
