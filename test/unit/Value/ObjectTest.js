@@ -28,98 +28,13 @@ var _ = require('microdash'),
     PHPFatalError = phpCommon.PHPFatalError,
     PHPObject = require('../../../src/PHPObject').sync(),
     PropertyReference = require('../../../src/Reference/Property'),
-    StringValue = require('../../../src/Value/String').sync(),
     Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('Object', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
-        this.factory = sinon.createStubInstance(ValueFactory);
-        this.factory.coerce.restore();
-        sinon.stub(this.factory, 'coerce', function (nativeValue) {
-            var value;
-            if (nativeValue instanceof Value) {
-                return nativeValue;
-            }
-            value = sinon.createStubInstance(Value);
-            value.getNative.returns(nativeValue);
-            return value;
-        });
-        this.factory.createArray.restore();
-        sinon.stub(this.factory, 'createArray', function (nativeValue) {
-            var arrayValue = sinon.createStubInstance(ArrayValue);
-            arrayValue.getForAssignment.returns(arrayValue);
-            arrayValue.getLength.returns(nativeValue.length);
-            arrayValue.getNative.returns(nativeValue);
-            return arrayValue;
-        });
-        this.factory.createBoolean.restore();
-        sinon.stub(this.factory, 'createBoolean', function (nativeValue) {
-            var booleanValue = sinon.createStubInstance(BooleanValue);
-            booleanValue.getType.returns('boolean');
-            booleanValue.coerceToKey.returns(booleanValue);
-            booleanValue.coerceToNumber.restore();
-            sinon.stub(booleanValue, 'coerceToNumber', function () {
-                return this.factory.createInteger(nativeValue ? 1 : 0);
-            }.bind(this));
-            booleanValue.getForAssignment.returns(booleanValue);
-            booleanValue.getNative.returns(nativeValue);
-            return booleanValue;
-        }.bind(this));
-        this.factory.createFloat.restore();
-        sinon.stub(this.factory, 'createFloat', function (nativeValue) {
-            var floatValue = sinon.createStubInstance(FloatValue);
-            floatValue.getType.returns('float');
-            floatValue.coerceToKey.returns(floatValue);
-            floatValue.coerceToNumber.returns(floatValue);
-            floatValue.getForAssignment.returns(floatValue);
-            floatValue.getNative.returns(nativeValue);
-            return floatValue;
-        }.bind(this));
-        this.factory.createInteger.restore();
-        sinon.stub(this.factory, 'createInteger', function (nativeValue) {
-            var integerValue = sinon.createStubInstance(IntegerValue);
-            integerValue.getType.returns('integer');
-            integerValue.coerceToKey.returns(integerValue);
-            integerValue.coerceToNumber.returns(integerValue);
-            integerValue.getForAssignment.returns(integerValue);
-            integerValue.getNative.returns(nativeValue);
-            return integerValue;
-        }.bind(this));
-        this.factory.createNull.restore();
-        sinon.stub(this.factory, 'createNull', function (nativeValue) {
-            var nullValue = sinon.createStubInstance(NullValue);
-            nullValue.getType.returns('null');
-            nullValue.coerceToKey.returns(nullValue);
-            nullValue.getForAssignment.returns(nullValue);
-            nullValue.getNative.returns(nativeValue);
-            return nullValue;
-        }.bind(this));
-        this.factory.createObject.restore();
-        sinon.stub(this.factory, 'createObject', function (nativeValue, classObject) {
-            var objectValue = sinon.createStubInstance(IntegerValue);
-            objectValue.classObject = classObject;
-            objectValue.getType.returns('object');
-            objectValue.coerceToKey.returns(objectValue);
-            objectValue.getForAssignment.returns(objectValue);
-            objectValue.getNative.returns(nativeValue);
-            return objectValue;
-        }.bind(this));
-        this.factory.createString.restore();
-        sinon.stub(this.factory, 'createString', function (nativeValue) {
-            var stringValue = sinon.createStubInstance(StringValue);
-            stringValue.getType.returns('string');
-            stringValue.coerceToKey.returns(stringValue);
-            stringValue.getForAssignment.returns(stringValue);
-            stringValue.getNative.returns(nativeValue);
-            stringValue.isEqualTo.restore();
-            sinon.stub(stringValue, 'isEqualTo', function (otherValue) {
-                return this.factory.createBoolean(otherValue.getNative() === nativeValue);
-            }.bind(this));
-            return stringValue;
-        }.bind(this));
-
+        this.factory = new ValueFactory();
         this.classObject = sinon.createStubInstance(Class);
         this.classObject.getMethodSpec.returns(null);
         this.classObject.getName.returns('My\\Space\\AwesomeClass');
@@ -287,12 +202,12 @@ describe('Object', function () {
             arrayValue = this.value.coerceToArray();
 
             expect(arrayValue.getLength()).to.equal(3);
-            expect(arrayValue.getNative()[0].getKey().getNative()).to.equal('firstProp');
-            expect(arrayValue.getNative()[0].getValue().getNative()).to.equal('the value of firstProp');
-            expect(arrayValue.getNative()[1].getKey().getNative()).to.equal('secondProp');
-            expect(arrayValue.getNative()[1].getValue().getNative()).to.equal('the value of secondProp');
-            expect(arrayValue.getNative()[2].getKey().getNative()).to.equal('myNewProp');
-            expect(arrayValue.getNative()[2].getValue().getNative()).to.equal('the value of the new prop');
+            expect(arrayValue.getElementByIndex(0).getKey().getNative()).to.equal('firstProp');
+            expect(arrayValue.getElementByIndex(0).getValue().getNative()).to.equal('the value of firstProp');
+            expect(arrayValue.getElementByIndex(1).getKey().getNative()).to.equal('secondProp');
+            expect(arrayValue.getElementByIndex(1).getValue().getNative()).to.equal('the value of secondProp');
+            expect(arrayValue.getElementByIndex(2).getKey().getNative()).to.equal('myNewProp');
+            expect(arrayValue.getElementByIndex(2).getValue().getNative()).to.equal('the value of the new prop');
         });
 
         it('should handle an object with property named "length"', function () {
@@ -303,8 +218,8 @@ describe('Object', function () {
             arrayValue = this.value.coerceToArray();
 
             expect(arrayValue.getLength()).to.equal(3);
-            expect(arrayValue.getNative()[2].getKey().getNative()).to.equal('length');
-            expect(arrayValue.getNative()[2].getValue().getNative()).to.equal(321);
+            expect(arrayValue.getElementByIndex(2).getKey().getNative()).to.equal('length');
+            expect(arrayValue.getElementByIndex(2).getValue().getNative()).to.equal(321);
         });
     });
 
@@ -586,33 +501,21 @@ describe('Object', function () {
         _.each([
             {
                 left: 'my string',
-                coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
-                coercedLeft: 0,
                 expectedResultType: IntegerValue,
                 expectedResult: 0
             },
             {
                 left: '21', // Int string is coerced to int
-                coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
-                coercedLeft: 21,
                 expectedResultType: IntegerValue,
                 expectedResult: 21
             },
             {
                 left: '27.2', // Decimal string is coerced to float
-                coercedLeftClass: FloatValue,
-                coercedLeftType: 'float',
-                coercedLeft: 27.2,
                 expectedResultType: FloatValue,
                 expectedResult: 27.2
             },
             {
                 left: '25.4.7', // Decimal string prefix is coerced to float
-                coercedLeftClass: FloatValue,
-                coercedLeftType: 'float',
-                coercedLeft: 25.4,
                 expectedResultType: FloatValue,
                 expectedResult: 25.4
             }
@@ -620,11 +523,6 @@ describe('Object', function () {
             describe('for `' + scenario.left + ' / <object>`', function () {
                 beforeEach(function () {
                     this.leftValue = this.factory.createString(scenario.left);
-
-                    this.coercedLeftValue = sinon.createStubInstance(scenario.coercedLeftClass);
-                    this.coercedLeftValue.getType.returns(scenario.coercedLeftType);
-                    this.coercedLeftValue.getNative.returns(scenario.coercedLeft);
-                    this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
                 });
 
                 it('should return the correct value', function () {
@@ -834,8 +732,7 @@ describe('Object', function () {
                 this.JSClass = sinon.stub();
                 this.nativeObject = this.JSClass;
 
-                this.factory.coerceObject.restore();
-                sinon.stub(this.factory, 'coerceObject', function (nativeObject) {
+                sinon.stub(this.factory, 'coerceObject').callsFake(function (nativeObject) {
                     var newObjectValue = sinon.createStubInstance(ObjectValue);
                     newObjectValue.getClass.returns(this.classObject);
                     newObjectValue.getObject.returns(nativeObject);
@@ -863,11 +760,14 @@ describe('Object', function () {
 
             it('should call the native JS function/class/constructor on the new native JS object with unwrapped args', function () {
                 var resultObjectValue;
+                this.JSClass.callsFake(function () {
+                    this.myProp = 1009;
+                });
 
                 resultObjectValue = this.value.instantiate([this.arg1Value]);
 
                 expect(this.JSClass).to.have.been.calledOnce;
-                expect(this.JSClass).to.have.been.calledOn(sinon.match.same(resultObjectValue.getObject()));
+                expect(resultObjectValue.getObject().myProp).to.equal(1009);
                 expect(this.JSClass).to.have.been.calledWith(21);
             });
 
@@ -1277,33 +1177,21 @@ describe('Object', function () {
         _.each([
             {
                 left: 'my string',
-                coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
-                coercedLeft: 0,
                 expectedResultType: IntegerValue,
                 expectedResult: 0
             },
             {
                 left: '21', // Int string is coerced to int
-                coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
-                coercedLeft: 21,
                 expectedResultType: IntegerValue,
                 expectedResult: 21
             },
             {
                 left: '27.2', // Decimal string is coerced to float
-                coercedLeftClass: FloatValue,
-                coercedLeftType: 'float',
-                coercedLeft: 27.2,
                 expectedResultType: FloatValue,
                 expectedResult: 27.2
             },
             {
                 left: '25.4.7', // Decimal string prefix is coerced to float
-                coercedLeftClass: FloatValue,
-                coercedLeftType: 'float',
-                coercedLeft: 25.4,
                 expectedResultType: FloatValue,
                 expectedResult: 25.4
             }
@@ -1311,11 +1199,6 @@ describe('Object', function () {
             describe('for `' + scenario.left + ' * <object>`', function () {
                 beforeEach(function () {
                     this.leftValue = this.factory.createString(scenario.left);
-
-                    this.coercedLeftValue = sinon.createStubInstance(scenario.coercedLeftClass);
-                    this.coercedLeftValue.getType.returns(scenario.coercedLeftType);
-                    this.coercedLeftValue.getNative.returns(scenario.coercedLeft);
-                    this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
                 });
 
                 it('should return the correct value', function () {

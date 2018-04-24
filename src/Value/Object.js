@@ -490,10 +490,10 @@ module.exports = require('pauser')([
          * @returns {ObjectValue}
          */
         instantiate: function (args) {
-            var constructorReturnValue,
-                value = this,
+            var value = this,
                 nativeObject,
-                objectValue;
+                objectValue,
+                unwrappedArgs;
 
             if (value.getClassName() !== 'JSObject') {
                 // A normal PHP object is being instantiated as a class -
@@ -507,19 +507,19 @@ module.exports = require('pauser')([
                 throw new Error('Cannot create a new instance of a non-function JSObject');
             }
 
-            // Create an instance of the class, not calling constructor
-            nativeObject = Object.create(value.value.prototype);
-
-            // Call the constructor on the newly created instance, unwrapping arguments
-            constructorReturnValue = value.value.apply(nativeObject, _.map(args, function (argValue) {
+            // Unwrap the arguments to native values (as the constructor will be native JS)
+            unwrappedArgs = _.map(args, function (argValue) {
                 return argValue.getNative();
-            }));
+            });
 
-            if (constructorReturnValue) {
-                // JS constructor functions can override the normal constructor process
-                // and return a completely different object
-                nativeObject = constructorReturnValue;
-            }
+            /**
+             * Create a new instance of the native class, using bind.apply(...)
+             * to support passing varargs to the constructor (and ES6+ classes).
+             *
+             * JS constructor functions can override the normal constructor process
+             * and return a completely different object, which this will handle automatically too.
+             */
+            nativeObject = new (function () {}.bind.apply(value.value, [undefined].concat(unwrappedArgs)))();
 
             objectValue = value.factory.coerceObject(nativeObject);
 

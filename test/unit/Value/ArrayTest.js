@@ -13,16 +13,13 @@ var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     ArrayValue = require('../../../src/Value/Array').sync(),
-    BooleanValue = require('../../../src/Value/Boolean').sync(),
     CallStack = require('../../../src/CallStack'),
     ElementReference = require('../../../src/Reference/Element'),
-    FloatValue = require('../../../src/Value/Float').sync(),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyReferencePair = require('../../../src/KeyReferencePair'),
     KeyValuePair = require('../../../src/KeyValuePair'),
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
-    NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPFatalError = phpCommon.PHPFatalError,
     PropertyReference = require('../../../src/Reference/Property'),
@@ -34,80 +31,7 @@ var expect = require('chai').expect,
 describe('Array', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
-        this.factory = sinon.createStubInstance(ValueFactory);
-        this.factory.coerce.restore();
-        sinon.stub(this.factory, 'coerce', function (value) {
-            if (value instanceof Value) {
-                return value;
-            }
-
-            throw new Error('Unimplemented');
-        });
-        this.factory.createBoolean.restore();
-        sinon.stub(this.factory, 'createBoolean', function (nativeValue) {
-            var booleanValue = sinon.createStubInstance(BooleanValue);
-            booleanValue.coerceToKey.returns(booleanValue);
-            booleanValue.getForAssignment.returns(booleanValue);
-            booleanValue.getNative.returns(nativeValue);
-            booleanValue.getType.returns('boolean');
-            booleanValue.getValue.returns(booleanValue);
-            return booleanValue;
-        }.bind(this));
-        this.factory.createFloat.restore();
-        sinon.stub(this.factory, 'createFloat', function (nativeValue) {
-            var floatValue = sinon.createStubInstance(FloatValue);
-            floatValue.coerceToKey.returns(floatValue);
-            floatValue.getForAssignment.returns(floatValue);
-            floatValue.getNative.returns(nativeValue);
-            floatValue.getType.returns('float');
-            floatValue.getValue.returns(floatValue);
-            return floatValue;
-        }.bind(this));
-        this.factory.createInteger.restore();
-        sinon.stub(this.factory, 'createInteger', function (nativeValue) {
-            var integerValue = sinon.createStubInstance(IntegerValue);
-            integerValue.coerceToInteger.returns(integerValue);
-            integerValue.coerceToKey.returns(integerValue);
-            integerValue.getForAssignment.returns(integerValue);
-            integerValue.getNative.returns(nativeValue);
-            integerValue.getType.returns('integer');
-            integerValue.getValue.returns(integerValue);
-            return integerValue;
-        }.bind(this));
-        this.factory.createNull.restore();
-        sinon.stub(this.factory, 'createNull', function () {
-            var nullValue = sinon.createStubInstance(NullValue);
-            nullValue.coerceToKey.returns(nullValue);
-            nullValue.getForAssignment.returns(nullValue);
-            nullValue.getNative.returns(null);
-            nullValue.getType.returns('null');
-            nullValue.getValue.returns(nullValue);
-            return nullValue;
-        }.bind(this));
-        this.factory.createObject.restore();
-        sinon.stub(this.factory, 'createObject', function (nativeValue) {
-            var objectValue = sinon.createStubInstance(ObjectValue);
-            objectValue.coerceToKey.returns(objectValue);
-            objectValue.getForAssignment.returns(objectValue);
-            objectValue.getNative.returns(nativeValue);
-            objectValue.getType.returns('object');
-            objectValue.getValue.returns(objectValue);
-            return objectValue;
-        }.bind(this));
-        this.factory.createString.restore();
-        sinon.stub(this.factory, 'createString', function (nativeValue) {
-            var stringValue = sinon.createStubInstance(StringValue);
-            stringValue.coerceToKey.returns(stringValue);
-            stringValue.getForAssignment.returns(stringValue);
-            stringValue.getNative.returns(nativeValue);
-            stringValue.getType.returns('string');
-            stringValue.getValue.returns(stringValue);
-            stringValue.isEqualTo.restore();
-            sinon.stub(stringValue, 'isEqualTo', function (otherValue) {
-                return this.factory.createBoolean(otherValue.getNative() === nativeValue);
-            }.bind(this));
-            return stringValue;
-        }.bind(this));
+        this.factory = new ValueFactory();
         this.namespaceScope = sinon.createStubInstance(NamespaceScope);
         this.globalNamespace = sinon.createStubInstance(Namespace);
         this.namespaceScope.getGlobalNamespace.returns(this.globalNamespace);
@@ -142,8 +66,8 @@ describe('Array', function () {
             this.element2
         ];
 
-        this.createValue = function () {
-            this.value = new ArrayValue(this.factory, this.callStack, this.elements);
+        this.createValue = function (valueFactory) {
+            this.value = new ArrayValue(valueFactory || this.factory, this.callStack, this.elements);
         }.bind(this);
         this.createValue();
     });
@@ -224,7 +148,7 @@ describe('Array', function () {
 
     describe('addToObject() - adding an array to an object', function () {
         it('should hand off to ObjectValue.addToArray(...)', function () {
-            var objectValue = this.factory.createObject(),
+            var objectValue = sinon.createStubInstance(ObjectValue),
                 result = {};
             objectValue.addToArray.withArgs(this.value).returns(result);
 
@@ -264,7 +188,9 @@ describe('Array', function () {
 
         describe('for a static method call', function () {
             beforeEach(function () {
-                this.classNameValue = this.factory.createString('My\\Space\\MyClass');
+                this.classNameValue = sinon.createStubInstance(StringValue);
+                this.classNameValue.getNative.returns('My\\Space\\MyClass');
+                this.classNameValue.getType.returns('string');
                 this.elements.length = 0;
                 this.elements.push(this.classNameValue);
                 this.elements.push(this.factory.createString('myStaticMethod'));
@@ -316,7 +242,7 @@ describe('Array', function () {
 
         describe('for an instance method call', function () {
             beforeEach(function () {
-                this.objectValue = this.factory.createObject({});
+                this.objectValue = sinon.createStubInstance(ObjectValue);
                 this.elements.length = 0;
                 this.elements.push(this.objectValue);
                 this.elements.push(this.factory.createString('myInstanceMethod'));
@@ -370,14 +296,12 @@ describe('Array', function () {
         beforeEach(function () {
             this.nativeStdClassObject = {};
             this.stdClassObject = sinon.createStubInstance(ObjectValue);
-            this.factory.createStdClassObject.returns(this.stdClassObject);
+            sinon.stub(this.factory, 'createStdClassObject').returns(this.stdClassObject);
 
-            this.stdClassObject.getInstancePropertyByName.restore();
-            sinon.stub(this.stdClassObject, 'getInstancePropertyByName', function (nameValue) {
+            this.stdClassObject.getInstancePropertyByName.callsFake(function (nameValue) {
                 var propertyRef = sinon.createStubInstance(PropertyReference);
 
-                propertyRef.setValue.restore();
-                sinon.stub(propertyRef, 'setValue', function (value) {
+                propertyRef.setValue.callsFake(function (value) {
                     this.nativeStdClassObject[nameValue.getNative()] = value.getNative();
                 }.bind(this));
 
@@ -487,8 +411,23 @@ describe('Array', function () {
 
     describe('getElementByKey()', function () {
         beforeEach(function () {
-            this.elementKey1.getNative.returns('length');
-            this.elementKey2.getNative.returns('_length');
+            this.elements.length = 0;
+            this.elementKey1 = this.factory.createString('length');
+            this.elementValue1 = this.factory.createString('value of first el');
+            this.element1 = this.createKeyValuePair(
+                this.elementKey1,
+                this.elementValue1
+            );
+            this.elements.push(this.element1);
+
+            this.elementKey2 = this.factory.createString('_length');
+            this.elementValue2 = this.factory.createString('value of second el');
+            this.element2 = this.createKeyValuePair(
+                this.elementKey2,
+                this.elementValue2
+            );
+            this.elements.push(this.element2);
+
             this.elementKey3 = this.factory.createString('__length');
             this.elementValue3 = this.factory.createString('value of third el');
             this.element3 = this.createKeyValuePair(

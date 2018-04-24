@@ -27,8 +27,7 @@ describe('Namespace', function () {
         this.parentNamespace = sinon.createStubInstance(Namespace);
         this.valueFactory = sinon.createStubInstance(ValueFactory);
 
-        this.functionFactory.create.restore();
-        sinon.stub(this.functionFactory, 'create', function (namespace, currentClass, func, name, currentObject) {
+        this.functionFactory.create.callsFake(function (namespace, currentClass, func, name, currentObject) {
             var wrapperFunc = sinon.stub();
             wrapperFunc.testArgs = {
                 namespace: namespace,
@@ -40,8 +39,7 @@ describe('Namespace', function () {
             return wrapperFunc;
         });
 
-        this.namespaceFactory.create.restore();
-        sinon.stub(this.namespaceFactory, 'create', function (parentNamespace, name) {
+        this.namespaceFactory.create.callsFake(function (parentNamespace, name) {
             var subNamespace = sinon.createStubInstance(Namespace);
             subNamespace.children = {};
             subNamespace.testArgs = {

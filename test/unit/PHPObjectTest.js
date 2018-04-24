@@ -29,8 +29,7 @@ describe('PHPObject', function () {
         };
         this.valueFactory = sinon.createStubInstance(ValueFactory);
 
-        this.valueFactory.createString.restore();
-        sinon.stub(this.valueFactory, 'createString', function (nativeValue) {
+        this.valueFactory.createString.callsFake(function (nativeValue) {
             var stringValue = sinon.createStubInstance(StringValue);
             stringValue.getNative.returns(nativeValue);
             return stringValue;

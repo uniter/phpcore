@@ -17,38 +17,18 @@ var expect = require('chai').expect,
     NullReference = require('../../src/Reference/Null'),
     ObjectValue = require('../../src/Value/Object').sync(),
     PropertyReference = require('../../src/Reference/Property'),
-    StringValue = require('../../src/Value/String').sync(),
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('Value', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
-        this.factory = sinon.createStubInstance(ValueFactory);
-        this.factory.createFloat.restore();
-        sinon.stub(this.factory, 'createFloat', function (nativeValue) {
-            var floatValue = sinon.createStubInstance(FloatValue);
-            floatValue.coerceToKey.returns(floatValue);
-            floatValue.getForAssignment.returns(floatValue);
-            floatValue.getNative.returns(nativeValue);
-            return floatValue;
-        });
-        this.factory.createInteger.restore();
-        sinon.stub(this.factory, 'createInteger', function (nativeValue) {
-            var integerValue = sinon.createStubInstance(IntegerValue);
-            integerValue.coerceToKey.returns(integerValue);
-            integerValue.getForAssignment.returns(integerValue);
-            integerValue.getNative.returns(nativeValue);
-            return integerValue;
-        });
-        this.factory.createString.restore();
-        sinon.stub(this.factory, 'createString', function (nativeValue) {
-            var stringValue = sinon.createStubInstance(StringValue);
-            stringValue.getNative.returns(nativeValue);
-            return stringValue;
-        });
+        this.factory = new ValueFactory();
 
-        this.value = new Value(this.factory, this.callStack, 'my-type', 'my value');
+        this.createValue = function (factory) {
+            this.value = new Value(factory || this.factory, this.callStack, 'my-type', 'my value');
+        }.bind(this);
+        this.createValue();
     });
 
     describe('bitwiseAnd()', function () {
@@ -103,14 +83,12 @@ describe('Value', function () {
         beforeEach(function () {
             this.nativeStdClassObject = {};
             this.stdClassObject = sinon.createStubInstance(ObjectValue);
-            this.factory.createStdClassObject.returns(this.stdClassObject);
+            sinon.stub(this.factory, 'createStdClassObject').returns(this.stdClassObject);
 
-            this.stdClassObject.getInstancePropertyByName.restore();
-            sinon.stub(this.stdClassObject, 'getInstancePropertyByName', function (nameValue) {
+            this.stdClassObject.getInstancePropertyByName.callsFake(function (nameValue) {
                 var propertyRef = sinon.createStubInstance(PropertyReference);
 
-                propertyRef.setValue.restore();
-                sinon.stub(propertyRef, 'setValue', function (value) {
+                propertyRef.setValue.callsFake(function (value) {
                     this.nativeStdClassObject[nameValue.getNative()] = value.getNative();
                 }.bind(this));
 

@@ -34,15 +34,10 @@ describe('FunctionFactory', function () {
         this.namespaceScope = sinon.createStubInstance(NamespaceScope);
         this.scope = sinon.createStubInstance(Scope);
         this.scopeFactory = sinon.createStubInstance(ScopeFactory);
-        this.valueFactory = sinon.createStubInstance(ValueFactory);
+        this.valueFactory = new ValueFactory();
 
         this.callFactory.create.returns(this.call);
         this.scopeFactory.create.returns(this.scope);
-
-        this.valueFactory.isValue.restore();
-        sinon.stub(this.valueFactory, 'isValue', function (value) {
-            return value instanceof Value;
-        });
 
         this.factory = new FunctionFactory(
             this.MethodSpec,

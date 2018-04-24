@@ -17,7 +17,6 @@ var expect = require('chai').expect,
     ClosureFactory = require('../../src/ClosureFactory').sync(),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
-    NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     Scope = require('../../src/Scope').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
@@ -27,14 +26,7 @@ describe('ClosureFactory', function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.Closure = sinon.stub();
         this.functionFactory = sinon.createStubInstance(FunctionFactory);
-        this.valueFactory = sinon.createStubInstance(ValueFactory);
-
-        this.valueFactory.createNull.restore();
-        sinon.stub(this.valueFactory, 'createNull', function () {
-            var nullValue = sinon.createStubInstance(NullValue);
-            nullValue.getType.returns('null');
-            return nullValue;
-        });
+        this.valueFactory = new ValueFactory();
 
         this.factory = new ClosureFactory(this.functionFactory, this.valueFactory, this.callStack, this.Closure);
     });

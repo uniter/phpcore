@@ -12,7 +12,6 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
-    NullValue = require('../../src/Value/Null').sync(),
     StringValue = require('../../src/Value/String').sync(),
     ValueFactory = require('../../src/ValueFactory').sync(),
     Variable = require('../../src/Variable').sync(),
@@ -21,24 +20,7 @@ var expect = require('chai').expect,
 describe('Variable', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
-        this.valueFactory = sinon.createStubInstance(ValueFactory);
-        this.valueFactory.createNull.restore();
-        sinon.stub(this.valueFactory, 'createNull', function () {
-            var nullValue = sinon.createStubInstance(NullValue);
-            nullValue.getNative.returns(null);
-            return nullValue;
-        });
-        this.valueFactory.createString.restore();
-        sinon.stub(this.valueFactory, 'createString', function (nativeValue) {
-            var stringValue = sinon.createStubInstance(StringValue);
-            stringValue.concat.restore();
-            sinon.stub(stringValue, 'concat', function (rightValue) {
-                return this.valueFactory.createString(nativeValue + rightValue.getNative());
-            }.bind(this));
-            stringValue.getForAssignment.returns(stringValue);
-            stringValue.getNative.returns(nativeValue);
-            return stringValue;
-        }.bind(this));
+        this.valueFactory = new ValueFactory();
 
         this.variable = new Variable(this.callStack, this.valueFactory, 'myVar');
     });
@@ -68,7 +50,8 @@ describe('Variable', function () {
         });
 
         it('should return true when the variable is set to an empty value', function () {
-            var value = this.valueFactory.createString('');
+            var value = sinon.createStubInstance(StringValue);
+            value.getForAssignment.returns(value);
             value.isEmpty.returns(true);
             this.variable.setValue(value);
 
@@ -76,7 +59,8 @@ describe('Variable', function () {
         });
 
         it('should return false when the variable is set to a non-empty value', function () {
-            var value = this.valueFactory.createString('hello');
+            var value = sinon.createStubInstance(StringValue);
+            value.getForAssignment.returns(value);
             value.isEmpty.returns(false);
             this.variable.setValue(value);
 

@@ -7,14 +7,11 @@ var closureClassFactory = require('../../../../src/builtin/classes/Closure'),
     CallStack = require('../../../../src/CallStack'),
     Class = require('../../../../src/Class').sync(),
     Closure = require('../../../../src/Closure').sync(),
-    IntegerValue = require('../../../../src/Value/Integer').sync(),
     Namespace = require('../../../../src/Namespace').sync(),
     NullValue = require('../../../../src/Value/Null').sync(),
     ObjectValue = require('../../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
     Promise = require('lie'),
-    StringValue = require('../../../../src/Value/String').sync(),
-    Value = require('../../../../src/Value').sync(),
     ValueFactory = require('../../../../src/ValueFactory').sync(),
     Variable = require('../../../../src/Variable').sync();
 
@@ -22,7 +19,7 @@ describe('PHP builtin Closure class', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.globalNamespace = sinon.createStubInstance(Namespace);
-        this.valueFactory = sinon.createStubInstance(ValueFactory);
+        this.valueFactory = new ValueFactory();
         this.disableAutoCoercion = sinon.stub();
         this.internals = {
             callStack: this.callStack,
@@ -38,54 +35,7 @@ describe('PHP builtin Closure class', function () {
         this.stdClassClass = sinon.createStubInstance(Class);
         this.stdClassClass.getName.returns('stdClass');
         this.globalNamespace.getClass.withArgs('Closure').returns(this.closureClass);
-
-        this.valueFactory.coerce.restore();
-        sinon.stub(this.valueFactory, 'coerce', function (nativeValue) {
-            if (nativeValue instanceof Value) {
-                return nativeValue;
-            }
-
-            if (typeof nativeValue === 'number') {
-                return this.valueFactory.createInteger(nativeValue);
-            }
-
-            throw new Error('Unsupported value: ' + nativeValue);
-        }.bind(this));
-        this.valueFactory.createInteger.restore();
-        sinon.stub(this.valueFactory, 'createInteger', function (nativeValue) {
-            var integerValue = sinon.createStubInstance(IntegerValue);
-            integerValue.getNative.returns(nativeValue);
-            integerValue.getType.returns('integer');
-            return integerValue;
-        });
-        this.valueFactory.createNull.restore();
-        sinon.stub(this.valueFactory, 'createNull', function () {
-            var nullValue = sinon.createStubInstance(NullValue);
-            nullValue.getType.returns('null');
-            return nullValue;
-        });
-        this.valueFactory.createObject.restore();
-        sinon.stub(this.valueFactory, 'createObject', function (object, classObject) {
-            var objectValue = sinon.createStubInstance(ObjectValue);
-            objectValue.classIs.withArgs(classObject.getName()).returns(true);
-            objectValue.classIs.returns(false);
-            objectValue.getClass.returns(classObject);
-            objectValue.getObject.returns(object);
-            objectValue.getType.returns('object');
-            return objectValue;
-        });
-        this.valueFactory.createString.restore();
-        sinon.stub(this.valueFactory, 'createString', function (nativeValue) {
-            var stringValue = sinon.createStubInstance(StringValue);
-            stringValue.coerceToString.returns(stringValue);
-            stringValue.getNative.returns(nativeValue);
-            stringValue.getType.returns('string');
-            return stringValue;
-        });
-        this.valueFactory.isValue.restore();
-        sinon.stub(this.valueFactory, 'isValue', function (value) {
-            return value instanceof Value;
-        });
+        this.globalNamespace.getClass.withArgs('stdClass').returns(this.stdClassClass);
     });
 
     describe('static ::bind()', function () {
@@ -93,8 +43,11 @@ describe('PHP builtin Closure class', function () {
             this.closure = sinon.createStubInstance(Closure);
             this.boundClosure = sinon.createStubInstance(Closure);
             this.closureReference = sinon.createStubInstance(Variable);
-            this.closureValue = this.valueFactory.createObject(this.closure, this.closureClass);
+            this.closureValue = sinon.createStubInstance(ObjectValue);
             this.closureValue.bindClosure.returns(this.boundClosure);
+            this.closureValue.classIs.withArgs('Closure').returns(true);
+            this.closureValue.getClassName.returns('Closure');
+            this.closureValue.getType.returns('object');
             this.closureReference.getValue.returns(this.closureValue);
             this.newThisReference = sinon.createStubInstance(Variable);
             this.newThisValue = this.valueFactory.createObject({}, this.stdClassClass);
@@ -223,8 +176,11 @@ describe('PHP builtin Closure class', function () {
         beforeEach(function () {
             this.closure = sinon.createStubInstance(Closure);
             this.boundClosure = sinon.createStubInstance(Closure);
-            this.closureValue = this.valueFactory.createObject(this.closure, this.closureClass);
+            this.closureValue = sinon.createStubInstance(ObjectValue);
             this.closureValue.bindClosure.returns(this.boundClosure);
+            this.closureValue.classIs.withArgs('Closure').returns(true);
+            this.closureValue.getClassName.returns('Closure');
+            this.closureValue.getType.returns('object');
             this.newThisReference = sinon.createStubInstance(Variable);
             this.newThisValue = this.valueFactory.createObject({}, this.stdClassClass);
             this.newThisReference.getValue.returns(this.newThisValue);
@@ -322,10 +278,14 @@ describe('PHP builtin Closure class', function () {
             this.closureReturnValue = this.valueFactory.createString('my result native');
             this.closure.invoke.returns(this.closureReturnValue);
             this.nativeThisObject = {};
-            this.valueFactory.coerceObject
+            sinon.stub(this.valueFactory, 'coerceObject')
                 .withArgs(sinon.match.same(this.nativeThisObject))
                 .returns(this.coercedThisObject);
-            this.closureValue = this.valueFactory.createObject(this.closure, this.closureClass);
+            this.closureValue = sinon.createStubInstance(ObjectValue);
+            this.closureValue.classIs.withArgs('Closure').returns(true);
+            this.closureValue.getClassName.returns('Closure');
+            this.closureValue.getObject.returns(this.closure);
+            this.closureValue.getType.returns('object');
 
             this.callUnwrapper = function () {
                 this.unwrappedClosure = this.internals.defineUnwrapper.args[0][0].call(this.closureValue);

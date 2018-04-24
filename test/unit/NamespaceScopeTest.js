@@ -15,7 +15,6 @@ var expect = require('chai').expect,
     Module = require('../../src/Module'),
     Namespace = require('../../src/Namespace').sync(),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
-    StringValue = require('../../src/Value/String').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('NamespaceScope', function () {
@@ -23,14 +22,7 @@ describe('NamespaceScope', function () {
         this.globalNamespace = sinon.createStubInstance(Namespace);
         this.module = sinon.createStubInstance(Module);
         this.namespace = sinon.createStubInstance(Namespace);
-        this.valueFactory = sinon.createStubInstance(ValueFactory);
-
-        this.valueFactory.createString.restore();
-        sinon.stub(this.valueFactory, 'createString', function (string) {
-            var stringValue = sinon.createStubInstance(StringValue);
-            stringValue.getNative.returns(string);
-            return stringValue;
-        });
+        this.valueFactory = new ValueFactory();
 
         this.scope = new NamespaceScope(this.globalNamespace, this.valueFactory, this.module, this.namespace);
     });

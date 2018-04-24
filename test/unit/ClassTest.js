@@ -9,22 +9,17 @@
 
 'use strict';
 
-var _ = require('microdash'),
-    expect = require('chai').expect,
+var expect = require('chai').expect,
     sinon = require('sinon'),
-    ArrayValue = require('../../src/Value/Array').sync(),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
-    IntegerValue = require('../../src/Value/Integer').sync(),
     PHPFatalError = require('phpcommon').PHPFatalError,
     PHPObject = require('../../src/PHPObject').sync(),
     MethodSpec = require('../../src/MethodSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
-    NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     StaticPropertyReference = require('../../src/Reference/StaticProperty'),
-    StringValue = require('../../src/Value/String').sync(),
     UndeclaredStaticPropertyReference = require('../../src/Reference/UndeclaredStaticProperty'),
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
@@ -35,60 +30,15 @@ describe('Class', function () {
         this.functionFactory = sinon.createStubInstance(FunctionFactory);
         this.namespaceScope = sinon.createStubInstance(NamespaceScope);
         this.superClass = sinon.createStubInstance(Class);
-        this.valueFactory = sinon.createStubInstance(ValueFactory);
+        this.valueFactory = new ValueFactory(null, this.callStack);
         this.InternalClass = sinon.stub();
         this.interfaceObject = sinon.createStubInstance(Class);
         this.interfaceObject.is.withArgs('My\\Interface').returns(true);
         this.namespaceScope.getClass.withArgs('My\\Interface').returns(this.interfaceObject);
 
-        this.valueFactory.coerce.restore();
-        sinon.stub(this.valueFactory, 'coerce', function (nativeValue) {
-            if (nativeValue instanceof Value) {
-                return nativeValue;
-            }
-
-            if (_.isString(nativeValue)) {
-                return this.valueFactory.createString(nativeValue);
-            }
-
-            if (nativeValue === null || nativeValue === undefined) {
-                return this.valueFactory.createNull();
-            }
-
-            throw new Error('Unsupported value: ' + nativeValue);
-        }.bind(this));
-
-        this.valueFactory.createInteger.restore();
-        sinon.stub(this.valueFactory, 'createInteger', function (nativeValue) {
-            var integerValue = sinon.createStubInstance(IntegerValue);
-            integerValue.getNative.returns(nativeValue);
-            return integerValue;
-        }.bind(this));
-
-        this.valueFactory.createNull.restore();
-        sinon.stub(this.valueFactory, 'createNull', function () {
-            var nullValue = sinon.createStubInstance(NullValue);
-            nullValue.getNative.returns(null);
-            return nullValue;
-        }.bind(this));
-
-        this.valueFactory.createString.restore();
-        sinon.stub(this.valueFactory, 'createString', function (nativeValue) {
-            var stringValue = sinon.createStubInstance(StringValue);
-            stringValue.getNative.returns(nativeValue);
-            return stringValue;
-        }.bind(this));
-
-        this.valueFactory.createArray.restore();
-        sinon.stub(this.valueFactory, 'createArray', function (elements) {
-            var arrayValue = sinon.createStubInstance(ArrayValue);
-            arrayValue.getNative.returns(elements);
-            return arrayValue;
-        }.bind(this));
-
-        this.createClass = function (constructorName, superClass) {
+        this.createClass = function (constructorName, superClass, valueFactory) {
             this.classObject = new Class(
-                this.valueFactory,
+                valueFactory || this.valueFactory,
                 this.functionFactory,
                 this.callStack,
                 'My\\Class\\Path\\Here',
@@ -679,7 +629,7 @@ describe('Class', function () {
         it('should call the internal constructor with arguments wrapped by default', function () {
             var arg1 = sinon.createStubInstance(Value),
                 arg2 = sinon.createStubInstance(Value);
-            this.valueFactory.createObject.returns(this.objectValue);
+            sinon.stub(this.valueFactory, 'createObject').returns(this.objectValue);
 
             this.classObject.instantiate([arg1, arg2]);
 
@@ -694,7 +644,7 @@ describe('Class', function () {
         it('should call the internal constructor with arguments unwrapped with auto-coercion enabled', function () {
             var arg1 = sinon.createStubInstance(Value),
                 arg2 = sinon.createStubInstance(Value);
-            this.valueFactory.createObject.returns(this.objectValue);
+            sinon.stub(this.valueFactory, 'createObject').returns(this.objectValue);
             arg1.getNative.returns(21);
             arg2.getNative.returns('second');
             this.classObject.enableAutoCoercion();
@@ -707,7 +657,7 @@ describe('Class', function () {
         });
 
         it('should wrap an instance of the InternalClass in an ObjectValue', function () {
-            this.valueFactory.createObject.returns(this.objectValue);
+            sinon.stub(this.valueFactory, 'createObject').returns(this.objectValue);
 
             this.classObject.instantiate([]);
 
@@ -718,7 +668,7 @@ describe('Class', function () {
         });
 
         it('should return the created object', function () {
-            this.valueFactory.createObject.returns(this.objectValue);
+            sinon.stub(this.valueFactory, 'createObject').returns(this.objectValue);
 
             expect(this.classObject.instantiate([])).to.equal(this.objectValue);
         });
@@ -781,7 +731,7 @@ describe('Class', function () {
         it('should return a PHPObject that wraps the provided instance of this class', function () {
             var instance = sinon.createStubInstance(ObjectValue),
                 phpObject = sinon.createStubInstance(PHPObject);
-            this.valueFactory.createPHPObject.withArgs(sinon.match.same(instance)).returns(phpObject);
+            sinon.stub(this.valueFactory, 'createPHPObject').withArgs(sinon.match.same(instance)).returns(phpObject);
 
             expect(this.classObject.proxyInstanceForJS(instance)).to.equal(phpObject);
         });
@@ -822,11 +772,9 @@ describe('Class', function () {
                     nativeObject = {myProp: 4},
                     unwrapped;
                 instance.callMethod.withArgs('doubleMyPropAndAdd', 21).returns(this.valueFactory.createInteger(29));
-                this.valueFactory.createPHPObject.restore();
-                sinon.stub(this.valueFactory, 'createPHPObject', function (objectValue) {
+                sinon.stub(this.valueFactory, 'createPHPObject').callsFake(function (objectValue) {
                     var phpObject = sinon.createStubInstance(PHPObject);
-                    phpObject.callMethod.restore();
-                    sinon.stub(phpObject, 'callMethod', function (name, args) {
+                    phpObject.callMethod.callsFake(function (name, args) {
                         return objectValue.callMethod(name, args).getNative();
                     });
                     return phpObject;
@@ -841,6 +789,7 @@ describe('Class', function () {
             it('should map the unwrapped object back to the original ObjectValue', function () {
                 var instance = sinon.createStubInstance(ObjectValue),
                     nativeObject = {myProp: 'my second result'};
+                sinon.stub(this.valueFactory, 'mapUnwrappedObjectToValue');
 
                 this.classObject.unwrapInstanceForJS(instance, nativeObject);
 

@@ -23,79 +23,13 @@ var _ = require('microdash'),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
     PHPFatalError = phpCommon.PHPFatalError,
-    StringValue = require('../../../src/Value/String').sync(),
     Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('Integer', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
-        this.factory = sinon.createStubInstance(ValueFactory);
-        this.factory.createBoolean.restore();
-        sinon.stub(this.factory, 'createBoolean', function (nativeValue) {
-            var booleanValue = sinon.createStubInstance(BooleanValue);
-            booleanValue.getType.returns('boolean');
-            booleanValue.coerceToKey.returns(booleanValue);
-            booleanValue.coerceToNumber.restore();
-            sinon.stub(booleanValue, 'coerceToNumber', function () {
-                return this.factory.createInteger(nativeValue ? 1 : 0);
-            }.bind(this));
-            booleanValue.getForAssignment.returns(booleanValue);
-            booleanValue.getNative.returns(nativeValue);
-            return booleanValue;
-        }.bind(this));
-        this.factory.createFloat.restore();
-        sinon.stub(this.factory, 'createFloat', function (nativeValue) {
-            var floatValue = sinon.createStubInstance(FloatValue);
-            floatValue.getType.returns('float');
-            floatValue.coerceToKey.returns(floatValue);
-            floatValue.coerceToNumber.returns(floatValue);
-            floatValue.getForAssignment.returns(floatValue);
-            floatValue.getNative.returns(nativeValue);
-            return floatValue;
-        }.bind(this));
-        this.factory.createInteger.restore();
-        sinon.stub(this.factory, 'createInteger', function (nativeValue) {
-            var integerValue = sinon.createStubInstance(IntegerValue);
-            integerValue.getType.returns('integer');
-            integerValue.coerceToInteger.returns(integerValue);
-            integerValue.coerceToKey.returns(integerValue);
-            integerValue.coerceToNumber.returns(integerValue);
-            integerValue.getForAssignment.returns(integerValue);
-            integerValue.getNative.returns(nativeValue);
-            return integerValue;
-        }.bind(this));
-        this.factory.createNull.restore();
-        sinon.stub(this.factory, 'createNull', function (nativeValue) {
-            var nullValue = sinon.createStubInstance(NullValue);
-            nullValue.getType.returns('null');
-            nullValue.coerceToKey.returns(nullValue);
-            nullValue.getForAssignment.returns(nullValue);
-            nullValue.getNative.returns(nativeValue);
-            return nullValue;
-        }.bind(this));
-        this.factory.createObject.restore();
-        sinon.stub(this.factory, 'createObject', function (nativeValue) {
-            var objectValue = sinon.createStubInstance(ObjectValue);
-            objectValue.getType.returns('object');
-            objectValue.coerceToKey.returns(objectValue);
-            objectValue.getForAssignment.returns(objectValue);
-            objectValue.getNative.returns(nativeValue);
-            return objectValue;
-        }.bind(this));
-        this.factory.createString.restore();
-        sinon.stub(this.factory, 'createString', function (nativeValue) {
-            var stringValue = sinon.createStubInstance(StringValue);
-            stringValue.getType.returns('string');
-            stringValue.coerceToKey.returns(stringValue);
-            stringValue.getForAssignment.returns(stringValue);
-            stringValue.getNative.returns(nativeValue);
-            stringValue.isEqualTo.restore();
-            sinon.stub(stringValue, 'isEqualTo', function (otherValue) {
-                return this.factory.createBoolean(otherValue.getNative() === nativeValue);
-            }.bind(this));
-            return stringValue;
-        }.bind(this));
+        this.factory = new ValueFactory();
 
         this.createKeyValuePair = function (key, value) {
             var keyValuePair = sinon.createStubInstance(KeyValuePair);
@@ -448,9 +382,6 @@ describe('Integer', function () {
         _.each([
             {
                 left: 'my string',
-                coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
-                coercedLeft: 0,
                 right: 1,
                 expectedResultType: IntegerValue,
                 expectedResult: 0,
@@ -458,9 +389,6 @@ describe('Integer', function () {
             },
             {
                 left: '21', // Int string is coerced to int
-                coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
-                coercedLeft: 21,
                 right: 1,
                 expectedResultType: IntegerValue,
                 expectedResult: 21,
@@ -468,9 +396,6 @@ describe('Integer', function () {
             },
             {
                 left: '27.2', // Decimal string is coerced to float
-                coercedLeftClass: FloatValue,
-                coercedLeftType: 'float',
-                coercedLeft: 27.2,
                 right: 4,
                 expectedResultType: FloatValue,
                 expectedResult: 6.8,
@@ -478,9 +403,6 @@ describe('Integer', function () {
             },
             {
                 left: '25.4.7', // Decimal string prefix is coerced to float
-                coercedLeftClass: FloatValue,
-                coercedLeftType: 'float',
-                coercedLeft: 25.4,
                 right: 2,
                 expectedResultType: FloatValue,
                 expectedResult: 12.7,
@@ -488,9 +410,6 @@ describe('Integer', function () {
             },
             {
                 left: '23',
-                coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
-                coercedLeft: 23,
                 right: 0,
                 expectedResultType: BooleanValue,
                 expectedResult: false,
@@ -501,11 +420,6 @@ describe('Integer', function () {
                 beforeEach(function () {
                     this.leftValue = this.factory.createString(scenario.left);
                     this.createValue(scenario.right);
-
-                    this.coercedLeftValue = sinon.createStubInstance(scenario.coercedLeftClass);
-                    this.coercedLeftValue.getType.returns(scenario.coercedLeftType);
-                    this.coercedLeftValue.getNative.returns(scenario.coercedLeft);
-                    this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
                 });
 
                 it('should return the correct value', function () {
@@ -1140,45 +1054,30 @@ describe('Integer', function () {
         _.each([
             {
                 left: 'my string',
-                coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
-                coercedLeft: 0,
                 right: 1,
                 expectedResultType: IntegerValue,
                 expectedResult: 0
             },
             {
                 left: '21', // Int string is coerced to int
-                coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
-                coercedLeft: 21,
                 right: 1,
                 expectedResultType: IntegerValue,
                 expectedResult: 21
             },
             {
                 left: '21.2', // Decimal string is coerced to float
-                coercedLeftClass: FloatValue,
-                coercedLeftType: 'float',
-                coercedLeft: 21.2,
                 right: 4,
                 expectedResultType: FloatValue,
                 expectedResult: 84.8
             },
             {
                 left: '25.4.7', // Decimal string prefix is coerced to float
-                coercedLeftClass: FloatValue,
-                coercedLeftType: 'float',
-                coercedLeft: 25.4,
                 right: 2,
                 expectedResultType: FloatValue,
                 expectedResult: 50.8
             },
             {
                 left: '23',
-                coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
-                coercedLeft: 23,
                 right: 0,
                 expectedResultType: IntegerValue,
                 expectedResult: 0
@@ -1188,11 +1087,6 @@ describe('Integer', function () {
                 beforeEach(function () {
                     this.leftValue = this.factory.createString(scenario.left);
                     this.createValue(scenario.right);
-
-                    this.coercedLeftValue = sinon.createStubInstance(scenario.coercedLeftClass);
-                    this.coercedLeftValue.getType.returns(scenario.coercedLeftType);
-                    this.coercedLeftValue.getNative.returns(scenario.coercedLeft);
-                    this.leftValue.coerceToNumber.returns(this.coercedLeftValue);
                 });
 
                 it('should return the correct value', function () {

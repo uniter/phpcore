@@ -16,7 +16,6 @@ var expect = require('chai').expect,
     Closure = require('../../src/Closure').sync(),
     ClosureFactory = require('../../src/ClosureFactory').sync(),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
-    NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPFatalError = require('phpcommon').PHPFatalError,
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
@@ -41,26 +40,12 @@ describe('Scope', function () {
         this.parentClass = null;
         this.referenceFactory = sinon.createStubInstance(ReferenceFactory);
         this.superGlobalScope = sinon.createStubInstance(SuperGlobalScope);
-        this.valueFactory = sinon.createStubInstance(ValueFactory);
+        this.valueFactory = new ValueFactory();
         this.variableFactory = sinon.createStubInstance(VariableFactory);
 
         this.closureFactory.create.returns(this.closure);
-        this.valueFactory.createString.restore();
-        sinon.stub(this.valueFactory, 'createString', function (string) {
-            var stringValue = sinon.createStubInstance(StringValue);
-            stringValue.getForAssignment.returns(stringValue);
-            stringValue.getNative.returns(string);
-            return stringValue;
-        });
-        this.valueFactory.createNull.restore();
-        sinon.stub(this.valueFactory, 'createNull', function () {
-            var nullValue = sinon.createStubInstance(NullValue);
-            nullValue.getForAssignment.returns(nullValue);
-            return nullValue;
-        });
 
-        this.variableFactory.createVariable.restore();
-        sinon.stub(this.variableFactory, 'createVariable', function (variableName) {
+        this.variableFactory.createVariable.callsFake(function (variableName) {
             return new Variable(this.callStack, this.valueFactory, variableName);
         }.bind(this));
 
@@ -388,8 +373,7 @@ describe('Scope', function () {
         });
 
         it('should silently allow a global to be unnecessarily imported into the global scope', function () {
-            this.referenceFactory.createVariable.restore();
-            sinon.stub(this.referenceFactory, 'createVariable', function (variable) {
+            this.referenceFactory.createVariable.callsFake(function (variable) {
                 return new VariableReference(variable);
             });
             this.createScope(null, null);
@@ -410,8 +394,7 @@ describe('Scope', function () {
             var staticVariable = new Variable(this.callStack, this.valueFactory, 'myVar'),
                 reference = sinon.createStubInstance(VariableReference),
                 value = sinon.createStubInstance(StringValue);
-            this.variableFactory.createVariable.restore();
-            sinon.stub(this.variableFactory, 'createVariable').withArgs('myVar').returns(staticVariable);
+            this.variableFactory.createVariable.withArgs('myVar').returns(staticVariable);
             this.referenceFactory.createVariable.withArgs(sinon.match.same(staticVariable)).returns(reference);
             reference.getValue.returns(value);
             this.createScope();
