@@ -31,8 +31,8 @@
     "phpcommon": "~1"
   },
   "devDependencies": {
-    "chai": "^2.3.0",
-    "chai-as-promised": "^5.1.0",
+    "chai": "^4.1.2",
+    "chai-as-promised": "^7.1.1",
     "jshint": "^2.8.0",
     "mocha": "^2.3.3",
     "nowdoc": "^1.0.0",
