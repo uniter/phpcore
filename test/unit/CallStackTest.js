@@ -105,6 +105,17 @@ describe('CallStack', function () {
         });
     });
 
+    describe('getLength()', function () {
+        it('should return the number of calls on the stack', function () {
+            var callerCall = sinon.createStubInstance(Call),
+                currentCall = sinon.createStubInstance(Call);
+            this.callStack.push(callerCall);
+            this.callStack.push(currentCall);
+
+            expect(this.callStack.getLength()).to.equal(2);
+        });
+    });
+
     describe('getStaticClass()', function () {
         it('should return the static class for the current call, if it has one specified', function () {
             var callerCall = sinon.createStubInstance(Call),

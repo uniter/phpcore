@@ -82,6 +82,15 @@ _.extend(CallStack.prototype, {
     },
 
     /**
+     * Fetches the number of calls on the stack (stack depth)
+     *
+     * @return {number}
+     */
+    getLength: function () {
+        return this.calls.length;
+    },
+
+    /**
      * Fetches the class that is currently considered the static context,
      * referenced with static:: in PHP-land
      *
