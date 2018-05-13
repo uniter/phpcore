@@ -28,6 +28,17 @@ _.extend(Environment.prototype, {
     },
 
     /**
+     * Defines a global function from a native JS one. If a fully-qualified name is provided
+     * with a namespace prefix, eg. `My\Lib\MyFunc` then it will be defined in the specified namespace
+     *
+     * @param {string} name
+     * @param {Function} fn
+     */
+    defineCoercingFunction: function (name, fn) {
+        this.state.defineCoercingFunction(name, fn);
+    },
+
+    /**
      * Defines a global variable and gives it the provided value
      *
      * @param {string} name

@@ -36,6 +36,20 @@ describe('Environment', function () {
         });
     });
 
+    describe('defineCoercingFunction()', function () {
+        it('should define the function on the state', function () {
+            var myFunction = sinon.stub();
+
+            this.environment.defineCoercingFunction('my_func', myFunction);
+
+            expect(this.state.defineCoercingFunction).to.have.been.calledOnce;
+            expect(this.state.defineCoercingFunction).to.have.been.calledWith(
+                'my_func',
+                sinon.match.same(myFunction)
+            );
+        });
+    });
+
     describe('defineGlobal()', function () {
         it('should define the global on the state', function () {
             var value = sinon.createStubInstance(Value);
