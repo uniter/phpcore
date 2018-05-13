@@ -10,16 +10,11 @@
 'use strict';
 
 var _ = require('microdash'),
-    INCLUDE_OPTION = 'include',
     PATH = 'path',
-    hasOwn = {}.hasOwnProperty,
-    DebugVariable = require('./Debug/DebugVariable'),
     ExitValueWrapper = require('./Value/Exit'),
-    KeyValuePair = require('./KeyValuePair'),
-    List = require('./List'),
-    NamespaceScopeWrapper = require('./NamespaceScope'),
     ObjectValueWrapper = require('./Value/Object'),
-    Promise = require('lie');
+    Promise = require('lie'),
+    ToolsWrapper = require('./Tools');
 
 function Engine(
     environment,
@@ -65,6 +60,13 @@ _.extend(Engine.prototype, {
         this.environment.defineSuperGlobalAccessor(name, valueGetter, valueSetter);
     },
 
+    /**
+     * Executes this PHP script, returning either its resulting value if in synchronous mode
+     * or a Promise if in asynchronous mode that will later be resolved with its resulting value
+     * (from a top-level `return` statement, if any - otherwise defaulting to null)
+     *
+     * @return {Promise|Value}
+     */
     execute: function () {
         var callFactory,
             callStack,
@@ -72,7 +74,7 @@ _.extend(Engine.prototype, {
             environment = engine.environment,
             globalNamespace,
             globalScope,
-            includedPaths = {},
+            loader,
             module,
             moduleFactory,
             options = engine.options,
@@ -86,6 +88,7 @@ _.extend(Engine.prototype, {
             PHPException,
             PHPFatalError = phpCommon.PHPFatalError,
             referenceFactory,
+            scopeFactory,
             state,
             stderr = engine.getStderr(),
             stdin = engine.getStdin(),
@@ -95,134 +98,19 @@ _.extend(Engine.prototype, {
             unwrap = function (wrapper) {
                 return pausable ? wrapper.async(pausable) : wrapper.sync();
             },
+            // TODO: Wrap this module with `pauser` to remove the need for this
             ExitValue = unwrap(ExitValueWrapper),
-            NamespaceScope = unwrap(NamespaceScopeWrapper),
             ObjectValue = unwrap(ObjectValueWrapper),
+            Tools = unwrap(ToolsWrapper),
             topLevelNamespaceScope,
             topLevelScope;
 
-        function createNamespaceScope(namespace) {
-            return new NamespaceScope(globalNamespace, valueFactory, module, namespace);
-        }
-
-        function include(includedPath, includeScope) {
-            var done = false,
-                pause = null,
-                result,
-                subOptions = _.extend({}, options, {
-                    'path': includedPath
-                });
-
-            function completeWith(moduleResult) {
-                done = true;
-
-                if (pause) {
-                    if (moduleResult instanceof ExitValue) {
-                        pause.throw(moduleResult);
-                        return;
-                    }
-
-                    pause.resume(moduleResult);
-                } else {
-                    if (moduleResult instanceof ExitValue) {
-                        throw moduleResult;
-                    }
-
-                    result = moduleResult;
-                }
-            }
-
-            if (!subOptions[INCLUDE_OPTION]) {
-                throw new Exception(
-                    'include(' + includedPath + ') :: No "include" transport is available for loading the module.'
-                );
-            }
-
-            function resolve(valueOrModule) {
-                var executeResult;
-
-                // Handle wrapper function being returned from loader for module
-                if (_.isFunction(valueOrModule)) {
-                    executeResult = valueOrModule(subOptions, environment, includeScope).execute();
-
-                    if (!pausable) {
-                        completeWith(executeResult);
-                        return;
-                    }
-
-                    executeResult.then(
-                        completeWith,
-                        function (error) {
-                            pause.throw(error);
-                        }
-                    );
-
-                    return;
-                }
-
-                // Handle PHP code string being returned from loader for module
-                if (_.isString(module)) {
-                    throw new Exception('include(' + includedPath + ') :: Returning a PHP string is not supported');
-                }
-
-                // Handle a value object being returned as the module's return value
-                if (valueFactory.isValue(valueOrModule)) {
-                    completeWith(valueOrModule);
-                    return;
-                }
-
-                throw new Exception('include(' + includedPath + ') :: Module is in a weird format');
-            }
-
-            function reject() {
-                callStack.raiseError(
-                    PHPError.E_WARNING,
-                    'include(' + includedPath + '): failed to open stream: No such file or directory'
-                );
-                callStack.raiseError(
-                    PHPError.E_WARNING,
-                    'include(): Failed opening \'' + includedPath + '\' for inclusion'
-                );
-
-                completeWith(valueFactory.createBoolean(false));
-            }
-
-            subOptions[INCLUDE_OPTION](includedPath, {
-                reject: reject,
-                resolve: resolve
-            }, path, valueFactory);
-
-            if (done) {
-                return result;
-            }
-
-            if (!pausable) {
-                // Pausable is not available, so we cannot yield while the module is loaded
-                throw new Exception('include(' + includedPath + ') :: Async support not enabled');
-            }
-
-            pause = pausable.createPause();
-            pause.now();
-        }
-
-        function includeOnce(includedPath, scope) {
-            if (hasOwn.call(includedPaths, includedPath)) {
-                return valueFactory.createInteger(1);
-            }
-
-            includedPaths[includedPath] = true;
-
-            return include(includedPath, scope);
-        }
-
-        function getNormalizedPath() {
-            return path === null ? '(program)' : path;
-        }
-
         state = environment.getState();
         callFactory = state.getCallFactory();
+        loader = state.getLoader();
         moduleFactory = state.getModuleFactory();
         referenceFactory = state.getReferenceFactory();
+        scopeFactory = state.getScopeFactory();
         valueFactory = state.getValueFactory();
         globalNamespace = state.getGlobalNamespace();
         callStack = state.getCallStack();
@@ -233,96 +121,23 @@ _.extend(Engine.prototype, {
         // (used eg. when an `include(...)` is used inside a function)
         topLevelScope = engine.topLevelScope || globalScope;
         module = moduleFactory.create(path);
-        topLevelNamespaceScope = createNamespaceScope(globalNamespace);
+        topLevelNamespaceScope = scopeFactory.createNamespaceScope(globalNamespace, globalNamespace, module);
 
-        tools = {
-            createClosure: function (func, scope) {
-                return valueFactory.createObject(
-                    scope.createClosure(func),
-                    globalNamespace.getClass('Closure')
-                );
-            },
-            createDebugVar: function (scope, variableName) {
-                return new DebugVariable(scope, variableName);
-            },
-            createInstance: function (namespaceScope, classNameValue, args) {
-                return classNameValue.instantiate(args, namespaceScope);
-            },
-            createKeyValuePair: function (key, value) {
-                return new KeyValuePair(key, value);
-            },
-            createList: function (elements) {
-                return new List(valueFactory, elements);
-            },
-            createNamespaceScope: createNamespaceScope,
-            exit: function (statusValue) {
-                throw valueFactory.createExit(statusValue);
-            },
-            /**
-             * Fetches the name of the specified class, wrapped as a StringValue
-             *
-             * @param {Class} classObject
-             * @returns {StringValue}
-             */
-            getClassName: function (classObject) {
-                return valueFactory.createString(classObject.getName());
-            },
-            /**
-             * Fetches the name of the parent of the specified class, wrapped as a StringValue
-             *
-             * @param {Class} classObject
-             * @returns {StringValue}
-             */
-            getParentClassName: function (classObject) {
-                var superClass = classObject.getSuperClass();
-
-                if (!superClass) {
-                    // Fatal error: Uncaught Error: Cannot access parent:: when current class scope has no parent
-                    throw new PHPFatalError(PHPFatalError.NO_PARENT_CLASS);
-                }
-
-                return valueFactory.createString(superClass.getName());
-            },
-            getPath: function () {
-                return valueFactory.createString(getNormalizedPath());
-            },
-            getPathDirectory: function () {
-                return valueFactory.createString(getNormalizedPath().replace(/\/[^\/]+$/, ''));
-            },
-            implyArray: function (variable) {
-                // Undefined variables and variables containing null may be implicitly converted to arrays
-                if (!variable.isDefined() || variable.getValue().getType() === 'null') {
-                    variable.setValue(valueFactory.createArray([]));
-                }
-
-                return variable.getValue();
-            },
-            implyObject: function (variable) {
-                return variable;
-            },
-            includeOnce: includeOnce,
-            include: include,
-            /**
-             * Used for providing a function for fetching the last line executed in the current scope
-             *
-             * @param {function} finder
-             */
-            instrument: function (finder) {
-                callStack.instrumentCurrent(finder);
-            },
-            referenceFactory: referenceFactory,
-            requireOnce: include,
-            require: include,
-            throwCannotBreakOrContinue: function (levels) {
-                throw new PHPFatalError(PHPFatalError.CANNOT_BREAK_OR_CONTINUE, {
-                    'levels': levels,
-                    'suffix': levels === 1 ? '' : 's'
-                });
-            },
-            topLevelNamespaceScope: topLevelNamespaceScope,
-            topLevelScope: topLevelScope,
-            valueFactory: valueFactory
-        };
+        // Create the runtime tools object, referenced by the transpiled JS output from PHPToJS
+        tools = new Tools(
+            callStack,
+            environment,
+            globalNamespace,
+            loader,
+            module,
+            options,
+            path,
+            referenceFactory,
+            scopeFactory,
+            topLevelNamespaceScope,
+            topLevelScope,
+            valueFactory
+        );
 
         // Push the 'main' global scope call onto the stack
         callStack.push(callFactory.create(topLevelScope, topLevelNamespaceScope));

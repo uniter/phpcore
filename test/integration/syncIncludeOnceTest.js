@@ -35,7 +35,7 @@ EOS
 
         expect(module(options).execute().getNative()).to.deep.equal([
             'the one and only',
-            1 // include_once returns with int(1) if file has already been included
+            true // include_once returns with bool(true) if file has already been included
         ]);
         expect(includeTransport).to.have.been.calledOnce;
     });
