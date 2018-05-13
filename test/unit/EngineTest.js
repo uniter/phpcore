@@ -14,7 +14,9 @@ var expect = require('chai').expect,
     Engine = require('../../src/Engine'),
     Environment = require('../../src/Environment'),
     PauseException = require('pausable/src/PauseException'),
-    Scope = require('../../src/Scope').sync();
+    Scope = require('../../src/Scope').sync(),
+    PHPState = require('../../src/PHPState').sync(),
+    ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('Engine', function () {
     beforeEach(function () {
@@ -28,8 +30,13 @@ describe('Engine', function () {
         this.phpCommon = {};
         this.phpToAST = {};
         this.phpToJS = {};
+        this.state = sinon.createStubInstance(PHPState);
         this.topLevelScope = sinon.createStubInstance(Scope);
+        this.valueFactory = new ValueFactory();
         this.wrapper = sinon.stub();
+
+        this.environment.getState.returns(this.state);
+        this.state.getValueFactory.returns(this.valueFactory);
 
         this.createEngine = function () {
             this.engine = new Engine(
@@ -66,6 +73,51 @@ describe('Engine', function () {
             expect(function () {
                 this.engine.createPause();
             }.bind(this)).to.throw('Pausable is not available');
+        });
+    });
+
+    describe('defineCoercingFunction()', function () {
+        it('should define a coercing function on the environment', function () {
+            var myFunction = sinon.stub();
+            this.createEngine();
+
+            this.engine.defineCoercingFunction('my_func', myFunction);
+
+            expect(this.environment.defineCoercingFunction).to.have.been.calledOnce;
+            expect(this.environment.defineCoercingFunction).to.have.been.calledWith(
+                'my_func',
+                sinon.match.same(myFunction)
+            );
+        });
+    });
+
+    describe('defineGlobal()', function () {
+        it('should define a global on the environment', function () {
+            this.createEngine();
+
+            this.engine.defineGlobal('my_global', 21);
+
+            expect(this.environment.defineGlobal).to.have.been.calledOnce;
+            expect(this.environment.defineGlobal).to.have.been.calledWith('my_global');
+            expect(this.environment.defineGlobal.args[0][1].getType()).to.equal('integer');
+            expect(this.environment.defineGlobal.args[0][1].getNative()).to.equal(21);
+        });
+    });
+
+    describe('defineGlobalAccessor()', function () {
+        it('should define a global accessor on the environment', function () {
+            var valueGetter = sinon.stub(),
+                valueSetter = sinon.stub();
+            this.createEngine();
+
+            this.engine.defineGlobalAccessor('my_global', valueGetter, valueSetter);
+
+            expect(this.environment.defineGlobalAccessor).to.have.been.calledOnce;
+            expect(this.environment.defineGlobalAccessor).to.have.been.calledWith(
+                'my_global',
+                sinon.match.same(valueGetter),
+                sinon.match.same(valueSetter)
+            );
         });
     });
 

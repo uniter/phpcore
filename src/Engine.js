@@ -16,6 +16,17 @@ var _ = require('microdash'),
     Promise = require('lie'),
     ToolsWrapper = require('./Tools');
 
+/**
+ * Executes a transpiled PHP module
+ *
+ * @param {Environment} environment PHPCore environment to execute inside
+ * @param {Scope} topLevelScope Scope for the top-level statements of the module
+ * @param {Object} phpCommon
+ * @param {Object} options Configuration options for this engine
+ * @param {Function} wrapper The wrapper function for the transpiled PHP module
+ * @param {Resumable|null} pausable Pausable library for async mode, null for sync mode
+ * @constructor
+ */
 function Engine(
     environment,
     topLevelScope,
@@ -24,16 +35,34 @@ function Engine(
     wrapper,
     pausable
 ) {
+    /**
+     * @type {Environment}
+     */
     this.environment = environment;
+    /**
+     * @type {object}
+     */
     this.options = _.extend(
         {
             'path': null
         },
         options || {}
     );
+    /**
+     * @type {Resumable}
+     */
     this.pausable = pausable;
+    /**
+     * @type {Object}
+     */
     this.phpCommon = phpCommon;
+    /**
+     * @type {Scope|null}
+     */
     this.topLevelScope = topLevelScope || null;
+    /**
+     * @type {Function}
+     */
     this.wrapper = wrapper;
 }
 
@@ -46,6 +75,42 @@ _.extend(Engine.prototype, {
         }
 
         return engine.pausable.createPause();
+    },
+
+    /**
+     * Defines a global function from a native JS one. If a fully-qualified name is provided
+     * with a namespace prefix, eg. `My\Lib\MyFunc` then it will be defined in the specified namespace
+     *
+     * @param {string} name
+     * @param {Function} fn
+     */
+    defineCoercingFunction: function (name, fn) {
+        this.environment.defineCoercingFunction(name, fn);
+    },
+
+    /**
+     * Defines a global variable and gives it the provided value
+     *
+     * @param {string} name
+     * @param {*} nativeValue
+     */
+    defineGlobal: function (name, nativeValue) {
+        var engine = this,
+            valueFactory = engine.environment.getState().getValueFactory(),
+            value = valueFactory.coerce(nativeValue);
+
+        engine.environment.defineGlobal(name, value);
+    },
+
+    /**
+     * Defines a global variable using a getter/setter pair
+     *
+     * @param {string} name
+     * @param {Function} valueGetter
+     * @param {Function} valueSetter
+     */
+    defineGlobalAccessor: function (name, valueGetter, valueSetter) {
+        this.environment.defineGlobalAccessor(name, valueGetter, valueSetter);
     },
 
     defineSuperGlobal: function (name, nativeValue) {
