@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     OptionSet = require('../../src/OptionSet'),
+    Output = require('../../src/Output/Output'),
     PHPState = require('../../src/PHPState').sync(),
     Runtime = require('../../src/Runtime').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
@@ -203,6 +204,12 @@ describe('PHPState', function () {
 
         it('should return null when the constant is not defined', function () {
             expect(this.state.getConstant('MY_UNDEFINED_CONST')).to.be.null;
+        });
+    });
+
+    describe('getOutput', function () {
+        it('should return an Output', function () {
+            expect(this.state.getOutput()).to.be.an.instanceOf(Output);
         });
     });
 

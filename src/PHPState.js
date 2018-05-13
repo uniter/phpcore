@@ -30,9 +30,13 @@ module.exports = require('pauser')([
     require('./NamespaceScope'),
     require('./Reference/Null'),
     require('./OptionSet'),
+    require('./Output/Output'),
+    require('./Output/OutputBuffer'),
+    require('./Output/OutputFactory'),
     require('./ReferenceFactory'),
     require('./Scope'),
     require('./ScopeFactory'),
+    require('./Output/StdoutBuffer'),
     require('./SuperGlobalScope'),
     require('./Value'),
     require('./ValueFactory'),
@@ -60,9 +64,13 @@ module.exports = require('pauser')([
     NamespaceScope,
     NullReference,
     OptionSet,
+    Output,
+    OutputBuffer,
+    OutputFactory,
     ReferenceFactory,
     Scope,
     ScopeFactory,
+    StdoutBuffer,
     SuperGlobalScope,
     Value,
     ValueFactory,
@@ -191,12 +199,14 @@ module.exports = require('pauser')([
         this.iniState = new INIState();
         this.options = options;
         this.optionSet = new OptionSet(options);
+        this.output = new Output(new OutputFactory(OutputBuffer), new StdoutBuffer(stdout));
         this.internals = {
             callStack: callStack,
             classAutoloader: classAutoloader,
             globalNamespace: globalNamespace,
             iniState: this.iniState,
             optionSet: this.optionSet,
+            output: this.output,
             pausable: pausable,
             runtime: runtime,
             stdout: stdout,
@@ -353,6 +363,15 @@ module.exports = require('pauser')([
 
         getOptions: function () {
             return this.optionSet.getOptions();
+        },
+
+        /**
+         * Fetches the Output service for the runtime state, used for handling buffering and writing to standard out
+         *
+         * @return {Output}
+         */
+        getOutput: function () {
+            return this.output;
         },
 
         getPHPExceptionClass: function () {

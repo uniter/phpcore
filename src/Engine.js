@@ -78,6 +78,7 @@ _.extend(Engine.prototype, {
             options = engine.options,
             path = options[PATH],
             isMainProgram = path === null,
+            output,
             pausable = engine.pausable,
             phpCommon = engine.phpCommon,
             Exception = phpCommon.Exception,
@@ -88,7 +89,6 @@ _.extend(Engine.prototype, {
             state,
             stderr = engine.getStderr(),
             stdin = engine.getStdin(),
-            stdout = engine.getStdout(),
             tools,
             valueFactory,
             wrapper = engine.wrapper,
@@ -227,6 +227,7 @@ _.extend(Engine.prototype, {
         globalNamespace = state.getGlobalNamespace();
         callStack = state.getCallStack();
         globalScope = state.getGlobalScope();
+        output = state.getOutput();
         PHPException = state.getPHPExceptionClass();
         // Use the provided top-level scope if specified, otherwise use the global scope
         // (used eg. when an `include(...)` is used inside a function)
@@ -380,7 +381,7 @@ _.extend(Engine.prototype, {
                     strict: true,
                     expose: {
                         stdin: stdin,
-                        stdout: stdout,
+                        stdout: output,
                         stderr: stderr,
                         tools: tools,
                         globalNamespace: globalNamespace
@@ -410,7 +411,7 @@ _.extend(Engine.prototype, {
         // Otherwise load the module synchronously
         try {
             try {
-                return wrapper(stdin, stdout, stderr, tools, globalNamespace);
+                return wrapper(stdin, output, stderr, tools, globalNamespace);
             } finally {
                 // Pop the top-level scope (of the include, if this module was included) off the stack
                 // regardless of whether an error occurred
