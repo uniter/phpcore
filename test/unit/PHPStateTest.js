@@ -119,6 +119,22 @@ describe('PHPState', function () {
         });
     });
 
+    describe('defineCoercingFunction()', function () {
+        it('should define a function that coerces its arguments and return value', function () {
+            var resultValue;
+            this.state.defineCoercingFunction('double_it', function (numberToDouble) {
+                return numberToDouble * 2;
+            });
+
+            resultValue = this.state.getGlobalNamespace().getFunction('double_it')(
+                this.state.getValueFactory().createInteger(21)
+            );
+
+            expect(resultValue.getType()).to.equal('integer');
+            expect(resultValue.getNative()).to.equal(42);
+        });
+    });
+
     describe('defineGlobal()', function () {
         it('should define the global and assign it the given value', function () {
             var value = sinon.createStubInstance(Value);

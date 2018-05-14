@@ -280,6 +280,27 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Defines a global function from a native JS one. If a fully-qualified name is provided
+         * with a namespace prefix, eg. `My\Lib\MyFunc` then it will be defined in the specified namespace
+         *
+         * @param {string} name
+         * @param {Function} fn
+         */
+        defineCoercingFunction: function (name, fn) {
+            var state = this;
+
+            this.globalNamespace.defineFunction(name, function () {
+                // Unwrap args from PHP-land to JS-land to native values
+                var args = _.map(arguments, function (argReference) {
+                    return argReference.getNative();
+                });
+
+                // Call the native function, wrapping its return value as a PHP value
+                return state.valueFactory.coerce(fn.apply(null, args));
+            });
+        },
+
+        /**
          * Defines a global variable and gives it the provided value
          *
          * @param {string} name
