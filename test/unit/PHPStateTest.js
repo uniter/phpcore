@@ -10,7 +10,9 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    Exception = phpCommon.Exception,
     OptionSet = require('../../src/OptionSet'),
     Output = require('../../src/Output/Output'),
     PHPState = require('../../src/PHPState').sync(),
@@ -147,6 +149,67 @@ describe('PHPState', function () {
             );
 
             expect(this.state.getOptions().yourOption).to.equal(21);
+        });
+
+        it('should install any binding groups', function () {
+            this.state = new PHPState(
+                this.runtime,
+                {
+                    bindingGroups: [
+                        function () {
+                            return {
+                                my_binding: function () {
+                                    return 21;
+                                }
+                            };
+                        }
+                    ]
+                },
+                this.stdin,
+                this.stdout,
+                this.stderr,
+                this.pausable
+            );
+
+            expect(this.state.getBinding('my_binding')).to.equal(21);
+        });
+
+        it('should throw an error if the specified binding is not defined', function () {
+            expect(function () {
+                /*jshint nonew:false */
+                new PHPState(
+                    this.runtime,
+                    {
+                        functionGroups: [
+                            function (internals) {
+                                internals.getBinding('some_undefined_binding');
+                            }
+                        ]
+                    },
+                    this.stdin,
+                    this.stdout,
+                    this.stderr,
+                    this.pausable
+                );
+            }.bind(this)).to.throw(Exception, 'No binding is defined with name "some_undefined_binding"');
+        });
+
+        it('should throw an error if any option group attempts to access a binding too early', function () {
+            expect(function () {
+                this.state = new PHPState(
+                    this.runtime,
+                    {},
+                    this.stdin,
+                    this.stdout,
+                    this.stderr,
+                    this.pausable,
+                    [
+                        function (internals) {
+                            internals.getBinding('my_binding');
+                        }
+                    ]
+                );
+            }.bind(this)).to.throw(Exception, 'Option groups cannot access bindings too early');
         });
     });
 

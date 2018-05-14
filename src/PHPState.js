@@ -12,6 +12,7 @@
 module.exports = require('pauser')([
     require('microdash'),
     require('./builtin/builtins'),
+    require('phpcommon'),
     require('util'),
     require('./Reference/AccessorReference'),
     require('./Call'),
@@ -46,6 +47,7 @@ module.exports = require('pauser')([
 ], function (
     _,
     builtinTypes,
+    phpCommon,
     util,
     AccessorReference,
     Call,
@@ -79,9 +81,30 @@ module.exports = require('pauser')([
     VariableReference
 ) {
     var EXCEPTION_CLASS = 'Exception',
+        hasOwn = {}.hasOwnProperty,
         setUpState = function (state, installedBuiltinTypes, optionGroups) {
             var globalNamespace = state.globalNamespace;
 
+            /**
+             * Bindings allow components of a plugin to share data.
+             *
+             * @param {Function} groupFactory
+             */
+            function installBindingGroup(groupFactory) {
+                var groupBindings = groupFactory(state.internals);
+
+                _.each(groupBindings, function (bindingFactory, bindingName) {
+                    var bindingOptions = state.optionSet.getOption(bindingName);
+
+                    state.bindings[bindingName] = bindingFactory(bindingOptions);
+                });
+            }
+
+            /**
+             * Installs a set of related functions into PHP-land
+             *
+             * @param {Function} groupFactory
+             */
             function installFunctionGroup(groupFactory) {
                 var groupBuiltins = groupFactory(state.internals);
 
@@ -90,10 +113,21 @@ module.exports = require('pauser')([
                 });
             }
 
+            /**
+             * Installs a single class into PHP-land
+             *
+             * @param {Function} definitionFactory
+             * @param {string} name
+             */
             function installClass(definitionFactory, name) {
                 state.defineClass(name, definitionFactory);
             }
 
+            /**
+             * Installs a set of related constants into PHP-land
+             *
+             * @param {Function} groupFactory
+             */
             function installConstantGroup(groupFactory) {
                 var groupBuiltins = groupFactory(state.internals);
 
@@ -102,6 +136,11 @@ module.exports = require('pauser')([
                 });
             }
 
+            /**
+             * Installs a set of related runtime options
+             *
+             * @param {Function} groupFactory
+             */
             function installOptionGroup(groupFactory) {
                 var groupOptions = groupFactory(state.internals);
 
@@ -115,10 +154,13 @@ module.exports = require('pauser')([
 
             // Optional installed builtins
             _.each(optionGroups, installOptionGroup);
+            state.bindings = {};
+            _.each(installedBuiltinTypes.constantGroups, installConstantGroup);
+            _.each(installedBuiltinTypes.bindingGroups, installBindingGroup);
             _.each(installedBuiltinTypes.functionGroups, installFunctionGroup);
             _.forOwn(installedBuiltinTypes.classes, installClass);
-            _.each(installedBuiltinTypes.constantGroups, installConstantGroup);
-        };
+        },
+        Exception = phpCommon.Exception;
 
     function PHPState(runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, optionGroups, options) {
         var callStack = new CallStack(stderr),
@@ -158,7 +200,8 @@ module.exports = require('pauser')([
             // "Invisible" global namespace scope, not defined by any code
             globalNamespaceScope = new NamespaceScope(globalNamespace, valueFactory, globalModule, globalNamespace),
             globalScope,
-            globalsSuperGlobal = superGlobalScope.defineVariable('GLOBALS');
+            globalsSuperGlobal = superGlobalScope.defineVariable('GLOBALS'),
+            state = this;
 
         scopeFactory.setClosureFactory(closureFactory);
         globalScope = scopeFactory.create(globalNamespaceScope);
@@ -191,6 +234,7 @@ module.exports = require('pauser')([
         // Make a copy of the options object so we don't mutate it
         options = _.extend({}, options || {});
 
+        this.bindings = null;
         this.callFactory = callFactory;
         this.callStack = callStack;
         this.globalNamespace = globalNamespace;
@@ -203,6 +247,20 @@ module.exports = require('pauser')([
         this.internals = {
             callStack: callStack,
             classAutoloader: classAutoloader,
+            getBinding: function (bindingName) {
+                if (state.bindings === null) {
+                    // Option groups are loaded before bindings, so if any of them attempt to access a binding
+                    // too early then throw a meaningful error message
+                    throw new Exception('Option groups cannot access bindings too early');
+                }
+
+                if (!hasOwn.call(state.bindings, bindingName)) {
+                    throw new Exception('No binding is defined with name "' + bindingName + '"');
+                }
+
+                return state.bindings[bindingName];
+            }.bind(this),
+            getConstant: this.getConstant.bind(this),
             globalNamespace: globalNamespace,
             iniState: this.iniState,
             optionSet: this.optionSet,
@@ -254,7 +312,7 @@ module.exports = require('pauser')([
 
             if (name === EXCEPTION_CLASS) {
                 if (state.PHPException) {
-                    throw new Error('PHPState.defineClass(...) :: Exception class is already defined');
+                    throw new Exception('PHPState.defineClass(...) :: Exception class is already defined');
                 }
 
                 state.PHPException = Class;
@@ -348,6 +406,18 @@ module.exports = require('pauser')([
                 accessorReference = state.referenceFactory.createAccessor(valueGetter, valueSetter);
 
             state.superGlobalScope.defineVariable(name).setReference(accessorReference);
+        },
+
+        /**
+         * Fetches the specified binding from an installed plugin
+         *
+         * @param {string} bindingName
+         * @returns {*}
+         */
+        getBinding: function (bindingName) {
+            var state = this;
+
+            return hasOwn.call(state.bindings, bindingName) ? state.bindings[bindingName] : null;
         },
 
         getCallFactory: function () {
