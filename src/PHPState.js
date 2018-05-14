@@ -109,9 +109,9 @@ module.exports = require('pauser')([
             }
 
             // Core builtins
+            _.each(builtinTypes.constantGroups, installConstantGroup);
             _.each(builtinTypes.functionGroups, installFunctionGroup);
             _.forOwn(builtinTypes.classes, installClass);
-            _.each(builtinTypes.constantGroups, installConstantGroup);
 
             // Optional installed builtins
             _.each(optionGroups, installOptionGroup);

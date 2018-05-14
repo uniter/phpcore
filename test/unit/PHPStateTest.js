@@ -80,6 +80,37 @@ describe('PHPState', function () {
             expect(this.state.getGlobalNamespace().getDescendant('Some\\Stuff').hasClass('AClass')).to.be.true;
         });
 
+        it('should allow function group factories to access constants early', function () {
+            this.state = new PHPState(
+                this.runtime,
+                {
+                    constantGroups: [
+                        function () {
+                            return {
+                                'MY_CONST': 21
+                            };
+                        }
+                    ],
+                    functionGroups: [
+                        function (internals) {
+                            var MY_CONST = internals.getConstant('MY_CONST');
+                            return {
+                                getMyConstant: function () {
+                                    return internals.valueFactory.createInteger(MY_CONST);
+                                }
+                            };
+                        }
+                    ]
+                },
+                this.stdin,
+                this.stdout,
+                this.stderr,
+                this.pausable
+            );
+
+            expect(this.state.getGlobalNamespace().getFunction('getMyConstant').call().getNative()).to.equal(21);
+        });
+
         it('should install any option groups as options', function () {
             this.state = new PHPState(
                 this.runtime,
