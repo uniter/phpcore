@@ -33,6 +33,7 @@ module.exports = require('pauser')([
          * @type {{classes: {}, constantGroups: Array, functionGroups: Array}}
          */
         this.builtins = {
+            bindingGroups: [],
             classes: {},
             constantGroups: [],
             functionGroups: []
@@ -171,15 +172,21 @@ module.exports = require('pauser')([
          * All fields are optional - for example, this method can be used
          * to only define a new class without also defining any constants or functions.
          *
-         * @param {{classes: {}, constantGroups: Array, functionGroups: Array}} newBuiltins
+         * @param {Function|{classes: {}, constantGroups: Array, functionGroups: Array}} newBuiltins
          */
         install: function (newBuiltins) {
             var builtins = this.builtins;
+
+            if (typeof newBuiltins === 'function') {
+                // Allow a plugin to be defined as a function, to allow testing
+                newBuiltins = newBuiltins();
+            }
 
             [].push.apply(builtins.functionGroups, newBuiltins.functionGroups);
             _.extend(builtins.classes, newBuiltins.classes);
             [].push.apply(builtins.constantGroups, newBuiltins.constantGroups);
             [].push.apply(this.optionGroups, newBuiltins.optionGroups);
+            [].push.apply(builtins.bindingGroups, newBuiltins.bindingGroups);
         }
     });
 

@@ -183,6 +183,7 @@ describe('Runtime', function () {
             expect(this.PHPState).to.have.been.calledWith(
                 sinon.match.same(this.runtime),
                 {
+                    bindingGroups: [],
                     classes: {},
                     constantGroups: [],
                     functionGroups: []
@@ -231,6 +232,7 @@ describe('Runtime', function () {
             expect(this.PHPState).to.have.been.calledWith(
                 sinon.match.any,
                 {
+                    bindingGroups: [],
                     classes: {
                         MyClass: sinon.match.same(MyClass)
                     },
@@ -254,6 +256,7 @@ describe('Runtime', function () {
             expect(this.PHPState).to.have.been.calledWith(
                 sinon.match.any,
                 {
+                    bindingGroups: [],
                     classes: {},
                     constantGroups: [],
                     functionGroups: []
@@ -265,6 +268,60 @@ describe('Runtime', function () {
                 [
                     sinon.match.same(optionGroupFactory)
                 ]
+            );
+        });
+
+        it('should cause created environments to have the provided binding groups', function () {
+            var bindingGroupFactory = sinon.stub();
+
+            this.runtime.install({
+                bindingGroups: [
+                    bindingGroupFactory
+                ]
+            });
+            this.runtime.createEnvironment();
+
+            expect(this.PHPState).to.have.been.calledOnce;
+            expect(this.PHPState).to.have.been.calledWith(
+                sinon.match.any,
+                {
+                    bindingGroups: [
+                        sinon.match.same(bindingGroupFactory)
+                    ],
+                    classes: {},
+                    constantGroups: [],
+                    functionGroups: []
+                },
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any
+            );
+        });
+
+        it('should support a function being passed in that will return the builtins object', function () {
+            var MyClass = sinon.stub();
+
+            this.runtime.install(function () { // Pass a function in instead of the object directly
+                return {
+                    classes: {
+                        MyClass: MyClass
+                    }
+                };
+            });
+            this.runtime.createEnvironment();
+
+            expect(this.PHPState).to.have.been.calledOnce;
+            expect(this.PHPState).to.have.been.calledWith(
+                sinon.match.any,
+                {
+                    bindingGroups: [],
+                    classes: {
+                        MyClass: sinon.match.same(MyClass)
+                    },
+                    constantGroups: [],
+                    functionGroups: []
+                }
             );
         });
     });
