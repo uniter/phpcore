@@ -75,6 +75,12 @@ describe('StaticPropertyReference', function () {
         });
     });
 
+    describe('isDefined()', function () {
+        it('should return true', function () {
+            expect(this.property.isDefined()).to.be.true;
+        });
+    });
+
     describe('isEmpty()', function () {
         it('should return true when the property has an empty value', function () {
             this.propertyValue.isEmpty.returns(true);

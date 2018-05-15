@@ -71,6 +71,15 @@ _.extend(StaticPropertyReference.prototype, {
     },
 
     /**
+     * Determines whether this property is defined
+     *
+     * @return {boolean}
+     */
+    isDefined: function () {
+        return true;
+    },
+
+    /**
      * Determines whether this class property is "empty" or not
      *
      * @returns {boolean}
