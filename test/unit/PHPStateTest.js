@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     Exception = phpCommon.Exception,
+    Loader = require('../../src/Loader').sync(),
     OptionSet = require('../../src/OptionSet'),
     Output = require('../../src/Output/Output'),
     PHPState = require('../../src/PHPState').sync(),
@@ -317,13 +318,26 @@ describe('PHPState', function () {
         });
     });
 
-    describe('getOutput', function () {
-        it('should return an Output', function () {
-            expect(this.state.getOutput()).to.be.an.instanceOf(Output);
+    describe('getLoader()', function () {
+        it('should return a Loader', function () {
+            expect(this.state.getLoader()).to.be.an.instanceOf(Loader);
         });
     });
 
-    describe('getScopeFactory', function () {
+    describe('getOutput()', function () {
+        it('should return an Output', function () {
+            expect(this.state.getOutput()).to.be.an.instanceOf(Output);
+        });
+
+        it('should return an Output connected up to stdout', function () {
+            this.state.getOutput().write('good evening');
+
+            expect(this.stdout.write).to.have.been.calledOnce;
+            expect(this.stdout.write).to.have.been.calledWith('good evening');
+        });
+    });
+
+    describe('getScopeFactory()', function () {
         it('should return a ScopeFactory', function () {
             expect(this.state.getScopeFactory()).to.be.an.instanceOf(ScopeFactory);
         });

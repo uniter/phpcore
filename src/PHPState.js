@@ -23,6 +23,7 @@ module.exports = require('pauser')([
     require('./ClosureFactory'),
     require('./FunctionFactory'),
     require('./INIState'),
+    require('./Loader'),
     require('./MethodSpec'),
     require('./Module'),
     require('./ModuleFactory'),
@@ -58,6 +59,7 @@ module.exports = require('pauser')([
     ClosureFactory,
     FunctionFactory,
     INIState,
+    Loader,
     MethodSpec,
     Module,
     ModuleFactory,
@@ -270,6 +272,7 @@ module.exports = require('pauser')([
             stdout: stdout,
             valueFactory: valueFactory
         };
+        this.loader = new Loader(valueFactory, pausable);
         this.moduleFactory = moduleFactory;
         this.referenceFactory = referenceFactory;
         this.scopeFactory = scopeFactory;
@@ -446,6 +449,15 @@ module.exports = require('pauser')([
 
         getGlobalScope: function () {
             return this.globalScope;
+        },
+
+        /**
+         * Fetches the Loader for the runtime state, used for include/require and eval(...)
+         *
+         * @return {Loader}
+         */
+        getLoader: function () {
+            return this.loader;
         },
 
         getModuleFactory: function () {
