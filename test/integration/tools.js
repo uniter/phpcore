@@ -9,10 +9,46 @@
 
 'use strict';
 
-var asyncPHPCore = require('../../async'),
+var builtins = require('../../src/builtin/builtins'),
+    pausable = require('pausable'),
+    phpCommon = require('phpcommon'),
     phpToAST = require('phptoast'),
     phpToJS = require('phptojs'),
-    syncPHPCore = require('../../sync'),
+    Engine = require('../../src/Engine'),
+    Environment = require('../../src/Environment'),
+    AsyncPHPState = require('../../src/PHPState').async(pausable),
+    SyncPHPState = require('../../src/PHPState').sync(),
+    Runtime = require('../../src/Runtime').async(pausable),
+    createAsyncRuntime = function () {
+        // Create an isolated runtime we can install builtins into without affecting the main singleton one
+        var runtime = new Runtime(
+            Environment,
+            Engine,
+            AsyncPHPState,
+            phpCommon,
+            pausable
+        );
+
+        // Install the standard set of builtins
+        runtime.install(builtins);
+
+        return runtime;
+    },
+    createSyncRuntime = function () {
+        // Create an isolated runtime we can install builtins into without affecting the main singleton one
+        var runtime = new Runtime(
+            Environment,
+            Engine,
+            SyncPHPState,
+            phpCommon,
+            null // Don't make Pausable available - running synchronously
+        );
+
+        // Install the standard set of builtins
+        runtime.install(builtins);
+
+        return runtime;
+    },
     transpile = function (path, php, phpCore, options) {
         var js,
             phpParser;
@@ -33,18 +69,28 @@ var asyncPHPCore = require('../../async'),
         )(function () {
             return phpCore;
         });
-    };
+    },
+    asyncRuntime = require('../../async'),
+    syncRuntime = require('../../sync');
 
 module.exports = {
-    asyncTranspile: function (path, php, options) {
-        return transpile(path, php, asyncPHPCore, options);
-    },
+    createAsyncRuntime: createAsyncRuntime,
+
+    createSyncRuntime: createSyncRuntime,
 
     createSyncEnvironment: function (options) {
-        return syncPHPCore.createEnvironment(options);
+        return syncRuntime.createEnvironment(options);
+    },
+
+    asyncTranspile: function (path, php, options) {
+        return transpile(path, php, asyncRuntime, options);
     },
 
     syncTranspile: function (path, php, options) {
-        return transpile(path, php, syncPHPCore, options);
+        return transpile(path, php, syncRuntime, options);
+    },
+
+    transpile: function (runtime, path, php, options) {
+        return transpile(path, php, runtime, options);
     }
 };

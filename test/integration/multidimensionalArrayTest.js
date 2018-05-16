@@ -11,13 +11,10 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    phpCore = require('../..'),
-    phpToAST = require('phptoast'),
-    phpToJS = require('phptojs'),
-    when = require('../when');
+    tools = require('./tools');
 
 describe('PHP multidimensional array integration', function () {
-    it('should correctly handle reading a character of a string', function (done) {
+    it('should support implicitly creating sub-arrays', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $array = array();
@@ -27,16 +24,8 @@ $array['first key']['second key'] = 21;
 return $array['first key']['second key'];
 EOS
 */;}), //jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return phpCore;
-            });
+            module = tools.syncTranspile(null, php);
 
-        module().execute().then(when(done, function (result) {
-            expect(result.getNative()).to.equal(21);
-        }), done);
+        expect(module().execute().getNative()).to.equal(21);
     });
 });
