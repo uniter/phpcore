@@ -45,7 +45,7 @@ EOS
 */;}),//jshint ignore:line
                 module = tools.syncTranspile(null, php, {
                     // Capture offsets of all nodes for line tracking
-                    phpToAST: {captureAllOffsets: true},
+                    phpToAST: {captureAllBounds: true},
                     // Record line numbers for statements/expressions
                     phpToJS: {lineNumbers: true}
                 });
@@ -80,7 +80,7 @@ EOS
 */;}),//jshint ignore:line
                 module = tools.syncTranspile(null, php, {
                     // Capture offsets of all nodes for line tracking
-                    phpToAST: {captureAllOffsets: true},
+                    phpToAST: {captureAllBounds: true},
                     // Record line numbers for statements/expressions
                     phpToJS: {lineNumbers: true}
                 });
@@ -122,7 +122,7 @@ EOS
 */;}),//jshint ignore:line
                 module = tools.syncTranspile(null, php, {
                     // Capture offsets of all nodes for line tracking
-                    phpToAST: {captureAllOffsets: true},
+                    phpToAST: {captureAllBounds: true},
                     // Record line numbers for statements/expressions
                     phpToJS: {lineNumbers: true}
                 });
@@ -172,7 +172,7 @@ EOS
 */;}),//jshint ignore:line
                 module = tools.syncTranspile(null, php, {
                     // Capture offsets of all nodes for line tracking
-                    phpToAST: {captureAllOffsets: true},
+                    phpToAST: {captureAllBounds: true},
                     // Record line numbers for statements/expressions
                     phpToJS: {lineNumbers: true}
                 });
@@ -207,7 +207,7 @@ EOS
 */;}),//jshint ignore:line
                 module = tools.syncTranspile(null, php, {
                     // Capture offsets of all nodes for line tracking
-                    phpToAST: {captureAllOffsets: true},
+                    phpToAST: {captureAllBounds: true},
                     // Record line numbers for statements/expressions
                     phpToJS: {lineNumbers: true}
                 });
@@ -273,7 +273,7 @@ EOS
 */;}),//jshint ignore:line
                 module = tools.syncTranspile(null, php, {
                     // Capture offsets of all nodes for line tracking
-                    phpToAST: {captureAllOffsets: true},
+                    phpToAST: {captureAllBounds: true},
                     // Record line numbers for statements/expressions
                     phpToJS: {lineNumbers: true}
                 });
@@ -322,7 +322,7 @@ EOS
 */;}),//jshint ignore:line
                 module = tools.syncTranspile(null, php, {
                     // Capture offsets of all nodes for line tracking
-                    phpToAST: {captureAllOffsets: true},
+                    phpToAST: {captureAllBounds: true},
                     // Record line numbers for statements/expressions
                     phpToJS: {lineNumbers: true}
                 });

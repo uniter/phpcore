@@ -33,12 +33,12 @@
   "devDependencies": {
     "chai": "^4.1.2",
     "chai-as-promised": "^7.1.1",
-    "jshint": "^2.8.0",
-    "mocha": "^2.3.3",
-    "nowdoc": "^1.0.0",
-    "phptoast": "~5",
-    "phptojs": "~5",
-    "sinon": "^4.5.0",
+    "jshint": "^2.9.5",
+    "mocha": "^5.1.1",
+    "nowdoc": "^1.0.1",
+    "phptoast": "^6.0.0",
+    "phptojs": "^6.0.0",
+    "sinon": "^5.0.7",
     "sinon-chai": "^3.0.0"
   },
   "engines": {
