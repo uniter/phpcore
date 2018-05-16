@@ -335,4 +335,45 @@ describe('Tools', function () {
             expect(this.tools.getNormalizedPath()).to.equal('/path/to/my/module.php');
         });
     });
+
+    describe('tick()', function () {
+        describe('when no "tick" option has been specified', function () {
+            it('should throw', function () {
+                expect(function () {
+                    this.tools.tick(21, 4, 22, 10);
+                }.bind(this)).to.throw(Exception, 'tick(...) :: No "tick" handler option is available.');
+            });
+        });
+
+        describe('when the "tick" option has been specified', function () {
+            beforeEach(function () {
+                this.tickOption = sinon.stub();
+                this.tools = new Tools(
+                    this.callStack,
+                    this.environment,
+                    this.globalNamespace,
+                    this.loader,
+                    this.module,
+                    {
+                        // Options
+                        'tick': this.tickOption
+                    },
+                    '/path/to/my/module.php',
+                    this.referenceFactory,
+                    this.scopeFactory,
+                    this.topLevelNamespaceScope,
+                    this.topLevelScope,
+                    this.valueFactory
+                );
+            });
+
+            it('should call the tick handler with the full statement information', function () {
+                this.tools.tick(21, 4, 22, 10);
+
+                expect(this.tickOption).to.have.been.calledOnce;
+                expect(this.tickOption).to.have.been.calledWith('/path/to/my/module.php', 21, 4, 22, 10);
+                expect(this.tickOption).to.have.been.calledOn(null);
+            });
+        });
+    });
 });
