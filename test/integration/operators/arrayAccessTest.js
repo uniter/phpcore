@@ -36,4 +36,27 @@ EOS
             22
         ]);
     });
+
+    it('should imply an array when assigning to an element of a variable with value null', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+$myArray = null;
+$myArray['my_key'] = 'the value for element 21';
+$result[] = $myArray;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            {
+                my_key: 'the value for element 21'
+            }
+        ]);
+    });
 });
