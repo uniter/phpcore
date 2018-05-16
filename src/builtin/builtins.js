@@ -16,7 +16,10 @@ module.exports = require('pauser')([
     require('./interfaces/ArrayAccess'),
     require('./classes/Closure'),
     require('./classes/Exception'),
-    require('./classes/JSObject')
+    require('./interfaces/Iterator'),
+    require('./interfaces/IteratorAggregate'),
+    require('./classes/JSObject'),
+    require('./interfaces/Traversable')
 ], function (
     reservedConstants,
     splFunctions,
@@ -24,7 +27,10 @@ module.exports = require('pauser')([
     ArrayAccess,
     Closure,
     Exception,
-    JSObject
+    Iterator,
+    IteratorAggregate,
+    JSObject,
+    Traversable
 ) {
     return {
         classes: {
@@ -32,7 +38,10 @@ module.exports = require('pauser')([
             'ArrayAccess': ArrayAccess,
             'Closure': Closure,
             'Exception': Exception,
-            'JSObject': JSObject
+            'Iterator': Iterator,
+            'IteratorAggregate': IteratorAggregate,
+            'JSObject': JSObject,
+            'Traversable': Traversable
         },
         constantGroups: [
             reservedConstants

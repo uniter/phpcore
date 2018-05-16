@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    ArrayIterator = require('../../../src/Iterator/ArrayIterator'),
     ArrayValue = require('../../../src/Value/Array').sync(),
     CallStack = require('../../../src/CallStack'),
     ElementReference = require('../../../src/Reference/Element'),
@@ -494,6 +495,15 @@ describe('Array', function () {
             expect(pair.getKey().getNative()).to.equal(21);
             expect(pair.getValue()).to.be.an.instanceOf(StringValue);
             expect(pair.getValue().getNative()).to.equal('value of first el');
+        });
+    });
+
+    describe('getIterator()', function () {
+        it('should return an ArrayIterator for this array', function () {
+            var iterator = this.value.getIterator();
+
+            expect(iterator).to.be.an.instanceOf(ArrayIterator);
+            expect(iterator.getIteratedValue()).to.equal(this.value);
         });
     });
 

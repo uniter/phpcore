@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
+    ArrayIterator = require('../../src/Iterator/ArrayIterator'),
     ArrayValue = require('../../src/Value/Array').sync(),
     IntegerValue = require('../../src/Value/Integer').sync(),
     Namespace = require('../../src/Namespace').sync(),
@@ -69,6 +70,16 @@ describe('ValueFactory', function () {
             }.bind(this)).to.throw(
                 'Only objects, null or undefined may be coerced to an object'
             );
+        });
+    });
+
+    describe('createArrayIterator()', function () {
+        it('should return an ArrayIterator on the specified value', function () {
+            var arrayValue = sinon.createStubInstance(ArrayValue),
+                iterator = this.factory.createArrayIterator(arrayValue);
+
+            expect(iterator).to.be.an.instanceOf(ArrayIterator);
+            expect(iterator.getIteratedValue()).to.equal(arrayValue);
         });
     });
 
@@ -192,6 +203,32 @@ describe('ValueFactory', function () {
             stdClassClass.instantiate.returns(value);
 
             expect(this.factory.createStdClassObject()).to.equal(value);
+        });
+    });
+
+    describe('instantiateObject()', function () {
+        beforeEach(function () {
+            this.myClassObject = sinon.createStubInstance(Class);
+            this.objectValue = sinon.createStubInstance(ObjectValue);
+            this.globalNamespace.getClass.withArgs('My\\Stuff\\MyClass').returns(this.myClassObject);
+            this.myClassObject.instantiate.returns(this.objectValue);
+        });
+
+        it('should return an instance of the specified class with constructor args coerced', function () {
+            expect(this.factory.instantiateObject('My\\Stuff\\MyClass')).to.equal(this.objectValue);
+        });
+
+        it('should coerce the arguments to Value objects', function () {
+            this.factory.instantiateObject('My\\Stuff\\MyClass', [
+                21,
+                'second arg'
+            ]);
+
+            expect(this.myClassObject.instantiate).to.have.been.calledOnce;
+            expect(this.myClassObject.instantiate.args[0][0][0].getType()).to.equal('integer');
+            expect(this.myClassObject.instantiate.args[0][0][0].getNative()).to.equal(21);
+            expect(this.myClassObject.instantiate.args[0][0][1].getType()).to.equal('string');
+            expect(this.myClassObject.instantiate.args[0][0][1].getNative()).to.equal('second arg');
         });
     });
 });

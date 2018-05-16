@@ -12,6 +12,7 @@
 module.exports = require('pauser')([
     require('microdash'),
     require('phpcommon'),
+    require('./Iterator/ArrayIterator'),
     require('./Value/Array'),
     require('./Value/BarewordString'),
     require('./Value/Boolean'),
@@ -28,6 +29,7 @@ module.exports = require('pauser')([
 ], function (
     _,
     phpCommon,
+    ArrayIterator,
     ArrayValue,
     BarewordStringValue,
     BooleanValue,
@@ -86,6 +88,17 @@ module.exports = require('pauser')([
 
             return new ArrayValue(factory, factory.callStack, value);
         },
+
+        /**
+         * Creates an ArrayIterator
+         *
+         * @param {ArrayValue|ObjectValue} arrayLikeValue
+         * @return {ArrayIterator}
+         */
+        createArrayIterator: function (arrayLikeValue) {
+            return new ArrayIterator(arrayLikeValue);
+        },
+
         createBarewordString: function (value) {
             var factory = this;
 
@@ -237,6 +250,23 @@ module.exports = require('pauser')([
 
             return new StringValue(factory, factory.callStack, value);
         },
+
+        /**
+         * Creates an ObjectValue instance of the specified class
+         *
+         * @param {string} className
+         * @param {Array} constructorArgNatives
+         * @return {ObjectValue}
+         */
+        instantiateObject: function (className, constructorArgNatives) {
+            var factory = this,
+                constructorArgValues = _.map(constructorArgNatives, function (argNative) {
+                    return factory.coerce(argNative);
+                });
+
+            return factory.globalNamespace.getClass(className).instantiate(constructorArgValues);
+        },
+
         isValue: function (object) {
             return object instanceof Value;
         },

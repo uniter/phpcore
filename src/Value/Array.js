@@ -339,6 +339,17 @@ module.exports = require('pauser')([
             return this.getElementByKey(key).getPair(overrideKey);
         },
 
+        /**
+         * Creates an ArrayIterator for iterating over this array. Used by transpiled foreach loops.
+         *
+         * @return {ArrayIterator}
+         */
+        getIterator: function () {
+            var value = this;
+
+            return value.factory.createArrayIterator(value);
+        },
+
         getValueReferences: function () {
             var references = [];
 

@@ -13,14 +13,17 @@ var _ = require('microdash'),
     expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    ArrayIterator = require('../../../src/Iterator/ArrayIterator'),
     ArrayValue = require('../../../src/Value/Array').sync(),
     BooleanValue = require('../../../src/Value/Boolean').sync(),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
     Closure = require('../../../src/Closure').sync(),
+    Exception = phpCommon.Exception,
     FloatValue = require('../../../src/Value/Float').sync(),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     MethodSpec = require('../../../src/MethodSpec'),
+    Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
@@ -35,6 +38,7 @@ describe('Object', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.factory = new ValueFactory();
+        this.globalNamespace = sinon.createStubInstance(Namespace);
         this.classObject = sinon.createStubInstance(Class);
         this.classObject.getMethodSpec.returns(null);
         this.classObject.getName.returns('My\\Space\\AwesomeClass');
@@ -47,6 +51,8 @@ describe('Object', function () {
         };
         this.objectID = 21;
 
+        this.factory.setGlobalNamespace(this.globalNamespace);
+
         this.value = new ObjectValue(
             this.factory,
             this.callStack,
@@ -54,6 +60,34 @@ describe('Object', function () {
             this.classObject,
             this.objectID
         );
+    });
+
+    describe('advance()', function () {
+        describe('when the PHP object implements Iterator', function () {
+            beforeEach(function () {
+                this.classObject.is.withArgs('Iterator').returns(true);
+                this.classObject.is.returns(false);
+            });
+
+            it('should call the ->next() method on it', function () {
+                this.value.advance();
+
+                expect(this.classObject.callMethod).to.have.been.calledOnce;
+                expect(this.classObject.callMethod).to.have.been.calledWith('next');
+            });
+        });
+
+        describe('when the PHP object does not implement Iterator', function () {
+            beforeEach(function () {
+                this.classObject.is.returns(false);
+            });
+
+            it('should throw an exception', function () {
+                expect(function () {
+                    this.value.advance();
+                }.bind(this)).to.throw(Exception, 'Object.advance() :: Object does not implement Iterator');
+            });
+        });
     });
 
     describe('bindClosure()', function () {
@@ -577,6 +611,110 @@ describe('Object', function () {
         });
     });
 
+    describe('getCurrentElementReference()', function () {
+        describe('when the PHP object implements Iterator', function () {
+            beforeEach(function () {
+                this.classObject.is.withArgs('Iterator').returns(true);
+                this.classObject.is.returns(false);
+            });
+
+            it('should call the ->current() method on it', function () {
+                this.value.getCurrentElementReference();
+
+                expect(this.classObject.callMethod).to.have.been.calledOnce;
+                expect(this.classObject.callMethod).to.have.been.calledWith('current');
+            });
+
+            it('should return the result from the ->current() method', function () {
+                var resultValue = sinon.createStubInstance(Value);
+                this.classObject.callMethod.withArgs('current').returns(resultValue);
+
+                expect(this.value.getCurrentElementReference()).to.equal(resultValue);
+            });
+        });
+
+        describe('when the PHP object does not implement Iterator', function () {
+            beforeEach(function () {
+                this.classObject.is.returns(false);
+            });
+
+            it('should throw an exception', function () {
+                expect(function () {
+                    this.value.getCurrentElementReference();
+                }.bind(this)).to.throw(Exception, 'Object.getCurrentElementValue() :: Object does not implement Iterator');
+            });
+        });
+    });
+
+    describe('getCurrentElementValue()', function () {
+        describe('when the PHP object implements Iterator', function () {
+            beforeEach(function () {
+                this.classObject.is.withArgs('Iterator').returns(true);
+                this.classObject.is.returns(false);
+            });
+
+            it('should call the ->current() method on it', function () {
+                this.value.getCurrentElementValue();
+
+                expect(this.classObject.callMethod).to.have.been.calledOnce;
+                expect(this.classObject.callMethod).to.have.been.calledWith('current');
+            });
+
+            it('should return the result from the ->current() method', function () {
+                var resultValue = sinon.createStubInstance(Value);
+                this.classObject.callMethod.withArgs('current').returns(resultValue);
+
+                expect(this.value.getCurrentElementValue()).to.equal(resultValue);
+            });
+        });
+
+        describe('when the PHP object does not implement Iterator', function () {
+            beforeEach(function () {
+                this.classObject.is.returns(false);
+            });
+
+            it('should throw an exception', function () {
+                expect(function () {
+                    this.value.getCurrentElementValue();
+                }.bind(this)).to.throw(Exception, 'Object.getCurrentElementValue() :: Object does not implement Iterator');
+            });
+        });
+    });
+
+    describe('getCurrentKey()', function () {
+        describe('when the PHP object implements Iterator', function () {
+            beforeEach(function () {
+                this.classObject.is.withArgs('Iterator').returns(true);
+                this.classObject.is.returns(false);
+                this.resultValue = this.factory.createString('my_key');
+                this.classObject.callMethod.withArgs('key').returns(this.resultValue);
+            });
+
+            it('should call the ->key() method on it', function () {
+                this.value.getCurrentKey();
+
+                expect(this.classObject.callMethod).to.have.been.calledOnce;
+                expect(this.classObject.callMethod).to.have.been.calledWith('key');
+            });
+
+            it('should return the result from the ->key() method', function () {
+                expect(this.value.getCurrentKey()).to.equal(this.resultValue);
+            });
+        });
+
+        describe('when the PHP object does not implement Iterator', function () {
+            beforeEach(function () {
+                this.classObject.is.returns(false);
+            });
+
+            it('should throw an exception', function () {
+                expect(function () {
+                    this.value.getCurrentKey();
+                }.bind(this)).to.throw(Exception, 'Object.getCurrentKey() :: Object does not implement Iterator');
+            });
+        });
+    });
+
     describe('getInstancePropertyNames()', function () {
         it('should include properties on the native object', function () {
             var names = this.value.getInstancePropertyNames();
@@ -640,6 +778,122 @@ describe('Object', function () {
             }.bind(this)).to.throw(
                 'Object of class "My\\SpecialClass" has no internal property "myUndefinedProperty"'
             );
+        });
+    });
+
+    describe('getIterator()', function () {
+        it('should reset the object\'s internal pointer', function () {
+            this.value.setPointer(4);
+
+            this.value.getIterator();
+
+            expect(this.value.getPointer()).to.equal(0);
+        });
+
+        describe('when the object does not implement Traversable', function () {
+            it('should return an ArrayIterator over this object', function () {
+                var iterator;
+                this.classObject.is.returns(false);
+
+                iterator = this.value.getIterator();
+
+                expect(iterator).to.be.an.instanceOf(ArrayIterator);
+                expect(iterator.getIteratedValue()).to.equal(this.value);
+            });
+        });
+
+        describe('when the object implements Iterator', function () {
+            beforeEach(function () {
+                this.classObject.is.withArgs('Iterator').returns(true);
+                this.classObject.is.returns(false);
+            });
+
+            it('should call its ->rewind() method', function () {
+                this.value.getIterator();
+
+                expect(this.classObject.callMethod).to.have.been.calledOnce;
+                expect(this.classObject.callMethod).to.have.been.calledWith('rewind');
+            });
+
+            it('should return this object itself', function () {
+                expect(this.value.getIterator()).to.equal(this.value);
+            });
+        });
+
+        describe('when the object implements IteratorAggregate', function () {
+            beforeEach(function () {
+                this.classObject.is.withArgs('IteratorAggregate').returns(true);
+                this.classObject.is.returns(false);
+            });
+
+            it('should return the Iterator instance returned by ->getIterator()', function () {
+                var iteratorValue = sinon.createStubInstance(ObjectValue);
+                iteratorValue.classIs.withArgs('Iterator').returns(true);
+                iteratorValue.classIs.returns(false);
+                iteratorValue.getType.returns('object');
+                this.classObject.callMethod.withArgs('getIterator').returns(iteratorValue);
+
+                expect(this.value.getIterator()).to.equal(iteratorValue);
+            });
+
+            it('should rewind the Iterator instance returned by ->getIterator()', function () {
+                var iteratorValue = sinon.createStubInstance(ObjectValue);
+                iteratorValue.classIs.withArgs('Iterator').returns(true);
+                iteratorValue.classIs.returns(false);
+                iteratorValue.getType.returns('object');
+                this.classObject.callMethod.withArgs('getIterator').returns(iteratorValue);
+
+                this.value.getIterator();
+
+                expect(iteratorValue.callMethod).to.have.been.calledOnce;
+                expect(iteratorValue.callMethod).to.have.been.calledWith('rewind');
+            });
+
+            it('should throw an Exception when the return value of ->getIterator() is not an object', function () {
+                var caughtError,
+                    exceptionClassObject = sinon.createStubInstance(Class),
+                    exceptionObjectValue = sinon.createStubInstance(ObjectValue),
+                    invalidIteratorValue = this.factory.createString('I am not a valid iterator');
+                this.classObject.callMethod.withArgs('getIterator').returns(invalidIteratorValue);
+                this.globalNamespace.getClass.withArgs('Exception').returns(exceptionClassObject);
+                exceptionClassObject.instantiate.returns(exceptionObjectValue);
+
+                try {
+                    this.value.getIterator();
+                } catch (error) {
+                    caughtError = error;
+                }
+
+                expect(caughtError).to.equal(exceptionObjectValue);
+                expect(exceptionClassObject.instantiate.args[0][0][0].getType()).to.equal('string');
+                expect(exceptionClassObject.instantiate.args[0][0][0].getNative()).to.equal(
+                    'Objects returned by My\\Space\\AwesomeClass::getIterator() must be traversable or implement interface Iterator'
+                );
+            });
+
+            it('should throw an Exception when the return value of ->getIterator() does not implement Iterator', function () {
+                var caughtError,
+                    exceptionClassObject = sinon.createStubInstance(Class),
+                    exceptionObjectValue = sinon.createStubInstance(ObjectValue),
+                    iteratorValue = sinon.createStubInstance(ObjectValue);
+                iteratorValue.classIs.returns(false);
+                iteratorValue.getType.returns('object');
+                this.classObject.callMethod.withArgs('getIterator').returns(iteratorValue);
+                this.globalNamespace.getClass.withArgs('Exception').returns(exceptionClassObject);
+                exceptionClassObject.instantiate.returns(exceptionObjectValue);
+
+                try {
+                    this.value.getIterator();
+                } catch (error) {
+                    caughtError = error;
+                }
+
+                expect(caughtError).to.equal(exceptionObjectValue);
+                expect(exceptionClassObject.instantiate.args[0][0][0].getType()).to.equal('string');
+                expect(exceptionClassObject.instantiate.args[0][0][0].getNative()).to.equal(
+                    'Objects returned by My\\Space\\AwesomeClass::getIterator() must be traversable or implement interface Iterator'
+                );
+            });
         });
     });
 
@@ -866,6 +1120,49 @@ describe('Object', function () {
             this.classObject.getMethodSpec.withArgs('myMethod').returns(null);
 
             expect(this.value.isMethodDefined('myMethod')).to.be.false;
+        });
+    });
+
+    describe('isNotFinished()', function () {
+        describe('when the object implements Iterator', function () {
+            beforeEach(function () {
+                this.classObject.is.withArgs('Iterator').returns(true);
+                this.classObject.is.returns(false);
+            });
+
+            it('should return true when ->valid() does', function () {
+                this.classObject.callMethod.withArgs('valid').returns(this.factory.createBoolean(true));
+
+                expect(this.value.isNotFinished()).to.be.true;
+            });
+
+            it('should return false when ->valid() does', function () {
+                this.classObject.callMethod.withArgs('valid').returns(this.factory.createBoolean(false));
+
+                expect(this.value.isNotFinished()).to.be.false;
+            });
+
+            it('should return true when ->valid() returns a truthy value', function () {
+                this.classObject.callMethod.withArgs('valid').returns(this.factory.createString('yep'));
+
+                expect(this.value.isNotFinished()).to.be.true;
+            });
+
+            it('should return false when ->valid() returns a falsy value', function () {
+                this.classObject.callMethod.withArgs('valid').returns(this.factory.createFloat(0.0));
+
+                expect(this.value.isNotFinished()).to.be.false;
+            });
+        });
+
+        describe('when the object does not implement Iterator', function () {
+            it('should throw an exception', function () {
+                this.classObject.is.returns(false);
+
+                expect(function () {
+                    this.value.isNotFinished();
+                }.bind(this)).to.throw(Exception, 'ObjectValue.isNotFinished() :: Object does not implement Iterator');
+            });
         });
     });
 

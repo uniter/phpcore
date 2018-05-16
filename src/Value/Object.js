@@ -60,6 +60,7 @@ module.exports = require('pauser')([
                 value: value
             };
         },
+        Exception = phpCommon.Exception,
         PHPError = phpCommon.PHPError,
         PHPFatalError = phpCommon.PHPFatalError;
 
@@ -114,6 +115,20 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Moves the iterator to its next position.
+         * Used by transpiled foreach loops over objects implementing Iterator.
+         */
+        advance: function () {
+            var value = this;
+
+            if (!value.classIs('Iterator')) {
+                throw new Exception('Object.advance() :: Object does not implement Iterator');
+            }
+
+            value.callMethod('next');
+        },
+
+        /**
          * When this object is a Closure instance, returns a new Closure
          * with the specified bound `$this` object and a new current class scope
          *
@@ -139,7 +154,7 @@ module.exports = require('pauser')([
          * Calls the specified method of this object
          *
          * @param {string} name
-         * @param {Value[]} args
+         * @param {Value[]?} args
          * @returns {Value|null} Returns the result of the method if it exists, or null if it does not exist
          */
         callMethod: function (name, args) {
@@ -294,6 +309,50 @@ module.exports = require('pauser')([
             return this.classObject.getConstantByName(name);
         },
 
+        /**
+         * Fetches a reference to the value at the current position of the iterator.
+         * Used by transpiled foreach loops over objects implementing Iterator.
+         *
+         * @returns {Reference}
+         */
+        getCurrentElementReference: function () {
+            // FIXME: Should this raise a warning or something?
+            //        What if the current() method is marked as return-by-reference?
+            return this.getCurrentElementValue();
+        },
+
+        /**
+         * Fetches the value at the current position of the iterator.
+         * Used by transpiled foreach loops over objects implementing Iterator.
+         *
+         * @returns {Value}
+         */
+        getCurrentElementValue: function () {
+            var value = this;
+
+            if (!value.classIs('Iterator')) {
+                throw new Exception('Object.getCurrentElementValue() :: Object does not implement Iterator');
+            }
+
+            return value.callMethod('current');
+        },
+
+        /**
+         * Fetches the key for the current position of the iterator.
+         * Used by transpiled foreach loops over objects implementing Iterator.
+         *
+         * @returns {Value}
+         */
+        getCurrentKey: function () {
+            var value = this;
+
+            if (!value.classIs('Iterator')) {
+                throw new Exception('Object.getCurrentKey() :: Object does not implement Iterator');
+            }
+
+            return value.callMethod('key').coerceToKey();
+        },
+
         getElementByIndex: function (index) {
             var value = this,
                 names = value.getInstancePropertyNames();
@@ -414,6 +473,40 @@ module.exports = require('pauser')([
             }
 
             return value.internalProperties[name];
+        },
+
+        /**
+         * Fetches either an ArrayIterator (for a normal object)
+         * or the object itself if it implements Traversable via Iterator or IteratorAggregate.
+         * Used by transpiled foreach loops over objects implementing Iterator.
+         *
+         * @return {ArrayIterator|ObjectValue}
+         */
+        getIterator: function () {
+            var value = this,
+                iteratorValue = value;
+
+            value.pointer = 0;
+
+            if (iteratorValue.classIs('IteratorAggregate')) {
+                // IteratorAggregate requires its ->getIterator() method to return something iterable
+                iteratorValue = iteratorValue.callMethod('getIterator');
+
+                if (iteratorValue.getType() !== 'object' || !iteratorValue.classIs('Iterator')) {
+                    throw value.factory.instantiateObject('Exception', [
+                        'Objects returned by ' + value.getClassName() + '::getIterator() must be traversable or implement interface Iterator'
+                    ]);
+                }
+            }
+
+            if (!iteratorValue.classIs('Iterator')) {
+                // Objects not implementing Traversable are iterated like arrays
+                return value.factory.createArrayIterator(value);
+            }
+
+            iteratorValue.callMethod('rewind');
+
+            return iteratorValue;
         },
 
         getKeyByIndex: function (index) {
@@ -623,6 +716,22 @@ module.exports = require('pauser')([
          */
         isMethodDefined: function (methodName) {
             return this.classObject.getMethodSpec(methodName) !== null;
+        },
+
+        /**
+         * Determines whether this iterator has finished iterating or not.
+         * Used by transpiled foreach loops over objects implementing Iterator.
+         *
+         * @return {boolean}
+         */
+        isNotFinished: function () {
+            var value = this;
+
+            if (!value.classIs('Iterator')) {
+                throw new Exception('ObjectValue.isNotFinished() :: Object does not implement Iterator');
+            }
+
+            return value.callMethod('valid').coerceToBoolean().getNative();
         },
 
         /**
