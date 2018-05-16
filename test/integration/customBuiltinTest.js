@@ -18,7 +18,6 @@ var expect = require('chai').expect,
     when = require('../when'),
     Engine = require('../../src/Engine'),
     Environment = require('../../src/Environment'),
-    OptionSet = require('../../src/OptionSet'),
     PHPState = require('../../src/PHPState').sync(),
     Runtime = require('../../src/Runtime').async(pausable);
 
@@ -27,7 +26,6 @@ describe('Custom builtin integration', function () {
         this.runtime = new Runtime(
             Environment,
             Engine,
-            OptionSet,
             PHPState,
             phpCommon,
             pausable,

@@ -16,7 +16,6 @@ var expect = require('chai').expect,
     phpToJS = require('phptojs'),
     Engine = require('../../../src/Engine'),
     Environment = require('../../../src/Environment'),
-    OptionSet = require('../../../src/OptionSet'),
     PHPState = require('../../../src/PHPState').sync(),
     Runtime = require('../../../src/Runtime').sync();
 
@@ -25,7 +24,6 @@ describe('PHP "class" statement integration', function () {
         this.runtime = new Runtime(
             Environment,
             Engine,
-            OptionSet,
             PHPState,
             phpCommon,
             null,
