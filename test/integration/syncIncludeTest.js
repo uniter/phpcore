@@ -61,6 +61,30 @@ EOS
         expect(module(options).execute().getNative()).to.equal('Hello from my/caller.php!');
     });
 
+    it('should correctly handle a rejection', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$num = include 'abc.php';
+return $num;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            options = {
+                include: function (path, promise) {
+                    promise.reject();
+                }
+            },
+            engine = module(options);
+
+            expect(engine.execute().getNative()).to.equal(false);
+            expect(engine.getStderr().readAll()).to.equal(nowdoc(function () {/*<<<EOS
+PHP Warning: include(abc.php): failed to open stream: No such file or directory
+PHP Warning: include(): Failed opening 'abc.php' for inclusion
+
+EOS
+*/;})); //jshint ignore:line
+    });
+
     it('should correctly trap a parse error in included file', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
