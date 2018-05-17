@@ -11,7 +11,8 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
-    PHPError = phpCommon.PHPError;
+    PHPError = phpCommon.PHPError,
+    PHPFatalError = phpCommon.PHPFatalError;
 
 /**
  * @param {Stream} stderr
@@ -195,6 +196,13 @@ _.extend(CallStack.prototype, {
             calls = chain.calls,
             error,
             index;
+
+        if (level === PHPError.E_FATAL) {
+            // (Fatal) errors need to actually stop execution
+            throw new PHPFatalError(PHPFatalError.GENERIC, {
+                message: message + '\n'
+            });
+        }
 
         // Some constructs like isset(...) should only suppress errors
         // for their own scope

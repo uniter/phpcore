@@ -10,11 +10,14 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     Call = require('../../src/Call'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
+    PHPError = phpCommon.PHPError,
+    PHPFatalError = phpCommon.PHPFatalError,
     Scope = require('../../src/Scope').sync(),
     Stream = require('../../src/Stream'),
     Value = require('../../src/Value').sync();
@@ -273,6 +276,40 @@ describe('CallStack', function () {
             this.callStack.push(call);
 
             expect(this.callStack.getCurrent()).to.equal(call);
+        });
+    });
+
+    describe('raiseError()', function () {
+        beforeEach(function () {
+            this.call = sinon.createStubInstance(Call);
+            this.callStack.push(this.call);
+            this.scope = sinon.createStubInstance(Scope);
+            this.call.getScope.returns(this.scope);
+        });
+
+        describe('for a non-fatal error', function () {
+            it('should write the message to stderr when no errors are suppressed', function () {
+                this.callStack.raiseError(PHPError.E_WARNING, 'This may or may not be bad.');
+
+                expect(this.stderr.write).to.have.been.calledOnce;
+                expect(this.stderr.write).to.have.been.calledWith('PHP Warning: This may or may not be bad.\n');
+            });
+        });
+
+        describe('for a fatal error', function () {
+            it('should not write anything to stderr', function () {
+                try {
+                    this.callStack.raiseError(PHPError.E_FATAL, 'Oh dear...!');
+                } catch (error) {}
+
+                expect(this.stderr.write).not.to.have.been.called;
+            });
+
+            it('should throw a PHPFatalError with the correct message', function () {
+                expect(function () {
+                    this.callStack.raiseError(PHPError.E_FATAL, 'Oh dear...!');
+                }.bind(this)).to.throw(PHPFatalError, 'PHP Fatal error: Oh dear...!');
+            });
         });
     });
 });
