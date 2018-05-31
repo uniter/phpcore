@@ -526,6 +526,8 @@ module.exports = require('pauser')([
 
             delete value.keysToElements[value.getKeyByIndex(length - 1).getNative()];
 
+            value.pointer = 0;
+
             return value.value.pop().getValue();
         },
 

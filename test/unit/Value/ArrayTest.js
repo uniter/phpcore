@@ -898,6 +898,20 @@ describe('Array', function () {
             expect(element).to.be.an.instanceOf(Value);
             expect(element.getType()).to.equal('null');
         });
+
+        it('should reset the internal array pointer', function () {
+            this.elements.push(
+                this.createKeyValuePair(
+                    this.factory.createString('another_key'),
+                    this.factory.createString('another value')
+                )
+            );
+            this.value.setPointer(2);
+
+            this.value.pop();
+
+            expect(this.value.getPointer()).to.equal(0);
+        });
     });
 
     describe('pushElement()', function () {
