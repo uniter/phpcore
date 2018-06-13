@@ -139,6 +139,15 @@ _.extend(ElementReference.prototype, {
         return false;
     },
 
+    /**
+     * Sets the key for this element
+     *
+     * @param {Value} keyValue
+     */
+    setKey: function (keyValue) {
+        this.key = keyValue;
+    },
+
     setReference: function (reference) {
         var element = this;
 
@@ -156,7 +165,7 @@ _.extend(ElementReference.prototype, {
 
         if (element.key === null) {
             // This reference refers to a new element to push onto the end of an array
-            element.key = element.arrayValue.pushElement(element);
+            element.arrayValue.pushElement(element);
         }
 
         if (element.reference) {

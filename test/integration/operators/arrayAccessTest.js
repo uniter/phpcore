@@ -14,6 +14,33 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP array access operator integration', function () {
+    it('should be able to push onto both indexed and associative arrays', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+$result[] = 'first';
+$result[] = 'second';
+$result['three'] = 'third';
+$result['four'] = 'fourth';
+$result[] = 'fifth';
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal({
+            0: 'first',
+            1: 'second',
+            three: 'third',
+            four: 'fourth',
+            2: 'fifth'
+        });
+    });
+
     it('should evaluate the expression before pushing the element onto the array', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

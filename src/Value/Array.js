@@ -531,23 +531,39 @@ module.exports = require('pauser')([
             return value.value.pop().getValue();
         },
 
+        /**
+         * Pushes an indexed element onto the array and then returns the array
+         *
+         * @param {Value} otherValue
+         * @return {ArrayValue}
+         */
         push: function (otherValue) {
             var value = this,
-                index = value.factory.createInteger(value.getLength());
+                index = value.factory.createInteger(value.keysToElements.length);
 
             value.getElementByKey(index).setValue(otherValue);
 
             return value;
         },
 
+        /**
+         * Pushes an indexed element onto the array and then returns the key generated for it
+         *
+         * @param {ElementReference} elementReference
+         * @return {IntegerValue}
+         */
         pushElement: function (elementReference) {
             var value = this,
-                key = value.getLength();
+                key = value.keysToElements.length,
+                keyValue;
 
             value.keysToElements[key] = elementReference;
             value.value.push(elementReference);
 
-            return value.factory.createInteger(key);
+            keyValue = value.factory.createInteger(key);
+            elementReference.setKey(keyValue);
+
+            return keyValue;
         },
 
         referToElement: function (key) {

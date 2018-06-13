@@ -200,6 +200,20 @@ describe('ElementReference', function () {
         });
     });
 
+    describe('setKey()', function () {
+        it('should change the key of the element when an integer is given (indexed element)', function () {
+            this.element.setKey(this.factory.createInteger(21));
+
+            expect(this.element.getKey().getNative()).to.equal(21);
+        });
+
+        it('should change the key of the element when a string is given (associative element)', function () {
+            this.element.setKey(this.factory.createString('my_key'));
+
+            expect(this.element.getKey().getNative()).to.equal('my_key');
+        });
+    });
+
     describe('setReference()', function () {
         it('should define the element in its array', function () {
             var reference = sinon.createStubInstance(Variable);

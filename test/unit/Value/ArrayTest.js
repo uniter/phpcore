@@ -914,27 +914,74 @@ describe('Array', function () {
         });
     });
 
+    describe('push()', function () {
+        it('should give the new element index 0 if the array was empty', function () {
+            this.elements.length = 0;
+            this.createValue();
+
+            this.value.push(this.factory.createString('my new element'));
+
+            expect(this.value.getNative()).to.deep.equal(['my new element']);
+        });
+
+        it('should number indexed elements separately from associative ones', function () {
+            this.value.push(this.factory.createString('my new indexed element'));
+
+            expect(this.value.getNative()).to.deep.equal({
+                firstEl: 'value of first el',
+                secondEl: 'value of second el',
+                0: 'my new indexed element' // Use `0` and not `2`, even though some assoc. elements already exist
+            });
+        });
+    });
+
     describe('pushElement()', function () {
-        it('should add the element to the array', function () {
+        it('should give the new element index 0 if the array was empty', function () {
             var element = sinon.createStubInstance(ElementReference);
-            element.getKey.returns(this.factory.createInteger(21));
-            element.getValue.returns(this.factory.createString('a value'));
+            element.getKey.returns(this.factory.createNull());
+            element.getValue.returns(this.factory.createString('my new element'));
+            element.setKey.callsFake(function (keyValue) {
+                element.getKey.returns(keyValue);
+            });
+            this.elements.length = 0;
+            this.createValue();
 
             this.value.pushElement(element);
 
-            expect(this.value.getNative()[21]).to.equal('a value');
+            expect(this.value.getNative()).to.deep.equal(['my new element']);
+        });
+
+        it('should number indexed elements separately from associative ones', function () {
+            var element = sinon.createStubInstance(ElementReference);
+            element.getKey.returns(this.factory.createNull());
+            element.getValue.returns(this.factory.createString('my new indexed element'));
+            element.setKey.callsFake(function (keyValue) {
+                element.getKey.returns(keyValue);
+            });
+
+            this.value.pushElement(element);
+
+            expect(this.value.getNative()).to.deep.equal({
+                firstEl: 'value of first el',
+                secondEl: 'value of second el',
+                0: 'my new indexed element' // Use `0` and not `2`, even though some assoc. elements already exist
+            });
         });
 
         it('should return an IntegerValue with the pushed element\'s key', function () {
-            var element = sinon.createStubInstance(ElementReference),
+            var element1 = sinon.createStubInstance(ElementReference),
+                element2 = sinon.createStubInstance(ElementReference),
                 result;
-            element.getKey.returns(this.factory.createInteger(21));
-            element.getValue.returns(this.factory.createString('a value'));
+            element1.getKey.returns(this.factory.createInteger(4));
+            element2.getValue.returns(this.factory.createString('first indexed value'));
+            element1.getValue.returns(this.factory.createString('second indexed value'));
+            this.value.pushElement(element1);
 
-            result = this.value.pushElement(element);
+            result = this.value.pushElement(element2);
 
             expect(result).to.be.an.instanceOf(IntegerValue);
-            expect(result.getNative()).to.equal(2); // 0 and 1 already taken by existing elements
+            // 0 already taken by existing indexed element - but the 2 assoc. elements aren't counted
+            expect(result.getNative()).to.equal(1);
         });
     });
 
