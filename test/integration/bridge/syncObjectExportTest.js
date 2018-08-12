@@ -172,4 +172,32 @@ EOS
             myObject.throwIt(9001);
         }).to.throw(Error, 'PHP YourException: Oh no - 9001 (custom!)');
     });
+
+    it('should always export the same PHP object to the same unwrapped JS object', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+class MyClass
+{
+    private $tools;
+
+    public function get21()
+    {
+        return 21;
+    }
+}
+
+$myObject = new MyClass();
+
+return $myObject;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            phpEngine = module(),
+            resultValue = phpEngine.execute();
+
+        expect(resultValue.getType()).to.equal('object');
+        expect(resultValue.getClassName()).to.equal('MyClass');
+        // Deliberately unwrap the object twice
+        expect(resultValue.getNative()).to.equal(resultValue.getNative());
+    });
 });

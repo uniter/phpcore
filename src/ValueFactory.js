@@ -56,6 +56,7 @@ module.exports = require('pauser')([
          * @type {WeakMap}
          */
         this.unwrappedObjectToValueMap = new WeakMap();
+        this.valueToUnwrappedObjectMap = new WeakMap();
     }
 
     _.extend(ValueFactory.prototype, {
@@ -252,6 +253,17 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Fetches the unwrapped object that an ObjectValue has been unwrapped to,
+         * or returns null if there is no existing mapping
+         *
+         * @param objectValue
+         * @return {object|null}
+         */
+        getUnwrappedObjectFromValue: function (objectValue) {
+            return this.valueToUnwrappedObjectMap.get(objectValue) || null;
+        },
+
+        /**
          * Creates an ObjectValue instance of the specified class
          *
          * @param {string} className
@@ -278,7 +290,10 @@ module.exports = require('pauser')([
          * @param {ObjectValue} objectValue
          */
         mapUnwrappedObjectToValue: function (unwrappedObject, objectValue) {
-            this.unwrappedObjectToValueMap.set(unwrappedObject, objectValue);
+            var factory = this;
+
+            factory.unwrappedObjectToValueMap.set(unwrappedObject, objectValue);
+            factory.valueToUnwrappedObjectMap.set(objectValue, unwrappedObject);
         },
         setGlobalNamespace: function (globalNamespace) {
             this.globalNamespace = globalNamespace;

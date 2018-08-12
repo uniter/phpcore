@@ -206,6 +206,22 @@ describe('ValueFactory', function () {
         });
     });
 
+    describe('getUnwrappedObjectFromValue()', function () {
+        it('should return the unwrapped object for an object that has been mapped before', function () {
+            var objectValue = sinon.createStubInstance(ObjectValue),
+                unwrappedObject = {unwrapped: 'yes'};
+            this.factory.mapUnwrappedObjectToValue(unwrappedObject, objectValue);
+
+            expect(this.factory.getUnwrappedObjectFromValue(objectValue)).to.equal(unwrappedObject);
+        });
+
+        it('should return null for a value that has not been mapped before', function () {
+            var objectValue = sinon.createStubInstance(ObjectValue);
+
+            expect(this.factory.getUnwrappedObjectFromValue(objectValue)).to.be.null;
+        });
+    });
+
     describe('instantiateObject()', function () {
         beforeEach(function () {
             this.myClassObject = sinon.createStubInstance(Class);

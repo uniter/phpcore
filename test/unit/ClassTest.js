@@ -786,6 +786,15 @@ describe('Class', function () {
                 expect(unwrapped.doubleMyPropAndAdd(21)).to.equal(29);
             });
 
+            it('should always return the same instance of the generated UnwrappedClass for each ObjectValue', function () {
+                var existingUnwrapped,
+                    instance = sinon.createStubInstance(ObjectValue),
+                    nativeObject = {myProp: 4};
+                existingUnwrapped = this.classObject.unwrapInstanceForJS(instance, nativeObject);
+
+                expect(this.classObject.unwrapInstanceForJS(instance, nativeObject)).to.equal(existingUnwrapped);
+            });
+
             it('should map the unwrapped object back to the original ObjectValue', function () {
                 var instance = sinon.createStubInstance(ObjectValue),
                     nativeObject = {myProp: 'my second result'};

@@ -623,6 +623,13 @@ module.exports = require('pauser')([
                 defineUnwrappedClass(classObject);
             }
 
+            // Reuse unwrapped objects, both to save memory and to allow testing for equality
+            unwrappedObject = classObject.valueFactory.getUnwrappedObjectFromValue(instance);
+
+            if (unwrappedObject) {
+                return unwrappedObject;
+            }
+
             unwrappedObject = new classObject.UnwrappedClass(classObject.valueFactory.createPHPObject(instance));
 
             // Store a map from the new unwrapped object back to its object value
