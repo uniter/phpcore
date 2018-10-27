@@ -146,6 +146,12 @@ module.exports = require('pauser')([
             return value.value.bind(thisValue, scopeClass);
         },
 
+        /**
+         * Calls the magic __invoke() method for this object
+         *
+         * @param {Reference[]|Value[]|Variable[]} args
+         * @return {Reference|Value}
+         */
         call: function (args) {
             return this.callMethod('__invoke', args);
         },
@@ -179,6 +185,12 @@ module.exports = require('pauser')([
             return this.classObject.callMethod(nameValue.getNative(), args, null, null, null, isForwarding);
         },
 
+        /**
+         * Determines whether this object is an instance of the given class
+         *
+         * @param {string} className
+         * @return {boolean}
+         */
         classIs: function (className) {
             return this.classObject.is(className);
         },
@@ -278,10 +290,20 @@ module.exports = require('pauser')([
             return leftValue.coerceToNumber();
         },
 
+        /**
+         * Builds a string representation of this value
+         *
+         * @return {string}
+         */
         formatAsString: function () {
             return 'Object(' + this.getClassName() + ')';
         },
 
+        /**
+         * Fetches the callable name of the value this reference resolves to
+         *
+         * @returns {string}
+         */
         getCallableName: function () {
             var value = this;
 
@@ -301,10 +323,21 @@ module.exports = require('pauser')([
             return this.classObject;
         },
 
+        /**
+         * Fetches the name of the class of this object
+         *
+         * @return {string}
+         */
         getClassName: function () {
             return this.classObject.getName();
         },
 
+        /**
+         * Fetches a constant for the class of this object
+         *
+         * @param {string} name
+         * @returns {Value}
+         */
         getConstantByName: function (name) {
             return this.classObject.getConstantByName(name);
         },
@@ -353,6 +386,12 @@ module.exports = require('pauser')([
             return value.callMethod('key').coerceToKey();
         },
 
+        /**
+         * Fetches an element of the value this reference resolves to
+         *
+         * @param {number} index
+         * @returns {Reference}
+         */
         getElementByIndex: function (index) {
             var value = this,
                 names = value.getInstancePropertyNames();
@@ -389,18 +428,40 @@ module.exports = require('pauser')([
             });
         },
 
+        /**
+         * Returns either the current value or one based on it as part of an assignment.
+         * Objects are passed around by reference so this should just return this
+         *
+         * @returns {Value}
+         */
         getForAssignment: function () {
             return this;
         },
 
+        /**
+         * Returns the native value that represents the error
+         *
+         * @returns {object}
+         */
         getForThrow: function () {
             return this.value;
         },
 
+        /**
+         * Fetches the unique internal ID of this object. Used by eg. var_dump(...)
+         *
+         * @returns {number}
+         */
         getID: function () {
             return this.id;
         },
 
+        /**
+         * Fetches the value of an instance property of this object
+         *
+         * @param {string} name
+         * @returns {Value}
+         */
         getProperty: function (name) {
             var value = this,
                 nameValue = value.factory.createString(name);
@@ -408,6 +469,12 @@ module.exports = require('pauser')([
             return value.getInstancePropertyByName(nameValue).getValue();
         },
 
+        /**
+         * Fetches an instance property of this object
+         *
+         * @param {Value} nameValue
+         * @return {PropertyReference}
+         */
         getInstancePropertyByName: function (nameValue) {
             var nameKey = nameValue.coerceToKey(),
                 name = nameKey.getNative(),
@@ -433,21 +500,30 @@ module.exports = require('pauser')([
             return value.properties[name];
         },
 
+        /**
+         * Fetches the names of all instance properties of this object, wrapped as values
+         *
+         * @return {Value[]}
+         */
         getInstancePropertyNames: function () {
             var nameHash = {},
                 names = [],
                 value = this;
 
+            // Include the names of all properties of the wrapped native object
+            // TODO: Move this custom logic to JSObject, called via a magic method?
             _.forOwn(value.value, function (value, name) {
                 nameHash[name] = true;
             });
 
+            // Include the names of all properties defined on the class
             _.forOwn(value.properties, function (value, name) {
                 if (value.isDefined()) {
                     nameHash[name] = true;
                 }
             });
 
+            // Wrap all the names in Value objects before returning
             _.forOwn(nameHash, function (t, name) {
                 names.push(value.factory.coerce(name));
             });
@@ -509,6 +585,12 @@ module.exports = require('pauser')([
             return iteratorValue;
         },
 
+        /**
+         * Fetches a key (property name) of this object by its index
+         *
+         * @param {number} index
+         * @return {Value|null}
+         */
         getKeyByIndex: function (index) {
             var value = this,
                 keys = value.getInstancePropertyNames();
@@ -516,6 +598,11 @@ module.exports = require('pauser')([
             return keys[index] || null;
         },
 
+        /**
+         * Fetches the length (number of properties) for this object
+         *
+         * @return {number}
+         */
         getLength: function () {
             return this.getInstancePropertyNames().length;
         },
@@ -531,11 +618,13 @@ module.exports = require('pauser')([
                 value = this;
 
             // Don't wrap JS objects in PHPObject
+            // TODO: Move this out to JSObject.js by setting a custom unwrapper
             if (value.classObject.getName() === 'JSObject') {
                 return value.value;
             }
 
             // Don't wrap stdClass objects in PHPObject, unwrap them recursively
+            // TODO: Move this out to stdClass.js by setting a custom unwrapper
             if (value.classObject.getName() === 'stdClass') {
                 result = {};
 
@@ -569,6 +658,12 @@ module.exports = require('pauser')([
             return value.classObject.proxyInstanceForJS(value);
         },
 
+        /**
+         * Fetches a reference to a static property of this object's class by its name
+         *
+         * @param {Reference|Value} nameValue
+         * @returns {StaticPropertyReference|UndeclaredStaticPropertyReference}
+         */
         getStaticPropertyByName: function (nameValue) {
             return this.classObject.getStaticPropertyByName(nameValue.getNative());
         },
@@ -629,6 +724,13 @@ module.exports = require('pauser')([
             return this.value.invoke(args);
         },
 
+        /**
+         * Determines whether the object this reference resolves to is an instance of the specified class
+         *
+         * @param {Reference|Value} classNameValue
+         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
+         * @return {BooleanValue}
+         */
         isAnInstanceOf: function (classNameValue, namespaceOrNamespaceScope) {
             return classNameValue.isTheClassOfObject(this, namespaceOrNamespaceScope);
         },

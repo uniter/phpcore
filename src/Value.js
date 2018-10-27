@@ -169,6 +169,12 @@ module.exports = require('pauser')([
 
         coerceToString: throwUnimplemented,
 
+        /**
+         * Concatenates this value's string representation with the provided other value's
+         *
+         * @param {StringValue} rightValue
+         * @returns {StringValue}
+         */
         concat: function (rightValue) {
             var leftValue = this;
 
@@ -317,6 +323,11 @@ module.exports = require('pauser')([
             return this;
         },
 
+        /**
+         * Coerces this value to a number and adds one to it
+         *
+         * @returns {Value}
+         */
         increment: throwUnimplemented,
 
         /**
@@ -365,6 +376,12 @@ module.exports = require('pauser')([
          */
         isEmpty: throwUnimplemented,
 
+        /**
+         * Determines whether this value is loosely equal to the provided other value
+         *
+         * @param {Reference|Value} rightValue
+         * @returns {BooleanValue}
+         */
         isEqualTo: function (rightValue) {
             /*jshint eqeqeq:false */
             var leftValue = this;
@@ -372,23 +389,73 @@ module.exports = require('pauser')([
             return leftValue.factory.createBoolean(rightValue.value == leftValue.value);
         },
 
+        /**
+         * Determines whether this value is loosely equal to the provided array value
+         *
+         * @param {ArrayValue} rightValue
+         * @returns {BooleanValue}
+         */
         isEqualToArray: function (rightValue) {
             return this.isEqualTo(rightValue);
         },
 
+        /**
+         * Determines whether this value is loosely equal to the provided boolean value
+         *
+         * @param {BooleanValue} rightValue
+         * @returns {BooleanValue}
+         */
+        isEqualToBoolean: function (rightValue) {
+            return this.isEqualTo(rightValue);
+        },
+
+        /**
+         * Determines whether this value is loosely equal to the provided float value
+         *
+         * @param {FloatValue} rightValue
+         * @returns {BooleanValue}
+         */
         isEqualToFloat: function (rightValue) {
             return this.isEqualTo(rightValue);
         },
 
+        /**
+         * Determines whether this value is loosely equal to the provided integer value
+         *
+         * @param {IntegerValue} rightValue
+         * @returns {BooleanValue}
+         */
         isEqualToInteger: function (rightValue) {
             return this.isEqualTo(rightValue);
         },
 
+        /**
+         * Determines whether this value is loosely equal to the provided null value
+         *
+         * @param {NullValue} rightValue
+         * @returns {BooleanValue}
+         */
         isEqualToNull: function (rightValue) {
             return this.isEqualTo(rightValue);
         },
 
+        /**
+         * Determines whether this value is loosely equal to the provided object value
+         *
+         * @param {ObjectValue} rightValue
+         * @returns {BooleanValue}
+         */
         isEqualToObject: function (rightValue) {
+            return this.isEqualTo(rightValue);
+        },
+
+        /**
+         * Determines whether this value is loosely equal to the provided string value
+         *
+         * @param {StringValue} rightValue
+         * @returns {BooleanValue}
+         */
+        isEqualToString: function (rightValue) {
             return this.isEqualTo(rightValue);
         },
 
@@ -424,6 +491,13 @@ module.exports = require('pauser')([
             );
         },
 
+        /**
+         * Determines whether this value is strictly equal
+         * to the provided other value
+         *
+         * @param {Value} rightValue
+         * @returns {BooleanValue}
+         */
         isIdenticalTo: function (rightValue) {
             var leftValue = this;
 
@@ -433,10 +507,24 @@ module.exports = require('pauser')([
             );
         },
 
+        /**
+         * Determines whether this value is strictly equal
+         * to the provided array value
+         *
+         * @param {ArrayValue} rightValue
+         * @returns {BooleanValue}
+         */
         isIdenticalToArray: function (rightValue) {
             return this.isIdenticalTo(rightValue);
         },
 
+        /**
+         * Determines whether this value is strictly equal
+         * to the provided object value
+         *
+         * @param {ObjectValue} rightValue
+         * @returns {BooleanValue}
+         */
         isIdenticalToObject: function (rightValue) {
             return this.isIdenticalTo(rightValue);
         },
@@ -473,25 +561,57 @@ module.exports = require('pauser')([
             );
         },
 
+        /**
+         * Loosely compares this value to the provided other value,
+         * returning true if they are not equal and false otherwise
+         *
+         * @param {Reference|Value} rightValue
+         * @returns {BooleanValue}
+         */
         isNotEqualTo: function (rightValue) {
             var leftValue = this;
 
             return leftValue.factory.createBoolean(!leftValue.isEqualTo(rightValue).getNative());
         },
 
+        /**
+         * Strictly compares this value to the provided other value,
+         * returning true if they are not of the same type
+         * or of the same type but with a different value,
+         * and false otherwise
+         *
+         * @param {Reference|Value} rightValue
+         * @returns {BooleanValue}
+         */
         isNotIdenticalTo: function (rightValue) {
             var leftValue = this;
 
             return leftValue.factory.createBoolean(!leftValue.isIdenticalTo(rightValue).getNative());
         },
 
+        /**
+         * Returns true if this value is numeric and false otherwise
+         *
+         * @returns {boolean}
+         */
         isNumeric: throwUnimplemented,
 
+        /**
+         * Determines whether this value is classed as "set" or not
+         *
+         * @returns {boolean}
+         */
         isSet: function () {
             // All values except NULL are classed as 'set'
             return true;
         },
 
+        /**
+         * Performs a logical-AND of this value and the other value given
+         *
+         * @param {Reference|Value} rightValue
+         * @returns {BooleanValue}
+         */
         logicalAnd: function (rightValue) {
             var leftValue = this;
 
@@ -501,6 +621,13 @@ module.exports = require('pauser')([
             );
         },
 
+        /**
+         * Performs a logical-NOT of this value.
+         * If this value is truthy this will return false,
+         * otherwise if falsy it will return true
+         *
+         * @returns {BooleanValue}
+         */
         logicalNot: function () {
             var value = this;
 
@@ -612,6 +739,13 @@ module.exports = require('pauser')([
         multiplyByString: function (leftValue) {
             return this.multiplyByNonArray(leftValue);
         },
+
+        /**
+         * Subtracts another value from this one
+         *
+         * @returns {Value}
+         */
+        subtract: throwUnimplemented,
 
         subtractFromNull: function () {
             throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);

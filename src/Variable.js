@@ -21,11 +21,35 @@ module.exports = require('pauser')([
     var PHPError = phpCommon.PHPError,
         PHPFatalError = phpCommon.PHPFatalError;
 
+    /**
+     * Variables can either hold a value directly or hold a pointer
+     * to a reference (an array element or an instance or static object property etc.)
+     *
+     * @param {CallStack} callStack
+     * @param {ValueFactory} valueFactory
+     * @param {string} name
+     * @constructor
+     */
     function Variable(callStack, valueFactory, name) {
+        /**
+         * @type {string}
+         */
         this.name = name;
+        /**
+         * @type {Reference|null}
+         */
         this.reference = null;
+        /**
+         * @type {CallStack}
+         */
         this.callStack = callStack;
+        /**
+         * @type {Value|null}
+         */
         this.value = null;
+        /**
+         * @type {ValueFactory}
+         */
         this.valueFactory = valueFactory;
     }
 
@@ -61,10 +85,23 @@ module.exports = require('pauser')([
             return variable.getValue().getInstancePropertyByName(name);
         },
 
+        /**
+         * Fetches the name of this variable, which must be unique within its scope
+         *
+         * @return {string}
+         */
         getName: function () {
             return this.name;
         },
 
+        /**
+         * Fetches the value of this variable. If it holds a value directly
+         * this will be returned, otherwise if it is a reference to another
+         * variable or reference (array element/object property etc.)
+         * then the value of the reference will be fetched
+         *
+         * @returns {Value}
+         */
         getValue: function () {
             var variable = this;
 
@@ -112,6 +149,11 @@ module.exports = require('pauser')([
             return !variable.isDefined() || variable.getValue().isEmpty();
         },
 
+        /**
+         * Determines whether this variable is classed as "set" or not
+         *
+         * @returns {boolean}
+         */
         isSet: function () {
             var variable = this;
 
@@ -164,6 +206,16 @@ module.exports = require('pauser')([
             return variable.value;
         },
 
+        /**
+         * Sets the value of this variable. If it holds a value directly
+         * this will be overwritten, otherwise if it is a reference to another
+         * variable or reference (array element/object property etc.)
+         * then the value of the reference will be changed instead.
+         * Returns the value that was assigned
+         *
+         * @param {Reference|Value} value
+         * @return {Value}
+         */
         setValue: function (value) {
             var variable = this;
 

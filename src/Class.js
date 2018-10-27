@@ -491,7 +491,7 @@ module.exports = require('pauser')([
                         visibility: 'private'
                     });
                 }
-                // Property is protected; may be read from methods of this class and methods of derivatives
+            // Property is protected; may be read from methods of this class and methods of derivatives
             } else if (staticProperty.getVisibility() === 'protected') {
                 currentClass = classObject.callStack.getCurrent().getScope().getCurrentClass();
 
