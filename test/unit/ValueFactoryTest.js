@@ -45,6 +45,7 @@ describe('ValueFactory', function () {
                 JSObjectClass = sinon.createStubInstance(Class),
                 objectValue;
             JSObjectClass.getName.returns('JSObject');
+            JSObjectClass.getSuperClass.returns(null);
             JSObjectClass.is.withArgs('JSObject').returns(true);
             JSObjectClass.is.returns(false);
             this.globalNamespace.getClass.withArgs('JSObject').returns(JSObjectClass);
@@ -128,7 +129,17 @@ describe('ValueFactory', function () {
                 },
                 JSObjectClass = sinon.createStubInstance(Class),
                 objectValue;
+            JSObjectClass.callMethod.withArgs('__get').callsFake(function (methodName, argValues) {
+                if (argValues[0].getNative() === 'hello') {
+                    return this.factory.createString('world');
+                }
+                if (argValues[0].getNative() === 'a-method') {
+                    return this.factory.coerce(aMethod);
+                }
+            }.bind(this));
+            JSObjectClass.getMethodSpec.withArgs('__get').returns({});
             JSObjectClass.getName.returns('JSObject');
+            JSObjectClass.getSuperClass.returns(null);
             JSObjectClass.is.withArgs('JSObject').returns(true);
             JSObjectClass.is.returns(false);
             this.globalNamespace.getClass.withArgs('JSObject').returns(JSObjectClass);
@@ -148,6 +159,7 @@ describe('ValueFactory', function () {
                 JSObjectClass = sinon.createStubInstance(Class),
                 objectValue;
             JSObjectClass.getName.returns('JSObject');
+            JSObjectClass.getSuperClass.returns(null);
             JSObjectClass.is.withArgs('JSObject').returns(true);
             JSObjectClass.is.returns(false);
             this.globalNamespace.getClass.withArgs('JSObject').returns(JSObjectClass);
@@ -200,6 +212,7 @@ describe('ValueFactory', function () {
             var value = sinon.createStubInstance(ObjectValue),
                 stdClassClass = sinon.createStubInstance(Class);
             this.globalNamespace.getClass.withArgs('stdClass').returns(stdClassClass);
+            stdClassClass.getSuperClass.returns(null);
             stdClassClass.instantiate.returns(value);
 
             expect(this.factory.createStdClassObject()).to.equal(value);
@@ -227,6 +240,7 @@ describe('ValueFactory', function () {
             this.myClassObject = sinon.createStubInstance(Class);
             this.objectValue = sinon.createStubInstance(ObjectValue);
             this.globalNamespace.getClass.withArgs('My\\Stuff\\MyClass').returns(this.myClassObject);
+            this.myClassObject.getSuperClass.returns(null);
             this.myClassObject.instantiate.returns(this.objectValue);
         });
 

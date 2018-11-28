@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP static property scope resolution "::" integration', function () {
-    it('should allow private properties to have different values for different classes in the hierarchy', function () {
+    it('should allow private properties to have different values for different classes in the hierarchy when third is public', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -59,6 +59,53 @@ EOS
             1001,
             9876, // Via getter
             9876  // Accessing as prop from outside the class
+        ]);
+        expect(engine.getStderr().readAll()).to.equal('');
+    });
+
+    it('should allow private properties to have different values for different classes in the hierarchy when third is protected', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyFirstClass {
+    private static $mySecretProp = 21;
+
+    public static function getFirstSecret() {
+        return self::$mySecretProp;
+    }
+}
+
+class MySecondClass extends MyFirstClass {
+    private static $mySecretProp = 1001;
+
+    public static function getSecondSecret() {
+        return self::$mySecretProp;
+    }
+}
+
+class MyThirdClass extends MySecondClass {
+    protected static $mySecretProp = 9876;
+
+    public static function getThirdSecret() {
+        return self::$mySecretProp;
+    }
+}
+
+$result = [];
+$result[] = MyThirdClass::getFirstSecret();
+$result[] = MyThirdClass::getSecondSecret();
+$result[] = MyThirdClass::getThirdSecret();
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            21,
+            1001,
+            9876 // Via getter
         ]);
         expect(engine.getStderr().readAll()).to.equal('');
     });

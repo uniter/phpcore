@@ -84,6 +84,16 @@ module.exports = function (internals) {
         },
 
         /**
+         * Fetches a property from the native JS object
+         *
+         * @param {string} propertyName
+         * @returns {*}
+         */
+        '__get': function (propertyName) {
+            return this[propertyName];
+        },
+
+        /**
          * In JavaScript, objects cannot normally be made callable, only functions
          * (and Proxies with the "apply" trap) -
          * this magic method is implemented to allow imported JS functions to be callable.
@@ -105,6 +115,27 @@ module.exports = function (internals) {
             handlePromise(result);
 
             return result;
+        },
+
+        /**
+         * Sets a property on the native JS object
+         *
+         * @param {string} propertyName
+         * @param {*} nativeValue
+         */
+        '__set': function (propertyName, nativeValue) {
+            // Ensure we write the native value to properties on native JS objects -
+            // as JSObject is auto-coercing we already have it
+            this[propertyName] = nativeValue;
+        },
+
+        /**
+         * Deletes a property from the native JS object when `unset($jsObject->prop)` is called from PHP-land
+         *
+         * @param {string} propertyName
+         */
+        '__unset': function (propertyName) {
+            delete this[propertyName];
         }
     });
 

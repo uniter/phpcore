@@ -86,6 +86,25 @@ describe('CallStack', function () {
         });
     });
 
+    describe('getCurrentClass()', function () {
+        it('should return the current class for the current Call when there are 3 on the stack', function () {
+            var currentCall = sinon.createStubInstance(Call),
+                currentClass = sinon.createStubInstance(Class),
+                currentScope = sinon.createStubInstance(Scope);
+            currentCall.getScope.returns(currentScope);
+            currentScope.getCurrentClass.returns(currentClass);
+            this.callStack.push(sinon.createStubInstance(Call));
+            this.callStack.push(sinon.createStubInstance(Call));
+            this.callStack.push(currentCall);
+
+            expect(this.callStack.getCurrentClass()).to.equal(currentClass);
+        });
+
+        it('should return null when there is no call on the stack', function () {
+            expect(this.callStack.getCurrentClass()).to.equal(null);
+        });
+    });
+
     describe('getLastFilePath()', function () {
         it('should return the file path from the current Call', function () {
             var currentCall = sinon.createStubInstance(Call);

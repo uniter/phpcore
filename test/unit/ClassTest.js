@@ -727,6 +727,33 @@ describe('Class', function () {
         });
     });
 
+    describe('isInFamilyOf()', function () {
+        it('should return true when the same class is passed in', function () {
+            expect(this.classObject.isInFamilyOf(this.classObject)).to.be.true;
+        });
+
+        it('should return true when this class extends the provided one', function () {
+            var superClass = sinon.createStubInstance(Class);
+            this.createClass('__construct', superClass);
+
+            expect(this.classObject.isInFamilyOf(superClass)).to.be.true;
+        });
+
+        it('should return true when the provided class extends this one', function () {
+            var childClass = sinon.createStubInstance(Class);
+            childClass.extends.withArgs(sinon.match.same(this.classObject)).returns(true);
+
+            expect(this.classObject.isInFamilyOf(childClass)).to.be.true;
+        });
+
+        it('should return false when the provided class has no relation to this one', function () {
+            var foreignClass = sinon.createStubInstance(Class);
+            foreignClass.extends.withArgs(sinon.match.same(this.classObject)).returns(false);
+
+            expect(this.classObject.isInFamilyOf(foreignClass)).to.be.false;
+        });
+    });
+
     describe('proxyInstanceForJS()', function () {
         it('should return a PHPObject that wraps the provided instance of this class', function () {
             var instance = sinon.createStubInstance(ObjectValue),

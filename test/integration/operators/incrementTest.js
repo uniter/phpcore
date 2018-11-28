@@ -79,8 +79,6 @@ EOS
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
-$result = [];
-
 class MyClass
 {
     private $myProp = 21;

@@ -113,6 +113,13 @@ module.exports = require('pauser')([
                 return variable.reference.getValue();
             }
 
+            if (
+                variable.name === 'this' &&
+                (variable.value === null || variable.value.getType() === 'null')
+            ) {
+                throw new PHPFatalError(PHPFatalError.USED_THIS_OUTSIDE_OBJECT_CONTEXT);
+            }
+
             variable.callStack.raiseError(PHPError.E_NOTICE, 'Undefined variable: ' + variable.name);
 
             return variable.valueFactory.createNull();

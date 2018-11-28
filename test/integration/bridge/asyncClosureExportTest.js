@@ -13,7 +13,7 @@ var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
     tools = require('../tools');
 
-describe('PHP JS<->PHP bridge object export asynchronous mode integration', function () {
+describe('PHP JS<->PHP bridge closure export asynchronous mode integration', function () {
     it('should extract the error details from a custom Exception thrown by a Closure and throw an appropriate JS Error', function (done) {
         var php = nowdoc(function () {/*<<<EOS
 <?php

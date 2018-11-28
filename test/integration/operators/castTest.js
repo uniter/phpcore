@@ -34,6 +34,49 @@ EOS
         ]);
     });
 
+    it('should include visibilities when casting objects to arrays', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class ParentClass
+{
+    private $parentPrivateProp = 21;
+    public $parentPublicProp = 101;
+    protected $parentProtectedProp = 909;
+    private $ourPrivateProp = 'for parent';
+}
+
+class ChildClass extends ParentClass
+{
+    private $childPrivateProp = 10001;
+    public $childPublicProp = 10007;
+    private $ourPrivateProp = 'for child';
+}
+
+$object = new ChildClass();
+
+$result = [];
+$result[] = (array)$object; // Cast to array from outside class
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            {
+                '\0ChildClass\0childPrivateProp': 10001,
+                'childPublicProp': 10007,
+                '\0ChildClass\0ourPrivateProp': 'for child',
+                '\0ParentClass\0parentPrivateProp': 21,
+                'parentPublicProp': 101,
+                '\0*\0parentProtectedProp': 909,
+                '\0ParentClass\0ourPrivateProp': 'for parent'
+            }
+        ]);
+    });
+
     it('should support the (binary) cast', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

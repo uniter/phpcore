@@ -45,7 +45,7 @@ EOS
         ]);
     });
 
-    it('should allow instance and property initialisers to forward-reference constants further down', function () {
+    it('should allow instance and static property initialisers to forward-reference constants further down', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 

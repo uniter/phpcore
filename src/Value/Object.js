@@ -64,14 +64,57 @@ module.exports = require('pauser')([
         PHPError = phpCommon.PHPError,
         PHPFatalError = phpCommon.PHPFatalError;
 
+    /**
+     * Represents an instance of a class. There is a JS<->PHP bridge
+     * that wraps objects passed in from JS-land in instances of a special JSObject builtin class.
+     *
+     * @param {ValueFactory} factory
+     * @param {CallStack} callStack
+     * @param {object} object
+     * @param {Class} classObject
+     * @param {number} id
+     * @constructor
+     */
     function ObjectValue(factory, callStack, object, classObject, id) {
         Value.call(this, factory, callStack, 'object', object);
 
+        /**
+         * @type {Class}
+         */
         this.classObject = classObject;
+        /**
+         * @type {number}
+         */
         this.id = id;
+        /**
+         * Internal properties allow JS-defined classes to store data against objects
+         * without exposing it to PHP-land, which avoids the risk of any internal data names
+         * conflicting with PHP class properties
+         *
+         * @type {Object.<string, *>}
+         */
         this.internalProperties = {};
+        /**
+         * @type {number}
+         */
+        this.nextPropertyIndex = 0;
+        /**
+         * @type {Object.<string, PropertyReference>}
+         */
+        this.nonPrivateProperties = {};
+        /**
+         * @type {number}
+         */
         this.pointer = 0;
-        this.properties = {};
+        /**
+         * Different classes in the hierarchy may declare their own private property
+         * with the same name as an ancestor. For this reason we need to store private properties
+         * indexed by the fully-qualified name of the class that defines them
+         * (Effectively: {Object.<string, {Object.<string, PropertyReference>}>})
+         *
+         * @type {Object.<string, object>}
+         */
+        this.privatePropertiesByFQCN = {};
     }
 
     util.inherits(ObjectValue, Value);
@@ -100,7 +143,7 @@ module.exports = require('pauser')([
                 'Object of class ' + value.classObject.getName() + ' could not be converted to int'
             );
 
-            return value.factory.createInteger((booleanValue.value ? 1 : 0) + 1);
+            return value.factory.createInteger((booleanValue.getNative() ? 1 : 0) + 1);
         },
 
         addToFloat: function (floatValue) {
@@ -111,7 +154,7 @@ module.exports = require('pauser')([
                 'Object of class ' + value.classObject.getName() + ' could not be converted to int'
             );
 
-            return value.factory.createFloat(floatValue.value + 1);
+            return value.factory.createFloat(floatValue.getNative() + 1);
         },
 
         /**
@@ -199,18 +242,33 @@ module.exports = require('pauser')([
             throw new Error('Unimplemented');
         },
 
+        /**
+         * Coerces this ObjectValue to an ArrayValue
+         *
+         * @return {ArrayValue}
+         */
         coerceToArray: function () {
             var elements = [],
                 value = this,
                 factory = value.factory;
 
-            _.forOwn(value.value, function (propertyValue, propertyName) {
+            _.forOwn(value.nonPrivateProperties, function (propertyReference) {
                 elements.push(
                     new KeyValuePair(
-                        factory.coerce(propertyName),
-                        factory.coerce(propertyValue)
+                        factory.coerce(propertyReference.getExternalName()),
+                        propertyReference.getValue()
                     )
                 );
+            });
+            _.forOwn(value.privatePropertiesByFQCN, function (fqcnMap) {
+                _.forOwn(fqcnMap, function (propertyReference) {
+                    elements.push(
+                        new KeyValuePair(
+                            factory.coerce(propertyReference.getExternalName()),
+                            propertyReference.getValue()
+                        )
+                    );
+                });
             });
 
             return value.factory.createArray(elements);
@@ -264,6 +322,55 @@ module.exports = require('pauser')([
 
         coerceToString: function () {
             return this.callMethod('__toString');
+        },
+
+        /**
+         * Declares an instance property for this object, with the specified visibility
+         *
+         * @param {string} name
+         * @param {Class} classObject The class in the hierarchy that defines the property
+         * @param {string} visibility "private", "protected" or "public"
+         * @returns {PropertyReference}
+         */
+        declareProperty: function (name, classObject, visibility) {
+            var value = this,
+                propertyReference;
+
+            function createProperty() {
+                return new PropertyReference(
+                    value.factory,
+                    value.callStack,
+                    value,
+                    value.factory.coerce(name),
+                    classObject,
+                    visibility,
+                    value.nextPropertyIndex++
+                );
+            }
+
+            if (visibility === 'private') {
+                if (!value.privatePropertiesByFQCN[classObject.getName()]) {
+                    value.privatePropertiesByFQCN[classObject.getName()] = {};
+                }
+
+                propertyReference = value.privatePropertiesByFQCN[classObject.getName()][name];
+
+                if (!propertyReference) {
+                    propertyReference = createProperty();
+
+                    value.privatePropertiesByFQCN[classObject.getName()][name] = propertyReference;
+                }
+            } else {
+                propertyReference = value.nonPrivateProperties[name];
+
+                if (!propertyReference) {
+                    propertyReference = createProperty();
+
+                    value.nonPrivateProperties[name] = propertyReference;
+                }
+            }
+
+            return propertyReference;
         },
 
         /**
@@ -408,18 +515,24 @@ module.exports = require('pauser')([
             return value.getInstancePropertyByName(names[index]);
         },
 
-        getElementByKey: function (key) {
+        /**
+         * Fetches a property of this object using the array dereference notation if its class implements ArrayAccess
+         *
+         * @param {*} keyValue
+         * @returns {Reference}
+         */
+        getElementByKey: function (keyValue) {
             var value = this;
 
-            key = key.coerceToKey(value.callStack);
+            keyValue = keyValue.coerceToKey(value.callStack);
 
-            if (!key) {
+            if (!keyValue) {
                 // Could not be coerced to a key: error will already have been handled, just return NULL
                 return new NullReference(value.factory);
             }
 
             if (value.classObject.is('ArrayAccess')) {
-                return new ObjectElement(value.factory, value, key);
+                return new ObjectElement(value.factory, value, keyValue);
             }
 
             throw new PHPFatalError(PHPFatalError.CANNOT_USE_WRONG_TYPE_AS, {
@@ -476,59 +589,146 @@ module.exports = require('pauser')([
          * @return {PropertyReference}
          */
         getInstancePropertyByName: function (nameValue) {
-            var nameKey = nameValue.coerceToKey(),
+            var callingClass,
+                nameKey = nameValue.coerceToKey(),
                 name = nameKey.getNative(),
-                value = this;
+                propertyReference,
+                value = this,
+                classInHierarchy,
+                classOfObject = value.classObject;
 
             if (value.classObject.hasStaticPropertyByName(name)) {
                 value.callStack.raiseError(
                     PHPError.E_STRICT,
                     'Accessing static property ' + value.classObject.getName() + '::$' + name + ' as non static'
                 );
+
+                // Allow to continue, so that a further notice will be emitted when the property is accessed
             }
 
-            if (!hasOwn.call(value.properties, name)) {
-                value.properties[name] = new PropertyReference(
-                    value.factory,
-                    value.callStack,
-                    value,
-                    value.value,
-                    nameKey
-                );
+            // Fetch the class that the current line of PHP code is executing inside (if any)
+            callingClass = value.callStack.getCurrentClass();
+
+            // First check whether the property is defined as private for the calling class -
+            // it could also exist at different levels in the hierarchy, but the same property
+            // can have different values at different levels if it is private there
+            propertyReference = callingClass && value.privatePropertiesByFQCN[callingClass.getName()] ?
+                value.privatePropertiesByFQCN[callingClass.getName()][name] :
+                null;
+
+            if (propertyReference) {
+                // Property is private, and we're inside the class that defines it so we're good to go.
+                // Private properties should be the most common, so this is the first case for speed
+                return propertyReference;
             }
 
-            return value.properties[name];
+            propertyReference = value.nonPrivateProperties[name];
+
+            if (propertyReference) {
+                /*
+                 * Property is protected; may be read from methods of this class and methods of derivatives.
+                 * This case is checked before the privates-check hierarchy walk below for speed,
+                 * as invalid accesses to private properties should be rare
+                 */
+                if (propertyReference.getVisibility() === 'protected') {
+                    if (
+                        !callingClass ||
+                        (
+                            classOfObject.getName() !== callingClass.getName() &&
+                            !callingClass.isInFamilyOf(classOfObject)
+                        )
+                    ) {
+                        throw new PHPFatalError(PHPFatalError.CANNOT_ACCESS_PROPERTY, {
+                            className: classOfObject.getName(),
+                            propertyName: name,
+                            visibility: 'protected'
+                        });
+                    }
+                }
+            } else {
+                classInHierarchy = classOfObject;
+
+                // Check whether the property is in fact defined, but is defined as private
+                // for a class that is not the calling class - if so then we are not allowed to access it
+                do {
+                    propertyReference = value.privatePropertiesByFQCN[classInHierarchy.getName()] ?
+                        value.privatePropertiesByFQCN[classInHierarchy.getName()][name] :
+                        null;
+
+                    if (propertyReference) {
+                        // Property is private, but we're not trying to access it from inside the class
+                        throw new PHPFatalError(PHPFatalError.CANNOT_ACCESS_PROPERTY, {
+                            className: classInHierarchy.getName(),
+                            propertyName: name,
+                            visibility: 'private'
+                        });
+                    }
+
+                    classInHierarchy = classInHierarchy.getSuperClass();
+                } while (classInHierarchy !== null);
+
+                /*
+                 * Property is not yet defined for this object by any of its class hierarchy or dynamically -
+                 * define it dynamically as a public property.
+                 * This is a relatively slow case as it is only done after the privates-check hierarchy walk above,
+                 * but this _should_ be a rare scenario so it makes sense not to optimise for it
+                 */
+                propertyReference = value.declareProperty(name, value.classObject, 'public');
+            }
+
+            return propertyReference;
         },
 
         /**
-         * Fetches the names of all instance properties of this object, wrapped as values
+         * Fetches the names of all visible instance properties of this object, wrapped as values
          *
          * @return {Value[]}
          */
         getInstancePropertyNames: function () {
-            var nameHash = {},
-                names = [],
+            var callingClass,
+                nameHash = {},
+                sortedNames,
                 value = this;
 
             // Include the names of all properties of the wrapped native object
             // TODO: Move this custom logic to JSObject, called via a magic method?
             _.forOwn(value.value, function (value, name) {
-                nameHash[name] = true;
+                nameHash[name] = -1;
             });
 
-            // Include the names of all properties defined on the class
-            _.forOwn(value.properties, function (value, name) {
-                if (value.isDefined()) {
-                    nameHash[name] = true;
+            // Fetch the class that the current line of PHP code is executing inside (if any)
+            callingClass = value.callStack.getCurrentClass();
+
+            // Include the names of all private properties defined on the calling class
+            if (callingClass) {
+                _.forOwn(value.privatePropertiesByFQCN, function (propertyReferences, fqcn) {
+                    if (fqcn === callingClass.getName()) {
+                        _.forOwn(propertyReferences, function (propertyReference, propertyName) {
+                            if (propertyReference.isDefined()) {
+                                nameHash[propertyName] = propertyReference.getIndex();
+                            }
+                        });
+                    }
+                });
+            }
+
+            // Include all public properties and all protected properties that belong
+            // to ancestor or descendant classes of the calling class
+            _.forOwn(value.nonPrivateProperties, function (propertyReference, propertyName) {
+                if (propertyReference.isDefined() && propertyReference.isVisible()) {
+                    nameHash[propertyName] = propertyReference.getIndex();
                 }
             });
 
-            // Wrap all the names in Value objects before returning
-            _.forOwn(nameHash, function (t, name) {
-                names.push(value.factory.coerce(name));
+            sortedNames = Object.keys(nameHash);
+            sortedNames.sort(function (nameA, nameB) {
+                return nameHash[nameA] - nameHash[nameB];
             });
 
-            return names;
+            // Wrap all the names in Value objects before returning
+            return sortedNames.map(function (name) {
+                return value.factory.coerce(name);
+            });
         },
 
         /**
@@ -599,12 +799,38 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches the length (number of properties) for this object
+         * Fetches the length (number of properties) for this object, regardless of their visibility
          *
          * @return {number}
          */
         getLength: function () {
-            return this.getInstancePropertyNames().length;
+            var value = this,
+                // Fetch the class that the current line of PHP code is executing inside (if any)
+                callingClass = value.callStack.getCurrentClass(),
+                count = 0;
+
+            // Include the names of all private properties defined on the calling class
+            if (callingClass) {
+                _.forOwn(value.privatePropertiesByFQCN, function (propertyReferences, fqcn) {
+                    if (fqcn === callingClass.getName()) {
+                        _.forOwn(propertyReferences, function (propertyReference) {
+                            if (propertyReference.isDefined()) {
+                                count++;
+                            }
+                        });
+                    }
+                });
+            }
+
+            // Include all public properties and all protected properties that belong
+            // to ancestor or descendant classes of the calling class
+            _.forOwn(value.nonPrivateProperties, function (propertyReference) {
+                if (propertyReference.isDefined() && propertyReference.isVisible()) {
+                    count++;
+                }
+            });
+
+            return count;
         },
 
         /**
@@ -628,8 +854,8 @@ module.exports = require('pauser')([
             if (value.classObject.getName() === 'stdClass') {
                 result = {};
 
-                _.forOwn(value.value, function (propertyValue, propertyName) {
-                    result[propertyName] = propertyValue.getNative();
+                _.forOwn(value.nonPrivateProperties, function (propertyReference, propertyName) {
+                    result[propertyName] = propertyReference.getValue().getNative();
                 });
 
                 return result;
@@ -638,6 +864,11 @@ module.exports = require('pauser')([
             return value.classObject.unwrapInstanceForJS(value, value.value);
         },
 
+        /**
+         * Fetches the wrapped native JS object
+         *
+         * @return {object}
+         */
         getObject: function () {
             return this.value;
         },
@@ -721,7 +952,13 @@ module.exports = require('pauser')([
          * @returns {Value}
          */
         invokeClosure: function (args) {
-            return this.value.invoke(args);
+            var value = this;
+
+            if (!(value.value instanceof Closure)) {
+                throw new Error('bindClosure() :: Value is not a Closure');
+            }
+
+            return value.value.invoke(args);
         },
 
         /**
@@ -764,6 +1001,12 @@ module.exports = require('pauser')([
             return this.factory.createBoolean(false);
         },
 
+        /**
+         * Determines whether this object is equal (but not necessarily identical) to another
+         *
+         * @param {ObjectValue} rightValue
+         * @return {BooleanValue}
+         */
         isEqualToObject: function (rightValue) {
             var equal = true,
                 leftValue = this,
@@ -776,16 +1019,32 @@ module.exports = require('pauser')([
                 return factory.createBoolean(false);
             }
 
-            _.forOwn(rightValue.value, function (element, nativeKey) {
+            // Check public and protected properties
+            _.forOwn(rightValue.nonPrivateProperties, function (propertyReference, propertyName) {
                 if (
-                    !hasOwn.call(leftValue.value, nativeKey) ||
-                    factory.coerce(element).isNotEqualTo(
-                        leftValue.value[nativeKey].getValue()
+                    !hasOwn.call(leftValue.nonPrivateProperties, propertyName) ||
+                    propertyReference.getValue().isNotEqualTo(
+                        leftValue.nonPrivateProperties[propertyName].getValue()
                     ).getNative()
                 ) {
                     equal = false;
                     return false;
                 }
+            });
+            // Check private properties
+            _.forOwn(rightValue.privatePropertiesByFQCN, function (propertyReferences, fqcn) {
+                _.forOwn(propertyReferences, function (propertyReference, propertyName) {
+                    if (
+                        !hasOwn.call(leftValue.privatePropertiesByFQCN, fqcn) ||
+                        !hasOwn.call(leftValue.privatePropertiesByFQCN[fqcn], propertyName) ||
+                        propertyReference.getValue().isNotEqualTo(
+                            leftValue.privatePropertiesByFQCN[fqcn][propertyName].getValue()
+                        ).getNative()
+                    ) {
+                        equal = false;
+                        return false;
+                    }
+                });
             });
 
             return factory.createBoolean(equal);
@@ -902,13 +1161,19 @@ module.exports = require('pauser')([
             return leftValue.coerceToNumber();
         },
 
+        /**
+         * Moves the internal array-like pointer to the specified property
+         *
+         * @param {PropertyReference} propertyReference
+         */
         pointToProperty: function (propertyReference) {
             var index = 0,
                 propertyName = propertyReference.getKey().getNative(),
                 value = this;
 
-            _.forOwn(value.value, function (property, name) {
-                if (name === propertyName) {
+            // Find the property in the set of properties visible to the current scope
+            _.each(value.getInstancePropertyNames(), function (name) {
+                if (name.getNative() === propertyName) {
                     value.setPointer(index);
                 }
 

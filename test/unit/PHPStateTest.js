@@ -20,7 +20,7 @@ var expect = require('chai').expect,
     Runtime = require('../../src/Runtime').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
     Stream = require('../../src/Stream'),
-    Value = require('../../src/Value').sync();
+    ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('PHPState', function () {
     beforeEach(function () {
@@ -31,6 +31,7 @@ describe('PHPState', function () {
         this.stderr = sinon.createStubInstance(Stream);
         this.pausable = {};
         this.runtime = sinon.createStubInstance(Runtime);
+        this.valueFactory = new ValueFactory();
 
         this.state = new PHPState(
             this.runtime,
@@ -232,9 +233,7 @@ describe('PHPState', function () {
 
     describe('defineGlobal()', function () {
         it('should define the global and assign it the given value', function () {
-            var value = sinon.createStubInstance(Value);
-            value.getForAssignment.returns(value);
-            value.getNative.returns(27);
+            var value = this.valueFactory.createInteger(27);
 
             this.state.defineGlobal('MY_GLOB', value);
 
@@ -254,10 +253,9 @@ describe('PHPState', function () {
         });
 
         it('should install a setter for the global', function () {
-            var value = sinon.createStubInstance(Value),
+            var value = this.valueFactory.createInteger(27),
                 valueGetter = sinon.stub(),
                 valueSetter = sinon.spy();
-            value.getNative.returns(27);
 
             this.state.defineGlobalAccessor('MY_GLOB', valueGetter, valueSetter);
             this.state.getGlobalScope().getVariable('MY_GLOB').setValue(value);
@@ -269,9 +267,7 @@ describe('PHPState', function () {
 
     describe('defineSuperGlobal()', function () {
         it('should define the superglobal and assign it the given value', function () {
-            var value = sinon.createStubInstance(Value);
-            value.getForAssignment.returns(value);
-            value.getNative.returns(101);
+            var value = this.valueFactory.createInteger(101);
 
             this.state.defineSuperGlobal('MY_SUPER_GLOB', value);
 
@@ -291,10 +287,9 @@ describe('PHPState', function () {
         });
 
         it('should install a setter for the superglobal', function () {
-            var value = sinon.createStubInstance(Value),
+            var value = this.valueFactory.createInteger(27),
                 valueGetter = sinon.stub(),
                 valueSetter = sinon.spy();
-            value.getNative.returns(27);
 
             this.state.defineSuperGlobalAccessor('MY_SUPER_GLOB', valueGetter, valueSetter);
             this.state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').setValue(value);
@@ -306,8 +301,7 @@ describe('PHPState', function () {
 
     describe('getConstant()', function () {
         it('should return the native value of the constant from the global namespace when defined', function () {
-            var value = sinon.createStubInstance(Value);
-            value.getNative.returns('my value');
+            var value = this.valueFactory.createString('my value');
             this.state.getGlobalNamespace().defineConstant('MY_CONST', value);
 
             expect(this.state.getConstant('MY_CONST')).to.equal('my value');

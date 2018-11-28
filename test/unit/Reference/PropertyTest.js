@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     CallStack = require('../../../src/CallStack'),
+    Class = require('../../../src/Class').sync(),
     PropertyReference = require('../../../src/Reference/Property'),
     MethodSpec = require('../../../src/MethodSpec'),
     ObjectValue = require('../../../src/Value/Object').sync(),
@@ -24,28 +25,32 @@ var expect = require('chai').expect,
 describe('PropertyReference', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
+        this.classObject = sinon.createStubInstance(Class);
         this.factory = new ValueFactory();
         this.propertyValue = sinon.createStubInstance(Value);
-        this.nativeObject = {
-            'my_property': this.propertyValue
-        };
         this.objectValue = sinon.createStubInstance(ObjectValue);
-        this.objectValue.getNative.returns(this.nativeObject);
         this.objectValue.isMethodDefined.returns(false);
         this.keyValue = sinon.createStubInstance(Value);
 
+        this.classObject.getName.returns('My\\AwesomeClass');
         this.keyValue.getNative.returns('my_property');
         this.keyValue.getType.returns('string');
+        this.propertyValue.getForAssignment.returns(this.propertyValue);
         this.propertyValue.getNative.returns('value for my prop');
         this.propertyValue.getType.returns('string');
 
-        this.property = new PropertyReference(
-            this.factory,
-            this.callStack,
-            this.objectValue,
-            this.nativeObject,
-            this.keyValue
-        );
+        this.createProperty = function (visibility) {
+            this.property = new PropertyReference(
+                this.factory,
+                this.callStack,
+                this.objectValue,
+                this.keyValue,
+                this.classObject,
+                visibility || 'public',
+                21
+            );
+        }.bind(this);
+        this.createProperty();
     });
 
     describe('concatWith()', function () {
@@ -68,22 +73,44 @@ describe('PropertyReference', function () {
         });
     });
 
+    describe('getExternalName()', function () {
+        it('should prefix a private property\'s name with its visibility', function () {
+            this.createProperty('private');
+
+            expect(this.property.getExternalName()).to.equal('\0My\\AwesomeClass\0my_property');
+        });
+
+        it('should prefix a protected property\'s name with an asterisk to indicate its visibility', function () {
+            this.createProperty('protected');
+
+            expect(this.property.getExternalName()).to.equal('\0*\0my_property');
+        });
+
+        it('should just return the name for a public property', function () {
+            expect(this.property.getExternalName()).to.equal('my_property');
+        });
+    });
+
+    describe('getIndex()', function () {
+        it('should return the index of the property', function () {
+            expect(this.property.getIndex()).to.equal(21);
+        });
+    });
+
     describe('getNative()', function () {
         it('should return the native value of the property\'s value', function () {
+            this.property.initialise(this.propertyValue);
+
             expect(this.property.getNative()).to.equal('value for my prop');
         });
     });
 
     describe('getValue()', function () {
         describe('when the property is defined', function () {
-            it('should return the value assigned to the native object property, when it is not a reference', function () {
+            it('should return the value assigned', function () {
+                this.property.initialise(this.propertyValue);
+
                 expect(this.property.getValue()).to.equal(this.propertyValue);
-            });
-
-            it('should coerce the value assigned to the native object property when fetched', function () {
-                this.nativeObject.my_property = 21;
-
-                expect(this.property.getValue().getNative()).to.equal(21);
             });
 
             it('should return the value assigned, when the property is a reference', function () {
@@ -98,7 +125,6 @@ describe('PropertyReference', function () {
 
         describe('when the property is not defined, but magic __get is', function () {
             beforeEach(function () {
-                delete this.nativeObject.my_property;
                 this.objectValue.isMethodDefined.withArgs('__get').returns(true);
             });
 
@@ -117,7 +143,6 @@ describe('PropertyReference', function () {
 
         describe('when the property is not defined, and magic __get is not either', function () {
             beforeEach(function () {
-                delete this.nativeObject.my_property;
                 this.objectValue.referToElement.withArgs('my_property').returns('property: MyClass::$my_property');
             });
 
@@ -137,6 +162,18 @@ describe('PropertyReference', function () {
         });
     });
 
+    describe('getVisibility()', function () {
+        it('should return the visibility of the property when public', function () {
+            expect(this.property.getVisibility()).to.equal('public');
+        });
+
+        it('should return the visibility of the property when protected', function () {
+            this.createProperty('protected');
+
+            expect(this.property.getVisibility()).to.equal('protected');
+        });
+    });
+
     describe('incrementBy()', function () {
         it('should add the given value to the property\'s value and assign it back to the property', function () {
             this.property.setValue(this.factory.createInteger(20));
@@ -147,8 +184,18 @@ describe('PropertyReference', function () {
         });
     });
 
+    describe('initialise()', function () {
+        it('should set the value of the property', function () {
+            this.property.initialise(this.propertyValue);
+
+            expect(this.property.getValue()).to.equal(this.propertyValue);
+        });
+    });
+
     describe('isDefined()', function () {
         it('should return true when the property is assigned a non-NULL value', function () {
+            this.property.initialise(this.propertyValue);
+
             expect(this.property.isDefined()).to.be.true;
         });
 
@@ -179,6 +226,7 @@ describe('PropertyReference', function () {
         });
 
         it('should return false when the property is set to a non-empty value', function () {
+            this.property.initialise(this.propertyValue);
             this.propertyValue.isEmpty.returns(false);
 
             expect(this.property.isEmpty()).to.be.false;
@@ -187,12 +235,12 @@ describe('PropertyReference', function () {
 
     describe('isSet()', function () {
         it('should return true when the property is set', function () {
+            this.property.initialise(this.propertyValue);
+
             expect(this.property.isSet()).to.be.true;
         });
 
         it('should return false when the property is not set', function () {
-            this.keyValue.getNative.returns('not_my_property');
-
             expect(this.property.isSet()).to.be.false;
         });
 
@@ -200,6 +248,57 @@ describe('PropertyReference', function () {
             this.propertyValue.getType.returns('null');
 
             expect(this.property.isSet()).to.be.false;
+        });
+    });
+
+    describe('isVisible()', function () {
+        describe('for a public property', function () {
+            it('should return true', function () {
+                expect(this.property.isVisible()).to.be.true;
+            });
+        });
+
+        describe('for a protected property', function () {
+            beforeEach(function () {
+                this.createProperty('protected');
+                this.callingClass = sinon.createStubInstance(Class);
+                this.callStack.getCurrentClass.returns(this.callingClass);
+                this.callingClass.isInFamilyOf.returns(false);
+            });
+
+            it('should return true when the calling class is in the same family as the definer', function () {
+                this.callingClass.isInFamilyOf.withArgs(sinon.match.same(this.classObject)).returns(true);
+
+                expect(this.property.isVisible()).to.be.true;
+            });
+
+            it('should return false when the calling class is not in the same family as the definer', function () {
+                this.callingClass.isInFamilyOf.withArgs(sinon.match.same(this.classObject)).returns(false);
+
+                expect(this.property.isVisible()).to.be.false;
+            });
+        });
+
+        describe('for a private property', function () {
+            beforeEach(function () {
+                this.createProperty('private');
+                this.callingClass = sinon.createStubInstance(Class);
+                this.callStack.getCurrentClass.returns(this.callingClass);
+                this.callingClass.getName.returns('Some\\OtherClass');
+                this.callingClass.isInFamilyOf.returns(false);
+            });
+
+            it('should return true when the calling class is the definer', function () {
+                this.callingClass.getName.returns('My\\AwesomeClass');
+
+                expect(this.property.isVisible()).to.be.true;
+            });
+
+            it('should return false even when the calling class is in the same family as the definer', function () {
+                this.callingClass.isInFamilyOf.withArgs(sinon.match.same(this.classObject)).returns(true);
+
+                expect(this.property.isVisible()).to.be.false;
+            });
         });
     });
 
@@ -217,10 +316,10 @@ describe('PropertyReference', function () {
         });
 
         describe('when the property is not a reference', function () {
-            it('should set the property on the native object', function () {
+            it('should store the new value for the property', function () {
                 this.property.setValue(this.newValue);
 
-                expect(this.nativeObject.my_property.getNative()).to.equal('my new value');
+                expect(this.property.getNative()).to.equal('my new value');
             });
 
             it('should return the value assigned', function () {
@@ -279,12 +378,6 @@ describe('PropertyReference', function () {
             });
 
             describe('when magic __set is not defined either', function () {
-                it('should dynamically define the property on the native object', function () {
-                    this.property.setValue(this.newValue);
-
-                    expect(this.nativeObject.my_new_property.getNative()).to.equal('my new value');
-                });
-
                 it('should change the object\'s array-like pointer to point to this property', function () {
                     this.property.setValue(this.newValue);
 
@@ -319,15 +412,27 @@ describe('PropertyReference', function () {
 
     describe('unset()', function () {
         it('should leave the property no longer set', function () {
+            this.property.initialise(this.propertyValue);
+
             this.property.unset();
 
             expect(this.property.isSet()).to.be.false;
         });
 
-        it('should delete the property from the native object', function () {
+        it('should leave the property empty', function () {
+            this.property.initialise(this.propertyValue);
+
             this.property.unset();
 
-            expect(this.nativeObject).not.to.have.property('my_property');
+            expect(this.property.isEmpty()).to.be.true;
+        });
+
+        it('should leave the property undefined', function () {
+            this.property.initialise(this.propertyValue);
+
+            this.property.unset();
+
+            expect(this.property.isDefined()).to.be.false;
         });
     });
 });

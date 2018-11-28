@@ -176,10 +176,11 @@ EOS
             module = tools.syncTranspile(null, php),
             engine = module();
 
-        engine.execute();
-
-        expect(engine.getStdout().readAll()).to.equal('beforeafter');
-        expect(engine.getStderr().readAll()).to.equal('PHP Notice: Undefined variable: this\n');
+        expect(function () {
+            engine.execute();
+        }).to.throw(PHPFatalError, 'PHP Fatal error: Using $this when not in object context');
+        expect(engine.getStdout().readAll()).to.equal('before');
+        expect(engine.getStderr().readAll()).to.equal('PHP Fatal error: Using $this when not in object context');
     });
 
     it('should correctly handle attempting to access $this from a static method', function () {

@@ -42,15 +42,14 @@ describe('Object', function () {
         this.classObject = sinon.createStubInstance(Class);
         this.classObject.getMethodSpec.returns(null);
         this.classObject.getName.returns('My\\Space\\AwesomeClass');
+        this.classObject.getSuperClass.returns(null);
         this.classObject.isAutoCoercionEnabled.returns(false);
         this.prop1 = this.factory.createString('the value of firstProp');
         this.prop2 = this.factory.createString('the value of secondProp');
-        this.nativeObject = {
-            firstProp: this.prop1,
-            secondProp: this.prop2
-        };
+        this.nativeObject = {};
         this.objectID = 21;
 
+        this.callStack.getCurrentClass.returns(null);
         this.factory.setGlobalNamespace(this.globalNamespace);
 
         this.value = new ObjectValue(
@@ -60,6 +59,8 @@ describe('Object', function () {
             this.classObject,
             this.objectID
         );
+        this.value.declareProperty('firstProp', this.classObject, 'public').initialise(this.prop1);
+        this.value.declareProperty('secondProp', this.classObject, 'public').initialise(this.prop2);
     });
 
     describe('advance()', function () {
@@ -98,6 +99,7 @@ describe('Object', function () {
             this.thisValue = sinon.createStubInstance(ObjectValue);
 
             this.nativeObject.bind.returns(this.boundClosure);
+            this.scopeClass.getSuperClass.returns(null);
 
             this.value = new ObjectValue(
                 this.factory,
@@ -255,6 +257,23 @@ describe('Object', function () {
             expect(arrayValue.getElementByIndex(2).getKey().getNative()).to.equal('length');
             expect(arrayValue.getElementByIndex(2).getValue().getNative()).to.equal(321);
         });
+
+        it('should handle an object with private and protected properties', function () {
+            var arrayValue;
+            this.value.declareProperty('privateProp', this.classObject, 'private')
+                .initialise(this.factory.createString('a private one'));
+            this.value.declareProperty('protectedProp', this.classObject, 'protected')
+                .initialise(this.factory.createString('a protected one'));
+
+            arrayValue = this.value.coerceToArray();
+
+            expect(arrayValue.getNative()).to.deep.equal({
+                'firstProp': 'the value of firstProp',
+                'secondProp': 'the value of secondProp',
+                '\0My\\Space\\AwesomeClass\0privateProp': 'a private one',
+                '\0*\0protectedProp': 'a protected one'
+            });
+        });
     });
 
     describe('coerceToInteger()', function () {
@@ -326,6 +345,29 @@ describe('Object', function () {
             var coercedValue = this.value.coerceToObject();
 
             expect(coercedValue).to.equal(this.value);
+        });
+    });
+
+    describe('declareProperty()', function () {
+        it('should leave the property undefined', function () {
+            this.value.declareProperty('myUndefinedProp');
+
+            expect(this.value.getInstancePropertyByName(this.factory.createString('myUndefinedProp')).isDefined())
+                .to.be.false;
+        });
+
+        it('should leave the property unset', function () {
+            this.value.declareProperty('myUndefinedProp');
+
+            expect(this.value.getInstancePropertyByName(this.factory.createString('myUndefinedProp')).isSet())
+                .to.be.false;
+        });
+
+        it('should leave the property empty', function () {
+            this.value.declareProperty('myUndefinedProp');
+
+            expect(this.value.getInstancePropertyByName(this.factory.createString('myUndefinedProp')).isEmpty())
+                .to.be.true;
         });
     });
 
@@ -715,7 +757,218 @@ describe('Object', function () {
         });
     });
 
+    describe('getForThrow()', function () {
+        it('should return the wrapped native object', function () {
+            expect(this.value.getForThrow()).to.equal(this.nativeObject);
+        });
+    });
+
+    describe('getInstancePropertyByName()', function () {
+        beforeEach(function () {
+            this.ancestorClass = sinon.createStubInstance(Class);
+            this.descendantClass = sinon.createStubInstance(Class);
+            this.foreignClass = sinon.createStubInstance(Class);
+
+            this.ancestorClass.getSuperClass.returns(null);
+            this.descendantClass.getSuperClass.returns(this.classObject);
+            this.foreignClass.getSuperClass.returns(null);
+
+            this.ancestorClass.isInFamilyOf.withArgs(sinon.match.same(this.ancestorClass)).returns(true);
+            this.ancestorClass.isInFamilyOf.withArgs(sinon.match.same(this.classObject)).returns(true);
+            this.ancestorClass.isInFamilyOf.withArgs(sinon.match.same(this.descendantClass)).returns(true);
+            this.ancestorClass.isInFamilyOf.withArgs(sinon.match.same(this.foreignClass)).returns(false);
+            this.classObject.isInFamilyOf.withArgs(sinon.match.same(this.ancestorClass)).returns(true);
+            this.classObject.isInFamilyOf.withArgs(sinon.match.same(this.classObject)).returns(true);
+            this.classObject.isInFamilyOf.withArgs(sinon.match.same(this.descendantClass)).returns(true);
+            this.classObject.isInFamilyOf.withArgs(sinon.match.same(this.foreignClass)).returns(false);
+            this.descendantClass.isInFamilyOf.withArgs(sinon.match.same(this.ancestorClass)).returns(true);
+            this.descendantClass.isInFamilyOf.withArgs(sinon.match.same(this.classObject)).returns(true);
+            this.descendantClass.isInFamilyOf.withArgs(sinon.match.same(this.descendantClass)).returns(true);
+            this.descendantClass.isInFamilyOf.withArgs(sinon.match.same(this.foreignClass)).returns(false);
+            this.foreignClass.isInFamilyOf.withArgs(sinon.match.same(this.ancestorClass)).returns(false);
+            this.foreignClass.isInFamilyOf.withArgs(sinon.match.same(this.classObject)).returns(false);
+            this.foreignClass.isInFamilyOf.withArgs(sinon.match.same(this.descendantClass)).returns(false);
+            this.foreignClass.isInFamilyOf.withArgs(sinon.match.same(this.foreignClass)).returns(true);
+        });
+
+        describe('for an undefined property', function () {
+            it('should define the property, return it and always return the same instance', function () {
+                var property = this.value.getInstancePropertyByName(this.factory.createString('myPublicProp'));
+
+                expect(property).to.be.an.instanceOf(PropertyReference);
+                expect(this.value.getInstancePropertyByName(this.factory.createString('myPublicProp')))
+                    .to.equal(property);
+            });
+        });
+
+        describe('for a public property', function () {
+            it('should return when not inside any class', function () {
+                var property = this.value.declareProperty('myPublicProp', this.classObject, 'public');
+
+                expect(this.value.getInstancePropertyByName(this.factory.createString('myPublicProp')))
+                    .to.equal(property);
+            });
+
+            it('should return when inside a class that is not the defining one', function () {
+                var property = this.value.declareProperty('myPublicProp', this.classObject, 'public');
+                this.callStack.getCurrentClass.returns(this.foreignClass);
+
+                expect(this.value.getInstancePropertyByName(this.factory.createString('myPublicProp')))
+                    .to.equal(property);
+            });
+        });
+
+        describe('for a protected property', function () {
+            it('should return when inside the defining class', function () {
+                var property = this.value.declareProperty('myProtectedProp', this.classObject, 'protected');
+                this.callStack.getCurrentClass.returns(this.classObject);
+
+                expect(this.value.getInstancePropertyByName(this.factory.createString('myProtectedProp')))
+                    .to.equal(property);
+            });
+
+            it('should throw a fatal error when inside a class that is not in the family of the definer', function () {
+                this.value.declareProperty('myProtectedProp', this.classObject, 'protected');
+                this.callStack.getCurrentClass.returns(this.foreignClass);
+
+                expect(function () {
+                    this.value.getInstancePropertyByName(this.factory.createString('myProtectedProp'));
+                }.bind(this)).to.throw(
+                    PHPFatalError,
+                    'PHP Fatal error: Cannot access protected property My\\Space\\AwesomeClass::$myProtectedProp'
+                );
+            });
+
+            it('should return when inside a class that is an ancestor of the definer', function () {
+                var property = this.value.declareProperty('myProtectedProp', this.classObject, 'protected');
+                this.callStack.getCurrentClass.returns(this.ancestorClass);
+
+                expect(this.value.getInstancePropertyByName(this.factory.createString('myProtectedProp')))
+                    .to.equal(property);
+            });
+
+            it('should return when inside a class that is a descendant of the definer', function () {
+                var property = this.value.declareProperty('myProtectedProp', this.classObject, 'protected');
+                this.callStack.getCurrentClass.returns(this.descendantClass);
+
+                expect(this.value.getInstancePropertyByName(this.factory.createString('myProtectedProp')))
+                    .to.equal(property);
+            });
+        });
+
+        describe('for a private property', function () {
+            it('should return when inside the defining class', function () {
+                var property = this.value.declareProperty('myPrivateProp', this.classObject, 'private');
+                this.callStack.getCurrentClass.returns(this.classObject);
+
+                expect(this.value.getInstancePropertyByName(this.factory.createString('myPrivateProp')))
+                    .to.equal(property);
+            });
+
+            it('should throw a fatal error when inside a class that is not in the family of the definer', function () {
+                this.value.declareProperty('myPrivateProp', this.classObject, 'private');
+                this.callStack.getCurrentClass.returns(this.foreignClass);
+
+                expect(function () {
+                    this.value.getInstancePropertyByName(this.factory.createString('myPrivateProp'));
+                }.bind(this)).to.throw(
+                    PHPFatalError,
+                    'PHP Fatal error: Cannot access private property My\\Space\\AwesomeClass::$myPrivateProp'
+                );
+            });
+
+            it('should throw a fatal error when inside a class that is an ancestor of the definer', function () {
+                this.value.declareProperty('myPrivateProp', this.classObject, 'private');
+                this.callStack.getCurrentClass.returns(this.ancestorClass);
+
+                expect(function () {
+                    this.value.getInstancePropertyByName(this.factory.createString('myPrivateProp'));
+                }.bind(this)).to.throw(
+                    PHPFatalError,
+                    'PHP Fatal error: Cannot access private property My\\Space\\AwesomeClass::$myPrivateProp'
+                );
+            });
+
+            it('should throw a fatal error when inside a class that is a descendant of the definer', function () {
+                this.value.declareProperty('myPrivateProp', this.classObject, 'private');
+                this.callStack.getCurrentClass.returns(this.descendantClass);
+
+                expect(function () {
+                    this.value.getInstancePropertyByName(this.factory.createString('myPrivateProp'));
+                }.bind(this)).to.throw(
+                    PHPFatalError,
+                    'PHP Fatal error: Cannot access private property My\\Space\\AwesomeClass::$myPrivateProp'
+                );
+            });
+        });
+
+        describe('for a defined but static property', function () {
+            // TODO: This should now raise a notice instead (making two notices in total) in PHP7+
+            it('should raise a strict standards warning about the invalid access', function () {
+                this.classObject.hasStaticPropertyByName.withArgs('myStaticProp').returns(true);
+
+                this.value.getInstancePropertyByName(this.factory.createString('myStaticProp'));
+
+                expect(this.value.callStack.raiseError).to.have.been.calledOnce;
+                expect(this.value.callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_STRICT,
+                    'Accessing static property My\\Space\\AwesomeClass::$myStaticProp as non static'
+                );
+            });
+
+            it('should raise a notice about the undefined instance property when read', function () {
+                this.classObject.hasStaticPropertyByName.withArgs('myStaticProp').returns(true);
+
+                this.value.getInstancePropertyByName(this.factory.createString('myStaticProp')).getValue();
+
+                expect(this.value.callStack.raiseError).to.have.been.calledTwice;
+                expect(this.value.callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Undefined property: My\\Space\\AwesomeClass::$myStaticProp'
+                );
+            });
+
+            it('should return null', function () {
+                this.classObject.hasStaticPropertyByName.withArgs('myStaticProp').returns(true);
+
+                expect(
+                    this.value.getInstancePropertyByName(this.factory.createString('myStaticProp'))
+                        .getValue()
+                        .getNative()
+                )
+                    .to.equal(null);
+            });
+        });
+    });
+
     describe('getInstancePropertyNames()', function () {
+        beforeEach(function () {
+            this.ancestorClass = sinon.createStubInstance(Class);
+            this.descendantClass = sinon.createStubInstance(Class);
+            this.foreignClass = sinon.createStubInstance(Class);
+
+            this.ancestorClass.getSuperClass.returns(null);
+            this.descendantClass.getSuperClass.returns(this.classObject);
+            this.foreignClass.getSuperClass.returns(null);
+
+            this.ancestorClass.isInFamilyOf.withArgs(sinon.match.same(this.ancestorClass)).returns(true);
+            this.ancestorClass.isInFamilyOf.withArgs(sinon.match.same(this.classObject)).returns(true);
+            this.ancestorClass.isInFamilyOf.withArgs(sinon.match.same(this.descendantClass)).returns(true);
+            this.ancestorClass.isInFamilyOf.withArgs(sinon.match.same(this.foreignClass)).returns(false);
+            this.classObject.isInFamilyOf.withArgs(sinon.match.same(this.ancestorClass)).returns(true);
+            this.classObject.isInFamilyOf.withArgs(sinon.match.same(this.classObject)).returns(true);
+            this.classObject.isInFamilyOf.withArgs(sinon.match.same(this.descendantClass)).returns(true);
+            this.classObject.isInFamilyOf.withArgs(sinon.match.same(this.foreignClass)).returns(false);
+            this.descendantClass.isInFamilyOf.withArgs(sinon.match.same(this.ancestorClass)).returns(true);
+            this.descendantClass.isInFamilyOf.withArgs(sinon.match.same(this.classObject)).returns(true);
+            this.descendantClass.isInFamilyOf.withArgs(sinon.match.same(this.descendantClass)).returns(true);
+            this.descendantClass.isInFamilyOf.withArgs(sinon.match.same(this.foreignClass)).returns(false);
+            this.foreignClass.isInFamilyOf.withArgs(sinon.match.same(this.ancestorClass)).returns(false);
+            this.foreignClass.isInFamilyOf.withArgs(sinon.match.same(this.classObject)).returns(false);
+            this.foreignClass.isInFamilyOf.withArgs(sinon.match.same(this.descendantClass)).returns(false);
+            this.foreignClass.isInFamilyOf.withArgs(sinon.match.same(this.foreignClass)).returns(true);
+        });
+
         it('should include properties on the native object', function () {
             var names = this.value.getInstancePropertyNames();
 
@@ -760,6 +1013,49 @@ describe('Object', function () {
             expect(names[0].getNative()).to.equal('firstProp');
             expect(names[1].getNative()).to.equal('secondProp');
             expect(names[2].getNative()).to.equal('length');
+        });
+
+        it('should include private properties when inside the defining class', function () {
+            var names;
+            this.value.declareProperty('myPrivateProp', this.classObject, 'private')
+                .initialise(this.factory.createString('my value'));
+            this.callStack.getCurrentClass.returns(this.classObject);
+
+            names = this.value.getInstancePropertyNames();
+
+            expect(names).to.have.length(3);
+            expect(names[0].getNative()).to.equal('firstProp');
+            expect(names[1].getNative()).to.equal('secondProp');
+            expect(names[2].getNative()).to.equal('myPrivateProp');
+        });
+
+        it('should include protected properties when inside a class of the same family', function () {
+            var names;
+            this.value.declareProperty('protectedPropFromAncestor', this.ancestorClass, 'protected')
+                .initialise(this.factory.createString('my value'));
+            this.callStack.getCurrentClass.returns(this.classObject);
+
+            names = this.value.getInstancePropertyNames();
+
+            expect(names).to.have.length(3);
+            expect(names[0].getNative()).to.equal('firstProp');
+            expect(names[1].getNative()).to.equal('secondProp');
+            expect(names[2].getNative()).to.equal('protectedPropFromAncestor');
+        });
+
+        it('should not include private nor protected properties when inside an unrelated class', function () {
+            var names;
+            this.value.declareProperty('myPrivateProp', this.classObject, 'private')
+                .initialise(this.factory.createString('my private value'));
+            this.value.declareProperty('myProtectedProp', this.classObject, 'protected')
+                .initialise(this.factory.createString('my protected value'));
+            this.callStack.getCurrentClass.returns(this.foreignClass);
+
+            names = this.value.getInstancePropertyNames();
+
+            expect(names).to.have.length(2);
+            expect(names[0].getNative()).to.equal('firstProp');
+            expect(names[1].getNative()).to.equal('secondProp');
         });
     });
 
@@ -854,6 +1150,7 @@ describe('Object', function () {
                     exceptionClassObject = sinon.createStubInstance(Class),
                     exceptionObjectValue = sinon.createStubInstance(ObjectValue),
                     invalidIteratorValue = this.factory.createString('I am not a valid iterator');
+                exceptionClassObject.getSuperClass.returns(null);
                 this.classObject.callMethod.withArgs('getIterator').returns(invalidIteratorValue);
                 this.globalNamespace.getClass.withArgs('Exception').returns(exceptionClassObject);
                 exceptionClassObject.instantiate.returns(exceptionObjectValue);
@@ -876,6 +1173,7 @@ describe('Object', function () {
                     exceptionClassObject = sinon.createStubInstance(Class),
                     exceptionObjectValue = sinon.createStubInstance(ObjectValue),
                     iteratorValue = sinon.createStubInstance(ObjectValue);
+                exceptionClassObject.getSuperClass.returns(null);
                 iteratorValue.classIs.returns(false);
                 iteratorValue.getType.returns('object');
                 this.classObject.callMethod.withArgs('getIterator').returns(iteratorValue);
@@ -897,6 +1195,65 @@ describe('Object', function () {
         });
     });
 
+    describe('getLength()', function () {
+        beforeEach(function () {
+            this.ancestorClass = sinon.createStubInstance(Class);
+            this.descendantClass = sinon.createStubInstance(Class);
+            this.foreignClass = sinon.createStubInstance(Class);
+
+            this.ancestorClass.getSuperClass.returns(null);
+            this.descendantClass.getSuperClass.returns(this.classObject);
+            this.foreignClass.getSuperClass.returns(null);
+
+            this.ancestorClass.isInFamilyOf.withArgs(sinon.match.same(this.ancestorClass)).returns(true);
+            this.ancestorClass.isInFamilyOf.withArgs(sinon.match.same(this.classObject)).returns(true);
+            this.ancestorClass.isInFamilyOf.withArgs(sinon.match.same(this.descendantClass)).returns(true);
+            this.ancestorClass.isInFamilyOf.withArgs(sinon.match.same(this.foreignClass)).returns(false);
+            this.classObject.isInFamilyOf.withArgs(sinon.match.same(this.ancestorClass)).returns(true);
+            this.classObject.isInFamilyOf.withArgs(sinon.match.same(this.classObject)).returns(true);
+            this.classObject.isInFamilyOf.withArgs(sinon.match.same(this.descendantClass)).returns(true);
+            this.classObject.isInFamilyOf.withArgs(sinon.match.same(this.foreignClass)).returns(false);
+            this.descendantClass.isInFamilyOf.withArgs(sinon.match.same(this.ancestorClass)).returns(true);
+            this.descendantClass.isInFamilyOf.withArgs(sinon.match.same(this.classObject)).returns(true);
+            this.descendantClass.isInFamilyOf.withArgs(sinon.match.same(this.descendantClass)).returns(true);
+            this.descendantClass.isInFamilyOf.withArgs(sinon.match.same(this.foreignClass)).returns(false);
+            this.foreignClass.isInFamilyOf.withArgs(sinon.match.same(this.ancestorClass)).returns(false);
+            this.foreignClass.isInFamilyOf.withArgs(sinon.match.same(this.classObject)).returns(false);
+            this.foreignClass.isInFamilyOf.withArgs(sinon.match.same(this.descendantClass)).returns(false);
+            this.foreignClass.isInFamilyOf.withArgs(sinon.match.same(this.foreignClass)).returns(true);
+        });
+
+        it('should return the number of properties when only public ones exist', function () {
+            expect(this.value.getLength()).to.equal(2);
+        });
+
+        it('should include private properties in the length when inside their defining class', function () {
+            this.value.declareProperty('myPrivateProp', this.classObject, 'private')
+                .initialise(this.factory.createString('a value'));
+            this.callStack.getCurrentClass.returns(this.classObject);
+
+            expect(this.value.getLength()).to.equal(3);
+        });
+
+        it('should include protected properties when inside a class of the same family', function () {
+            this.value.declareProperty('protectedPropFromAncestor', this.ancestorClass, 'protected')
+                .initialise(this.factory.createString('my value'));
+            this.callStack.getCurrentClass.returns(this.classObject);
+
+            expect(this.value.getLength()).to.equal(3);
+        });
+
+        it('should not include private nor protected properties in the length when inside an unrelated class', function () {
+            this.value.declareProperty('myPrivateProp', this.classObject, 'private')
+                .initialise(this.factory.createString('a private value'));
+            this.value.declareProperty('myProtectedProp', this.classObject, 'protected')
+                .initialise(this.factory.createString('a protected value'));
+            this.callStack.getCurrentClass.returns(this.foreignClass);
+
+            expect(this.value.getLength()).to.equal(2);
+        });
+    });
+
     describe('getNative()', function () {
         describe('JSObject instances', function () {
             beforeEach(function () {
@@ -914,16 +1271,18 @@ describe('Object', function () {
             });
 
             it('should be unwrapped as a plain object with properties unwrapped recursively', function () {
-                this.nativeObject.objectProp = new ObjectValue(
+                var subObject = new ObjectValue(
                     this.factory,
                     this.callStack,
-                    {
-                        firstNestedProp: this.factory.createString('value of first nested prop'),
-                        secondNestedProp: this.factory.createString('value of second nested prop')
-                    },
+                    {},
                     this.classObject,
                     this.objectID
                 );
+                subObject.declareProperty('firstNestedProp', this.classObject, 'public')
+                    .initialise(this.factory.createString('value of first nested prop'));
+                subObject.declareProperty('secondNestedProp', this.classObject, 'public')
+                    .initialise(this.factory.createString('value of second nested prop'));
+                this.value.declareProperty('objectProp', this.classObject, 'public').initialise(subObject);
 
                 expect(this.value.getNative()).to.deep.equal({
                     firstProp: 'the value of firstProp',
@@ -949,6 +1308,12 @@ describe('Object', function () {
 
                 expect(this.value.getNative()).to.equal(unwrappedObject);
             });
+        });
+    });
+
+    describe('getObject()', function () {
+        it('should return the wrapped native object', function () {
+            expect(this.value.getObject()).to.equal(this.nativeObject);
         });
     });
 
@@ -1090,6 +1455,20 @@ describe('Object', function () {
 
             expect(this.value.invokeClosure([])).to.equal(resultValue);
         });
+
+        it('should throw when the native value is not an instance of Closure', function () {
+            var value = new ObjectValue(
+                this.factory,
+                this.callStack,
+                {},
+                this.classObject,
+                this.objectID
+            );
+
+            expect(function () {
+                value.invokeClosure([]);
+            }.bind(this)).to.throw('bindClosure() :: Value is not a Closure');
+        });
     });
 
     describe('isAnInstanceOf()', function () {
@@ -1106,6 +1485,41 @@ describe('Object', function () {
     describe('isEmpty()', function () {
         it('should return false', function () {
             expect(this.value.isEmpty()).to.be.false;
+        });
+    });
+
+    describe('isEqualToObject()', function () {
+        beforeEach(function () {
+            this.anotherClass = sinon.createStubInstance(Class);
+        });
+
+        it('should return true when given the same object', function () {
+            expect(this.value.isEqualToObject(this.value).getNative()).to.be.true;
+        });
+
+        it('should return true when given another object with identical properties and of the same class', function () {
+            var otherObject = new ObjectValue(this.factory, this.callStack, {}, this.classObject, 22);
+            otherObject.declareProperty('firstProp', this.classObject, 'public').initialise(this.prop1);
+            otherObject.declareProperty('secondProp', this.classObject, 'public').initialise(this.prop2);
+
+            expect(this.value.isEqualToObject(otherObject).getNative()).to.be.true;
+        });
+
+        it('should return false when given another object with identical properties but of another class', function () {
+            var otherObject = new ObjectValue(this.factory, this.callStack, {}, this.anotherClass, 22);
+            otherObject.declareProperty('firstProp', this.classObject, 'public').initialise(this.prop1);
+            otherObject.declareProperty('secondProp', this.classObject, 'public').initialise(this.prop2);
+
+            expect(this.value.isEqualToObject(otherObject).getNative()).to.be.false;
+        });
+
+        it('should return false when given another object with different properties but of the same class', function () {
+            var otherObject = new ObjectValue(this.factory, this.callStack, {}, this.classObject, 22);
+            otherObject.declareProperty('firstProp', this.classObject, 'public').initialise(this.prop1);
+            otherObject.declareProperty('secondProp', this.classObject, 'public')
+                .initialise(this.factory.createInteger(1001));
+
+            expect(this.value.isEqualToObject(otherObject).getNative()).to.be.false;
         });
     });
 
@@ -1235,6 +1649,7 @@ describe('Object', function () {
             var subjectClassObject = sinon.createStubInstance(Class),
                 subjectObjectValue = this.factory.createObject({}, subjectClassObject),
                 result;
+            subjectClassObject.getSuperClass.returns(null);
             subjectClassObject.extends.withArgs(sinon.match.same(this.classObject)).returns(true);
             this.classObject.extends.withArgs(sinon.match.same(subjectClassObject)).returns(false);
 
@@ -1248,6 +1663,7 @@ describe('Object', function () {
             var subjectClassObject = sinon.createStubInstance(Class),
                 subjectObjectValue = this.factory.createObject({}, subjectClassObject),
                 result;
+            subjectClassObject.getSuperClass.returns(null);
             subjectClassObject.extends.withArgs(sinon.match.same(this.classObject)).returns(false);
             this.classObject.extends.withArgs(sinon.match.same(subjectClassObject)).returns(true);
 

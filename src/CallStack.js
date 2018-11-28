@@ -65,6 +65,22 @@ _.extend(CallStack.prototype, {
     },
 
     /**
+     * Fetches the class that defines the current function being executed
+     *
+     * @returns {Class|null}
+     */
+    getCurrentClass: function () {
+        var chain = this,
+            call = chain.getCurrent();
+
+        if (!call) {
+            return null;
+        }
+
+        return call.getScope().getCurrentClass();
+    },
+
+    /**
      * Fetches the path to the file containing the last line of code executed
      *
      * @returns {string|null}

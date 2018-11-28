@@ -10,11 +10,11 @@
 'use strict';
 
 var _ = require('microdash'),
-    hasOwn = {}.hasOwnProperty,
     phpCommon = require('phpcommon'),
     util = require('util'),
     MAGIC_GET = '__get',
     MAGIC_SET = '__set',
+    MAGIC_UNSET = '__unset',
     PHPError = phpCommon.PHPError,
     Reference = require('./Reference');
 
@@ -22,11 +22,21 @@ var _ = require('microdash'),
  * @param {ValueFactory} valueFactory
  * @param {CallStack} callStack
  * @param {ObjectValue} objectValue
- * @param {object} nativeObject
  * @param {Value} key
+ * @param {Class} classObject Class in the hierarchy that defines the property - may be an ancestor
+ * @param {string} visibility "private", "protected" or "public"
+ * @param {number} index
  * @constructor
  */
-function PropertyReference(valueFactory, callStack, objectValue, nativeObject, key) {
+function PropertyReference(valueFactory, callStack, objectValue, key, classObject, visibility, index) {
+    /**
+     * @type {Class}
+     */
+    this.classObject = classObject;
+    /**
+     * @type {number}
+     */
+    this.index = index;
     /**
      * @type {ObjectValue}
      */
@@ -36,10 +46,6 @@ function PropertyReference(valueFactory, callStack, objectValue, nativeObject, k
      */
     this.key = key;
     /**
-     * @type {object}
-     */
-    this.nativeObject = nativeObject;
-    /**
      * @type {Reference|null}
      */
     this.reference = null;
@@ -48,14 +54,29 @@ function PropertyReference(valueFactory, callStack, objectValue, nativeObject, k
      */
     this.callStack = callStack;
     /**
+     * Value of this property - a native null value indicates that the property is not defined
+     *
+     * @type {Value|null}
+     */
+    this.value = null;
+    /**
      * @type {ValueFactory}
      */
     this.valueFactory = valueFactory;
+    /**
+     * @type {string}
+     */
+    this.visibility = visibility;
 }
 
 util.inherits(PropertyReference, Reference);
 
 _.extend(PropertyReference.prototype, {
+    /**
+     * Makes a copy of this property
+     *
+     * @returns {PropertyReference}
+     */
     clone: function () {
         var property = this;
 
@@ -63,9 +84,38 @@ _.extend(PropertyReference.prototype, {
             property.valueFactory,
             property.callStack,
             property.objectValue,
-            property.nativeObject,
-            property.key
+            property.key,
+            property.classObject,
+            property.visibility,
+            property.index
         );
+    },
+
+    /**
+     * Fetches the unique name of this property as viewed from outside the class (eg. when casting to array)
+     *
+     * @returns {*}
+     */
+    getExternalName: function () {
+        var property = this;
+
+        switch (property.visibility) {
+            case 'private':
+                return '\0' + property.classObject.getName() + '\0' + property.key.getNative();
+            case 'protected':
+                return '\0*\0' + property.key.getNative();
+            default:
+                return property.key.getNative();
+        }
+    },
+
+    /**
+     * Fetches the index of this property within its object
+     *
+     * @returns {number}
+     */
+    getIndex: function () {
+        return this.index;
     },
 
     getInstancePropertyByName: function (name) {
@@ -88,9 +138,7 @@ _.extend(PropertyReference.prototype, {
      * @returns {Value}
      */
     getValue: function () {
-        var property = this,
-            nativeObject = property.nativeObject,
-            nativeKey = property.key.getNative();
+        var property = this;
 
         // Special value of native null (vs. NullValue) represents undefined
         if (!property.isDefined()) {
@@ -102,18 +150,40 @@ _.extend(PropertyReference.prototype, {
             property.callStack.raiseError(
                 PHPError.E_NOTICE,
                 'Undefined ' + property.objectValue.referToElement(
-                    nativeKey
+                    property.key.getNative()
                 )
             );
 
             return property.valueFactory.createNull();
         }
 
-        return property.reference ?
-            property.reference.getValue() :
-            property.valueFactory.coerce(
-                nativeObject[nativeKey]
-            );
+        if (property.value) {
+            return property.value;
+        }
+
+        if (property.reference) {
+            return property.reference.getValue();
+        }
+
+        throw new Error('Defined properties should have a value or reference assigned');
+    },
+
+    /**
+     * Fetches the visibility of this property
+     *
+     * @returns {string}
+     */
+    getVisibility: function () {
+        return this.visibility;
+    },
+
+    /**
+     * Sets the initial value for this property, ignoring any magic setter
+     *
+     * @param {Value} value
+     */
+    initialise: function (value) {
+        this.value = value.getForAssignment();
     },
 
     /**
@@ -123,30 +193,15 @@ _.extend(PropertyReference.prototype, {
      * @returns {boolean}
      */
     isDefined: function () {
-        var defined = true,
-            otherObject,
-            property = this,
-            nativeObject = property.nativeObject,
-            nativeKey = property.key.getNative();
+        var property = this;
 
         if (property.reference) {
             return true;
         }
 
-        // Allow properties inherited via the prototype chain up to but not including Object.prototype
-        if (!hasOwn.call(nativeObject, nativeKey)) {
-            otherObject = nativeObject;
-
-            do {
-                otherObject = Object.getPrototypeOf(otherObject);
-                if (!otherObject || otherObject === Object.prototype) {
-                    defined = false;
-                    break;
-                }
-            } while (!hasOwn.call(otherObject, nativeKey));
-        }
-
-        return defined;
+        // This property is defined if it has a non-native null value -
+        // if it is defined but with a value of PHP NULL, `.value` will be an instance of NullValue
+        return property.value !== null;
     },
 
     /**
@@ -157,7 +212,19 @@ _.extend(PropertyReference.prototype, {
     isEmpty: function () {
         var property = this;
 
-        return !property.isDefined() || property.getValue().isEmpty();
+        if (property.isDefined()) {
+            return property.getValue().isEmpty();
+        }
+
+        if (property.objectValue.isMethodDefined(MAGIC_GET)) {
+            // Magic getter method is defined, so use it to determine the property's value
+            // and then check _that_ for being "empty"
+            return property.objectValue.callMethod(MAGIC_GET, [property.key]).isEmpty();
+        }
+
+        // Property is not defined and there is no magic getter,
+        // so the property must be empty as it is unset and undefined
+        return true;
     },
 
     isReference: function () {
@@ -172,9 +239,7 @@ _.extend(PropertyReference.prototype, {
      */
     isSet: function () {
         var property = this,
-            defined = property.isDefined(),
-            nativeObject = property.nativeObject,
-            nativeKey = property.key.getNative();
+            defined = property.isDefined();
 
         if (!defined) {
             return false;
@@ -182,7 +247,39 @@ _.extend(PropertyReference.prototype, {
 
         // Check that the property resolves to something other than null,
         // otherwise it is not set
-        return property.valueFactory.coerce(nativeObject[nativeKey]).getType() !== 'null';
+        // (no need to check for a value of native null - meaning an undefined property -
+        //  as the check for that is done just above)
+        return property.value.getType() !== 'null';
+    },
+
+    /**
+     * Determines whether this property is visible from the calling scope
+     * - for a private property, the calling scope must be inside that class
+     * - for a protected property, the calling scope must be inside that class or an ancestor or descendant of it
+     * - public properties are visible from everywhere
+     *
+     * @returns {boolean}
+     */
+    isVisible: function () {
+        var property = this,
+            // Fetch the class that the current line of PHP code is executing inside (if any)
+            callingClass = property.callStack.getCurrentClass();
+
+        if (property.getVisibility() === 'private') {
+            // Private properties are only accessible by the class that defines them
+            return callingClass &&
+                property.classObject.getName() === callingClass.getName();
+        }
+
+        if (property.getVisibility() === 'protected') {
+            // Protected properties may be accessed by the class that defines them
+            // or an ancestor or descendant of it
+            return callingClass &&
+                callingClass.isInFamilyOf(property.classObject);
+        }
+
+        // Public visibility - public properties are always visible
+        return true;
     },
 
     setReference: function (reference) {
@@ -203,19 +300,8 @@ _.extend(PropertyReference.prototype, {
      */
     setValue: function (value) {
         var property = this,
-            nativeObject = property.nativeObject,
-            nativeKey = property.key.getNative(),
             isFirstProperty = (property.objectValue.getLength() === 0),
             valueForAssignment;
-
-        // Ensure we write the native value to properties on native JS objects
-        function getValueForAssignment() {
-            if (property.objectValue.getClassName() === 'JSObject') {
-                return value.getNative();
-            }
-
-            return value.getForAssignment();
-        }
 
         function pointIfFirstProperty() {
             if (isFirstProperty) {
@@ -231,11 +317,11 @@ _.extend(PropertyReference.prototype, {
             return value;
         }
 
-        valueForAssignment = getValueForAssignment();
+        valueForAssignment = value.getForAssignment();
 
         if (!property.isDefined()) {
             // Property is not defined - attempt to call magic setter method first,
-            // otherwise just dynamically define the new property
+            // otherwise just dynamically define the new property by setting its value below
             if (property.objectValue.isMethodDefined(MAGIC_SET)) {
                 property.objectValue.callMethod(MAGIC_SET, [property.key, valueForAssignment]);
 
@@ -243,23 +329,29 @@ _.extend(PropertyReference.prototype, {
             }
         }
 
-        nativeObject[nativeKey] = valueForAssignment;
+        // No magic setter is defined - store the value of this property directly on itself
+        property.value = valueForAssignment;
 
         pointIfFirstProperty();
 
         return value;
     },
 
+    /**
+     * Marks this property as unset and undefined
+     */
     unset: function () {
-        var property = this,
-            nativeObject = property.nativeObject,
-            nativeKey = property.key.getNative();
+        var property = this;
+
+        if (!property.isDefined()) {
+            // Property is not defined - call magic unsetter method if defined
+            if (property.objectValue.isMethodDefined(MAGIC_UNSET)) {
+                property.objectValue.callMethod(MAGIC_UNSET, [property.key]);
+            }
+        }
 
         // Clear value and/or reference to mark as unset
         property.value = property.reference = null;
-
-        // Delete the property from the native object
-        delete nativeObject[nativeKey];
     }
 });
 

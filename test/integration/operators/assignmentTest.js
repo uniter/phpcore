@@ -64,4 +64,29 @@ EOS
             27
         ]);
     });
+
+    it('should allow an array literal to replace a variable with a new array containing the old value', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+$myArray = [21];
+$myArray = [
+    'old' => $myArray
+];
+$result[] = $myArray;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            {
+                old: [21]
+            }
+        ]);
+    });
 });

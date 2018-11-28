@@ -122,7 +122,7 @@ module.exports = require('pauser')([
         this.name = name;
         this.namespaceScope = namespaceScope;
         this.staticProperties = staticProperties;
-        this.superClass = superClass;
+        this.superClass = superClass || null;
         this.unwrapper = null;
         this.valueFactory = valueFactory;
 
@@ -147,8 +147,8 @@ module.exports = require('pauser')([
          *
          * @param {string} methodName The name of the method to call
          * @param {Value[]} args The wrapped value objects to pass as arguments to the method
-         * @param {ObjectValue} objectValue The wrapped ObjectValue for this instance
-         * @param {object} currentNativeObject The current native JS object on the prototype chain to search for the method
+         * @param {ObjectValue|null} objectValue The wrapped ObjectValue for this instance
+         * @param {object|null} currentNativeObject The current native JS object on the prototype chain to search for the method
          * @param {Class|null} currentClass The original called class (this function is called recursively for inherited methods)
          * @param {bool} isForwardingStaticCall eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
          * @returns {Value} Returns the result of the method if it is defined
@@ -572,6 +572,21 @@ module.exports = require('pauser')([
             }
 
             return false;
+        },
+
+        /**
+         * Determines whether this class is identical to or is an ancestor or descendant
+         * of the specified other class
+         *
+         * @param {Class} otherClass
+         * @return {boolean}
+         */
+        isInFamilyOf: function (otherClass) {
+            var classObject = this;
+
+            return classObject === otherClass ||
+                classObject.extends(otherClass) ||
+                otherClass.extends(classObject);
         },
 
         /**

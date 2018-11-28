@@ -103,7 +103,13 @@ module.exports = require('pauser')([
                 // Class has a definition, so it was defined using PHP
                 InternalClass = function () {
                     var objectValue = this,
-                        nativeObject = objectValue.getObject();
+                        properties = {};
+
+                    // Go through and declare the properties and their default values
+                    // on the object from the class definition
+                    _.forOwn(definition.properties, function (propertyData, name) {
+                        properties[name] = objectValue.declareProperty(name, classObject, propertyData.visibility);
+                    });
 
                     if (definition.superClass) {
                         // Class has a parent, call the parent's internal constructor
@@ -111,9 +117,17 @@ module.exports = require('pauser')([
                     }
 
                     // Go through and define the properties and their default values
-                    // on the object from the class definition
-                    _.forOwn(definition.properties, function (value, name) {
-                        nativeObject[name] = value();
+                    // on the object from the class definition by initialising them
+                    _.forOwn(definition.properties, function (propertyData, name) {
+                        var instanceProperty = properties[name],
+                            initialValue = propertyData.value();
+
+                        if (initialValue === null) {
+                            // If a property has no initialiser then its initial value is NULL
+                            initialValue = namespace.valueFactory.createNull();
+                        }
+
+                        instanceProperty.initialise(initialValue);
                     });
                 };
 

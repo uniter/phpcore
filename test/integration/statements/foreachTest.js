@@ -56,20 +56,49 @@ EOS
         ]);
     });
 
-    it('should be able to loop over an object that does not implement Traversable', function () {
+    it('should be able to loop over the visible properties of an object that does not implement Traversable', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
-class MyClass {
+class ParentClass {
     public $firstProp = 'one';
     public $secondProp = 'two';
+    private $privateProp = 'three';
+    protected $parentSharedProp = 'four';
+
+    public function getPropsVisibleToParent() {
+        $result = [];
+
+        foreach ($this as $key => $value) {
+            $result[] = 'value for ' . $key . ' is: ' . $value . ' - from inside ParentClass';
+        }
+
+        return $result;
+    }
+}
+class ChildClass extends ParentClass {
+    private $childProp = 'five';
+    protected $childSharedProp = 'six';
+
+    public function getPropsVisibleToChild() {
+        $result = [];
+
+        foreach ($this as $key => $value) {
+            $result[] = 'value for ' . $key . ' is: ' . $value . ' - from inside ChildClass';
+        }
+
+        return $result;
+    }
 }
 
 $result = [];
-$myObject = new MyClass;
+$myObject = new ChildClass;
 
 foreach ($myObject as $key => $value) {
-    $result[] = 'value for ' . $key . ' is: ' . $value;
+    $result[] = 'value for ' . $key . ' is: ' . $value . ' - from outside the class';
 }
+
+$result[] = $myObject->getPropsVisibleToParent();
+$result[] = $myObject->getPropsVisibleToChild();
 
 return $result;
 EOS
@@ -77,8 +106,23 @@ EOS
             module = tools.syncTranspile(null, php);
 
         expect(module().execute().getNative()).to.deep.equal([
-            'value for firstProp is: one',
-            'value for secondProp is: two'
+            'value for firstProp is: one - from outside the class',
+            'value for secondProp is: two - from outside the class',
+            // Private property should not be accessible from outside the class
+            [
+                'value for childSharedProp is: six - from inside ParentClass',
+                'value for firstProp is: one - from inside ParentClass',
+                'value for secondProp is: two - from inside ParentClass',
+                'value for privateProp is: three - from inside ParentClass',
+                'value for parentSharedProp is: four - from inside ParentClass'
+            ],
+            [
+                'value for childProp is: five - from inside ChildClass',
+                'value for childSharedProp is: six - from inside ChildClass',
+                'value for firstProp is: one - from inside ChildClass',
+                'value for secondProp is: two - from inside ChildClass',
+                'value for parentSharedProp is: four - from inside ChildClass'
+            ]
         ]);
     });
 });
