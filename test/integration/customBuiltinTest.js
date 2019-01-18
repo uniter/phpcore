@@ -11,27 +11,12 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    pausable = require('pausable'),
-    phpCommon = require('phpcommon'),
-    phpToAST = require('phptoast'),
-    phpToJS = require('phptojs'),
-    when = require('../when'),
-    Engine = require('../../src/Engine'),
-    Environment = require('../../src/Environment'),
-    PHPState = require('../../src/PHPState').sync(),
-    Runtime = require('../../src/Runtime').async(pausable);
+    tools = require('./tools'),
+    when = require('../when');
 
 describe('Custom builtin integration', function () {
     beforeEach(function () {
-        this.runtime = new Runtime(
-            Environment,
-            Engine,
-            PHPState,
-            phpCommon,
-            pausable,
-            phpToAST,
-            phpToJS
-        );
+        this.runtime = tools.createAsyncRuntime();
     });
 
     it('should support installing a custom function', function (done) {
@@ -40,13 +25,7 @@ describe('Custom builtin integration', function () {
 return add_one_to(21);
 EOS
 */;}), //jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return this.runtime;
-            }.bind(this));
+            module = tools.transpile(this.runtime, null, php);
 
         this.runtime.install({
             functionGroups: [
@@ -73,13 +52,7 @@ $myObject = new AwesomeClass();
 return $myObject->getIt();
 EOS
 */;}), //jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return this.runtime;
-            }.bind(this));
+            module = tools.transpile(this.runtime, null, php);
 
         this.runtime.install({
             classes: {
@@ -109,13 +82,7 @@ $myNonCoercingObject = new NonCoercingClass(21);
 return [$myCoercingObject, $myNonCoercingObject];
 EOS
 */;}), //jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return this.runtime;
-            }.bind(this));
+            module = tools.transpile(this.runtime, null, php);
 
         this.runtime.install({
             classes: {
@@ -159,13 +126,7 @@ $myObject = new My\Stuff\AwesomeClass();
 return $myObject->getIt();
 EOS
 */;}), //jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return this.runtime;
-            }.bind(this));
+            module = tools.transpile(this.runtime, null, php);
 
         this.runtime.install({
             classes: {
@@ -192,13 +153,7 @@ EOS
 return MY_CONSTANT;
 EOS
 */;}), //jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return this.runtime;
-            }.bind(this));
+            module = tools.transpile(this.runtime, null, php);
 
         this.runtime.install({
             constantGroups: [
