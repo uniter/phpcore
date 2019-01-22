@@ -125,4 +125,37 @@ EOS
             ]
         ]);
     });
+
+    it('should be able to loop over an array fetched from instance property inside a closure passed as function arg', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+function callIt($aFunction) {
+    $aFunction();
+}
+
+callIt(function () {
+    global $result;
+
+    $myObject = new stdClass;
+    $myObject->myArray = ['first', 'second', 'third'];
+
+    foreach ($myObject->myArray as $key => $value) {
+        $result[] = 'value for ' . $key . ' is: ' . $value;
+    }
+});
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.deep.equal([
+            'value for 0 is: first',
+            'value for 1 is: second',
+            'value for 2 is: third'
+        ]);
+    });
 });

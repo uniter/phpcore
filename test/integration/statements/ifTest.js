@@ -33,4 +33,35 @@ EOS
             'yep'
         ]);
     });
+
+    it('should support if conditions reading an instance property inside a closure passed as function arg', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+function callIt($aFunction) {
+    $aFunction();
+}
+
+callIt(function () {
+    global $result;
+
+    $myObject = new stdClass;
+    $myObject->myProp = true;
+
+    if ($myObject->myProp) {
+        $result[] = 'found';
+    }
+});
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.deep.equal([
+            'found'
+        ]);
+    });
 });
