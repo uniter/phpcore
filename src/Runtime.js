@@ -34,6 +34,7 @@ module.exports = require('pauser')([
          */
         this.builtins = {
             bindingGroups: [],
+            classGroups: [],
             classes: {},
             constantGroups: [],
             functionGroups: []
@@ -183,6 +184,7 @@ module.exports = require('pauser')([
             }
 
             [].push.apply(builtins.functionGroups, newBuiltins.functionGroups);
+            [].push.apply(builtins.classGroups, newBuiltins.classGroups);
             _.extend(builtins.classes, newBuiltins.classes);
             [].push.apply(builtins.constantGroups, newBuiltins.constantGroups);
             [].push.apply(this.optionGroups, newBuiltins.optionGroups);

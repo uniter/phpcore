@@ -126,6 +126,19 @@ module.exports = require('pauser')([
             }
 
             /**
+             * Installs a set of related classes into PHP-land
+             *
+             * @param {Function} groupFactory
+             */
+            function installClassGroup(groupFactory) {
+                var groupBuiltins = groupFactory(state.internals);
+
+                _.each(groupBuiltins, function (definitionFactory, name) {
+                    state.defineClass(name, definitionFactory);
+                });
+            }
+
+            /**
              * Installs a set of related constants into PHP-land
              *
              * @param {Function} groupFactory
@@ -152,6 +165,7 @@ module.exports = require('pauser')([
             // Core builtins
             _.each(builtinTypes.constantGroups, installConstantGroup);
             _.each(builtinTypes.functionGroups, installFunctionGroup);
+            _.each(builtinTypes.classGroups, installClassGroup);
             _.forOwn(builtinTypes.classes, installClass);
 
             // Optional installed builtins
@@ -160,6 +174,7 @@ module.exports = require('pauser')([
             _.each(installedBuiltinTypes.constantGroups, installConstantGroup);
             _.each(installedBuiltinTypes.bindingGroups, installBindingGroup);
             _.each(installedBuiltinTypes.functionGroups, installFunctionGroup);
+            _.each(installedBuiltinTypes.classGroups, installClassGroup);
             _.forOwn(installedBuiltinTypes.classes, installClass);
         },
         Exception = phpCommon.Exception;

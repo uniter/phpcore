@@ -184,6 +184,7 @@ describe('Runtime', function () {
                 sinon.match.same(this.runtime),
                 {
                     bindingGroups: [],
+                    classGroups: [],
                     classes: {},
                     constantGroups: [],
                     functionGroups: []
@@ -233,6 +234,7 @@ describe('Runtime', function () {
                 sinon.match.any,
                 {
                     bindingGroups: [],
+                    classGroups: [],
                     classes: {
                         MyClass: sinon.match.same(MyClass)
                     },
@@ -257,6 +259,7 @@ describe('Runtime', function () {
                 sinon.match.any,
                 {
                     bindingGroups: [],
+                    classGroups: [],
                     classes: {},
                     constantGroups: [],
                     functionGroups: []
@@ -288,6 +291,7 @@ describe('Runtime', function () {
                     bindingGroups: [
                         sinon.match.same(bindingGroupFactory)
                     ],
+                    classGroups: [],
                     classes: {},
                     constantGroups: [],
                     functionGroups: []
@@ -316,6 +320,7 @@ describe('Runtime', function () {
                 sinon.match.any,
                 {
                     bindingGroups: [],
+                    classGroups: [],
                     classes: {
                         MyClass: sinon.match.same(MyClass)
                     },

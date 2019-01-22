@@ -44,6 +44,7 @@ describe('Class', function () {
                 'My\\Class\\Path\\Here',
                 constructorName,
                 this.InternalClass,
+                this.InternalClass.prototype,
                 {
                     myFirstStaticProp: {
                         visibility: 'public',

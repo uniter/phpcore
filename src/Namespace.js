@@ -52,6 +52,7 @@ module.exports = require('pauser')([
                 methods = {},
                 namespace = this,
                 proxyConstructor,
+                rootInternalPrototype,
                 staticProperties,
                 InternalClass;
 
@@ -99,6 +100,9 @@ module.exports = require('pauser')([
                 proxyConstructor.data = methodData;
                 InternalClass.prototype[MAGIC_CONSTRUCT] = proxyConstructor;
                 constructorName = MAGIC_CONSTRUCT;
+
+                // Record the prototype object that we should stop at when walking up the chain
+                rootInternalPrototype = definition.prototype;
             } else {
                 // Class has a definition, so it was defined using PHP
                 InternalClass = function () {
@@ -157,6 +161,9 @@ module.exports = require('pauser')([
 
                 staticProperties = definition.staticProperties;
                 constants = definition.constants;
+
+                // Record the prototype object that we should stop at when walking up the chain
+                rootInternalPrototype = InternalClass.prototype;
             }
 
             classObject = new Class(
@@ -166,6 +173,7 @@ module.exports = require('pauser')([
                 namespace.getPrefix() + name,
                 constructorName,
                 InternalClass,
+                rootInternalPrototype,
                 staticProperties,
                 constants,
                 definition.superClass,

@@ -44,7 +44,7 @@ EOS
         }), done);
     });
 
-    it('should support installing a custom class', function (done) {
+    it('should support installing a custom class using the "classes" property', function (done) {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $myObject = new AwesomeClass();
@@ -71,6 +71,91 @@ EOS
         module().execute().then(when(done, function (result) {
             expect(result.getNative()).to.equal(21);
         }), done);
+    });
+
+    it('should support installing a custom class using the "classGroups" property', function (done) {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$myObject = new AwesomeClass();
+
+return $myObject->getIt();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.transpile(this.runtime, null, php);
+
+        this.runtime.install({
+            classGroups: [
+                function () {
+                    return {
+                        'AwesomeClass': function () {
+                            function AwesomeClass() {}
+
+                            AwesomeClass.prototype.getIt = function () {
+                                return 21;
+                            };
+
+                            return AwesomeClass;
+                        }
+                    };
+                }
+            ]
+        });
+
+        module().execute().then(when(done, function (result) {
+            expect(result.getNative()).to.equal(21);
+        }), done);
+    });
+
+    it('should define classes from the "classGroups" property in sequence to support dependencies', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$myObject = new SecondClass();
+
+return [
+    $myObject->getFirst(),
+    $myObject->getSecond()
+];
+EOS
+*/;}), //jshint ignore:line
+            runtime = tools.createSyncRuntime(),
+            module = tools.transpile(runtime, null, php);
+
+        runtime.install({
+            classGroups: [
+                function () {
+                    return {
+                        'FirstClass': function () {
+                            function FirstClass() {}
+
+                            FirstClass.prototype.getFirst = function () {
+                                return 21;
+                            };
+
+                            return FirstClass;
+                        }
+                    };
+                },
+                function () {
+                    return {
+                        'SecondClass': function (internals) {
+                            function SecondClass() {
+
+                            }
+
+                            SecondClass.superClass = internals.globalNamespace.getClass('FirstClass');
+
+                            SecondClass.prototype.getSecond = function () {
+                                return 1001;
+                            };
+
+                            return SecondClass;
+                        }
+                    };
+                }
+            ]
+        });
+
+        expect(module().execute().getNative()).to.deep.equal([21, 1001]);
     });
 
     it('should support installing custom classes with unwrappers', function (done) {

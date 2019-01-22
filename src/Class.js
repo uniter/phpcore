@@ -103,6 +103,7 @@ module.exports = require('pauser')([
         name,
         constructorName,
         InternalClass,
+        rootInternalPrototype,
         staticPropertiesData,
         constants,
         superClass,
@@ -121,6 +122,8 @@ module.exports = require('pauser')([
         this.InternalClass = InternalClass;
         this.name = name;
         this.namespaceScope = namespaceScope;
+        // The prototype object that we should stop at when walking up the chain
+        this.rootInternalPrototype = rootInternalPrototype;
         this.staticProperties = staticProperties;
         this.superClass = superClass || null;
         this.unwrapper = null;
@@ -203,7 +206,7 @@ module.exports = require('pauser')([
                 }
 
                 if (
-                    currentObject === classObject.InternalClass.prototype &&
+                    currentObject === classObject.rootInternalPrototype &&
                     classObject.superClass
                 ) {
                     return classObject.superClass.callMethod(
@@ -405,7 +408,7 @@ module.exports = require('pauser')([
                 }
 
                 if (
-                    currentObject === classObject.InternalClass.prototype &&
+                    currentObject === classObject.rootInternalPrototype &&
                     classObject.superClass
                 ) {
                     return classObject.superClass.getMethodSpec(
