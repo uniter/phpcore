@@ -11,6 +11,7 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    Class = require('../../src/Class').sync(),
     Engine = require('../../src/Engine'),
     Environment = require('../../src/Environment'),
     PauseException = require('pausable/src/PauseException'),
@@ -73,6 +74,33 @@ describe('Engine', function () {
             expect(function () {
                 this.engine.createPause();
             }.bind(this)).to.throw('Pausable is not available');
+        });
+    });
+
+    describe('defineClass()', function () {
+        it('should define a class on the environment', function () {
+            var myClassDefinitionFactory = sinon.stub();
+            this.createEngine();
+
+            this.engine.defineClass('My\\Fqcn', myClassDefinitionFactory);
+
+            expect(this.environment.defineClass).to.have.been.calledOnce;
+            expect(this.environment.defineClass).to.have.been.calledWith(
+                'My\\Fqcn',
+                sinon.match.same(myClassDefinitionFactory)
+            );
+        });
+
+        it('should return the defined class from the environment', function () {
+            var myClassDefinitionFactory = sinon.stub(),
+                myClassObject = sinon.createStubInstance(Class);
+            this.environment.defineClass
+                .withArgs('My\\Fqcn', sinon.match.same(myClassDefinitionFactory))
+                .returns(myClassObject);
+            this.createEngine();
+
+            expect(this.engine.defineClass('My\\Fqcn', myClassDefinitionFactory))
+                .to.equal(myClassObject);
         });
     });
 

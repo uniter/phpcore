@@ -78,6 +78,19 @@ _.extend(Engine.prototype, {
     },
 
     /**
+     * Defines a new class (in any namespace).
+     * Note that the class will be defined on the current engine's environment,
+     * so any other engines that share this environment will also see the new class
+     *
+     * @param {string} name FQCN for the class to define
+     * @param {function} definitionFactory Called with `internals` object, returns the class definition
+     * @returns {Class} Returns the instance of Class that represents a PHP class
+     */
+    defineClass: function (name, definitionFactory) {
+        return this.environment.defineClass(name, definitionFactory);
+    },
+
+    /**
      * Defines a global function from a native JS one. If a fully-qualified name is provided
      * with a namespace prefix, eg. `My\Lib\MyFunc` then it will be defined in the specified namespace
      *

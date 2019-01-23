@@ -112,4 +112,53 @@ EOS
 
         expect(module({}, environment).execute().getNative()).to.equal('[call][child][parent][grandparent]');
     });
+
+    it('should allow a JS class to extend a PHP one', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyPHPClass
+{
+    private $addTo;
+
+    public function __construct($addTo)
+    {
+        $this->addTo = $addTo;
+    }
+
+    public function firstGetIt($num)
+    {
+        return $num + $this->addTo;
+    }
+}
+
+return function () {
+    $myObject = new MyJSClass(21);
+
+    return $myObject->secondGetIt(5, 10);
+};
+EOS
+*/;}),//jshint ignore:line,
+            module = tools.syncTranspile(null, php),
+            engine = module(),
+            returnedClosure = engine.execute().getNative();
+
+        engine.defineClass('MyJSClass', function (internals) {
+            function MyJSClass() {
+                internals.callSuperConstructor(this, arguments);
+            }
+
+            internals.extendClass('MyPHPClass');
+
+            MyJSClass.prototype.secondGetIt = function (first, second) {
+                return this.callMethod('firstGetIt', [first]).add(second);
+            };
+
+            internals.disableAutoCoercion();
+
+            return MyJSClass;
+        });
+
+        expect(returnedClosure()).to.equal(36);
+    });
 });
