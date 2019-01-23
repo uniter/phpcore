@@ -84,12 +84,10 @@ EOS
 */;}),//jshint ignore:line
                 module = tools.syncTranspile(null, php);
             this.environment.defineClass('MyDerivedClass', function (internals) {
-                var MyClass = internals.globalNamespace.getClass('MyClass');
-
                 function MyDerivedClass() {
                 }
 
-                MyDerivedClass.superClass = MyClass;
+                internals.extendClass('MyClass');
 
                 internals.disableAutoCoercion();
 
@@ -134,8 +132,6 @@ EOS
 */;}),//jshint ignore:line
                 module = tools.syncTranspile(null, php);
             this.environment.defineClass('MyDerivedClass', function (internals) {
-                var MyClass = internals.globalNamespace.getClass('MyClass');
-
                 function MyDerivedClass() {
                 }
 
@@ -143,7 +139,7 @@ EOS
                     // No parent constructor call here - should still call the shadow constructor though
                 };
 
-                MyDerivedClass.superClass = MyClass;
+                internals.extendClass('MyClass');
 
                 internals.disableAutoCoercion();
 
@@ -218,12 +214,10 @@ EOS
 */;}),//jshint ignore:line
                 module = tools.syncTranspile(null, php);
             this.environment.defineClass('MyDerivedClass', function (internals) {
-                var MyClass = internals.globalNamespace.getClass('MyClass');
-
                 function MyDerivedClass() {
                 }
 
-                MyDerivedClass.superClass = MyClass;
+                internals.extendClass('MyClass');
 
                 internals.disableAutoCoercion();
 
@@ -268,8 +262,6 @@ EOS
 */;}),//jshint ignore:line
                 module = tools.syncTranspile(null, php);
             this.environment.defineClass('MyDerivedClass', function (internals) {
-                var MyClass = internals.globalNamespace.getClass('MyClass');
-
                 function MyDerivedClass() {
                 }
 
@@ -277,7 +269,7 @@ EOS
                     // No parent constructor call here - should still call the shadow constructor though
                 };
 
-                MyDerivedClass.superClass = MyClass;
+                internals.extendClass('MyClass');
 
                 internals.disableAutoCoercion();
 

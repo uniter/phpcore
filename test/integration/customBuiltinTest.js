@@ -109,7 +109,7 @@ EOS
     it('should define classes from the "classGroups" property in sequence to support dependencies', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
-$myObject = new SecondClass();
+$myObject = new SecondClass(5);
 
 return [
     $myObject->getFirst(),
@@ -125,10 +125,12 @@ EOS
                 function () {
                     return {
                         'FirstClass': function () {
-                            function FirstClass() {}
+                            function FirstClass(toAdd) {
+                                this.toAdd = toAdd;
+                            }
 
                             FirstClass.prototype.getFirst = function () {
-                                return 21;
+                                return 21 + this.toAdd;
                             };
 
                             return FirstClass;
@@ -139,13 +141,13 @@ EOS
                     return {
                         'SecondClass': function (internals) {
                             function SecondClass() {
-
+                                internals.callSuperConstructor(this, arguments);
                             }
 
-                            SecondClass.superClass = internals.globalNamespace.getClass('FirstClass');
+                            internals.extendClass('FirstClass');
 
                             SecondClass.prototype.getSecond = function () {
-                                return 1001;
+                                return 1001 + this.toAdd;
                             };
 
                             return SecondClass;
@@ -155,7 +157,7 @@ EOS
             ]
         });
 
-        expect(module().execute().getNative()).to.deep.equal([21, 1001]);
+        expect(module().execute().getNative()).to.deep.equal([26, 1006]);
     });
 
     it('should support installing custom classes with unwrappers', function (done) {

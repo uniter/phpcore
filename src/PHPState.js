@@ -307,27 +307,77 @@ module.exports = require('pauser')([
         /**
          * Defines a new class (in any namespace)
          *
-         * @param {string} name FQCN of the class to define
+         * @param {string} fqcn FQCN of the class to define
          * @param {function} definitionFactory Called with `internals` object, returns the class definition
          * @returns {Class} Returns the instance of Class that represents a PHP class
          */
-        defineClass: function (name, definitionFactory) {
+        defineClass: function (fqcn, definitionFactory) {
             var state = this,
                 definedUnwrapper = null,
                 enableAutoCoercion = true,
+                name,
+                superClass = null,
                 Class = definitionFactory(_.extend({}, state.internals, {
+                    /**
+                     * Calls the constructor for the superclass of this class, if this class extends another
+                     *
+                     * @param {ObjectValue|object} instance Unwrapped or wrapped instance (see below)
+                     * @param {Value[]} args Arguments
+                     */
+                    callSuperConstructor: function (instance, args) {
+                        var argValues,
+                            instanceValue;
+
+                        if (!superClass) {
+                            throw new Exception(
+                                'Cannot call superconstructor: no superclass is defined for class "' + fqcn + '"'
+                            );
+                        }
+
+                        /*
+                         * If the class is in auto-coercing mode, `instance` will be the native
+                         * object value. If the class is in non-coercing mode, `instance` will be
+                         * an ObjectValue wrapping the instance, so we need to coerce what we are passed
+                         * to make sure it is an ObjectValue as expected by Class.prototype.construct(...).
+                         * The same applies to the arguments list.
+                         */
+                        if (enableAutoCoercion) {
+                            instanceValue = state.valueFactory.coerce(instance);
+
+                            argValues = _.map(args, function (nativeArg) {
+                                return state.valueFactory.coerce(nativeArg);
+                            });
+                        } else {
+                            instanceValue = instance;
+                            argValues = args;
+                        }
+
+                        superClass.construct(instanceValue, argValues);
+                    },
                     defineUnwrapper: function (unwrapper) {
                         definedUnwrapper = unwrapper;
                     },
                     disableAutoCoercion: function () {
                         enableAutoCoercion = false;
+                    },
+                    /**
+                     * Extends another defined class
+                     *
+                     * @param {string} fqcn
+                     */
+                    extendClass: function (fqcn) {
+                        superClass = state.globalNamespace.getClass(fqcn);
                     }
                 })),
                 classObject,
                 namespace = state.globalNamespace,
-                parsed = state.globalNamespace.parseClassName(name);
+                parsed = state.globalNamespace.parseClassName(fqcn);
 
-            if (name === EXCEPTION_CLASS) {
+            if (superClass) {
+                Class.superClass = superClass;
+            }
+
+            if (fqcn === EXCEPTION_CLASS) {
                 if (state.PHPException) {
                     throw new Exception('PHPState.defineClass(...) :: Exception class is already defined');
                 }
@@ -338,6 +388,8 @@ module.exports = require('pauser')([
             if (parsed) {
                 namespace = parsed.namespace;
                 name = parsed.name;
+            } else {
+                name = fqcn;
             }
 
             classObject = namespace.defineClass(name, Class, state.globalNamespaceScope);

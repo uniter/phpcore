@@ -95,17 +95,15 @@ EOS
             return TheGrandparent;
         });
         environment.defineClass('My\\Space\\TheParent', function (internals) {
-            var TheGrandparent = internals.globalNamespace.getClass('My\\Space\\TheGrandparent');
-
             function TheParent(theArg) {
                 var theArgExtended = internals.valueFactory.createString(
                     theArg.getNative() + '[parent]'
                 );
 
-                TheGrandparent.construct(this, [theArgExtended]);
+                internals.callSuperConstructor(this, [theArgExtended]);
             }
 
-            TheParent.superClass = TheGrandparent;
+            internals.extendClass('My\\Space\\TheGrandparent');
 
             internals.disableAutoCoercion();
 

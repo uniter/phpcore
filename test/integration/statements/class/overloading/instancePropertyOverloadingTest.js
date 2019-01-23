@@ -66,7 +66,7 @@ EOS
                         MyChildClass: function (internals) {
                             function MyChildClass() {}
 
-                            MyChildClass.superClass = internals.globalNamespace.getClass('MyParentClass');
+                            internals.extendClass('MyParentClass');
 
                             MyChildClass.prototype.__get = function (propertyName) {
                                 return 'prop: ' + propertyName;

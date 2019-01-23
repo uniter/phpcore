@@ -84,6 +84,35 @@ describe('PHPState', function () {
             expect(this.state.getGlobalNamespace().getDescendant('Some\\Stuff').hasClass('AClass')).to.be.true;
         });
 
+        it('should throw if a class that does not extend another attempts to call its superconstructor', function () {
+            var AClass;
+            this.state = new PHPState(
+                this.runtime,
+                {
+                    classes: {
+                        'Some\\Stuff\\AClass': function (internals) {
+                            function AClass() {
+                                internals.callSuperConstructor(this, arguments);
+                            }
+
+                            return AClass;
+                        }
+                    }
+                },
+                this.stdin,
+                this.stdout,
+                this.stderr,
+                this.pausable
+            );
+            AClass = this.state.getGlobalNamespace().getClass('Some\\Stuff\\AClass');
+
+            expect(function () {
+                AClass.instantiate();
+            }.bind(this)).to.throw(
+                'Cannot call superconstructor: no superclass is defined for class "Some\\Stuff\\AClass"'
+            );
+        });
+
         it('should allow function group factories to access constants early', function () {
             this.state = new PHPState(
                 this.runtime,
