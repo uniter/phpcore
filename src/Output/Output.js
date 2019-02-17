@@ -10,8 +10,7 @@
 'use strict';
 
 var _ = require('microdash'),
-    phpCommon = require('phpcommon'),
-    Exception = phpCommon.Exception;
+    NoActiveOutputBufferException = require('../Exception/NoActiveOutputBufferException');
 
 /**
  * @param {OutputFactory} factory
@@ -78,7 +77,7 @@ _.extend(Output.prototype, {
         var output = this;
 
         if (output.outputBufferStack.length === 0) {
-            throw new Exception('Output.popBuffer() :: No buffers have been pushed');
+            throw new NoActiveOutputBufferException();
         }
 
         output.currentOutputBuffer = output.outputBufferStack.pop();

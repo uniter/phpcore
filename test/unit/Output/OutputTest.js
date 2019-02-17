@@ -10,9 +10,8 @@
 'use strict';
 
 var expect = require('chai').expect,
-    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
-    Exception = phpCommon.Exception,
+    NoActiveOutputBufferException = require('../../../src/Exception/NoActiveOutputBufferException'),
     Output = require('../../../src/Output/Output'),
     OutputBuffer = require('../../../src/Output/OutputBuffer'),
     OutputFactory = require('../../../src/Output/OutputFactory'),
@@ -210,7 +209,7 @@ describe('Output', function () {
             it('should throw an error', function () {
                 expect(function () {
                     this.output.popBuffer();
-                }.bind(this)).to.throw(Exception, 'Output.popBuffer() :: No buffers have been pushed');
+                }.bind(this)).to.throw(NoActiveOutputBufferException, 'No output buffer is active');
             });
         });
 
