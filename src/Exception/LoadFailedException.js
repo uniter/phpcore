@@ -10,7 +10,9 @@
 'use strict';
 
 var _ = require('microdash'),
-    util = require('util');
+    phpCommon = require('phpcommon'),
+    util = require('util'),
+    Exception = phpCommon.Exception;
 
 /**
  * Represents a failed load operation. Loads may be made by an include/require or an eval(...)
@@ -19,17 +21,15 @@ var _ = require('microdash'),
  * @constructor
  */
 function LoadFailedException(previousError) {
-    /**
-     * @type {string}
-     */
-    this.message = 'Load failed' + (previousError ? ' :: ' + previousError.message : '');
+    Exception.call(this, 'Load failed' + (previousError ? ' :: ' + previousError.message : ''));
+
     /**
      * @type {Error}
      */
     this.previousError = previousError;
 }
 
-util.inherits(LoadFailedException, Error);
+util.inherits(LoadFailedException, Exception);
 
 _.extend(LoadFailedException.prototype, {
     /**
