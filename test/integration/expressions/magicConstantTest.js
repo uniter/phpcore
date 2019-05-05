@@ -56,7 +56,7 @@ EOS
         ]);
     });
 
-    it('should support the __DIR__ magic constant', function () {
+    it('should support the __DIR__ magic constant for a script inside a subfolder', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 namespace My\App;
@@ -95,6 +95,23 @@ EOS
             'path/to/the/dir',
             'path/to/the/dir',
             'path/to/the/dir'
+        ]);
+    });
+
+    it('should support the __DIR__ magic constant for a script inside the root folder', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+$result[] = __DIR__;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module({path: 'my_root_script.php'});
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            ''
         ]);
     });
 

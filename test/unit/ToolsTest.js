@@ -336,6 +336,84 @@ describe('Tools', function () {
         });
     });
 
+    describe('getPathDirectory()', function () {
+        it('should return "" when no module path was provided', function () {
+            var tools = new Tools(
+                this.callStack,
+                this.environment,
+                this.globalNamespace,
+                this.loader,
+                this.module,
+                {}, // Options
+                null,
+                this.referenceFactory,
+                this.scopeFactory,
+                this.topLevelNamespaceScope,
+                this.topLevelScope,
+                this.valueFactory
+            );
+
+            expect(tools.getPathDirectory().getNative()).to.equal('');
+        });
+
+        it('should return the parent path for a script inside a subfolder', function () {
+            var tools = new Tools(
+                this.callStack,
+                this.environment,
+                this.globalNamespace,
+                this.loader,
+                this.module,
+                {}, // Options
+                '/my/path/to/my_script.php',
+                this.referenceFactory,
+                this.scopeFactory,
+                this.topLevelNamespaceScope,
+                this.topLevelScope,
+                this.valueFactory
+            );
+
+            expect(tools.getPathDirectory().getNative()).to.equal('/my/path/to');
+        });
+
+        it('should return "" for a script in the root directory with no leading slash', function () {
+            var tools = new Tools(
+                this.callStack,
+                this.environment,
+                this.globalNamespace,
+                this.loader,
+                this.module,
+                {}, // Options
+                'my_script.php',
+                this.referenceFactory,
+                this.scopeFactory,
+                this.topLevelNamespaceScope,
+                this.topLevelScope,
+                this.valueFactory
+            );
+
+            expect(tools.getPathDirectory().getNative()).to.equal('');
+        });
+
+        it('should return "" for a script in the root directory with a leading slash', function () {
+            var tools = new Tools(
+                this.callStack,
+                this.environment,
+                this.globalNamespace,
+                this.loader,
+                this.module,
+                {}, // Options
+                '/my_script.php',
+                this.referenceFactory,
+                this.scopeFactory,
+                this.topLevelNamespaceScope,
+                this.topLevelScope,
+                this.valueFactory
+            );
+
+            expect(tools.getPathDirectory().getNative()).to.equal('');
+        });
+    });
+
     describe('tick()', function () {
         describe('when no "tick" option has been specified', function () {
             it('should throw', function () {

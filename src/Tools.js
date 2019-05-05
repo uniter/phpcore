@@ -294,9 +294,10 @@ module.exports = require('pauser')([
          * @return {StringValue}
          */
         getPathDirectory: function () {
-            var tools = this;
+            var tools = this,
+                directory = (tools.path || '').replace(/(^|\/)[^\/]+$/, '');
 
-            return tools.valueFactory.createString(tools.getNormalizedPath().replace(/\/[^\/]+$/, ''));
+            return tools.valueFactory.createString(directory || '');
         },
 
         /**
