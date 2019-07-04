@@ -316,6 +316,7 @@ module.exports = require('pauser')([
             output: this.output,
             pausable: pausable,
             runtime: runtime,
+            stdout: stdout,
             valueFactory: valueFactory
         };
         this.loader = new Loader(valueFactory, pausable);

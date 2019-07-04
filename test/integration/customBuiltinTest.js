@@ -256,4 +256,43 @@ EOS
             expect(result.getNative()).to.equal(1024);
         }), done);
     });
+
+    it('should support capturing stdout', function (done) {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+print 'first' . PHP_EOL;
+
+install_stdout_hook(); // The print above should not be captured
+
+print 'second' . PHP_EOL;
+
+print 'third' . PHP_EOL;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.transpile(this.runtime, null, php),
+            log = [];
+
+        this.runtime.install({
+            functionGroups: [
+                function (internals) {
+                    return {
+                        'install_stdout_hook': function () {
+                            internals.stdout.on('data', function (data) {
+                                log.push('stdout :: ' + data);
+                            });
+                        }
+                    };
+                }
+            ]
+        });
+
+        module().execute().then(when(done, function () {
+            expect(log).to.deep.equal([
+                // Note that "first" is not captured, as the stdout hook
+                // was not installed until after that print had run
+                'stdout :: second\n',
+                'stdout :: third\n'
+            ]);
+        }), done);
+    });
 });
