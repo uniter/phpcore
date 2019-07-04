@@ -16,6 +16,7 @@ module.exports = require('pauser')([
     require('./Value/Array'),
     require('./Value/BarewordString'),
     require('./Value/Boolean'),
+    require('./Reference/Element/ElementProvider'),
     require('./Value/Exit'),
     require('./Value/Float'),
     require('./Value/Integer'),
@@ -33,6 +34,7 @@ module.exports = require('pauser')([
     ArrayValue,
     BarewordStringValue,
     BooleanValue,
+    ElementProvider,
     ExitValue,
     FloatValue,
     IntegerValue,
@@ -44,7 +46,8 @@ module.exports = require('pauser')([
     Value,
     WeakMap
 ) {
-    function ValueFactory(pausable, callStack) {
+    function ValueFactory(pausable, callStack, elementProvider) {
+        this.elementProvider = elementProvider || new ElementProvider();
         this.nextObjectID = 1;
         this.callStack = callStack;
         this.globalNamespace = null;
@@ -84,10 +87,16 @@ module.exports = require('pauser')([
 
             return factory.createObject(value, factory.globalNamespace.getClass('JSObject'));
         },
-        createArray: function (value) {
+        createArray: function (value, elementProvider) {
             var factory = this;
 
-            return new ArrayValue(factory, factory.callStack, value);
+            return new ArrayValue(
+                factory,
+                factory.callStack,
+                value,
+                null,
+                elementProvider || factory.elementProvider
+            );
         },
 
         /**

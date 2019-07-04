@@ -15,6 +15,7 @@ var expect = require('chai').expect,
     ArrayIterator = require('../../../src/Iterator/ArrayIterator'),
     ArrayValue = require('../../../src/Value/Array').sync(),
     CallStack = require('../../../src/CallStack'),
+    ElementProvider = require('../../../src/Reference/Element/ElementProvider'),
     ElementReference = require('../../../src/Reference/Element'),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyReferencePair = require('../../../src/KeyReferencePair'),
@@ -32,6 +33,7 @@ var expect = require('chai').expect,
 describe('Array', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
+        this.elementProvider = new ElementProvider();
         this.factory = new ValueFactory();
         this.namespaceScope = sinon.createStubInstance(NamespaceScope);
         this.globalNamespace = sinon.createStubInstance(Namespace);
@@ -68,7 +70,13 @@ describe('Array', function () {
         ];
 
         this.createValue = function (valueFactory) {
-            this.value = new ArrayValue(valueFactory || this.factory, this.callStack, this.elements);
+            this.value = new ArrayValue(
+                valueFactory || this.factory,
+                this.callStack,
+                this.elements,
+                null,
+                this.elementProvider
+            );
         }.bind(this);
         this.createValue();
     });
@@ -87,7 +95,7 @@ describe('Array', function () {
             this.leftValue = new ArrayValue(this.factory, this.callStack, [
                 this.leftElement1,
                 this.leftElement2
-            ]);
+            ], null, this.elementProvider);
         });
 
         it('should return an array', function () {
@@ -515,7 +523,7 @@ describe('Array', function () {
             this.value = new ArrayValue(this.factory, this.callStack, [
                 this.element1,
                 this.element2
-            ]);
+            ], null, this.elementProvider);
 
             result = this.value.getNative();
 
@@ -530,7 +538,7 @@ describe('Array', function () {
             this.value = new ArrayValue(this.factory, this.callStack, [
                 this.element1,
                 this.element2
-            ]);
+            ], null, this.elementProvider);
 
             result = this.value.getNative();
 
@@ -544,7 +552,7 @@ describe('Array', function () {
 
         it('should unwrap to a native array when the array is empty', function () {
             var result;
-            this.value = new ArrayValue(this.factory, this.callStack, []);
+            this.value = new ArrayValue(this.factory, this.callStack, [], null, this.elementProvider);
 
             result = this.value.getNative();
 
@@ -561,7 +569,7 @@ describe('Array', function () {
             this.value = new ArrayValue(this.factory, this.callStack, [
                 this.element1,
                 this.element2
-            ]);
+            ], null, this.elementProvider);
 
             result = this.value.getProxy();
 
@@ -576,7 +584,7 @@ describe('Array', function () {
             this.value = new ArrayValue(this.factory, this.callStack, [
                 this.element1,
                 this.element2
-            ]);
+            ], null, this.elementProvider);
 
             result = this.value.getProxy();
 
@@ -590,7 +598,7 @@ describe('Array', function () {
 
         it('should unwrap to a native array when the array is empty', function () {
             var result;
-            this.value = new ArrayValue(this.factory, this.callStack, []);
+            this.value = new ArrayValue(this.factory, this.callStack, [], null, this.elementProvider);
 
             result = this.value.getProxy();
 
@@ -1027,7 +1035,7 @@ describe('Array', function () {
                 this.element1,
                 this.element2,
                 this.element3
-            ]);
+            ], null, this.elementProvider);
 
             expect(this.value.getElementByIndex(2).getValue().getNative()).to.equal(21);
         });

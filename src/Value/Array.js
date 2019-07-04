@@ -55,7 +55,7 @@ module.exports = require('pauser')([
             return keyNative;
         };
 
-    function ArrayValue(factory, callStack, orderedElements, type) {
+    function ArrayValue(factory, callStack, orderedElements, type, elementProvider) {
         var elements = [],
             keysToElements = [],
             value = this;
@@ -89,9 +89,9 @@ module.exports = require('pauser')([
             }
 
             if (elementValue) {
-                element = new ElementReference(factory, callStack, value, key, elementValue);
+                element = elementProvider.createElement(factory, callStack, value, key, elementValue);
             } else {
-                element = new ElementReference(factory, callStack, value, key, null, elementReference);
+                element = elementProvider.createElement(factory, callStack, value, key, null, elementReference);
             }
 
             elements.push(element);
@@ -100,6 +100,7 @@ module.exports = require('pauser')([
 
         Value.call(this, factory, callStack, type || 'array', elements);
 
+        this.elementProvider = elementProvider;
         this.keysToElements = keysToElements;
         this.pointer = 0;
     }
@@ -193,7 +194,13 @@ module.exports = require('pauser')([
                 }
             });
 
-            return new ArrayValue(arrayValue.factory, arrayValue.callStack, orderedElements, arrayValue.type);
+            return new ArrayValue(
+                arrayValue.factory,
+                arrayValue.callStack,
+                orderedElements,
+                arrayValue.type,
+                arrayValue.elementProvider
+            );
         },
 
         coerceToArray: function () {
@@ -309,7 +316,7 @@ module.exports = require('pauser')([
             keyValue = sanitiseKey(key.getNative());
 
             if (!hasOwn.call(value.keysToElements, keyValue)) {
-                element = new ElementReference(value.factory, value.callStack, value, key, null);
+                element = value.elementProvider.createElement(value.factory, value.callStack, value, key, null);
 
                 value.keysToElements[keyValue] = element;
             }
@@ -378,7 +385,7 @@ module.exports = require('pauser')([
         getPushElement: function () {
             var value = this;
 
-            return new ElementReference(value.factory, value.callStack, value, null, null);
+            return value.elementProvider.createElement(value.factory, value.callStack, value, null, null);
         },
 
         getValues: function () {
@@ -609,7 +616,7 @@ module.exports = require('pauser')([
                     key = value.factory.createInteger(nativeKey);
                 }
 
-                element = new ElementReference(value.factory, value.callStack, value, key, element.getValue());
+                element = value.elementProvider.createElement(value.factory, value.callStack, value, key, element.getValue());
 
                 newKeysToElements[sanitiseKey(nativeKey)] = element;
                 newElements.push(element);

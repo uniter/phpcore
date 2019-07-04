@@ -21,6 +21,7 @@ module.exports = require('pauser')([
     require('./ClassAutoloader'),
     require('./Closure'),
     require('./ClosureFactory'),
+    require('./Reference/Element/ElementProviderFactory'),
     require('./FunctionFactory'),
     require('./INIState'),
     require('./Loader'),
@@ -57,6 +58,7 @@ module.exports = require('pauser')([
     ClassAutoloader,
     Closure,
     ClosureFactory,
+    ElementProviderFactory,
     FunctionFactory,
     INIState,
     Loader,
@@ -182,8 +184,10 @@ module.exports = require('pauser')([
     function PHPState(runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, optionGroups, options) {
         var callStack = new CallStack(stderr),
             callFactory = new CallFactory(Call),
+            elementProviderFactory = new ElementProviderFactory(),
+            elementProvider = elementProviderFactory.createProvider(),
             moduleFactory = new ModuleFactory(Module),
-            valueFactory = new ValueFactory(pausable, callStack),
+            valueFactory = new ValueFactory(pausable, callStack, elementProvider),
             referenceFactory = new ReferenceFactory(
                 AccessorReference,
                 NullReference,
@@ -230,12 +234,40 @@ module.exports = require('pauser')([
         globalsSuperGlobal.setReference(
             referenceFactory.createAccessor(
                 function () {
-                    var globalValues = globalScope.exportVariables(),
-                        globalsArray = valueFactory.coerce(globalValues);
+                    var globalsArray,
+                        globalValues = globalScope.exportVariables(),
+                        elementHookCollection = elementProviderFactory.createElementHookCollection(),
+                        hookableElementProvider = elementProviderFactory.createHookableProvider(
+                            elementProvider,
+                            elementHookCollection
+                        );
+
+                    // Use a hookable array for $GLOBALS, so that we do not take a performance hit
+                    // for normal non-$GLOBALS arrays, as we would if we added hooking to all of them
+                    // without using the decorator pattern
+                    globalsArray = valueFactory.createArray(globalValues, hookableElementProvider);
 
                     // $GLOBALS should have a recursive reference to itself
                     globalsArray.getElementByKey(valueFactory.createString('GLOBALS'))
-                        .setValue(globalsArray);
+                        .setReference(referenceFactory.createVariable(globalsSuperGlobal));
+
+                    // Install hooks to ensure that modifications to the $GLOBALS array
+                    // are reflected in the corresponding global variables
+                    elementHookCollection.onElementReferenceSet(function (elementReference, referenceSet) {
+                        var globalVariableName = elementReference.getKey().getNative();
+
+                        globalScope.getVariable(globalVariableName).setReference(referenceSet);
+                    });
+                    elementHookCollection.onElementValueSet(function (elementReference, valueSet) {
+                        var globalVariableName = elementReference.getKey().getNative();
+
+                        globalScope.getVariable(globalVariableName).setValue(valueSet);
+                    });
+                    elementHookCollection.onElementUnset(function (elementReference) {
+                        var globalVariableName = elementReference.getKey().getNative();
+
+                        globalScope.getVariable(globalVariableName).unset();
+                    });
 
                     return globalsArray;
                 },
