@@ -138,6 +138,19 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Sets one or more configuration options
+         *
+         * @param {object} options
+         */
+        configure: function (options) {
+            // Configuration options are likely to be used by other option groups/bindings etc.,
+            // so set those first
+            this.optionGroups.unshift(function () {
+                return options;
+            });
+        },
+
+        /**
          * Creates a new Environment instance, useful for sharing a runtime
          * context between modules.
          * A factory function returned from `.compile(...)` may be called

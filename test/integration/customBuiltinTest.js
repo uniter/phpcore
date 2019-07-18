@@ -160,6 +160,35 @@ EOS
         expect(module().execute().getNative()).to.deep.equal([26, 1006]);
     });
 
+    it('should support configuring default options', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return get_my_option();
+EOS
+*/;}), //jshint ignore:line
+            runtime = tools.createSyncRuntime(),
+            module = tools.transpile(runtime, null, php);
+
+        runtime.configure({
+            'my_option': 21
+        });
+        runtime.install({
+            functionGroups: [
+                function (internals) {
+                    return {
+                        'get_my_option': function () {
+                            return internals.valueFactory.createInteger(
+                                internals.optionSet.getOption('my_option')
+                            );
+                        }
+                    };
+                }
+            ]
+        });
+
+        expect(module().execute().getNative()).to.equal(21);
+    });
+
     it('should support installing custom classes with unwrappers', function (done) {
         var php = nowdoc(function () {/*<<<EOS
 <?php

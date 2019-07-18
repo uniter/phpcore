@@ -32,10 +32,10 @@ describe('Runtime', function () {
         };
         this.PHPState.callsFake(function (runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, optionGroups, options) {
             this.options = options;
-        });
+        }.bind(this));
         this.PHPState.prototype.getOptions = function () {
             return this.options;
-        };
+        }.bind(this);
 
         this.runtime = new Runtime(
             this.Environment,
@@ -170,6 +170,21 @@ describe('Runtime', function () {
                     sinon.match.same(topLevelScope2)
                 );
             });
+        });
+    });
+
+    describe('configure()', function () {
+        it('should add a new option group with the provided options', function () {
+            this.runtime.configure({
+                yourOption: 1001
+            });
+
+            this.runtime.createEnvironment({
+                myOption: 21
+            });
+
+            expect(this.PHPState).to.have.been.calledOnce;
+            expect(this.PHPState.args[0][6][0]()).to.deep.equal({yourOption: 1001});
         });
     });
 
