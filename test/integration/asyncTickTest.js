@@ -15,7 +15,7 @@ var expect = require('chai').expect,
     tools = require('./tools');
 
 describe('PHP asynchronous tick integration', function () {
-    it('should allow the registered tick handler called after every PHP statement to pause', function () {
+    it('should allow the registered tick handler called before every PHP statement to pause', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
