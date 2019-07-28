@@ -23,7 +23,7 @@
     "test": "npm run jshint && npm run mocha"
   },
   "dependencies": {
-    "es6-weak-map": "^2.0.2",
+    "es6-weak-map": "^2.0.3",
     "lie": "^3.0.1",
     "microdash": "~1",
     "pausable": "~4",
@@ -33,7 +33,7 @@
   "devDependencies": {
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
-    "jshint": "^2.9.7",
+    "jshint": "^2.10.2",
     "mocha": "^5.2.0",
     "nowdoc": "^1.0.1",
     "phptoast": "^6.0.3",
