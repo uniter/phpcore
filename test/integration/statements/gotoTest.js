@@ -319,6 +319,27 @@ EOS
             expectedStderr: '',
             expectedStdout: 'firstfifthsixththird'
         },
+        'forward jump inside function': {
+            code: nowdoc(function () {/*<<<EOS
+<?php
+    echo 'first';
+
+    function doIt() {
+        echo 'second';
+        goto myLabel;
+        echo 'third';
+myLabel:
+        echo 'fourth';
+    }
+
+    echo 'fifth';
+    doIt();
+    echo 'sixth';
+EOS
+*/;}), // jshint ignore:line
+            expectedStderr: '',
+            expectedStdout: 'firstfifthsecondfourthsixth'
+        },
         'reusing label name inside function': {
             code: nowdoc(function () {/*<<<EOS
 <?php
@@ -345,6 +366,40 @@ EOS
 */;}), // jshint ignore:line
             expectedStderr: '',
             expectedStdout: 'firstfifthsecondfourthsixtheighth'
+        },
+        'a jump into an if statement consequent clause when there is also a backward jump inside': {
+            code: nowdoc(function () {/*<<<EOS
+<?php
+    $done = false;
+    print 'first';
+    goto my_label;
+
+    print 'second';
+
+    if (false) { // Must be falsy to ensure the condition is changed to allow execution through
+        print 'third';
+
+my_label:
+        print 'fourth';
+
+        if ($done) {
+            print 'fifth';
+            return;
+            print 'sixth';
+        }
+
+        print 'seventh';
+        $done = true;
+        print 'eighth';
+        goto my_label;
+        print 'ninth';
+    }
+
+    print 'tenth';
+EOS
+*/;}), // jshint ignore:line
+            expectedStderr: '',
+            expectedStdout: 'firstfourthseventheighthfourthfifth'
         },
         'overlapping forward gotos': {
             code: nowdoc(function () {/*<<<EOS
