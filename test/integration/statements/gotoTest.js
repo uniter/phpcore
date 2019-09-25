@@ -445,7 +445,25 @@ EOS
             expectedStderr: '',
             expectedStdout: 'firstninthfourthtwelfth'
         },
-        'multiple forward gotos for the same label': {
+        'multiple forward gotos for the same label at the root level': {
+            code: nowdoc(function () {/*<<<EOS
+<?php
+    print 'first';
+    goto end;
+
+    print 'second';
+    goto end;
+
+    print 'third';
+
+end:
+    print 'fourth';
+EOS
+*/;}), // jshint ignore:line
+            expectedStderr: '',
+            expectedStdout: 'firstfourth'
+        },
+        'multiple forward gotos for the same label nested inside blocks': {
             code: nowdoc(function () {/*<<<EOS
 <?php
     $counter = 0;
@@ -471,7 +489,32 @@ EOS
             expectedStderr: '',
             expectedStdout: 'first:[counter:1]second:[counter:2][done]'
         },
-        'multiple backward gotos for the same label': {
+        'multiple backward gotos for the same label at the root level': {
+            code: nowdoc(function () {/*<<<EOS
+<?php
+    print 'first';
+
+    if (false) {
+        print 'second';
+start:
+        print 'third';
+        return; // Stop so we don't infinitely loop
+        print 'fourth';
+    }
+
+    print 'fifth';
+    goto start;
+
+    print 'sixth';
+    goto start;
+
+    print 'seventh';
+EOS
+*/;}), // jshint ignore:line
+            expectedStderr: '',
+            expectedStdout: 'firstfifththird'
+        },
+        'multiple backward gotos for the same label nested inside blocks': {
             code: nowdoc(function () {/*<<<EOS
 <?php
     $counter = 0;
@@ -497,6 +540,33 @@ EOS
 */;}), // jshint ignore:line
             expectedStderr: '',
             expectedStdout: 'first:[counter:1]second:[counter:2][done]'
+        },
+        // Check that the `continue_` prefix used for the backward jump loop doesn't collide
+        'forward and backward gotos where the forward-goto label happens to begin with "continue_"': {
+            code: nowdoc(function () {/*<<<EOS
+<?php
+    print 'first';
+    goto continue_my_label;
+
+    print 'second';
+continue_my_label:
+    print 'third';
+
+    if (false) {
+        print 'fourth';
+my_label:
+        print 'fifth';
+        return;
+        print 'sixth';
+    }
+
+    print 'seventh';
+    goto my_label;
+    print 'eighth';
+EOS
+*/;}), // jshint ignore:line
+            expectedStderr: '',
+            expectedStdout: 'firstthirdseventhfifth'
         },
         'jumping within a while loop': {
             code: nowdoc(function () {/*<<<EOS
