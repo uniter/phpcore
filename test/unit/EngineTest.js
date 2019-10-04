@@ -14,13 +14,16 @@ var expect = require('chai').expect,
     Class = require('../../src/Class').sync(),
     Engine = require('../../src/Engine'),
     Environment = require('../../src/Environment'),
+    FFIResult = require('../../src/FFI/Result'),
     PauseException = require('pausable/src/PauseException'),
+    Promise = require('lie'),
     Scope = require('../../src/Scope').sync(),
     PHPState = require('../../src/PHPState').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('Engine', function () {
     beforeEach(function () {
+        var mode = 'async';
         this.environment = sinon.createStubInstance(Environment);
         this.options = {};
         this.pausable = {
@@ -39,7 +42,7 @@ describe('Engine', function () {
         this.environment.getState.returns(this.state);
         this.state.getValueFactory.returns(this.valueFactory);
 
-        this.createEngine = function () {
+        this.createEngine = function (customMode) {
             this.engine = new Engine(
                 this.environment,
                 this.topLevelScope,
@@ -47,18 +50,66 @@ describe('Engine', function () {
                 this.options,
                 this.wrapper,
                 this.pausable,
-                this.phpToAST,
-                this.phpToJS
+                customMode || mode
             );
         }.bind(this);
 
         this.whenPausableIsAvailable = function () {
+            mode = 'async';
             this.createEngine();
         }.bind(this);
         this.whenPausableIsNotAvailable = function () {
+            mode = 'sync';
             this.pausable = null;
             this.createEngine();
         }.bind(this);
+    });
+
+    describe('constructor', function () {
+        it('should throw when an invalid mode is given', function () {
+            expect(function () {
+                this.createEngine('my-invalid-mode');
+            }.bind(this)).to.throw('Invalid mode "my-invalid-mode" given - must be one of "async", "psync" or "sync"');
+        });
+
+        it('should throw when async mode is given but Pausable is not', function () {
+            this.whenPausableIsNotAvailable();
+
+            expect(function () {
+                this.createEngine('async');
+            }.bind(this)).to.throw('Pausable library must be provided for async mode');
+        });
+    });
+
+    describe('createFFIResult()', function () {
+        beforeEach(function () {
+            this.asyncCallback = sinon.stub();
+            this.syncCallback = sinon.stub();
+            this.createEngine();
+
+            this.syncCallback.returns(21);
+            this.asyncCallback.callsFake(function () {
+                return Promise.resolve(101);
+            });
+        });
+
+        it('should return an instance of FFI Result', function () {
+            expect(this.engine.createFFIResult(this.syncCallback, this.asyncCallback)).to.be.an.instanceOf(FFIResult);
+        });
+
+        describe('the instance of FFI Result returned', function () {
+            beforeEach(function () {
+                this.ffiResult = this.engine.createFFIResult(this.syncCallback, this.asyncCallback);
+            });
+
+            it('should be passed the sync callback correctly', function () {
+                expect(this.ffiResult.getSync()).to.equal(21);
+            });
+
+            it('should be passed the async callback correctly', function () {
+                expect(this.ffiResult.getAsync()).to.eventually.equal(101);
+            });
+        });
     });
 
     describe('createPause()', function () {

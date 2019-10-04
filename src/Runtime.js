@@ -26,9 +26,10 @@ module.exports = require('pauser')([
      * @param {class} PHPState
      * @param {object} phpCommon
      * @param {Resumable} pausable
+     * @param {string} mode
      * @constructor
      */
-    function Runtime(Environment, Engine, PHPState, phpCommon, pausable) {
+    function Runtime(Environment, Engine, PHPState, phpCommon, pausable, mode) {
         /**
          * @type {{classes: {}, constantGroups: Array, functionGroups: Array}}
          */
@@ -47,6 +48,10 @@ module.exports = require('pauser')([
          * @type {class}
          */
         this.Environment = Environment;
+        /**
+         * @type {string} One of: "async", "psync" or "sync"
+         */
+        this.mode = mode;
         /**
          * @type {Function[]}
          */
@@ -75,6 +80,7 @@ module.exports = require('pauser')([
          */
         compile: function (wrapper) {
             var runtime = this,
+                mode = runtime.mode,
                 pausable = runtime.pausable,
                 phpCommon = runtime.phpCommon;
 
@@ -100,7 +106,8 @@ module.exports = require('pauser')([
                     phpCommon,
                     options,
                     wrapper,
-                    pausable
+                    pausable,
+                    mode
                 );
             }
 

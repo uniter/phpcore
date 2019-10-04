@@ -32,6 +32,29 @@ EOS
         expect(engine.execute().getNative()).to.equal(30);
     });
 
+    it('should allow an imported method to return a value from an FFI Result synchronous handler', function (done) {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return 21 + $myJSObject->myMethod();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        engine.expose({
+            myMethod: function () {
+                return engine.createFFIResult(function () {
+                    return 9;
+                }, function () {
+                    done(new Error('Should have been called synchronously'));
+                });
+            }
+        }, 'myJSObject');
+
+        expect(engine.execute().getNative()).to.equal(30);
+        done();
+    });
+
     it('should allow an imported method to throw an error', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -50,5 +73,30 @@ EOS
         expect(function () {
             engine.execute();
         }).to.throw(Error, 'Error from JS-land');
+    });
+
+    it('should allow an imported method to throw an error from a FFI Result synchronous handler', function (done) {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return 21 + $myJSObject->myMethod();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        engine.expose({
+            myMethod: function () {
+                return engine.createFFIResult(function () {
+                    throw new Error('Error from JS-land');
+                }, function () {
+                    done(new Error('Should have been called synchronously'));
+                });
+            }
+        }, 'myJSObject');
+
+        expect(function () {
+            engine.execute();
+        }).to.throw(Error, 'Error from JS-land');
+        done();
     });
 });

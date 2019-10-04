@@ -37,13 +37,17 @@ describe('Runtime', function () {
             return this.options;
         }.bind(this);
 
-        this.runtime = new Runtime(
-            this.Environment,
-            this.Engine,
-            this.PHPState,
-            this.phpCommon,
-            this.pausable
-        );
+        this.createRuntime = function (mode) {
+            this.runtime = new Runtime(
+                this.Environment,
+                this.Engine,
+                this.PHPState,
+                this.phpCommon,
+                this.pausable,
+                mode || 'async'
+            );
+        }.bind(this);
+        this.createRuntime();
     });
 
     describe('compile()', function () {
@@ -55,7 +59,7 @@ describe('Runtime', function () {
             expect(this.runtime.compile(this.wrapper)).to.be.a('function');
         });
 
-        describe('the factory function returned', function () {
+        describe('the factory function returned for async mode', function () {
             beforeEach(function () {
                 this.factory = this.runtime.compile(this.wrapper);
             });
@@ -70,7 +74,8 @@ describe('Runtime', function () {
                     sinon.match.same(this.phpCommon),
                     {option1: 21},
                     sinon.match.same(this.wrapper),
-                    sinon.match.same(this.pausable)
+                    sinon.match.same(this.pausable),
+                    'async'
                 );
             });
 
@@ -79,6 +84,29 @@ describe('Runtime', function () {
                 this.Engine.returns(engine);
 
                 expect(this.factory()).to.equal(engine);
+            });
+        });
+
+        describe('the factory function returned for psync mode', function () {
+            beforeEach(function () {
+                this.createRuntime('psync');
+
+                this.factory = this.runtime.compile(this.wrapper);
+            });
+
+            it('should create a new Engine instance correctly', function () {
+                this.factory({option1: 21});
+
+                expect(this.Engine).to.have.been.calledOnce;
+                expect(this.Engine).to.have.been.calledWith(
+                    sinon.match.instanceOf(this.Environment),
+                    null,
+                    sinon.match.same(this.phpCommon),
+                    {option1: 21},
+                    sinon.match.same(this.wrapper),
+                    sinon.match.same(this.pausable),
+                    'psync'
+                );
             });
         });
 

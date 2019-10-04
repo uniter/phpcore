@@ -12,6 +12,7 @@
 var _ = require('microdash'),
     PATH = 'path',
     ExitValueWrapper = require('./Value/Exit'),
+    FFIResult = require('./FFI/Result'),
     ObjectValueWrapper = require('./Value/Object'),
     Promise = require('lie'),
     ToolsWrapper = require('./Tools');
@@ -24,7 +25,8 @@ var _ = require('microdash'),
  * @param {Object} phpCommon
  * @param {Object} options Configuration options for this engine
  * @param {Function} wrapper The wrapper function for the transpiled PHP module
- * @param {Resumable|null} pausable Pausable library for async mode, null for sync mode
+ * @param {Resumable|null} pausable Pausable library for async mode, null for psync or sync modes
+ * @param {string} mode
  * @constructor
  */
 function Engine(
@@ -33,12 +35,27 @@ function Engine(
     phpCommon,
     options,
     wrapper,
-    pausable
+    pausable,
+    mode
 ) {
+    // Check the mode given is valid
+    if (mode !== 'async' && mode !== 'psync' && mode !== 'sync') {
+        throw new Error('Invalid mode "' + mode + '" given - must be one of "async", "psync" or "sync"');
+    }
+
+    // For async mode we require the Pausable library to be available
+    if (mode === 'async' && !pausable) {
+        throw new Error('Pausable library must be provided for async mode');
+    }
+
     /**
      * @type {Environment}
      */
     this.environment = environment;
+    /**
+     * @type {string}
+     */
+    this.mode = mode;
     /**
      * @type {object}
      */
@@ -67,6 +84,22 @@ function Engine(
 }
 
 _.extend(Engine.prototype, {
+    /**
+     * Creates a new FFI Result, to provide the result of a call to a JS function
+     *
+     * @param {Function} syncCallback
+     * @param {Function|null} asyncCallback
+     * @returns {FFIResult}
+     */
+    createFFIResult: function (syncCallback, asyncCallback) {
+        return new FFIResult(syncCallback, asyncCallback);
+    },
+
+    /**
+     * Creates a Pause object for use in async mode
+     *
+     * @returns {PauseException}
+     */
     createPause: function () {
         var engine = this;
 
@@ -153,6 +186,7 @@ _.extend(Engine.prototype, {
             globalNamespace,
             globalScope,
             loader,
+            mode = engine.mode,
             module,
             moduleFactory,
             options = engine.options,
@@ -166,6 +200,7 @@ _.extend(Engine.prototype, {
             PHPException,
             PHPFatalError = phpCommon.PHPFatalError,
             referenceFactory,
+            resultValue,
             scopeFactory,
             state,
             stderr = engine.getStderr(),
@@ -174,7 +209,7 @@ _.extend(Engine.prototype, {
             valueFactory,
             wrapper = engine.wrapper,
             unwrap = function (wrapper) {
-                return pausable ? wrapper.async(pausable) : wrapper.sync();
+                return mode === 'async' ? wrapper.async(pausable) : wrapper.sync();
             },
             // TODO: Wrap this module with `pauser` to remove the need for this
             ExitValue = unwrap(ExitValueWrapper),
@@ -263,8 +298,8 @@ _.extend(Engine.prototype, {
             reject(error);
         }
 
-        // Use asynchronous mode if Pausable is available
-        if (pausable) {
+        // Asynchronous mode - Pausable must be available
+        if (mode === 'async') {
             return new Promise(function (resolve, reject) {
                 var code = 'return (' +
                     wrapper.toString() +
@@ -304,13 +339,36 @@ _.extend(Engine.prototype, {
         // Otherwise load the module synchronously
         try {
             try {
-                return wrapper(stdin, output, stderr, tools, globalNamespace);
+                resultValue = wrapper(stdin, output, stderr, tools, globalNamespace);
+
+                return mode === 'psync' ?
+                    // Promise-sync mode - return a promise resolved with the result
+                    Promise.resolve(resultValue) :
+
+                    // Sync mode - just return the result, with no Promise involved
+                    resultValue;
             } finally {
                 // Pop the top-level scope (of the include, if this module was included) off the stack
                 // regardless of whether an error occurred
                 callStack.pop();
             }
         } catch (error) {
+            if (mode === 'psync') {
+                // Promise-sync mode - return a promise...
+
+                return new Promise(function (resolve, reject) {
+                    var resultValue = handleError(error, function (error) {
+                        // ... rejected with the error if applicable
+                        reject(error);
+                    });
+
+                    // Otherwise if it was a special ExitValue, resolve with it
+                    if (resultValue) {
+                        resolve(resultValue);
+                    }
+                });
+            }
+
             return handleError(error, function (error) {
                 throw error;
             });
