@@ -37,9 +37,9 @@ describe('PHPObject', function () {
     });
 
     describe('callMethod()', function () {
-        describe('when Pausable is available', function () {
+        describe('in asynchronous mode (when Pausable is available)', function () {
             beforeEach(function () {
-                this.phpObject = new PHPObject(this.pausable, this.valueFactory, this.object);
+                this.phpObject = new PHPObject(this.pausable, 'async', this.valueFactory, this.object);
             });
 
             it('should return a Promise', function () {
@@ -75,9 +75,9 @@ describe('PHPObject', function () {
             });
         });
 
-        describe('when Pausable is unavailable', function () {
+        describe('in synchronous mode (when Pausable is unavailable)', function () {
             beforeEach(function () {
-                this.phpObject = new PHPObject(null, this.valueFactory, this.object);
+                this.phpObject = new PHPObject(null, 'sync', this.valueFactory, this.object);
             });
 
             it('should return the unwrapped native result', function () {
@@ -105,11 +105,42 @@ describe('PHPObject', function () {
                 }.bind(this)).to.throw(Error, 'My error, coerced from a PHP exception');
             });
         });
+
+        describe('in Promise-synchronous mode (when Pausable is unavailable)', function () {
+            beforeEach(function () {
+                this.phpObject = new PHPObject(null, 'psync', this.valueFactory, this.object);
+            });
+
+            it('should return a Promise', function () {
+                expect(this.phpObject.callMethod('myMethod', 21, 23)).to.be.an.instanceOf(Promise);
+            });
+
+            it('should coerce the arguments via the ValueFactory', function () {
+                this.valueFactory.coerce.withArgs('my arg').returns('my coerced arg');
+                this.valueFactory.coerce.withArgs(21).returns(22);
+
+                this.phpObject.callMethod('myMethod', 'my arg', 21);
+
+                expect(this.object.callMethod).to.have.been.calledWith(
+                    'myMethod',
+                    ['my coerced arg', 22]
+                );
+            });
+
+            it('should return a Promise resolved with the synchronous result', function () {
+                var promise;
+                this.object.callMethod.returns(this.valueFactory.createString('my synchronous result'));
+
+                promise = this.phpObject.callMethod('myMethod', 21, 23);
+
+                return expect(promise).to.eventually.equal('my synchronous result');
+            });
+        });
     });
 
     describe('getObjectValue()', function () {
         it('should return the unwrapped ObjectValue', function () {
-            var phpObject = new PHPObject(null, this.valueFactory, this.object);
+            var phpObject = new PHPObject(null, 'sync', this.valueFactory, this.object);
 
             expect(phpObject.getObjectValue()).to.equal(this.object);
         });

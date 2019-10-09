@@ -25,11 +25,21 @@ module.exports = require('pauser')([
      * @param {class} Engine
      * @param {class} PHPState
      * @param {object} phpCommon
-     * @param {Resumable} pausable
+     * @param {Resumable|null} pausable
      * @param {string} mode
      * @constructor
      */
     function Runtime(Environment, Engine, PHPState, phpCommon, pausable, mode) {
+        // Check the mode given is valid
+        if (mode !== 'async' && mode !== 'psync' && mode !== 'sync') {
+            throw new Error('Invalid mode "' + mode + '" given - must be one of "async", "psync" or "sync"');
+        }
+
+        // For async mode we require the Pausable library to be available
+        if (mode === 'async' && !pausable) {
+            throw new Error('Pausable library must be provided for async mode');
+        }
+
         /**
          * @type {{classes: {}, constantGroups: Array, functionGroups: Array}}
          */
@@ -57,7 +67,7 @@ module.exports = require('pauser')([
          */
         this.optionGroups = [];
         /**
-         * @type {Resumable}
+         * @type {Resumable|null}
          */
         this.pausable = pausable;
         /**
@@ -180,6 +190,7 @@ module.exports = require('pauser')([
                     stdout,
                     stderr,
                     runtime.pausable,
+                    runtime.mode,
                     runtime.optionGroups,
                     options
                 );

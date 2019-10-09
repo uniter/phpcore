@@ -39,7 +39,8 @@ describe('PHPState', function () {
             this.stdin,
             this.stdout,
             this.stderr,
-            this.pausable
+            this.pausable,
+            'async'
         );
     });
 
@@ -57,7 +58,8 @@ describe('PHPState', function () {
                 this.stdin,
                 this.stdout,
                 this.stderr,
-                this.pausable
+                this.pausable,
+                'async'
             );
 
             expect(this.state.getGlobalNamespace().hasClass('MyClass')).to.be.true;
@@ -77,7 +79,8 @@ describe('PHPState', function () {
                 this.stdin,
                 this.stdout,
                 this.stderr,
-                this.pausable
+                this.pausable,
+                'async'
             );
 
             expect(this.state.getGlobalNamespace().hasClass('AClass')).to.be.false;
@@ -102,7 +105,8 @@ describe('PHPState', function () {
                 this.stdin,
                 this.stdout,
                 this.stderr,
-                this.pausable
+                this.pausable,
+                'async'
             );
             AClass = this.state.getGlobalNamespace().getClass('Some\\Stuff\\AClass');
 
@@ -138,7 +142,8 @@ describe('PHPState', function () {
                 this.stdin,
                 this.stdout,
                 this.stderr,
-                this.pausable
+                this.pausable,
+                'async'
             );
 
             expect(this.state.getGlobalNamespace().getFunction('getMyConstant').call().getNative()).to.equal(21);
@@ -152,13 +157,15 @@ describe('PHPState', function () {
                 this.stdout,
                 this.stderr,
                 this.pausable,
+                'async',
                 [
                     function (internals) {
                         return {
                             myOption: internals.valueFactory.createString('my option value')
                         };
                     }
-                ]
+                ],
+                'async'
             );
 
             expect(this.state.getOptions().myOption.getType()).to.equal('string');
@@ -173,6 +180,7 @@ describe('PHPState', function () {
                 this.stdout,
                 this.stderr,
                 this.pausable,
+                'async',
                 [],
                 {
                     yourOption: 21
@@ -199,10 +207,35 @@ describe('PHPState', function () {
                 this.stdin,
                 this.stdout,
                 this.stderr,
-                this.pausable
+                this.pausable,
+                'async'
             );
 
             expect(this.state.getBinding('my_binding')).to.equal(21);
+        });
+
+        ['async', 'sync', 'psync'].forEach(function (mode) {
+            it('should expose the current synchronicity mode when "' + mode + '"', function () {
+                this.state = new PHPState(
+                    this.runtime,
+                    {},
+                    this.stdin,
+                    this.stdout,
+                    this.stderr,
+                    this.pausable,
+                    mode,
+                    [
+                        function (internals) {
+                            return {
+                                myMode: internals.mode
+                            };
+                        }
+                    ],
+                    'async'
+                );
+
+                expect(this.state.getOptions().myMode).to.equal(mode);
+            });
         });
 
         it('should throw an error if the specified binding is not defined', function () {
@@ -220,7 +253,8 @@ describe('PHPState', function () {
                     this.stdin,
                     this.stdout,
                     this.stderr,
-                    this.pausable
+                    this.pausable,
+                    'async'
                 );
             }.bind(this)).to.throw(Exception, 'No binding is defined with name "some_undefined_binding"');
         });
@@ -234,6 +268,7 @@ describe('PHPState', function () {
                     this.stdout,
                     this.stderr,
                     this.pausable,
+                    'async',
                     [
                         function (internals) {
                             internals.getBinding('my_binding');

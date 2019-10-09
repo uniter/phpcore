@@ -65,22 +65,6 @@ describe('Engine', function () {
         }.bind(this);
     });
 
-    describe('constructor', function () {
-        it('should throw when an invalid mode is given', function () {
-            expect(function () {
-                this.createEngine('my-invalid-mode');
-            }.bind(this)).to.throw('Invalid mode "my-invalid-mode" given - must be one of "async", "psync" or "sync"');
-        });
-
-        it('should throw when async mode is given but Pausable is not', function () {
-            this.whenPausableIsNotAvailable();
-
-            expect(function () {
-                this.createEngine('async');
-            }.bind(this)).to.throw('Pausable library must be provided for async mode');
-        });
-    });
-
     describe('createFFIResult()', function () {
         beforeEach(function () {
             this.asyncCallback = sinon.stub();

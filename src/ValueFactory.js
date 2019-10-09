@@ -46,11 +46,42 @@ module.exports = require('pauser')([
     Value,
     WeakMap
 ) {
-    function ValueFactory(pausable, callStack, elementProvider) {
+    /**
+     * Creates Value and related objects
+     *
+     * @param {Resumable|null} pausable
+     * @param {string} mode
+     * @param {CallStack} callStack
+     * @param {ElementProvider} elementProvider
+     * @constructor
+     */
+    function ValueFactory(pausable, mode, callStack, elementProvider) {
+        /**
+         * @type {ElementProvider}
+         */
         this.elementProvider = elementProvider || new ElementProvider();
+        /**
+         * Used for generating a unique ID for the next ObjectValue that is created
+         * (shown in the output of var_dump(...), for example)
+         *
+         * @type {number}
+         */
         this.nextObjectID = 1;
+        /**
+         * @type {CallStack}
+         */
         this.callStack = callStack;
+        /**
+         * @type {Namespace|null}
+         */
         this.globalNamespace = null;
+        /**
+         * @type {string}
+         */
+        this.mode = mode;
+        /**
+         * @type {Resumable|null}
+         */
         this.pausable = pausable;
         /**
          * Used for mapping exported unwrapped objects back to their original ObjectValue
@@ -59,6 +90,9 @@ module.exports = require('pauser')([
          * @type {WeakMap}
          */
         this.unwrappedObjectToValueMap = new WeakMap();
+        /**
+         * @type {WeakMap}
+         */
         this.valueToUnwrappedObjectMap = new WeakMap();
     }
 
@@ -245,11 +279,21 @@ module.exports = require('pauser')([
             // Object ID tracking is incomplete: ID should be freed when all references are lost
             return new ObjectValue(factory, factory.callStack, value, classObject, factory.nextObjectID++);
         },
+
+        /**
+         * Creates a PHPObject, which wraps an ObjectValue and allows its methods
+         * to be called and passed native values for its parameter arguments
+         * and coerces its return value back to a native too.
+         *
+         * @param {ObjectValue} object
+         * @return {PHPObject}
+         */
         createPHPObject: function (object) {
             var factory = this;
 
-            return new PHPObject(factory.pausable, factory, object);
+            return new PHPObject(factory.pausable, factory.mode, factory, object);
         },
+
         createStdClassObject: function () {
             var factory = this;
 

@@ -30,7 +30,7 @@ describe('Runtime', function () {
         this.Environment.prototype.getOptions = function () {
             return this.state.getOptions();
         };
-        this.PHPState.callsFake(function (runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, optionGroups, options) {
+        this.PHPState.callsFake(function (runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, mode, optionGroups, options) {
             this.options = options;
         }.bind(this));
         this.PHPState.prototype.getOptions = function () {
@@ -38,16 +38,39 @@ describe('Runtime', function () {
         }.bind(this);
 
         this.createRuntime = function (mode) {
+            mode = mode || 'async';
+
             this.runtime = new Runtime(
                 this.Environment,
                 this.Engine,
                 this.PHPState,
                 this.phpCommon,
-                this.pausable,
-                mode || 'async'
+                mode === 'async' ? this.pausable : null,
+                mode
             );
         }.bind(this);
         this.createRuntime();
+    });
+
+    describe('constructor', function () {
+        it('should throw when an invalid mode is given', function () {
+            expect(function () {
+                this.createRuntime('my-invalid-mode');
+            }.bind(this)).to.throw('Invalid mode "my-invalid-mode" given - must be one of "async", "psync" or "sync"');
+        });
+
+        it('should throw when async mode is given but Pausable is not', function () {
+            expect(function () {
+                this.runtime = new Runtime(
+                    this.Environment,
+                    this.Engine,
+                    this.PHPState,
+                    this.phpCommon,
+                    null,
+                    'async'
+                );
+            }.bind(this)).to.throw('Pausable library must be provided for async mode');
+        });
     });
 
     describe('compile()', function () {
@@ -104,7 +127,7 @@ describe('Runtime', function () {
                     sinon.match.same(this.phpCommon),
                     {option1: 21},
                     sinon.match.same(this.wrapper),
-                    sinon.match.same(this.pausable),
+                    null,
                     'psync'
                 );
             });
@@ -212,7 +235,7 @@ describe('Runtime', function () {
             });
 
             expect(this.PHPState).to.have.been.calledOnce;
-            expect(this.PHPState.args[0][6][0]()).to.deep.equal({yourOption: 1001});
+            expect(this.PHPState.args[0][7][0]()).to.deep.equal({yourOption: 1001});
         });
     });
 
@@ -236,6 +259,7 @@ describe('Runtime', function () {
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
                 sinon.match.same(this.pausable),
+                'async',
                 [],
                 {myOption: 21}
             );
@@ -307,6 +331,7 @@ describe('Runtime', function () {
                     constantGroups: [],
                     functionGroups: []
                 },
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,

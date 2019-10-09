@@ -181,13 +181,13 @@ module.exports = require('pauser')([
         },
         Exception = phpCommon.Exception;
 
-    function PHPState(runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, optionGroups, options) {
+    function PHPState(runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, mode, optionGroups, options) {
         var callStack = new CallStack(stderr),
             callFactory = new CallFactory(Call),
             elementProviderFactory = new ElementProviderFactory(),
             elementProvider = elementProviderFactory.createProvider(),
             moduleFactory = new ModuleFactory(Module),
-            valueFactory = new ValueFactory(pausable, callStack, elementProvider),
+            valueFactory = new ValueFactory(pausable, mode, callStack, elementProvider),
             referenceFactory = new ReferenceFactory(
                 AccessorReference,
                 NullReference,
@@ -312,6 +312,7 @@ module.exports = require('pauser')([
             getConstant: this.getConstant.bind(this),
             globalNamespace: globalNamespace,
             iniState: this.iniState,
+            mode: mode,
             optionSet: this.optionSet,
             output: this.output,
             pausable: pausable,

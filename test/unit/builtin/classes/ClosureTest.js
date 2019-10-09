@@ -26,6 +26,7 @@ describe('PHP builtin Closure class', function () {
             defineUnwrapper: sinon.stub(),
             disableAutoCoercion: this.disableAutoCoercion,
             globalNamespace: this.globalNamespace,
+            mode: 'sync',
             pausable: null,
             valueFactory: this.valueFactory
         };
@@ -356,9 +357,65 @@ describe('PHP builtin Closure class', function () {
                         }, 1);
                     });
                 });
+                this.internals.mode = 'async';
                 this.internals.pausable = {
                     call: this.pausableCall
                 };
+            });
+
+            it('should pass the coerced arguments to Closure.invoke(...)', function () {
+                this.callUnwrapper();
+
+                return this.unwrappedClosure(21, 38).then(function () {
+                    expect(this.closure.invoke).to.have.been.calledOnce;
+                    expect(this.closure.invoke.args[0][0][0].getNative()).to.equal(21);
+                    expect(this.closure.invoke.args[0][0][1].getNative()).to.equal(38);
+                }.bind(this));
+            });
+
+            it('should coerce the `$this` object to an object', function () {
+                this.callUnwrapper();
+
+                expect(this.unwrappedClosure).to.be.a('function');
+                return this.unwrappedClosure.call(this.nativeThisObject).then(function () {
+                    expect(this.closure.invoke).to.have.been.calledOnce;
+                    expect(this.closure.invoke).to.have.been.calledWith(
+                        sinon.match.any,
+                        sinon.match.same(this.coercedThisObject)
+                    );
+                }.bind(this));
+            });
+
+            it('should return the native value of the result from Closure.invoke(...)', function () {
+                this.callUnwrapper();
+
+                return expect(this.unwrappedClosure()).to.eventually.equal('my result native');
+            });
+
+            it('should not catch a non-PHP error', function () {
+                this.closure.invoke.throws(new TypeError('A type error occurred'));
+                this.callUnwrapper();
+
+                return expect(this.unwrappedClosure())
+                    .to.eventually.be.rejectedWith(TypeError, 'A type error occurred');
+            });
+
+            it('should coerce a PHP error to a native JS one and rethrow it as that', function () {
+                var errorValue = sinon.createStubInstance(ObjectValue);
+                errorValue.getType.returns('object');
+                errorValue.coerceToNativeError.returns(new Error('My error, coerced from a PHP exception'));
+                this.closure.invoke.throws(errorValue);
+                this.callUnwrapper();
+
+                return expect(this.unwrappedClosure())
+                    .to.eventually.be.rejectedWith(Error, 'My error, coerced from a PHP exception');
+            });
+        });
+
+        describe('in Promise-synchronous mode', function () {
+            beforeEach(function () {
+                this.internals.mode = 'psync';
+                this.internals.pausable = null;
             });
 
             it('should pass the coerced arguments to Closure.invoke(...)', function () {

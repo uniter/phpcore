@@ -25,18 +25,23 @@ module.exports = require('pauser')([
      * anywhere along their class ancestry could benefit from being unwrapped to a PHPObject
      * as this will permit access to those from native JS code, at the expense of a more complex API.
      *
-     * @param {Resumable} pausable
+     * @param {Resumable|null} pausable
+     * @param {string} mode
      * @param {ValueFactory} valueFactory
      * @param {ObjectValue} objectValue
      * @constructor
      */
-    function PHPObject(pausable, valueFactory, objectValue) {
+    function PHPObject(pausable, mode, valueFactory, objectValue) {
+        /**
+         * @type {string}
+         */
+        this.mode = mode;
         /**
          * @type {ObjectValue}
          */
         this.objectValue = objectValue;
         /**
-         * @type {Resumable}
+         * @type {Resumable|null}
          */
         this.pausable = pausable;
         /**
@@ -63,7 +68,7 @@ module.exports = require('pauser')([
                 return phpObject.valueFactory.coerce(arg);
             });
 
-            if (phpObject.pausable) {
+            if (phpObject.mode === 'async') {
                 return new Promise(function (resolve, reject) {
                     // Call the method via Pausable to allow for blocking operation
                     phpObject.pausable.call(
@@ -89,17 +94,33 @@ module.exports = require('pauser')([
                 });
             }
 
-            // Pausable is unavailable (non-blocking mode)
-            try {
-                return phpObject.objectValue.callMethod(name, args).getNative();
-            } catch (error) {
-                if (error instanceof ObjectValue) {
-                    // Method threw a PHP Exception, so throw a native JS error for it
-                    throw error.coerceToNativeError();
-                }
+            function invoke() {
+                try {
+                    return phpObject.objectValue.callMethod(name, args).getNative();
+                } catch (error) {
+                    if (error instanceof ObjectValue) {
+                        // Method threw a PHP Exception, so throw a native JS error for it
+                        throw error.coerceToNativeError();
+                    }
 
-                throw error;
+                    throw error;
+                }
             }
+
+            if (phpObject.mode === 'psync') {
+                // For Promise-synchronous mode, we need to return a promise
+                // even though the actual invocation must return synchronously
+                return new Promise(function (resolve, reject) {
+                    try {
+                        resolve(invoke());
+                    } catch (error) {
+                        reject(error);
+                    }
+                });
+            }
+
+            // Otherwise we're in sync mode
+            return invoke();
         },
 
         /**

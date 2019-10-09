@@ -29,7 +29,7 @@ describe('ValueFactory', function () {
         this.globalNamespace = sinon.createStubInstance(Namespace);
         this.pausable = {};
 
-        this.factory = new ValueFactory(this.pausable, this.callStack);
+        this.factory = new ValueFactory(this.pausable, 'async', this.callStack);
         this.factory.setGlobalNamespace(this.globalNamespace);
     });
 
@@ -204,6 +204,18 @@ describe('ValueFactory', function () {
             expect(arrayValue.getElementByIndex(1).getValue().getNative()).to.equal(27);
             expect(arrayValue.getElementByIndex(2).getKey().getNative()).to.equal('anotherProp');
             expect(arrayValue.getElementByIndex(2).getValue().getNative()).to.equal('hello');
+        });
+    });
+
+    describe('createPHPObject()', function () {
+        it('should return a PHPObject wrapping the ObjectValue', function () {
+            var value = sinon.createStubInstance(ObjectValue),
+                phpObject;
+
+            phpObject = this.factory.createPHPObject(value);
+
+            expect(phpObject).to.be.an.instanceOf(PHPObject);
+            expect(phpObject.getObjectValue()).to.equal(value);
         });
     });
 

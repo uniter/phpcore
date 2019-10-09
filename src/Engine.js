@@ -21,7 +21,7 @@ var _ = require('microdash'),
  * Executes a transpiled PHP module
  *
  * @param {Environment} environment PHPCore environment to execute inside
- * @param {Scope} topLevelScope Scope for the top-level statements of the module
+ * @param {Scope|null} topLevelScope Scope for the top-level statements of the module
  * @param {Object} phpCommon
  * @param {Object} options Configuration options for this engine
  * @param {Function} wrapper The wrapper function for the transpiled PHP module
@@ -38,16 +38,6 @@ function Engine(
     pausable,
     mode
 ) {
-    // Check the mode given is valid
-    if (mode !== 'async' && mode !== 'psync' && mode !== 'sync') {
-        throw new Error('Invalid mode "' + mode + '" given - must be one of "async", "psync" or "sync"');
-    }
-
-    // For async mode we require the Pausable library to be available
-    if (mode === 'async' && !pausable) {
-        throw new Error('Pausable library must be provided for async mode');
-    }
-
     /**
      * @type {Environment}
      */
@@ -191,7 +181,7 @@ _.extend(Engine.prototype, {
             moduleFactory,
             options = engine.options,
             path = options[PATH],
-            isMainProgram = path === null,
+            isMainProgram = engine.topLevelScope === null,
             output,
             pausable = engine.pausable,
             phpCommon = engine.phpCommon,
@@ -341,7 +331,7 @@ _.extend(Engine.prototype, {
             try {
                 resultValue = wrapper(stdin, output, stderr, tools, globalNamespace);
 
-                return mode === 'psync' ?
+                return mode === 'psync' && isMainProgram ?
                     // Promise-sync mode - return a promise resolved with the result
                     Promise.resolve(resultValue) :
 
@@ -353,7 +343,7 @@ _.extend(Engine.prototype, {
                 callStack.pop();
             }
         } catch (error) {
-            if (mode === 'psync') {
+            if (mode === 'psync' && isMainProgram) {
                 // Promise-sync mode - return a promise...
 
                 return new Promise(function (resolve, reject) {
