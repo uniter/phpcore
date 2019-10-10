@@ -26,7 +26,8 @@ var builtins = require('../../src/builtin/builtins'),
             Engine,
             AsyncPHPState,
             phpCommon,
-            pausable
+            pausable,
+            'async'
         );
 
         // Install the standard set of builtins
@@ -41,7 +42,8 @@ var builtins = require('../../src/builtin/builtins'),
             Engine,
             SyncPHPState,
             phpCommon,
-            null // Don't make Pausable available - running synchronously
+            null, // Don't make Pausable available - running synchronously
+            'sync'
         );
 
         // Install the standard set of builtins
@@ -71,6 +73,7 @@ var builtins = require('../../src/builtin/builtins'),
         });
     },
     asyncRuntime = require('../../async'),
+    psyncRuntime = require('../../psync'),
     syncRuntime = require('../../sync');
 
 module.exports = {
@@ -84,6 +87,10 @@ module.exports = {
 
     asyncTranspile: function (path, php, options) {
         return transpile(path, php, asyncRuntime, options);
+    },
+
+    psyncTranspile: function (path, php, options) {
+        return transpile(path, php, psyncRuntime, options);
     },
 
     syncTranspile: function (path, php, options) {

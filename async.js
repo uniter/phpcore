@@ -7,6 +7,10 @@
  * https://github.com/uniter/phpcore/raw/master/MIT-LICENSE.txt
  */
 
+/**
+ * Asynchronous (async) mode entrypoint
+ */
+
 'use strict';
 
 var pausable = require('pausable'),
@@ -20,7 +24,7 @@ var pausable = require('pausable'),
     PHPState = require('./src/PHPState').async(pausable),
     Runtime = require('./src/Runtime').async(pausable),
     ValueFormatter = require('./src/Debug/ValueFormatter'),
-    runtime = new Runtime(Environment, Engine, PHPState, phpCommon, pausable),
+    runtime = new Runtime(Environment, Engine, PHPState, phpCommon, pausable, 'async'),
     debugFactory = new DebugFactory(DebugFormatter, DebugValue, ValueFormatter);
 
 new DebugFormatterInstaller(global, debugFactory).install();

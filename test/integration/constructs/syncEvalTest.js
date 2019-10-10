@@ -44,7 +44,7 @@ EOS
             module = tools.syncTranspile(null, php),
             engine = module({
                 eval: function (evalPHP, path, promise) {
-                    promise.resolve(tools.syncTranspile(null, evalPHP));
+                    promise.resolve(tools.syncTranspile(path, evalPHP));
                 }
             });
 

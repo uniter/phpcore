@@ -10,41 +10,42 @@
 'use strict';
 
 var _ = require('microdash'),
-    PHPFatalError = require('phpcommon').PHPFatalError,
-    Promise = require('lie');
+    FFIResult = require('../../FFI/Result'),
+    PHPFatalError = require('phpcommon').PHPFatalError;
 
 module.exports = function (internals) {
     var pausable = internals.pausable,
         /**
-         * Checks whether the returned result is a Promise and if so,
+         * Checks whether the returned result is an FFI Result and if so,
          * if we are in async mode, it pauses PHP execution until the promise
-         * is resolved or rejected
+         * returned from the async fetcher is resolved or rejected
          *
          * @param {*} result
          */
-        handlePromise = function (result) {
+        handleFFIResult = function (result) {
             var pause;
 
-            if (!(result instanceof Promise)) {
-                return;
+            if (!(result instanceof FFIResult)) {
+                // A non-FFI Result was returned: nothing special to do
+                return result;
             }
 
             if (!pausable) {
-                throw new Error(
-                    'Cannot wait for promise returned from JS-land to resolve - async mode is not available'
-                );
+                // We're in sync mode - use the synchronous fetcher as we are unable
+                // to wait for an asynchronous operation to complete
+                return result.getSync();
             }
 
             pause = pausable.createPause();
 
             // Wait for the returned promise to resolve or reject before continuing
-            result.then(function (resultValue) {
+            result.getAsync().then(function (resultValue) {
                 pause.resume(resultValue);
             }, function (error) {
                 pause.throw(error);
             });
 
-            pause.now();
+            return pause.now();
         };
 
     function JSObject() {
@@ -78,9 +79,7 @@ module.exports = function (internals) {
 
             // A promise may be returned from the method, in which case
             // we need to block PHP execution until it is resolved or rejected
-            handlePromise(result);
-
-            return result;
+            return handleFFIResult(result);
         },
 
         /**
@@ -112,9 +111,7 @@ module.exports = function (internals) {
 
             // A promise may be returned from the function, in which case
             // we need to block PHP execution until it is resolved or rejected
-            handlePromise(result);
-
-            return result;
+            return handleFFIResult(result);
         },
 
         /**

@@ -11,9 +11,7 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    phpToAST = require('phptoast'),
-    phpToJS = require('phptojs'),
-    syncPhpCore = require('../../../../sync');
+    tools = require('../../tools');
 
 describe('PHP builtin Closure class integration', function () {
     describe('static ::bind()', function () {
@@ -43,13 +41,7 @@ $newClosure = Closure::bind($closure, $newThis);
 return $newClosure();
 EOS
 */;}),//jshint ignore:line,
-                js = phpToJS.transpile(phpToAST.create().parse(php)),
-                module = new Function(
-                    'require',
-                    'return ' + js
-                )(function () {
-                    return syncPhpCore;
-                }),
+                module = tools.syncTranspile(null, php),
                 engine = module(),
                 result = engine.execute();
 
@@ -94,13 +86,7 @@ namespace
 }
 EOS
 */;}),//jshint ignore:line,
-                js = phpToJS.transpile(phpToAST.create().parse(php)),
-                module = new Function(
-                    'require',
-                    'return ' + js
-                )(function () {
-                    return syncPhpCore;
-                }),
+                module = tools.syncTranspile(null, php),
                 engine = module(),
                 result = engine.execute();
 
@@ -136,13 +122,7 @@ $newClosure = $closure->bindTo($newThis);
 return $newClosure();
 EOS
 */;}),//jshint ignore:line,
-                js = phpToJS.transpile(phpToAST.create().parse(php)),
-                module = new Function(
-                    'require',
-                    'return ' + js
-                )(function () {
-                    return syncPhpCore;
-                }),
+                module = tools.syncTranspile(null, php),
                 engine = module(),
                 result = engine.execute();
 
@@ -186,13 +166,7 @@ namespace
 }
 EOS
 */;}),//jshint ignore:line,
-                js = phpToJS.transpile(phpToAST.create().parse(php)),
-                module = new Function(
-                    'require',
-                    'return ' + js
-                )(function () {
-                    return syncPhpCore;
-                }),
+                module = tools.syncTranspile(null, php),
                 engine = module(),
                 result = engine.execute();
 

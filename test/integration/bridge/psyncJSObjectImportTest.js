@@ -11,29 +11,24 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../tools'),
-    Promise = require('lie');
+    tools = require('../tools');
 
-describe('PHP JS<->PHP bridge JS object import asynchronous mode integration', function () {
-    it('should allow an imported method to return an FFI Result to be waited on', function (done) {
+describe('PHP JS<->PHP bridge JS object import Promise-synchronous mode integration', function () {
+    it('should allow an imported method to return an FFI Result whose sync handler returns a value', function (done) {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 return 21 + $myJSObject->myMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.psyncTranspile(null, php),
             engine = module();
 
         engine.expose({
             myMethod: function () {
                 return engine.createFFIResult(function () {
-                    done(new Error('Should have been handled asynchronously'));
+                    return 9;
                 }, function () {
-                    return new Promise(function (resolve) {
-                        setTimeout(function () {
-                            resolve(9);
-                        }, 10);
-                    });
+                    done(new Error('Should have been handled synchronously'));
                 });
             }
         }, 'myJSObject');
@@ -44,25 +39,21 @@ EOS
         }).catch(done);
     });
 
-    it('should allow an imported method to reject a Promise returned from an FFI Result', function (done) {
+    it('should allow an imported method to throw an error from an FFI result\'s sync handler', function (done) {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 return 21 + $myJSObject->myMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.psyncTranspile(null, php),
             engine = module();
 
         engine.expose({
             myMethod: function () {
                 return engine.createFFIResult(function () {
-                    done(new Error('Should have been handled asynchronously'));
+                    throw new Error('Error from JS-land'); // In Promise-sync mode, only this sync code path can be taken
                 }, function () {
-                    return new Promise(function (resolve, reject) {
-                        setTimeout(function () {
-                            reject(new Error('Error from JS-land'));
-                        }, 10);
-                    });
+                    done(new Error('Should have been handled synchronously'));
                 });
             }
         }, 'myJSObject');

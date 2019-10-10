@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "es6-weak-map": "^2.0.3",
+    "is-promise": "^2.1.0",
     "lie": "^3.0.1",
     "microdash": "~1",
     "pausable": "~4",
@@ -37,7 +38,7 @@
     "mocha": "^5.2.0",
     "nowdoc": "^1.0.1",
     "phptoast": "^7.0.0",
-    "phptojs": "^7.0.2",
+    "phptojs": "^7.1.0",
     "sinon": "^5.1.1",
     "sinon-chai": "^3.3.0"
   },

@@ -13,7 +13,7 @@ var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
     tools = require('../tools');
 
-describe('PHP asynchronous eval(...) construct integration', function () {
+describe('PHP Promise-synchronous eval(...) construct integration', function () {
     it('should allow evaluating expressions with access to the calling scope', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -41,13 +41,11 @@ return (function () {
 }());
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.psyncTranspile(null, php),
             engine = module({
                 eval: function (evalPHP, path, promise) {
-                    // Pause before resolving, to test async behaviour
-                    setTimeout(function () {
-                        promise.resolve(tools.asyncTranspile(path, evalPHP));
-                    }, 1);
+                    // Resolve instantly - we cannot pause in psync mode
+                    promise.resolve(tools.psyncTranspile(path, evalPHP));
                 }
             });
 

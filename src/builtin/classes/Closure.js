@@ -210,7 +210,7 @@ module.exports = function (internals) {
                 args.push(valueFactory.coerce(arg));
             });
 
-            if (internals.pausable) {
+            if (internals.mode === 'async') {
                 return new Promise(function (resolve, reject) {
                     // Call the method via Pausable to allow for blocking operation
                     internals.pausable.call(
@@ -236,16 +236,33 @@ module.exports = function (internals) {
                 });
             }
 
-            // Call the closure, and then unwrap its result value back to a native one
-            try {
-                return objectValue.getObject().invoke(args, thisObj).getNative();
-            } catch (error) {
-                if (valueFactory.isValue(error) && error.getType() === 'object') {
-                    throw error.coerceToNativeError();
-                }
+            function invoke() {
+                // Call the closure, and then unwrap its result value back to a native one
+                try {
+                    return objectValue.getObject().invoke(args, thisObj).getNative();
+                } catch (error) {
+                    if (valueFactory.isValue(error) && error.getType() === 'object') {
+                        throw error.coerceToNativeError();
+                    }
 
-                throw error;
+                    throw error;
+                }
             }
+
+            if (internals.mode === 'psync') {
+                // For Promise-synchronous mode, we need to return a promise
+                // even though the actual invocation must return synchronously
+                return new Promise(function (resolve, reject) {
+                    try {
+                        resolve(invoke());
+                    } catch (error) {
+                        reject(error);
+                    }
+                });
+            }
+
+            // Otherwise we're in sync mode
+            return invoke();
         };
     });
 

@@ -30,20 +30,47 @@ describe('Runtime', function () {
         this.Environment.prototype.getOptions = function () {
             return this.state.getOptions();
         };
-        this.PHPState.callsFake(function (runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, optionGroups, options) {
+        this.PHPState.callsFake(function (runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, mode, optionGroups, options) {
             this.options = options;
         }.bind(this));
         this.PHPState.prototype.getOptions = function () {
             return this.options;
         }.bind(this);
 
-        this.runtime = new Runtime(
-            this.Environment,
-            this.Engine,
-            this.PHPState,
-            this.phpCommon,
-            this.pausable
-        );
+        this.createRuntime = function (mode) {
+            mode = mode || 'async';
+
+            this.runtime = new Runtime(
+                this.Environment,
+                this.Engine,
+                this.PHPState,
+                this.phpCommon,
+                mode === 'async' ? this.pausable : null,
+                mode
+            );
+        }.bind(this);
+        this.createRuntime();
+    });
+
+    describe('constructor', function () {
+        it('should throw when an invalid mode is given', function () {
+            expect(function () {
+                this.createRuntime('my-invalid-mode');
+            }.bind(this)).to.throw('Invalid mode "my-invalid-mode" given - must be one of "async", "psync" or "sync"');
+        });
+
+        it('should throw when async mode is given but Pausable is not', function () {
+            expect(function () {
+                this.runtime = new Runtime(
+                    this.Environment,
+                    this.Engine,
+                    this.PHPState,
+                    this.phpCommon,
+                    null,
+                    'async'
+                );
+            }.bind(this)).to.throw('Pausable library must be provided for async mode');
+        });
     });
 
     describe('compile()', function () {
@@ -55,7 +82,7 @@ describe('Runtime', function () {
             expect(this.runtime.compile(this.wrapper)).to.be.a('function');
         });
 
-        describe('the factory function returned', function () {
+        describe('the factory function returned for async mode', function () {
             beforeEach(function () {
                 this.factory = this.runtime.compile(this.wrapper);
             });
@@ -70,7 +97,8 @@ describe('Runtime', function () {
                     sinon.match.same(this.phpCommon),
                     {option1: 21},
                     sinon.match.same(this.wrapper),
-                    sinon.match.same(this.pausable)
+                    sinon.match.same(this.pausable),
+                    'async'
                 );
             });
 
@@ -79,6 +107,29 @@ describe('Runtime', function () {
                 this.Engine.returns(engine);
 
                 expect(this.factory()).to.equal(engine);
+            });
+        });
+
+        describe('the factory function returned for psync mode', function () {
+            beforeEach(function () {
+                this.createRuntime('psync');
+
+                this.factory = this.runtime.compile(this.wrapper);
+            });
+
+            it('should create a new Engine instance correctly', function () {
+                this.factory({option1: 21});
+
+                expect(this.Engine).to.have.been.calledOnce;
+                expect(this.Engine).to.have.been.calledWith(
+                    sinon.match.instanceOf(this.Environment),
+                    null,
+                    sinon.match.same(this.phpCommon),
+                    {option1: 21},
+                    sinon.match.same(this.wrapper),
+                    null,
+                    'psync'
+                );
             });
         });
 
@@ -184,7 +235,7 @@ describe('Runtime', function () {
             });
 
             expect(this.PHPState).to.have.been.calledOnce;
-            expect(this.PHPState.args[0][6][0]()).to.deep.equal({yourOption: 1001});
+            expect(this.PHPState.args[0][7][0]()).to.deep.equal({yourOption: 1001});
         });
     });
 
@@ -208,6 +259,7 @@ describe('Runtime', function () {
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
                 sinon.match.same(this.pausable),
+                'async',
                 [],
                 {myOption: 21}
             );
@@ -279,6 +331,7 @@ describe('Runtime', function () {
                     constantGroups: [],
                     functionGroups: []
                 },
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,

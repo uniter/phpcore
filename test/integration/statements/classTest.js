@@ -11,25 +11,11 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    phpCommon = require('phpcommon'),
-    phpToAST = require('phptoast'),
-    phpToJS = require('phptojs'),
-    Engine = require('../../../src/Engine'),
-    Environment = require('../../../src/Environment'),
-    PHPState = require('../../../src/PHPState').sync(),
-    Runtime = require('../../../src/Runtime').sync();
+    tools = require('../tools');
 
 describe('PHP "class" statement integration', function () {
     beforeEach(function () {
-        this.runtime = new Runtime(
-            Environment,
-            Engine,
-            PHPState,
-            phpCommon,
-            null,
-            phpToAST,
-            phpToJS
-        );
+        this.runtime = tools.createSyncRuntime();
     });
 
     it('should support extending JS classes with auto-coercion both on and off', function () {
@@ -53,13 +39,7 @@ $second = new SecondPHPClass('php_init2');
 return $first->addOneTo(' php_10') . ' op ' . $second->addThreeTo(' php_7');
 EOS
 */;}),//jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return this.runtime;
-            }.bind(this));
+            module = tools.transpile(this.runtime, null, php);
 
         this.runtime.install({
             classes: {
