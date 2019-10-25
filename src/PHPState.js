@@ -154,6 +154,19 @@ module.exports = require('pauser')([
             }
 
             /**
+             * Installs a set of defaults for INI options
+             *
+             * @param {Function} groupFactory
+             */
+            function installDefaultINIOptionGroup(groupFactory) {
+                var groupBuiltins = groupFactory(state.internals);
+
+                _.each(groupBuiltins, function (value, name) {
+                    state.iniState.set(name, value);
+                });
+            }
+
+            /**
              * Installs a set of related runtime options
              *
              * @param {Function} groupFactory
@@ -166,6 +179,7 @@ module.exports = require('pauser')([
 
             // Core builtins
             _.each(builtinTypes.constantGroups, installConstantGroup);
+            _.each(builtinTypes.defaultINIGroups, installDefaultINIOptionGroup);
             _.each(builtinTypes.functionGroups, installFunctionGroup);
             _.each(builtinTypes.classGroups, installClassGroup);
             _.forOwn(builtinTypes.classes, installClass);
@@ -174,6 +188,7 @@ module.exports = require('pauser')([
             _.each(optionGroups, installOptionGroup);
             state.bindings = {};
             _.each(installedBuiltinTypes.constantGroups, installConstantGroup);
+            _.each(installedBuiltinTypes.defaultINIGroups, installDefaultINIOptionGroup);
             _.each(installedBuiltinTypes.bindingGroups, installBindingGroup);
             _.each(installedBuiltinTypes.functionGroups, installFunctionGroup);
             _.each(installedBuiltinTypes.classGroups, installClassGroup);
@@ -549,6 +564,16 @@ module.exports = require('pauser')([
 
         getGlobalScope: function () {
             return this.globalScope;
+        },
+
+        /**
+         * Fetches the native value of an INI option
+         *
+         * @param {string} name
+         * @return {*}
+         */
+        getINIOption: function (name) {
+            return this.iniState.get(name);
         },
 
         /**

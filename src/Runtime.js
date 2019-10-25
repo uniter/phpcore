@@ -48,6 +48,7 @@ module.exports = require('pauser')([
             classGroups: [],
             classes: {},
             constantGroups: [],
+            defaultINIGroups: [],
             functionGroups: []
         };
         /**
@@ -218,6 +219,7 @@ module.exports = require('pauser')([
             [].push.apply(builtins.classGroups, newBuiltins.classGroups);
             _.extend(builtins.classes, newBuiltins.classes);
             [].push.apply(builtins.constantGroups, newBuiltins.constantGroups);
+            [].push.apply(builtins.defaultINIGroups, newBuiltins.defaultINIGroups);
             [].push.apply(this.optionGroups, newBuiltins.optionGroups);
             [].push.apply(builtins.bindingGroups, newBuiltins.bindingGroups);
         }

@@ -10,6 +10,9 @@
 'use strict';
 
 module.exports = require('pauser')([
+    require('./functions/optionsAndInfo/config'),
+    require('./constants/errorHandling'),
+    require('./ini/errorHandling'),
     require('./constants/reserved'),
     require('./functions/spl'),
     require('./classes/stdClass'),
@@ -21,6 +24,9 @@ module.exports = require('pauser')([
     require('./classes/JSObject'),
     require('./interfaces/Traversable')
 ], function (
+    configOptionsAndInfoFunctions,
+    errorHandlingConstants,
+    errorHandlingDefaultINIOptions,
     reservedConstants,
     splFunctions,
     stdClass,
@@ -44,10 +50,15 @@ module.exports = require('pauser')([
             'Traversable': Traversable
         },
         constantGroups: [
+            errorHandlingConstants,
             reservedConstants
         ],
         functionGroups: [
+            configOptionsAndInfoFunctions,
             splFunctions
+        ],
+        defaultINIGroups: [
+            errorHandlingDefaultINIOptions
         ]
     };
 }, {strict: true});

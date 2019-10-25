@@ -253,6 +253,7 @@ describe('Runtime', function () {
                     classGroups: [],
                     classes: {},
                     constantGroups: [],
+                    defaultINIGroups: [],
                     functionGroups: []
                 },
                 sinon.match.instanceOf(Stream),
@@ -306,6 +307,7 @@ describe('Runtime', function () {
                         MyClass: sinon.match.same(MyClass)
                     },
                     constantGroups: [],
+                    defaultINIGroups: [],
                     functionGroups: []
                 }
             );
@@ -329,6 +331,7 @@ describe('Runtime', function () {
                     classGroups: [],
                     classes: {},
                     constantGroups: [],
+                    defaultINIGroups: [],
                     functionGroups: []
                 },
                 sinon.match.any,
@@ -362,6 +365,67 @@ describe('Runtime', function () {
                     classGroups: [],
                     classes: {},
                     constantGroups: [],
+                    defaultINIGroups: [],
+                    functionGroups: []
+                },
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any
+            );
+        });
+
+        it('should cause created environments to have the provided constant groups', function () {
+            var constantGroupFactory = sinon.stub();
+
+            this.runtime.install({
+                constantGroups: [
+                    constantGroupFactory
+                ]
+            });
+            this.runtime.createEnvironment();
+
+            expect(this.PHPState).to.have.been.calledOnce;
+            expect(this.PHPState).to.have.been.calledWith(
+                sinon.match.any,
+                {
+                    bindingGroups: [],
+                    constantGroups: [
+                        sinon.match.same(constantGroupFactory)
+                    ],
+                    classGroups: [],
+                    classes: {},
+                    defaultINIGroups: [],
+                    functionGroups: []
+                },
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any
+            );
+        });
+
+        it('should cause created environments to have the provided default INI option groups', function () {
+            var defaultINIGroupFactory = sinon.stub();
+
+            this.runtime.install({
+                defaultINIGroups: [
+                    defaultINIGroupFactory
+                ]
+            });
+            this.runtime.createEnvironment();
+
+            expect(this.PHPState).to.have.been.calledOnce;
+            expect(this.PHPState).to.have.been.calledWith(
+                sinon.match.any,
+                {
+                    bindingGroups: [],
+                    constantGroups: [],
+                    classGroups: [],
+                    classes: {},
+                    defaultINIGroups: [
+                        sinon.match.same(defaultINIGroupFactory)
+                    ],
                     functionGroups: []
                 },
                 sinon.match.any,
@@ -393,6 +457,7 @@ describe('Runtime', function () {
                         MyClass: sinon.match.same(MyClass)
                     },
                     constantGroups: [],
+                    defaultINIGroups: [],
                     functionGroups: []
                 }
             );

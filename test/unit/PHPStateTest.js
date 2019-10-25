@@ -164,8 +164,7 @@ describe('PHPState', function () {
                             myOption: internals.valueFactory.createString('my option value')
                         };
                     }
-                ],
-                'async'
+                ]
             );
 
             expect(this.state.getOptions().myOption.getType()).to.equal('string');
@@ -214,6 +213,35 @@ describe('PHPState', function () {
             expect(this.state.getBinding('my_binding')).to.equal(21);
         });
 
+        it('should install any default INI options, allowing access to constants early', function () {
+            this.state = new PHPState(
+                this.runtime,
+                {
+                    constantGroups: [
+                        function () {
+                            return {
+                                'MY_CONST': 212
+                            };
+                        }
+                    ],
+                    defaultINIGroups: [
+                        function (internals) {
+                            return {
+                                'my_ini_setting': internals.getConstant('MY_CONST')
+                            };
+                        }
+                    ]
+                },
+                this.stdin,
+                this.stdout,
+                this.stderr,
+                this.pausable,
+                'async'
+            );
+
+            expect(this.state.getINIOption('my_ini_setting')).to.equal(212);
+        });
+
         ['async', 'sync', 'psync'].forEach(function (mode) {
             it('should expose the current synchronicity mode when "' + mode + '"', function () {
                 this.state = new PHPState(
@@ -230,8 +258,7 @@ describe('PHPState', function () {
                                 myMode: internals.mode
                             };
                         }
-                    ],
-                    'async'
+                    ]
                 );
 
                 expect(this.state.getOptions().myMode).to.equal(mode);
