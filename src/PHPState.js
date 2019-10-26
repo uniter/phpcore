@@ -22,6 +22,7 @@ module.exports = require('pauser')([
     require('./Closure'),
     require('./ClosureFactory'),
     require('./Reference/Element/ElementProviderFactory'),
+    require('./ErrorConfiguration'),
     require('./FunctionFactory'),
     require('./INIState'),
     require('./Loader'),
@@ -59,6 +60,7 @@ module.exports = require('pauser')([
     Closure,
     ClosureFactory,
     ElementProviderFactory,
+    ErrorConfiguration,
     FunctionFactory,
     INIState,
     Loader,
@@ -311,6 +313,7 @@ module.exports = require('pauser')([
         this.internals = {
             callStack: callStack,
             classAutoloader: classAutoloader,
+            errorConfiguration: new ErrorConfiguration(this.iniState),
             getBinding: function (bindingName) {
                 if (state.bindings === null) {
                     // Option groups are loaded before bindings, so if any of them attempt to access a binding

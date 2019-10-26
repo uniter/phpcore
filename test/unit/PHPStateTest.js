@@ -265,6 +265,29 @@ describe('PHPState', function () {
             });
         });
 
+        it('should expose the error configuration', function () {
+            this.state = new PHPState(
+                this.runtime,
+                {},
+                this.stdin,
+                this.stdout,
+                this.stderr,
+                this.pausable,
+                'sync',
+                [
+                    function (internals) {
+                        internals.iniState.set('error_reporting', 1234);
+
+                        return {
+                            myErrorReportingLevel: internals.errorConfiguration.getErrorReportingLevel()
+                        };
+                    }
+                ]
+            );
+
+            expect(this.state.getOptions().myErrorReportingLevel).to.equal(1234);
+        });
+
         it('should throw an error if the specified binding is not defined', function () {
             expect(function () {
                 /*jshint nonew:false */
