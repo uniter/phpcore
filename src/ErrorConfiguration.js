@@ -24,6 +24,17 @@ function ErrorConfiguration(iniState) {
 
 _.extend(ErrorConfiguration.prototype, {
     /**
+     * Determines whether errors should be displayed
+     *
+     * @return {boolean}
+     */
+    getDisplayErrors: function () {
+        var iniOption = this.iniState.get('display_errors');
+
+        return String(iniOption).toLowerCase() !== 'off' && !!iniOption;
+    },
+
+    /**
      * Fetches a bitmask of which error levels to report
      * (set by the error_reporting(...) builtin function and "error_reporting" INI option)
      *

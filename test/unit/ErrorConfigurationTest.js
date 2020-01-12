@@ -18,6 +18,7 @@ describe('ErrorConfiguration', function () {
     beforeEach(function () {
         this.iniState = sinon.createStubInstance(INIState);
 
+        this.iniState.get.withArgs('display_errors').returns('1');
         this.iniState.get.withArgs('error_reporting').returns(1234);
         this.iniState.set.callsFake(function (name, value) {
             this.iniState.get.withArgs(name).returns(value);
@@ -26,8 +27,34 @@ describe('ErrorConfiguration', function () {
         this.errorConfiguration = new ErrorConfiguration(this.iniState);
     });
 
+    describe('getDisplayErrors()', function () {
+        it('should return true when the INI option is set to boolean true', function () {
+            this.iniState.get.withArgs('display_errors').returns(true);
+
+            expect(this.errorConfiguration.getDisplayErrors()).to.be.true;
+        });
+
+        it('should return false when the INI option is set to boolean false', function () {
+            this.iniState.get.withArgs('display_errors').returns(false);
+
+            expect(this.errorConfiguration.getDisplayErrors()).to.be.false;
+        });
+
+        it('should return true when the INI option is set to the string "On"', function () {
+            this.iniState.get.withArgs('display_errors').returns('On');
+
+            expect(this.errorConfiguration.getDisplayErrors()).to.be.true;
+        });
+
+        it('should return false when the INI option is set to the string "Off"', function () {
+            this.iniState.get.withArgs('display_errors').returns('Off');
+
+            expect(this.errorConfiguration.getDisplayErrors()).to.be.false;
+        });
+    });
+
     describe('getErrorReportingLevel()', function () {
-        it('should return the level when the INI option is to an integer', function () {
+        it('should return the level when the INI option is set to an integer', function () {
             expect(this.errorConfiguration.getErrorReportingLevel()).to.equal(1234);
         });
 
