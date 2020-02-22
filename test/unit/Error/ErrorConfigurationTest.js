@@ -11,8 +11,8 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
-    ErrorConfiguration = require('../../src/ErrorConfiguration'),
-    INIState = require('../../src/INIState');
+    ErrorConfiguration = require('../../../src/Error/ErrorConfiguration'),
+    INIState = require('../../../src/INIState');
 
 describe('ErrorConfiguration', function () {
     beforeEach(function () {

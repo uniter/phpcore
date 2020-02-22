@@ -254,7 +254,8 @@ describe('Runtime', function () {
                     classes: {},
                     constantGroups: [],
                     defaultINIGroups: [],
-                    functionGroups: []
+                    functionGroups: [],
+                    translationCatalogues: []
                 },
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
@@ -308,7 +309,8 @@ describe('Runtime', function () {
                     },
                     constantGroups: [],
                     defaultINIGroups: [],
-                    functionGroups: []
+                    functionGroups: [],
+                    translationCatalogues: []
                 }
             );
         });
@@ -332,7 +334,8 @@ describe('Runtime', function () {
                     classes: {},
                     constantGroups: [],
                     defaultINIGroups: [],
-                    functionGroups: []
+                    functionGroups: [],
+                    translationCatalogues: []
                 },
                 sinon.match.any,
                 sinon.match.any,
@@ -366,7 +369,8 @@ describe('Runtime', function () {
                     classes: {},
                     constantGroups: [],
                     defaultINIGroups: [],
-                    functionGroups: []
+                    functionGroups: [],
+                    translationCatalogues: []
                 },
                 sinon.match.any,
                 sinon.match.any,
@@ -396,7 +400,8 @@ describe('Runtime', function () {
                     classGroups: [],
                     classes: {},
                     defaultINIGroups: [],
-                    functionGroups: []
+                    functionGroups: [],
+                    translationCatalogues: []
                 },
                 sinon.match.any,
                 sinon.match.any,
@@ -426,7 +431,45 @@ describe('Runtime', function () {
                     defaultINIGroups: [
                         sinon.match.same(defaultINIGroupFactory)
                     ],
-                    functionGroups: []
+                    functionGroups: [],
+                    translationCatalogues: []
+                },
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any
+            );
+        });
+
+        it('should cause created environments to have the provided default translations', function () {
+            var defaultTranslationCatalogue = {
+                'en_GB': {
+                    'my_ns': {
+                        'my_key': 'My translated text'
+                    }
+                }
+            };
+
+            this.runtime.install({
+                translationCatalogues: [
+                    defaultTranslationCatalogue
+                ]
+            });
+            this.runtime.createEnvironment();
+
+            expect(this.PHPState).to.have.been.calledOnce;
+            expect(this.PHPState).to.have.been.calledWith(
+                sinon.match.any,
+                {
+                    bindingGroups: [],
+                    constantGroups: [],
+                    classGroups: [],
+                    classes: {},
+                    defaultINIGroups: [],
+                    functionGroups: [],
+                    translationCatalogues: [
+                        sinon.match.same(defaultTranslationCatalogue)
+                    ]
                 },
                 sinon.match.any,
                 sinon.match.any,
@@ -458,7 +501,8 @@ describe('Runtime', function () {
                     },
                     constantGroups: [],
                     defaultINIGroups: [],
-                    functionGroups: []
+                    functionGroups: [],
+                    translationCatalogues: []
                 }
             );
         });

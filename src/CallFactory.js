@@ -13,13 +13,18 @@ var _ = require('microdash');
 
 /**
  * @param {class} Call
+ * @param {class} FFICall
  * @constructor
  */
-function CallFactory(Call) {
+function CallFactory(Call, FFICall) {
     /**
      * @type {class}
      */
     this.Call = Call;
+    /**
+     * @type {class}
+     */
+    this.FFICall = FFICall;
 }
 
 _.extend(CallFactory.prototype, {
@@ -28,7 +33,7 @@ _.extend(CallFactory.prototype, {
      *
      * @param {Scope} scope
      * @param {NamespaceScope} namespaceScope
-     * @param {Value[]|null} args
+     * @param {Reference[]|Value[]|Variable[]|=} args
      * @param {Class|null} newStaticClass
      * @returns {Call}
      */
@@ -36,6 +41,17 @@ _.extend(CallFactory.prototype, {
         var factory = this;
 
         return new factory.Call(scope, namespaceScope, args || [], newStaticClass || null);
+    },
+
+    /**
+     * Creates a new FFI Call
+     *
+     * @param {Reference[]|Value[]|Variable[]|=} args
+     */
+    createFFICall: function (args) {
+        var factory = this;
+
+        return new factory.FFICall(args || []);
     }
 });
 

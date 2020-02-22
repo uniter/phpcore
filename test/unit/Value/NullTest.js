@@ -22,7 +22,6 @@ var _ = require('microdash'),
     NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
-    PHPFatalError = phpCommon.PHPFatalError,
     Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
 
@@ -30,6 +29,12 @@ describe('Null', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.factory = new ValueFactory();
+
+        this.callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+            throw new Error(
+                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+            );
+        });
 
         this.createKeyValuePair = function (key, value) {
             var keyValuePair = sinon.createStubInstance(KeyValuePair);
@@ -42,6 +47,49 @@ describe('Null', function () {
             this.value = new NullValue(this.factory, this.callStack);
         }.bind(this);
         this.createValue();
+    });
+
+    describe('addToArray()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                this.value.addToArray(this.factory.createArray([]));
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
+        });
+    });
+
+    describe('callMethod()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                this.value.callMethod('myMethod', [this.factory.createString('my arg')]);
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.non_object_method_call with {"name":"myMethod","type":"null"}'
+            );
+        });
+    });
+
+    describe('callStaticMethod()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                this.value.callStaticMethod(
+                    this.factory.createString('myMethod'),
+                    [this.factory.createString('my arg')]
+                );
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
+            );
+        });
+    });
+
+    describe('coerceToNativeError()', function () {
+        it('should throw an error as this is invalid', function () {
+            expect(function () {
+                this.value.coerceToNativeError();
+            }.bind(this)).to.throw(
+                'Only instances of Throwable may be thrown: tried to throw a(n) null'
+            );
+        });
     });
 
     describe('divide()', function () {
@@ -62,7 +110,9 @@ describe('Null', function () {
 
             expect(function () {
                 this.value.divideByArray(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
@@ -237,7 +287,7 @@ describe('Null', function () {
             {
                 left: 'my string',
                 coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
+                coercedLeftType: 'int',
                 coercedLeft: 0,
                 expectedResultType: BooleanValue,
                 expectedResult: false
@@ -245,7 +295,7 @@ describe('Null', function () {
             {
                 left: '21',
                 coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
+                coercedLeftType: 'int',
                 coercedLeft: 21,
                 expectedResultType: BooleanValue,
                 expectedResult: false
@@ -253,7 +303,7 @@ describe('Null', function () {
             {
                 left: '0',
                 coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
+                coercedLeftType: 'int',
                 coercedLeft: 0,
                 expectedResultType: BooleanValue,
                 expectedResult: false
@@ -291,6 +341,22 @@ describe('Null', function () {
         });
     });
 
+    describe('getConstantByName()', function () {
+        it('should throw a "Class name must be a valid object or a string" error', function () {
+            expect(function () {
+                this.value.getConstantByName('MY_CONST', this.namespaceScope);
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
+            );
+        });
+    });
+
+    describe('getDisplayType()', function () {
+        it('should return the value type', function () {
+            expect(this.value.getDisplayType()).to.equal('null');
+        });
+    });
+
     describe('getNative()', function () {
         it('should return null', function () {
             expect(this.value.getNative()).to.be.null;
@@ -303,13 +369,30 @@ describe('Null', function () {
         });
     });
 
+    describe('getReference()', function () {
+        it('should throw an error', function () {
+            expect(function () {
+                this.value.getReference();
+            }.bind(this)).to.throw('Cannot get a reference to a value');
+        });
+    });
+
+    describe('getStaticPropertyByName()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                this.value.getStaticPropertyByName(this.factory.createString('myProp'), this.namespaceScope);
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
+            );
+        });
+    });
+
     describe('instantiate()', function () {
         it('should raise a fatal error', function () {
             expect(function () {
                 this.value.instantiate();
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -324,9 +407,21 @@ describe('Null', function () {
         });
     });
 
+    describe('isCallable()', function () {
+        it('should return false', function () {
+            expect(this.value.isCallable()).to.be.false;
+        });
+    });
+
     describe('isEmpty()', function () {
         it('should return true', function () {
             expect(this.value.isEmpty()).to.be.true;
+        });
+    });
+
+    describe('isIterable()', function () {
+        it('should return false', function () {
+            expect(this.value.isIterable()).to.be.false;
         });
     });
 
@@ -343,8 +438,7 @@ describe('Null', function () {
             expect(function () {
                 this.value.isTheClassOfArray(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -356,8 +450,7 @@ describe('Null', function () {
             expect(function () {
                 this.value.isTheClassOfBoolean(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -369,8 +462,7 @@ describe('Null', function () {
             expect(function () {
                 this.value.isTheClassOfFloat(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -382,8 +474,7 @@ describe('Null', function () {
             expect(function () {
                 this.value.isTheClassOfInteger(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -395,8 +486,7 @@ describe('Null', function () {
             expect(function () {
                 this.value.isTheClassOfNull(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -408,8 +498,7 @@ describe('Null', function () {
             expect(function () {
                 this.value.isTheClassOfObject(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -421,8 +510,7 @@ describe('Null', function () {
             expect(function () {
                 this.value.isTheClassOfString(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -457,7 +545,9 @@ describe('Null', function () {
 
             expect(function () {
                 this.value.multiplyByArray(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
@@ -622,7 +712,7 @@ describe('Null', function () {
             {
                 left: 'my string',
                 coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
+                coercedLeftType: 'int',
                 coercedLeft: 0,
                 expectedResultType: IntegerValue,
                 expectedResult: 0
@@ -630,7 +720,7 @@ describe('Null', function () {
             {
                 left: '21',
                 coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
+                coercedLeftType: 'int',
                 coercedLeft: 21,
                 expectedResultType: IntegerValue,
                 expectedResult: 0
@@ -646,7 +736,7 @@ describe('Null', function () {
             {
                 left: '0',
                 coercedLeftClass: IntegerValue,
-                coercedLeftType: 'integer',
+                coercedLeftType: 'int',
                 coercedLeft: 0,
                 expectedResultType: IntegerValue,
                 expectedResult: 0
@@ -671,6 +761,16 @@ describe('Null', function () {
                     expect(this.callStack.raiseError).not.to.have.been.called;
                 });
             });
+        });
+    });
+
+    describe('subtractFromNull()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            expect(function () {
+                this.value.subtractFromNull();
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 });

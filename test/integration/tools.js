@@ -9,7 +9,8 @@
 
 'use strict';
 
-var builtins = require('../../src/builtin/builtins'),
+var _ = require('microdash'),
+    builtins = require('../../src/builtin/builtins'),
     pausable = require('pausable'),
     phpCommon = require('phpcommon'),
     phpToAST = require('phptoast'),
@@ -53,24 +54,41 @@ var builtins = require('../../src/builtin/builtins'),
     },
     transpile = function (path, php, phpCore, options) {
         var js,
+            module,
             phpParser;
 
         options = options || {};
 
-        phpParser = phpToAST.create(null, options.phpToAST);
+        phpParser = phpToAST.create(null, _.extend({
+            // Capture offsets of all nodes for line tracking
+            captureAllBounds: true
+        }, options.phpToAST));
 
         if (path) {
             phpParser.getState().setPath(path);
         }
 
-        js = phpToJS.transpile(phpParser.parse(php), options.phpToJS);
+        js = phpToJS.transpile(phpParser.parse(php), _.extend({
+            // Record line numbers for statements/expressions
+            lineNumbers: true,
 
-        return new Function(
+            path: path || null
+        }, options.phpToJS), options.transpiler);
+
+        module = new Function(
             'require',
             'return ' + js
         )(function () {
             return phpCore;
         });
+
+        if (path !== null) {
+            module = module.using({
+                path: path
+            });
+        }
+
+        return module;
     },
     asyncRuntime = require('../../async'),
     psyncRuntime = require('../../psync'),

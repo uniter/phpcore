@@ -142,6 +142,7 @@ EOS
     it('should support the (int) cast', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
+ini_set('error_reporting', E_ALL); // Notices are hidden by default
 
 $result = [];
 $result[] = (int)'21.12';
@@ -151,7 +152,7 @@ $result[] = (int)new stdClass;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('your_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -161,7 +162,7 @@ EOS
         ]);
         expect(engine.getStderr().readAll()).to.equal(
             nowdoc(function () {/*<<<EOS
-PHP Notice: Object of class stdClass could not be converted to int
+PHP Notice:  Object of class stdClass could not be converted to number in your_module.php on line 7
 
 EOS
 */;}) //jshint ignore:line

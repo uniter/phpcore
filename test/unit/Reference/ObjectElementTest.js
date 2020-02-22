@@ -72,6 +72,27 @@ describe('ObjectElementReference', function () {
         });
     });
 
+    describe('divideBy()', function () {
+        it('should divide the result of the getter by the given value and pass it to the setter', function () {
+            this.objectValue.callMethod.withArgs(
+                'offsetGet',
+                sinon.match([sinon.match.same(this.keyValue)])
+            ).returns(this.valueFactory.createInteger(40));
+
+            this.reference.divideBy(this.valueFactory.createInteger(2));
+
+            expect(this.objectValue.callMethod).to.have.been.calledWith(
+                'offsetSet',
+                sinon.match([
+                    sinon.match.same(this.keyValue),
+                    sinon.match(function (value) {
+                        return value instanceof Value && value.getNative() === 20;
+                    })
+                ])
+            );
+        });
+    });
+
     describe('getNative()', function () {
         it('should return the native value of the result from ArrayAccess::offsetGet(...)', function () {
             expect(this.reference.getNative()).to.equal('hello');
@@ -137,6 +158,27 @@ describe('ObjectElementReference', function () {
             offsetGetReturnValue.isEmpty.returns(false);
 
             expect(this.reference.isEmpty()).to.be.false;
+        });
+    });
+
+    describe('multiplyBy()', function () {
+        it('should multiply the result of the getter by the given value and pass it to the setter', function () {
+            this.objectValue.callMethod.withArgs(
+                'offsetGet',
+                sinon.match([sinon.match.same(this.keyValue)])
+            ).returns(this.valueFactory.createInteger(2));
+
+            this.reference.multiplyBy(this.valueFactory.createInteger(7));
+
+            expect(this.objectValue.callMethod).to.have.been.calledWith(
+                'offsetSet',
+                sinon.match([
+                    sinon.match.same(this.keyValue),
+                    sinon.match(function (value) {
+                        return value instanceof Value && value.getNative() === 14;
+                    })
+                ])
+            );
         });
     });
 });

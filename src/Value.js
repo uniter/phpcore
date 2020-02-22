@@ -19,7 +19,11 @@ module.exports = require('pauser')([
     NullReference
 ) {
     var PHPError = phpCommon.PHPError,
-        PHPFatalError = phpCommon.PHPFatalError,
+
+        CLASS_NAME_NOT_VALID = 'core.class_name_not_valid',
+        NON_OBJECT_METHOD_CALL = 'core.non_object_method_call',
+        UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types',
+
         createNullReference = function (value) {
             var callStack = value.callStack;
 
@@ -41,8 +45,11 @@ module.exports = require('pauser')([
     }
 
     _.extend(Value.prototype, {
+        /**
+         * Adds this value to an array
+         */
         addToArray: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
         addToFloat: function (floatValue) {
@@ -94,14 +101,25 @@ module.exports = require('pauser')([
             );
         },
 
+        /**
+         * Calls a method on an object
+         *
+         * @param {string} name
+         */
         callMethod: function (name) {
-            throw new PHPFatalError(PHPFatalError.NON_OBJECT_METHOD_CALL, {
-                name: name
+            var value = this;
+
+            value.callStack.raiseTranslatedError(PHPError.E_ERROR, NON_OBJECT_METHOD_CALL, {
+                name: name,
+                type: value.type
             });
         },
 
+        /**
+         * Calls a static method of a given class or the class of a given object
+         */
         callStaticMethod: function () {
-            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
         },
 
         /**
@@ -137,6 +155,16 @@ module.exports = require('pauser')([
 
             /*jshint bitwise:false */
             return value.factory.createInteger(Number(value.value) >>> 0);
+        },
+
+        /**
+         * Unwraps an instance of Throwable to a native JS error
+         *
+         * @throws {Error}
+         */
+        coerceToNativeError: function () {
+            // NB: This is actually only implemented by ObjectValue
+            throw new Error('Only instances of Throwable may be thrown: tried to throw a(n) ' + this.type);
         },
 
         /**
@@ -189,14 +217,14 @@ module.exports = require('pauser')([
          * Divides this value by another
          */
         divide: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
         /**
          * Divides an array value by this one
          */
         divideByArray: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
         /**
@@ -235,7 +263,7 @@ module.exports = require('pauser')([
          * @throws {PHPFatalError}
          */
         divideByNonArray: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
         /**
@@ -270,8 +298,20 @@ module.exports = require('pauser')([
 
         getCallableName: throwUnimplemented,
 
+        /**
+         * Fetches a constant of a class by its name
+         */
         getConstantByName: function () {
-            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
+        },
+
+        /**
+         * Fetches the type of this value for display purposes, eg. "boolean"
+         *
+         * @return {string}
+         */
+        getDisplayType: function () {
+            return this.type;
         },
 
         getElementByKey: function () {
@@ -308,11 +348,14 @@ module.exports = require('pauser')([
         },
 
         getReference: function () {
-            throw new PHPFatalError(PHPFatalError.ONLY_VARIABLES_BY_REFERENCE);
+            throw new Error('Cannot get a reference to a value');
         },
 
+        /**
+         * Fetches a static property for a class by its name
+         */
         getStaticPropertyByName: function () {
-            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
         },
 
         getType: function () {
@@ -336,37 +379,73 @@ module.exports = require('pauser')([
          * @throws {PHPFatalError}
          */
         instantiate: function () {
-            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
         },
 
         isAnInstanceOf: throwUnimplemented,
 
+        /**
+         * Determines whether this value is callable
+         *
+         * @param {NamespaceScope} namespaceScope
+         * @returns {boolean}
+         */
+        isCallable: throwUnimplemented,
+
+        /**
+         * Determines whether this value is iterable
+         *
+         * @returns {boolean}
+         */
+        isIterable: throwUnimplemented,
+
+        /**
+         * Determines whether this value is the class of another value
+         */
         isTheClassOfArray: function () {
-            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
         },
 
+        /**
+         * Determines whether this value is the class of another value
+         */
         isTheClassOfBoolean: function () {
-            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
         },
 
+        /**
+         * Determines whether this value is the class of another value
+         */
         isTheClassOfFloat: function () {
-            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
         },
 
+        /**
+         * Determines whether this value is the class of another value
+         */
         isTheClassOfInteger: function () {
-            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
         },
 
+        /**
+         * Determines whether this value is the class of another value
+         */
         isTheClassOfNull: function () {
-            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
         },
 
+        /**
+         * Determines whether this value is the class of another value
+         */
         isTheClassOfObject: function () {
-            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
         },
 
+        /**
+         * Determines whether this value is the class of another value
+         */
         isTheClassOfString: function () {
-            throw new PHPFatalError(PHPFatalError.CLASS_NAME_NOT_VALID);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
         },
 
         /**
@@ -659,7 +738,7 @@ module.exports = require('pauser')([
          * Multiplies this value with another
          */
         multiply: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
         /**
@@ -668,7 +747,7 @@ module.exports = require('pauser')([
          * @throws {PHPFatalError}
          */
         multiplyByArray: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
         /**
@@ -707,7 +786,7 @@ module.exports = require('pauser')([
          * @throws {PHPFatalError}
          */
         multiplyByNonArray: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
         /**
@@ -747,8 +826,11 @@ module.exports = require('pauser')([
          */
         subtract: throwUnimplemented,
 
+        /**
+         * Subtracts this value from null
+         */
         subtractFromNull: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         }
     });
 

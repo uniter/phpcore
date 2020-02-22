@@ -19,7 +19,7 @@ var expect = require('chai').expect,
     ValueFactory = require('../../../../../src/ValueFactory').sync(),
     Variable = require('../../../../../src/Variable').sync();
 
-describe('PHP "ini_get" basic-level builtin function', function () {
+describe('PHP "ini_get" builtin function', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.iniState = sinon.createStubInstance(INIState);
@@ -42,7 +42,7 @@ describe('PHP "ini_get" basic-level builtin function', function () {
 
         resultValue = this.ini_get(this.optionNameReference);
 
-        expect(resultValue.getType()).to.equal('integer');
+        expect(resultValue.getType()).to.equal('int');
         expect(resultValue.getNative()).to.equal(1001);
     });
 

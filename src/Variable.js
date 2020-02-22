@@ -18,8 +18,8 @@ module.exports = require('pauser')([
     phpCommon,
     VariableReference
 ) {
-    var PHPError = phpCommon.PHPError,
-        PHPFatalError = phpCommon.PHPFatalError;
+    var USED_THIS_OUTSIDE_OBJECT_CONTEXT = 'core.used_this_outside_object_context',
+        PHPError = phpCommon.PHPError;
 
     /**
      * Variables can either hold a value directly or hold a pointer
@@ -72,17 +72,33 @@ module.exports = require('pauser')([
             variable.setValue(variable.getValue().subtract(rightValue));
         },
 
-        getInstancePropertyByName: function (name) {
+        /**
+         * Divides the value of this variable by the specified value
+         *
+         * Used by the `/=` operator
+         *
+         * @param {Value} rightValue
+         */
+        divideBy: function (rightValue) {
             var variable = this;
 
-            if (
-                variable.name === 'this' &&
-                (variable.value === null || variable.value.getType() === 'null')
-            ) {
-                throw new PHPFatalError(PHPFatalError.USED_THIS_OUTSIDE_OBJECT_CONTEXT);
+            variable.setValue(variable.getValue().divide(rightValue));
+        },
+
+        /**
+         * Fetches a property of an object stored in this variable
+         *
+         * @param {Value} nameValue
+         * @return {PropertyReference}
+         */
+        getInstancePropertyByName: function (nameValue) {
+            var variable = this;
+
+            if (variable.name === 'this' && variable.value === null) {
+                variable.callStack.raiseTranslatedError(PHPError.E_ERROR, USED_THIS_OUTSIDE_OBJECT_CONTEXT);
             }
 
-            return variable.getValue().getInstancePropertyByName(name);
+            return variable.getValue().getInstancePropertyByName(nameValue);
         },
 
         /**
@@ -113,11 +129,8 @@ module.exports = require('pauser')([
                 return variable.reference.getValue();
             }
 
-            if (
-                variable.name === 'this' &&
-                (variable.value === null || variable.value.getType() === 'null')
-            ) {
-                throw new PHPFatalError(PHPFatalError.USED_THIS_OUTSIDE_OBJECT_CONTEXT);
+            if (variable.name === 'this') {
+                variable.callStack.raiseTranslatedError(PHPError.E_ERROR, USED_THIS_OUTSIDE_OBJECT_CONTEXT);
             }
 
             variable.callStack.raiseError(PHPError.E_NOTICE, 'Undefined variable: ' + variable.name);
@@ -139,10 +152,17 @@ module.exports = require('pauser')([
             variable.setValue(variable.getValue().add(rightValue));
         },
 
+        /**
+         * Determines whether this variable is defined,
+         * either with a value directly assigned or by being
+         * a reference to another variable/reference
+         *
+         * @return {boolean}
+         */
         isDefined: function () {
             var variable = this;
 
-            return variable.value || variable.reference;
+            return !!(variable.value || variable.reference);
         },
 
         /**
@@ -165,6 +185,19 @@ module.exports = require('pauser')([
             var variable = this;
 
             return variable.isDefined() && variable.getValue().isSet();
+        },
+
+        /**
+         * Multiplies the value of this variable by the specified value
+         *
+         * Used by the `*=` operator
+         *
+         * @param {Value} rightValue
+         */
+        multiplyBy: function (rightValue) {
+            var variable = this;
+
+            variable.setValue(variable.getValue().multiply(rightValue));
         },
 
         postDecrement: function () {
@@ -214,6 +247,21 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Sets either the value or the reference of this variable depending on the argument provided
+         *
+         * @param {Reference|Value|Variable} referenceOrValue
+         */
+        setReferenceOrValue: function (referenceOrValue) {
+            var variable = this;
+
+            if (variable.valueFactory.isValue(referenceOrValue)) {
+                variable.setValue(referenceOrValue);
+            } else {
+                variable.setReference(referenceOrValue.getReference());
+            }
+        },
+
+        /**
          * Sets the value of this variable. If it holds a value directly
          * this will be overwritten, otherwise if it is a reference to another
          * variable or reference (array element/object property etc.)
@@ -225,6 +273,14 @@ module.exports = require('pauser')([
          */
         setValue: function (value) {
             var variable = this;
+
+            if (variable.name === 'this' && value.getType() === 'null') {
+                // Normalise the value of $this to either be set to an ObjectValue
+                // or be unset
+                variable.value = null;
+
+                return value;
+            }
 
             if (variable.reference) {
                 variable.reference.setValue(value);

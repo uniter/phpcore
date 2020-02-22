@@ -10,26 +10,37 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     ArrayIterator = require('../../src/Iterator/ArrayIterator'),
     ArrayValue = require('../../src/Value/Array').sync(),
+    ElementProvider = require('../../src/Reference/Element/ElementProvider'),
     IntegerValue = require('../../src/Value/Integer').sync(),
     Namespace = require('../../src/Namespace').sync(),
     NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPObject = require('../../src/PHPObject').sync(),
+    Translator = phpCommon.Translator,
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('ValueFactory', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
+        this.elementProvider = new ElementProvider();
         this.globalNamespace = sinon.createStubInstance(Namespace);
         this.pausable = {};
+        this.translator = sinon.createStubInstance(Translator);
 
-        this.factory = new ValueFactory(this.pausable, 'async', this.callStack);
+        this.translator.translate
+            .callsFake(function (translationKey, placeholderVariables) {
+                return '[Translated] ' + translationKey + ' ' + JSON.stringify(placeholderVariables || {});
+            });
+
+        this.factory = new ValueFactory(this.pausable, 'async', this.elementProvider, this.translator);
+        this.factory.setCallStack(this.callStack);
         this.factory.setGlobalNamespace(this.globalNamespace);
     });
 
@@ -81,6 +92,129 @@ describe('ValueFactory', function () {
 
             expect(iterator).to.be.an.instanceOf(ArrayIterator);
             expect(iterator.getIteratedValue()).to.equal(arrayValue);
+        });
+    });
+
+    describe('createErrorObject()', function () {
+        beforeEach(function () {
+            this.myClassObject = sinon.createStubInstance(Class);
+            this.objectValue = sinon.createStubInstance(ObjectValue);
+            this.globalNamespace.getClass.withArgs('My\\Stuff\\MyErrorClass').returns(this.myClassObject);
+
+            this.objectValue.getInternalProperty
+                .withArgs('reportsOwnContext')
+                .returns(false);
+            this.objectValue.setInternalProperty
+                .withArgs('reportsOwnContext')
+                .callsFake(function (name, value) {
+                    this.objectValue.getInternalProperty
+                        .withArgs(name)
+                        .returns(value);
+                }.bind(this));
+            this.objectValue.getProperty
+                .returns(this.factory.createNull());
+            this.objectValue.setProperty
+                .callsFake(function (name, value) {
+                    this.objectValue.getProperty
+                        .withArgs(name)
+                        .returns(value);
+                }.bind(this));
+        });
+
+        it('should return a correctly instantiated instance of the Error subclass', function () {
+            this.myClassObject.instantiate
+                .withArgs([
+                    sinon.match(function (arg) {
+                        return arg.getNative() === 'My error message';
+                    }),
+                    sinon.match(function (arg) {
+                        return arg.getNative() === 21;
+                    }),
+                    sinon.match(function (arg) {
+                        return arg.getNative() === null;
+                    })
+                ])
+                .returns(this.objectValue);
+
+            expect(this.factory.createErrorObject(
+                'My\\Stuff\\MyErrorClass',
+                'My error message',
+                21,
+                null,
+                '/path/to/my_module.php',
+                1234,
+                true
+            )).to.equal(this.objectValue);
+        });
+
+        it('should set the reportsOwnContext internal property to true when specified', function () {
+            this.myClassObject.instantiate.returns(this.objectValue);
+
+            this.factory.createErrorObject(
+                'My\\Stuff\\MyErrorClass',
+                'My error message',
+                21,
+                null,
+                '/path/to/my_module.php',
+                1234,
+                true
+            );
+
+            expect(this.objectValue.getInternalProperty('reportsOwnContext')).to.be.true;
+        });
+
+        it('should leave the reportsOwnContext internal property as false when specified', function () {
+            this.myClassObject.instantiate.returns(this.objectValue);
+
+            this.factory.createErrorObject(
+                'My\\Stuff\\MyErrorClass',
+                'My error message',
+                21,
+                null,
+                '/path/to/my_module.php',
+                1234,
+                false
+            );
+
+            expect(this.objectValue.getInternalProperty('reportsOwnContext')).to.be.false;
+        });
+
+        it('should override the "file" property if specified', function () {
+            var value;
+            this.myClassObject.instantiate.returns(this.objectValue);
+
+            this.factory.createErrorObject(
+                'My\\Stuff\\MyErrorClass',
+                'My error message',
+                21,
+                null,
+                '/path/to/my_module.php',
+                1234,
+                false
+            );
+            value = this.objectValue.getProperty('file');
+
+            expect(value.getType()).to.equal('string');
+            expect(value.getNative()).to.equal('/path/to/my_module.php');
+        });
+
+        it('should override the "line" property if specified', function () {
+            var value;
+            this.myClassObject.instantiate.returns(this.objectValue);
+
+            this.factory.createErrorObject(
+                'My\\Stuff\\MyErrorClass',
+                'My error message',
+                21,
+                null,
+                '/path/to/my_module.php',
+                1234,
+                false
+            );
+            value = this.objectValue.getProperty('line');
+
+            expect(value.getType()).to.equal('int');
+            expect(value.getNative()).to.equal(1234);
         });
     });
 
@@ -207,6 +341,20 @@ describe('ValueFactory', function () {
         });
     });
 
+    describe('createObject()', function () {
+        it('should return a correctly constructed ObjectValue', function () {
+            var classObject = sinon.createStubInstance(Class),
+                nativeObject = {myProp: 'my value'},
+                value;
+
+            value = this.factory.createObject(nativeObject, classObject);
+
+            expect(value.getType()).to.equal('object');
+            expect(value.getObject()).to.equal(nativeObject);
+            expect(value.getID()).to.equal(1);
+        });
+    });
+
     describe('createPHPObject()', function () {
         it('should return a PHPObject wrapping the ObjectValue', function () {
             var value = sinon.createStubInstance(ObjectValue),
@@ -228,6 +376,178 @@ describe('ValueFactory', function () {
             stdClassClass.instantiate.returns(value);
 
             expect(this.factory.createStdClassObject()).to.equal(value);
+        });
+    });
+
+    describe('createTranslatedErrorObject()', function () {
+        beforeEach(function () {
+            this.myClassObject = sinon.createStubInstance(Class);
+            this.objectValue = sinon.createStubInstance(ObjectValue);
+            this.globalNamespace.getClass.withArgs('My\\Stuff\\MyErrorClass').returns(this.myClassObject);
+
+            this.objectValue.getInternalProperty
+                .withArgs('reportsOwnContext')
+                .returns(false);
+            this.objectValue.setInternalProperty
+                .withArgs('reportsOwnContext')
+                .callsFake(function (name, value) {
+                    this.objectValue.getInternalProperty
+                        .withArgs(name)
+                        .returns(value);
+                }.bind(this));
+            this.objectValue.getProperty
+                .returns(this.factory.createNull());
+            this.objectValue.setProperty
+                .callsFake(function (name, value) {
+                    this.objectValue.getProperty
+                        .withArgs(name)
+                        .returns(value);
+                }.bind(this));
+        });
+
+        it('should return a correctly instantiated instance of the Error subclass', function () {
+            this.myClassObject.instantiate
+                .withArgs([
+                    sinon.match(function (arg) {
+                        return arg.getNative() === '[Translated] my_translation {"my_placeholder":"my value"}';
+                    }),
+                    sinon.match(function (arg) {
+                        return arg.getNative() === 21;
+                    }),
+                    sinon.match(function (arg) {
+                        return arg.getNative() === null;
+                    })
+                ])
+                .returns(this.objectValue);
+
+            expect(this.factory.createTranslatedErrorObject(
+                'My\\Stuff\\MyErrorClass',
+                'my_translation',
+                {'my_placeholder': 'my value'},
+                21,
+                null,
+                '/path/to/my_module.php',
+                1234
+            )).to.equal(this.objectValue);
+        });
+
+        it('should set the reportsOwnContext internal property to false', function () {
+            this.myClassObject.instantiate.returns(this.objectValue);
+
+            this.factory.createTranslatedErrorObject(
+                'My\\Stuff\\MyErrorClass',
+                'my_translation',
+                {'my_placeholder': 'my value'},
+                21,
+                null,
+                '/path/to/my_module.php',
+                1234
+            );
+
+            expect(this.objectValue.getInternalProperty('reportsOwnContext')).to.be.false;
+        });
+
+        it('should override the "file" property if specified', function () {
+            var value;
+            this.myClassObject.instantiate.returns(this.objectValue);
+
+            this.factory.createTranslatedErrorObject(
+                'My\\Stuff\\MyErrorClass',
+                'my_translation',
+                {'my_placeholder': 'my value'},
+                21,
+                null,
+                '/path/to/my_module.php',
+                1234
+            );
+            value = this.objectValue.getProperty('file');
+
+            expect(value.getType()).to.equal('string');
+            expect(value.getNative()).to.equal('/path/to/my_module.php');
+        });
+
+        it('should override the "line" property if specified', function () {
+            var value;
+            this.myClassObject.instantiate.returns(this.objectValue);
+
+            this.factory.createTranslatedErrorObject(
+                'My\\Stuff\\MyErrorClass',
+                'my_translation',
+                {'my_placeholder': 'my value'},
+                21,
+                null,
+                '/path/to/my_module.php',
+                1234
+            );
+            value = this.objectValue.getProperty('line');
+
+            expect(value.getType()).to.equal('int');
+            expect(value.getNative()).to.equal(1234);
+        });
+    });
+
+    describe('createTranslatedExceptionObject()', function () {
+        beforeEach(function () {
+            this.myClassObject = sinon.createStubInstance(Class);
+            this.objectValue = sinon.createStubInstance(ObjectValue);
+            this.globalNamespace.getClass.withArgs('My\\Stuff\\MyErrorClass').returns(this.myClassObject);
+
+            this.objectValue.getInternalProperty
+                .withArgs('reportsOwnContext')
+                .returns(false);
+            this.objectValue.setInternalProperty
+                .withArgs('reportsOwnContext')
+                .callsFake(function (name, value) {
+                    this.objectValue.getInternalProperty
+                        .withArgs(name)
+                        .returns(value);
+                }.bind(this));
+            this.objectValue.getProperty
+                .returns(this.factory.createNull());
+            this.objectValue.setProperty
+                .callsFake(function (name, value) {
+                    this.objectValue.getProperty
+                        .withArgs(name)
+                        .returns(value);
+                }.bind(this));
+        });
+
+        it('should return a correctly instantiated instance of the Error subclass', function () {
+            this.myClassObject.instantiate
+                .withArgs([
+                    sinon.match(function (arg) {
+                        return arg.getNative() === '[Translated] my_translation {"my_placeholder":"my value"}';
+                    }),
+                    sinon.match(function (arg) {
+                        return arg.getNative() === 21;
+                    }),
+                    sinon.match(function (arg) {
+                        return arg.getNative() === null;
+                    })
+                ])
+                .returns(this.objectValue);
+
+            expect(this.factory.createTranslatedExceptionObject(
+                'My\\Stuff\\MyErrorClass',
+                'my_translation',
+                {'my_placeholder': 'my value'},
+                21,
+                null
+            )).to.equal(this.objectValue);
+        });
+
+        it('should set the reportsOwnContext internal property to false', function () {
+            this.myClassObject.instantiate.returns(this.objectValue);
+
+            this.factory.createTranslatedExceptionObject(
+                'My\\Stuff\\MyErrorClass',
+                'my_translation',
+                {'my_placeholder': 'my value'},
+                21,
+                null
+            );
+
+            expect(this.objectValue.getInternalProperty('reportsOwnContext')).to.be.false;
         });
     });
 
@@ -267,7 +587,7 @@ describe('ValueFactory', function () {
             ]);
 
             expect(this.myClassObject.instantiate).to.have.been.calledOnce;
-            expect(this.myClassObject.instantiate.args[0][0][0].getType()).to.equal('integer');
+            expect(this.myClassObject.instantiate.args[0][0][0].getType()).to.equal('int');
             expect(this.myClassObject.instantiate.args[0][0][0].getNative()).to.equal(21);
             expect(this.myClassObject.instantiate.args[0][0][1].getType()).to.equal('string');
             expect(this.myClassObject.instantiate.args[0][0][1].getNative()).to.equal('second arg');

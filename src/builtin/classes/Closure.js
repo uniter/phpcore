@@ -14,7 +14,8 @@ var _ = require('microdash'),
     Promise = require('lie');
 
 module.exports = function (internals) {
-    var callStack = internals.callStack,
+    var callFactory = internals.callFactory,
+        callStack = internals.callStack,
         createStaticMethod = function (method) {
             method.isStatic = true;
 
@@ -23,6 +24,14 @@ module.exports = function (internals) {
         globalNamespace = internals.globalNamespace,
         valueFactory = internals.valueFactory;
 
+    /**
+     * Class used to represent anonymous functions or "closures"
+     *
+     * @see {@link https://secure.php.net/manual/en/class.closure.php}
+     * @see {@link https://secure.php.net/manual/en/closure.construct.php}
+     *
+     * @constructor
+     */
     function Closure() {
 
     }
@@ -210,6 +219,12 @@ module.exports = function (internals) {
                 args.push(valueFactory.coerce(arg));
             });
 
+            callStack.push(callFactory.createFFICall([].slice.call(arguments)));
+
+            function popFFICall() {
+                callStack.pop();
+            }
+
             if (internals.mode === 'async') {
                 return new Promise(function (resolve, reject) {
                     // Call the method via Pausable to allow for blocking operation
@@ -218,13 +233,15 @@ module.exports = function (internals) {
                         [args, thisObj],
                         objectValue.getObject()
                     )
+                        // Pop the call off the stack _before_ returning, to mirror sync mode's behaviour
+                        .finally(popFFICall)
                         .then(
                             function (resultValue) {
                                 resolve(resultValue.getNative());
                             },
                             function (error) {
                                 if (valueFactory.isValue(error) && error.getType() === 'object') {
-                                    // Method threw a PHP Exception, so throw a native JS error for it
+                                    // Method threw a PHP Throwable, so throw a native JS error for it
                                     reject(error.coerceToNativeError());
                                     return;
                                 }
@@ -246,6 +263,8 @@ module.exports = function (internals) {
                     }
 
                     throw error;
+                } finally {
+                    popFFICall();
                 }
             }
 

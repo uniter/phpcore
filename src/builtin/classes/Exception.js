@@ -9,13 +9,11 @@
 
 'use strict';
 
-var _ = require('microdash'),
-    phpCommon = require('phpcommon'),
-    util = require('util'),
-    PHPError = phpCommon.PHPError;
+var _ = require('microdash');
 
 module.exports = function (internals) {
     var callStack = internals.callStack,
+        traceFormatter = internals.traceFormatter,
         valueFactory = internals.valueFactory;
 
     /**
@@ -24,10 +22,14 @@ module.exports = function (internals) {
      * @see {@link https://secure.php.net/manual/en/class.exception.php}
      * @see {@link https://secure.php.net/manual/en/exception.construct.php}
      *
-     * @param {Value} messageValue
+     * @param {Reference|Value|Variable=} messageReference
      * @constructor
      */
-    function Exception(messageValue) {
+    function Exception(messageReference) {
+        var messageValue = messageReference ?
+            messageReference.getValue() :
+            valueFactory.createString(''); // The default exception message is the empty string
+
         /**
          * The internal `trace` property is defined by the shadow constructor.
          *
@@ -38,8 +40,7 @@ module.exports = function (internals) {
          * a "shadow constructor", defined below.
          */
 
-        // The default exception message is the empty string
-        this.setProperty('message', messageValue || valueFactory.createString(''));
+        this.setProperty('message', messageValue);
     }
 
     Exception.shadowConstructor = function () {
@@ -51,14 +52,14 @@ module.exports = function (internals) {
          *
          * @see {@link https://secure.php.net/manual/en/class.exception.php#exception.props.file}
          */
-        this.setProperty('file', valueFactory.createString(callStack.getLastFilePath()));
+        this.setProperty('file', valueFactory.coerce(callStack.getLastFilePath()));
 
         /**
          * The line the exception was created on
          *
          * @see {@link https://secure.php.net/manual/en/class.exception.php#exception.props.line}
          */
-        this.setProperty('line', valueFactory.createInteger(callStack.getLastLine()));
+        this.setProperty('line', valueFactory.coerce(callStack.getLastLine()));
 
         /**
          * A message describing the exception
@@ -70,12 +71,15 @@ module.exports = function (internals) {
          */
         this.setProperty('message', valueFactory.createString(''));
 
+        this.setInternalProperty('reportsOwnContext', false);
+
         // This internal trace prop will not be visible to PHP code
         // except for read-only via the ->getTraceAsString() method.
         this.setInternalProperty('trace', callStack.getTrace());
     };
 
-    util.inherits(Exception, PHPError);
+    // Exception class should implement Throwable in PHP 7+
+    internals.implement('Throwable');
 
     _.extend(Exception.prototype, {
         /**
@@ -121,26 +125,9 @@ module.exports = function (internals) {
          * @returns {StringValue}
          */
         getTraceAsString: function () {
-            var trace = this.getInternalProperty('trace'),
-                traceStrings = [];
+            var trace = this.getInternalProperty('trace');
 
-            trace.pop(); // Drop the current/most recent call, ->getTraceAsString() does not include it
-
-            _.each(trace, function (callData) {
-                // Convert arguments to a string representation
-                var args = _.map(callData.args, function (argValue) {
-                    return argValue.formatAsString();
-                });
-
-                traceStrings.push(
-                    '#' + callData.index + ' ' + callData.file + '(' + callData.line + '): ' +
-                    callData.func + '(' + args.join(', ') + ')'
-                );
-            });
-
-            traceStrings.push('#' + trace.length + ' {main}');
-
-            return valueFactory.createString(traceStrings.join('\n'));
+            return valueFactory.createString(traceFormatter.format(trace));
         }
     });
 

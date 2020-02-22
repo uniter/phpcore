@@ -12,9 +12,7 @@
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
     phpCommon = require('phpcommon'),
-    phpToAST = require('phptoast'),
-    phpToJS = require('phptojs'),
-    syncPhpCore = require('../../sync'),
+    tools = require('./tools'),
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP synchronous execution integration', function () {
@@ -24,13 +22,7 @@ describe('PHP synchronous execution integration', function () {
 return 'my string';
 EOS
 */;}), //jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return syncPhpCore;
-            });
+            module = tools.syncTranspile(null, php);
 
         expect(module().execute().getNative()).to.equal('my string');
     });
@@ -38,19 +30,23 @@ EOS
     it('should correctly handle an exception synchronously', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
-throw new Exception('My intentional exception');
+class MyException extends Exception {
+    public function __construct($message) {
+        parent::__construct($message . ' and suffix');
+    }
+}
+
+throw new MyException('My intentional exception');
 EOS
 */;}), //jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return syncPhpCore;
-            });
+            module = tools.syncTranspile('/path/to/module.php', php),
+            engine = module();
 
         expect(function () {
-            module().execute();
-        }).to.throw(PHPFatalError, 'PHP Fatal error: Uncaught exception \'Exception\'');
+            engine.execute();
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught MyException: My intentional exception and suffix in /path/to/module.php on line 8'
+        );
     });
 });

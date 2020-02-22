@@ -87,8 +87,8 @@ $result[] = (new MyClass())->myInstanceMethod();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
-            engine = module({path: 'path/to/the/dir/of_my_module'});
+            module = tools.syncTranspile('path/to/the/dir/of_my_module', php),
+            engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
             'path/to/the/dir',
@@ -107,8 +107,8 @@ $result[] = __DIR__;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
-            engine = module({path: 'my_root_script.php'});
+            module = tools.syncTranspile('my_root_script.php', php),
+            engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
             ''
@@ -146,8 +146,8 @@ $result[] = (new MyClass())->myInstanceMethod();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
-            engine = module({path: 'path/to/my_module'});
+            module = tools.syncTranspile('path/to/my_module', php),
+            engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
             'path/to/my_module',
@@ -234,9 +234,9 @@ $result = array(__FUNCTION__);
 $result[] = myFunction();
 $result[] = MyClass::myStaticMethod();
 $result[] = (new MyClass())->myInstanceMethod();
-$result[] = function () {
+$result[] = (function () {
     return __FUNCTION__;
-}();
+})();
 $result[] = MyClass::callClosure();
 
 return $result;
@@ -250,7 +250,7 @@ EOS
             'My\\App\\myFunction',  // Normal functions are prefixed with the namespace
             'myStaticMethod',       // Static methods are not prefixed with the class name or namespace
             'myInstanceMethod',     // Instance methods are not prefixed with the class name or namespace
-            '{closure}',            // Closure defined outside of class or function
+            'My\\App\\{closure}',   // Closure defined outside of class or function
             'My\\App\\{closure}'    // Closure defined inside static method
         ]);
     });
@@ -290,9 +290,9 @@ $result = array(__METHOD__);
 $result[] = myFunction();
 $result[] = MyClass::myStaticMethod();
 $result[] = (new MyClass())->myInstanceMethod();
-$result[] = function () {
+$result[] = (function () {
     return __METHOD__;
-}();
+})();
 $result[] = MyClass::callClosure();
 
 return $result;
@@ -311,9 +311,9 @@ EOS
             // Instance methods are prefixed with class name and namespace and _do_ also use ::
             'My\\App\\MyClass::myInstanceMethod',
             // Closure defined outside of class or function
-            '{closure}',
+            'My\\App\\{closure}',
             // Closure defined inside static method
-            'My\\App\\MyClass::My\\App\\{closure}'
+            'My\\App\\{closure}'
         ]);
     });
 

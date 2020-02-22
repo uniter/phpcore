@@ -39,8 +39,40 @@ module.exports = require('pauser')([
             return this.coerceToNumber().add(booleanValue);
         },
 
+        /**
+         * Calls a function or static method based on the contents of the string
+         *
+         * @param {Value[]} args
+         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
+         * @return {Value}
+         */
         call: function (args, namespaceOrNamespaceScope) {
-            return namespaceOrNamespaceScope.getGlobalNamespace().getFunction(this.value).apply(null, args);
+            var classNameValue,
+                match,
+                methodNameValue,
+                value = this;
+
+            if (value.value.indexOf('::') > -1) {
+                /**
+                 * Handle static method call format:
+                 *
+                 *     $func = 'My\Stuff\MyClass::myStaticMethod';
+                 *     $func(...);
+                 */
+                match = value.value.match(/(.*)::(.*)/);
+
+                classNameValue = value.factory.createString(match[1]);
+                methodNameValue = value.factory.createString(match[2]);
+
+                return classNameValue.callStaticMethod(
+                    methodNameValue,
+                    args,
+                    namespaceOrNamespaceScope
+                );
+            }
+
+            // Otherwise must just be the name of a function
+            return namespaceOrNamespaceScope.getGlobalNamespace().getFunction(value.value).apply(null, args);
         },
 
         /**
@@ -49,14 +81,14 @@ module.exports = require('pauser')([
          * @param {StringValue} nameValue
          * @param {Value[]} args
          * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
-         * @param {bool} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
+         * @param {bool=} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
          * @returns {Value}
          */
         callStaticMethod: function (nameValue, args, namespaceOrNamespaceScope, isForwarding) {
             var value = this,
                 classObject = namespaceOrNamespaceScope.getGlobalNamespace().getClass(value.value);
 
-            return classObject.callMethod(nameValue.getNative(), args, null, null, null, isForwarding);
+            return classObject.callMethod(nameValue.getNative(), args, null, null, null, !!isForwarding);
         },
 
         coerceToBoolean: function () {
@@ -169,10 +201,22 @@ module.exports = require('pauser')([
                 rightValue.factory.createInteger(quotient);
         },
 
+        /**
+         * Formats the string for display in stack traces etc.
+         *
+         * @return {string}
+         */
         formatAsString: function () {
             // To match Zend's output, simply wrap the string value in single-quotes,
             // leaving any embedded single-quotes unescaped
-            return '\'' + this.value + '\'';
+            var textValue = this.value;
+
+            if (textValue.length > 15) {
+                // Truncate long strings to improve readability (as per Zend's output)
+                textValue = textValue.substr(0, 15) + '...';
+            }
+
+            return '\'' + textValue + '\'';
         },
 
         getCallableName: function () {
@@ -247,6 +291,45 @@ module.exports = require('pauser')([
         },
 
         /**
+         * {@inheritdoc}
+         */
+        isCallable: function (namespaceScope) {
+            // Must just be the name of a function or static method - as this is a normal string
+            // and not a bareword, it should just be resolved as a FQCN
+            // and not relative to the current namespace scope
+
+            var className,
+                classObject,
+                globalNamespace = namespaceScope.getGlobalNamespace(),
+                match,
+                methodName,
+                value = this;
+
+            if (value.value.indexOf('::') > -1) {
+                /**
+                 * Handle static method call format:
+                 *
+                 *     $func = 'My\Stuff\MyClass::myStaticMethod';
+                 *     $func(...);
+                 */
+                match = value.value.match(/(.*)::(.*)/);
+
+                className = match[1];
+                methodName = match[2];
+
+                if (!globalNamespace.hasClass(className)) {
+                    return false;
+                }
+
+                classObject = globalNamespace.getClass(className);
+
+                return classObject.getMethodSpec(methodName) !== null;
+            }
+
+            return globalNamespace.hasFunction(value.value);
+        },
+
+        /**
          * Determines whether this value is classed as "empty" or not
          *
          * @returns {boolean}
@@ -276,6 +359,13 @@ module.exports = require('pauser')([
             var leftValue = this;
 
             return leftValue.factory.createBoolean(leftValue.value === rightValue.value);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        isIterable: function () {
+            return false;
         },
 
         /**

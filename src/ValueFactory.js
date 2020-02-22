@@ -51,11 +51,11 @@ module.exports = require('pauser')([
      *
      * @param {Resumable|null} pausable
      * @param {string} mode
-     * @param {CallStack} callStack
      * @param {ElementProvider} elementProvider
+     * @param {Translator} translator
      * @constructor
      */
-    function ValueFactory(pausable, mode, callStack, elementProvider) {
+    function ValueFactory(pausable, mode, elementProvider, translator) {
         /**
          * @type {ElementProvider}
          */
@@ -68,9 +68,9 @@ module.exports = require('pauser')([
          */
         this.nextObjectID = 1;
         /**
-         * @type {CallStack}
+         * @type {CallStack|null}
          */
-        this.callStack = callStack;
+        this.callStack = null;
         /**
          * @type {Namespace|null}
          */
@@ -83,6 +83,10 @@ module.exports = require('pauser')([
          * @type {Resumable|null}
          */
         this.pausable = pausable;
+        /**
+         * @type {Translator}
+         */
+        this.translator = translator;
         /**
          * Used for mapping exported unwrapped objects back to their original ObjectValue
          * when they are passed back to PHP-land
@@ -153,6 +157,53 @@ module.exports = require('pauser')([
 
             return new BooleanValue(factory, factory.callStack, value);
         },
+
+        /**
+         * Creates an ObjectValue wrapping a PHP Error instance (eg. a call to an undefined method)
+         *
+         * @param {string} className eg. Error, ParseError, DivisionByZeroError
+         * @param {string|null=} message
+         * @param {number|null=} code
+         * @param {ObjectValue|null=} previousThrowable
+         * @param {string=} filePath To override the file path
+         * @param {number=} lineNumber To override the line number
+         * @param {boolean=} reportsOwnContext Whether the error handles reporting its own file/line context
+         * @returns {ObjectValue}
+         */
+        createErrorObject: function (
+            className,
+            message,
+            code,
+            previousThrowable,
+            filePath,
+            lineNumber,
+            reportsOwnContext
+        ) {
+            var factory = this,
+                errorObject = factory.globalNamespace.getClass(className).instantiate([
+                    factory.createString(message || ''),
+                    factory.createInteger(code || 0),
+                    previousThrowable || factory.createNull()
+                ]);
+
+            if (reportsOwnContext) {
+                errorObject.setInternalProperty('reportsOwnContext', true);
+            }
+
+            // File and line cannot be passed as constructor args,
+            // so we need to manually set them here if specified
+
+            if (filePath !== null && filePath !== undefined) {
+                errorObject.setProperty('file', factory.createString(filePath));
+            }
+
+            if (lineNumber !== null && lineNumber !== undefined) {
+                errorObject.setProperty('line', factory.createInteger(lineNumber));
+            }
+
+            return errorObject;
+        },
+
         createExit: function (statusValue) {
             var factory = this;
 
@@ -273,11 +324,26 @@ module.exports = require('pauser')([
 
             return new NullValue(factory, factory.callStack);
         },
-        createObject: function (value, classObject) {
+
+        /**
+         * Creates an ObjectValue for a given native value and class
+         *
+         * @param {object} nativeValue
+         * @param {Class} classObject
+         * @return {ObjectValue}
+         */
+        createObject: function (nativeValue, classObject) {
             var factory = this;
 
             // Object ID tracking is incomplete: ID should be freed when all references are lost
-            return new ObjectValue(factory, factory.callStack, value, classObject, factory.nextObjectID++);
+            return new ObjectValue(
+                factory,
+                factory.callStack,
+                factory.translator,
+                nativeValue,
+                classObject,
+                factory.nextObjectID++
+            );
         },
 
         /**
@@ -303,6 +369,70 @@ module.exports = require('pauser')([
             var factory = this;
 
             return new StringValue(factory, factory.callStack, value);
+        },
+
+        /**
+         * Creates an ObjectValue wrapping a PHP Error instance (eg. a call to an undefined method)
+         *
+         * @param {string} className eg. Error, ParseError, DivisionByZeroError
+         * @param {string} translationKey
+         * @param {Object.<string, string>=} placeholderVariables
+         * @param {number|null=} code
+         * @param {ObjectValue|null=} previousThrowable
+         * @param {string=} filePath To override the file path
+         * @param {number=} lineNumber To override the line number
+         * @returns {ObjectValue}
+         */
+        createTranslatedErrorObject: function (
+            className,
+            translationKey,
+            placeholderVariables,
+            code,
+            previousThrowable,
+            filePath,
+            lineNumber
+        ) {
+            var factory = this,
+                message = factory.translator.translate(translationKey, placeholderVariables);
+
+            return factory.createErrorObject(
+                className,
+                message,
+                code,
+                previousThrowable,
+                filePath,
+                lineNumber
+            );
+        },
+
+        /**
+         * Creates an ObjectValue wrapping a PHP Exception instance (eg. a RuntimeException)
+         *
+         * @param {string} className eg. Exception, LogicException, RuntimeException
+         * @param {string} translationKey
+         * @param {Object.<string, string>=} placeholderVariables
+         * @param {number|null=} code
+         * @param {ObjectValue|null=} previousThrowable
+         * @returns {ObjectValue}
+         */
+        createTranslatedExceptionObject: function (
+            className,
+            translationKey,
+            placeholderVariables,
+            code,
+            previousThrowable
+        ) {
+            var factory = this,
+                message = factory.translator.translate(translationKey, placeholderVariables);
+
+            return factory.instantiateObject(
+                className,
+                [
+                    message,
+                    code,
+                    previousThrowable
+                ]
+            );
         },
 
         /**
@@ -348,6 +478,21 @@ module.exports = require('pauser')([
             factory.unwrappedObjectToValueMap.set(unwrappedObject, objectValue);
             factory.valueToUnwrappedObjectMap.set(objectValue, unwrappedObject);
         },
+
+        /**
+         * Sets the CallStack to use for created value objects
+         *
+         * @param {CallStack} callStack
+         */
+        setCallStack: function (callStack) {
+            this.callStack = callStack;
+        },
+
+        /**
+         * Sets the root/global namespace
+         *
+         * @param {Namespace} globalNamespace
+         */
         setGlobalNamespace: function (globalNamespace) {
             this.globalNamespace = globalNamespace;
         }

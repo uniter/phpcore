@@ -11,7 +11,9 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../../tools');
+    phpCommon = require('phpcommon'),
+    tools = require('../../tools'),
+    PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP instance property object access "->" integration', function () {
     it('should allow properties with or without an initial value', function () {
@@ -132,7 +134,6 @@ $myObject = new MyThirdClass();
 $result[] = $myObject->getFirstSecret();
 $result[] = $myObject->getSecondSecret();
 $result[] = $myObject->getThirdSecret();
-//$result[] = $myObject->mySecretProp; // The public one should be exposed and not either of the private ones
 
 return $result;
 EOS
@@ -222,6 +223,7 @@ EOS
     it('should raise a notice but return null for reads of undeclared properties', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
+ini_set('error_reporting', E_ALL); // Notices are hidden by default
 
 class MyClass {
     public function getAnUndeclaredProp() {
@@ -236,20 +238,21 @@ $result[] = $object->getAnUndeclaredProp();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('there.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
             null
         ]);
         expect(engine.getStderr().readAll()).to.equal(
-            'PHP Notice: Undefined property: MyClass::$anUndeclaredProp\n'
+            'PHP Notice:  Undefined property: MyClass::$anUndeclaredProp in there.php on line 6\n'
         );
     });
 
     it('should raise two notices but return null when accessing a static property non-statically', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
+ini_set('error_reporting', E_ALL); // Notices are hidden by default
 
 class MyClass {
     public static $myStaticProp = 21;
@@ -266,15 +269,156 @@ $result[] = $object->getMyProp();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
             null
         ]);
         expect(engine.getStderr().readAll()).to.equal(
-            'PHP Strict standards: Accessing static property MyClass::$myStaticProp as non static\n' +
-            'PHP Notice: Undefined property: MyClass::$myStaticProp\n'
+            'PHP Strict standards:  Accessing static property MyClass::$myStaticProp as non static in my_module.php on line 8\n' +
+            'PHP Notice:  Undefined property: MyClass::$myStaticProp in my_module.php on line 8\n'
+        );
+    });
+
+    it('should raise a fatal error on attempting to access a private property outside the class', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass {
+    private $mySecretProp = 21;
+}
+
+$object = new MyClass;
+
+return $object->mySecretProp;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('my_module.php', php),
+            engine = module();
+
+        expect(function () {
+            engine.execute();
+        }.bind(this)).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Cannot access private property MyClass::$mySecretProp in my_module.php on line 9'
+        );
+    });
+
+    it('should raise a fatal error on attempting to access a private property from an ancestor', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyParentClass {
+    public function getIt() {
+        return $this->mySecretProp;
+    }
+}
+
+class MyChildClass extends MyParentClass {
+    private $mySecretProp = 21;
+}
+
+$object = new MyChildClass;
+
+return $object->getIt();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('my_module.php', php),
+            engine = module();
+
+        expect(function () {
+            engine.execute();
+        }.bind(this)).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Cannot access private property MyChildClass::$mySecretProp in my_module.php on line 5'
+        );
+    });
+
+    it('should raise a notice and return null on attempting to access a private property from an ancestor when the definer is extended', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+ini_set('error_reporting', E_ALL); // Enable notices as we're testing for one being raised
+
+class MyParentClass {
+    public function getIt() {
+        return $this->mySecretProp;
+    }
+}
+
+class MyChildClass extends MyParentClass {
+    private $mySecretProp = 21;
+}
+
+class MyGrandchildClass extends MyChildClass {}
+
+$object = new MyGrandchildClass;
+
+return $object->getIt();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('my_module.php', php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.be.null;
+        expect(engine.getStderr().readAll()).to.equal(
+            'PHP Notice:  Undefined property: MyGrandchildClass::$mySecretProp in my_module.php on line 6\n'
+        );
+    });
+
+    it('should raise a fatal error on attempting to access a private property from a descendant', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyParentClass {
+    private $mySecretProp = 21;
+}
+
+class MyChildClass extends MyParentClass {
+    public function getIt() {
+        return $this->mySecretProp;
+    }
+}
+
+$object = new MyChildClass;
+
+return $object->getIt();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('my_module.php', php),
+            engine = module();
+
+        expect(function () {
+            engine.execute();
+        }.bind(this)).to.throw(
+            PHPFatalError,
+            // Note that this is different from the behaviour in this scenario for a static property,
+            // where the error message would be "Cannot access private property ..."
+            'PHP Fatal error: Uncaught Error: Undefined property: MyChildClass::$mySecretProp in my_module.php on line 9'
+        );
+    });
+
+    it('should raise a fatal error on attempting to access a protected property outside the class', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass {
+    protected $mySecretProp = 21;
+}
+
+$object = new MyClass;
+
+return $object->mySecretProp;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('my_module.php', php),
+            engine = module();
+
+        expect(function () {
+            engine.execute();
+        }.bind(this)).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Cannot access protected property MyClass::$mySecretProp in my_module.php on line 9'
         );
     });
 });

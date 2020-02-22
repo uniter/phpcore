@@ -61,9 +61,10 @@ module.exports = require('pauser')([
          * @param {string|null} name
          * @param {ObjectValue|null} currentObject
          * @param {Class|null} staticClass Used by eg. static::
+         * @param {FunctionSpec} functionSpec
          * @returns {Function}
          */
-        create: function (namespaceScope, currentClass, func, name, currentObject, staticClass) {
+        create: function (namespaceScope, currentClass, func, name, currentObject, staticClass, functionSpec) {
             var factory = this,
                 wrapperFunc = function () {
                     var args = slice.call(arguments),
@@ -85,14 +86,27 @@ module.exports = require('pauser')([
                         thisObject = null;
                     }
 
-                    scope = factory.scopeFactory.create(namespaceScope, currentClass, wrapperFunc, thisObject);
+                    // Coerce parameter arguments as required
+                    args = functionSpec.coerceArguments(args);
+
+                    scope = factory.scopeFactory.create(currentClass, wrapperFunc, thisObject);
                     call = factory.callFactory.create(scope, namespaceScope, args, newStaticClass);
 
                     // Push the call onto the stack
                     factory.callStack.push(call);
 
                     try {
+                        // Now validate the arguments at this point (coercion was done earlier)
+                        // - if any error is raised then the call will still be popped off
+                        //   by the finally clause below
+                        functionSpec.validateArguments(args);
+
+                        // Now populate any optional arguments that were omitted with their default values
+                        args = functionSpec.populateDefaultArguments(args);
+
                         result = func.apply(scope, args);
+
+                        // TODO: Coerce the result as needed (if the PHP function has a return type defined)
                     } finally {
                         // Pop the call off the stack when done
                         factory.callStack.pop();
@@ -101,7 +115,7 @@ module.exports = require('pauser')([
                     return result;
                 };
 
-            wrapperFunc.funcName = name || namespaceScope.getNamespacePrefix() + '{closure}';
+            wrapperFunc.functionSpec = functionSpec;
             wrapperFunc.isPHPCoreWrapped = true;
 
             return wrapperFunc;
@@ -109,6 +123,8 @@ module.exports = require('pauser')([
 
         /**
          * Creates a new MethodSpec, that describes the specified method of a class
+         *
+         * @TODO: Replace with FunctionSpec instead?
          *
          * @param {Class} originalClass The original class checked against (eg. a derived class for an inherited method)
          * @param {Class} classObject The class the method is actually defined on (may be an ancestor)

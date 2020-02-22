@@ -45,6 +45,17 @@ describe('AccessorReference', function () {
         });
     });
 
+    describe('divideBy()', function () {
+        it('should divide the result of the getter by the given value and pass it to the setter', function () {
+            this.valueGetter.returns(40);
+
+            this.reference.divideBy(this.valueFactory.createInteger(10));
+
+            expect(this.valueSetter).to.have.been.calledOnce;
+            expect(this.valueSetter).to.have.been.calledWith(4);
+        });
+    });
+
     describe('getNative()', function () {
         it('should return result of the getter coerced to a PHP value', function () {
             this.valueGetter.returns(21);
@@ -60,7 +71,7 @@ describe('AccessorReference', function () {
 
             value = this.reference.getValue();
 
-            expect(value.getType()).to.equal('integer');
+            expect(value.getType()).to.equal('int');
             expect(value.getNative()).to.equal(101);
         });
     });
@@ -73,6 +84,17 @@ describe('AccessorReference', function () {
 
             expect(this.valueSetter).to.have.been.calledOnce;
             expect(this.valueSetter).to.have.been.calledWith(27);
+        });
+    });
+
+    describe('multiplyBy()', function () {
+        it('should multiply the result of the getter by the given value and pass it to the setter', function () {
+            this.valueGetter.returns(4);
+
+            this.reference.multiplyBy(this.valueFactory.createInteger(10));
+
+            expect(this.valueSetter).to.have.been.calledOnce;
+            expect(this.valueSetter).to.have.been.calledWith(40);
         });
     });
 

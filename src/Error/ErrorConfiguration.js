@@ -12,6 +12,8 @@
 var _ = require('microdash');
 
 /**
+ * Handles the configuration for error handling in PHP-land
+ *
  * @param {INIState} iniState
  * @constructor
  */

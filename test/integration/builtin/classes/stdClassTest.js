@@ -31,13 +31,13 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php, {
+            module = tools.syncTranspile('/my/test/module.php', php, {
                 // Capture offsets of all nodes for line tracking
                 phpToAST: {captureAllBounds: true},
                 // Record line numbers for statements/expressions
                 phpToJS: {lineNumbers: true}
             }),
-            engine = module({path: '/my/test/module.php'});
+            engine = module();
 
         engine.defineGlobal('myJSObject', {
             propWithNumber: 21,

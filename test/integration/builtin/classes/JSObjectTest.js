@@ -11,7 +11,9 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../../tools');
+    phpCommon = require('phpcommon'),
+    tools = require('../../tools'),
+    PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP builtin JSObject class integration', function () {
     it('should be able to fetch the properties of a JS object', function () {
@@ -30,13 +32,13 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php, {
+            module = tools.syncTranspile('/my/test/module.php', php, {
                 // Capture offsets of all nodes for line tracking
                 phpToAST: {captureAllBounds: true},
                 // Record line numbers for statements/expressions
                 phpToJS: {lineNumbers: true}
             }),
-            engine = module({path: '/my/test/module.php'});
+            engine = module();
 
         // Use Object.create(...) so that the object is not seen as a POJO and casted to an assoc. array
         engine.defineGlobal('myJSObject', Object.create({
@@ -70,13 +72,13 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php, {
+            module = tools.syncTranspile('/my/test/module.php', php, {
                 // Capture offsets of all nodes for line tracking
                 phpToAST: {captureAllBounds: true},
                 // Record line numbers for statements/expressions
                 phpToJS: {lineNumbers: true}
             }),
-            engine = module({path: '/my/test/module.php'}),
+            engine = module(),
             prototypeObject = Object.create({}, {
                 shadowedProperty: {
                     writable: true, // Allow this property to be shadowed
@@ -114,13 +116,13 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php, {
+            module = tools.syncTranspile('/my/test/module.php', php, {
                 // Capture offsets of all nodes for line tracking
                 phpToAST: {captureAllBounds: true},
                 // Record line numbers for statements/expressions
                 phpToJS: {lineNumbers: true}
             }),
-            engine = module({path: '/my/test/module.php'});
+            engine = module();
 
         // Use Object.create(...) so that the object is not seen as a POJO and casted to an assoc. array
         engine.defineGlobal('myJSObject', Object.create({
@@ -143,13 +145,13 @@ $myJSObject->myShadowedProp = 1001; // Assign a new own property that will shado
 
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php, {
+            module = tools.syncTranspile('/my/test/module.php', php, {
                 // Capture offsets of all nodes for line tracking
                 phpToAST: {captureAllBounds: true},
                 // Record line numbers for statements/expressions
                 phpToJS: {lineNumbers: true}
             }),
-            engine = module({path: '/my/test/module.php'}),
+            engine = module(),
             prototypeObject = {
                 myShadowedProp: 21
             },
@@ -173,13 +175,13 @@ unset($myJSObject->myProp);
 
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php, {
+            module = tools.syncTranspile('/my/test/module.php', php, {
                 // Capture offsets of all nodes for line tracking
                 phpToAST: {captureAllBounds: true},
                 // Record line numbers for statements/expressions
                 phpToJS: {lineNumbers: true}
             }),
-            engine = module({path: '/my/test/module.php'}),
+            engine = module(),
             // Use Object.create(...) so that the object is not seen as a POJO and casted to an assoc. array
             derivedObject = Object.create({});
 
@@ -204,13 +206,13 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php, {
+            module = tools.syncTranspile('/my/test/module.php', php, {
                 // Capture offsets of all nodes for line tracking
                 phpToAST: {captureAllBounds: true},
                 // Record line numbers for statements/expressions
                 phpToJS: {lineNumbers: true}
             }),
-            engine = module({path: '/my/test/module.php'});
+            engine = module();
 
         // Use Object.create(...) so that the object is not seen as a POJO and casted to an assoc. array
         engine.defineGlobal('myJSObject', Object.create({
@@ -238,13 +240,13 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php, {
+            module = tools.syncTranspile('/my/test/module.php', php, {
                 // Capture offsets of all nodes for line tracking
                 phpToAST: {captureAllBounds: true},
                 // Record line numbers for statements/expressions
                 phpToJS: {lineNumbers: true}
             }),
-            engine = module({path: '/my/test/module.php'});
+            engine = module();
 
         // This object has methods, so will not be seen as a POJO and casted to an assoc. array
         engine.defineGlobal('myJSObject', {
@@ -262,6 +264,36 @@ EOS
         ]);
     });
 
+    it('should raise a "Call to undefined method ..." error when a JS object method is not defined', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$myJSObject->myUndefinedMethod();
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile('/my/test/module.php', php, {
+                // Capture offsets of all nodes for line tracking
+                phpToAST: {captureAllBounds: true},
+                // Record line numbers for statements/expressions
+                phpToJS: {lineNumbers: true}
+            }),
+            engine = module();
+
+        // This object has methods, so will not be seen as a POJO and casted to an assoc. array
+        engine.defineGlobal('myJSObject', {
+            someMethod: function () {
+                return 'the wrong result';
+            }
+        });
+
+        expect(function () {
+            engine.execute();
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Call to undefined method JSObject::myUndefinedMethod() in /my/test/module.php on line 3'
+        );
+    });
+
     it('should allow JS functions wrapped as JSObjects to be called', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -275,13 +307,13 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php, {
+            module = tools.syncTranspile('/my/test/module.php', php, {
                 // Capture offsets of all nodes for line tracking
                 phpToAST: {captureAllBounds: true},
                 // Record line numbers for statements/expressions
                 phpToJS: {lineNumbers: true}
             }),
-            engine = module({path: '/my/test/module.php'});
+            engine = module();
 
         engine.defineGlobal('myJSFunction', function (arg) {
             return 'hello ' + arg;

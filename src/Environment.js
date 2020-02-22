@@ -11,7 +11,14 @@
 
 var _ = require('microdash');
 
+/**
+ * @param {PHPState} state
+ * @constructor
+ */
 function Environment(state) {
+    /**
+     * @type {PHPState}
+     */
     this.state = state;
 }
 
@@ -39,6 +46,17 @@ _.extend(Environment.prototype, {
     },
 
     /**
+     * Defines a constant with the given native value
+     *
+     * @param {string} name
+     * @param {*} value
+     * @param {object} options
+     */
+    defineConstant: function (name, value, options) {
+        this.state.defineConstant(name, value, options);
+    },
+
+    /**
      * Defines a global variable and gives it the provided value
      *
      * @param {string} name
@@ -57,6 +75,17 @@ _.extend(Environment.prototype, {
      */
     defineGlobalAccessor: function (name, valueGetter, valueSetter) {
         this.state.defineGlobalAccessor(name, valueGetter, valueSetter);
+    },
+
+    /**
+     * Defines a global function from a native JS one. If a fully-qualified name is provided
+     * with a namespace prefix, eg. `My\Lib\MyFunc` then it will be defined in the specified namespace
+     *
+     * @param {string} name
+     * @param {Function} fn
+     */
+    defineNonCoercingFunction: function (name, fn) {
+        this.state.defineNonCoercingFunction(name, fn);
     },
 
     defineSuperGlobal: function (name, value) {

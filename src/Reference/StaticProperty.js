@@ -12,17 +12,24 @@
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
     util = require('util'),
-    PHPFatalError = phpCommon.PHPFatalError,
-    Reference = require('./Reference');
+    PHPError = phpCommon.PHPError,
+    Reference = require('./Reference'),
+
+    CANNOT_UNSET_STATIC_PROPERTY = 'core.cannot_unset_static_property';
 
 /**
+ * @param {CallStack} callStack
  * @param {Class} classObject
  * @param {string} name
  * @param {string} visibility "private", "protected" or "public"
  * @param {Value} value
  * @constructor
  */
-function StaticPropertyReference(classObject, name, visibility, value) {
+function StaticPropertyReference(callStack, classObject, name, visibility, value) {
+    /**
+     * @type {CallStack}
+     */
+    this.callStack = callStack;
     /**
      * @type {Class}
      */
@@ -126,7 +133,7 @@ _.extend(StaticPropertyReference.prototype, {
     unset: function () {
         var property = this;
 
-        throw new PHPFatalError(PHPFatalError.CANNOT_UNSET_STATIC_PROPERTY, {
+        property.callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_UNSET_STATIC_PROPERTY, {
             className: property.classObject.getName(),
             propertyName: property.name
         });

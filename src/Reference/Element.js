@@ -118,7 +118,7 @@ _.extend(ElementReference.prototype, {
             return element.reference.getValue().isEmpty();
         }
 
-        return false;
+        return true; // Undefined elements are empty
     },
 
     isReference: function () {

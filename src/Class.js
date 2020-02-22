@@ -23,11 +23,15 @@ module.exports = require('pauser')([
     var IS_STATIC = 'isStatic',
         MAGIC_CALL = '__call',
         MAGIC_CALL_STATIC = '__callStatic',
+
+        CANNOT_ACCESS_PROPERTY = 'core.cannot_access_property',
+        UNDEFINED_CLASS_CONSTANT = 'core.undefined_class_constant',
+        UNDEFINED_METHOD = 'core.undefined_method',
+
         VALUE = 'value',
         VISIBILITY = 'visibility',
         hasOwn = {}.hasOwnProperty,
         PHPError = phpCommon.PHPError,
-        PHPFatalError = phpCommon.PHPFatalError,
         /**
          * Defines an "unwrapped" internal class, used to export objects to JS-land
          * with an API that provides a JS method for each PHP class method,
@@ -133,6 +137,7 @@ module.exports = require('pauser')([
             // Pass the class object to the property initialiser (if any),
             // so that it may refer to other properties/constants of this class with self::*
             staticProperties[name] = new StaticPropertyReference(
+                callStack,
                 classObject,
                 name,
                 data[VISIBILITY],
@@ -171,12 +176,14 @@ module.exports = require('pauser')([
                         objectValue = thisObject;
 
                         if (!objectValue) {
+                            // TODO: Change for PHP 7 (see https://www.php.net/manual/en/migration70.incompatible.php)
                             classObject.callStack.raiseError(
                                 PHPError.E_STRICT,
                                 'Non-static method ' + method.data.classObject.name +
                                 '::' + methodName + '() should not be called statically'
                             );
                         } else if (!objectValue.classIs(classObject.getName())) {
+                            // TODO: Change for PHP 7 (see https://www.php.net/manual/en/migration70.incompatible.php)
                             classObject.callStack.raiseError(
                                 PHPError.E_STRICT,
                                 'Non-static method ' + method.data.classObject.name +
@@ -285,13 +292,10 @@ module.exports = require('pauser')([
             }
 
             // Method was not found and no magic __call method is defined
-            throw new PHPFatalError(
-                PHPFatalError.UNDEFINED_METHOD,
-                {
-                    className: classObject.name,
-                    methodName: methodName
-                }
-            );
+            classObject.callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_METHOD, {
+                className: classObject.name,
+                methodName: methodName
+            });
         },
 
         /**
@@ -351,21 +355,25 @@ module.exports = require('pauser')([
             return classObject.superClass && (classObject.superClass.name === superClass.name || classObject.superClass.extends(superClass));
         },
 
+        /**
+         * Fetches the value of a constant of this class. Constants may be defined by the current class,
+         * an ancestor or by an interface implemented by this class or an ancestor
+         *
+         * @param {string} name
+         * @return {Value}
+         */
         getConstantByName: function (name) {
             var classObject = this,
                 i,
                 interfaceObject;
 
             if (name.toLowerCase() === 'class') {
+                // The special MyClass::class constant that fetches the FQCN of the class as a string
                 return classObject.valueFactory.createString(classObject.getName());
             }
 
             if (hasOwn.call(classObject.constants, name)) {
                 return classObject.constants[name]();
-            }
-
-            if (classObject.superClass) {
-                return classObject.superClass.getConstantByName(name);
             }
 
             for (i = 0; i < classObject.interfaceNames.length; i++) {
@@ -378,7 +386,11 @@ module.exports = require('pauser')([
                 }
             }
 
-            throw new PHPFatalError(PHPFatalError.UNDEFINED_CLASS_CONSTANT, {
+            if (classObject.superClass) {
+                return classObject.superClass.getConstantByName(name);
+            }
+
+            classObject.callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_CLASS_CONSTANT, {
                 name: name
             });
         },
@@ -466,8 +478,8 @@ module.exports = require('pauser')([
          * @returns {StaticPropertyReference|UndeclaredStaticPropertyReference}
          */
         getStaticPropertyByName: function (name) {
-            var classObject = this,
-                currentClass,
+            var callingClass,
+                classObject = this,
                 staticProperty;
 
             if (!hasOwn.call(classObject.staticProperties, name)) {
@@ -478,28 +490,34 @@ module.exports = require('pauser')([
 
                 // Undeclared static properties cannot be accessed _except_ by isset(...) or empty(...),
                 // which return the relevant boolean result (`false` and `true` respectively)
-                return new UndeclaredStaticPropertyReference(classObject, name);
+                return new UndeclaredStaticPropertyReference(classObject.callStack, classObject, name);
             }
 
             staticProperty = classObject.staticProperties[name];
 
             // Property is private; may only be read from methods of this class and not derivatives
             if (staticProperty.getVisibility() === 'private') {
-                currentClass = classObject.callStack.getCurrent().getScope().getCurrentClass();
+                callingClass = classObject.callStack.getCurrentClass();
 
-                if (!currentClass || currentClass.name !== classObject.name) {
-                    throw new PHPFatalError(PHPFatalError.CANNOT_ACCESS_PROPERTY, {
-                        className: classObject.name,
+                if (!callingClass || callingClass.name !== classObject.name) {
+                    classObject.callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_ACCESS_PROPERTY, {
+                        className: (callingClass || classObject).getName(),
                         propertyName: name,
                         visibility: 'private'
                     });
                 }
             // Property is protected; may be read from methods of this class and methods of derivatives
             } else if (staticProperty.getVisibility() === 'protected') {
-                currentClass = classObject.callStack.getCurrent().getScope().getCurrentClass();
+                callingClass = classObject.callStack.getCurrentClass();
 
-                if (!currentClass || (classObject.name !== currentClass.name && !currentClass.extends(classObject))) {
-                    throw new PHPFatalError(PHPFatalError.CANNOT_ACCESS_PROPERTY, {
+                if (
+                    !callingClass ||
+                    (
+                        classObject.getName() !== callingClass.getName() &&
+                        !callingClass.isInFamilyOf(classObject)
+                    )
+                ) {
+                    classObject.callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_ACCESS_PROPERTY, {
                         className: classObject.name,
                         propertyName: name,
                         visibility: 'protected'

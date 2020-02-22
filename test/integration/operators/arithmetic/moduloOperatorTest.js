@@ -50,12 +50,14 @@ EOS
 return 100 % 0;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('my_module.php', php),
             engine = module(),
             resultValue = engine.execute();
 
         expect(resultValue.getType()).to.equal('boolean');
         expect(resultValue.getNative()).to.equal(false);
-        expect(engine.getStderr().readAll()).to.equal('PHP Warning: Division by zero\n');
+        // TODO: In PHP 7 this should actually be:
+        //       "PHP Fatal error:  Uncaught DivisionByZeroError: Modulo by zero in my_module.php:3"
+        expect(engine.getStderr().readAll()).to.equal('PHP Warning:  Division by zero in my_module.php on line 3\n');
     });
 });

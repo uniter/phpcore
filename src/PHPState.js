@@ -20,12 +20,21 @@ module.exports = require('pauser')([
     require('./CallStack'),
     require('./ClassAutoloader'),
     require('./Closure'),
+    require('./Function/ClosureContext'),
     require('./ClosureFactory'),
     require('./Reference/Element/ElementProviderFactory'),
-    require('./ErrorConfiguration'),
+    require('./Error/ErrorConfiguration'),
+    require('./Error/ErrorConverter'),
+    require('./Error/ErrorReporting'),
+    require('./FFI/Call'),
+    require('./Function/FunctionContext'),
     require('./FunctionFactory'),
+    require('./Function/FunctionSpec'),
+    require('./Function/FunctionSpecFactory'),
     require('./INIState'),
     require('./Loader'),
+    require('./LoadScope'),
+    require('./Function/MethodContext'),
     require('./MethodSpec'),
     require('./Module'),
     require('./ModuleFactory'),
@@ -37,11 +46,17 @@ module.exports = require('pauser')([
     require('./Output/Output'),
     require('./Output/OutputBuffer'),
     require('./Output/OutputFactory'),
+    require('./Function/Parameter'),
+    require('./Function/ParameterFactory'),
+    require('./Function/ParameterListFactory'),
+    require('./Function/ParameterTypeFactory'),
     require('./ReferenceFactory'),
     require('./Scope'),
     require('./ScopeFactory'),
     require('./Output/StdoutBuffer'),
     require('./SuperGlobalScope'),
+    require('./Error/TraceFormatter'),
+    require('./Type/TypeFactory'),
     require('./Value'),
     require('./ValueFactory'),
     require('./Variable'),
@@ -58,12 +73,21 @@ module.exports = require('pauser')([
     CallStack,
     ClassAutoloader,
     Closure,
+    ClosureContext,
     ClosureFactory,
     ElementProviderFactory,
     ErrorConfiguration,
+    ErrorConverter,
+    ErrorReporting,
+    FFICall,
+    FunctionContext,
     FunctionFactory,
+    FunctionSpec,
+    FunctionSpecFactory,
     INIState,
     Loader,
+    LoadScope,
+    MethodContext,
     MethodSpec,
     Module,
     ModuleFactory,
@@ -75,18 +99,24 @@ module.exports = require('pauser')([
     Output,
     OutputBuffer,
     OutputFactory,
+    Parameter,
+    ParameterFactory,
+    ParameterListFactory,
+    ParameterTypeFactory,
     ReferenceFactory,
     Scope,
     ScopeFactory,
     StdoutBuffer,
     SuperGlobalScope,
+    TraceFormatter,
+    TypeFactory,
     Value,
     ValueFactory,
     Variable,
     VariableFactory,
     VariableReference
 ) {
-    var EXCEPTION_CLASS = 'Exception',
+    var THROWABLE_INTERFACE = 'Throwable',
         hasOwn = {}.hasOwnProperty,
         setUpState = function (state, installedBuiltinTypes, optionGroups) {
             var globalNamespace = state.globalNamespace;
@@ -115,7 +145,7 @@ module.exports = require('pauser')([
                 var groupBuiltins = groupFactory(state.internals);
 
                 _.each(groupBuiltins, function (fn, name) {
-                    globalNamespace.defineFunction(name, fn);
+                    globalNamespace.defineFunction(name, fn, state.globalNamespaceScope);
                 });
             }
 
@@ -179,32 +209,69 @@ module.exports = require('pauser')([
                 _.extend(state.options, groupOptions);
             }
 
+            /**
+             * Installs a set of translations for one or more locales
+             *
+             * @param {object} cataloguesByLocale
+             */
+            function installTranslationCatalogues(cataloguesByLocale) {
+                state.translator.addTranslations(cataloguesByLocale);
+            }
+
             // Core builtins
+            _.each(builtinTypes.translationCatalogues, installTranslationCatalogues);
             _.each(builtinTypes.constantGroups, installConstantGroup);
             _.each(builtinTypes.defaultINIGroups, installDefaultINIOptionGroup);
             _.each(builtinTypes.functionGroups, installFunctionGroup);
             _.each(builtinTypes.classGroups, installClassGroup);
-            _.forOwn(builtinTypes.classes, installClass);
+
+            if (_.isArray(builtinTypes.classes)) {
+                // Allow the class set to be an array, for grouping classes
+                // so that they will load in a specific order (ie. when handling dependencies between them)
+                _.each(builtinTypes.classes, function (classes) {
+                    _.forOwn(classes, installClass);
+                });
+            } else {
+                _.forOwn(builtinTypes.classes, installClass);
+            }
 
             // Optional installed builtins
             _.each(optionGroups, installOptionGroup);
             state.bindings = {};
+            _.each(installedBuiltinTypes.translationCatalogues, installTranslationCatalogues);
             _.each(installedBuiltinTypes.constantGroups, installConstantGroup);
             _.each(installedBuiltinTypes.defaultINIGroups, installDefaultINIOptionGroup);
             _.each(installedBuiltinTypes.bindingGroups, installBindingGroup);
+            // TODO: Add "exposures" for plugins to expose things to transpiled code
+            // TODO: Add "externals" for plugins to expose things to external code (eg. engine.getExternal(...))?
             _.each(installedBuiltinTypes.functionGroups, installFunctionGroup);
             _.each(installedBuiltinTypes.classGroups, installClassGroup);
             _.forOwn(installedBuiltinTypes.classes, installClass);
         },
-        Exception = phpCommon.Exception;
+        Exception = phpCommon.Exception,
+        Translator = phpCommon.Translator;
 
     function PHPState(runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, mode, optionGroups, options) {
-        var callStack = new CallStack(stderr),
-            callFactory = new CallFactory(Call),
+        var callFactory = new CallFactory(Call, FFICall),
             elementProviderFactory = new ElementProviderFactory(),
             elementProvider = elementProviderFactory.createProvider(),
             moduleFactory = new ModuleFactory(Module),
-            valueFactory = new ValueFactory(pausable, mode, callStack, elementProvider),
+            translator = new Translator(),
+            valueFactory = new ValueFactory(pausable, mode, elementProvider, translator),
+            iniState = new INIState(),
+            getConstant = this.getConstant.bind(this),
+            errorConfiguration = new ErrorConfiguration(iniState),
+            errorConverter = new ErrorConverter(getConstant),
+            traceFormatter = new TraceFormatter(),
+            errorReporting = new ErrorReporting(
+                errorConfiguration,
+                errorConverter,
+                traceFormatter,
+                translator,
+                stdout,
+                stderr
+            ),
+            callStack = new CallStack(valueFactory, translator, errorReporting, stderr),
             referenceFactory = new ReferenceFactory(
                 AccessorReference,
                 NullReference,
@@ -214,11 +281,26 @@ module.exports = require('pauser')([
             classAutoloader = new ClassAutoloader(valueFactory),
             superGlobalScope = new SuperGlobalScope(callStack, valueFactory),
             variableFactory = new VariableFactory(Variable, callStack, valueFactory),
+            typeFactory = new TypeFactory(),
+            parameterFactory = new ParameterFactory(Parameter, callStack, translator),
+            parameterTypeFactory = new ParameterTypeFactory(typeFactory),
+            parameterListFactory = new ParameterListFactory(parameterFactory, parameterTypeFactory),
+            functionSpecFactory = new FunctionSpecFactory(
+                FunctionSpec,
+                FunctionContext,
+                MethodContext,
+                ClosureContext,
+                callStack,
+                parameterListFactory,
+                valueFactory
+            ),
             scopeFactory = new ScopeFactory(
+                LoadScope,
                 Scope,
                 NamespaceScope,
                 callStack,
                 superGlobalScope,
+                functionSpecFactory,
                 valueFactory,
                 variableFactory,
                 referenceFactory
@@ -229,6 +311,7 @@ module.exports = require('pauser')([
                 Namespace,
                 callStack,
                 functionFactory,
+                functionSpecFactory,
                 valueFactory,
                 classAutoloader
             ),
@@ -236,15 +319,23 @@ module.exports = require('pauser')([
             // The global/default module (not eg. the same as the command line module)
             globalModule = moduleFactory.create(null),
             // "Invisible" global namespace scope, not defined by any code
-            globalNamespaceScope = new NamespaceScope(globalNamespace, valueFactory, globalModule, globalNamespace),
+            globalNamespaceScope = new NamespaceScope(
+                globalNamespace,
+                valueFactory,
+                callStack,
+                globalModule,
+                globalNamespace,
+                true
+            ),
             globalScope,
             globalsSuperGlobal = superGlobalScope.defineVariable('GLOBALS'),
             state = this;
 
         scopeFactory.setClosureFactory(closureFactory);
-        globalScope = scopeFactory.create(globalNamespaceScope);
+        globalScope = scopeFactory.create();
         scopeFactory.setGlobalScope(globalScope);
         classAutoloader.setGlobalNamespace(globalNamespace);
+        valueFactory.setCallStack(callStack);
         valueFactory.setGlobalNamespace(globalNamespace);
 
         // Set up the $GLOBALS superglobal
@@ -303,17 +394,19 @@ module.exports = require('pauser')([
         this.bindings = null;
         this.callFactory = callFactory;
         this.callStack = callStack;
+        this.errorReporting = errorReporting;
         this.globalNamespace = globalNamespace;
         this.globalNamespaceScope = globalNamespaceScope;
         this.globalScope = globalScope;
-        this.iniState = new INIState();
+        this.iniState = iniState;
         this.options = options;
         this.optionSet = new OptionSet(options);
         this.output = new Output(new OutputFactory(OutputBuffer), new StdoutBuffer(stdout));
         this.internals = {
+            callFactory: callFactory,
             callStack: callStack,
             classAutoloader: classAutoloader,
-            errorConfiguration: new ErrorConfiguration(this.iniState),
+            errorConfiguration: errorConfiguration,
             getBinding: function (bindingName) {
                 if (state.bindings === null) {
                     // Option groups are loaded before bindings, so if any of them attempt to access a binding
@@ -327,7 +420,7 @@ module.exports = require('pauser')([
 
                 return state.bindings[bindingName];
             }.bind(this),
-            getConstant: this.getConstant.bind(this),
+            getConstant: getConstant,
             globalNamespace: globalNamespace,
             iniState: this.iniState,
             mode: mode,
@@ -336,6 +429,8 @@ module.exports = require('pauser')([
             pausable: pausable,
             runtime: runtime,
             stdout: stdout,
+            traceFormatter: traceFormatter,
+            translator: translator,
             valueFactory: valueFactory
         };
         this.loader = new Loader(valueFactory, pausable);
@@ -349,8 +444,9 @@ module.exports = require('pauser')([
         this.stdin = stdin;
         this.stdout = stdout;
         this.superGlobalScope = superGlobalScope;
+        this.translator = translator;
         this.valueFactory = valueFactory;
-        this.PHPException = null;
+        this.Throwable = null;
 
         setUpState(this, installedBuiltinTypes, optionGroups || []);
     }
@@ -365,6 +461,7 @@ module.exports = require('pauser')([
          */
         defineClass: function (fqcn, definitionFactory) {
             var state = this,
+                definedInterfaceNames = [],
                 definedUnwrapper = null,
                 enableAutoCoercion = true,
                 name,
@@ -419,30 +516,39 @@ module.exports = require('pauser')([
                      */
                     extendClass: function (fqcn) {
                         superClass = state.globalNamespace.getClass(fqcn);
+                    },
+                    /**
+                     * Implements an interface
+                     *
+                     * @param {string} interfaceName
+                     */
+                    implement: function (interfaceName) {
+                        definedInterfaceNames.push(interfaceName);
                     }
                 })),
                 classObject,
                 namespace = state.globalNamespace,
-                parsed = state.globalNamespace.parseClassName(fqcn);
+                parsed = state.globalNamespace.parseName(fqcn);
 
             if (superClass) {
                 Class.superClass = superClass;
             }
 
-            if (fqcn === EXCEPTION_CLASS) {
-                if (state.PHPException) {
-                    throw new Exception('PHPState.defineClass(...) :: Exception class is already defined');
+            // Add any new interfaces to implement to the class definition
+            if (!Class.interfaces) {
+                Class.interfaces = [];
+            }
+            [].push.apply(Class.interfaces, definedInterfaceNames);
+
+            if (name === THROWABLE_INTERFACE) {
+                if (state.Throwable) {
+                    throw new Error('PHPState.defineClass(...) :: Throwable interface is already defined');
                 }
-
-                state.PHPException = Class;
+                state.Throwable = Class;
             }
 
-            if (parsed) {
-                namespace = parsed.namespace;
-                name = parsed.name;
-            } else {
-                name = fqcn;
-            }
+            namespace = parsed.namespace;
+            name = parsed.name;
 
             classObject = namespace.defineClass(name, Class, state.globalNamespaceScope);
 
@@ -476,7 +582,22 @@ module.exports = require('pauser')([
 
                 // Call the native function, wrapping its return value as a PHP value
                 return state.valueFactory.coerce(fn.apply(null, args));
-            });
+            }, state.globalNamespaceScope);
+        },
+
+        /**
+         * Defines a constant with the given native value
+         *
+         * @param {string} name
+         * @param {*} nativeValue
+         * @param {object} options
+         */
+        defineConstant: function (name, nativeValue, options) {
+            var state = this,
+                parsed = state.globalNamespace.parseName(name),
+                value = state.valueFactory.coerce(nativeValue);
+
+            parsed.namespace.defineConstant(parsed.name, value, options);
         },
 
         /**
@@ -501,6 +622,22 @@ module.exports = require('pauser')([
                 accessorReference = state.referenceFactory.createAccessor(valueGetter, valueSetter);
 
             state.globalScope.defineVariable(name).setReference(accessorReference);
+        },
+
+        /**
+         * Defines a global function from a native JS one. If a fully-qualified name is provided
+         * with a namespace prefix, eg. `My\Lib\MyFunc` then it will be defined in the specified namespace
+         *
+         * @param {string} name
+         * @param {Function} fn
+         */
+        defineNonCoercingFunction: function (name, fn) {
+            var state = this;
+
+            this.globalNamespace.defineFunction(name, function () {
+                // Call the native function, wrapping its return value as a PHP value
+                return state.valueFactory.coerce(fn.apply(null, arguments));
+            }, state.globalNamespaceScope);
         },
 
         /**
@@ -561,6 +698,15 @@ module.exports = require('pauser')([
             return value.getNative();
         },
 
+        /**
+         * Fetches the ErrorReporting service
+         *
+         * @return {ErrorReporting}
+         */
+        getErrorReporting: function () {
+            return this.errorReporting;
+        },
+
         getGlobalNamespace: function () {
             return this.globalNamespace;
         },
@@ -605,10 +751,11 @@ module.exports = require('pauser')([
             return this.output;
         },
 
-        getPHPExceptionClass: function () {
-            return this.PHPException;
-        },
-
+        /**
+         * Fetches the ReferenceFactory service
+         *
+         * @return {ReferenceFactory}
+         */
         getReferenceFactory: function () {
             return this.referenceFactory;
         },
@@ -636,6 +783,15 @@ module.exports = require('pauser')([
 
         getSuperGlobalScope: function () {
             return this.superGlobalScope;
+        },
+
+        /**
+         * Fetches the Translator service
+         *
+         * @return {Translator}
+         */
+        getTranslator: function () {
+            return this.translator;
         },
 
         getValueFactory: function () {

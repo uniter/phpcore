@@ -11,7 +11,9 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../tools');
+    phpCommon = require('phpcommon'),
+    tools = require('../tools'),
+    PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP "class" statement integration', function () {
     beforeEach(function () {
@@ -101,6 +103,27 @@ EOS
 
         expect(module().execute().getNative()).to.equal(
             'shadow_coerce php_init1 php_ctor js_ctor1 magic_coerce php_10 one op shadow_non_coerce php_init2 js_ctor2 magic_non_coerce php_7 three'
+        );
+    });
+
+    it('should raise a fatal error when attempting to define a class with a name already used by a class', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+namespace My\Stuff;
+
+class MyClass {}
+
+class MyClass {}
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/module.php', php),
+            engine = module();
+
+        expect(function () {
+            engine.execute();
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Cannot declare class My\\Stuff\\MyClass, because the name is already in use in /path/to/module.php on line 6'
         );
     });
 });

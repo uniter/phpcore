@@ -154,6 +154,21 @@ describe('Engine', function () {
         });
     });
 
+    describe('defineConstant()', function () {
+        it('should define a constant on the environment', function () {
+            this.createEngine();
+
+            this.engine.defineConstant('MY_CONST', 21, {caseInsensitive: true});
+
+            expect(this.environment.defineConstant).to.have.been.calledOnce;
+            expect(this.environment.defineConstant).to.have.been.calledWith(
+                'MY_CONST',
+                21,
+                {caseInsensitive: true}
+            );
+        });
+    });
+
     describe('defineGlobal()', function () {
         it('should define a global on the environment', function () {
             this.createEngine();
@@ -162,7 +177,7 @@ describe('Engine', function () {
 
             expect(this.environment.defineGlobal).to.have.been.calledOnce;
             expect(this.environment.defineGlobal).to.have.been.calledWith('my_global');
-            expect(this.environment.defineGlobal.args[0][1].getType()).to.equal('integer');
+            expect(this.environment.defineGlobal.args[0][1].getType()).to.equal('int');
             expect(this.environment.defineGlobal.args[0][1].getNative()).to.equal(21);
         });
     });
@@ -180,6 +195,21 @@ describe('Engine', function () {
                 'my_global',
                 sinon.match.same(valueGetter),
                 sinon.match.same(valueSetter)
+            );
+        });
+    });
+
+    describe('defineNonCoercingFunction()', function () {
+        it('should define a non-coercing function on the environment', function () {
+            var myFunction = sinon.stub();
+            this.createEngine();
+
+            this.engine.defineNonCoercingFunction('my_func', myFunction);
+
+            expect(this.environment.defineNonCoercingFunction).to.have.been.calledOnce;
+            expect(this.environment.defineNonCoercingFunction).to.have.been.calledWith(
+                'my_func',
+                sinon.match.same(myFunction)
             );
         });
     });

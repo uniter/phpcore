@@ -48,8 +48,8 @@ describe('TraceFormatter', function () {
 
             expect(this.traceFormatter.format(trace)).to.equal(
                 nowdoc(function () {/*<<<EOS
-#0 /path/to/my/third.php(1234): thirdFunc('third call, only arg')
-#1 /path/to/my/second.php(21): secondFunc('second call, first arg', 'second call, second arg')
+#0 /path/to/my/third.php(1234): thirdFunc('third call, onl...')
+#1 /path/to/my/second.php(21): secondFunc('second call, fi...', 'second call, se...')
 #2 /path/to/my/first.php(101): firstFunc(20002)
 #3 {main}
 EOS

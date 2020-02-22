@@ -15,12 +15,17 @@ var _ = require('microdash'),
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     AsyncLoader = require('../../src/Loader').async(pausable),
+    Class = require('../../src/Class').sync(),
     Engine = require('../../src/Engine'),
     Environment = require('../../src/Environment'),
     Exception = phpCommon.Exception,
     SyncLoader = require('../../src/Loader').sync(),
     LoadFailedException = require('../../src/Exception/LoadFailedException'),
     Module = require('../../src/Module'),
+    Namespace = require('../../src/Namespace').sync(),
+    ObjectValue = require('../../src/Value/Object').sync(),
+    PHPFatalError = phpCommon.PHPFatalError,
+    PHPParseError = phpCommon.PHPParseError,
     Promise = require('lie'),
     Scope = require('../../src/Scope').sync(),
     Value = require('../../src/Value').sync(),
@@ -32,8 +37,11 @@ describe('Loader', function () {
         this.elements = [];
         this.enclosingScope = sinon.createStubInstance(Scope);
         this.environment = sinon.createStubInstance(Environment);
+        this.globalNamespace = sinon.createStubInstance(Namespace);
         this.module = sinon.createStubInstance(Module);
         this.subEngine = sinon.createStubInstance(Engine);
+
+        this.valueFactory.setGlobalNamespace(this.globalNamespace);
 
         this.module.getFilePath.returns('/path/to/my/current/module.php');
     });
@@ -140,7 +148,7 @@ describe('Loader', function () {
                 expect(resultValue.getNative()).to.equal('my fixed module result');
             });
 
-            it('should throw an error with the error when the load callback rejects', function () {
+            it('should throw an error with the error when the load callback rejects with a normal JS error', function () {
                 expect(function () {
                     this.loader.load(
                         'include',
@@ -154,6 +162,104 @@ describe('Loader', function () {
                         }.bind(this)
                     );
                 }.bind(this)).to.throw(LoadFailedException, 'Load failed :: There was some issue with the include');
+            });
+
+            it('should throw an instance of ParseError when the load callback throws a PHPParseError', function () {
+                var caughtError,
+                    parseErrorClassObject = sinon.createStubInstance(Class),
+                    parseErrorObjectValue = sinon.createStubInstance(ObjectValue);
+                this.globalNamespace.getClass.withArgs('ParseError').returns(parseErrorClassObject);
+                parseErrorClassObject.instantiate.returns(parseErrorObjectValue);
+
+                try {
+                    this.loader.load(
+                        'include',
+                        '/path/to/my/module.php',
+                        {},
+                        this.environment,
+                        this.module,
+                        this.enclosingScope,
+                        function (path, promise) {
+                            promise.reject(
+                                new PHPParseError('There was a problem parsing', '/path/to/my_module.php', 123)
+                            );
+                        }
+                    );
+                } catch (error) {
+                    caughtError = error;
+                }
+
+                expect(caughtError).to.equal(parseErrorObjectValue);
+                expect(parseErrorClassObject.instantiate.args[0][0][0].getType()).to.equal('string');
+                expect(parseErrorClassObject.instantiate.args[0][0][0].getNative())
+                    .to.equal('There was a problem parsing');
+            });
+
+            it('should rethrow when the load callback throws a PHPFatalError', function () {
+                var fatalError = new PHPFatalError('Oh dear', '/path/to/my/broken/module.php', 4444);
+
+                expect(function () {
+                    this.loader.load(
+                        'include',
+                        '/path/to/my/module.php',
+                        {},
+                        this.environment,
+                        this.module,
+                        this.enclosingScope,
+                        function (path, promise) {
+                            promise.reject(fatalError);
+                        }
+                    );
+                }.bind(this)).to.throw(fatalError);
+            });
+
+            it('should rethrow when the load callback throws a value', function () {
+                var caughtError,
+                    throwableClassObject = sinon.createStubInstance(Class),
+                    thrownObjectValue = sinon.createStubInstance(ObjectValue);
+                this.globalNamespace.getClass.withArgs('MyThrowable').returns(throwableClassObject);
+                throwableClassObject.instantiate.returns(thrownObjectValue);
+
+                try {
+                    this.loader.load(
+                        'include',
+                        '/path/to/my/module.php',
+                        {},
+                        this.environment,
+                        this.module,
+                        this.enclosingScope,
+                        function (path, promise) {
+                            promise.reject(thrownObjectValue);
+                        }
+                    );
+                } catch (error) {
+                    caughtError = error;
+                }
+
+                expect(caughtError).to.equal(thrownObjectValue);
+            });
+
+            it('should rethrow when the load callback throws a special ExitValue', function () {
+                var caughtError,
+                    thrownExitValue = this.valueFactory.createExit();
+
+                try {
+                    this.loader.load(
+                        'include',
+                        '/path/to/my/module.php',
+                        {},
+                        this.environment,
+                        this.module,
+                        this.enclosingScope,
+                        function (path, promise) {
+                            promise.reject(thrownExitValue);
+                        }
+                    );
+                } catch (error) {
+                    caughtError = error;
+                }
+
+                expect(caughtError).to.equal(thrownExitValue);
             });
 
             // Promise must be resolved synchronously in synchronous mode, as the code cannot pause
@@ -252,7 +358,7 @@ describe('Loader', function () {
                 });
             });
 
-            it('should throw an error with the error when the load callback rejects', function () {
+            it('should throw an error with the error when the load callback rejects with a normal JS error', function () {
                 return expect(pausable.call(this.loader.load, [
                     'include',
                     '/path/to/my/module.php',
@@ -270,6 +376,58 @@ describe('Loader', function () {
                     LoadFailedException,
                     'Load failed :: There was some issue with the include'
                 );
+            });
+
+            it('should throw an instance of ParseError when the load callback throws a PHPParseError', function () {
+                var parseErrorClassObject = sinon.createStubInstance(Class),
+                    parseErrorObjectValue = sinon.createStubInstance(ObjectValue);
+                this.globalNamespace.getClass.withArgs('ParseError').returns(parseErrorClassObject);
+                parseErrorClassObject.instantiate.returns(parseErrorObjectValue);
+
+                return pausable.call(this.loader.load, [
+                    'include',
+                    '/path/to/my/module.php',
+                    {},
+                    this.environment,
+                    this.module,
+                    this.enclosingScope,
+                    function (path, promise) {
+                        // Pause before resolving, to test async behaviour
+                        setTimeout(function () {
+                            promise.reject(
+                                new PHPParseError('There was a problem parsing', '/path/to/my_module.php', 123)
+                            );
+                        }, 1);
+                    }.bind(this)
+                ], this.loader)
+                    .catch(function (caughtError) {
+                        expect(caughtError).to.equal(parseErrorObjectValue);
+                    })
+                    .then(function () {
+                        expect(parseErrorClassObject.instantiate.args[0][0][0].getType()).to.equal('string');
+                        expect(parseErrorClassObject.instantiate.args[0][0][0].getNative())
+                            .to.equal('There was a problem parsing');
+                    });
+            });
+
+            it('should rethrow when the load callback throws a PHPFatalError', function () {
+                var fatalError = new PHPFatalError('Oh dear', '/path/to/my/broken/module.php', 4444);
+
+                return expect(pausable.call(this.loader.load, [
+                    'include',
+                    '/path/to/my/module.php',
+                    {},
+                    this.environment,
+                    this.module,
+                    this.enclosingScope,
+                    function (path, promise) {
+                        // Pause before resolving, to test async behaviour
+                        setTimeout(function () {
+                            promise.reject(fatalError);
+                        }, 1);
+                    }.bind(this)
+                ], this.loader))
+                    .to.eventually.be.rejectedWith(fatalError);
             });
         });
     });

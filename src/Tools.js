@@ -26,20 +26,24 @@ module.exports = require('pauser')([
 ) {
     var Exception = phpCommon.Exception,
         hasOwn = {}.hasOwnProperty,
+
+        EVAL_PATH = 'core.eval_path',
+        NO_PARENT_CLASS = 'core.no_parent_class',
+        UNKNOWN = 'core.unknown',
+
         EVAL_OPTION = 'eval',
         INCLUDE_OPTION = 'include',
         TICK_OPTION = 'tick',
-        PHPError = phpCommon.PHPError,
-        PHPFatalError = phpCommon.PHPFatalError;
+        PHPError = phpCommon.PHPError;
 
     /**
      * @param {CallStack} callStack
      * @param {Environment} environment
+     * @param {Translator} translator
      * @param {Namespace} globalNamespace
      * @param {Loader} loader
      * @param {Module} module
      * @param {Object} options
-     * @param {string} path
      * @param {ReferenceFactory} referenceFactory
      * @param {ScopeFactory} scopeFactory
      * @param {NamespaceScope} topLevelNamespaceScope
@@ -50,11 +54,11 @@ module.exports = require('pauser')([
     function Tools(
         callStack,
         environment,
+        translator,
         globalNamespace,
         loader,
         module,
         options,
-        path,
         referenceFactory,
         scopeFactory,
         topLevelNamespaceScope,
@@ -90,10 +94,6 @@ module.exports = require('pauser')([
          */
         this.options = options;
         /**
-         * @type {string}
-         */
-        this.path = path;
-        /**
          * @type {ReferenceFactory}
          * @public Referenced from transpiled code
          */
@@ -113,6 +113,10 @@ module.exports = require('pauser')([
          */
         this.topLevelScope = topLevelScope;
         /**
+         * @type {Translator}
+         */
+        this.translator = translator;
+        /**
          * @type {ValueFactory}
          * @public Referenced from transpiled code
          */
@@ -126,13 +130,23 @@ module.exports = require('pauser')([
          *
          * @param {Function} func
          * @param {Scope} scope
+         * @param {NamespaceScope} namespaceScope
+         * @param {Array=} parametersSpecData
+         * @param {boolean=} isStatic
+         * @param {number=} lineNumber
          * @return {ObjectValue}
          */
-        createClosure: function (func, scope) {
+        createClosure: function (func, scope, namespaceScope, parametersSpecData, isStatic, lineNumber) {
             var tools = this;
 
             return tools.valueFactory.createObject(
-                scope.createClosure(func),
+                scope.createClosure(
+                    namespaceScope,
+                    func,
+                    parametersSpecData || [],
+                    !!isStatic,
+                    lineNumber || null
+                ),
                 tools.globalNamespace.getClass('Closure')
             );
         },
@@ -199,11 +213,14 @@ module.exports = require('pauser')([
          * Evaluates the given PHP code using the configured `eval` option
          *
          * @param {string} code
-         * @param {Scope} evalScope
+         * @param {Scope} enclosingScope
          * @return {Value}
          */
-        eval: function (code, evalScope) {
-            var tools = this;
+        eval: function (code, enclosingScope) {
+            var evalScope,
+                lineNumber,
+                path,
+                tools = this;
 
             if (!tools.options[EVAL_OPTION]) {
                 throw new Exception(
@@ -211,11 +228,19 @@ module.exports = require('pauser')([
                 );
             }
 
+            path = tools.topLevelNamespaceScope.getFilePath();
+            evalScope = tools.scopeFactory.createLoadScope(enclosingScope, path, 'eval');
+            lineNumber = tools.callStack.getLastLine();
+
+            if (lineNumber === null) {
+                lineNumber = tools.translator.translate(UNKNOWN);
+            }
+
             return tools.loader.load(
                 'eval',
                 // Use the path to the script that called eval() along with this suffix
                 // as the path to the current file inside the eval
-                tools.path + ' : eval()\'d code',
+                tools.translator.translate(EVAL_PATH, {path: path, lineNumber: lineNumber}),
                 tools.options,
                 tools.environment,
                 tools.module,
@@ -255,9 +280,10 @@ module.exports = require('pauser')([
          * @return {string}
          */
         getNormalizedPath: function () {
-            var tools = this;
+            var tools = this,
+                path = tools.topLevelNamespaceScope.getFilePath();
 
-            return tools.path === null ? '(program)' : tools.path;
+            return path !== null ? path : '(program)';
         },
 
         /**
@@ -267,14 +293,15 @@ module.exports = require('pauser')([
          * @returns {StringValue}
          */
         getParentClassName: function (classObject) {
-            var superClass = classObject.getSuperClass();
+            var superClass = classObject.getSuperClass(),
+                tools = this;
 
             if (!superClass) {
                 // Fatal error: Uncaught Error: Cannot access parent:: when current class scope has no parent
-                throw new PHPFatalError(PHPFatalError.NO_PARENT_CLASS);
+                tools.callStack.raiseTranslatedError(PHPError.E_ERROR, NO_PARENT_CLASS);
             }
 
-            return this.valueFactory.createString(superClass.getName());
+            return tools.valueFactory.createString(superClass.getName());
         },
 
         /**
@@ -295,7 +322,8 @@ module.exports = require('pauser')([
          */
         getPathDirectory: function () {
             var tools = this,
-                directory = (tools.path || '').replace(/(^|\/)[^\/]+$/, '');
+                path = tools.topLevelNamespaceScope.getFilePath(),
+                directory = (path || '').replace(/(^|\/)[^\/]+$/, '');
 
             return tools.valueFactory.createString(directory || '');
         },
@@ -356,19 +384,26 @@ module.exports = require('pauser')([
          * Throws if no include transport has been configured.
          *
          * @param {string} includedPath
-         * @param {Scope} includeScope
+         * @param {Scope} enclosingScope
          * @return {Value}
          * @throws {Exception} When no include transport has been configured
          * @throws {Error} When the loader throws a generic error
          */
-        include: function (includedPath, includeScope) {
-            var tools = this;
+        include: function (includedPath, enclosingScope) {
+            var includeScope,
+                tools = this;
 
             if (!tools.options[INCLUDE_OPTION]) {
                 throw new Exception(
-                    'include(' + includedPath + ') :: No "include" transport is available for loading the module.'
+                    'include(' + includedPath + ') :: No "include" transport option is available for loading the module.'
                 );
             }
+
+            includeScope = tools.scopeFactory.createLoadScope(
+                enclosingScope,
+                tools.topLevelNamespaceScope.getFilePath(),
+                'include'
+            );
 
             try {
                 return tools.loader.load(
@@ -397,7 +432,7 @@ module.exports = require('pauser')([
                     'include(): Failed opening \'' + includedPath + '\' for inclusion'
                 );
 
-                return tools.loader.valueFactory.createBoolean(false);
+                return tools.valueFactory.createBoolean(false);
             }
         },
 
@@ -423,19 +458,6 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Throws an "unable to break/continue" fatal error
-         *
-         * @param {number} levels
-         * @throws {PHPFatalError}
-         */
-        throwCannotBreakOrContinue: function (levels) {
-            throw new PHPFatalError(PHPFatalError.CANNOT_BREAK_OR_CONTINUE, {
-                'levels': levels,
-                'suffix': levels === 1 ? '' : 's'
-            });
-        },
-
-        /**
          * Calls the configured tick handler with the current statement's position data.
          * PHPToJS inserts calls to this method when ticking is enabled.
          *
@@ -452,7 +474,14 @@ module.exports = require('pauser')([
                 throw new Exception('tick(...) :: No "tick" handler option is available.');
             }
 
-            tools.options[TICK_OPTION].call(null, tools.path, startLine, startColumn, endLine, endColumn);
+            tools.options[TICK_OPTION].call(
+                null,
+                tools.getNormalizedPath(),
+                startLine,
+                startColumn,
+                endLine,
+                endColumn
+            );
         }
     });
 

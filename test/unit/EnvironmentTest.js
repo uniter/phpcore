@@ -50,6 +50,19 @@ describe('Environment', function () {
         });
     });
 
+    describe('defineConstant()', function () {
+        it('should define a constant on the state', function () {
+            this.environment.defineConstant('MY_CONST', 21, {caseInsensitive: true});
+
+            expect(this.state.defineConstant).to.have.been.calledOnce;
+            expect(this.state.defineConstant).to.have.been.calledWith(
+                'MY_CONST',
+                21,
+                {caseInsensitive: true}
+            );
+        });
+    });
+
     describe('defineGlobal()', function () {
         it('should define the global on the state', function () {
             var value = sinon.createStubInstance(Value);
@@ -74,6 +87,20 @@ describe('Environment', function () {
                 'myGlobal',
                 sinon.match.same(valueGetter),
                 sinon.match.same(valueSetter)
+            );
+        });
+    });
+
+    describe('defineNonCoercingFunction()', function () {
+        it('should define the function on the state', function () {
+            var myFunction = sinon.stub();
+
+            this.environment.defineNonCoercingFunction('my_func', myFunction);
+
+            expect(this.state.defineNonCoercingFunction).to.have.been.calledOnce;
+            expect(this.state.defineNonCoercingFunction).to.have.been.calledWith(
+                'my_func',
+                sinon.match.same(myFunction)
             );
         });
     });

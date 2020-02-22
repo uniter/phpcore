@@ -11,8 +11,7 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../tools'),
-    PHPFatalError = require('phpcommon').PHPFatalError;
+    tools = require('../tools');
 
 describe('PHP "break" statement integration', function () {
     it('should stop a for loop from executing further', function () {
@@ -36,16 +35,26 @@ EOS
         expect(module().execute().getNative()).to.deep.equal([0, 1, 2, 'end']);
     });
 
-    it('should throw the correct error when unable to break', function () {
+    it('should be able to break out of a nested loop', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
-break 4;
+$result = [];
+for ($i = 0; $i < 4; $i++) {
+    $result[] = $i;
+
+    if ($i === 2) {
+        while (true) {
+            break 2;
+        }
+    }
+}
+$result[] = 'end';
+
+return $result;
 EOS
 */;}),//jshint ignore:line
             module = tools.syncTranspile(null, php);
 
-        expect(function () {
-            module().execute();
-        }).to.throw(PHPFatalError, 'Cannot break/continue 4 levels');
+        expect(module().execute().getNative()).to.deep.equal([0, 1, 2, 'end']);
     });
 });

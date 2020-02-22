@@ -14,7 +14,6 @@ var expect = require('chai').expect,
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
-    PHPFatalError = require('phpcommon').PHPFatalError,
     PHPObject = require('../../src/PHPObject').sync(),
     MethodSpec = require('../../src/MethodSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
@@ -25,334 +24,384 @@ var expect = require('chai').expect,
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('Class', function () {
-    beforeEach(function () {
-        this.callStack = sinon.createStubInstance(CallStack);
-        this.functionFactory = sinon.createStubInstance(FunctionFactory);
-        this.namespaceScope = sinon.createStubInstance(NamespaceScope);
-        this.superClass = sinon.createStubInstance(Class);
-        this.valueFactory = new ValueFactory(null, this.callStack);
-        this.InternalClass = sinon.stub();
-        this.interfaceObject = sinon.createStubInstance(Class);
-        this.interfaceObject.is.withArgs('My\\Interface').returns(true);
-        this.namespaceScope.getClass.withArgs('My\\Interface').returns(this.interfaceObject);
+    var callStack,
+        classObject,
+        createClass,
+        functionFactory,
+        interfaceObject,
+        namespaceScope,
+        superClass,
+        valueFactory,
+        InternalClass;
 
-        this.createClass = function (constructorName, superClass, valueFactory) {
-            this.classObject = new Class(
-                valueFactory || this.valueFactory,
-                this.functionFactory,
-                this.callStack,
+    beforeEach(function () {
+        callStack = sinon.createStubInstance(CallStack);
+        functionFactory = sinon.createStubInstance(FunctionFactory);
+        namespaceScope = sinon.createStubInstance(NamespaceScope);
+        superClass = sinon.createStubInstance(Class);
+        valueFactory = new ValueFactory(null, callStack);
+        InternalClass = sinon.stub();
+        interfaceObject = sinon.createStubInstance(Class);
+        interfaceObject.is
+            .withArgs('My\\Interface')
+            .returns(true);
+        namespaceScope.getClass
+            .withArgs('My\\Interface')
+            .returns(interfaceObject);
+
+        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+            throw new Error(
+                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+            );
+        });
+
+        createClass = function (constructorName, superClass, constants) {
+            classObject = new Class(
+                valueFactory,
+                functionFactory,
+                callStack,
                 'My\\Class\\Path\\Here',
                 constructorName,
-                this.InternalClass,
-                this.InternalClass.prototype,
+                InternalClass,
+                InternalClass.prototype,
                 {
-                    myFirstStaticProp: {
+                    myPublicStaticProp: {
                         visibility: 'public',
                         value: function () {
-                            return this.valueFactory.createString('my static prop value');
-                        }.bind(this)
+                            return valueFactory.createString('my public static prop value');
+                        }
+                    },
+                    myProtectedStaticProp: {
+                        visibility: 'protected',
+                        value: function () {
+                            return valueFactory.createString('my protected static prop value');
+                        }
+                    },
+                    myPrivateStaticProp: {
+                        visibility: 'private',
+                        value: function () {
+                            return valueFactory.createString('my private static prop value');
+                        }
                     }
                 },
-                {},
+                constants || {},
                 superClass,
                 ['My\\Interface'],
-                this.namespaceScope
+                namespaceScope
             );
-        }.bind(this);
-        this.createClass('__construct', null);
+        };
+        createClass('__construct', null);
     });
 
     describe('callMethod()', function () {
         describe('when the object is an instance of the native constructor', function () {
-            beforeEach(function () {
-                this.nativeObject = sinon.createStubInstance(this.InternalClass);
-                this.objectValue = sinon.createStubInstance(ObjectValue);
-                this.objectValue.getObject.returns(this.nativeObject);
+            var callMethod,
+                nativeObject,
+                objectValue;
 
-                this.callMethod = function (methodName, args, isForwardingStaticCall) {
-                    return this.classObject.callMethod(
+            beforeEach(function () {
+                nativeObject = sinon.createStubInstance(InternalClass);
+                objectValue = sinon.createStubInstance(ObjectValue);
+                objectValue.getObject.returns(nativeObject);
+
+                callMethod = function (methodName, args, isForwardingStaticCall) {
+                    return classObject.callMethod(
                         methodName,
                         args,
-                        this.objectValue,
+                        objectValue,
                         null,
                         null,
                         !!isForwardingStaticCall
                     );
-                }.bind(this);
+                };
             });
 
             describe('when the method is defined with the same case', function () {
+                var methodFunction;
+
                 beforeEach(function () {
-                    this.methodFunction = sinon.stub();
-                    this.InternalClass.prototype.myMethod = this.methodFunction;
-                    this.createClass('__construct', null);
+                    methodFunction = sinon.stub();
+                    InternalClass.prototype.myMethod = methodFunction;
+                    createClass('__construct', null);
                 });
 
                 it('should be called and the result returned when auto coercion is disabled', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue = sinon.createStubInstance(Value);
-                    this.methodFunction.returns(resultValue);
-                    this.classObject.disableAutoCoercion();
+                    methodFunction.returns(resultValue);
+                    classObject.disableAutoCoercion();
 
-                    expect(this.callMethod('myMethod', [argValue])).to.equal(resultValue);
-                    expect(this.methodFunction).to.have.been.calledOnce;
-                    expect(this.methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
+                    expect(callMethod('myMethod', [argValue])).to.equal(resultValue);
+                    expect(methodFunction).to.have.been.calledOnce;
+                    expect(methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
                 });
 
                 it('should be called and the result returned when auto coercion is enabled', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    this.methodFunction.returns('the result');
-                    this.classObject.enableAutoCoercion();
+                    methodFunction.returns('the result');
+                    classObject.enableAutoCoercion();
 
-                    resultValue = this.callMethod('myMethod', [argValue]);
+                    resultValue = callMethod('myMethod', [argValue]);
 
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
-                    expect(this.methodFunction).to.have.been.calledOnce;
-                    expect(this.methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction).to.have.been.calledOnce;
+                    expect(methodFunction).to.have.been.calledWith('the arg');
                 });
 
                 describe('for a forwarding static call', function () {
                     it('should not pass along the static class', function () {
                         var resultValue = sinon.createStubInstance(Value);
-                        this.methodFunction.returns(resultValue);
-                        this.classObject.disableAutoCoercion();
+                        methodFunction.returns(resultValue);
+                        classObject.disableAutoCoercion();
 
-                        this.callMethod('myMethod', [], true);
+                        callMethod('myMethod', [], true);
 
-                        expect(this.functionFactory.setNewStaticClassIfWrapped).not.to.have.been.called;
+                        expect(functionFactory.setNewStaticClassIfWrapped).not.to.have.been.called;
                     });
                 });
 
                 describe('for a non-forwarding static call', function () {
                     it('should pass along the static class', function () {
                         var resultValue = sinon.createStubInstance(Value);
-                        this.methodFunction.returns(resultValue);
-                        this.classObject.disableAutoCoercion();
+                        methodFunction.returns(resultValue);
+                        classObject.disableAutoCoercion();
 
-                        this.callMethod('myMethod', [], false);
+                        callMethod('myMethod', [], false);
 
-                        expect(this.functionFactory.setNewStaticClassIfWrapped).to.have.been.calledOnce;
-                        expect(this.functionFactory.setNewStaticClassIfWrapped).to.have.been.calledWith(
-                            sinon.match.same(this.methodFunction),
-                            sinon.match.same(this.classObject)
+                        expect(functionFactory.setNewStaticClassIfWrapped).to.have.been.calledOnce;
+                        expect(functionFactory.setNewStaticClassIfWrapped).to.have.been.calledWith(
+                            sinon.match.same(methodFunction),
+                            sinon.match.same(classObject)
                         );
                     });
                 });
             });
 
             describe('when the method is defined with differing case', function () {
+                var methodFunction;
+
                 beforeEach(function () {
-                    this.methodFunction = sinon.stub();
-                    this.InternalClass.prototype.myMethodWITHWRONGcase = this.methodFunction;
-                    this.createClass('__construct', null);
+                    methodFunction = sinon.stub();
+                    InternalClass.prototype.myMethodWITHWRONGcase = methodFunction;
+                    createClass('__construct', null);
                 });
 
                 it('should be called and the result returned when auto coercion is disabled', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue = sinon.createStubInstance(Value);
-                    this.methodFunction.returns(resultValue);
-                    this.classObject.disableAutoCoercion();
+                    methodFunction.returns(resultValue);
+                    classObject.disableAutoCoercion();
 
-                    expect(this.callMethod('myMethodWithWrongCase', [argValue])).to.equal(resultValue);
-                    expect(this.methodFunction).to.have.been.calledOnce;
-                    expect(this.methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
+                    expect(callMethod('myMethodWithWrongCase', [argValue])).to.equal(resultValue);
+                    expect(methodFunction).to.have.been.calledOnce;
+                    expect(methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
                 });
 
                 it('should be called and the result returned when auto coercion is enabled', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    this.methodFunction.returns('the result');
-                    this.classObject.enableAutoCoercion();
+                    methodFunction.returns('the result');
+                    classObject.enableAutoCoercion();
 
-                    resultValue = this.callMethod('myMethodWithWrongCase', [argValue]);
+                    resultValue = callMethod('myMethodWithWrongCase', [argValue]);
 
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
-                    expect(this.methodFunction).to.have.been.calledOnce;
-                    expect(this.methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction).to.have.been.calledOnce;
+                    expect(methodFunction).to.have.been.calledWith('the arg');
                 });
             });
 
             describe('when an own property is defined with the same name as the method', function () {
+                var methodFunction;
+
                 beforeEach(function () {
-                    this.methodFunction = sinon.stub();
-                    this.InternalClass.prototype.myMethod = this.methodFunction;
-                    this.nativeObject.myMethod = sinon.stub(); // Should be ignored
-                    this.createClass('__construct', null);
+                    methodFunction = sinon.stub();
+                    InternalClass.prototype.myMethod = methodFunction;
+                    nativeObject.myMethod = sinon.stub(); // Should be ignored
+                    createClass('__construct', null);
                 });
 
                 it('should ignore the property and call the method when auto coercion is disabled', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue = sinon.createStubInstance(Value);
-                    this.methodFunction.returns(resultValue);
-                    this.classObject.disableAutoCoercion();
+                    methodFunction.returns(resultValue);
+                    classObject.disableAutoCoercion();
 
-                    expect(this.callMethod('myMethod', [argValue])).to.equal(resultValue);
-                    expect(this.methodFunction).to.have.been.calledOnce;
-                    expect(this.methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
+                    expect(callMethod('myMethod', [argValue])).to.equal(resultValue);
+                    expect(methodFunction).to.have.been.calledOnce;
+                    expect(methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
                 });
 
                 it('should ignore the property and call the method when auto coercion is enabled', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    this.methodFunction.returns('the result');
-                    this.classObject.enableAutoCoercion();
+                    methodFunction.returns('the result');
+                    classObject.enableAutoCoercion();
 
-                    resultValue = this.callMethod('myMethod', [argValue]);
+                    resultValue = callMethod('myMethod', [argValue]);
 
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
-                    expect(this.methodFunction).to.have.been.calledOnce;
-                    expect(this.methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction).to.have.been.calledOnce;
+                    expect(methodFunction).to.have.been.calledWith('the arg');
                 });
             });
 
             describe('when the method is not defined', function () {
                 it('should throw a PHPFatalError', function () {
-                    this.createClass('__construct', null);
+                    createClass('__construct', null);
 
                     expect(function () {
-                        this.callMethod('myMissingMethod', []);
-                    }.bind(this)).to.throw(
-                        PHPFatalError,
-                        'Call to undefined method My\\Class\\Path\\Here::myMissingMethod()'
+                        callMethod('myMissingMethod', []);
+                    }).to.throw(
+                        'Fake PHP Fatal error for #core.undefined_method with {"className":"My\\\\Class\\\\Path\\\\Here","methodName":"myMissingMethod"}'
                     );
                 });
             });
         });
 
         describe('when the object is not an instance of the native constructor (eg. JSObject/Closure)', function () {
-            beforeEach(function () {
-                this.nativeObject = {};
-                this.objectValue = sinon.createStubInstance(ObjectValue);
-                this.superClass = null;
+            var callMethod,
+                nativeObject,
+                objectValue;
 
-                this.callMethod = function (methodName, args) {
-                    return this.classObject.callMethod(
+            beforeEach(function () {
+                nativeObject = {};
+                objectValue = sinon.createStubInstance(ObjectValue);
+                superClass = null;
+
+                callMethod = function (methodName, args) {
+                    return classObject.callMethod(
                         methodName,
                         args,
-                        this.objectValue
+                        objectValue
                     );
-                }.bind(this);
+                };
             });
 
             describe('when the method is defined with the same case', function () {
+                var methodFunction;
+
                 beforeEach(function () {
-                    this.methodFunction = sinon.stub();
-                    this.InternalClass.prototype.myMethod = this.methodFunction;
-                    this.createClass('__construct', null);
+                    methodFunction = sinon.stub();
+                    InternalClass.prototype.myMethod = methodFunction;
+                    createClass('__construct', null);
                 });
 
                 it('should be called and the result returned when auto coercion is disabled', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue = sinon.createStubInstance(Value);
-                    this.methodFunction.returns(resultValue);
-                    this.classObject.disableAutoCoercion();
+                    methodFunction.returns(resultValue);
+                    classObject.disableAutoCoercion();
 
-                    expect(this.callMethod('myMethod', [argValue])).to.equal(resultValue);
-                    expect(this.methodFunction).to.have.been.calledOnce;
-                    expect(this.methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
+                    expect(callMethod('myMethod', [argValue])).to.equal(resultValue);
+                    expect(methodFunction).to.have.been.calledOnce;
+                    expect(methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
                 });
 
                 it('should be called and the result returned when auto coercion is enabled', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    this.methodFunction.returns('the result');
-                    this.classObject.enableAutoCoercion();
+                    methodFunction.returns('the result');
+                    classObject.enableAutoCoercion();
 
-                    resultValue = this.callMethod('myMethod', [argValue]);
+                    resultValue = callMethod('myMethod', [argValue]);
 
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
-                    expect(this.methodFunction).to.have.been.calledOnce;
-                    expect(this.methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction).to.have.been.calledOnce;
+                    expect(methodFunction).to.have.been.calledWith('the arg');
                 });
             });
 
             describe('when the method is defined with differing case', function () {
+                var methodFunction;
+
                 beforeEach(function () {
-                    this.methodFunction = sinon.stub();
-                    this.InternalClass.prototype.myMethodWITHWRONGcase = this.methodFunction;
-                    this.createClass('__construct', null);
+                    methodFunction = sinon.stub();
+                    InternalClass.prototype.myMethodWITHWRONGcase = methodFunction;
+                    createClass('__construct', null);
                 });
 
                 it('should be called and the result returned when auto coercion is disabled', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue = sinon.createStubInstance(Value);
-                    this.methodFunction.returns(resultValue);
-                    this.classObject.disableAutoCoercion();
+                    methodFunction.returns(resultValue);
+                    classObject.disableAutoCoercion();
 
-                    expect(this.callMethod('myMethodWithWrongCase', [argValue])).to.equal(resultValue);
-                    expect(this.methodFunction).to.have.been.calledOnce;
-                    expect(this.methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
+                    expect(callMethod('myMethodWithWrongCase', [argValue])).to.equal(resultValue);
+                    expect(methodFunction).to.have.been.calledOnce;
+                    expect(methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
                 });
 
                 it('should be called and the result returned when auto coercion is enabled', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    this.methodFunction.returns('the result');
-                    this.classObject.enableAutoCoercion();
+                    methodFunction.returns('the result');
+                    classObject.enableAutoCoercion();
 
-                    resultValue = this.callMethod('myMethodWithWrongCase', [argValue]);
+                    resultValue = callMethod('myMethodWithWrongCase', [argValue]);
 
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
-                    expect(this.methodFunction).to.have.been.calledOnce;
-                    expect(this.methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction).to.have.been.calledOnce;
+                    expect(methodFunction).to.have.been.calledWith('the arg');
                 });
             });
 
             describe('when an own property is defined with the same name as the method', function () {
+                var methodFunction;
+
                 beforeEach(function () {
-                    this.methodFunction = sinon.stub();
-                    this.InternalClass.prototype.myMethod = this.methodFunction;
-                    this.nativeObject.myMethod = sinon.stub(); // Should be ignored
-                    this.createClass('__construct', null);
+                    methodFunction = sinon.stub();
+                    InternalClass.prototype.myMethod = methodFunction;
+                    nativeObject.myMethod = sinon.stub(); // Should be ignored
+                    createClass('__construct', null);
                 });
 
                 it('should ignore the property and call the method when auto coercion is disabled', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue = sinon.createStubInstance(Value);
-                    this.methodFunction.returns(resultValue);
-                    this.classObject.disableAutoCoercion();
+                    methodFunction.returns(resultValue);
+                    classObject.disableAutoCoercion();
 
-                    expect(this.callMethod('myMethod', [argValue])).to.equal(resultValue);
-                    expect(this.methodFunction).to.have.been.calledOnce;
-                    expect(this.methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
+                    expect(callMethod('myMethod', [argValue])).to.equal(resultValue);
+                    expect(methodFunction).to.have.been.calledOnce;
+                    expect(methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
                 });
 
                 it('should ignore the property and call the method when auto coercion is enabled', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    this.methodFunction.returns('the result');
-                    this.classObject.enableAutoCoercion();
+                    methodFunction.returns('the result');
+                    classObject.enableAutoCoercion();
 
-                    resultValue = this.callMethod('myMethod', [argValue]);
+                    resultValue = callMethod('myMethod', [argValue]);
 
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
-                    expect(this.methodFunction).to.have.been.calledOnce;
-                    expect(this.methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction).to.have.been.calledOnce;
+                    expect(methodFunction).to.have.been.calledWith('the arg');
                 });
             });
 
             describe('when the method is not defined', function () {
                 it('should throw a PHPFatalError', function () {
-                    this.createClass('__construct', null);
+                    createClass('__construct', null);
 
                     expect(function () {
-                        this.callMethod('myMissingMethod', []);
-                    }.bind(this)).to.throw(
-                        PHPFatalError,
-                        'Call to undefined method My\\Class\\Path\\Here::myMissingMethod()'
+                        callMethod('myMissingMethod', []);
+                    }).to.throw(
+                        'Fake PHP Fatal error for #core.undefined_method with {"className":"My\\\\Class\\\\Path\\\\Here","methodName":"myMissingMethod"}'
                     );
                 });
             });
@@ -360,283 +409,514 @@ describe('Class', function () {
     });
 
     describe('construct()', function () {
+        var constructorMethod,
+            nativeObject,
+            objectValue;
+
         beforeEach(function () {
-            this.objectValue = sinon.createStubInstance(ObjectValue);
-            this.constructorMethod = sinon.stub();
-            this.nativeObject = new this.InternalClass();
-            this.InternalClass.prototype.__construct = this.constructorMethod;
-            this.objectValue.getObject.returns(this.nativeObject);
+            objectValue = sinon.createStubInstance(ObjectValue);
+            constructorMethod = sinon.stub();
+            nativeObject = new InternalClass();
+            InternalClass.prototype.__construct = constructorMethod;
+            objectValue.getObject.returns(nativeObject);
         });
 
         describe('when this class defines a constructor', function () {
             beforeEach(function () {
-                this.createClass('__construct', this.superClass);
+                createClass('__construct', superClass);
             });
 
             it('should not call the superclass\' constructor', function () {
-                this.classObject.construct(this.objectValue);
+                classObject.construct(objectValue);
 
-                expect(this.superClass.construct).not.to.have.been.called;
+                expect(superClass.construct).not.to.have.been.called;
             });
 
             it('should call the constructor method', function () {
-                var arg1Value = this.valueFactory.createString('hello'),
-                    arg2Value = this.valueFactory.createString('world');
+                var arg1Value = valueFactory.createString('hello'),
+                    arg2Value = valueFactory.createString('world');
 
-                this.classObject.construct(this.objectValue, [arg1Value, arg2Value]);
+                classObject.construct(objectValue, [arg1Value, arg2Value]);
 
-                expect(this.constructorMethod).to.have.been.calledOnce;
-                expect(this.constructorMethod.args[0][0].getNative()).to.equal('hello');
-                expect(this.constructorMethod.args[0][1].getNative()).to.equal('world');
+                expect(constructorMethod).to.have.been.calledOnce;
+                expect(constructorMethod.args[0][0].getNative()).to.equal('hello');
+                expect(constructorMethod.args[0][1].getNative()).to.equal('world');
             });
         });
 
         describe('when this class does not define a constructor', function () {
             beforeEach(function () {
-                this.createClass(null, this.superClass);
+                createClass(null, superClass);
             });
 
             it('should call the superclass\' constructor', function () {
-                this.classObject.construct(this.objectValue);
+                classObject.construct(objectValue);
 
-                expect(this.superClass.construct).to.have.been.calledOnce;
-                expect(this.superClass.construct).to.have.been.calledWith(
-                    sinon.match.same(this.objectValue)
+                expect(superClass.construct).to.have.been.calledOnce;
+                expect(superClass.construct).to.have.been.calledWith(
+                    sinon.match.same(objectValue)
                 );
             });
 
             it('should not call any method on the object', function () {
-                this.classObject.construct(this.objectValue, [1, 2]);
+                classObject.construct(objectValue, [1, 2]);
 
-                expect(this.objectValue.callMethod).not.to.have.been.called;
+                expect(objectValue.callMethod).not.to.have.been.called;
             });
         });
     });
 
     describe('getConstantByName()', function () {
-        it('should return the FQCN for the magic `::class` constant', function () {
-            this.createClass('__construct', this.superClass);
+        beforeEach(function () {
+            interfaceObject.getConstantByName.throws(new Error('Constant not defined'));
+            superClass.getConstantByName.throws(new Error('Constant not defined'));
+        });
 
-            expect(this.classObject.getConstantByName('class').getNative()).to.equal('My\\Class\\Path\\Here');
+        it('should return the FQCN for the magic `::class` constant', function () {
+            createClass('__construct', superClass);
+
+            expect(classObject.getConstantByName('class').getNative()).to.equal('My\\Class\\Path\\Here');
+        });
+
+        it('should be able to fetch a constant defined by the current class', function () {
+            createClass('__construct', superClass, {
+                'MY_CONST': function () {
+                    return valueFactory.createString('my value');
+                }
+            });
+
+            expect(classObject.getConstantByName('MY_CONST').getNative()).to.equal('my value');
+        });
+
+        it('should be able to fetch a constant defined by an interface implemented directly by the current class', function () {
+            interfaceObject.getConstantByName
+                .withArgs('MY_INTERFACE_CONST')
+                .returns(valueFactory.createString('my value from interface'));
+            createClass('__construct', superClass);
+
+            expect(classObject.getConstantByName('MY_INTERFACE_CONST').getNative())
+                .to.equal('my value from interface');
+        });
+
+        it('should be able to fetch a constant defined by the superclass (or other ancestor)', function () {
+            superClass.getConstantByName
+                .withArgs('MY_SUPER_CONST')
+                .returns(valueFactory.createString('my value from superclass'));
+            createClass('__construct', superClass);
+
+            expect(classObject.getConstantByName('MY_SUPER_CONST').getNative())
+                .to.equal('my value from superclass');
+        });
+
+        it('should raise the correct error when the constant is not defined in the class hierarchy', function () {
+            createClass('__construct', null);
+
+            expect(function () {
+                classObject.getConstantByName('MY_CONST');
+            }).to.throw(
+                'Fake PHP Fatal error for #core.undefined_class_constant with {"name":"MY_CONST"}'
+            );
         });
     });
 
     describe('getMethodSpec()', function () {
+        var methodSpec;
+
         beforeEach(function () {
-            this.methodSpec = sinon.createStubInstance(MethodSpec);
-            this.functionFactory.createMethodSpec.returns(this.methodSpec);
+            methodSpec = sinon.createStubInstance(MethodSpec);
+            functionFactory.createMethodSpec.returns(methodSpec);
         });
 
         describe('when the object is an instance of the native constructor', function () {
+            var nativeObject,
+                objectValue;
+
             beforeEach(function () {
-                this.nativeObject = sinon.createStubInstance(this.InternalClass);
-                this.objectValue = sinon.createStubInstance(ObjectValue);
-                this.objectValue.getObject.returns(this.nativeObject);
+                nativeObject = sinon.createStubInstance(InternalClass);
+                objectValue = sinon.createStubInstance(ObjectValue);
+                objectValue.getObject.returns(nativeObject);
             });
 
             describe('when the method is defined with the same case', function () {
+                var methodFunction;
+
                 beforeEach(function () {
-                    this.methodFunction = sinon.stub();
-                    this.InternalClass.prototype.myMethod = this.methodFunction;
-                    this.createClass('__construct', null);
+                    methodFunction = sinon.stub();
+                    InternalClass.prototype.myMethod = methodFunction;
+                    createClass('__construct', null);
                 });
 
                 it('should create and return a MethodSpec with the correct info', function () {
-                    expect(this.classObject.getMethodSpec('myMethod')).to.equal(this.methodSpec);
-                    expect(this.functionFactory.createMethodSpec).to.have.been.calledOnce;
-                    expect(this.functionFactory.createMethodSpec).to.have.been.calledWith(
-                        sinon.match.same(this.classObject),
-                        sinon.match.same(this.classObject),
+                    expect(classObject.getMethodSpec('myMethod')).to.equal(methodSpec);
+                    expect(functionFactory.createMethodSpec).to.have.been.calledOnce;
+                    expect(functionFactory.createMethodSpec).to.have.been.calledWith(
+                        sinon.match.same(classObject),
+                        sinon.match.same(classObject),
                         'myMethod',
-                        sinon.match.same(this.methodFunction)
+                        sinon.match.same(methodFunction)
                     );
                 });
             });
 
             describe('when the method is defined with differing case', function () {
+                var methodFunction;
+
                 beforeEach(function () {
-                    this.methodFunction = sinon.stub();
-                    this.InternalClass.prototype.myMethodWITHWRONGcase = this.methodFunction;
-                    this.createClass('__construct', null);
+                    methodFunction = sinon.stub();
+                    InternalClass.prototype.myMethodWITHWRONGcase = methodFunction;
+                    createClass('__construct', null);
                 });
 
                 it('should create and return a MethodSpec with the correct info', function () {
-                    expect(this.classObject.getMethodSpec('myMethodWithWrongCase')).to.equal(this.methodSpec);
-                    expect(this.functionFactory.createMethodSpec).to.have.been.calledOnce;
-                    expect(this.functionFactory.createMethodSpec).to.have.been.calledWith(
-                        sinon.match.same(this.classObject),
-                        sinon.match.same(this.classObject),
+                    expect(classObject.getMethodSpec('myMethodWithWrongCase')).to.equal(methodSpec);
+                    expect(functionFactory.createMethodSpec).to.have.been.calledOnce;
+                    expect(functionFactory.createMethodSpec).to.have.been.calledWith(
+                        sinon.match.same(classObject),
+                        sinon.match.same(classObject),
                         'myMethodWithWrongCase',
-                        sinon.match.same(this.methodFunction)
+                        sinon.match.same(methodFunction)
                     );
                 });
             });
 
             describe('when an own property is defined with the same name as the method', function () {
+                var methodFunction;
+
                 beforeEach(function () {
-                    this.methodFunction = sinon.stub();
-                    this.InternalClass.prototype.myMethod = this.methodFunction;
-                    this.nativeObject.myMethod = sinon.stub(); // Should be ignored
-                    this.createClass('__construct', null);
+                    methodFunction = sinon.stub();
+                    InternalClass.prototype.myMethod = methodFunction;
+                    nativeObject.myMethod = sinon.stub(); // Should be ignored
+                    createClass('__construct', null);
                 });
 
                 it('should ignore the property and create and return a MethodSpec with the correct info', function () {
-                    expect(this.classObject.getMethodSpec('myMethod')).to.equal(this.methodSpec);
-                    expect(this.functionFactory.createMethodSpec).to.have.been.calledOnce;
-                    expect(this.functionFactory.createMethodSpec).to.have.been.calledWith(
-                        sinon.match.same(this.classObject),
-                        sinon.match.same(this.classObject),
+                    expect(classObject.getMethodSpec('myMethod')).to.equal(methodSpec);
+                    expect(functionFactory.createMethodSpec).to.have.been.calledOnce;
+                    expect(functionFactory.createMethodSpec).to.have.been.calledWith(
+                        sinon.match.same(classObject),
+                        sinon.match.same(classObject),
                         'myMethod',
-                        sinon.match.same(this.methodFunction)
+                        sinon.match.same(methodFunction)
                     );
                 });
             });
 
             describe('when the method is not defined', function () {
                 it('should return null', function () {
-                    this.createClass('__construct', null);
+                    createClass('__construct', null);
 
-                    expect(this.classObject.getMethodSpec('myMethod')).to.be.null;
+                    expect(classObject.getMethodSpec('myMethod')).to.be.null;
                 });
             });
         });
 
         describe('when the object is not an instance of the native constructor (eg. JSObject/Closure)', function () {
+            var nativeObject,
+                objectValue;
+
             beforeEach(function () {
-                this.nativeObject = {};
-                this.objectValue = sinon.createStubInstance(ObjectValue);
-                this.superClass = null;
+                nativeObject = {};
+                objectValue = sinon.createStubInstance(ObjectValue);
+                superClass = null;
             });
 
             describe('when the method is defined with the same case', function () {
+                var methodFunction;
+
                 beforeEach(function () {
-                    this.methodFunction = sinon.stub();
-                    this.InternalClass.prototype.myMethod = this.methodFunction;
-                    this.createClass('__construct', null);
+                    methodFunction = sinon.stub();
+                    InternalClass.prototype.myMethod = methodFunction;
+                    createClass('__construct', null);
                 });
 
                 it('should create and return a MethodSpec with the correct info', function () {
-                    expect(this.classObject.getMethodSpec('myMethod')).to.equal(this.methodSpec);
-                    expect(this.functionFactory.createMethodSpec).to.have.been.calledOnce;
-                    expect(this.functionFactory.createMethodSpec).to.have.been.calledWith(
-                        sinon.match.same(this.classObject),
-                        sinon.match.same(this.classObject),
+                    expect(classObject.getMethodSpec('myMethod')).to.equal(methodSpec);
+                    expect(functionFactory.createMethodSpec).to.have.been.calledOnce;
+                    expect(functionFactory.createMethodSpec).to.have.been.calledWith(
+                        sinon.match.same(classObject),
+                        sinon.match.same(classObject),
                         'myMethod',
-                        sinon.match.same(this.methodFunction)
+                        sinon.match.same(methodFunction)
                     );
                 });
             });
 
             describe('when the method is defined with differing case', function () {
+                var methodFunction;
+
                 beforeEach(function () {
-                    this.methodFunction = sinon.stub();
-                    this.InternalClass.prototype.myMethodWITHWRONGcase = this.methodFunction;
-                    this.createClass('__construct', null);
+                    methodFunction = sinon.stub();
+                    InternalClass.prototype.myMethodWITHWRONGcase = methodFunction;
+                    createClass('__construct', null);
                 });
 
                 it('should create and return a MethodSpec with the correct info', function () {
-                    expect(this.classObject.getMethodSpec('myMethodWithWrongCase')).to.equal(this.methodSpec);
-                    expect(this.functionFactory.createMethodSpec).to.have.been.calledOnce;
-                    expect(this.functionFactory.createMethodSpec).to.have.been.calledWith(
-                        sinon.match.same(this.classObject),
-                        sinon.match.same(this.classObject),
+                    expect(classObject.getMethodSpec('myMethodWithWrongCase')).to.equal(methodSpec);
+                    expect(functionFactory.createMethodSpec).to.have.been.calledOnce;
+                    expect(functionFactory.createMethodSpec).to.have.been.calledWith(
+                        sinon.match.same(classObject),
+                        sinon.match.same(classObject),
                         'myMethodWithWrongCase',
-                        sinon.match.same(this.methodFunction)
+                        sinon.match.same(methodFunction)
                     );
                 });
             });
 
             describe('when an own property is defined with the same name as the method', function () {
+                var methodFunction;
+
                 beforeEach(function () {
-                    this.methodFunction = sinon.stub();
-                    this.InternalClass.prototype.myMethod = this.methodFunction;
-                    this.nativeObject.myMethod = sinon.stub(); // Should be ignored
-                    this.createClass('__construct', null);
+                    methodFunction = sinon.stub();
+                    InternalClass.prototype.myMethod = methodFunction;
+                    nativeObject.myMethod = sinon.stub(); // Should be ignored
+                    createClass('__construct', null);
                 });
 
                 it('should create and return a MethodSpec with the correct info', function () {
-                    expect(this.classObject.getMethodSpec('myMethod')).to.equal(this.methodSpec);
-                    expect(this.functionFactory.createMethodSpec).to.have.been.calledOnce;
-                    expect(this.functionFactory.createMethodSpec).to.have.been.calledWith(
-                        sinon.match.same(this.classObject),
-                        sinon.match.same(this.classObject),
+                    expect(classObject.getMethodSpec('myMethod')).to.equal(methodSpec);
+                    expect(functionFactory.createMethodSpec).to.have.been.calledOnce;
+                    expect(functionFactory.createMethodSpec).to.have.been.calledWith(
+                        sinon.match.same(classObject),
+                        sinon.match.same(classObject),
                         'myMethod',
-                        sinon.match.same(this.methodFunction)
+                        sinon.match.same(methodFunction)
                     );
                 });
             });
 
             describe('when the method is not defined', function () {
                 it('should return null', function () {
-                    this.createClass('__construct', null);
+                    createClass('__construct', null);
 
-                    expect(this.classObject.getMethodSpec('myMethod')).to.be.null;
+                    expect(classObject.getMethodSpec('myMethod')).to.be.null;
                 });
             });
         });
     });
 
     describe('getStaticPropertyByName()', function () {
-        it('should be able to fetch a static property defined by the current class', function () {
-            this.createClass('__construct', null);
+        var ancestorClass,
+            descendantClass,
+            foreignClass;
 
-            expect(this.classObject.getStaticPropertyByName('myFirstStaticProp').getValue().getNative())
-                .to.equal('my static prop value');
+        beforeEach(function () {
+            ancestorClass = sinon.createStubInstance(Class);
+            descendantClass = sinon.createStubInstance(Class);
+            foreignClass = sinon.createStubInstance(Class);
+
+            ancestorClass.getName.returns('MyAncestorClass');
+            descendantClass.getName.returns('MyDescendantClass');
+            foreignClass.getName.returns('MyForeignClass');
+
+            ancestorClass.extends.withArgs(sinon.match.same(ancestorClass)).returns(false);
+            ancestorClass.extends.withArgs(sinon.match.same(classObject)).returns(false);
+            ancestorClass.extends.withArgs(sinon.match.same(descendantClass)).returns(false);
+            ancestorClass.extends.withArgs(sinon.match.same(foreignClass)).returns(false);
+            descendantClass.extends.withArgs(sinon.match.same(ancestorClass)).returns(true);
+            descendantClass.extends.withArgs(sinon.match.same(classObject)).returns(true);
+            descendantClass.extends.withArgs(sinon.match.same(descendantClass)).returns(false);
+            descendantClass.extends.withArgs(sinon.match.same(foreignClass)).returns(false);
+            foreignClass.extends.withArgs(sinon.match.same(ancestorClass)).returns(false);
+            foreignClass.extends.withArgs(sinon.match.same(classObject)).returns(false);
+            foreignClass.extends.withArgs(sinon.match.same(descendantClass)).returns(false);
+            foreignClass.extends.withArgs(sinon.match.same(foreignClass)).returns(false);
+
+            ancestorClass.getSuperClass.returns(null);
+            descendantClass.getSuperClass.returns(classObject);
+            foreignClass.getSuperClass.returns(null);
+
+            ancestorClass.isInFamilyOf.withArgs(sinon.match.same(ancestorClass)).returns(true);
+            ancestorClass.isInFamilyOf.withArgs(sinon.match.same(classObject)).returns(true);
+            ancestorClass.isInFamilyOf.withArgs(sinon.match.same(descendantClass)).returns(true);
+            ancestorClass.isInFamilyOf.withArgs(sinon.match.same(foreignClass)).returns(false);
+            descendantClass.isInFamilyOf.withArgs(sinon.match.same(ancestorClass)).returns(true);
+            descendantClass.isInFamilyOf.withArgs(sinon.match.same(classObject)).returns(true);
+            descendantClass.isInFamilyOf.withArgs(sinon.match.same(descendantClass)).returns(true);
+            descendantClass.isInFamilyOf.withArgs(sinon.match.same(foreignClass)).returns(false);
+            foreignClass.isInFamilyOf.withArgs(sinon.match.same(ancestorClass)).returns(false);
+            foreignClass.isInFamilyOf.withArgs(sinon.match.same(classObject)).returns(false);
+            foreignClass.isInFamilyOf.withArgs(sinon.match.same(descendantClass)).returns(false);
+            foreignClass.isInFamilyOf.withArgs(sinon.match.same(foreignClass)).returns(true);
         });
 
-        it('should be able to fetch a static property defined by the parent class', function () {
-            var staticProperty = sinon.createStubInstance(StaticPropertyReference);
-            staticProperty.getValue.returns(this.valueFactory.createString('my inherited static prop value'));
-            this.superClass.getStaticPropertyByName
-                .withArgs('myInheritedStaticProp')
-                .returns(staticProperty);
+        describe('for an undefined property', function () {
+            it('should return an UndeclaredStaticPropertyReference', function () {
+                var propertyReference;
+                createClass('__construct', null);
 
-            this.createClass('__construct', this.superClass);
+                propertyReference = classObject.getStaticPropertyByName('myUndeclaredStaticProp');
 
-            expect(this.classObject.getStaticPropertyByName('myInheritedStaticProp').getValue().getNative())
-                .to.equal('my inherited static prop value');
+                expect(propertyReference).to.be.an.instanceOf(UndeclaredStaticPropertyReference);
+            });
         });
 
-        it('should return an UndeclaredStaticPropertyReference when the property is not defined', function () {
-            var propertyReference;
-            this.createClass('__construct', null);
+        describe('for a public property', function () {
+            beforeEach(function () {
+                createClass('__construct', ancestorClass);
+            });
 
-            propertyReference = this.classObject.getStaticPropertyByName('myUndeclaredStaticProp');
+            it('should be able to fetch a static property defined by the parent class', function () {
+                var staticProperty = sinon.createStubInstance(StaticPropertyReference);
+                staticProperty.getValue.returns(valueFactory.createString('my inherited static prop value'));
+                ancestorClass.getStaticPropertyByName
+                    .withArgs('myInheritedStaticProp')
+                    .returns(staticProperty);
 
-            expect(propertyReference).to.be.an.instanceOf(UndeclaredStaticPropertyReference);
+                expect(classObject.getStaticPropertyByName('myInheritedStaticProp').getValue().getNative())
+                    .to.equal('my inherited static prop value');
+            });
+
+            it('should return when not inside any class', function () {
+                var staticProperty = classObject.getStaticPropertyByName('myPublicStaticProp');
+
+                expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
+                expect(staticProperty.getName()).to.equal('myPublicStaticProp');
+                expect(staticProperty.getVisibility()).to.equal('public');
+                expect(staticProperty.getValue().getNative()).to.equal('my public static prop value');
+            });
+
+            it('should return when inside a class that is not the defining one', function () {
+                var staticProperty;
+                callStack.getCurrentClass.returns(foreignClass);
+
+                staticProperty = classObject.getStaticPropertyByName('myPublicStaticProp');
+
+                expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
+                expect(staticProperty.getName()).to.equal('myPublicStaticProp');
+                expect(staticProperty.getVisibility()).to.equal('public');
+                expect(staticProperty.getValue().getNative()).to.equal('my public static prop value');
+            });
+        });
+
+        describe('for a protected property', function () {
+            it('should return when inside the defining class', function () {
+                var staticProperty;
+                callStack.getCurrentClass.returns(classObject);
+
+                staticProperty = classObject.getStaticPropertyByName('myProtectedStaticProp');
+
+                expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
+                expect(staticProperty.getName()).to.equal('myProtectedStaticProp');
+                expect(staticProperty.getVisibility()).to.equal('protected');
+                expect(staticProperty.getValue().getNative()).to.equal('my protected static prop value');
+            });
+
+            it('should throw a fatal error when inside a class that is not in the family of the definer', function () {
+                callStack.getCurrentClass.returns(foreignClass);
+
+                expect(function () {
+                    classObject.getStaticPropertyByName('myProtectedStaticProp');
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.cannot_access_property with ' +
+                    '{"className":"My\\\\Class\\\\Path\\\\Here","propertyName":"myProtectedStaticProp","visibility":"protected"}'
+                );
+            });
+
+            it('should return when inside a class that is an ancestor of the definer', function () {
+                var staticProperty;
+                callStack.getCurrentClass.returns(ancestorClass);
+
+                staticProperty = classObject.getStaticPropertyByName('myProtectedStaticProp');
+
+                expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
+                expect(staticProperty.getName()).to.equal('myProtectedStaticProp');
+                expect(staticProperty.getVisibility()).to.equal('protected');
+                expect(staticProperty.getValue().getNative()).to.equal('my protected static prop value');
+            });
+
+            it('should return when inside a class that is a descendant of the definer', function () {
+                var staticProperty;
+                callStack.getCurrentClass.returns(descendantClass);
+
+                staticProperty = classObject.getStaticPropertyByName('myProtectedStaticProp');
+
+                expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
+                expect(staticProperty.getName()).to.equal('myProtectedStaticProp');
+                expect(staticProperty.getVisibility()).to.equal('protected');
+                expect(staticProperty.getValue().getNative()).to.equal('my protected static prop value');
+            });
+        });
+
+        describe('for a private property', function () {
+            it('should return when inside the defining class', function () {
+                var staticProperty;
+                callStack.getCurrentClass.returns(classObject);
+
+                staticProperty = classObject.getStaticPropertyByName('myPrivateStaticProp');
+
+                expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
+                expect(staticProperty.getName()).to.equal('myPrivateStaticProp');
+                expect(staticProperty.getVisibility()).to.equal('private');
+                expect(staticProperty.getValue().getNative()).to.equal('my private static prop value');
+            });
+
+            it('should throw a fatal error when inside a class that is not in the family of the definer', function () {
+                callStack.getCurrentClass.returns(foreignClass);
+
+                expect(function () {
+                    classObject.getStaticPropertyByName('myPrivateStaticProp');
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.cannot_access_property with ' +
+                    '{"className":"MyForeignClass","propertyName":"myPrivateStaticProp","visibility":"private"}'
+                );
+            });
+
+            it('should throw a fatal error when inside a class that is an ancestor of the definer', function () {
+                callStack.getCurrentClass.returns(ancestorClass);
+
+                expect(function () {
+                    classObject.getStaticPropertyByName('myPrivateStaticProp');
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.cannot_access_property with ' +
+                    '{"className":"MyAncestorClass","propertyName":"myPrivateStaticProp","visibility":"private"}'
+                );
+            });
+
+            it('should throw a fatal error when inside a class that is a descendant of the definer', function () {
+                callStack.getCurrentClass.returns(descendantClass);
+
+                expect(function () {
+                    classObject.getStaticPropertyByName('myPrivateStaticProp');
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.cannot_access_property with ' +
+                    '{"className":"MyDescendantClass","propertyName":"myPrivateStaticProp","visibility":"private"}'
+                );
+            });
         });
     });
 
     describe('getSuperClass()', function () {
         it('should return the parent of this class when it has one', function () {
-            this.createClass('__construct', this.superClass);
+            createClass('__construct', superClass);
 
-            expect(this.classObject.getSuperClass()).to.equal(this.superClass);
+            expect(classObject.getSuperClass()).to.equal(superClass);
         });
 
         it('should return null when this class does not have a parent', function () {
-            this.createClass('__construct', null);
+            createClass('__construct', null);
 
-            expect(this.classObject.getSuperClass()).to.be.null;
+            expect(classObject.getSuperClass()).to.be.null;
         });
     });
 
     describe('instantiate()', function () {
+        var objectValue;
+
         beforeEach(function () {
-            this.objectValue = sinon.createStubInstance(ObjectValue);
-            this.createClass('__construct', this.superClass);
+            objectValue = sinon.createStubInstance(ObjectValue);
+            createClass('__construct', superClass);
         });
 
         it('should call the internal constructor with arguments wrapped by default', function () {
             var arg1 = sinon.createStubInstance(Value),
                 arg2 = sinon.createStubInstance(Value);
-            sinon.stub(this.valueFactory, 'createObject').returns(this.objectValue);
+            sinon.stub(valueFactory, 'createObject').returns(objectValue);
 
-            this.classObject.instantiate([arg1, arg2]);
+            classObject.instantiate([arg1, arg2]);
 
-            expect(this.InternalClass).to.have.been.calledOnce;
-            expect(this.InternalClass).to.have.been.calledOn(sinon.match.same(this.objectValue));
-            expect(this.InternalClass).to.have.been.calledWith(
+            expect(InternalClass).to.have.been.calledOnce;
+            expect(InternalClass).to.have.been.calledOn(sinon.match.same(objectValue));
+            expect(InternalClass).to.have.been.calledWith(
                 sinon.match.same(arg1),
                 sinon.match.same(arg2)
             );
@@ -645,113 +925,113 @@ describe('Class', function () {
         it('should call the internal constructor with arguments unwrapped with auto-coercion enabled', function () {
             var arg1 = sinon.createStubInstance(Value),
                 arg2 = sinon.createStubInstance(Value);
-            sinon.stub(this.valueFactory, 'createObject').returns(this.objectValue);
+            sinon.stub(valueFactory, 'createObject').returns(objectValue);
             arg1.getNative.returns(21);
             arg2.getNative.returns('second');
-            this.classObject.enableAutoCoercion();
+            classObject.enableAutoCoercion();
 
-            this.classObject.instantiate([arg1, arg2]);
+            classObject.instantiate([arg1, arg2]);
 
-            expect(this.InternalClass).to.have.been.calledOnce;
-            expect(this.InternalClass).to.have.been.calledOn(sinon.match.same(this.objectValue));
-            expect(this.InternalClass).to.have.been.calledWith(21, 'second');
+            expect(InternalClass).to.have.been.calledOnce;
+            expect(InternalClass).to.have.been.calledOn(sinon.match.same(objectValue));
+            expect(InternalClass).to.have.been.calledWith(21, 'second');
         });
 
         it('should wrap an instance of the InternalClass in an ObjectValue', function () {
-            sinon.stub(this.valueFactory, 'createObject').returns(this.objectValue);
+            sinon.stub(valueFactory, 'createObject').returns(objectValue);
 
-            this.classObject.instantiate([]);
+            classObject.instantiate([]);
 
-            expect(this.valueFactory.createObject).to.have.been.calledOnce;
-            expect(this.valueFactory.createObject).to.have.been.calledWith(
-                sinon.match.instanceOf(this.InternalClass)
+            expect(valueFactory.createObject).to.have.been.calledOnce;
+            expect(valueFactory.createObject).to.have.been.calledWith(
+                sinon.match.instanceOf(InternalClass)
             );
         });
 
         it('should return the created object', function () {
-            sinon.stub(this.valueFactory, 'createObject').returns(this.objectValue);
+            sinon.stub(valueFactory, 'createObject').returns(objectValue);
 
-            expect(this.classObject.instantiate([])).to.equal(this.objectValue);
+            expect(classObject.instantiate([])).to.equal(objectValue);
         });
     });
 
     describe('is()', function () {
         beforeEach(function () {
-            this.createClass('__construct', this.superClass);
+            createClass('__construct', superClass);
         });
 
         it('should return true for the current class name case-insensitively', function () {
-            expect(this.classObject.is('my\\CLASS\\path\\hEre')).to.be.true;
+            expect(classObject.is('my\\CLASS\\path\\hEre')).to.be.true;
         });
 
         it('should return true when the superclass reports with true', function () {
-            this.superClass.is.withArgs('Some\\Parent\\Class\\Path\\Here').returns(true);
+            superClass.is.withArgs('Some\\Parent\\Class\\Path\\Here').returns(true);
 
-            expect(this.classObject.is('Some\\Parent\\Class\\Path\\Here')).to.be.true;
+            expect(classObject.is('Some\\Parent\\Class\\Path\\Here')).to.be.true;
         });
 
         it('should return false when not the current class or an ancestor class', function () {
-            this.superClass.is.returns(false);
+            superClass.is.returns(false);
 
-            expect(this.classObject.is('Some\\Class\\Or\\Other')).to.be.false;
+            expect(classObject.is('Some\\Class\\Or\\Other')).to.be.false;
         });
 
         it('should return true when this class implements the interface', function () {
-            this.superClass.is.returns(false);
+            superClass.is.returns(false);
 
-            expect(this.classObject.is('My\\Interface')).to.be.true;
+            expect(classObject.is('My\\Interface')).to.be.true;
         });
 
         it('should return false when this class does not implement the interface', function () {
-            this.superClass.is.returns(false);
+            superClass.is.returns(false);
 
-            expect(this.classObject.is('Not\\My\\Interface')).to.be.false;
+            expect(classObject.is('Not\\My\\Interface')).to.be.false;
         });
     });
 
     describe('isAutoCoercionEnabled()', function () {
         it('should return false by default', function () {
-            expect(this.classObject.isAutoCoercionEnabled()).to.be.false;
+            expect(classObject.isAutoCoercionEnabled()).to.be.false;
         });
 
         it('should return true when enabled', function () {
-            this.classObject.enableAutoCoercion();
+            classObject.enableAutoCoercion();
 
-            expect(this.classObject.isAutoCoercionEnabled()).to.be.true;
+            expect(classObject.isAutoCoercionEnabled()).to.be.true;
         });
 
         it('should return false when re-disabled', function () {
-            this.classObject.enableAutoCoercion();
-            this.classObject.disableAutoCoercion();
+            classObject.enableAutoCoercion();
+            classObject.disableAutoCoercion();
 
-            expect(this.classObject.isAutoCoercionEnabled()).to.be.false;
+            expect(classObject.isAutoCoercionEnabled()).to.be.false;
         });
     });
 
     describe('isInFamilyOf()', function () {
         it('should return true when the same class is passed in', function () {
-            expect(this.classObject.isInFamilyOf(this.classObject)).to.be.true;
+            expect(classObject.isInFamilyOf(classObject)).to.be.true;
         });
 
         it('should return true when this class extends the provided one', function () {
             var superClass = sinon.createStubInstance(Class);
-            this.createClass('__construct', superClass);
+            createClass('__construct', superClass);
 
-            expect(this.classObject.isInFamilyOf(superClass)).to.be.true;
+            expect(classObject.isInFamilyOf(superClass)).to.be.true;
         });
 
         it('should return true when the provided class extends this one', function () {
             var childClass = sinon.createStubInstance(Class);
-            childClass.extends.withArgs(sinon.match.same(this.classObject)).returns(true);
+            childClass.extends.withArgs(sinon.match.same(classObject)).returns(true);
 
-            expect(this.classObject.isInFamilyOf(childClass)).to.be.true;
+            expect(classObject.isInFamilyOf(childClass)).to.be.true;
         });
 
         it('should return false when the provided class has no relation to this one', function () {
             var foreignClass = sinon.createStubInstance(Class);
-            foreignClass.extends.withArgs(sinon.match.same(this.classObject)).returns(false);
+            foreignClass.extends.withArgs(sinon.match.same(classObject)).returns(false);
 
-            expect(this.classObject.isInFamilyOf(foreignClass)).to.be.false;
+            expect(classObject.isInFamilyOf(foreignClass)).to.be.false;
         });
     });
 
@@ -759,9 +1039,9 @@ describe('Class', function () {
         it('should return a PHPObject that wraps the provided instance of this class', function () {
             var instance = sinon.createStubInstance(ObjectValue),
                 phpObject = sinon.createStubInstance(PHPObject);
-            sinon.stub(this.valueFactory, 'createPHPObject').withArgs(sinon.match.same(instance)).returns(phpObject);
+            sinon.stub(valueFactory, 'createPHPObject').withArgs(sinon.match.same(instance)).returns(phpObject);
 
-            expect(this.classObject.proxyInstanceForJS(instance)).to.equal(phpObject);
+            expect(classObject.proxyInstanceForJS(instance)).to.equal(phpObject);
         });
     });
 
@@ -770,12 +1050,12 @@ describe('Class', function () {
             it('should use the unwrapper to unwrap correctly when auto-coercion is disabled', function () {
                 var instance = sinon.createStubInstance(ObjectValue),
                     nativeObject = {};
-                instance.getProperty.withArgs('myProp').returns(this.valueFactory.createString('my first result'));
-                this.classObject.defineUnwrapper(function () {
+                instance.getProperty.withArgs('myProp').returns(valueFactory.createString('my first result'));
+                classObject.defineUnwrapper(function () {
                     return {yourProp: this.getProperty('myProp').getNative()};
                 });
 
-                expect(this.classObject.unwrapInstanceForJS(instance, nativeObject)).to.deep.equal({
+                expect(classObject.unwrapInstanceForJS(instance, nativeObject)).to.deep.equal({
                     yourProp: 'my first result'
                 });
             });
@@ -783,12 +1063,12 @@ describe('Class', function () {
             it('should use the unwrapper to unwrap correctly when auto-coercion is enabled', function () {
                 var instance = sinon.createStubInstance(ObjectValue),
                     nativeObject = {myProp: 'my second result'};
-                this.classObject.defineUnwrapper(function () {
+                classObject.defineUnwrapper(function () {
                     return {yourProp: this.myProp};
                 });
-                this.classObject.enableAutoCoercion();
+                classObject.enableAutoCoercion();
 
-                expect(this.classObject.unwrapInstanceForJS(instance, nativeObject)).to.deep.equal({
+                expect(classObject.unwrapInstanceForJS(instance, nativeObject)).to.deep.equal({
                     yourProp: 'my second result'
                 });
             });
@@ -799,17 +1079,17 @@ describe('Class', function () {
                 var instance = sinon.createStubInstance(ObjectValue),
                     nativeObject = {myProp: 4},
                     unwrapped;
-                instance.callMethod.withArgs('doubleMyPropAndAdd', 21).returns(this.valueFactory.createInteger(29));
-                sinon.stub(this.valueFactory, 'createPHPObject').callsFake(function (objectValue) {
+                instance.callMethod.withArgs('doubleMyPropAndAdd', 21).returns(valueFactory.createInteger(29));
+                sinon.stub(valueFactory, 'createPHPObject').callsFake(function (objectValue) {
                     var phpObject = sinon.createStubInstance(PHPObject);
                     phpObject.callMethod.callsFake(function (name, args) {
                         return objectValue.callMethod(name, args).getNative();
                     });
                     return phpObject;
                 });
-                this.InternalClass.prototype.doubleMyPropAndAdd = function () {};
+                InternalClass.prototype.doubleMyPropAndAdd = function () {};
 
-                unwrapped = this.classObject.unwrapInstanceForJS(instance, nativeObject);
+                unwrapped = classObject.unwrapInstanceForJS(instance, nativeObject);
 
                 expect(unwrapped.doubleMyPropAndAdd(21)).to.equal(29);
             });
@@ -818,20 +1098,20 @@ describe('Class', function () {
                 var existingUnwrapped,
                     instance = sinon.createStubInstance(ObjectValue),
                     nativeObject = {myProp: 4};
-                existingUnwrapped = this.classObject.unwrapInstanceForJS(instance, nativeObject);
+                existingUnwrapped = classObject.unwrapInstanceForJS(instance, nativeObject);
 
-                expect(this.classObject.unwrapInstanceForJS(instance, nativeObject)).to.equal(existingUnwrapped);
+                expect(classObject.unwrapInstanceForJS(instance, nativeObject)).to.equal(existingUnwrapped);
             });
 
             it('should map the unwrapped object back to the original ObjectValue', function () {
                 var instance = sinon.createStubInstance(ObjectValue),
                     nativeObject = {myProp: 'my second result'};
-                sinon.stub(this.valueFactory, 'mapUnwrappedObjectToValue');
+                sinon.stub(valueFactory, 'mapUnwrappedObjectToValue');
 
-                this.classObject.unwrapInstanceForJS(instance, nativeObject);
+                classObject.unwrapInstanceForJS(instance, nativeObject);
 
-                expect(this.valueFactory.mapUnwrappedObjectToValue).to.have.been.calledOnce;
-                expect(this.valueFactory.mapUnwrappedObjectToValue).to.have.been.calledWith(
+                expect(valueFactory.mapUnwrappedObjectToValue).to.have.been.calledOnce;
+                expect(valueFactory.mapUnwrappedObjectToValue).to.have.been.calledWith(
                     sinon.match.any,
                     sinon.match.same(instance)
                 );

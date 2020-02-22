@@ -10,20 +10,20 @@
 'use strict';
 
 var expect = require('chai').expect,
-    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     ArrayIterator = require('../../../src/Iterator/ArrayIterator'),
     ArrayValue = require('../../../src/Value/Array').sync(),
     CallStack = require('../../../src/CallStack'),
+    Class = require('../../../src/Class').sync(),
     ElementProvider = require('../../../src/Reference/Element/ElementProvider'),
     ElementReference = require('../../../src/Reference/Element'),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyReferencePair = require('../../../src/KeyReferencePair'),
     KeyValuePair = require('../../../src/KeyValuePair'),
+    MethodSpec = require('../../../src/MethodSpec'),
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
-    PHPFatalError = phpCommon.PHPFatalError,
     PropertyReference = require('../../../src/Reference/Property'),
     StringValue = require('../../../src/Value/String').sync(),
     Value = require('../../../src/Value').sync(),
@@ -31,83 +31,110 @@ var expect = require('chai').expect,
     VariableReference = require('../../../src/Reference/Variable');
 
 describe('Array', function () {
-    beforeEach(function () {
-        this.callStack = sinon.createStubInstance(CallStack);
-        this.elementProvider = new ElementProvider();
-        this.factory = new ValueFactory();
-        this.namespaceScope = sinon.createStubInstance(NamespaceScope);
-        this.globalNamespace = sinon.createStubInstance(Namespace);
-        this.namespaceScope.getGlobalNamespace.returns(this.globalNamespace);
+    var callStack,
+        createKeyReferencePair,
+        createKeyValuePair,
+        createValue,
+        element1,
+        element2,
+        elements,
+        elementKey1,
+        elementKey2,
+        elementProvider,
+        elementValue1,
+        elementValue2,
+        factory,
+        globalNamespace,
+        namespaceScope,
+        value;
 
-        this.createKeyValuePair = function (key, value) {
+    beforeEach(function () {
+        callStack = sinon.createStubInstance(CallStack);
+        elementProvider = new ElementProvider();
+        factory = new ValueFactory();
+        namespaceScope = sinon.createStubInstance(NamespaceScope);
+        globalNamespace = sinon.createStubInstance(Namespace);
+        namespaceScope.getGlobalNamespace.returns(globalNamespace);
+
+        createKeyValuePair = function (key, value) {
             var keyValuePair = sinon.createStubInstance(KeyValuePair);
             keyValuePair.getKey.returns(key);
             keyValuePair.getValue.returns(value);
             return keyValuePair;
         };
-        this.createKeyReferencePair = function (key, reference) {
+        createKeyReferencePair = function (key, reference) {
             var keyReferencePair = sinon.createStubInstance(KeyReferencePair);
             keyReferencePair.getKey.returns(key);
             keyReferencePair.getReference.returns(reference);
             return keyReferencePair;
         };
 
-        this.elementKey1 = this.factory.createString('firstEl');
-        this.elementValue1 = this.factory.createString('value of first el');
-        this.element1 = this.createKeyValuePair(
-            this.elementKey1,
-            this.elementValue1
+        elementKey1 = factory.createString('firstEl');
+        elementValue1 = factory.createString('value of first el');
+        element1 = createKeyValuePair(
+            elementKey1,
+            elementValue1
         );
-        this.elementKey2 = this.factory.createString('secondEl');
-        this.elementValue2 = this.factory.createString('value of second el');
-        this.element2 = this.createKeyValuePair(
-            this.elementKey2,
-            this.elementValue2
+        elementKey2 = factory.createString('secondEl');
+        elementValue2 = factory.createString('value of second el');
+        element2 = createKeyValuePair(
+            elementKey2,
+            elementValue2
         );
-        this.elements = [
-            this.element1,
-            this.element2
+        elements = [
+            element1,
+            element2
         ];
 
-        this.createValue = function (valueFactory) {
-            this.value = new ArrayValue(
-                valueFactory || this.factory,
-                this.callStack,
-                this.elements,
-                null,
-                this.elementProvider
+        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+            throw new Error(
+                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
             );
-        }.bind(this);
-        this.createValue();
+        });
+
+        createValue = function (valueFactory) {
+            value = new ArrayValue(
+                valueFactory || factory,
+                callStack,
+                elements,
+                null,
+                elementProvider
+            );
+        };
+        createValue();
     });
 
     describe('addToArray() - adding an array to another array', function () {
+        var leftElement1,
+            leftElement2,
+            leftValue;
+
         beforeEach(function () {
-            this.leftElement1 = this.createKeyValuePair(
-                this.factory.createString('firstEl'),
-                this.factory.createString('value of left first el')
+            leftElement1 = createKeyValuePair(
+                factory.createString('firstEl'),
+                factory.createString('value of left first el')
             );
-            this.leftElement2 = this.createKeyValuePair(
-                this.factory.createString('leftSecondEl'),
-                this.factory.createString('value of left second el')
+            leftElement2 = createKeyValuePair(
+                factory.createString('leftSecondEl'),
+                factory.createString('value of left second el')
             );
 
-            this.leftValue = new ArrayValue(this.factory, this.callStack, [
-                this.leftElement1,
-                this.leftElement2
-            ], null, this.elementProvider);
+            leftValue = new ArrayValue(factory, callStack, [
+                leftElement1,
+                leftElement2
+            ], null, elementProvider);
         });
 
         it('should return an array', function () {
-            expect(this.value.addToArray(this.leftValue)).to.be.an.instanceOf(ArrayValue);
+            expect(value.addToArray(leftValue)).to.be.an.instanceOf(ArrayValue);
         });
 
         it('should return a different array to the left operand', function () {
-            expect(this.value.addToArray(this.leftValue)).not.to.equal(this.leftValue);
+            expect(value.addToArray(leftValue)).not.to.equal(leftValue);
         });
 
         it('should prefer elements from left array over elements from right array', function () {
-            var result = this.value.addToArray(this.leftValue);
+            var result = value.addToArray(leftValue);
 
             expect(result.getNative().firstEl).to.equal('value of left first el');
             expect(result.getNative().secondEl).to.equal('value of second el');
@@ -117,41 +144,49 @@ describe('Array', function () {
 
     describe('addToBoolean() - adding an array to a boolean', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var booleanValue = this.factory.createBoolean(true);
+            var booleanValue = factory.createBoolean(true);
 
             expect(function () {
-                this.value.addToBoolean(booleanValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.addToBoolean(booleanValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('addToFloat() - adding an array to a float', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var floatValue = this.factory.createFloat(1.2);
+            var floatValue = factory.createFloat(1.2);
 
             expect(function () {
-                this.value.addToFloat(floatValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.addToFloat(floatValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('addToInteger() - adding an array to an integer', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var integerValue = this.factory.createInteger(4);
+            var integerValue = factory.createInteger(4);
 
             expect(function () {
-                this.value.addToInteger(integerValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.addToInteger(integerValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('addToNull() - adding an array to null', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var nullValue = this.factory.createNull();
+            var nullValue = factory.createNull();
 
             expect(function () {
-                this.value.addToNull(nullValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.addToNull(nullValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
@@ -159,176 +194,222 @@ describe('Array', function () {
         it('should hand off to ObjectValue.addToArray(...)', function () {
             var objectValue = sinon.createStubInstance(ObjectValue),
                 result = {};
-            objectValue.addToArray.withArgs(this.value).returns(result);
+            objectValue.addToArray.withArgs(value).returns(result);
 
-            expect(this.value.addToObject(objectValue)).to.equal(result);
+            expect(value.addToObject(objectValue)).to.equal(result);
         });
     });
 
     describe('addToString() - adding an array to a string', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var stringValue = this.factory.createString('My string value');
+            var stringValue = factory.createString('My string value');
 
             expect(function () {
-                this.value.addToString(stringValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.addToString(stringValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('call()', function () {
         it('should throw when array is empty', function () {
-            this.elements.length = 0;
-            this.createValue();
+            elements.length = 0;
+            createValue();
 
             expect(function () {
-                this.value.call([], this.namespaceScope);
-            }.bind(this)).to.throw(PHPFatalError, 'Function name must be a string');
+                value.call([], namespaceScope);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.function_name_must_be_string with {}'
+            );
         });
 
         it('should throw when array has only one element', function () {
-            this.elements.length = 0;
-            this.elements.push(this.factory.createInteger(21));
-            this.createValue();
+            elements.length = 0;
+            elements.push(factory.createInteger(21));
+            createValue();
 
             expect(function () {
-                this.value.call([], this.namespaceScope);
-            }.bind(this)).to.throw(PHPFatalError, 'Function name must be a string');
+                value.call([], namespaceScope);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.function_name_must_be_string with {}'
+            );
         });
 
         describe('for a static method call', function () {
+            var classNameValue;
+
             beforeEach(function () {
-                this.classNameValue = sinon.createStubInstance(StringValue);
-                this.classNameValue.getNative.returns('My\\Space\\MyClass');
-                this.classNameValue.getType.returns('string');
-                this.elements.length = 0;
-                this.elements.push(this.classNameValue);
-                this.elements.push(this.factory.createString('myStaticMethod'));
-                this.createValue();
+                classNameValue = sinon.createStubInstance(StringValue);
+                classNameValue.getNative.returns('My\\Space\\MyClass');
+                classNameValue.getType.returns('string');
+                elements.length = 0;
+                elements.push(classNameValue);
+                elements.push(factory.createString('myStaticMethod'));
+                createValue();
             });
 
             it('should ask the StringValue to call the method once', function () {
-                this.value.call([], this.namespaceScope);
+                value.call([], namespaceScope);
 
-                expect(this.classNameValue.callStaticMethod).to.have.been.calledOnce;
-                expect(this.classNameValue.callStaticMethod.args[0][0]).to.be.an.instanceOf(StringValue);
-                expect(this.classNameValue.callStaticMethod.args[0][0].getNative()).to.equal('myStaticMethod');
+                expect(classNameValue.callStaticMethod).to.have.been.calledOnce;
+                expect(classNameValue.callStaticMethod.args[0][0]).to.be.an.instanceOf(StringValue);
+                expect(classNameValue.callStaticMethod.args[0][0].getNative()).to.equal('myStaticMethod');
             });
 
             it('should pass the args along', function () {
-                this.value.call(
+                value.call(
                     [
-                        this.factory.createString('first arg'),
-                        this.factory.createString('second arg')
+                        factory.createString('first arg'),
+                        factory.createString('second arg')
                     ],
-                    this.namespaceScope
+                    namespaceScope
                 );
 
-                expect(this.classNameValue.callStaticMethod).to.have.been.calledOnce;
-                expect(this.classNameValue.callStaticMethod.args[0][1]).to.have.length(2);
-                expect(this.classNameValue.callStaticMethod.args[0][1][0]).to.be.an.instanceOf(StringValue);
-                expect(this.classNameValue.callStaticMethod.args[0][1][0].getNative()).to.equal('first arg');
-                expect(this.classNameValue.callStaticMethod.args[0][1][1]).to.be.an.instanceOf(StringValue);
-                expect(this.classNameValue.callStaticMethod.args[0][1][1].getNative()).to.equal('second arg');
+                expect(classNameValue.callStaticMethod).to.have.been.calledOnce;
+                expect(classNameValue.callStaticMethod.args[0][1]).to.have.length(2);
+                expect(classNameValue.callStaticMethod.args[0][1][0]).to.be.an.instanceOf(StringValue);
+                expect(classNameValue.callStaticMethod.args[0][1][0].getNative()).to.equal('first arg');
+                expect(classNameValue.callStaticMethod.args[0][1][1]).to.be.an.instanceOf(StringValue);
+                expect(classNameValue.callStaticMethod.args[0][1][1].getNative()).to.equal('second arg');
             });
 
             it('should pass the NamespaceScope along', function () {
-                this.value.call(
+                value.call(
                     [
-                        this.factory.createString('first arg'),
-                        this.factory.createString('second arg')
+                        factory.createString('first arg'),
+                        factory.createString('second arg')
                     ],
-                    this.namespaceScope
+                    namespaceScope
                 );
 
-                expect(this.classNameValue.callStaticMethod).to.have.been.calledOnce;
-                expect(this.classNameValue.callStaticMethod).to.have.been.calledWith(
+                expect(classNameValue.callStaticMethod).to.have.been.calledOnce;
+                expect(classNameValue.callStaticMethod).to.have.been.calledWith(
                     sinon.match.any,
                     sinon.match.any,
-                    sinon.match.same(this.namespaceScope)
+                    sinon.match.same(namespaceScope)
                 );
             });
         });
 
         describe('for an instance method call', function () {
+            var objectValue;
+
             beforeEach(function () {
-                this.objectValue = sinon.createStubInstance(ObjectValue);
-                this.elements.length = 0;
-                this.elements.push(this.objectValue);
-                this.elements.push(this.factory.createString('myInstanceMethod'));
-                this.createValue();
+                objectValue = sinon.createStubInstance(ObjectValue);
+                elements.length = 0;
+                elements.push(objectValue);
+                elements.push(factory.createString('myInstanceMethod'));
+                createValue();
             });
 
             it('should ask the StringValue to call the method once', function () {
-                this.value.call([], this.namespaceScope);
+                value.call([], namespaceScope);
 
-                expect(this.objectValue.callMethod).to.have.been.calledOnce;
-                expect(this.objectValue.callMethod.args[0][0]).to.equal('myInstanceMethod');
+                expect(objectValue.callMethod).to.have.been.calledOnce;
+                expect(objectValue.callMethod.args[0][0]).to.equal('myInstanceMethod');
             });
 
             it('should pass the args along', function () {
-                this.value.call(
+                value.call(
                     [
-                        this.factory.createString('first arg'),
-                        this.factory.createString('second arg')
+                        factory.createString('first arg'),
+                        factory.createString('second arg')
                     ],
-                    this.namespaceScope
+                    namespaceScope
                 );
 
-                expect(this.objectValue.callMethod).to.have.been.calledOnce;
-                expect(this.objectValue.callMethod.args[0][1]).to.have.length(2);
-                expect(this.objectValue.callMethod.args[0][1][0]).to.be.an.instanceOf(StringValue);
-                expect(this.objectValue.callMethod.args[0][1][0].getNative()).to.equal('first arg');
-                expect(this.objectValue.callMethod.args[0][1][1]).to.be.an.instanceOf(StringValue);
-                expect(this.objectValue.callMethod.args[0][1][1].getNative()).to.equal('second arg');
+                expect(objectValue.callMethod).to.have.been.calledOnce;
+                expect(objectValue.callMethod.args[0][1]).to.have.length(2);
+                expect(objectValue.callMethod.args[0][1][0]).to.be.an.instanceOf(StringValue);
+                expect(objectValue.callMethod.args[0][1][0].getNative()).to.equal('first arg');
+                expect(objectValue.callMethod.args[0][1][1]).to.be.an.instanceOf(StringValue);
+                expect(objectValue.callMethod.args[0][1][1].getNative()).to.equal('second arg');
             });
 
             it('should pass the NamespaceScope along', function () {
-                this.value.call(
+                value.call(
                     [
-                        this.factory.createString('first arg'),
-                        this.factory.createString('second arg')
+                        factory.createString('first arg'),
+                        factory.createString('second arg')
                     ],
-                    this.namespaceScope
+                    namespaceScope
                 );
 
-                expect(this.objectValue.callMethod).to.have.been.calledOnce;
-                expect(this.objectValue.callMethod).to.have.been.calledWith(
+                expect(objectValue.callMethod).to.have.been.calledOnce;
+                expect(objectValue.callMethod).to.have.been.calledWith(
                     sinon.match.any,
                     sinon.match.any,
-                    sinon.match.same(this.namespaceScope)
+                    sinon.match.same(namespaceScope)
                 );
             });
         });
     });
 
-    describe('coerceToObject()', function () {
-        beforeEach(function () {
-            this.nativeStdClassObject = {};
-            this.stdClassObject = sinon.createStubInstance(ObjectValue);
-            sinon.stub(this.factory, 'createStdClassObject').returns(this.stdClassObject);
+    describe('callMethod()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                value.callMethod('myMethod', [factory.createString('my arg')]);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.non_object_method_call with {"name":"myMethod","type":"array"}'
+            );
+        });
+    });
 
-            this.stdClassObject.getInstancePropertyByName.callsFake(function (nameValue) {
+    describe('callStaticMethod()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                value.callStaticMethod(
+                    factory.createString('myMethod'),
+                    [factory.createString('my arg')]
+                );
+            }).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
+            );
+        });
+    });
+
+    describe('coerceToNativeError()', function () {
+        it('should throw an error as this is invalid', function () {
+            expect(function () {
+                value.coerceToNativeError();
+            }).to.throw(
+                'Only instances of Throwable may be thrown: tried to throw a(n) array'
+            );
+        });
+    });
+
+    describe('coerceToObject()', function () {
+        var nativeStdClassObject,
+            stdClassObject;
+
+        beforeEach(function () {
+            nativeStdClassObject = {};
+            stdClassObject = sinon.createStubInstance(ObjectValue);
+            sinon.stub(factory, 'createStdClassObject').returns(stdClassObject);
+
+            stdClassObject.getInstancePropertyByName.callsFake(function (nameValue) {
                 var propertyRef = sinon.createStubInstance(PropertyReference);
 
                 propertyRef.setValue.callsFake(function (value) {
-                    this.nativeStdClassObject[nameValue.getNative()] = value.getNative();
-                }.bind(this));
+                    nativeStdClassObject[nameValue.getNative()] = value.getNative();
+                });
 
                 return propertyRef;
-            }.bind(this));
+            });
         });
 
         it('should return an ObjectValue wrapping the created stdClass instance', function () {
-            var coercedValue = this.value.coerceToObject();
+            var coercedValue = value.coerceToObject();
 
-            expect(coercedValue).to.equal(this.stdClassObject);
+            expect(coercedValue).to.equal(stdClassObject);
         });
 
         it('should store the array elements as properties of the stdClass object', function () {
-            this.value.coerceToObject();
+            value.coerceToObject();
 
-            expect(this.nativeStdClassObject.firstEl).to.equal('value of first el');
-            expect(this.nativeStdClassObject.secondEl).to.equal('value of second el');
+            expect(nativeStdClassObject.firstEl).to.equal('value of first el');
+            expect(nativeStdClassObject.secondEl).to.equal('value of second el');
         });
     });
 
@@ -337,145 +418,196 @@ describe('Array', function () {
             var rightValue = sinon.createStubInstance(Value);
 
             expect(function () {
-                this.value.divide(rightValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.divide(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('divideByArray()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var leftValue = this.factory.createArray([]);
+            var leftValue = factory.createArray([]);
 
             expect(function () {
-                this.value.divideByArray(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.divideByArray(leftValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('divideByBoolean()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var leftValue = this.factory.createBoolean(true);
+            var leftValue = factory.createBoolean(true);
 
             expect(function () {
-                this.value.divideByBoolean(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.divideByBoolean(leftValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('divideByFloat()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var leftValue = this.factory.createFloat(1.2);
+            var leftValue = factory.createFloat(1.2);
 
             expect(function () {
-                this.value.divideByFloat(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.divideByFloat(leftValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('divideByInteger()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var leftValue = this.factory.createInteger(4);
+            var leftValue = factory.createInteger(4);
 
             expect(function () {
-                this.value.divideByInteger(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.divideByInteger(leftValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
+        });
+    });
+
+    describe('divideByNonArray()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = factory.createInteger(21);
+
+            expect(function () {
+                value.divideByNonArray(leftValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('divideByNull()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var leftValue = this.factory.createNull();
+            var leftValue = factory.createNull();
 
             expect(function () {
-                this.value.divideByNull(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.divideByNull(leftValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('divideByObject()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var leftValue = this.factory.createObject({});
+            var leftValue = factory.createObject({});
 
             expect(function () {
-                this.value.divideByObject(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.divideByObject(leftValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('divideByString()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var leftValue = this.factory.createString('my string value');
+            var leftValue = factory.createString('my string value');
 
             expect(function () {
-                this.value.divideByString(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.divideByString(leftValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('formatAsString()', function () {
         it('should just return "Array"', function () {
-            expect(this.value.formatAsString()).to.equal('Array');
+            expect(value.formatAsString()).to.equal('Array');
+        });
+    });
+
+    describe('getConstantByName()', function () {
+        it('should throw a "Class name must be a valid object or a string" error', function () {
+            expect(function () {
+                value.getConstantByName('MY_CONST', namespaceScope);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
+            );
+        });
+    });
+
+    describe('getDisplayType()', function () {
+        it('should return the value type', function () {
+            expect(value.getDisplayType()).to.equal('array');
         });
     });
 
     describe('getElementByKey()', function () {
+        var element3,
+            element4,
+            elementKey3,
+            elementKey4,
+            elementValue3,
+            elementValue4;
+
         beforeEach(function () {
-            this.elements.length = 0;
-            this.elementKey1 = this.factory.createString('length');
-            this.elementValue1 = this.factory.createString('value of first el');
-            this.element1 = this.createKeyValuePair(
-                this.elementKey1,
-                this.elementValue1
+            elements.length = 0;
+            elementKey1 = factory.createString('length');
+            elementValue1 = factory.createString('value of first el');
+            element1 = createKeyValuePair(
+                elementKey1,
+                elementValue1
             );
-            this.elements.push(this.element1);
+            elements.push(element1);
 
-            this.elementKey2 = this.factory.createString('_length');
-            this.elementValue2 = this.factory.createString('value of second el');
-            this.element2 = this.createKeyValuePair(
-                this.elementKey2,
-                this.elementValue2
+            elementKey2 = factory.createString('_length');
+            elementValue2 = factory.createString('value of second el');
+            element2 = createKeyValuePair(
+                elementKey2,
+                elementValue2
             );
-            this.elements.push(this.element2);
+            elements.push(element2);
 
-            this.elementKey3 = this.factory.createString('__length');
-            this.elementValue3 = this.factory.createString('value of third el');
-            this.element3 = this.createKeyValuePair(
-                this.elementKey3,
-                this.elementValue3
+            elementKey3 = factory.createString('__length');
+            elementValue3 = factory.createString('value of third el');
+            element3 = createKeyValuePair(
+                elementKey3,
+                elementValue3
             );
-            this.elements.push(this.element3);
-            this.elementKey4 = this.factory.createString('my_key');
-            this.elementValue4 = this.factory.createString('value of fourth el, my_key');
-            this.element4 = this.createKeyValuePair(
-                this.elementKey4,
-                this.elementValue4
+            elements.push(element3);
+            elementKey4 = factory.createString('my_key');
+            elementValue4 = factory.createString('value of fourth el, my_key');
+            element4 = createKeyValuePair(
+                elementKey4,
+                elementValue4
             );
-            this.elements.push(this.element4);
-            this.createValue();
+            elements.push(element4);
+            createValue();
         });
 
         it('should allow fetching an element with the key "my_key"', function () {
-            var element = this.value.getElementByKey(this.factory.createString('my_key'));
+            var element = value.getElementByKey(factory.createString('my_key'));
 
             expect(element.getValue().getNative()).to.equal('value of fourth el, my_key');
         });
 
         it('should allow fetching an element with the key "length"', function () {
-            var element = this.value.getElementByKey(this.factory.createString('length'));
+            var element = value.getElementByKey(factory.createString('length'));
 
             expect(element.getValue().getNative()).to.equal('value of first el');
         });
 
         // Check that the sanitisation does not then cause collisions when the underscore is already present
         it('should allow fetching an element with the key "_length"', function () {
-            var element = this.value.getElementByKey(this.factory.createString('_length'));
+            var element = value.getElementByKey(factory.createString('_length'));
 
             expect(element.getValue().getNative()).to.equal('value of second el');
         });
 
         // Check that the sanitisation does not then cause collisions when the underscore is already present
         it('should allow fetching an element with the key "__length"', function () {
-            var element = this.value.getElementByKey(this.factory.createString('__length'));
+            var element = value.getElementByKey(factory.createString('__length'));
 
             expect(element.getValue().getNative()).to.equal('value of third el');
         });
@@ -483,7 +615,7 @@ describe('Array', function () {
 
     describe('getElementPairByKey()', function () {
         it('should return the pair for the specified element', function () {
-            var pair = this.value.getElementPairByKey(this.factory.createString('firstEl'));
+            var pair = value.getElementPairByKey(factory.createString('firstEl'));
 
             expect(pair).to.be.an.instanceOf(KeyValuePair);
             expect(pair.getKey()).to.be.an.instanceOf(StringValue);
@@ -493,9 +625,9 @@ describe('Array', function () {
         });
 
         it('should allow the key for the pair to be overridden', function () {
-            var pair = this.value.getElementPairByKey(
-                this.factory.createString('firstEl'),
-                this.factory.createInteger(21)
+            var pair = value.getElementPairByKey(
+                factory.createString('firstEl'),
+                factory.createInteger(21)
             );
 
             expect(pair).to.be.an.instanceOf(KeyValuePair);
@@ -508,24 +640,24 @@ describe('Array', function () {
 
     describe('getIterator()', function () {
         it('should return an ArrayIterator for this array', function () {
-            var iterator = this.value.getIterator();
+            var iterator = value.getIterator();
 
             expect(iterator).to.be.an.instanceOf(ArrayIterator);
-            expect(iterator.getIteratedValue()).to.equal(this.value);
+            expect(iterator.getIteratedValue()).to.equal(value);
         });
     });
 
     describe('getNative()', function () {
         it('should unwrap to a native array when the array has no non-numeric keys', function () {
             var result;
-            this.element1.getKey.returns(this.factory.createString('1'));
-            this.element2.getKey.returns(this.factory.createString('0'));
-            this.value = new ArrayValue(this.factory, this.callStack, [
-                this.element1,
-                this.element2
-            ], null, this.elementProvider);
+            element1.getKey.returns(factory.createString('1'));
+            element2.getKey.returns(factory.createString('0'));
+            value = new ArrayValue(factory, callStack, [
+                element1,
+                element2
+            ], null, elementProvider);
 
-            result = this.value.getNative();
+            result = value.getNative();
 
             expect(result).to.be.an('array');
             expect(result).to.deep.equal(['value of second el', 'value of first el']);
@@ -533,14 +665,14 @@ describe('Array', function () {
 
         it('should unwrap to a plain object when the array has a non-numeric key', function () {
             var result;
-            this.element1.getKey.returns(this.factory.createString('nonNumeric'));
-            this.element2.getKey.returns(this.factory.createString('7'));
-            this.value = new ArrayValue(this.factory, this.callStack, [
-                this.element1,
-                this.element2
-            ], null, this.elementProvider);
+            element1.getKey.returns(factory.createString('nonNumeric'));
+            element2.getKey.returns(factory.createString('7'));
+            value = new ArrayValue(factory, callStack, [
+                element1,
+                element2
+            ], null, elementProvider);
 
-            result = this.value.getNative();
+            result = value.getNative();
 
             expect(result).to.be.an('object');
             expect(result).not.to.be.an('array');
@@ -552,9 +684,9 @@ describe('Array', function () {
 
         it('should unwrap to a native array when the array is empty', function () {
             var result;
-            this.value = new ArrayValue(this.factory, this.callStack, [], null, this.elementProvider);
+            value = new ArrayValue(factory, callStack, [], null, elementProvider);
 
-            result = this.value.getNative();
+            result = value.getNative();
 
             expect(result).to.be.an('array');
             expect(result).to.have.length(0);
@@ -564,14 +696,14 @@ describe('Array', function () {
     describe('getProxy()', function () {
         it('should unwrap to a native array when the array has no non-numeric keys', function () {
             var result;
-            this.element1.getKey.returns(this.factory.createString('1'));
-            this.element2.getKey.returns(this.factory.createString('0'));
-            this.value = new ArrayValue(this.factory, this.callStack, [
-                this.element1,
-                this.element2
-            ], null, this.elementProvider);
+            element1.getKey.returns(factory.createString('1'));
+            element2.getKey.returns(factory.createString('0'));
+            value = new ArrayValue(factory, callStack, [
+                element1,
+                element2
+            ], null, elementProvider);
 
-            result = this.value.getProxy();
+            result = value.getProxy();
 
             expect(result).to.be.an('array');
             expect(result).to.deep.equal(['value of second el', 'value of first el']);
@@ -579,14 +711,14 @@ describe('Array', function () {
 
         it('should unwrap to a plain object when the array has a non-numeric key', function () {
             var result;
-            this.element1.getKey.returns(this.factory.createString('nonNumeric'));
-            this.element2.getKey.returns(this.factory.createString('7'));
-            this.value = new ArrayValue(this.factory, this.callStack, [
-                this.element1,
-                this.element2
-            ], null, this.elementProvider);
+            element1.getKey.returns(factory.createString('nonNumeric'));
+            element2.getKey.returns(factory.createString('7'));
+            value = new ArrayValue(factory, callStack, [
+                element1,
+                element2
+            ], null, elementProvider);
 
-            result = this.value.getProxy();
+            result = value.getProxy();
 
             expect(result).to.be.an('object');
             expect(result).not.to.be.an('array');
@@ -598,9 +730,9 @@ describe('Array', function () {
 
         it('should unwrap to a native array when the array is empty', function () {
             var result;
-            this.value = new ArrayValue(this.factory, this.callStack, [], null, this.elementProvider);
+            value = new ArrayValue(factory, callStack, [], null, elementProvider);
 
-            result = this.value.getProxy();
+            result = value.getProxy();
 
             expect(result).to.be.an('array');
             expect(result).to.have.length(0);
@@ -609,17 +741,34 @@ describe('Array', function () {
 
     describe('getPushElement()', function () {
         it('should return an ElementReference', function () {
-            expect(this.value.getPushElement()).to.be.an.instanceOf(ElementReference);
+            expect(value.getPushElement()).to.be.an.instanceOf(ElementReference);
+        });
+    });
+
+    describe('getReference()', function () {
+        it('should throw an error', function () {
+            expect(function () {
+                value.getReference();
+            }).to.throw('Cannot get a reference to a value');
+        });
+    });
+
+    describe('getStaticPropertyByName()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                value.getStaticPropertyByName(factory.createString('myProp'), namespaceScope);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
+            );
         });
     });
 
     describe('instantiate()', function () {
         it('should raise a fatal error', function () {
             expect(function () {
-                this.value.instantiate();
-            }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                value.instantiate();
+            }).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -628,28 +777,180 @@ describe('Array', function () {
         it('should hand off to the right-hand operand to determine the result', function () {
             var rightOperand = sinon.createStubInstance(Value),
                 result = sinon.createStubInstance(Value);
-            rightOperand.isTheClassOfArray.withArgs(this.value).returns(result);
+            rightOperand.isTheClassOfArray.withArgs(value).returns(result);
 
-            expect(this.value.isAnInstanceOf(rightOperand)).to.equal(result);
+            expect(value.isAnInstanceOf(rightOperand)).to.equal(result);
+        });
+    });
+
+    describe('isCallable()', function () {
+        it('should return true for a valid instance method name of a given object', function () {
+            var classObject = sinon.createStubInstance(Class),
+                methodSpec = sinon.createStubInstance(MethodSpec),
+                objectValue = sinon.createStubInstance(ObjectValue);
+            objectValue.getClass.returns(classObject);
+            objectValue.getType.returns('object');
+            classObject.getMethodSpec
+                .withArgs('myStaticMethod')
+                .returns(methodSpec);
+            globalNamespace.hasClass
+                .withArgs('My\\Fqcn')
+                .returns(true);
+            globalNamespace.getClass
+                .withArgs('My\\Fqcn')
+                .returns(classObject);
+            elements[0] = createKeyValuePair(
+                elementKey2,
+                objectValue
+            );
+            elements[1] = createKeyValuePair(
+                elementKey2,
+                factory.createString('myStaticMethod')
+            );
+            createValue();
+
+            expect(value.isCallable(namespaceScope)).to.be.true;
+        });
+
+        it('should return true for a valid static method name of a given class', function () {
+            var classObject = sinon.createStubInstance(Class),
+                methodSpec = sinon.createStubInstance(MethodSpec);
+            classObject.getMethodSpec
+                .withArgs('myStaticMethod')
+                .returns(methodSpec);
+            globalNamespace.hasClass
+                .withArgs('My\\Fqcn')
+                .returns(true);
+            globalNamespace.getClass
+                .withArgs('My\\Fqcn')
+                .returns(classObject);
+            elements[0] = createKeyValuePair(
+                elementKey2,
+                factory.createString('My\\Fqcn')
+            );
+            elements[1] = createKeyValuePair(
+                elementKey2,
+                factory.createString('myStaticMethod')
+            );
+            createValue();
+
+            expect(value.isCallable(namespaceScope)).to.be.true;
+        });
+
+        it('should return false for an empty array', function () {
+            elements.length = 0;
+            createValue();
+
+            expect(value.isCallable(namespaceScope)).to.be.false;
+        });
+
+        it('should return false for an array with one element', function () {
+            elements.length = 1;
+            createValue();
+
+            expect(value.isCallable(namespaceScope)).to.be.false;
+        });
+
+        it('should return false for an array with a non-string second element', function () {
+            elements[1] = createKeyValuePair(
+                elementKey2,
+                factory.createInteger(21)
+            );
+
+            expect(value.isCallable(namespaceScope)).to.be.false;
+        });
+
+        it('should return false for a non-existent class', function () {
+            globalNamespace.hasClass
+                .withArgs('My\\Fqcn')
+                .returns(false);
+            elements[0] = createKeyValuePair(
+                elementKey2,
+                factory.createString('My\\NonExistentFqcn')
+            );
+            elements[1] = createKeyValuePair(
+                elementKey2,
+                factory.createString('myStaticMethod')
+            );
+            createValue();
+
+            expect(value.isCallable(namespaceScope)).to.be.false;
+        });
+
+        it('should return false for a non-existent instance method', function () {
+            var classObject = sinon.createStubInstance(Class),
+                objectValue = sinon.createStubInstance(ObjectValue);
+            objectValue.getClass.returns(classObject);
+            objectValue.getType.returns('object');
+            classObject.getMethodSpec
+                .withArgs('myNonExistentStaticMethod')
+                .returns(null);
+            globalNamespace.hasClass
+                .withArgs('My\\Fqcn')
+                .returns(true);
+            globalNamespace.getClass
+                .withArgs('My\\Fqcn')
+                .returns(classObject);
+            elements[0] = createKeyValuePair(
+                elementKey2,
+                objectValue
+            );
+            elements[1] = createKeyValuePair(
+                elementKey2,
+                factory.createString('myNonExistentStaticMethod')
+            );
+            createValue();
+
+            expect(value.isCallable(namespaceScope)).to.be.false;
+        });
+
+        it('should return true for a non-existent static method', function () {
+            var classObject = sinon.createStubInstance(Class);
+            classObject.getMethodSpec
+                .withArgs('myNonExistentStaticMethod')
+                .returns(null);
+            globalNamespace.hasClass
+                .withArgs('My\\Fqcn')
+                .returns(true);
+            globalNamespace.getClass
+                .withArgs('My\\Fqcn')
+                .returns(classObject);
+            elements[0] = createKeyValuePair(
+                elementKey2,
+                factory.createString('My\\Fqcn')
+            );
+            elements[1] = createKeyValuePair(
+                elementKey2,
+                factory.createString('myNonExistentStaticMethod')
+            );
+            createValue();
+
+            expect(value.isCallable(namespaceScope)).to.be.false;
         });
     });
 
     describe('isEmpty()', function () {
         it('should return true when the array is empty', function () {
-            this.elements.length = 0;
-            this.createValue();
+            elements.length = 0;
+            createValue();
 
-            expect(this.value.isEmpty()).to.be.true;
+            expect(value.isEmpty()).to.be.true;
         });
 
         it('should return false when the array is not empty', function () {
-            expect(this.value.isEmpty()).to.be.false;
+            expect(value.isEmpty()).to.be.false;
+        });
+    });
+
+    describe('isIterable()', function () {
+        it('should return true', function () {
+            expect(value.isIterable()).to.be.true;
         });
     });
 
     describe('isNumeric()', function () {
         it('should return false', function () {
-            expect(this.value.isNumeric()).to.be.false;
+            expect(value.isNumeric()).to.be.false;
         });
     });
 
@@ -658,88 +959,81 @@ describe('Array', function () {
             var classValue = sinon.createStubInstance(ArrayValue);
 
             expect(function () {
-                this.value.isTheClassOfArray(classValue);
-            }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                value.isTheClassOfArray(classValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
 
     describe('isTheClassOfBoolean()', function () {
         it('should raise a fatal error', function () {
-            var classValue = this.factory.createBoolean(true);
+            var classValue = factory.createBoolean(true);
 
             expect(function () {
-                this.value.isTheClassOfBoolean(classValue);
-            }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                value.isTheClassOfBoolean(classValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
 
     describe('isTheClassOfFloat()', function () {
         it('should raise a fatal error', function () {
-            var classValue = this.factory.createFloat(22.4);
+            var classValue = factory.createFloat(22.4);
 
             expect(function () {
-                this.value.isTheClassOfFloat(classValue);
-            }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                value.isTheClassOfFloat(classValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
 
     describe('isTheClassOfInteger()', function () {
         it('should raise a fatal error', function () {
-            var classValue = this.factory.createInteger(21);
+            var classValue = factory.createInteger(21);
 
             expect(function () {
-                this.value.isTheClassOfInteger(classValue);
-            }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                value.isTheClassOfInteger(classValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
 
     describe('isTheClassOfNull()', function () {
         it('should raise a fatal error', function () {
-            var classValue = this.factory.createNull();
+            var classValue = factory.createNull();
 
             expect(function () {
-                this.value.isTheClassOfNull(classValue);
-            }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                value.isTheClassOfNull(classValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
 
     describe('isTheClassOfObject()', function () {
         it('should raise a fatal error', function () {
-            var classValue = this.factory.createObject({});
+            var classValue = factory.createObject({});
 
             expect(function () {
-                this.value.isTheClassOfObject(classValue);
-            }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                value.isTheClassOfObject(classValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
 
     describe('isTheClassOfString()', function () {
         it('should raise a fatal error', function () {
-            var classValue = this.factory.createString('a string');
+            var classValue = factory.createString('a string');
 
             expect(function () {
-                this.value.isTheClassOfString(classValue);
-            }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                value.isTheClassOfString(classValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -747,11 +1041,11 @@ describe('Array', function () {
     describe('modulo()', function () {
         it('should always return 0 for an empty array, as it will always coerce to 0', function () {
             var result,
-                rightValue = this.factory.createInteger(21);
-            this.elements.length = 0;
-            this.createValue();
+                rightValue = factory.createInteger(21);
+            elements.length = 0;
+            createValue();
 
-            result = this.value.modulo(rightValue);
+            result = value.modulo(rightValue);
 
             expect(result).to.be.an.instanceOf(IntegerValue);
             expect(result.getNative()).to.equal(0);
@@ -759,10 +1053,10 @@ describe('Array', function () {
 
         it('should return 1 for a populated array when the remainder is 1', function () {
             var result,
-                rightValue = this.factory.createInteger(2);
-            this.createValue();
+                rightValue = factory.createInteger(2);
+            createValue();
 
-            result = this.value.modulo(rightValue);
+            result = value.modulo(rightValue);
 
             expect(result).to.be.an.instanceOf(IntegerValue);
             expect(result.getNative()).to.equal(1);
@@ -770,11 +1064,11 @@ describe('Array', function () {
 
         it('should return 0 for a populated array when there is no remainder', function () {
             var result,
-                rightValue = this.factory.createInteger(1);
-            this.elements.length = 1;
-            this.createValue();
+                rightValue = factory.createInteger(1);
+            elements.length = 1;
+            createValue();
 
-            result = this.value.modulo(rightValue);
+            result = value.modulo(rightValue);
 
             expect(result).to.be.an.instanceOf(IntegerValue);
             expect(result.getNative()).to.equal(0);
@@ -786,103 +1080,129 @@ describe('Array', function () {
             var rightValue = sinon.createStubInstance(Value);
 
             expect(function () {
-                this.value.multiply(rightValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.multiply(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('multiplyByArray()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var leftValue = this.factory.createArray([]);
+            var leftValue = factory.createArray([]);
 
             expect(function () {
-                this.value.multiplyByArray(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.multiplyByArray(leftValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('multiplyByBoolean()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var leftValue = this.factory.createBoolean(true);
+            var leftValue = factory.createBoolean(true);
 
             expect(function () {
-                this.value.multiplyByBoolean(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.multiplyByBoolean(leftValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('multiplyByFloat()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var leftValue = this.factory.createFloat(1.2);
+            var leftValue = factory.createFloat(1.2);
 
             expect(function () {
-                this.value.multiplyByFloat(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.multiplyByFloat(leftValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('multiplyByInteger()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var leftValue = this.factory.createInteger(4);
+            var leftValue = factory.createInteger(4);
 
             expect(function () {
-                this.value.multiplyByInteger(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.multiplyByInteger(leftValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('multiplyByNull()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var leftValue = this.factory.createNull();
+            var leftValue = factory.createNull();
 
             expect(function () {
-                this.value.multiplyByNull(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.multiplyByNull(leftValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('multiplyByObject()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var leftValue = this.factory.createObject({});
+            var leftValue = factory.createObject({});
 
             expect(function () {
-                this.value.multiplyByObject(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.multiplyByObject(leftValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('multiplyByString()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var leftValue = this.factory.createString('my string value');
+            var leftValue = factory.createString('my string value');
 
             expect(function () {
-                this.value.multiplyByString(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+                value.multiplyByString(leftValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
+        });
+    });
+
+    describe('onesComplement()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            expect(function () {
+                value.onesComplement();
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('pointToElement()', function () {
         it('should set the pointer to the index of the key in the array', function () {
             var element = sinon.createStubInstance(ElementReference);
-            element.getKey.returns(this.factory.createString('secondEl'));
+            element.getKey.returns(factory.createString('secondEl'));
 
-            this.value.pointToElement(element);
+            value.pointToElement(element);
 
-            expect(this.value.getPointer()).to.equal(1);
+            expect(value.getPointer()).to.equal(1);
         });
     });
 
     describe('pop()', function () {
         it('should remove the last element from the array', function () {
-            this.elements.unshift(this.createKeyValuePair(
-                this.factory.createString('unshiftedEl'),
-                this.factory.createString('value of unshifted el')
+            elements.unshift(createKeyValuePair(
+                factory.createString('unshiftedEl'),
+                factory.createString('value of unshifted el')
             ));
-            this.createValue();
+            createValue();
 
-            this.value.pop();
+            value.pop();
 
-            expect(this.value.getNative()).to.deep.equal({
+            expect(value.getNative()).to.deep.equal({
                 unshiftedEl: 'value of unshifted el',
                 firstEl: 'value of first el'
                 // secondEl should have been popped off
@@ -890,7 +1210,7 @@ describe('Array', function () {
         });
 
         it('should return the last element in the array', function () {
-            var element = this.value.pop();
+            var element = value.pop();
 
             expect(element).to.be.an.instanceOf(Value);
             expect(element.getNative()).to.equal('value of second el');
@@ -898,44 +1218,44 @@ describe('Array', function () {
 
         it('should return NULL when the array is empty', function () {
             var element;
-            this.elements.length = 0;
-            this.createValue();
+            elements.length = 0;
+            createValue();
 
-            element = this.value.pop();
+            element = value.pop();
 
             expect(element).to.be.an.instanceOf(Value);
             expect(element.getType()).to.equal('null');
         });
 
         it('should reset the internal array pointer', function () {
-            this.elements.push(
-                this.createKeyValuePair(
-                    this.factory.createString('another_key'),
-                    this.factory.createString('another value')
+            elements.push(
+                createKeyValuePair(
+                    factory.createString('another_key'),
+                    factory.createString('another value')
                 )
             );
-            this.value.setPointer(2);
+            value.setPointer(2);
 
-            this.value.pop();
+            value.pop();
 
-            expect(this.value.getPointer()).to.equal(0);
+            expect(value.getPointer()).to.equal(0);
         });
     });
 
     describe('push()', function () {
         it('should give the new element index 0 if the array was empty', function () {
-            this.elements.length = 0;
-            this.createValue();
+            elements.length = 0;
+            createValue();
 
-            this.value.push(this.factory.createString('my new element'));
+            value.push(factory.createString('my new element'));
 
-            expect(this.value.getNative()).to.deep.equal(['my new element']);
+            expect(value.getNative()).to.deep.equal(['my new element']);
         });
 
         it('should number indexed elements separately from associative ones', function () {
-            this.value.push(this.factory.createString('my new indexed element'));
+            value.push(factory.createString('my new indexed element'));
 
-            expect(this.value.getNative()).to.deep.equal({
+            expect(value.getNative()).to.deep.equal({
                 firstEl: 'value of first el',
                 secondEl: 'value of second el',
                 0: 'my new indexed element' // Use `0` and not `2`, even though some assoc. elements already exist
@@ -946,30 +1266,30 @@ describe('Array', function () {
     describe('pushElement()', function () {
         it('should give the new element index 0 if the array was empty', function () {
             var element = sinon.createStubInstance(ElementReference);
-            element.getKey.returns(this.factory.createNull());
-            element.getValue.returns(this.factory.createString('my new element'));
+            element.getKey.returns(factory.createNull());
+            element.getValue.returns(factory.createString('my new element'));
             element.setKey.callsFake(function (keyValue) {
                 element.getKey.returns(keyValue);
             });
-            this.elements.length = 0;
-            this.createValue();
+            elements.length = 0;
+            createValue();
 
-            this.value.pushElement(element);
+            value.pushElement(element);
 
-            expect(this.value.getNative()).to.deep.equal(['my new element']);
+            expect(value.getNative()).to.deep.equal(['my new element']);
         });
 
         it('should number indexed elements separately from associative ones', function () {
             var element = sinon.createStubInstance(ElementReference);
-            element.getKey.returns(this.factory.createNull());
-            element.getValue.returns(this.factory.createString('my new indexed element'));
+            element.getKey.returns(factory.createNull());
+            element.getValue.returns(factory.createString('my new indexed element'));
             element.setKey.callsFake(function (keyValue) {
                 element.getKey.returns(keyValue);
             });
 
-            this.value.pushElement(element);
+            value.pushElement(element);
 
-            expect(this.value.getNative()).to.deep.equal({
+            expect(value.getNative()).to.deep.equal({
                 firstEl: 'value of first el',
                 secondEl: 'value of second el',
                 0: 'my new indexed element' // Use `0` and not `2`, even though some assoc. elements already exist
@@ -980,12 +1300,12 @@ describe('Array', function () {
             var element1 = sinon.createStubInstance(ElementReference),
                 element2 = sinon.createStubInstance(ElementReference),
                 result;
-            element1.getKey.returns(this.factory.createInteger(4));
-            element2.getValue.returns(this.factory.createString('first indexed value'));
-            element1.getValue.returns(this.factory.createString('second indexed value'));
-            this.value.pushElement(element1);
+            element1.getKey.returns(factory.createInteger(4));
+            element2.getValue.returns(factory.createString('first indexed value'));
+            element1.getValue.returns(factory.createString('second indexed value'));
+            value.pushElement(element1);
 
-            result = this.value.pushElement(element2);
+            result = value.pushElement(element2);
 
             expect(result).to.be.an.instanceOf(IntegerValue);
             // 0 already taken by existing indexed element - but the 2 assoc. elements aren't counted
@@ -995,49 +1315,62 @@ describe('Array', function () {
 
     describe('shift()', function () {
         it('should return the first element of the array', function () {
-            expect(this.value.shift()).to.equal(this.elementValue1);
+            expect(value.shift()).to.equal(elementValue1);
         });
 
         it('should return null if the array is empty', function () {
-            this.elements.length = 0;
-            this.createValue();
+            elements.length = 0;
+            createValue();
 
-            expect(this.value.shift().getNative()).to.be.null;
+            expect(value.shift().getNative()).to.be.null;
         });
 
         it('should remove the first element from the array', function () {
-            this.value.shift();
+            value.shift();
 
-            expect(this.value.getLength()).to.equal(1);
+            expect(value.getLength()).to.equal(1);
         });
 
         it('should reset the internal pointer to the start of the array', function () {
-            this.value.setPointer(1);
+            value.setPointer(1);
 
-            this.value.shift();
+            value.shift();
 
-            expect(this.value.getPointer()).to.equal(0);
+            expect(value.getPointer()).to.equal(0);
+        });
+    });
+
+    describe('subtractFromNull() - subtracting an array from null', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            expect(function () {
+                value.subtractFromNull();
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
     describe('when created with a reference used for an element', function () {
+        var element3,
+            element3Reference;
+
         beforeEach(function () {
-            this.element3Reference = sinon.createStubInstance(VariableReference);
-            this.element3Reference.getValue.returns(this.factory.createInteger(21));
-            this.element3 = this.createKeyReferencePair(
-                this.factory.createString('thirdEl'),
-                this.element3Reference
+            element3Reference = sinon.createStubInstance(VariableReference);
+            element3Reference.getValue.returns(factory.createInteger(21));
+            element3 = createKeyReferencePair(
+                factory.createString('thirdEl'),
+                element3Reference
             );
         });
 
         it('should set the reference for the element', function () {
-            this.value = new ArrayValue(this.factory, this.callStack, [
-                this.element1,
-                this.element2,
-                this.element3
-            ], null, this.elementProvider);
+            value = new ArrayValue(factory, callStack, [
+                element1,
+                element2,
+                element3
+            ], null, elementProvider);
 
-            expect(this.value.getElementByIndex(2).getValue().getNative()).to.equal(21);
+            expect(value.getElementByIndex(2).getValue().getNative()).to.equal(21);
         });
     });
 });

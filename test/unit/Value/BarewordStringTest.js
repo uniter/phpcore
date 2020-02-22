@@ -10,7 +10,6 @@
 'use strict';
 
 var expect = require('chai').expect,
-    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     BarewordStringValue = require('../../../src/Value/BarewordString').sync(),
     BooleanValue = require('../../../src/Value/Boolean').sync(),
@@ -21,7 +20,6 @@ var expect = require('chai').expect,
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
-    PHPFatalError = phpCommon.PHPFatalError,
     Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
 
@@ -30,6 +28,12 @@ describe('BarewordString', function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.factory = new ValueFactory();
         this.namespaceScope = sinon.createStubInstance(NamespaceScope);
+
+        this.callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+            throw new Error(
+                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+            );
+        });
 
         this.createKeyValuePair = function (key, value) {
             var keyValuePair = sinon.createStubInstance(KeyValuePair);
@@ -41,6 +45,18 @@ describe('BarewordString', function () {
         this.createValue = function (nativeValue) {
             this.value = new BarewordStringValue(this.factory, this.callStack, nativeValue);
         }.bind(this);
+    });
+
+    describe('addToArray()', function () {
+        it('should raise a fatal error', function () {
+            this.createValue('mybarewordstring');
+
+            expect(function () {
+                this.value.addToArray(this.factory.createArray([]));
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
+        });
     });
 
     describe('call()', function () {
@@ -68,8 +84,7 @@ describe('BarewordString', function () {
             expect(function () {
                 this.value.callMethod('aMethod', [], this.namespaceScope);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'PHP Fatal error: Call to a member function aMethod() on a non-object'
+                'Fake PHP Fatal error for #core.non_object_method_call with {"name":"aMethod","type":"string"}'
             );
         });
     });
@@ -124,6 +139,42 @@ describe('BarewordString', function () {
         });
     });
 
+    describe('coerceToNativeError()', function () {
+        it('should throw an error as this is invalid', function () {
+            this.createValue('mybarewordstring');
+
+            expect(function () {
+                this.value.coerceToNativeError();
+            }.bind(this)).to.throw(
+                'Only instances of Throwable may be thrown: tried to throw a(n) string'
+            );
+        });
+    });
+
+    describe('divide()', function () {
+        it('should hand off to the right-hand operand to divide by this string', function () {
+            var rightOperand = sinon.createStubInstance(Value),
+                result = sinon.createStubInstance(Value);
+            this.createValue('mybarewordstring');
+            rightOperand.divideByString.withArgs(this.value).returns(result);
+
+            expect(this.value.divide(rightOperand)).to.equal(result);
+        });
+    });
+
+    describe('divideByArray()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var leftValue = this.factory.createArray([]);
+            this.createValue('mybarewordstring');
+
+            expect(function () {
+                this.value.divideByArray(leftValue);
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
+        });
+    });
+
     describe('getCallableName()', function () {
         beforeEach(function () {
             this.namespace = sinon.createStubInstance(Namespace);
@@ -150,6 +201,24 @@ describe('BarewordString', function () {
             this.createValue('This\\SubSpace\\MyClass');
 
             expect(this.value.getConstantByName('MY_CONST', this.namespaceScope)).to.equal(resultValue);
+        });
+    });
+
+    describe('getDisplayType()', function () {
+        it('should return the value type', function () {
+            this.createValue('mybarewordstring');
+
+            expect(this.value.getDisplayType()).to.equal('string');
+        });
+    });
+
+    describe('getReference()', function () {
+        it('should throw an error', function () {
+            this.createValue('mybarewordstring');
+
+            expect(function () {
+                this.value.getReference();
+            }.bind(this)).to.throw('Cannot get a reference to a value');
         });
     });
 
@@ -232,6 +301,18 @@ describe('BarewordString', function () {
 
             expect(result).to.be.an.instanceOf(BooleanValue);
             expect(result.getNative()).to.equal(false);
+        });
+    });
+
+    describe('subtractFromNull()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            this.createValue('mybarewordstring');
+
+            expect(function () {
+                this.value.subtractFromNull();
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 });

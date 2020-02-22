@@ -20,8 +20,9 @@ describe('PHP bitwise OR operator "|" integration', function () {
 
 $result = [];
 
-$result[] = 2 | 1;
-$result[] = 123456781 | 777777777;
+$result['small integers'] = 2 | 1;
+$result['large integers'] = 123456781 | 777777777;
+$result['floats'] = 1234.5678 | 567.123;
 
 return $result;
 EOS
@@ -29,9 +30,10 @@ EOS
             module = tools.syncTranspile(null, php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
-            3,        // 0b10 | 0b01 = 0b11
-            794558333 // Large unsigned integers should be supported too
-        ]);
+        expect(engine.execute().getNative()).to.deep.equal({
+            'small integers': 3,            // 0b10 | 0b01 = 0b11
+            'large integers': 794558333,    // Large unsigned integers should be supported too
+            'floats': 1783
+        });
     });
 });

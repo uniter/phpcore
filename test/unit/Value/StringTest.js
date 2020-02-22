@@ -20,12 +20,12 @@ var _ = require('microdash'),
     FloatValue = require('../../../src/Value/Float').sync(),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyValuePair = require('../../../src/KeyValuePair'),
+    MethodSpec = require('../../../src/MethodSpec'),
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
-    PHPFatalError = phpCommon.PHPFatalError,
     StringValue = require('../../../src/Value/String').sync(),
     Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
@@ -37,6 +37,12 @@ describe('String', function () {
         this.globalNamespace = sinon.createStubInstance(Namespace);
         this.namespaceScope = sinon.createStubInstance(NamespaceScope);
         this.namespaceScope.getGlobalNamespace.returns(this.globalNamespace);
+
+        this.callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+            throw new Error(
+                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+            );
+        });
 
         this.createKeyValuePair = function (key, value) {
             var keyValuePair = sinon.createStubInstance(KeyValuePair);
@@ -50,8 +56,20 @@ describe('String', function () {
         }.bind(this);
     });
 
+    describe('addToArray()', function () {
+        it('should raise a fatal error', function () {
+            this.createValue('my string');
+
+            expect(function () {
+                this.value.addToArray(this.factory.createArray([]));
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
+        });
+    });
+
     describe('call()', function () {
-        it('should call the function and return its result', function () {
+        it('should call the function and return its result when string only contains a function name', function () {
             var argValue = sinon.createStubInstance(Value),
                 result,
                 resultValue = sinon.createStubInstance(Value),
@@ -66,6 +84,31 @@ describe('String', function () {
             expect(func).to.have.been.calledOn(null);
             expect(func).to.have.been.calledWith(sinon.match.same(argValue));
         });
+
+        it('should call the static method and return its result when string contains [class]::[method]', function () {
+            var argValue = sinon.createStubInstance(Value),
+                classObject = sinon.createStubInstance(Class),
+                result,
+                resultValue = sinon.createStubInstance(Value);
+            this.globalNamespace.getClass
+                .withArgs('My\\Space\\MyClass')
+                .returns(classObject);
+            classObject.callMethod
+                .withArgs(
+                    'myStaticMethod',
+                    [sinon.match.same(argValue)],
+                    null,
+                    null,
+                    null,
+                    false
+                )
+                .returns(resultValue);
+            this.createValue('My\\Space\\MyClass::myStaticMethod');
+
+            result = this.value.call([argValue], this.namespaceScope);
+
+            expect(result).to.equal(resultValue);
+        });
     });
 
     describe('callMethod()', function () {
@@ -75,8 +118,7 @@ describe('String', function () {
             expect(function () {
                 this.value.callMethod('aMethod', [], this.namespaceScope);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'PHP Fatal error: Call to a member function aMethod() on a non-object'
+                'Fake PHP Fatal error for #core.non_object_method_call with {"name":"aMethod","type":"string"}'
             );
         });
     });
@@ -267,6 +309,18 @@ describe('String', function () {
         });
     });
 
+    describe('coerceToNativeError()', function () {
+        it('should throw an error as this is invalid', function () {
+            this.createValue('my string');
+
+            expect(function () {
+                this.value.coerceToNativeError();
+            }.bind(this)).to.throw(
+                'Only instances of Throwable may be thrown: tried to throw a(n) string'
+            );
+        });
+    });
+
     describe('coerceToNumber()', function () {
         _.each({
             'coercing a positive plain integer to int': {
@@ -374,7 +428,9 @@ describe('String', function () {
 
             expect(function () {
                 this.value.divideByArray(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
@@ -780,16 +836,28 @@ describe('String', function () {
 
     describe('formatAsString()', function () {
         it('should wrap the value in single quotes', function () {
-            this.createValue('my string text here');
+            this.createValue('my string here');
 
-            expect(this.value.formatAsString()).to.equal('\'my string text here\'');
+            expect(this.value.formatAsString()).to.equal('\'my string here\'');
         });
 
         // NB: This is how Zend's engine behaves, so we duplicate that behaviour here
         it('should not do anything special with embedded single quotes', function () {
-            this.createValue('my embedded single quote \' here');
+            this.createValue('embed- \' -ded');
 
-            expect(this.value.formatAsString()).to.equal('\'my embedded single quote \' here\'');
+            expect(this.value.formatAsString()).to.equal('\'embed- \' -ded\'');
+        });
+
+        it('should not truncate a string of 14 chars', function () {
+            this.createValue('my string text');
+
+            expect(this.value.formatAsString()).to.equal('\'my string text\'');
+        });
+
+        it('should truncate the string to a max of 15 chars', function () {
+            this.createValue('my long long string text');
+
+            expect(this.value.formatAsString()).to.equal('\'my long long st...\'');
         });
     });
 
@@ -819,6 +887,14 @@ describe('String', function () {
         });
     });
 
+    describe('getDisplayType()', function () {
+        it('should return the value type', function () {
+            this.createValue('my string');
+
+            expect(this.value.getDisplayType()).to.equal('string');
+        });
+    });
+
     describe('getNative()', function () {
         it('should return "hello" when expected', function () {
             this.createValue('hello');
@@ -844,6 +920,16 @@ describe('String', function () {
             this.createValue('world');
 
             expect(this.value.getProxy()).to.equal('world');
+        });
+    });
+
+    describe('getReference()', function () {
+        it('should throw an error', function () {
+            this.createValue('my string');
+
+            expect(function () {
+                this.value.getReference();
+            }.bind(this)).to.throw('Cannot get a reference to a value');
         });
     });
 
@@ -903,6 +989,68 @@ describe('String', function () {
         });
     });
 
+    describe('isCallable()', function () {
+        it('should return true for a function name that exists', function () {
+            this.globalNamespace.hasFunction
+                .withArgs('myFunction')
+                .returns(true);
+            this.createValue('myFunction');
+
+            expect(this.value.isCallable(this.namespaceScope)).to.be.true;
+        });
+
+        it('should return true for a static method name that exists', function () {
+            var classObject = sinon.createStubInstance(Class),
+                methodSpec = sinon.createStubInstance(MethodSpec);
+            this.globalNamespace.getClass
+                .withArgs('My\\Fqcn')
+                .returns(classObject);
+            this.globalNamespace.hasClass
+                .withArgs('My\\Fqcn')
+                .returns(true);
+            classObject.getMethodSpec
+                .withArgs('myMethod')
+                .returns(methodSpec);
+            this.createValue('My\\Fqcn::myMethod');
+
+            expect(this.value.isCallable(this.namespaceScope)).to.be.true;
+        });
+
+        it('should return false for a function name that doesn\'t exist', function () {
+            this.globalNamespace.hasFunction
+                .withArgs('myNonExistentFunction')
+                .returns(false);
+            this.createValue('myNonExistentFunction');
+
+            expect(this.value.isCallable(this.namespaceScope)).to.be.false;
+        });
+
+        it('should return false for a static method that doesn\'t exist for a defined class', function () {
+            var classObject = sinon.createStubInstance(Class);
+            this.globalNamespace.getClass
+                .withArgs('My\\Fqcn')
+                .returns(classObject);
+            this.globalNamespace.hasClass
+                .withArgs('My\\Fqcn')
+                .returns(true);
+            classObject.getMethodSpec
+                .withArgs('myMethod')
+                .returns(null);
+            this.createValue('My\\Fqcn::myMethod');
+
+            expect(this.value.isCallable(this.namespaceScope)).to.be.false;
+        });
+
+        it('should return false for a static method of a non-existent class', function () {
+            this.globalNamespace.hasClass
+                .withArgs('My\\Fqcn')
+                .returns(false);
+            this.createValue('My\\NonExistentFqcn::myMethod');
+
+            expect(this.value.isCallable(this.namespaceScope)).to.be.false;
+        });
+    });
+
     describe('isEmpty()', function () {
         it('should return true for the empty string', function () {
             this.createValue('');
@@ -926,6 +1074,12 @@ describe('String', function () {
             this.createValue('0.0');
 
             expect(this.value.isEmpty()).to.be.false;
+        });
+    });
+
+    describe('isIterable()', function () {
+        it('should return false', function () {
+            expect(this.value.isIterable()).to.be.false;
         });
     });
 
@@ -1118,7 +1272,9 @@ describe('String', function () {
 
             expect(function () {
                 this.value.multiplyByArray(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
@@ -1445,6 +1601,18 @@ describe('String', function () {
                     expect(this.callStack.raiseError).not.to.have.been.called;
                 });
             });
+        });
+    });
+
+    describe('subtractFromNull()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            this.createValue('my string');
+
+            expect(function () {
+                this.value.subtractFromNull();
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 });

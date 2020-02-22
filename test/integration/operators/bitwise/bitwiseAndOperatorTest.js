@@ -20,8 +20,9 @@ describe('PHP bitwise AND operator "&" integration', function () {
 
 $result = [];
 
-$result[] = 43 & 7;
-$result[] = 123456781 & 777777777;
+$result['small integers'] = 43 & 7;
+$result['large integers'] = 123456781 & 777777777;
+$result['floats'] = 1234.567 & 4567.891;
 
 return $result;
 EOS
@@ -29,9 +30,10 @@ EOS
             module = tools.syncTranspile(null, php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
-            3,        // 0b101011 & 0b000111 = 0b000011
-            106676225 // Large unsigned integers should be supported too
-        ]);
+        expect(engine.execute().getNative()).to.deep.equal({
+            'small integers': 3,            // 0b101011 & 0b000111 = 0b000011
+            'large integers': 106676225,    // Large unsigned integers should be supported too
+            'floats': 210
+        });
     });
 });

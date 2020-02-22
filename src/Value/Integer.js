@@ -23,7 +23,7 @@ module.exports = require('pauser')([
     var PHPError = phpCommon.PHPError;
 
     function IntegerValue(factory, callStack, value) {
-        Value.call(this, factory, callStack, 'integer', value);
+        Value.call(this, factory, callStack, 'int', value);
     }
 
     util.inherits(IntegerValue, Value);
@@ -161,6 +161,13 @@ module.exports = require('pauser')([
         },
 
         /**
+         * {@inheritdoc}
+         */
+        isCallable: function () {
+            return false;
+        },
+
+        /**
          * Determines whether this integer is classed as "empty" or not.
          * Only zero is classed as empty
          *
@@ -194,6 +201,13 @@ module.exports = require('pauser')([
             var integerValue = this;
 
             return integerValue.factory.createBoolean(integerValue.getNative() === parseFloat(stringValue.getNative()));
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        isIterable: function () {
+            return false;
         },
 
         /**

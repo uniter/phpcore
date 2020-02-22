@@ -62,6 +62,16 @@ describe('ElementReference', function () {
         });
     });
 
+    describe('divideBy()', function () {
+        it('should divide the element\'s value by the given value and assign it back to the element', function () {
+            this.element.setValue(this.factory.createInteger(10));
+
+            this.element.divideBy(this.factory.createInteger(2));
+
+            expect(this.element.getNative()).to.equal(5);
+        });
+    });
+
     describe('getNative()', function () {
         it('should return the native value of the element\'s value', function () {
             this.element.setValue(this.factory.createString('my native value'));
@@ -149,10 +159,10 @@ describe('ElementReference', function () {
     });
 
     describe('isEmpty()', function () {
-        it('should return false for an unset element', function () {
+        it('should return true for an unset element', function () {
             this.element.unset();
 
-            expect(this.element.isEmpty()).to.be.false;
+            expect(this.element.isEmpty()).to.be.true;
         });
 
         it('should return true when the element has a value that is empty', function () {
@@ -197,6 +207,16 @@ describe('ElementReference', function () {
             this.value.isSet.returns(false);
 
             expect(this.element.isSet()).to.be.false;
+        });
+    });
+
+    describe('multiplyBy()', function () {
+        it('should multiply the element\'s value by the given value and assign it back to the element', function () {
+            this.element.setValue(this.factory.createInteger(10));
+
+            this.element.multiplyBy(this.factory.createInteger(2));
+
+            expect(this.element.getNative()).to.equal(20);
         });
     });
 

@@ -22,7 +22,6 @@ var _ = require('microdash'),
     NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
-    PHPFatalError = phpCommon.PHPFatalError,
     Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
 
@@ -30,6 +29,12 @@ describe('Integer', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.factory = new ValueFactory();
+
+        this.callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+            throw new Error(
+                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+            );
+        });
 
         this.createKeyValuePair = function (key, value) {
             var keyValuePair = sinon.createStubInstance(KeyValuePair);
@@ -42,6 +47,49 @@ describe('Integer', function () {
             this.value = new IntegerValue(this.factory, this.callStack, nativeValue);
         }.bind(this);
         this.createValue(1);
+    });
+
+    describe('addToArray()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                this.value.addToArray(this.factory.createArray([]));
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
+        });
+    });
+
+    describe('callMethod()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                this.value.callMethod('myMethod', [this.factory.createString('my arg')]);
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.non_object_method_call with {"name":"myMethod","type":"int"}'
+            );
+        });
+    });
+
+    describe('callStaticMethod()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                this.value.callStaticMethod(
+                    this.factory.createString('myMethod'),
+                    [this.factory.createString('my arg')]
+                );
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
+            );
+        });
+    });
+
+    describe('coerceToNativeError()', function () {
+        it('should throw an error as this is invalid', function () {
+            expect(function () {
+                this.value.coerceToNativeError();
+            }.bind(this)).to.throw(
+                'Only instances of Throwable may be thrown: tried to throw a(n) int'
+            );
+        });
     });
 
     describe('divide()', function () {
@@ -62,7 +110,9 @@ describe('Integer', function () {
 
             expect(function () {
                 this.value.divideByArray(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
@@ -456,6 +506,22 @@ describe('Integer', function () {
         });
     });
 
+    describe('getConstantByName()', function () {
+        it('should throw a "Class name must be a valid object or a string" error', function () {
+            expect(function () {
+                this.value.getConstantByName('MY_CONST', this.namespaceScope);
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
+            );
+        });
+    });
+
+    describe('getDisplayType()', function () {
+        it('should return the value type', function () {
+            expect(this.value.getDisplayType()).to.equal('int');
+        });
+    });
+
     describe('getNative()', function () {
         it('should return 27 when expected', function () {
             this.createValue(27);
@@ -484,13 +550,30 @@ describe('Integer', function () {
         });
     });
 
+    describe('getReference()', function () {
+        it('should throw an error', function () {
+            expect(function () {
+                this.value.getReference();
+            }.bind(this)).to.throw('Cannot get a reference to a value');
+        });
+    });
+
+    describe('getStaticPropertyByName()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                this.value.getStaticPropertyByName(this.factory.createString('myProp'), this.namespaceScope);
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
+            );
+        });
+    });
+
     describe('instantiate()', function () {
         it('should raise a fatal error', function () {
             expect(function () {
                 this.value.instantiate();
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -502,6 +585,12 @@ describe('Integer', function () {
             rightOperand.isTheClassOfInteger.withArgs(this.value).returns(result);
 
             expect(this.value.isAnInstanceOf(rightOperand)).to.equal(result);
+        });
+    });
+
+    describe('isCallable()', function () {
+        it('should return false', function () {
+            expect(this.value.isCallable()).to.be.false;
         });
     });
 
@@ -527,8 +616,8 @@ describe('Integer', function () {
 
     describe('isGreaterThan()', function () {
         it('should return true for two integers when left is greater than right', function () {
-            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
-                rhs = new Value(this.factory, this.callStack, 'integer', 15),
+            var lhs = new Value(this.factory, this.callStack, 'int', 21),
+                rhs = new Value(this.factory, this.callStack, 'int', 15),
                 result = lhs.isGreaterThan(rhs);
 
             expect(result).to.be.an.instanceOf(BooleanValue);
@@ -536,8 +625,8 @@ describe('Integer', function () {
         });
 
         it('should return false for two integers when left is equal to right', function () {
-            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
-                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+            var lhs = new Value(this.factory, this.callStack, 'int', 21),
+                rhs = new Value(this.factory, this.callStack, 'int', 21),
                 result = lhs.isGreaterThan(rhs);
 
             expect(result).to.be.an.instanceOf(BooleanValue);
@@ -545,8 +634,8 @@ describe('Integer', function () {
         });
 
         it('should return false for two integers when left is less than right', function () {
-            var lhs = new Value(this.factory, this.callStack, 'integer', 15),
-                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+            var lhs = new Value(this.factory, this.callStack, 'int', 15),
+                rhs = new Value(this.factory, this.callStack, 'int', 21),
                 result = lhs.isGreaterThan(rhs);
 
             expect(result).to.be.an.instanceOf(BooleanValue);
@@ -556,8 +645,8 @@ describe('Integer', function () {
 
     describe('isGreaterThanOrEqual()', function () {
         it('should return true for two integers when left is greater than right', function () {
-            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
-                rhs = new Value(this.factory, this.callStack, 'integer', 15),
+            var lhs = new Value(this.factory, this.callStack, 'int', 21),
+                rhs = new Value(this.factory, this.callStack, 'int', 15),
                 result = lhs.isGreaterThanOrEqual(rhs);
 
             expect(result).to.be.an.instanceOf(BooleanValue);
@@ -565,8 +654,8 @@ describe('Integer', function () {
         });
 
         it('should return true for two integers when left is equal to right', function () {
-            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
-                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+            var lhs = new Value(this.factory, this.callStack, 'int', 21),
+                rhs = new Value(this.factory, this.callStack, 'int', 21),
                 result = lhs.isGreaterThanOrEqual(rhs);
 
             expect(result).to.be.an.instanceOf(BooleanValue);
@@ -574,8 +663,8 @@ describe('Integer', function () {
         });
 
         it('should return false for two integers when left is less than right', function () {
-            var lhs = new Value(this.factory, this.callStack, 'integer', 15),
-                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+            var lhs = new Value(this.factory, this.callStack, 'int', 15),
+                rhs = new Value(this.factory, this.callStack, 'int', 21),
                 result = lhs.isGreaterThanOrEqual(rhs);
 
             expect(result).to.be.an.instanceOf(BooleanValue);
@@ -583,10 +672,16 @@ describe('Integer', function () {
         });
     });
 
+    describe('isIterable()', function () {
+        it('should return false', function () {
+            expect(this.value.isIterable()).to.be.false;
+        });
+    });
+
     describe('isLessThan()', function () {
         it('should return false for two integers when left is greater than right', function () {
-            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
-                rhs = new Value(this.factory, this.callStack, 'integer', 15),
+            var lhs = new Value(this.factory, this.callStack, 'int', 21),
+                rhs = new Value(this.factory, this.callStack, 'int', 15),
                 result = lhs.isLessThan(rhs);
 
             expect(result).to.be.an.instanceOf(BooleanValue);
@@ -594,8 +689,8 @@ describe('Integer', function () {
         });
 
         it('should return false for two integers when left is equal to right', function () {
-            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
-                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+            var lhs = new Value(this.factory, this.callStack, 'int', 21),
+                rhs = new Value(this.factory, this.callStack, 'int', 21),
                 result = lhs.isLessThan(rhs);
 
             expect(result).to.be.an.instanceOf(BooleanValue);
@@ -603,8 +698,8 @@ describe('Integer', function () {
         });
 
         it('should return true for two integers when left is less than right', function () {
-            var lhs = new Value(this.factory, this.callStack, 'integer', 15),
-                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+            var lhs = new Value(this.factory, this.callStack, 'int', 15),
+                rhs = new Value(this.factory, this.callStack, 'int', 21),
                 result = lhs.isLessThan(rhs);
 
             expect(result).to.be.an.instanceOf(BooleanValue);
@@ -614,8 +709,8 @@ describe('Integer', function () {
 
     describe('isLessThanOrEqual()', function () {
         it('should return false for two integers when left is greater than right', function () {
-            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
-                rhs = new Value(this.factory, this.callStack, 'integer', 15),
+            var lhs = new Value(this.factory, this.callStack, 'int', 21),
+                rhs = new Value(this.factory, this.callStack, 'int', 15),
                 result = lhs.isLessThanOrEqual(rhs);
 
             expect(result).to.be.an.instanceOf(BooleanValue);
@@ -623,8 +718,8 @@ describe('Integer', function () {
         });
 
         it('should return true for two integers when left is equal to right', function () {
-            var lhs = new Value(this.factory, this.callStack, 'integer', 21),
-                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+            var lhs = new Value(this.factory, this.callStack, 'int', 21),
+                rhs = new Value(this.factory, this.callStack, 'int', 21),
                 result = lhs.isLessThanOrEqual(rhs);
 
             expect(result).to.be.an.instanceOf(BooleanValue);
@@ -632,8 +727,8 @@ describe('Integer', function () {
         });
 
         it('should return true for two integers when left is less than right', function () {
-            var lhs = new Value(this.factory, this.callStack, 'integer', 15),
-                rhs = new Value(this.factory, this.callStack, 'integer', 21),
+            var lhs = new Value(this.factory, this.callStack, 'int', 15),
+                rhs = new Value(this.factory, this.callStack, 'int', 21),
                 result = lhs.isLessThanOrEqual(rhs);
 
             expect(result).to.be.an.instanceOf(BooleanValue);
@@ -654,8 +749,7 @@ describe('Integer', function () {
             expect(function () {
                 this.value.isTheClassOfArray(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -667,8 +761,7 @@ describe('Integer', function () {
             expect(function () {
                 this.value.isTheClassOfBoolean(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -680,8 +773,7 @@ describe('Integer', function () {
             expect(function () {
                 this.value.isTheClassOfFloat(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -693,8 +785,7 @@ describe('Integer', function () {
             expect(function () {
                 this.value.isTheClassOfInteger(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -706,8 +797,7 @@ describe('Integer', function () {
             expect(function () {
                 this.value.isTheClassOfNull(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -719,8 +809,7 @@ describe('Integer', function () {
             expect(function () {
                 this.value.isTheClassOfObject(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -732,8 +821,7 @@ describe('Integer', function () {
             expect(function () {
                 this.value.isTheClassOfString(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -791,7 +879,9 @@ describe('Integer', function () {
 
             expect(function () {
                 this.value.multiplyByArray(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
@@ -1102,6 +1192,14 @@ describe('Integer', function () {
                     expect(this.callStack.raiseError).not.to.have.been.called;
                 });
             });
+        });
+    });
+
+    describe('subtractFromNull()', function () {
+        it('should return this value negated', function () {
+            this.createValue(21);
+
+            expect(this.value.subtractFromNull().getNative()).to.equal(-21);
         });
     });
 });

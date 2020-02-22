@@ -44,6 +44,17 @@ describe('NullReference', function () {
         });
     });
 
+    describe('divideBy()', function () {
+        it('should call the `onSet()` callback once', function () {
+            this.reference.setValue(this.valueFactory.createInteger(20));
+            this.onSet.resetHistory();
+
+            this.reference.divideBy(this.valueFactory.createInteger(4));
+
+            expect(this.onSet).to.have.been.calledOnce;
+        });
+    });
+
     describe('getNative()', function () {
         it('should return null', function () {
             expect(this.reference.getNative()).to.be.null;
@@ -76,6 +87,17 @@ describe('NullReference', function () {
     describe('isSet()', function () {
         it('should return false', function () {
             expect(this.reference.isSet()).to.be.false;
+        });
+    });
+
+    describe('multiplyBy()', function () {
+        it('should call the `onSet()` callback once', function () {
+            this.reference.setValue(this.valueFactory.createInteger(20));
+            this.onSet.resetHistory();
+
+            this.reference.multiplyBy(this.valueFactory.createInteger(4));
+
+            expect(this.onSet).to.have.been.calledOnce;
         });
     });
 

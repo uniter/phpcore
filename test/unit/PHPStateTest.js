@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    ErrorReporting = require('../../src/Error/ErrorReporting'),
     Exception = phpCommon.Exception,
     Loader = require('../../src/Loader').sync(),
     OptionSet = require('../../src/OptionSet'),
@@ -20,6 +21,7 @@ var expect = require('chai').expect,
     Runtime = require('../../src/Runtime').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
     Stream = require('../../src/Stream'),
+    Translator = phpCommon.Translator,
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('PHPState', function () {
@@ -149,6 +151,31 @@ describe('PHPState', function () {
             expect(this.state.getGlobalNamespace().getFunction('getMyConstant').call().getNative()).to.equal(21);
         });
 
+        it('should define functions correctly with a FunctionSpec', function () {
+            this.state = new PHPState(
+                this.runtime,
+                {
+                    functionGroups: [
+                        function (internals) {
+                            return {
+                                myFunction: function () {
+                                    return internals.valueFactory.createInteger(21);
+                                }
+                            };
+                        }
+                    ]
+                },
+                this.stdin,
+                this.stdout,
+                this.stderr,
+                this.pausable,
+                'async'
+            );
+
+            expect(this.state.getGlobalNamespace().getFunction('myFunction').functionSpec.getFunctionName())
+                .to.equal('myFunction');
+        });
+
         it('should install any option groups as options', function () {
             this.state = new PHPState(
                 this.runtime,
@@ -242,6 +269,32 @@ describe('PHPState', function () {
             expect(this.state.getINIOption('my_ini_setting')).to.equal(212);
         });
 
+        it('should install any translations', function () {
+            this.state = new PHPState(
+                this.runtime,
+                {
+                    translationCatalogues: [
+                        {
+                            'en_GB': {
+                                'some_namespace': {
+                                    'my_key': 'Hello there ${name}!'
+                                }
+                            }
+                        }
+                    ]
+                },
+                this.stdin,
+                this.stdout,
+                this.stderr,
+                this.pausable,
+                'sync'
+            );
+
+            expect(
+                this.state.getTranslator().translate('some_namespace.my_key', {name: 'Fred'})
+            ).to.equal('Hello there Fred!');
+        });
+
         ['async', 'sync', 'psync'].forEach(function (mode) {
             it('should expose the current synchronicity mode when "' + mode + '"', function () {
                 this.state = new PHPState(
@@ -330,7 +383,7 @@ describe('PHPState', function () {
     });
 
     describe('defineCoercingFunction()', function () {
-        it('should define a function that coerces its arguments and return value', function () {
+        it('should define a function that coerces its return value and unwraps its arguments', function () {
             var resultValue;
             this.state.defineCoercingFunction('double_it', function (numberToDouble) {
                 return numberToDouble * 2;
@@ -340,8 +393,24 @@ describe('PHPState', function () {
                 this.state.getValueFactory().createInteger(21)
             );
 
-            expect(resultValue.getType()).to.equal('integer');
+            expect(resultValue.getType()).to.equal('int');
             expect(resultValue.getNative()).to.equal(42);
+        });
+
+        it('should define a function correctly with a FunctionSpec', function () {
+            this.state.defineCoercingFunction('my_function', function () {});
+
+            expect(this.state.getGlobalNamespace().getFunction('my_function').functionSpec.getFunctionName())
+                .to.equal('my_function');
+        });
+    });
+
+    describe('defineConstant()', function () {
+        it('should define a constant on the correct namespace', function () {
+            this.state.defineConstant('\\My\\Stuff\\MY_CONST', 21, {caseInsensitive: true});
+
+            expect(this.state.getGlobalNamespace().getDescendant('My\\Stuff').getConstant('my_COnsT').getNative())
+                .to.equal(21);
         });
     });
 
@@ -376,6 +445,29 @@ describe('PHPState', function () {
 
             expect(valueSetter).to.have.been.calledOnce;
             expect(valueSetter).to.have.been.calledWith(27);
+        });
+    });
+
+    describe('defineNonCoercingFunction()', function () {
+        it('should define a function that coerces its return value but does not unwrap its arguments', function () {
+            var resultValue;
+            this.state.defineNonCoercingFunction('double_it', function (numberToDoubleReference) {
+                return numberToDoubleReference.getValue().getNative() * 2;
+            });
+
+            resultValue = this.state.getGlobalNamespace().getFunction('double_it')(
+                this.state.getValueFactory().createInteger(21)
+            );
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(42);
+        });
+
+        it('should define a function correctly with a FunctionSpec', function () {
+            this.state.defineNonCoercingFunction('my_function', function () {});
+
+            expect(this.state.getGlobalNamespace().getFunction('my_function').functionSpec.getFunctionName())
+                .to.equal('my_function');
         });
     });
 
@@ -426,6 +518,12 @@ describe('PHPState', function () {
         });
     });
 
+    describe('getErrorReporting()', function () {
+        it('should return the ErrorReporting service', function () {
+            expect(this.state.getErrorReporting()).to.be.an.instanceOf(ErrorReporting);
+        });
+    });
+
     describe('getLoader()', function () {
         it('should return a Loader', function () {
             expect(this.state.getLoader()).to.be.an.instanceOf(Loader);
@@ -448,6 +546,12 @@ describe('PHPState', function () {
     describe('getScopeFactory()', function () {
         it('should return a ScopeFactory', function () {
             expect(this.state.getScopeFactory()).to.be.an.instanceOf(ScopeFactory);
+        });
+    });
+
+    describe('getTranslator()', function () {
+        it('should return the Translator service', function () {
+            expect(this.state.getTranslator()).to.be.an.instanceOf(Translator);
         });
     });
 });

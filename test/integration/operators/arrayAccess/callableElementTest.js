@@ -11,7 +11,9 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../../tools');
+    phpCommon = require('phpcommon'),
+    tools = require('../../tools'),
+    PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP callable array element "[...]" integration', function () {
     it('call to callable stored as array element', function () {
@@ -38,5 +40,23 @@ EOS
             42
         ]);
         expect(engine.getStderr().readAll()).to.equal('');
+    });
+
+    it('should raise a fatal error when attempting to call an empty array', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$invalidCallableArray = [];
+$invalidCallableArray(123);
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/module.php', php),
+            engine = module();
+
+        expect(function () {
+            engine.execute();
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Function name must be a string in /path/to/module.php on line 3'
+        );
     });
 });

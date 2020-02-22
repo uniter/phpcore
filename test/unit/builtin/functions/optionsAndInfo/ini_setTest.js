@@ -19,7 +19,7 @@ var expect = require('chai').expect,
     ValueFactory = require('../../../../../src/ValueFactory').sync(),
     Variable = require('../../../../../src/Variable').sync();
 
-describe('PHP "ini_set" basic-level builtin function', function () {
+describe('PHP "ini_set" builtin function', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.iniState = sinon.createStubInstance(INIState);
@@ -56,7 +56,7 @@ describe('PHP "ini_set" basic-level builtin function', function () {
         it('should return its old value coerced to a Value object', function () {
             var resultValue = this.ini_set(this.optionNameReference, this.optionValueReference);
 
-            expect(resultValue.getType()).to.equal('integer');
+            expect(resultValue.getType()).to.equal('int');
             expect(resultValue.getNative()).to.equal(1001); // Check the old and not the new value is returned
         });
     });

@@ -64,7 +64,7 @@ describe('List', function () {
                 ref1 = sinon.createStubInstance(VariableReference),
                 ref2 = sinon.createStubInstance(VariableReference),
                 nullValue = sinon.createStubInstance(NullValue);
-            assignedValue.getType.returns('integer');
+            assignedValue.getType.returns('int');
             this.valueFactory.createNull.returns(nullValue);
             this.elements.push(ref1);
             this.elements.push(ref2);

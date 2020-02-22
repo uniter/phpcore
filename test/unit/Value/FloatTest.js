@@ -22,7 +22,6 @@ var _ = require('microdash'),
     NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
-    PHPFatalError = phpCommon.PHPFatalError,
     Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
 
@@ -30,6 +29,12 @@ describe('Float', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.factory = new ValueFactory();
+
+        this.callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+            throw new Error(
+                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+            );
+        });
 
         this.createKeyValuePair = function (key, value) {
             var keyValuePair = sinon.createStubInstance(KeyValuePair);
@@ -42,6 +47,49 @@ describe('Float', function () {
             this.value = new FloatValue(this.factory, this.callStack, nativeValue);
         }.bind(this);
         this.createValue(21);
+    });
+
+    describe('addToArray()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                this.value.addToArray(this.factory.createArray([]));
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
+        });
+    });
+
+    describe('callMethod()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                this.value.callMethod('myMethod', [this.factory.createString('my arg')]);
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.non_object_method_call with {"name":"myMethod","type":"float"}'
+            );
+        });
+    });
+
+    describe('callStaticMethod()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                this.value.callStaticMethod(
+                    this.factory.createString('myMethod'),
+                    [this.factory.createString('my arg')]
+                );
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
+            );
+        });
+    });
+
+    describe('coerceToNativeError()', function () {
+        it('should throw an error as this is invalid', function () {
+            expect(function () {
+                this.value.coerceToNativeError();
+            }.bind(this)).to.throw(
+                'Only instances of Throwable may be thrown: tried to throw a(n) float'
+            );
+        });
     });
 
     describe('divide()', function () {
@@ -60,7 +108,9 @@ describe('Float', function () {
 
             expect(function () {
                 this.value.divideByArray(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
@@ -440,6 +490,22 @@ describe('Float', function () {
         });
     });
 
+    describe('getConstantByName()', function () {
+        it('should throw a "Class name must be a valid object or a string" error', function () {
+            expect(function () {
+                this.value.getConstantByName('MY_CONST', this.namespaceScope);
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
+            );
+        });
+    });
+
+    describe('getDisplayType()', function () {
+        it('should return the value type', function () {
+            expect(this.value.getDisplayType()).to.equal('float');
+        });
+    });
+
     describe('getNative()', function () {
         it('should return 21.5 when expected', function () {
             this.createValue(21.5);
@@ -468,13 +534,30 @@ describe('Float', function () {
         });
     });
 
+    describe('getReference()', function () {
+        it('should throw an error', function () {
+            expect(function () {
+                this.value.getReference();
+            }.bind(this)).to.throw('Cannot get a reference to a value');
+        });
+    });
+
+    describe('getStaticPropertyByName()', function () {
+        it('should raise a fatal error', function () {
+            expect(function () {
+                this.value.getStaticPropertyByName(this.factory.createString('myProp'), this.namespaceScope);
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
+            );
+        });
+    });
+
     describe('instantiate()', function () {
         it('should raise a fatal error', function () {
             expect(function () {
                 this.value.instantiate();
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -486,6 +569,12 @@ describe('Float', function () {
             rightOperand.isTheClassOfFloat.withArgs(this.value).returns(result);
 
             expect(this.value.isAnInstanceOf(rightOperand)).to.equal(result);
+        });
+    });
+
+    describe('isCallable()', function () {
+        it('should return false', function () {
+            expect(this.value.isCallable()).to.be.false;
         });
     });
 
@@ -509,6 +598,12 @@ describe('Float', function () {
         });
     });
 
+    describe('isIterable()', function () {
+        it('should return false', function () {
+            expect(this.value.isIterable()).to.be.false;
+        });
+    });
+
     describe('isNumeric()', function () {
         it('should return true', function () {
             expect(this.value.isNumeric()).to.be.true;
@@ -522,8 +617,7 @@ describe('Float', function () {
             expect(function () {
                 this.value.isTheClassOfArray(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -535,8 +629,7 @@ describe('Float', function () {
             expect(function () {
                 this.value.isTheClassOfBoolean(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -548,8 +641,7 @@ describe('Float', function () {
             expect(function () {
                 this.value.isTheClassOfFloat(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -561,8 +653,7 @@ describe('Float', function () {
             expect(function () {
                 this.value.isTheClassOfInteger(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -574,8 +665,7 @@ describe('Float', function () {
             expect(function () {
                 this.value.isTheClassOfNull(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -587,8 +677,7 @@ describe('Float', function () {
             expect(function () {
                 this.value.isTheClassOfObject(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -600,8 +689,7 @@ describe('Float', function () {
             expect(function () {
                 this.value.isTheClassOfString(classValue);
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'Class name must be a valid object or a string'
+                'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
         });
     });
@@ -657,7 +745,9 @@ describe('Float', function () {
 
             expect(function () {
                 this.value.multiplyByArray(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
@@ -956,6 +1046,16 @@ describe('Float', function () {
                     expect(this.callStack.raiseError).not.to.have.been.called;
                 });
             });
+        });
+    });
+
+    describe('subtractFromNull()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            expect(function () {
+                this.value.subtractFromNull();
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 });

@@ -11,7 +11,9 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../tools');
+    phpCommon = require('phpcommon'),
+    tools = require('../tools'),
+    PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP JS<->PHP bridge object export asynchronous mode integration', function () {
     it('should return an object with instance methods returning promises', function () {
@@ -84,14 +86,17 @@ class MyClass
 return new MyClass();
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php);
+            module = tools.asyncTranspile('a_module.php', php);
 
         module().execute().then(function (result) {
             result.getNative().throwIt(9001).then(function () {
                 done(new Error('Expected an error to be thrown, but none was'));
             }, function (error) {
                 try {
-                    expect(error.message).to.equal('PHP YourException: Oh no - 9001 (custom!)');
+                    expect(error).to.be.an.instanceOf(PHPFatalError);
+                    expect(error.message).to.equal(
+                        'PHP Fatal error: Uncaught YourException: Oh no - 9001 (custom!) in a_module.php on line 15'
+                    );
                     done();
                 } catch (error) {
                     done(error);

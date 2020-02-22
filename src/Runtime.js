@@ -49,7 +49,8 @@ module.exports = require('pauser')([
             classes: {},
             constantGroups: [],
             defaultINIGroups: [],
-            functionGroups: []
+            functionGroups: [],
+            translationCatalogues: []
         };
         /**
          * @type {class}
@@ -126,9 +127,9 @@ module.exports = require('pauser')([
              * Creates a new factory function with some optional default options,
              * environment and top-level Scope
              *
-             * @param {object|null|undefined} defaultOptions
-             * @param {Environment|null|undefined} defaultEnvironment
-             * @param {Scope|null|undefined} defaultTopLevelScope
+             * @param {object=} defaultOptions
+             * @param {Environment=} defaultEnvironment
+             * @param {Scope=} defaultTopLevelScope
              * @returns {Function}
              */
             factory.using = function (defaultOptions, defaultEnvironment, defaultTopLevelScope) {
@@ -136,9 +137,9 @@ module.exports = require('pauser')([
                  * A proxying factory function that applies these defaults
                  * and then forwards onto the original factory function
                  *
-                 * @param {object|null|undefined} options
-                 * @param {Environment|null|undefined} environment
-                 * @param {Scope|null|undefined} topLevelScope
+                 * @param {object=} options
+                 * @param {Environment=} environment
+                 * @param {Scope=} topLevelScope
                  * @returns {Engine}
                  */
                 function proxy(options, environment, topLevelScope) {
@@ -215,6 +216,7 @@ module.exports = require('pauser')([
                 newBuiltins = newBuiltins();
             }
 
+            [].push.apply(builtins.translationCatalogues, newBuiltins.translationCatalogues);
             [].push.apply(builtins.functionGroups, newBuiltins.functionGroups);
             [].push.apply(builtins.classGroups, newBuiltins.classGroups);
             _.extend(builtins.classes, newBuiltins.classes);

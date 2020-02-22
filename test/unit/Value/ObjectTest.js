@@ -21,23 +21,28 @@ var _ = require('microdash'),
     Closure = require('../../../src/Closure').sync(),
     Exception = phpCommon.Exception,
     FloatValue = require('../../../src/Value/Float').sync(),
+    FunctionSpec = require('../../../src/Function/FunctionSpec'),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     MethodSpec = require('../../../src/MethodSpec'),
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
+    NullReference = require('../../../src/Reference/Null'),
     NullValue = require('../../../src/Value/Null').sync(),
+    ObjectElement = require('../../../src/Reference/ObjectElement'),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
-    PHPFatalError = phpCommon.PHPFatalError,
     PHPObject = require('../../../src/PHPObject').sync(),
     PropertyReference = require('../../../src/Reference/Property'),
+    StaticPropertyReference = require('../../../src/Reference/StaticProperty'),
+    Translator = phpCommon.Translator,
     Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('Object', function () {
     beforeEach(function () {
         this.callStack = sinon.createStubInstance(CallStack);
-        this.factory = new ValueFactory();
+        this.translator = sinon.createStubInstance(Translator);
+        this.factory = new ValueFactory(null, 'sync', null, this.translator);
         this.globalNamespace = sinon.createStubInstance(Namespace);
         this.classObject = sinon.createStubInstance(Class);
         this.classObject.getMethodSpec.returns(null);
@@ -50,17 +55,101 @@ describe('Object', function () {
         this.objectID = 21;
 
         this.callStack.getCurrentClass.returns(null);
+        this.callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+            throw new Error(
+                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+            );
+        }.bind(this));
+
+        this.factory.setCallStack(this.callStack);
         this.factory.setGlobalNamespace(this.globalNamespace);
+
+        this.translator.translate
+            .callsFake(function (translationKey, placeholderVariables) {
+                return '[Translated] ' + translationKey + ' ' + JSON.stringify(placeholderVariables || {});
+            });
 
         this.value = new ObjectValue(
             this.factory,
             this.callStack,
+            this.translator,
             this.nativeObject,
             this.classObject,
             this.objectID
         );
         this.value.declareProperty('firstProp', this.classObject, 'public').initialise(this.prop1);
         this.value.declareProperty('secondProp', this.classObject, 'public').initialise(this.prop2);
+    });
+
+    describe('addToArray()', function () {
+        it('should raise a notice', function () {
+            try {
+                this.value.addToArray(this.factory.createArray([]));
+            } catch (error) {}
+
+            expect(this.callStack.raiseError).to.have.been.calledOnce;
+            expect(this.callStack.raiseError).to.have.been.calledWith(
+                PHPError.E_NOTICE,
+                'Object of class My\\Space\\AwesomeClass could not be converted to number'
+            );
+        });
+
+        it('should also raise a fatal error', function () {
+            expect(function () {
+                this.value.addToArray(this.factory.createArray([]));
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
+        });
+    });
+
+    describe('addToBoolean()', function () {
+        it('should raise a notice', function () {
+            try {
+                this.value.addToBoolean(this.factory.createBoolean(true));
+            } catch (error) {}
+
+            expect(this.callStack.raiseError).to.have.been.calledOnce;
+            expect(this.callStack.raiseError).to.have.been.calledWith(
+                PHPError.E_NOTICE,
+                'Object of class My\\Space\\AwesomeClass could not be converted to number'
+            );
+        });
+
+        it('should return int(2) if the boolean was true', function () {
+            var resultValue = this.value.addToBoolean(this.factory.createBoolean(true));
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(2);
+        });
+
+        it('should return int(1) if the boolean was false', function () {
+            var resultValue = this.value.addToBoolean(this.factory.createBoolean(false));
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(1);
+        });
+    });
+
+    describe('addToFloat()', function () {
+        it('should raise a notice', function () {
+            try {
+                this.value.addToFloat(this.factory.createBoolean(true));
+            } catch (error) {}
+
+            expect(this.callStack.raiseError).to.have.been.calledOnce;
+            expect(this.callStack.raiseError).to.have.been.calledWith(
+                PHPError.E_NOTICE,
+                'Object of class My\\Space\\AwesomeClass could not be converted to number'
+            );
+        });
+
+        it('should return the float plus 1', function () {
+            var resultValue = this.value.addToFloat(this.factory.createFloat(5.45));
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(6.45);
+        });
     });
 
     describe('advance()', function () {
@@ -104,6 +193,7 @@ describe('Object', function () {
             this.value = new ObjectValue(
                 this.factory,
                 this.callStack,
+                this.translator,
                 this.nativeObject,
                 this.classObject,
                 this.objectID
@@ -135,6 +225,7 @@ describe('Object', function () {
             this.value = new ObjectValue(
                 this.factory,
                 this.callStack,
+                this.translator,
                 {},
                 this.classObject,
                 this.objectID
@@ -219,6 +310,7 @@ describe('Object', function () {
             var objectValue = new ObjectValue(
                     this.factory,
                     this.callStack,
+                    this.translator,
                     {},
                     this.classObject,
                     this.objectID
@@ -284,7 +376,7 @@ describe('Object', function () {
             expect(this.callStack.raiseError).to.have.been.calledOnce;
             expect(this.callStack.raiseError).to.have.been.calledWith(
                 PHPError.E_NOTICE,
-                'Object of class MyClass could not be converted to int'
+                'Object of class MyClass could not be converted to number'
             );
         });
 
@@ -297,26 +389,51 @@ describe('Object', function () {
     });
 
     describe('coerceToNativeError()', function () {
-        it('should coerce an instance of Exception correctly', function () {
+        it('should coerce an instance of a class implementing Throwable correctly', function () {
             var error;
-            this.classObject.callMethod
-                .withArgs('getMessage', [], sinon.match.same(this.value))
-                .returns(this.factory.createString('My PHP exception message'));
-            this.classObject.getName.returns('My\\Stuff\MyException');
-            this.classObject.is.withArgs('Exception').returns(true);
+            this.classObject.getName.returns('My\\Stuff\\MyException');
+            this.classObject.is.withArgs('Throwable').returns(true);
+            this.value.declareProperty('message', this.classObject, 'line')
+                .initialise(this.factory.createString('My PHP exception message'));
+            this.value.declareProperty('file', this.classObject, 'public')
+                .initialise(this.factory.createString('/path/to/my_module.php'));
+            this.value.declareProperty('line', this.classObject, 'line')
+                .initialise(this.factory.createInteger(4321));
 
             error = this.value.coerceToNativeError();
 
             expect(error).to.be.an.instanceOf(Error);
-            expect(error.message).to.equal('PHP My\\StuffMyException: My PHP exception message');
+            expect(error.message).to.equal(
+                'PHP Fatal error: [Translated] core.uncaught_throwable {"name":"My\\\\Stuff\\\\MyException","message":"My PHP exception message"} in /path/to/my_module.php on line 4321'
+            );
         });
 
-        it('should throw when the ObjectValue is not an instance of Exception', function () {
-            this.classObject.is.withArgs('Exception').returns(false);
+        it('should coerce an instance of ParseError correctly', function () {
+            var error;
+            this.classObject.getName.returns('ParseError');
+            this.classObject.is.withArgs('ParseError').returns(true);
+            this.classObject.is.withArgs('Throwable').returns(true);
+            this.value.declareProperty('message', this.classObject, 'line')
+                .initialise(this.factory.createString('My parse error message'));
+            this.value.declareProperty('file', this.classObject, 'public')
+                .initialise(this.factory.createString('/path/to/my_module.php'));
+            this.value.declareProperty('line', this.classObject, 'line')
+                .initialise(this.factory.createInteger(1111));
+
+            error = this.value.coerceToNativeError();
+
+            expect(error).to.be.an.instanceOf(Error);
+            expect(error.message).to.equal(
+                'PHP Parse error: My parse error message in /path/to/my_module.php on line 1111'
+            );
+        });
+
+        it('should throw when the ObjectValue does not implement Exception', function () {
+            this.classObject.is.withArgs('Throwable').returns(false);
 
             expect(function () {
                 this.value.coerceToNativeError();
-            }.bind(this)).to.throw('Cannot coerce non-Exception instance to a native JS error');
+            }.bind(this)).to.throw('Weird value class thrown: My\\Space\\AwesomeClass');
         });
     });
 
@@ -328,7 +445,7 @@ describe('Object', function () {
             expect(this.callStack.raiseError).to.have.been.calledOnce;
             expect(this.callStack.raiseError).to.have.been.calledWith(
                 PHPError.E_NOTICE,
-                'Object of class MyClass could not be converted to int'
+                'Object of class MyClass could not be converted to number'
             );
         });
 
@@ -387,7 +504,9 @@ describe('Object', function () {
 
             expect(function () {
                 this.value.divideByArray(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
@@ -424,7 +543,7 @@ describe('Object', function () {
                     expect(this.callStack.raiseError).to.have.been.calledOnce;
                     expect(this.callStack.raiseError).to.have.been.calledWith(
                         PHPError.E_NOTICE,
-                        'Object of class MyClass could not be converted to int'
+                        'Object of class MyClass could not be converted to number'
                     );
                 });
             });
@@ -464,7 +583,7 @@ describe('Object', function () {
                     expect(this.callStack.raiseError).to.have.been.calledOnce;
                     expect(this.callStack.raiseError).to.have.been.calledWith(
                         PHPError.E_NOTICE,
-                        'Object of class MyObjClass could not be converted to int'
+                        'Object of class MyObjClass could not be converted to number'
                     );
                 });
             });
@@ -504,7 +623,7 @@ describe('Object', function () {
                     expect(this.callStack.raiseError).to.have.been.calledOnce;
                     expect(this.callStack.raiseError).to.have.been.calledWith(
                         PHPError.E_NOTICE,
-                        'Object of class MyClass could not be converted to int'
+                        'Object of class MyClass could not be converted to number'
                     );
                 });
             });
@@ -537,7 +656,7 @@ describe('Object', function () {
                 expect(this.callStack.raiseError).to.have.been.calledOnce;
                 expect(this.callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class MyClass could not be converted to int'
+                    'Object of class MyClass could not be converted to number'
                 );
             });
         });
@@ -568,7 +687,7 @@ describe('Object', function () {
             expect(this.callStack.raiseError).to.have.been.calledOnce;
             expect(this.callStack.raiseError).to.have.been.calledWith(
                 PHPError.E_NOTICE,
-                'Object of class MyClass could not be converted to int'
+                'Object of class MyClass could not be converted to number'
             );
         });
     });
@@ -616,7 +735,7 @@ describe('Object', function () {
                     expect(this.callStack.raiseError).to.have.been.calledOnce;
                     expect(this.callStack.raiseError).to.have.been.calledWith(
                         PHPError.E_NOTICE,
-                        'Object of class MyClass could not be converted to int'
+                        'Object of class MyClass could not be converted to number'
                     );
                 });
             });
@@ -635,7 +754,10 @@ describe('Object', function () {
         it('should return the FQN when the object is a Closure', function () {
             this.classObject.is.withArgs('Closure').returns(true);
             this.classObject.is.returns(false);
-            this.nativeObject.funcName = 'Fully\\Qualified\\Path\\To\\{closure}';
+            this.nativeObject.functionSpec = sinon.createStubInstance(FunctionSpec);
+            this.nativeObject.functionSpec.getFunctionName
+                .withArgs(true)
+                .returns('Fully\\Qualified\\Path\\To\\{closure}');
 
             expect(this.value.getCallableName()).to.equal('Fully\\Qualified\\Path\\To\\{closure}');
         });
@@ -650,6 +772,17 @@ describe('Object', function () {
     describe('getClass()', function () {
         it('should return the Class of the object', function () {
             expect(this.value.getClass()).to.equal(this.classObject);
+        });
+    });
+
+    describe('getConstantByName()', function () {
+        it('should fetch the constant from the class of the object', function () {
+            var resultValue = this.factory.createString('my value');
+            this.classObject.getConstantByName
+                .withArgs('MY_CONST')
+                .returns(resultValue);
+
+            expect(this.value.getConstantByName('MY_CONST', this.namespaceScope)).to.equal(resultValue);
         });
     });
 
@@ -757,9 +890,46 @@ describe('Object', function () {
         });
     });
 
-    describe('getForThrow()', function () {
-        it('should return the wrapped native object', function () {
-            expect(this.value.getForThrow()).to.equal(this.nativeObject);
+    describe('getDisplayType()', function () {
+        it('should return the class FQCN', function () {
+            expect(this.value.getDisplayType()).to.equal('My\\Space\\AwesomeClass');
+        });
+    });
+
+    describe('getElementByKey()', function () {
+        it('should return a NullReference when the value could not be coerced to a key', function () {
+            var reference = this.value.getElementByKey(this.factory.createArray(['my el']));
+
+            expect(reference).to.be.an.instanceOf(NullReference);
+        });
+
+        it('should return an ObjectElement when this object implements ArrayAccess', function () {
+            var element,
+                elementValue = this.factory.createString('my value'),
+                keyValue = this.factory.createString('my key');
+            this.classObject.callMethod
+                .withArgs('offsetGet', [keyValue], sinon.match.same(this.value))
+                .returns(elementValue);
+            this.classObject.is
+                .withArgs('ArrayAccess')
+                .returns(true);
+
+            element = this.value.getElementByKey(keyValue);
+
+            expect(element).to.be.an.instanceOf(ObjectElement);
+            expect(element.getValue()).to.equal(elementValue);
+        });
+
+        it('should raise an error when this object does not implement ArrayAccess', function () {
+            this.classObject.is
+                .withArgs('ArrayAccess')
+                .returns(false);
+
+            expect(function () {
+                this.value.getElementByKey(this.factory.createString('my key'));
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.cannot_use_wrong_type_as with {"actual":"My\\\\Space\\\\AwesomeClass","expected":"array"}'
+            );
         });
     });
 
@@ -768,6 +938,27 @@ describe('Object', function () {
             this.ancestorClass = sinon.createStubInstance(Class);
             this.descendantClass = sinon.createStubInstance(Class);
             this.foreignClass = sinon.createStubInstance(Class);
+
+            this.ancestorClass.getName.returns('MyAncestorClass');
+            this.descendantClass.getName.returns('MyDescendantClass');
+            this.foreignClass.getName.returns('MyForeignClass');
+
+            this.ancestorClass.extends.withArgs(sinon.match.same(this.ancestorClass)).returns(false);
+            this.ancestorClass.extends.withArgs(sinon.match.same(this.classObject)).returns(false);
+            this.ancestorClass.extends.withArgs(sinon.match.same(this.descendantClass)).returns(false);
+            this.ancestorClass.extends.withArgs(sinon.match.same(this.foreignClass)).returns(false);
+            this.classObject.extends.withArgs(sinon.match.same(this.ancestorClass)).returns(true);
+            this.classObject.extends.withArgs(sinon.match.same(this.classObject)).returns(false);
+            this.classObject.extends.withArgs(sinon.match.same(this.descendantClass)).returns(false);
+            this.classObject.extends.withArgs(sinon.match.same(this.foreignClass)).returns(false);
+            this.descendantClass.extends.withArgs(sinon.match.same(this.ancestorClass)).returns(true);
+            this.descendantClass.extends.withArgs(sinon.match.same(this.classObject)).returns(true);
+            this.descendantClass.extends.withArgs(sinon.match.same(this.descendantClass)).returns(false);
+            this.descendantClass.extends.withArgs(sinon.match.same(this.foreignClass)).returns(false);
+            this.foreignClass.extends.withArgs(sinon.match.same(this.ancestorClass)).returns(false);
+            this.foreignClass.extends.withArgs(sinon.match.same(this.classObject)).returns(false);
+            this.foreignClass.extends.withArgs(sinon.match.same(this.descendantClass)).returns(false);
+            this.foreignClass.extends.withArgs(sinon.match.same(this.foreignClass)).returns(false);
 
             this.ancestorClass.getSuperClass.returns(null);
             this.descendantClass.getSuperClass.returns(this.classObject);
@@ -834,8 +1025,7 @@ describe('Object', function () {
                 expect(function () {
                     this.value.getInstancePropertyByName(this.factory.createString('myProtectedProp'));
                 }.bind(this)).to.throw(
-                    PHPFatalError,
-                    'PHP Fatal error: Cannot access protected property My\\Space\\AwesomeClass::$myProtectedProp'
+                    'Fake PHP Fatal error for #core.cannot_access_property with {"className":"My\\\\Space\\\\AwesomeClass","propertyName":"myProtectedProp","visibility":"protected"}'
                 );
             });
 
@@ -872,8 +1062,7 @@ describe('Object', function () {
                 expect(function () {
                     this.value.getInstancePropertyByName(this.factory.createString('myPrivateProp'));
                 }.bind(this)).to.throw(
-                    PHPFatalError,
-                    'PHP Fatal error: Cannot access private property My\\Space\\AwesomeClass::$myPrivateProp'
+                    'Fake PHP Fatal error for #core.cannot_access_property with {"className":"My\\\\Space\\\\AwesomeClass","propertyName":"myPrivateProp","visibility":"private"}'
                 );
             });
 
@@ -884,8 +1073,7 @@ describe('Object', function () {
                 expect(function () {
                     this.value.getInstancePropertyByName(this.factory.createString('myPrivateProp'));
                 }.bind(this)).to.throw(
-                    PHPFatalError,
-                    'PHP Fatal error: Cannot access private property My\\Space\\AwesomeClass::$myPrivateProp'
+                    'Fake PHP Fatal error for #core.cannot_access_property with {"className":"My\\\\Space\\\\AwesomeClass","propertyName":"myPrivateProp","visibility":"private"}'
                 );
             });
 
@@ -896,8 +1084,7 @@ describe('Object', function () {
                 expect(function () {
                     this.value.getInstancePropertyByName(this.factory.createString('myPrivateProp'));
                 }.bind(this)).to.throw(
-                    PHPFatalError,
-                    'PHP Fatal error: Cannot access private property My\\Space\\AwesomeClass::$myPrivateProp'
+                    'Fake PHP Fatal error for #core.undefined_property with {"className":"MyDescendantClass","propertyName":"myPrivateProp"}'
                 );
             });
         });
@@ -1164,7 +1351,7 @@ describe('Object', function () {
                 expect(caughtError).to.equal(exceptionObjectValue);
                 expect(exceptionClassObject.instantiate.args[0][0][0].getType()).to.equal('string');
                 expect(exceptionClassObject.instantiate.args[0][0][0].getNative()).to.equal(
-                    'Objects returned by My\\Space\\AwesomeClass::getIterator() must be traversable or implement interface Iterator'
+                    '[Translated] core.object_from_get_iterator_must_be_traversable {"className":"My\\\\Space\\\\AwesomeClass"}'
                 );
             });
 
@@ -1189,7 +1376,7 @@ describe('Object', function () {
                 expect(caughtError).to.equal(exceptionObjectValue);
                 expect(exceptionClassObject.instantiate.args[0][0][0].getType()).to.equal('string');
                 expect(exceptionClassObject.instantiate.args[0][0][0].getNative()).to.equal(
-                    'Objects returned by My\\Space\\AwesomeClass::getIterator() must be traversable or implement interface Iterator'
+                    '[Translated] core.object_from_get_iterator_must_be_traversable {"className":"My\\\\Space\\\\AwesomeClass"}'
                 );
             });
         });
@@ -1274,6 +1461,7 @@ describe('Object', function () {
                 var subObject = new ObjectValue(
                     this.factory,
                     this.callStack,
+                    this.translator,
                     {},
                     this.classObject,
                     this.objectID
@@ -1328,6 +1516,26 @@ describe('Object', function () {
         });
     });
 
+    describe('getReference()', function () {
+        it('should throw an error', function () {
+            expect(function () {
+                this.value.getReference();
+            }.bind(this)).to.throw('Cannot get a reference to a value');
+        });
+    });
+
+    describe('getStaticPropertyByName()', function () {
+        it('should fetch the static property reference from the class of the object', function () {
+            var propertyReference = sinon.createStubInstance(StaticPropertyReference);
+            this.classObject.getStaticPropertyByName
+                .withArgs('myProp')
+                .returns(propertyReference);
+
+            expect(this.value.getStaticPropertyByName(this.factory.createString('myProp'), this.namespaceScope))
+                .to.equal(propertyReference);
+        });
+    });
+
     describe('instantiate()', function () {
         beforeEach(function () {
             this.arg1Value = this.factory.createInteger(21);
@@ -1361,6 +1569,7 @@ describe('Object', function () {
                 this.value = new ObjectValue(
                     this.factory,
                     this.callStack,
+                    this.translator,
                     this.nativeObject,
                     this.classObject,
                     this.objectID
@@ -1411,6 +1620,7 @@ describe('Object', function () {
                 this.value = new ObjectValue(
                     this.factory,
                     this.callStack,
+                    this.translator,
                     this.nativeObject,
                     this.classObject,
                     this.objectID
@@ -1431,6 +1641,7 @@ describe('Object', function () {
             this.value = new ObjectValue(
                 this.factory,
                 this.callStack,
+                this.translator,
                 this.closure,
                 this.classObject,
                 this.objectID
@@ -1460,6 +1671,7 @@ describe('Object', function () {
             var value = new ObjectValue(
                 this.factory,
                 this.callStack,
+                this.translator,
                 {},
                 this.classObject,
                 this.objectID
@@ -1482,6 +1694,37 @@ describe('Object', function () {
         });
     });
 
+    describe('isCallable()', function () {
+        beforeEach(function () {
+            this.classObject.getMethodSpec
+                .returns(null);
+            this.classObject.is
+                .withArgs('Closure')
+                .returns(false);
+        });
+
+        it('should return true for an instance of Closure', function () {
+            this.classObject.is
+                .withArgs('Closure')
+                .returns(true);
+
+            expect(this.value.isCallable()).to.be.true;
+        });
+
+        it('should return true for an instance of a non-Closure class implementing ->__invoke()', function () {
+            var methodSpec = sinon.createStubInstance(MethodSpec);
+            this.classObject.getMethodSpec
+                .withArgs('__invoke')
+                .returns(methodSpec);
+
+            expect(this.value.isCallable()).to.be.true;
+        });
+
+        it('should return false for a non-Closure instance that doesn\'t implement ->__invoke()', function () {
+            expect(this.value.isCallable()).to.be.false;
+        });
+    });
+
     describe('isEmpty()', function () {
         it('should return false', function () {
             expect(this.value.isEmpty()).to.be.false;
@@ -1498,7 +1741,7 @@ describe('Object', function () {
         });
 
         it('should return true when given another object with identical properties and of the same class', function () {
-            var otherObject = new ObjectValue(this.factory, this.callStack, {}, this.classObject, 22);
+            var otherObject = new ObjectValue(this.factory, this.callStack, this.translator, {}, this.classObject, 22);
             otherObject.declareProperty('firstProp', this.classObject, 'public').initialise(this.prop1);
             otherObject.declareProperty('secondProp', this.classObject, 'public').initialise(this.prop2);
 
@@ -1506,7 +1749,7 @@ describe('Object', function () {
         });
 
         it('should return false when given another object with identical properties but of another class', function () {
-            var otherObject = new ObjectValue(this.factory, this.callStack, {}, this.anotherClass, 22);
+            var otherObject = new ObjectValue(this.factory, this.callStack, this.translator, {}, this.anotherClass, 22);
             otherObject.declareProperty('firstProp', this.classObject, 'public').initialise(this.prop1);
             otherObject.declareProperty('secondProp', this.classObject, 'public').initialise(this.prop2);
 
@@ -1514,12 +1757,30 @@ describe('Object', function () {
         });
 
         it('should return false when given another object with different properties but of the same class', function () {
-            var otherObject = new ObjectValue(this.factory, this.callStack, {}, this.classObject, 22);
+            var otherObject = new ObjectValue(this.factory, this.callStack, this.translator, {}, this.classObject, 22);
             otherObject.declareProperty('firstProp', this.classObject, 'public').initialise(this.prop1);
             otherObject.declareProperty('secondProp', this.classObject, 'public')
                 .initialise(this.factory.createInteger(1001));
 
             expect(this.value.isEqualToObject(otherObject).getNative()).to.be.false;
+        });
+    });
+
+    describe('isIterable()', function () {
+        it('should return true when the object is an instance of Traversable', function () {
+            this.classObject.is
+                .withArgs('Traversable')
+                .returns(true);
+
+            expect(this.value.isIterable()).to.be.true;
+        });
+
+        it('should return false when the object is not an instance of Traversable', function () {
+            this.classObject.is
+                .withArgs('Traversable')
+                .returns(false);
+
+            expect(this.value.isIterable()).to.be.false;
         });
     });
 
@@ -1700,7 +1961,9 @@ describe('Object', function () {
 
             expect(function () {
                 this.value.multiplyByArray(leftValue);
-            }.bind(this)).to.throw(PHPFatalError, 'Unsupported operand types');
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 
@@ -1737,7 +2000,7 @@ describe('Object', function () {
                     expect(this.callStack.raiseError).to.have.been.calledOnce;
                     expect(this.callStack.raiseError).to.have.been.calledWith(
                         PHPError.E_NOTICE,
-                        'Object of class MyClass could not be converted to int'
+                        'Object of class MyClass could not be converted to number'
                     );
                 });
             });
@@ -1777,7 +2040,7 @@ describe('Object', function () {
                     expect(this.callStack.raiseError).to.have.been.calledOnce;
                     expect(this.callStack.raiseError).to.have.been.calledWith(
                         PHPError.E_NOTICE,
-                        'Object of class MyObjClass could not be converted to int'
+                        'Object of class MyObjClass could not be converted to number'
                     );
                 });
             });
@@ -1817,7 +2080,7 @@ describe('Object', function () {
                     expect(this.callStack.raiseError).to.have.been.calledOnce;
                     expect(this.callStack.raiseError).to.have.been.calledWith(
                         PHPError.E_NOTICE,
-                        'Object of class MyClass could not be converted to int'
+                        'Object of class MyClass could not be converted to number'
                     );
                 });
             });
@@ -1850,7 +2113,7 @@ describe('Object', function () {
                 expect(this.callStack.raiseError).to.have.been.calledOnce;
                 expect(this.callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class MyClass could not be converted to int'
+                    'Object of class MyClass could not be converted to number'
                 );
             });
         });
@@ -1881,7 +2144,7 @@ describe('Object', function () {
             expect(this.callStack.raiseError).to.have.been.calledOnce;
             expect(this.callStack.raiseError).to.have.been.calledWith(
                 PHPError.E_NOTICE,
-                'Object of class MyClass could not be converted to int'
+                'Object of class MyClass could not be converted to number'
             );
         });
     });
@@ -1929,7 +2192,7 @@ describe('Object', function () {
                     expect(this.callStack.raiseError).to.have.been.calledOnce;
                     expect(this.callStack.raiseError).to.have.been.calledWith(
                         PHPError.E_NOTICE,
-                        'Object of class MyClass could not be converted to int'
+                        'Object of class MyClass could not be converted to number'
                     );
                 });
             });
@@ -1955,6 +2218,16 @@ describe('Object', function () {
             this.value.pointToProperty(element);
 
             expect(this.value.getPointer()).to.equal(2);
+        });
+    });
+
+    describe('subtractFromNull()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            expect(function () {
+                this.value.subtractFromNull();
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
         });
     });
 });

@@ -32,9 +32,10 @@ module.exports = require('pauser')([
     Value,
     Variable
 ) {
-    var hasOwn = {}.hasOwnProperty,
+    var FUNCTION_NAME_MUST_BE_STRING = 'core.function_name_must_be_string',
+        UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types',
+        hasOwn = {}.hasOwnProperty,
         PHPError = phpCommon.PHPError,
-        PHPFatalError = phpCommon.PHPFatalError,
         /**
          * Prefixes any key called `length` with an underscore to avoid collisions
          * with the native array `length` property (an array is used to maintain numeric indices).
@@ -125,28 +126,46 @@ module.exports = require('pauser')([
             return resultArray;
         },
 
+        /**
+         * Adds this value to a boolean
+         */
         addToBoolean: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
+        /**
+         * Adds this value to a float
+         */
         addToFloat: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
+        /**
+         * Adds this value to an integer
+         */
         addToInteger: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
+        /**
+         * Adds this value to null
+         */
         addToNull: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
+        /**
+         * Adds this value to an object
+         */
         addToObject: function (objectValue) {
             return objectValue.addToArray(this);
         },
 
+        /**
+         * Adds this value to a string
+         */
         addToString: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
         /**
@@ -160,10 +179,11 @@ module.exports = require('pauser')([
         call: function (args, namespaceOrNamespaceScope) {
             var methodNameValue,
                 objectOrClassValue,
-                value = this.value;
+                arrayValue = this,
+                value = arrayValue.value;
 
             if (value.length < 2) {
-                throw new PHPFatalError(PHPFatalError.FUNCTION_NAME_MUST_BE_STRING);
+                arrayValue.callStack.raiseTranslatedError(PHPError.E_ERROR, FUNCTION_NAME_MUST_BE_STRING);
             }
 
             objectOrClassValue = value[0].getValue();
@@ -403,6 +423,46 @@ module.exports = require('pauser')([
         },
 
         /**
+         * {@inheritdoc}
+         */
+        isCallable: function (namespaceScope) {
+            var classObject,
+                globalNamespace,
+                methodNameValue,
+                objectOrClassValue,
+                arrayValue = this,
+                value = arrayValue.value;
+
+            if (value.length < 2) {
+                return false;
+            }
+
+            globalNamespace = namespaceScope.getGlobalNamespace();
+            objectOrClassValue = value[0].getValue();
+            methodNameValue = value[1].getValue();
+
+            if (objectOrClassValue.getType() === 'string') {
+                if (!globalNamespace.hasClass(objectOrClassValue.getNative())) {
+                    return false;
+                }
+
+                classObject = globalNamespace.getClass(objectOrClassValue.getNative());
+            } else if (objectOrClassValue.getType() === 'object') {
+                classObject = objectOrClassValue.getClass();
+            } else {
+                // First element must either be an object or a string
+                return false;
+            }
+
+            if (methodNameValue.getType() !== 'string') {
+                // Second, method name element must be a string containing the name of a method
+                return false;
+            }
+
+            return classObject.getMethodSpec(methodNameValue.getNative()) !== null;
+        },
+
+        /**
          * Determines whether this array is classed as "empty" or not.
          * Only empty arrays (with no elements) are classed as empty
          *
@@ -490,6 +550,13 @@ module.exports = require('pauser')([
         },
 
         /**
+         * {@inheritdoc}
+         */
+        isIterable: function () {
+            return true;
+        },
+
+        /**
          * Arrays are never numeric: always returns false
          *
          * @returns {boolean}
@@ -502,8 +569,11 @@ module.exports = require('pauser')([
             this.pointer++;
         },
 
+        /**
+         * Calculates the ones' complement of this value
+         */
         onesComplement: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
         pointToElement: function (elementReference) {

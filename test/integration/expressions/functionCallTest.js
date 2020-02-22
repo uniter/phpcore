@@ -92,11 +92,48 @@ function myFunction(&$myRef)
 myFunction(21);
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('your_module.php', php);
 
         expect(function () {
             module().execute();
-        }.bind(this)).to.throw(PHPFatalError, 'PHP Fatal error: Only variables can be passed by reference');
+        }.bind(this)).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Only variables can be passed by reference in your_module.php on line 7'
+        );
+    });
+
+    it('should raise a fatal error if a user-defined function is called missing an argument (exact count)', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+function myFunction($firstArg, $secondArg, $thirdArg)
+{
+    print 'I should not be reached';
+}
+
+include 'caller.php';
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('main_module.php', php),
+            engine = module({
+                // Perform the call from a separate script so that we can test
+                // that the caller & callee file paths given in the error message are correct
+                include: function (path, promise) {
+                    if (path === 'caller.php') {
+                        promise.resolve(tools.syncTranspile(path, '<?php\n\n\nmyFunction(21, 42);'));
+                        return;
+                    }
+
+                    throw new Error('Unexpected include of "' + path + '"');
+                }
+            });
+
+        expect(function () {
+            engine.execute();
+        }.bind(this)).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught ArgumentCountError: Too few arguments to function myFunction(), ' +
+            '2 passed in caller.php on line 4 and exactly 3 expected in main_module.php on line 2'
+        );
     });
 
     it('should allow a variable containing an array to be passed by-reference', function () {
@@ -178,6 +215,39 @@ EOS
         expect(module().execute().getNative()).to.deep.equal([
             'Result: 101'
         ]);
+    });
+
+    it('should raise a fatal error if a closure is called missing an argument (exact count)', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$myFunction = function ($firstArg, $secondArg, $thirdArg) {
+    print 'I should not be reached';
+};
+
+include 'caller.php';
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('main_module.php', php),
+            engine = module({
+                // Perform the call from a separate script so that we can test
+                // that the caller & callee file paths given in the error message are correct
+                include: function (path, promise) {
+                    if (path === 'caller.php') {
+                        promise.resolve(tools.syncTranspile(path, '<?php\n\n$myFunction(21, 42);'));
+                        return;
+                    }
+
+                    throw new Error('Unexpected include of "' + path + '"');
+                }
+            });
+
+        expect(function () {
+            engine.execute();
+        }.bind(this)).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught ArgumentCountError: Too few arguments to function {closure}(), ' +
+            '2 passed in caller.php on line 3 and exactly 3 expected in main_module.php on line 2'
+        );
     });
 
     it('should allow an arg to have a ternary with just a variable as the condition', function () {

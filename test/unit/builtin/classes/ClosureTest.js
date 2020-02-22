@@ -4,9 +4,11 @@ var closureClassFactory = require('../../../../src/builtin/classes/Closure'),
     expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    CallFactory = require('../../../../src/CallFactory'),
     CallStack = require('../../../../src/CallStack'),
     Class = require('../../../../src/Class').sync(),
     Closure = require('../../../../src/Closure').sync(),
+    FFICall = require('../../../../src/FFI/Call'),
     Namespace = require('../../../../src/Namespace').sync(),
     NullValue = require('../../../../src/Value/Null').sync(),
     ObjectValue = require('../../../../src/Value/Object').sync(),
@@ -17,11 +19,16 @@ var closureClassFactory = require('../../../../src/builtin/classes/Closure'),
 
 describe('PHP builtin Closure class', function () {
     beforeEach(function () {
+        this.callFactory = sinon.createStubInstance(CallFactory);
+        this.callFactory.createFFICall.callsFake(function () {
+            return sinon.createStubInstance(FFICall);
+        });
         this.callStack = sinon.createStubInstance(CallStack);
         this.globalNamespace = sinon.createStubInstance(Namespace);
         this.valueFactory = new ValueFactory();
         this.disableAutoCoercion = sinon.stub();
         this.internals = {
+            callFactory: this.callFactory,
             callStack: this.callStack,
             defineUnwrapper: sinon.stub(),
             disableAutoCoercion: this.disableAutoCoercion,
@@ -97,7 +104,7 @@ describe('PHP builtin Closure class', function () {
             expect(this.callStack.raiseError).to.have.been.calledOnce;
             expect(this.callStack.raiseError).to.have.been.calledWith(
                 PHPError.E_WARNING,
-                'Closure::bind() expects parameter 2 to be object, integer given'
+                'Closure::bind() expects parameter 2 to be object, int given'
             );
         });
 
@@ -117,7 +124,7 @@ describe('PHP builtin Closure class', function () {
             expect(this.callStack.raiseError).to.have.been.calledOnce;
             expect(this.callStack.raiseError).to.have.been.calledWith(
                 PHPError.E_WARNING,
-                'Closure::bind() expects parameter 1 to be Closure, integer given'
+                'Closure::bind() expects parameter 1 to be Closure, int given'
             );
         });
 
@@ -218,7 +225,7 @@ describe('PHP builtin Closure class', function () {
             expect(this.callStack.raiseError).to.have.been.calledOnce;
             expect(this.callStack.raiseError).to.have.been.calledWith(
                 PHPError.E_WARNING,
-                'Closure::bindTo() expects parameter 1 to be object, integer given'
+                'Closure::bindTo() expects parameter 1 to be object, int given'
             );
         });
 
@@ -294,6 +301,28 @@ describe('PHP builtin Closure class', function () {
         });
 
         describe('in synchronous mode (when Pausable is not available)', function () {
+            it('should push an FFICall onto the stack before the closure is called', function () {
+                this.closure.invoke.callsFake(function () {
+                    expect(this.callStack.push).to.have.been.calledOnce;
+                    expect(this.callStack.push).to.have.been.calledWith(sinon.match.instanceOf(FFICall));
+
+                    return this.closureReturnValue;
+                }.bind(this));
+                this.callUnwrapper();
+
+                this.unwrappedClosure();
+
+                expect(this.closure.invoke).to.have.been.calledOnce; // Ensure the assertions above have run
+            });
+
+            it('should pop the FFICall off the stack after the closure returns', function () {
+                this.callUnwrapper();
+
+                this.unwrappedClosure();
+
+                expect(this.callStack.pop).to.have.been.calledOnce;
+            });
+
             it('should pass the coerced arguments to Closure.invoke(...)', function () {
                 this.callUnwrapper();
 
@@ -363,6 +392,28 @@ describe('PHP builtin Closure class', function () {
                 };
             });
 
+            it('should push an FFICall onto the stack before the closure is called', function () {
+                this.closure.invoke.callsFake(function () {
+                    expect(this.callStack.push).to.have.been.calledOnce;
+                    expect(this.callStack.push).to.have.been.calledWith(sinon.match.instanceOf(FFICall));
+
+                    return this.closureReturnValue;
+                }.bind(this));
+                this.callUnwrapper();
+
+                return this.unwrappedClosure().then(function () {
+                    expect(this.closure.invoke).to.have.been.calledOnce; // Ensure the assertions above have run
+                }.bind(this));
+            });
+
+            it('should pop the FFICall off the stack after the closure returns', function () {
+                this.callUnwrapper();
+
+                return this.unwrappedClosure().then(function () {
+                    expect(this.callStack.pop).to.have.been.calledOnce;
+                }.bind(this));
+            });
+
             it('should pass the coerced arguments to Closure.invoke(...)', function () {
                 this.callUnwrapper();
 
@@ -416,6 +467,28 @@ describe('PHP builtin Closure class', function () {
             beforeEach(function () {
                 this.internals.mode = 'psync';
                 this.internals.pausable = null;
+            });
+
+            it('should push an FFICall onto the stack before the closure is called', function () {
+                this.closure.invoke.callsFake(function () {
+                    expect(this.callStack.push).to.have.been.calledOnce;
+                    expect(this.callStack.push).to.have.been.calledWith(sinon.match.instanceOf(FFICall));
+
+                    return this.closureReturnValue;
+                }.bind(this));
+                this.callUnwrapper();
+
+                return this.unwrappedClosure().then(function () {
+                    expect(this.closure.invoke).to.have.been.calledOnce; // Ensure the assertions above have run
+                }.bind(this));
+            });
+
+            it('should pop the FFICall off the stack after the closure returns', function () {
+                this.callUnwrapper();
+
+                return this.unwrappedClosure().then(function () {
+                    expect(this.callStack.pop).to.have.been.calledOnce;
+                }.bind(this));
             });
 
             it('should pass the coerced arguments to Closure.invoke(...)', function () {

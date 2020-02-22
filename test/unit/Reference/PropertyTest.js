@@ -73,6 +73,16 @@ describe('PropertyReference', function () {
         });
     });
 
+    describe('divideBy()', function () {
+        it('should divide the property\'s value by the given value and assign it back to the property', function () {
+            this.property.setValue(this.factory.createInteger(20));
+
+            this.property.divideBy(this.factory.createInteger(4));
+
+            expect(this.property.getNative()).to.equal(5);
+        });
+    });
+
     describe('getExternalName()', function () {
         it('should prefix a private property\'s name with its visibility', function () {
             this.createProperty('private');
@@ -299,6 +309,16 @@ describe('PropertyReference', function () {
 
                 expect(this.property.isVisible()).to.be.false;
             });
+        });
+    });
+
+    describe('multiplyBy()', function () {
+        it('should multiply the property\'s value by the given value and assign it back to the property', function () {
+            this.property.setValue(this.factory.createInteger(20));
+
+            this.property.multiplyBy(this.factory.createInteger(4));
+
+            expect(this.property.getNative()).to.equal(80);
         });
     });
 

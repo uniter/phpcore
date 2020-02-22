@@ -49,6 +49,16 @@ describe('VariableReference', function () {
         });
     });
 
+    describe('divideBy()', function () {
+        it('should divide the variable\'s value by the given value and assign it back to the variable', function () {
+            this.reference.setValue(this.factory.createInteger(20));
+
+            this.reference.divideBy(this.factory.createInteger(4));
+
+            expect(this.reference.getNative()).to.equal(5);
+        });
+    });
+
     describe('getForAssignment()', function () {
         it('should return the value of the variabe', function () {
             var result = sinon.createStubInstance(Value);
@@ -84,6 +94,16 @@ describe('VariableReference', function () {
             this.reference.incrementBy(this.factory.createInteger(4));
 
             expect(this.reference.getNative()).to.equal(24);
+        });
+    });
+
+    describe('multiplyBy()', function () {
+        it('should multiply the variable\'s value by the given value and assign it back to the variable', function () {
+            this.reference.setValue(this.factory.createInteger(20));
+
+            this.reference.multiplyBy(this.factory.createInteger(4));
+
+            expect(this.reference.getNative()).to.equal(80);
         });
     });
 

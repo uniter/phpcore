@@ -11,9 +11,6 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    phpCore = require('../..'),
-    phpToAST = require('phptoast'),
-    phpToJS = require('phptojs'),
     tools = require('./tools'),
     when = require('../when');
 
@@ -52,7 +49,7 @@ EOS
         }), done);
     });
 
-    it('should correctly handle reading a constant of an asynchronously autoloaded class', function (done) {
+    it('should correctly handle reading a constant of an asynchronously autoloaded class via spl_autoload_register(...)', function (done) {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 spl_autoload_register(function () {
@@ -83,6 +80,37 @@ EOS
         }), done);
     });
 
+    it('should correctly handle reading a constant of an asynchronously autoloaded class via __autoload(...)', function (done) {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+function __autoload($class) {
+    require 'the_module.php';
+}
+$object = new MyClass();
+return $object::MY_CONST;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile(null, php),
+            options = {
+                include: function (path, promise) {
+                    setTimeout(function () {
+                        promise.resolve(tools.asyncTranspile(path, nowdoc(function () {/*<<<EOS
+<?php
+class MyClass
+{
+    const MY_CONST = 101;
+}
+EOS
+*/;}))); //jshint ignore:line
+                    }, 10);
+                }
+            };
+
+        module(options).execute().then(when(done, function (result) {
+            expect(result.getNative()).to.equal(101);
+        }), done);
+    });
+
     it('should correctly handle reading a constant from an interface implemented by an asynchronously autoloaded class', function (done) {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -93,13 +121,7 @@ spl_autoload_register(function ($class) {
 return MyClass::MY_CONST;
 EOS
 */;}), //jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return phpCore;
-            }),
+            module = tools.asyncTranspile(null, php),
             options = {
                 include: function (path, promise) {
                     setTimeout(function () {

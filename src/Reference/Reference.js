@@ -50,6 +50,20 @@ _.extend(Reference.prototype, {
     },
 
     /**
+     * Divides the value from this reference by the specified value
+     * and then assigns the result back to this reference
+     *
+     * Used by the `/=` operator
+     *
+     * @param {Value} rightValue
+     */
+    divideBy: function (rightValue) {
+        var reference = this;
+
+        reference.setValue(reference.getValue().divide(rightValue));
+    },
+
+    /**
      * Fetches the native value of the PHP value being referred to
      *
      * @returns {*}
@@ -91,6 +105,20 @@ _.extend(Reference.prototype, {
 
     isSet: function () {
         throw new Error('Not implemented');
+    },
+
+    /**
+     * Multiplies the specified value by the value from this reference
+     * and then assigns the result back to this reference
+     *
+     * Used by the `*=` operator
+     *
+     * @param {Value} rightValue
+     */
+    multiplyBy: function (rightValue) {
+        var reference = this;
+
+        reference.setValue(reference.getValue().multiply(rightValue));
     },
 
     /**

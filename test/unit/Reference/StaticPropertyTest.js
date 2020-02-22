@@ -10,11 +10,9 @@
 'use strict';
 
 var expect = require('chai').expect,
-    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
-    PHPFatalError = phpCommon.PHPFatalError,
     StaticPropertyReference = require('../../../src/Reference/StaticProperty'),
     StringValue = require('../../../src/Value/String').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
@@ -26,12 +24,19 @@ describe('StaticPropertyReference', function () {
         this.classObject = sinon.createStubInstance(Class);
         this.propertyValue = sinon.createStubInstance(StringValue);
 
+        this.callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+            throw new Error(
+                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+            );
+        });
+
         this.classObject.getName.returns('My\\Namespaced\\ClassName');
 
         this.propertyValue.getNative.returns('the value of my property');
         this.propertyValue.getType.returns('string');
 
         this.property = new StaticPropertyReference(
+            this.callStack,
             this.classObject,
             'myProp',
             'protected',
@@ -56,6 +61,16 @@ describe('StaticPropertyReference', function () {
             this.property.decrementBy(this.factory.createInteger(4));
 
             expect(this.property.getNative()).to.equal(16);
+        });
+    });
+
+    describe('divideBy()', function () {
+        it('should divide the property\'s value by the given value and assign it back to the property', function () {
+            this.property.setValue(this.factory.createInteger(20));
+
+            this.property.divideBy(this.factory.createInteger(4));
+
+            expect(this.property.getNative()).to.equal(5);
         });
     });
 
@@ -109,13 +124,22 @@ describe('StaticPropertyReference', function () {
         });
     });
 
+    describe('multiplyBy()', function () {
+        it('should multiply the property\'s value by the given value and assign it back to the property', function () {
+            this.property.setValue(this.factory.createInteger(20));
+
+            this.property.multiplyBy(this.factory.createInteger(4));
+
+            expect(this.property.getNative()).to.equal(80);
+        });
+    });
+
     describe('unset()', function () {
         it('should throw a fatal error as static properties cannot be unset', function () {
             expect(function () {
                 this.property.unset();
             }.bind(this)).to.throw(
-                PHPFatalError,
-                'PHP Fatal error: Attempt to unset static property My\\Namespaced\\ClassName::$myProp'
+                'Fake PHP Fatal error for #core.cannot_unset_static_property with {"className":"My\\\\Namespaced\\\\ClassName","propertyName":"myProp"}'
             );
         });
     });

@@ -43,6 +43,15 @@ function Call(scope, namespaceScope, args, newStaticClass) {
 
 _.extend(Call.prototype, {
     /**
+     * Fetches the current class for the call, if any
+     *
+     * @return {Class|null}
+     */
+    getCurrentClass: function () {
+        return this.scope.getCurrentClass();
+    },
+
+    /**
      * Fetches the path to the file this call was made from
      *
      * @returns {string|null}
@@ -66,7 +75,7 @@ _.extend(Call.prototype, {
      * @returns {string}
      */
     getFunctionName: function () {
-        return this.scope.getFunctionName().getNative();
+        return this.scope.getTraceFrameName();
     },
 
     /**
@@ -111,12 +120,61 @@ _.extend(Call.prototype, {
     },
 
     /**
+     * Fetches the ObjectValue that is the current `$this` object, if any
+     *
+     * @returns {ObjectValue|null}
+     */
+    getThisObject: function () {
+        return this.scope.getThisObject();
+    },
+
+    /**
+     * Fetches the path to the file this call was made from, suitable for stack traces (so without any eval context)
+     *
+     * @returns {string|null}
+     */
+    getTraceFilePath: function () {
+        var call = this;
+
+        return call.scope.getFilePath(call.namespaceScope.getFilePath());
+    },
+
+    /**
      * Registers a finder for looking up the current/last line number inside the called function
      *
      * @param {function} finder
      */
     instrument: function (finder) {
         this.finder = finder;
+    },
+
+    /**
+     * Determines whether this call is to a userland function (defined inside PHP-land) or not
+     *
+     * @return {boolean}
+     */
+    isUserland: function () {
+        // If the called function was defined inside the "invisible" global namespace scope,
+        // then it was defined in JS-land either as a built-in or was consumer-provided
+        return !this.namespaceScope.isGlobal();
+    },
+
+    /**
+     * Determines whether all errors should be suppressed for this call
+     *
+     * @return {boolean}
+     */
+    suppressesErrors: function () {
+        return this.scope.suppressesErrors();
+    },
+
+    /**
+     * Determines whether own errors should be suppressed for this call
+     *
+     * @return {boolean}
+     */
+    suppressesOwnErrors: function () {
+        return this.scope.suppressesOwnErrors();
     }
 });
 

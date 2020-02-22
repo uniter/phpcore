@@ -11,7 +11,9 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../tools');
+    phpCommon = require('phpcommon'),
+    tools = require('../tools'),
+    PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP new operator integration', function () {
     it('should inherit the constructor from the parent class', function () {
@@ -304,5 +306,66 @@ EOS
             'third',
             1
         ]);
+    });
+
+    it('should support creating an instance of the static class scope', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyParentClass {
+    public $number;
+
+    public function __construct($number) {
+        $this->number = $number;
+    }
+
+    public function duplicateMe() {
+        return new static($this->number);
+    }
+}
+
+class MyChildClass extends MyParentClass {
+    public function getNumber() {
+        return $this->number;
+    }
+}
+
+$result = [];
+$original = new MyChildClass(21);
+$duplicate = $original->duplicateMe();
+
+$result[] = $duplicate->getNumber();
+$result[] = $duplicate instanceof MyChildClass;
+
+return $result;
+
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            21,
+            true
+        ]);
+    });
+
+    it('should raise a fatal error on attempting to instantiate an undefined class', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+new SomeUndefinedClass(1001);
+
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('my_module.php', php),
+            engine = module();
+
+        expect(function () {
+            engine.execute();
+        }.bind(this)).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Class \'SomeUndefinedClass\' not found in my_module.php on line 3'
+        );
     });
 });
