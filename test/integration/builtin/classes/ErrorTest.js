@@ -11,7 +11,9 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../../tools');
+    phpCommon = require('phpcommon'),
+    tools = require('../../tools'),
+    PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP builtin Error class integration', function () {
     describe('getFile()', function () {
@@ -383,6 +385,69 @@ EOS
 #0 myModule.php(22): mySecondThrower()
 #1 myModule.php(28): proxyTwo()
 #2 {main}
+EOS
+*/;}) //jshint ignore:line
+            ]);
+        });
+    });
+
+    describe('when thrown but not caught', function () {
+        var doRun,
+            outputLog;
+
+        beforeEach(function () {
+            outputLog = [];
+            doRun = function (engine) {
+                // Capture the standard streams, prefixing each write with its name
+                // so that we can ensure that what is written to each of them is in the correct order
+                // with respect to one another
+                engine.getStdout().on('data', function (data) {
+                    outputLog.push('[stdout]' + data);
+                });
+                engine.getStderr().on('data', function (data) {
+                    outputLog.push('[stderr]' + data);
+                });
+
+                return engine.execute();
+            };
+        });
+
+        it('should output the correct message for an empty Error', function () {
+            var php = nowdoc(function () {/*<<<EOS
+<?php
+
+// -- Some padding to inflate line numbers --
+
+throw new Error;
+EOS
+*/;}),//jshint ignore:line
+                module = tools.syncTranspile('/my/php_module.php', php),
+                engine = module();
+
+            expect(function () {
+                doRun(engine);
+            }).to.throw(
+                PHPFatalError,
+                'PHP Fatal error: Uncaught Error in /my/php_module.php on line 5'
+            );
+            expect(outputLog).to.deep.equal([
+                nowdoc(function () {/*<<<EOS
+[stderr]PHP Fatal error:  Uncaught Error in /my/php_module.php:5
+Stack trace:
+#0 {main}
+  thrown in /my/php_module.php on line 5
+
+EOS
+*/;}), //jshint ignore:line
+
+                // NB: Stdout should have a leading newline written out just before the message
+                nowdoc(function () {/*<<<EOS
+[stdout]
+Fatal error: Uncaught Error in /my/php_module.php:5
+Stack trace:
+#0 {main}
+  thrown in /my/php_module.php on line 5
+
 EOS
 */;}) //jshint ignore:line
             ]);

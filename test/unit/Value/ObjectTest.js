@@ -389,7 +389,7 @@ describe('Object', function () {
     });
 
     describe('coerceToNativeError()', function () {
-        it('should coerce an instance of a class implementing Throwable correctly', function () {
+        it('should coerce an instance of a class implementing Throwable with a message correctly', function () {
             var error;
             this.classObject.getName.returns('My\\Stuff\\MyException');
             this.classObject.is.withArgs('Throwable').returns(true);
@@ -405,6 +405,25 @@ describe('Object', function () {
             expect(error).to.be.an.instanceOf(Error);
             expect(error.message).to.equal(
                 'PHP Fatal error: [Translated] core.uncaught_throwable {"name":"My\\\\Stuff\\\\MyException","message":"My PHP exception message"} in /path/to/my_module.php on line 4321'
+            );
+        });
+
+        it('should coerce an instance of a class implementing Throwable with empty message correctly', function () {
+            var error;
+            this.classObject.getName.returns('My\\Stuff\\MyException');
+            this.classObject.is.withArgs('Throwable').returns(true);
+            this.value.declareProperty('message', this.classObject, 'line')
+                .initialise(this.factory.createString(''));
+            this.value.declareProperty('file', this.classObject, 'public')
+                .initialise(this.factory.createString('/path/to/my_module.php'));
+            this.value.declareProperty('line', this.classObject, 'line')
+                .initialise(this.factory.createInteger(4321));
+
+            error = this.value.coerceToNativeError();
+
+            expect(error).to.be.an.instanceOf(Error);
+            expect(error.message).to.equal(
+                'PHP Fatal error: [Translated] core.uncaught_empty_throwable {"name":"My\\\\Stuff\\\\MyException"} in /path/to/my_module.php on line 4321'
             );
         });
 

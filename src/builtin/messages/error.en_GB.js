@@ -36,6 +36,7 @@ module.exports = {
             'only_variables_by_reference': 'Only variables can be passed by reference',
             'too_few_args_for_exact_count': 'Too few arguments to function ${func}(), ${actualCount} passed in ${callerFile} on line ${callerLine} and exactly ${expectedCount} expected',
             'uncaught_throwable': 'Uncaught ${name}: ${message}',
+            'uncaught_empty_throwable': 'Uncaught ${name}',
             'undeclared_static_property': 'Access to undeclared static property: ${className}::$${propertyName}',
             'undefined_class_constant': 'Undefined class constant \'${name}\'',
             'undefined_constant': 'Undefined constant \'${name}\'',

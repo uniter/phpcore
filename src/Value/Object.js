@@ -68,6 +68,7 @@ module.exports = require('pauser')([
         CANNOT_ACCESS_PROPERTY = 'core.cannot_access_property',
         CANNOT_USE_WRONG_TYPE_AS = 'core.cannot_use_wrong_type_as',
         OBJECT_FROM_GET_ITERATOR_MUST_BE_TRAVERSABLE = 'core.object_from_get_iterator_must_be_traversable',
+        UNCAUGHT_EMPTY_THROWABLE = 'core.uncaught_empty_throwable',
         UNCAUGHT_THROWABLE = 'core.uncaught_throwable',
         UNDEFINED_PROPERTY = 'core.undefined_property',
         UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types';
@@ -350,10 +351,18 @@ module.exports = require('pauser')([
                 );
             }
 
-            message = value.translator.translate(UNCAUGHT_THROWABLE, {
-                name: value.getClassName(),
-                message: value.getProperty('message').getNative()
-            });
+            message = value.getProperty('message').getNative();
+
+            if (message !== '') {
+                message = value.translator.translate(UNCAUGHT_THROWABLE, {
+                    name: value.getClassName(),
+                    message: message
+                });
+            } else {
+                message = value.translator.translate(UNCAUGHT_EMPTY_THROWABLE, {
+                    name: value.getClassName()
+                });
+            }
 
             return new PHPFatalError(
                 message,
