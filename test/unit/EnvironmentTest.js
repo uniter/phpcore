@@ -10,8 +10,13 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     Environment = require('../../src/Environment'),
+    ErrorReporting = require('../../src/Error/ErrorReporting'),
+    PHPError = phpCommon.PHPError,
+    PHPFatalError = phpCommon.PHPFatalError,
+    PHPParseError = phpCommon.PHPParseError,
     PHPState = require('../../src/PHPState').sync(),
     Value = require('../../src/Value').sync();
 
@@ -148,6 +153,59 @@ describe('Environment', function () {
             this.state.getOptions.returns(options);
 
             expect(this.environment.getOptions()).to.deep.equal(options);
+        });
+    });
+
+    describe('reportError()', function () {
+        beforeEach(function () {
+            this.errorReporting = sinon.createStubInstance(ErrorReporting);
+            this.state.getErrorReporting.returns(this.errorReporting);
+        });
+
+        it('should report a PHPFatalError via ErrorReporting correctly', function () {
+            this.environment.reportError(
+                new PHPFatalError(
+                    'My fatal error message',
+                    '/path/to/my_module.php',
+                    1234
+                )
+            );
+
+            expect(this.errorReporting.reportError).to.have.been.calledOnce;
+            expect(this.errorReporting.reportError).to.have.been.calledWith(
+                PHPError.E_ERROR,
+                'My fatal error message',
+                '/path/to/my_module.php',
+                1234,
+                null,
+                false
+            );
+        });
+
+        it('should report a PHPParseError via ErrorReporting correctly', function () {
+            this.environment.reportError(
+                new PHPParseError(
+                    'My parse error message',
+                    '/path/to/my_module.php',
+                    1234
+                )
+            );
+
+            expect(this.errorReporting.reportError).to.have.been.calledOnce;
+            expect(this.errorReporting.reportError).to.have.been.calledWith(
+                PHPError.E_PARSE,
+                'My parse error message',
+                '/path/to/my_module.php',
+                1234,
+                null,
+                false
+            );
+        });
+
+        it('should throw when an unsupported type of error is given', function () {
+            expect(function () {
+                this.environment.reportError(new Error('I am not a PHPError'));
+            }.bind(this)).to.throw('Invalid error type given');
         });
     });
 });

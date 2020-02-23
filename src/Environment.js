@@ -9,7 +9,11 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    phpCommon = require('phpcommon'),
+    PHPError = phpCommon.PHPError,
+    PHPFatalError = phpCommon.PHPFatalError,
+    PHPParseError = phpCommon.PHPParseError;
 
 /**
  * @param {PHPState} state
@@ -122,6 +126,40 @@ _.extend(Environment.prototype, {
 
     getStdout: function () {
         return this.state.getStdout();
+    },
+
+    /**
+     * Reports a PHPError (fatal or parse error) originating from the parser or transpiler
+     *
+     * @param {PHPError} error
+     * @throws {Error} Throws if a non-PHPError is given
+     */
+    reportError: function (error) {
+        var errorReporting = this.state.getErrorReporting();
+
+        // Handle any PHP errors from the transpiler or parser using the ErrorReporting
+        // mechanism for PHPCore (as INI settings such as `display_errors` should take effect)
+        if (error instanceof PHPFatalError) {
+            errorReporting.reportError(
+                PHPError.E_ERROR,
+                error.getMessage(),
+                error.getFilePath(),
+                error.getLineNumber(),
+                null,
+                false
+            );
+        } else if (error instanceof PHPParseError) {
+            errorReporting.reportError(
+                PHPError.E_PARSE,
+                error.getMessage(),
+                error.getFilePath(),
+                error.getLineNumber(),
+                null,
+                false
+            );
+        } else {
+            throw new Error('Invalid error type given');
+        }
     }
 });
 
