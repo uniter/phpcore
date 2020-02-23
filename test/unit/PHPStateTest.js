@@ -380,6 +380,26 @@ describe('PHPState', function () {
                 );
             }.bind(this)).to.throw(Exception, 'Option groups cannot access bindings too early');
         });
+
+        it('should set any provided INI options after all option groups have been handled', function () {
+            this.state = new PHPState(
+                this.runtime,
+                {},
+                this.stdin,
+                this.stdout,
+                this.stderr,
+                this.pausable,
+                'sync',
+                [],
+                {
+                    'ini': {
+                        'display_errors': 'Off'
+                    }
+                }
+            );
+
+            expect(this.state.getINIOption('display_errors')).to.equal('Off');
+        });
     });
 
     describe('defineCoercingFunction()', function () {

@@ -449,6 +449,11 @@ module.exports = require('pauser')([
         this.Throwable = null;
 
         setUpState(this, installedBuiltinTypes, optionGroups || []);
+
+        // Set any INI options provided
+        _.forOwn(options.ini, function (value, name) {
+            iniState.set(name, value);
+        });
     }
 
     _.extend(PHPState.prototype, {
