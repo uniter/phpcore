@@ -205,7 +205,7 @@ EOS
         );
     });
 
-    it('should raise a fatal error on attempting to access a private property from a descendant', function () {
+    it('should raise a fatal error on attempting to access a private property from a descendant via self::', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -232,6 +232,36 @@ EOS
         }.bind(this)).to.throw(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Cannot access private property MyChildClass::$mySecretProp in my_module.php on line 9'
+        );
+    });
+
+    it('should raise a fatal error on attempting to access a private property from a descendant via the class', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyParentClass {
+    private static $mySecretProp = 21;
+}
+
+class MyChildClass extends MyParentClass {
+    public function getIt() {
+        return MyParentClass::$mySecretProp;
+    }
+}
+
+$object = new MyChildClass;
+
+return $object->getIt();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('my_module.php', php),
+            engine = module();
+
+        expect(function () {
+            engine.execute();
+        }.bind(this)).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Cannot access private property MyParentClass::$mySecretProp in my_module.php on line 9'
         );
     });
 

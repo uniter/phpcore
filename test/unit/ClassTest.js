@@ -857,7 +857,7 @@ describe('Class', function () {
                     classObject.getStaticPropertyByName('myPrivateStaticProp');
                 }).to.throw(
                     'Fake PHP Fatal error for #core.cannot_access_property with ' +
-                    '{"className":"MyForeignClass","propertyName":"myPrivateStaticProp","visibility":"private"}'
+                    '{"className":"My\\\\Class\\\\Path\\\\Here","propertyName":"myPrivateStaticProp","visibility":"private"}'
                 );
             });
 
@@ -868,7 +868,7 @@ describe('Class', function () {
                     classObject.getStaticPropertyByName('myPrivateStaticProp');
                 }).to.throw(
                     'Fake PHP Fatal error for #core.cannot_access_property with ' +
-                    '{"className":"MyAncestorClass","propertyName":"myPrivateStaticProp","visibility":"private"}'
+                    '{"className":"My\\\\Class\\\\Path\\\\Here","propertyName":"myPrivateStaticProp","visibility":"private"}'
                 );
             });
 
@@ -879,7 +879,7 @@ describe('Class', function () {
                     classObject.getStaticPropertyByName('myPrivateStaticProp');
                 }).to.throw(
                     'Fake PHP Fatal error for #core.cannot_access_property with ' +
-                    '{"className":"MyDescendantClass","propertyName":"myPrivateStaticProp","visibility":"private"}'
+                    '{"className":"My\\\\Class\\\\Path\\\\Here","propertyName":"myPrivateStaticProp","visibility":"private"}'
                 );
             });
         });

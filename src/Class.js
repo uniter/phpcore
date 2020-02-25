@@ -475,17 +475,23 @@ module.exports = require('pauser')([
          * Fetches a reference to a static property of this class by its name
          *
          * @param {string} name
+         * @param {Class=} calledClass
          * @returns {StaticPropertyReference|UndeclaredStaticPropertyReference}
          */
-        getStaticPropertyByName: function (name) {
+        getStaticPropertyByName: function (name, calledClass) {
             var callingClass,
                 classObject = this,
                 staticProperty;
 
+            // The class that the static property was originally dereferenced for:
+            // if we've walked up the class hierarchy to find its definition,
+            // this will refer to the class that was actually specified to the left of the `::`
+            calledClass = calledClass || classObject;
+
             if (!hasOwn.call(classObject.staticProperties, name)) {
                 if (classObject.superClass) {
                     // Inherit static properties from the parent class, if we extend one
-                    return classObject.superClass.getStaticPropertyByName(name);
+                    return classObject.superClass.getStaticPropertyByName(name, calledClass);
                 }
 
                 // Undeclared static properties cannot be accessed _except_ by isset(...) or empty(...),
@@ -501,7 +507,7 @@ module.exports = require('pauser')([
 
                 if (!callingClass || callingClass.name !== classObject.name) {
                     classObject.callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_ACCESS_PROPERTY, {
-                        className: (callingClass || classObject).getName(),
+                        className: calledClass.getName(),
                         propertyName: name,
                         visibility: 'private'
                     });
