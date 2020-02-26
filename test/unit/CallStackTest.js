@@ -461,37 +461,43 @@ describe('CallStack', function () {
 
     describe('raiseError()', function () {
         beforeEach(function () {
-            var initialCall = sinon.createStubInstance(Call),
-                userlandCall = sinon.createStubInstance(Call),
-                builtinCall = sinon.createStubInstance(Call);
-            initialCall.isUserland.returns(false);
-            userlandCall.isUserland.returns(true);
-            builtinCall.isUserland.returns(false);
+            this.whenThereAreCallsOnTheStack = function () {
+                var initialCall = sinon.createStubInstance(Call),
+                    userlandCall = sinon.createStubInstance(Call),
+                    builtinCall = sinon.createStubInstance(Call);
+                initialCall.isUserland.returns(false);
+                userlandCall.isUserland.returns(true);
+                builtinCall.isUserland.returns(false);
 
-            initialCall.getFilePath.returns('/my/initial/module.php');
-            initialCall.getTraceFilePath.returns('/my/initial/module.php');
-            initialCall.getFunctionArgs.returns([]);
-            initialCall.getFunctionName.returns('');
-            initialCall.getLastLine.returns(27);
+                initialCall.getFilePath.returns('/my/initial/module.php');
+                initialCall.getTraceFilePath.returns('/my/initial/module.php');
+                initialCall.getFunctionArgs.returns([]);
+                initialCall.getFunctionName.returns('');
+                initialCall.getLastLine.returns(27);
 
-            userlandCall.getFilePath.returns('/my/userland/module.php');
-            userlandCall.getTraceFilePath.returns('/my/userland/module.php');
-            userlandCall.getFunctionArgs.returns([]);
-            userlandCall.getFunctionName.returns('myFunction');
-            userlandCall.getLastLine.returns(101);
+                userlandCall.getFilePath.returns('/my/userland/module.php');
+                userlandCall.getTraceFilePath.returns('/my/userland/module.php');
+                userlandCall.getFunctionArgs.returns([]);
+                userlandCall.getFunctionName.returns('myFunction');
+                userlandCall.getLastLine.returns(101);
 
-            builtinCall.getFilePath.returns(null);
-            builtinCall.getTraceFilePath.returns(null);
-            builtinCall.getFunctionArgs.returns([]);
-            builtinCall.getFunctionName.returns('some_builtin');
-            builtinCall.getLastLine.returns(null);
+                builtinCall.getFilePath.returns(null);
+                builtinCall.getTraceFilePath.returns(null);
+                builtinCall.getFunctionArgs.returns([]);
+                builtinCall.getFunctionName.returns('some_builtin');
+                builtinCall.getLastLine.returns(null);
 
-            this.callStack.push(initialCall);
-            this.callStack.push(userlandCall);
-            this.callStack.push(builtinCall);
+                this.callStack.push(initialCall);
+                this.callStack.push(userlandCall);
+                this.callStack.push(builtinCall);
+            }.bind(this);
         });
 
-        describe('for a non-fatal error', function () {
+        describe('for a non-fatal error when there are calls on the stack', function () {
+            beforeEach(function () {
+                this.whenThereAreCallsOnTheStack();
+            });
+
             it('should report the error via ErrorReporting when no errors are suppressed', function () {
                 this.callStack.raiseError(PHPError.E_WARNING, 'This may or may not be bad.', null, true);
 
@@ -522,7 +528,27 @@ describe('CallStack', function () {
             });
         });
 
-        describe('for a fatal error', function () {
+        describe('for a non-fatal error when there are no calls on the stack', function () {
+            it('should report the error via ErrorReporting when no errors are suppressed', function () {
+                this.callStack.raiseError(PHPError.E_WARNING, 'This may or may not be bad.', null, true);
+
+                expect(this.errorReporting.reportError).to.have.been.calledOnce;
+                expect(this.errorReporting.reportError).to.have.been.calledWith(
+                    PHPError.E_WARNING,
+                    'This may or may not be bad.',
+                    null,
+                    null,
+                    [],
+                    true
+                );
+            });
+        });
+
+        describe('for a fatal error when there are calls on the stack', function () {
+            beforeEach(function () {
+                this.whenThereAreCallsOnTheStack();
+            });
+
             it('should not invoke ErrorReporting', function () {
                 try {
                     this.callStack.raiseError(PHPError.E_ERROR, 'Oh dear...!');
@@ -538,6 +564,26 @@ describe('CallStack', function () {
                     PHPFatalError,
                     // Context should be the userland caller when the current function is a builtin
                     'PHP Fatal error: Oh dear...! in /my/userland/module.php on line 101'
+                );
+            });
+        });
+
+        describe('for a fatal error when there are no calls on the stack', function () {
+            it('should not invoke ErrorReporting', function () {
+                try {
+                    this.callStack.raiseError(PHPError.E_ERROR, 'Oh dear...!');
+                } catch (error) {}
+
+                expect(this.errorReporting.reportError).not.to.have.been.called;
+            });
+
+            it('should throw a PHPFatalError with the correct message and context', function () {
+                expect(function () {
+                    this.callStack.raiseError(PHPError.E_ERROR, 'Oh dear...!');
+                }.bind(this)).to.throw(
+                    PHPFatalError,
+                    // Context should be the userland caller when the current function is a builtin
+                    'PHP Fatal error: Oh dear...! in (unknown) on line (unknown)'
                 );
             });
         });

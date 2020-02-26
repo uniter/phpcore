@@ -324,7 +324,9 @@ _.extend(CallStack.prototype, {
 
         // Some constructs like isset(...) should only suppress errors
         // for their own scope
-        if (chain.getCurrent().suppressesOwnErrors()) {
+        call = chain.getCurrent();
+
+        if (call && call.suppressesOwnErrors()) {
             return;
         }
 
