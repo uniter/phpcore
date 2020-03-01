@@ -187,7 +187,7 @@ module.exports = require('pauser')([
          * taking any imports/aliases via `use` into account
          *
          * @param {string} name
-         * @return {boolean}
+         * @returns {boolean}
          */
         hasClass: function (name) {
             var scope = this,
@@ -204,7 +204,7 @@ module.exports = require('pauser')([
         /**
          * Determines whether this namespace scope is the special "invisible" global one
          *
-         * @return {boolean}
+         * @returns {boolean}
          */
         isGlobal: function () {
             return this.global;
@@ -215,7 +215,7 @@ module.exports = require('pauser')([
          * to the Namespace instance it should be defined by and its name
          *
          * @param {string} name
-         * @return {{namespace: Namespace, name: string}}
+         * @returns {{namespace: Namespace, name: string}}
          */
         resolveClass: function (name) {
             var match,

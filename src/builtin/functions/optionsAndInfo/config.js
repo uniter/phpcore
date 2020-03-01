@@ -25,7 +25,7 @@ module.exports = function (internals) {
          * @see {@link https://secure.php.net/manual/en/function.ini-get.php}
          *
          * @param {Reference|Value|Variable} optionNameReference
-         * @return {Value}
+         * @returns {Value}
          */
         'ini_get': function (optionNameReference) {
             var optionName,
@@ -60,7 +60,7 @@ module.exports = function (internals) {
          *
          * @param {Reference|Value|Variable} optionNameReference
          * @param {Reference|Value|Variable} optionValueReference
-         * @return {Value}
+         * @returns {Value}
          */
         'ini_set': function (optionNameReference, optionValueReference) {
             var previousOptionValue,

@@ -81,7 +81,7 @@ _.extend(ErrorReporting.prototype, {
             displayErrors = errorReporting.errorConfiguration.getDisplayErrors(),
             allowedErrorBitmask = errorReporting.errorConfiguration.getErrorReportingLevel(),
             levelBits = errorReporting.errorConverter.errorLevelToBits(level),
-            formattedTrace = trace ? errorReporting.traceFormatter.format(trace) : null,
+            formattedTrace,
             normalisedLineNumber = lineNumber || errorReporting.translator.translate(UNKNOWN),
             normalisedFilePath = filePath || errorReporting.translator.translate(UNKNOWN),
             suffix;
@@ -96,6 +96,8 @@ _.extend(ErrorReporting.prototype, {
         // in a colon-separated format rather than the verbose "in ... on line ..."
 
         if (level === PHPError.E_ERROR && trace) {
+            formattedTrace = trace ? errorReporting.traceFormatter.format(trace) : null;
+
             if (reportsOwnContext) {
                 suffix = errorReporting.translator.translate(ERROR_WITHOUT_CONTEXT_BUT_WITH_TRACE, {
                     filePath: normalisedFilePath,

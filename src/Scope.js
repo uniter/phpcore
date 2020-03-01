@@ -389,9 +389,7 @@ module.exports = require('pauser')([
             }
 
             scope.getVariable(variableName).setReference(
-                scope.referenceFactory.createVariable(
-                    scope.globalScope.getVariable(variableName)
-                )
+                scope.globalScope.getVariable(variableName).getReference()
             );
         },
 
@@ -430,11 +428,7 @@ module.exports = require('pauser')([
 
                 // Define a variable in the current scope that is a reference
                 // to the static variable stored against either the current function or the global scope if none
-                scope.getVariable(variableName).setReference(
-                    scope.referenceFactory.createVariable(
-                        staticVariable
-                    )
-                );
+                scope.getVariable(variableName).setReference(staticVariable.getReference());
             } else {
                 scope.getVariable(variableName).setValue(initialValue);
             }

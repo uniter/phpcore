@@ -134,7 +134,7 @@ module.exports = require('pauser')([
          * @param {Array=} parametersSpecData
          * @param {boolean=} isStatic
          * @param {number=} lineNumber
-         * @return {ObjectValue}
+         * @returns {ObjectValue}
          */
         createClosure: function (func, scope, namespaceScope, parametersSpecData, isStatic, lineNumber) {
             var tools = this;
@@ -157,7 +157,7 @@ module.exports = require('pauser')([
          *
          * @param {Scope} scope
          * @param {string} variableName
-         * @return {DebugVariable}
+         * @returns {DebugVariable}
          */
         createDebugVar: function (scope, variableName) {
             return new DebugVariable(scope, variableName);
@@ -169,7 +169,7 @@ module.exports = require('pauser')([
          * @param {NamespaceScope} namespaceScope
          * @param {Value} classNameValue
          * @param {Value[]} args Arguments to pass to the constructor
-         * @return {ObjectValue}
+         * @returns {ObjectValue}
          */
         createInstance: function (namespaceScope, classNameValue, args) {
             return classNameValue.instantiate(args, namespaceScope);
@@ -180,7 +180,7 @@ module.exports = require('pauser')([
          *
          * @param {Value} key
          * @param {Value} value
-         * @return {KeyValuePair}
+         * @returns {KeyValuePair}
          */
         createKeyValuePair: function (key, value) {
             return new KeyValuePair(key, value);
@@ -191,7 +191,7 @@ module.exports = require('pauser')([
          * by assigning them an array, where each list element gets the corresponding array element
          *
          * @param {Reference[]} elements
-         * @return {List}
+         * @returns {List}
          */
         createList: function (elements) {
             return new List(this.valueFactory, elements);
@@ -201,7 +201,7 @@ module.exports = require('pauser')([
          * Creates a new NamespaceScope
          *
          * @param {Namespace} namespace
-         * @return {NamespaceScope}
+         * @returns {NamespaceScope}
          */
         createNamespaceScope: function (namespace) {
             var tools = this;
@@ -214,7 +214,7 @@ module.exports = require('pauser')([
          *
          * @param {string} code
          * @param {Scope} enclosingScope
-         * @return {Value}
+         * @returns {Value}
          */
         eval: function (code, enclosingScope) {
             var evalScope,
@@ -277,7 +277,7 @@ module.exports = require('pauser')([
         /**
          * Fetches a human-readable string representing the path to the current script file
          *
-         * @return {string}
+         * @returns {string}
          */
         getNormalizedPath: function () {
             var tools = this,
@@ -307,7 +307,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the path to the current script, wrapped as a StringValue
          *
-         * @return {StringValue}
+         * @returns {StringValue}
          */
         getPath: function () {
             var tools = this;
@@ -318,7 +318,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the path to the directory containing the current script, wrapped as a StringValue
          *
-         * @return {StringValue}
+         * @returns {StringValue}
          */
         getPathDirectory: function () {
             var tools = this,
@@ -333,7 +333,7 @@ module.exports = require('pauser')([
          * or defined with a value of NULL, then returns its current value
          *
          * @param {Reference|Variable} variable
-         * @return {Value}
+         * @returns {Value}
          */
         implyArray: function (variable) {
             // Undefined variables and variables containing null may be implicitly converted to arrays
@@ -349,7 +349,7 @@ module.exports = require('pauser')([
          * or defined with a value of NULL, then returns its current value
          *
          * @param {Reference|Variable} variable
-         * @return {Reference|Variable}
+         * @returns {Reference|Variable}
          */
         implyObject: function (variable) {
             // FIXME: If the given variable/reference does not have an object as its value:
@@ -365,7 +365,7 @@ module.exports = require('pauser')([
          *
          * @param {string} includedPath
          * @param {Scope} includeScope
-         * @return {Value}
+         * @returns {Value}
          */
         includeOnce: function (includedPath, includeScope) {
             var tools = this;
@@ -385,7 +385,7 @@ module.exports = require('pauser')([
          *
          * @param {string} includedPath
          * @param {Scope} enclosingScope
-         * @return {Value}
+         * @returns {Value}
          * @throws {Exception} When no include transport has been configured
          * @throws {Error} When the loader throws a generic error
          */

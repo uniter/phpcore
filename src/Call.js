@@ -45,7 +45,7 @@ _.extend(Call.prototype, {
     /**
      * Fetches the current class for the call, if any
      *
-     * @return {Class|null}
+     * @returns {Class|null}
      */
     getCurrentClass: function () {
         return this.scope.getCurrentClass();
@@ -151,7 +151,7 @@ _.extend(Call.prototype, {
     /**
      * Determines whether this call is to a userland function (defined inside PHP-land) or not
      *
-     * @return {boolean}
+     * @returns {boolean}
      */
     isUserland: function () {
         // If the called function was defined inside the "invisible" global namespace scope,
@@ -162,7 +162,7 @@ _.extend(Call.prototype, {
     /**
      * Determines whether all errors should be suppressed for this call
      *
-     * @return {boolean}
+     * @returns {boolean}
      */
     suppressesErrors: function () {
         return this.scope.suppressesErrors();
@@ -171,7 +171,7 @@ _.extend(Call.prototype, {
     /**
      * Determines whether own errors should be suppressed for this call
      *
-     * @return {boolean}
+     * @returns {boolean}
      */
     suppressesOwnErrors: function () {
         return this.scope.suppressesOwnErrors();

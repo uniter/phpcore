@@ -44,7 +44,7 @@ module.exports = require('pauser')([
          *
          * @param {Value[]} args
          * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
-         * @return {Value}
+         * @returns {Value}
          */
         call: function (args, namespaceOrNamespaceScope) {
             var classNameValue,
@@ -204,7 +204,7 @@ module.exports = require('pauser')([
         /**
          * Formats the string for display in stack traces etc.
          *
-         * @return {string}
+         * @returns {string}
          */
         formatAsString: function () {
             // To match Zend's output, simply wrap the string value in single-quotes,

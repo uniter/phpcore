@@ -435,7 +435,7 @@ describe('Namespace', function () {
                     expect(this.namespace.getConstant('MY_CONST', false).getNative()).to.equal(21);
                 });
 
-                it('should not raise a notice', function () {
+                it('should not raise a warning', function () {
                     this.namespace.getConstant('MY_CONST', false);
 
                     expect(this.callStack.raiseError).not.to.have.been.called;
@@ -450,13 +450,13 @@ describe('Namespace', function () {
                     expect(result.getNative()).to.equal('MY_UNDEFINED_CONST');
                 });
 
-                it('should raise a notice', function () {
+                it('should raise a warning', function () {
                     this.namespace.getConstant('MY_UNDEFINED_CONST', false);
 
                     expect(this.callStack.raiseError).to.have.been.calledOnce;
                     expect(this.callStack.raiseError).to.have.been.calledWith(
-                        PHPError.E_NOTICE,
-                        'Use of undefined constant MY_UNDEFINED_CONST - assumed \'MY_UNDEFINED_CONST\''
+                        PHPError.E_WARNING,
+                        'Use of undefined constant MY_UNDEFINED_CONST - assumed \'MY_UNDEFINED_CONST\' (this will throw an Error in a future version of PHP)'
                     );
                 });
             });

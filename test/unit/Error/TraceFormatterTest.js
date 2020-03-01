@@ -11,45 +11,53 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
+    sinon = require('sinon'),
     TraceFormatter = require('../../../src/Error/TraceFormatter'),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    ValueFactory = require('../../../src/ValueFactory').sync(),
+    Variable = require('../../../src/Variable').sync();
 
 describe('TraceFormatter', function () {
-    beforeEach(function () {
-        this.valueFactory = new ValueFactory();
+    var traceFormatter,
+        valueFactory;
 
-        this.traceFormatter = new TraceFormatter();
+    beforeEach(function () {
+        valueFactory = new ValueFactory();
+
+        traceFormatter = new TraceFormatter();
     });
 
     describe('format()', function () {
         it('should return a correctly formatted trace string', function () {
-            var trace = [{
-                index: 0,
-                file: '/path/to/my/third.php',
-                line: 1234,
-                func: 'thirdFunc',
-                args: [this.valueFactory.createString('third call, only arg')]
-            }, {
-                index: 1,
-                file: '/path/to/my/second.php',
-                line: 21,
-                func: 'secondFunc',
-                args: [
-                    this.valueFactory.createString('second call, first arg'),
-                    this.valueFactory.createString('second call, second arg')
-                ]
-            }, {
-                index: 2,
-                file: '/path/to/my/first.php',
-                line: 101,
-                func: 'firstFunc',
-                args: [this.valueFactory.createInteger(20002)]
-            }];
+            var variable = sinon.createStubInstance(Variable),
+                trace = [{
+                    index: 0,
+                    file: '/path/to/my/third.php',
+                    line: 1234,
+                    func: 'thirdFunc',
+                    args: [valueFactory.createString('third call, only arg')]
+                }, {
+                    index: 1,
+                    file: '/path/to/my/second.php',
+                    line: 21,
+                    func: 'secondFunc',
+                    args: [
+                        valueFactory.createString('second call, first arg'),
+                        valueFactory.createString('second call, second arg'),
+                        variable // Simulate passing a variable/reference in rather than a value
+                    ]
+                }, {
+                    index: 2,
+                    file: '/path/to/my/first.php',
+                    line: 101,
+                    func: 'firstFunc',
+                    args: [valueFactory.createInteger(20002)]
+                }];
+            variable.formatAsString.returns('\'My formatted variable\'');
 
-            expect(this.traceFormatter.format(trace)).to.equal(
+            expect(traceFormatter.format(trace)).to.equal(
                 nowdoc(function () {/*<<<EOS
 #0 /path/to/my/third.php(1234): thirdFunc('third call, onl...')
-#1 /path/to/my/second.php(21): secondFunc('second call, fi...', 'second call, se...')
+#1 /path/to/my/second.php(21): secondFunc('second call, fi...', 'second call, se...', 'My formatted variable')
 #2 /path/to/my/first.php(101): firstFunc(20002)
 #3 {main}
 EOS

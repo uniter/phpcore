@@ -14,8 +14,8 @@ var expect = require('chai').expect,
     ArrayIterator = require('../../../src/Iterator/ArrayIterator'),
     ArrayValue = require('../../../src/Value/Array').sync(),
     ElementReference = require('../../../src/Reference/Element'),
-    Value = require('../../../src/Value').sync(),
-    VariableReference = require('../../../src/Reference/Variable');
+    Reference = require('../../../src/Reference/Reference'),
+    Value = require('../../../src/Value').sync();
 
 describe('ArrayIterator', function () {
     beforeEach(function () {
@@ -41,7 +41,7 @@ describe('ArrayIterator', function () {
     describe('getCurrentElementReference()', function () {
         it('should fetch a reference to the current element', function () {
             var firstElement = sinon.createStubInstance(ElementReference),
-                firstElementReference = sinon.createStubInstance(VariableReference);
+                firstElementReference = sinon.createStubInstance(Reference);
             firstElement.getReference.returns(firstElementReference);
             this.arrayOrObjectValue.getElementByIndex.withArgs(0).returns(firstElement);
 

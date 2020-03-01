@@ -17,10 +17,10 @@ var expect = require('chai').expect,
     PHPError = phpCommon.PHPError,
     PropertyReference = require('../../src/Reference/Property'),
     Reference = require('../../src/Reference/Reference'),
+    ReferenceSlot = require('../../src/Reference/ReferenceSlot'),
     StringValue = require('../../src/Value/String').sync(),
     ValueFactory = require('../../src/ValueFactory').sync(),
-    Variable = require('../../src/Variable').sync(),
-    VariableReference = require('../../src/Reference/Variable');
+    Variable = require('../../src/Variable').sync();
 
 describe('Variable', function () {
     var callStack,
@@ -60,6 +60,26 @@ describe('Variable', function () {
             variable.divideBy(valueFactory.createInteger(4));
 
             expect(variable.getNative()).to.equal(5);
+        });
+    });
+
+    describe('formatAsString()', function () {
+        it('should format the value when the variable is defined with a value', function () {
+            variable.setValue(valueFactory.createString('my value'));
+
+            expect(variable.formatAsString()).to.equal('\'my value\'');
+        });
+
+        it('should format the value of the reference when the variable is defined with a reference', function () {
+            var reference = sinon.createStubInstance(Reference);
+            reference.getValue.returns(valueFactory.createString('my val from reference'));
+            variable.setReference(reference);
+
+            expect(variable.formatAsString()).to.equal('\'my val from ref...\'');
+        });
+
+        it('should return "NULL" when the variable is not defined', function () {
+            expect(variable.formatAsString()).to.equal('NULL');
         });
     });
 
@@ -117,6 +137,53 @@ describe('Variable', function () {
     describe('getName()', function () {
         it('should return the name of the variable', function () {
             expect(variable.getName()).to.equal('myVar');
+        });
+    });
+
+    describe('getReference()', function () {
+        it('should return the existing reference if the variable already has one assigned (may not be a ReferenceSlot)', function () {
+            var reference = sinon.createStubInstance(Reference);
+            variable.setReference(reference);
+
+            expect(variable.getReference()).to.equal(reference);
+        });
+
+        it('should return the existing reference on subsequent calls (ensure no ReferenceSlot is created)', function () {
+            var reference = sinon.createStubInstance(Reference);
+            variable.setReference(reference);
+
+            variable.getReference(); // First call
+            expect(variable.getReference()).to.equal(reference);
+        });
+
+        it('should assign a ReferenceSlot to the variable if it was undefined', function () {
+            var referenceSlot = variable.getReference();
+
+            expect(referenceSlot).to.be.an.instanceOf(ReferenceSlot);
+        });
+
+        it('should return the same ReferenceSlot on subsequent calls', function () {
+            var referenceSlot = variable.getReference();
+
+            expect(variable.getReference()).to.equal(referenceSlot); // Call again
+        });
+
+        it('should assign any existing value of the variable to the new ReferenceSlot', function () {
+            var existingValue = valueFactory.createString('my existing value'),
+                referenceSlot;
+            variable.setValue(existingValue);
+
+            referenceSlot = variable.getReference();
+
+            expect(referenceSlot.getValue()).to.equal(existingValue);
+        });
+
+        it('should subsequently inherit its value from future values of the ReferenceSlot', function () {
+            var referenceSlot = variable.getReference(),
+                value = valueFactory.createString('my new value');
+            referenceSlot.setValue(value);
+
+            expect(variable.getValue()).to.equal(value);
         });
     });
 
@@ -217,7 +284,7 @@ describe('Variable', function () {
 
     describe('setReference()', function () {
         it('should return the variable', function () {
-            var reference = sinon.createStubInstance(VariableReference);
+            var reference = sinon.createStubInstance(Reference);
 
             expect(variable.setReference(reference)).to.equal(variable);
         });

@@ -188,7 +188,7 @@ _.extend(Engine.prototype, {
      * or a Promise if in asynchronous mode that will later be resolved with its resulting value
      * (from a top-level `return` statement, if any - otherwise defaulting to null)
      *
-     * @return {Promise|Value}
+     * @returns {Promise|Value}
      */
     execute: function () {
         var callFactory,

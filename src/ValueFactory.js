@@ -141,7 +141,7 @@ module.exports = require('pauser')([
          * Creates an ArrayIterator
          *
          * @param {ArrayValue|ObjectValue} arrayLikeValue
-         * @return {ArrayIterator}
+         * @returns {ArrayIterator}
          */
         createArrayIterator: function (arrayLikeValue) {
             return new ArrayIterator(arrayLikeValue);
@@ -330,7 +330,7 @@ module.exports = require('pauser')([
          *
          * @param {object} nativeValue
          * @param {Class} classObject
-         * @return {ObjectValue}
+         * @returns {ObjectValue}
          */
         createObject: function (nativeValue, classObject) {
             var factory = this;
@@ -352,7 +352,7 @@ module.exports = require('pauser')([
          * and coerces its return value back to a native too.
          *
          * @param {ObjectValue} object
-         * @return {PHPObject}
+         * @returns {PHPObject}
          */
         createPHPObject: function (object) {
             var factory = this;
@@ -440,7 +440,7 @@ module.exports = require('pauser')([
          * or returns null if there is no existing mapping
          *
          * @param objectValue
-         * @return {object|null}
+         * @returns {object|null}
          */
         getUnwrappedObjectFromValue: function (objectValue) {
             return this.valueToUnwrappedObjectMap.get(objectValue) || null;
@@ -451,7 +451,7 @@ module.exports = require('pauser')([
          *
          * @param {string} className
          * @param {Array} constructorArgNatives
-         * @return {ObjectValue}
+         * @returns {ObjectValue}
          */
         instantiateObject: function (className, constructorArgNatives) {
             var factory = this,

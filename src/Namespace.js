@@ -127,7 +127,7 @@ module.exports = require('pauser')([
          * @param {string} name
          * @param {Function|object} definition Either a Function for a native JS class or a transpiled definition object
          * @param {NamespaceScope} namespaceScope
-         * @return {Class} Returns the internal Class instance created
+         * @returns {Class} Returns the internal Class instance created
          */
         defineClass: function (name, definition, namespaceScope) {
             var classObject,
@@ -413,7 +413,7 @@ module.exports = require('pauser')([
          * If applicable, the class autoloader will be invoked.
          *
          * @param {string} name
-         * @return {Class}
+         * @returns {Class}
          */
         getClass: function (name) {
             var namespace = this,
@@ -458,7 +458,11 @@ module.exports = require('pauser')([
                 });
             }
 
-            namespace.callStack.raiseError(PHPError.E_NOTICE, 'Use of undefined constant ' + name + ' - assumed \'' + name + '\'');
+            namespace.callStack.raiseError(
+                PHPError.E_WARNING,
+                'Use of undefined constant ' + name + ' - assumed \'' + name + '\' ' +
+                '(this will throw an Error in a future version of PHP)'
+            );
 
             return this.valueFactory.createString(name);
         },
@@ -468,7 +472,7 @@ module.exports = require('pauser')([
          * that do not exist will be created and then cached on-demand
          *
          * @param {string} name
-         * @return {Namespace}
+         * @returns {Namespace}
          */
         getDescendant: function (name) {
             var namespace = this,
@@ -497,7 +501,7 @@ module.exports = require('pauser')([
          * to the global namespace. Raises an error if the function is not defined at all
          *
          * @param {string|Function} name
-         * @return {Function}
+         * @returns {Function}
          */
         getFunction: function (name) {
             var globalNamespace,
@@ -625,7 +629,7 @@ module.exports = require('pauser')([
          * without invoking the autoloader if it does not
          *
          * @param {string} name
-         * @return {boolean}
+         * @returns {boolean}
          */
         hasClass: function (name) {
             var namespace = this,
@@ -665,7 +669,7 @@ module.exports = require('pauser')([
          * Parses a class, function or constant name to
          *
          * @param {string} name
-         * @return {{namespace: (Namespace), name: string}|null}
+         * @returns {{namespace: (Namespace), name: string}|null}
          */
         parseName: function (name) {
             var match = name.match(/^(\\?)(.*?)\\?([^\\]+)$/),

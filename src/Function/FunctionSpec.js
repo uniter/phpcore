@@ -58,9 +58,27 @@ _.extend(FunctionSpec.prototype, {
      * @returns {Reference[]|Value[]|Variable[]}
      */
     coerceArguments: function (argumentReferenceList) {
+        var coercedArguments = argumentReferenceList.slice(),
+            spec = this;
+
+        _.each(spec.parameterList, function (parameter, index) {
+            if (!parameter) {
+                // Parameter is omitted due to bundle-size optimisations or similar, ignore
+                return;
+            }
+
+            if (argumentReferenceList.length <= index) {
+                // Argument is not provided: do not attempt to fetch it
+                return;
+            }
+
+            // Coerce the argument as the parameter requires
+            coercedArguments[index] = parameter.coerceArgument(argumentReferenceList[index]);
+        });
+
         // TODO: PHP7 scalar types should be coerced at this point, assuming caller
         //       was in weak-types mode
-        return argumentReferenceList;
+        return coercedArguments;
     },
 
     /**
@@ -115,11 +133,21 @@ _.extend(FunctionSpec.prototype, {
      * Populates any unspecified arguments with their default values from parameters
      *
      * @param {Reference[]|Value[]|Variable[]} argumentReferenceList
-     * @return {Reference[]|Value[]|Variable[]}
+     * @returns {Reference[]|Value[]|Variable[]}
      */
     populateDefaultArguments: function (argumentReferenceList) {
         var coercedArguments = argumentReferenceList.slice(),
+            currentParameter,
             spec = this;
+
+        // Provide special line number instrumentation while loading default arguments
+        spec.callStack.instrumentCurrent(function () {
+            if (!currentParameter) {
+                return null;
+            }
+
+            return currentParameter.getLineNumber();
+        });
 
         _.each(spec.parameterList, function (parameter, index) {
             if (!parameter) {
@@ -133,6 +161,8 @@ _.extend(FunctionSpec.prototype, {
 
                 return;
             }
+
+            currentParameter = parameter;
 
             // Coerce the argument as the parameter requires
             coercedArguments[index] = parameter.populateDefaultArgument(argumentReferenceList[index]);

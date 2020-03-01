@@ -369,7 +369,7 @@ module.exports = require('pauser')([
         /**
          * Creates an ArrayIterator for iterating over this array. Used by transpiled foreach loops.
          *
-         * @return {ArrayIterator}
+         * @returns {ArrayIterator}
          */
         getIterator: function () {
             var value = this;
@@ -590,7 +590,7 @@ module.exports = require('pauser')([
          * Removes the last element from the array and then returns it, if any.
          * If the array is empty (so that there is no last element), NULL is returned
          *
-         * @return {Value}
+         * @returns {Value}
          */
         pop: function () {
             var value = this,
@@ -612,7 +612,7 @@ module.exports = require('pauser')([
          * Pushes an indexed element onto the array and then returns the array
          *
          * @param {Value} otherValue
-         * @return {ArrayValue}
+         * @returns {ArrayValue}
          */
         push: function (otherValue) {
             var value = this,
@@ -627,7 +627,7 @@ module.exports = require('pauser')([
          * Pushes an indexed element onto the array and then returns the key generated for it
          *
          * @param {ElementReference} elementReference
-         * @return {IntegerValue}
+         * @returns {IntegerValue}
          */
         pushElement: function (elementReference) {
             var value = this,

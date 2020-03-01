@@ -16,9 +16,9 @@ var expect = require('chai').expect,
     IntegerValue = require('../../src/Value/Integer').sync(),
     List = require('../../src/List'),
     NullValue = require('../../src/Value/Null').sync(),
+    Reference = require('../../src/Reference/Reference'),
     Value = require('../../src/Value').sync(),
-    ValueFactory = require('../../src/ValueFactory').sync(),
-    VariableReference = require('../../src/Reference/Variable');
+    ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('List', function () {
     beforeEach(function () {
@@ -37,8 +37,8 @@ describe('List', function () {
 
         it('should assign elements to references when an array is assigned', function () {
             var assignedValue = sinon.createStubInstance(ArrayValue),
-                ref1 = sinon.createStubInstance(VariableReference),
-                ref2 = sinon.createStubInstance(VariableReference),
+                ref1 = sinon.createStubInstance(Reference),
+                ref2 = sinon.createStubInstance(Reference),
                 element1 = sinon.createStubInstance(ElementReference),
                 element2 = sinon.createStubInstance(ElementReference),
                 elementValue1 = sinon.createStubInstance(Value),
@@ -61,8 +61,8 @@ describe('List', function () {
 
         it('should assign null to all references when an integer is assigned', function () {
             var assignedValue = sinon.createStubInstance(IntegerValue),
-                ref1 = sinon.createStubInstance(VariableReference),
-                ref2 = sinon.createStubInstance(VariableReference),
+                ref1 = sinon.createStubInstance(Reference),
+                ref2 = sinon.createStubInstance(Reference),
                 nullValue = sinon.createStubInstance(NullValue);
             assignedValue.getType.returns('int');
             this.valueFactory.createNull.returns(nullValue);

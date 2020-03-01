@@ -19,6 +19,7 @@ var expect = require('chai').expect,
     FunctionSpecFactory = require('../../src/Function/FunctionSpecFactory'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
+    Reference = require('../../src/Reference/Reference'),
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     Scope = require('../../src/Scope').sync(),
     StringValue = require('../../src/Value/String').sync(),
@@ -26,8 +27,7 @@ var expect = require('chai').expect,
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync(),
     Variable = require('../../src/Variable').sync(),
-    VariableFactory = require('../../src/VariableFactory').sync(),
-    VariableReference = require('../../src/Reference/Variable');
+    VariableFactory = require('../../src/VariableFactory').sync();
 
 describe('Scope', function () {
     beforeEach(function () {
@@ -490,9 +490,9 @@ describe('Scope', function () {
 
         it('should define variable in current scope as reference to variable in global scope', function () {
             var globalVariable = sinon.createStubInstance(Variable),
-                reference = sinon.createStubInstance(VariableReference),
+                reference = sinon.createStubInstance(Reference),
                 value = sinon.createStubInstance(StringValue);
-            this.referenceFactory.createVariable.withArgs(sinon.match.same(globalVariable)).returns(reference);
+            globalVariable.getReference.returns(reference);
             this.globalScope.getVariable.withArgs('myVar').returns(globalVariable);
             reference.getValue.returns(value);
 
@@ -502,9 +502,6 @@ describe('Scope', function () {
         });
 
         it('should silently allow a global to be unnecessarily imported into the global scope', function () {
-            this.referenceFactory.createVariable.callsFake(function (variable) {
-                return new VariableReference(variable);
-            });
             this.createScope(null, null);
             this.scope.defineVariable('myVar').setValue(this.valueFactory.createString('my result'));
 
@@ -521,11 +518,9 @@ describe('Scope', function () {
 
         it('should define variable in current scope as reference to new static variable on first call', function () {
             var staticVariable = new Variable(this.callStack, this.valueFactory, 'myVar'),
-                reference = sinon.createStubInstance(VariableReference),
-                value = sinon.createStubInstance(StringValue);
+                value = this.valueFactory.createString('my string');
             this.variableFactory.createVariable.withArgs('myVar').returns(staticVariable);
-            this.referenceFactory.createVariable.withArgs(sinon.match.same(staticVariable)).returns(reference);
-            reference.getValue.returns(value);
+            staticVariable.setValue(value);
             this.createScope();
 
             this.scope.importStatic('myVar');
@@ -535,10 +530,8 @@ describe('Scope', function () {
 
         it('should define variable in current scope as reference to same static variable on second call', function () {
             var existingStaticVariable = new Variable(this.callStack, this.valueFactory, 'myVar'),
-                reference = sinon.createStubInstance(VariableReference),
-                value = sinon.createStubInstance(StringValue);
-            this.referenceFactory.createVariable.withArgs(sinon.match.same(existingStaticVariable)).returns(reference);
-            reference.getValue.returns(value);
+                value = this.valueFactory.createString('my string');
+            existingStaticVariable.setValue(value);
             this.currentFunction.staticVariables = {myVar: existingStaticVariable};
             this.createScope();
 

@@ -90,6 +90,34 @@ function Parameter(
 
 _.extend(Parameter.prototype, {
     /**
+     * Coerces the given argument for this parameter to a suitable value or reference,
+     * causing the correct notice to be raised if an undefined variable or reference
+     * is given where a value was expected
+     *
+     * @param {Reference|Value|Variable} argumentReference
+     * @returns {Reference|Value|Variable}
+     */
+    coerceArgument: function (argumentReference) {
+        var parameter = this;
+
+        if (parameter.passedByReference) {
+            // It is valid to pass an undefined variable/reference to a by-ref parameter
+            return argumentReference;
+        }
+
+        return argumentReference.getValue();
+    },
+
+    /**
+     * Fetches the line number this parameter was defined on, if known
+     *
+     * @returns {number|null}
+     */
+    getLineNumber: function () {
+        return this.lineNumber;
+    },
+
+    /**
      * Determines whether this parameter must have an argument provided.
      * Arguments are required for PHP function parameters unless that parameter defines a default value
      *

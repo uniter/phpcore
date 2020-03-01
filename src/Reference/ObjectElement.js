@@ -33,6 +33,17 @@ _.extend(ObjectElement.prototype, {
     },
 
     /**
+     * Determines whether this reference is defined
+     *
+     * @returns {boolean}
+     */
+    isDefined: function () {
+        var element = this;
+
+        return element.objectValue.callMethod('offsetExists', [element.keyValue]).getNative();
+    },
+
+    /**
      * Determines whether an element of an object is classed as empty.
      * Objects may only have an element fetched if they can be treated as an array,
      * by implementing ArrayAccess
@@ -48,10 +59,18 @@ _.extend(ObjectElement.prototype, {
             element.objectValue.callMethod('offsetGet', [element.keyValue]).isEmpty();
     },
 
+    /**
+     * Determines whether an element of an object is classed as set.
+     * Objects may only have an element fetched if they can be treated as an array,
+     * by implementing ArrayAccess
+     *
+     * @returns {boolean}
+     */
     isSet: function () {
         var element = this;
 
-        return element.objectValue.callMethod('offsetExists', [element.keyValue]).getNative();
+        return element.objectValue.callMethod('offsetExists', [element.keyValue]).getNative() &&
+            element.objectValue.callMethod('offsetGet', [element.keyValue]).isSet();
     },
 
     setValue: function (value) {

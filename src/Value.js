@@ -296,6 +296,13 @@ module.exports = require('pauser')([
             return this.divideByNonArray(leftValue);
         },
 
+        /**
+         * Formats the value for display in stack traces etc.
+         *
+         * @returns {string}
+         */
+        formatAsString: throwUnimplemented,
+
         getCallableName: throwUnimplemented,
 
         /**
@@ -308,7 +315,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the type of this value for display purposes, eg. "boolean"
          *
-         * @return {string}
+         * @returns {string}
          */
         getDisplayType: function () {
             return this.type;

@@ -13,7 +13,7 @@ var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
     tools = require('./tools');
 
-describe('Notice handling integration', function () {
+describe('Warning handling integration', function () {
     beforeEach(function () {
         this.outputLog = [];
         this.doRun = function (engine) {
@@ -31,7 +31,7 @@ describe('Notice handling integration', function () {
         }.bind(this);
     });
 
-    it('should output the correct data to stdout & stderr for an unsuppressed notice when display_errors=On and error_reporting=E_ALL', function () {
+    it('should output the correct data to stdout & stderr for an unsuppressed warning when display_errors=On and error_reporting=E_ALL', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL);
@@ -53,16 +53,19 @@ EOS
         this.doRun(engine);
 
         expect(this.outputLog).to.deep.equal([
-            '[stderr]PHP Notice:  Use of undefined constant MY_UNDEFINED_CONSTANT - assumed \'MY_UNDEFINED_CONSTANT\' in /my/php_module.php on line 5\n',
+            '[stderr]PHP Warning:  Use of undefined constant MY_UNDEFINED_CONSTANT - assumed \'MY_UNDEFINED_CONSTANT\' ' +
+            '(this will throw an Error in a future version of PHP) in /my/php_module.php on line 5\n',
             // NB: Stdout should have a leading newline written out just before the message
-            '[stdout]\nNotice: Use of undefined constant MY_UNDEFINED_CONSTANT - assumed \'MY_UNDEFINED_CONSTANT\' in /my/php_module.php on line 5\n',
+            '[stdout]\nWarning: Use of undefined constant MY_UNDEFINED_CONSTANT - assumed \'MY_UNDEFINED_CONSTANT\' ' +
+            '(this will throw an Error in a future version of PHP) in /my/php_module.php on line 5\n',
+
             '[stdout]MY_UNDEFINED_CONSTANT',
             // NB: There should be no newline between the two prints despite the undefined constant
             '[stdout]I should be printed too'
         ]);
     });
 
-    it('should output the correct data (with error message only to stderr) for an unsuppressed notice when display_errors=Off and error_reporting=E_ALL', function () {
+    it('should output the correct data (with error message only to stderr) for an unsuppressed warning when display_errors=Off and error_reporting=E_ALL', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL);
@@ -84,7 +87,9 @@ EOS
         this.doRun(engine);
 
         expect(this.outputLog).to.deep.equal([
-            '[stderr]PHP Notice:  Use of undefined constant MY_UNDEFINED_CONSTANT - assumed \'MY_UNDEFINED_CONSTANT\' in /my/php_module.php on line 5\n',
+            '[stderr]PHP Warning:  Use of undefined constant MY_UNDEFINED_CONSTANT - assumed \'MY_UNDEFINED_CONSTANT\' ' +
+            '(this will throw an Error in a future version of PHP) in /my/php_module.php on line 5\n',
+
             '[stdout]MY_UNDEFINED_CONSTANT',
             // NB: There should be no newline between the two prints despite the undefined constant
             '[stdout]I should be printed too'

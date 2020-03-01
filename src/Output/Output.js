@@ -64,7 +64,7 @@ _.extend(Output.prototype, {
     /**
      * Fetches the number of nested buffers that are currently active
      *
-     * @return {number}
+     * @returns {number}
      */
     getDepth: function () {
         return this.currentOutputBuffer.getDepth();

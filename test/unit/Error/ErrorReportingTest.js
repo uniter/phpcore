@@ -126,6 +126,73 @@ describe('ErrorReporting', function () {
                     '\nNotice: Oh dear\n'
                 );
             });
+
+            it('should not attempt to format the trace', function () {
+                this.errorReporting.reportError(
+                    PHPError.E_NOTICE,
+                    'Oh dear',
+                    '/path/to/my_module.php',
+                    1234,
+                    null,
+                    true
+                );
+
+                expect(this.traceFormatter.format).not.to.have.been.called;
+            });
+        });
+
+        describe('for an E_NOTICE, when the error reporting level is E_ALL and error display is turned on, reporting own context and a trace is given', function () {
+            beforeEach(function () {
+                this.errorConfiguration.getDisplayErrors.returns(true);
+                this.errorConfiguration.getErrorReportingLevel.returns(32767);
+                this.trace = [{file: 'first'}, {file: 'second'}];
+            });
+
+            it('should write the correct data to stderr', function () {
+                this.errorReporting.reportError(
+                    PHPError.E_NOTICE,
+                    'Oh dear',
+                    '/path/to/my_module.php',
+                    1234,
+                    this.trace,
+                    true
+                );
+
+                expect(this.stderr.write).to.have.been.calledOnce;
+                expect(this.stderr.write).to.have.been.calledWith(
+                    'PHP Notice:  Oh dear\n'
+                );
+            });
+
+            it('should also write the correct data to stdout', function () {
+                this.errorReporting.reportError(
+                    PHPError.E_NOTICE,
+                    'Oh dear',
+                    '/path/to/my_module.php',
+                    1234,
+                    this.trace,
+                    true
+                );
+
+                expect(this.stdout.write).to.have.been.calledOnce;
+                expect(this.stdout.write).to.have.been.calledWith(
+                    // NB: A leading newline should be written out to stdout
+                    '\nNotice: Oh dear\n'
+                );
+            });
+
+            it('should not attempt to format the trace', function () {
+                this.errorReporting.reportError(
+                    PHPError.E_NOTICE,
+                    'Oh dear',
+                    '/path/to/my_module.php',
+                    1234,
+                    this.trace,
+                    true
+                );
+
+                expect(this.traceFormatter.format).not.to.have.been.called;
+            });
         });
 
         describe('for an E_NOTICE, when the error reporting level is E_ALL and error display is turned on but not reporting own context', function () {
@@ -161,6 +228,19 @@ describe('ErrorReporting', function () {
                     // NB: A leading newline should be written out to stdout
                     '\nNotice: Oh dear[Translated] core.error_without_trace {"filePath":"/path/to/my_module.php","line":1234}\n'
                 );
+            });
+
+            it('should not attempt to format the trace', function () {
+                this.errorReporting.reportError(
+                    PHPError.E_NOTICE,
+                    'Oh dear',
+                    '/path/to/my_module.php',
+                    1234,
+                    null,
+                    true
+                );
+
+                expect(this.traceFormatter.format).not.to.have.been.called;
             });
         });
 

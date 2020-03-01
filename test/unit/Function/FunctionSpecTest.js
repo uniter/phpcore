@@ -68,14 +68,60 @@ describe('FunctionSpec', function () {
     });
 
     describe('coerceArguments()', function () {
-        it('should return the arguments unchanged', function () {
-            var argument1 = valueFactory.createString('first uncoerced'),
-                argument2 = valueFactory.createString('second uncoerced'),
-                result = spec.coerceArguments([argument1, argument2]);
+        var argument1,
+            argument2;
+
+        beforeEach(function () {
+            argument1 = valueFactory.createString('first uncoerced');
+            argument2 = valueFactory.createString('second uncoerced');
+
+            parameter1.coerceArgument
+                .withArgs(sinon.match.same(argument1))
+                .returns(valueFactory.createString('first coerced'));
+            parameter2.coerceArgument
+                .withArgs(sinon.match.same(argument2))
+                .returns(valueFactory.createString('second coerced'));
+        });
+
+        it('should return a new array of the coerced arguments', function () {
+            var result = spec.coerceArguments([argument1, argument2]);
+
+            expect(result).to.have.length(2);
+            expect(result[0].getNative()).to.equal('first coerced');
+            expect(result[1].getNative()).to.equal('second coerced');
+        });
+
+        it('should skip any parameters whose specs are missing', function () {
+            var result;
+            spec = new FunctionSpec(
+                callStack,
+                valueFactory,
+                context,
+                [
+                    null, // Missing parameter spec, eg. due to bundle size optimisations
+                    parameter2
+                ],
+                '/path/to/my/module.php',
+                1234
+            );
+
+            result = spec.coerceArguments([argument1, argument2]);
 
             expect(result).to.have.length(2);
             expect(result[0].getNative()).to.equal('first uncoerced');
-            expect(result[1].getNative()).to.equal('second uncoerced');
+            expect(result[1].getNative()).to.equal('second coerced');
+        });
+
+        it('should skip any parameters that have no argument provided', function () {
+            var result;
+            // Make all parameters required, to ensure this is not taken into account
+            // at this stage (should be handled later on, when validating)
+            parameter2.isRequired.returns(true);
+
+            result = spec.coerceArguments([argument1]);
+
+            expect(result).to.have.length(1);
+            expect(result[0].getNative()).to.equal('first coerced');
         });
     });
 
@@ -116,6 +162,21 @@ describe('FunctionSpec', function () {
             expect(function () {
                 spec.populateDefaultArguments([argument1]);
             }).not.to.throw();
+        });
+
+        it('should provide special line number instrumentation for the current parameter', function () {
+            var lineNumber;
+            parameter2.getLineNumber.returns(1234);
+            parameter2.populateDefaultArgument
+                .withArgs(sinon.match.same(argument2))
+                .callsFake(function () {
+                    // Read the line number for the current parameter via instrumentation
+                    lineNumber = callStack.instrumentCurrent.args[0][0]();
+                });
+
+            spec.populateDefaultArguments([argument1, argument2]);
+
+            expect(lineNumber).to.equal(1234);
         });
     });
 

@@ -25,10 +25,10 @@ var expect = require('chai').expect,
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PropertyReference = require('../../../src/Reference/Property'),
+    Reference = require('../../../src/Reference/Reference'),
     StringValue = require('../../../src/Value/String').sync(),
     Value = require('../../../src/Value').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync(),
-    VariableReference = require('../../../src/Reference/Variable');
+    ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('Array', function () {
     var callStack,
@@ -1355,7 +1355,7 @@ describe('Array', function () {
             element3Reference;
 
         beforeEach(function () {
-            element3Reference = sinon.createStubInstance(VariableReference);
+            element3Reference = sinon.createStubInstance(Reference);
             element3Reference.getValue.returns(factory.createInteger(21));
             element3 = createKeyReferencePair(
                 factory.createString('thirdEl'),

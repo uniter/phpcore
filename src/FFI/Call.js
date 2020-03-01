@@ -26,7 +26,7 @@ _.extend(Call.prototype, {
     /**
      * Fetches the current class for the call, if any
      *
-     * @return {Class|null}
+     * @returns {Class|null}
      */
     getCurrentClass: function () {
         return null;
@@ -115,7 +115,7 @@ _.extend(Call.prototype, {
     /**
      * Determines whether this call is a userland call (from inside PHP-land) or not
      *
-     * @return {boolean}
+     * @returns {boolean}
      */
     isUserland: function () {
         return false;
@@ -124,7 +124,7 @@ _.extend(Call.prototype, {
     /**
      * Determines whether all errors should be suppressed for this call
      *
-     * @return {boolean}
+     * @returns {boolean}
      */
     suppressesErrors: function () {
         return false;
@@ -133,7 +133,7 @@ _.extend(Call.prototype, {
     /**
      * Determines whether own errors should be suppressed for this call
      *
-     * @return {boolean}
+     * @returns {boolean}
      */
     suppressesOwnErrors: function () {
         return false;

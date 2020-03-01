@@ -120,6 +120,26 @@ describe('ObjectElementReference', function () {
         });
     });
 
+    describe('isDefined()', function () {
+        it('should return true when ArrayAccess::offsetExists(...) returns true', function () {
+            this.objectValue.callMethod.withArgs(
+                'offsetExists',
+                sinon.match([sinon.match.same(this.keyValue)])
+            ).returns(this.valueFactory.createBoolean(true));
+
+            expect(this.reference.isDefined()).to.be.true;
+        });
+
+        it('should return false when ArrayAccess::offsetExists(...) returns false', function () {
+            this.objectValue.callMethod.withArgs(
+                'offsetExists',
+                sinon.match([sinon.match.same(this.keyValue)])
+            ).returns(this.valueFactory.createBoolean(false));
+
+            expect(this.reference.isDefined()).to.be.false;
+        });
+    });
+
     describe('isEmpty()', function () {
         it('should return true when ArrayAccess::offsetExists(...) returns false', function () {
             this.objectValue.callMethod.withArgs(
@@ -158,6 +178,47 @@ describe('ObjectElementReference', function () {
             offsetGetReturnValue.isEmpty.returns(false);
 
             expect(this.reference.isEmpty()).to.be.false;
+        });
+    });
+
+    describe('isSet()', function () {
+        it('should return false when ArrayAccess::offsetExists(...) returns false', function () {
+            this.objectValue.callMethod.withArgs(
+                'offsetExists',
+                sinon.match([sinon.match.same(this.keyValue)])
+            ).returns(this.valueFactory.createBoolean(false));
+
+            expect(this.reference.isSet()).to.be.false;
+        });
+
+        it('should return false when ArrayAccess::offsetExists(...) returns true but ::offsetGet(...) is not set', function () {
+            var offsetGetReturnValue = sinon.createStubInstance(Value);
+            this.objectValue.callMethod.withArgs(
+                'offsetExists',
+                sinon.match([sinon.match.same(this.keyValue)])
+            ).returns(this.valueFactory.createBoolean(true));
+            this.objectValue.callMethod.withArgs(
+                'offsetGet',
+                sinon.match([sinon.match.same(this.keyValue)])
+            ).returns(offsetGetReturnValue);
+            offsetGetReturnValue.isSet.returns(false);
+
+            expect(this.reference.isSet()).to.be.false;
+        });
+
+        it('should return true when ArrayAccess::offsetExists(...) returns true and ::offsetGet(...) is set', function () {
+            var offsetGetReturnValue = sinon.createStubInstance(Value);
+            this.objectValue.callMethod.withArgs(
+                'offsetExists',
+                sinon.match([sinon.match.same(this.keyValue)])
+            ).returns(this.valueFactory.createBoolean(true));
+            this.objectValue.callMethod.withArgs(
+                'offsetGet',
+                sinon.match([sinon.match.same(this.keyValue)])
+            ).returns(offsetGetReturnValue);
+            offsetGetReturnValue.isSet.returns(true);
+
+            expect(this.reference.isSet()).to.be.true;
         });
     });
 

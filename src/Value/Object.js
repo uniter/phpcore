@@ -138,7 +138,7 @@ module.exports = require('pauser')([
          * Adds this value to another
          *
          * @param {Value} rightValue
-         * @return {Value}
+         * @returns {Value}
          */
         add: function (rightValue) {
             return rightValue.addToObject(this);
@@ -226,7 +226,7 @@ module.exports = require('pauser')([
          * Calls the magic __invoke() method for this object
          *
          * @param {Reference[]|Value[]|Variable[]} args
-         * @return {Reference|Value}
+         * @returns {Reference|Value}
          */
         call: function (args) {
             return this.callMethod('__invoke', args);
@@ -265,7 +265,7 @@ module.exports = require('pauser')([
          * Determines whether this object is an instance of the given class
          *
          * @param {string} className
-         * @return {boolean}
+         * @returns {boolean}
          */
         classIs: function (className) {
             return this.classObject.is(className);
@@ -278,7 +278,7 @@ module.exports = require('pauser')([
         /**
          * Coerces this ObjectValue to an ArrayValue
          *
-         * @return {ArrayValue}
+         * @returns {ArrayValue}
          */
         coerceToArray: function () {
             var elements = [],
@@ -464,7 +464,7 @@ module.exports = require('pauser')([
         /**
          * Builds a string representation of this value
          *
-         * @return {string}
+         * @returns {string}
          */
         formatAsString: function () {
             return 'Object(' + this.getClassName() + ')';
@@ -497,7 +497,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the name of the class of this object
          *
-         * @return {string}
+         * @returns {string}
          */
         getClassName: function () {
             return this.classObject.getName();
@@ -649,7 +649,7 @@ module.exports = require('pauser')([
          * Fetches an instance property of this object
          *
          * @param {Value} nameValue
-         * @return {PropertyReference}
+         * @returns {PropertyReference}
          */
         getInstancePropertyByName: function (nameValue) {
             var callingClass,
@@ -759,7 +759,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the names of all visible instance properties of this object, wrapped as values
          *
-         * @return {Value[]}
+         * @returns {Value[]}
          */
         getInstancePropertyNames: function () {
             var callingClass,
@@ -833,7 +833,7 @@ module.exports = require('pauser')([
          * or the object itself if it implements Traversable via Iterator or IteratorAggregate.
          * Used by transpiled foreach loops over objects implementing Iterator.
          *
-         * @return {ArrayIterator|ObjectValue}
+         * @returns {ArrayIterator|ObjectValue}
          */
         getIterator: function () {
             var value = this,
@@ -870,7 +870,7 @@ module.exports = require('pauser')([
          * Fetches a key (property name) of this object by its index
          *
          * @param {number} index
-         * @return {Value|null}
+         * @returns {Value|null}
          */
         getKeyByIndex: function (index) {
             var value = this,
@@ -882,7 +882,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the length (number of properties) for this object, regardless of their visibility
          *
-         * @return {number}
+         * @returns {number}
          */
         getLength: function () {
             var value = this,
@@ -948,7 +948,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the wrapped native JS object
          *
-         * @return {object}
+         * @returns {object}
          */
         getObject: function () {
             return this.value;
@@ -1047,7 +1047,7 @@ module.exports = require('pauser')([
          *
          * @param {Reference|Value} classNameValue
          * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
-         * @return {BooleanValue}
+         * @returns {BooleanValue}
          */
         isAnInstanceOf: function (classNameValue, namespaceOrNamespaceScope) {
             return classNameValue.isTheClassOfObject(this, namespaceOrNamespaceScope);
@@ -1096,7 +1096,7 @@ module.exports = require('pauser')([
          * Determines whether this object is equal (but not necessarily identical) to another
          *
          * @param {ObjectValue} rightValue
-         * @return {BooleanValue}
+         * @returns {BooleanValue}
          */
         isEqualToObject: function (rightValue) {
             var equal = true,
@@ -1181,7 +1181,7 @@ module.exports = require('pauser')([
          * Determines whether this iterator has finished iterating or not.
          * Used by transpiled foreach loops over objects implementing Iterator.
          *
-         * @return {boolean}
+         * @returns {boolean}
          */
         isNotFinished: function () {
             var value = this;

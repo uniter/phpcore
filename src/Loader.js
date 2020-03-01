@@ -59,7 +59,7 @@ module.exports = require('pauser')([
          * @param {Module} module
          * @param {Scope} enclosingScope
          * @param {Function} load
-         * @return {*}
+         * @returns {*}
          */
         load: function (type, path, options, environment, module, enclosingScope, load) {
             var done = false,

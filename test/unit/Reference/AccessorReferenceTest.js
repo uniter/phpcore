@@ -56,6 +56,14 @@ describe('AccessorReference', function () {
         });
     });
 
+    describe('formatAsString()', function () {
+        it('should return the native result of the getter, formatted', function () {
+            this.valueGetter.returns('My native result');
+
+            expect(this.reference.formatAsString()).to.equal('\'My native resul...\'');
+        });
+    });
+
     describe('getNative()', function () {
         it('should return result of the getter coerced to a PHP value', function () {
             this.valueGetter.returns(21);
@@ -84,6 +92,12 @@ describe('AccessorReference', function () {
 
             expect(this.valueSetter).to.have.been.calledOnce;
             expect(this.valueSetter).to.have.been.calledWith(27);
+        });
+    });
+
+    describe('isDefined()', function () {
+        it('should return true', function () {
+            expect(this.reference.isDefined()).to.be.true;
         });
     });
 

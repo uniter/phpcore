@@ -28,7 +28,7 @@ _.extend(ErrorConfiguration.prototype, {
     /**
      * Determines whether errors should be displayed
      *
-     * @return {boolean}
+     * @returns {boolean}
      */
     getDisplayErrors: function () {
         var iniOption = this.iniState.get('display_errors');

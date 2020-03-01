@@ -12,11 +12,11 @@
 module.exports = require('pauser')([
     require('microdash'),
     require('phpcommon'),
-    require('./Reference/Variable')
+    require('./Reference/ReferenceSlot')
 ], function (
     _,
     phpCommon,
-    VariableReference
+    ReferenceSlot
 ) {
     var USED_THIS_OUTSIDE_OBJECT_CONTEXT = 'core.used_this_outside_object_context',
         PHPError = phpCommon.PHPError;
@@ -86,10 +86,23 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Formats the variable (which may not be defined) for display in stack traces etc.
+         *
+         * @returns {string}
+         */
+        formatAsString: function () {
+            var variable = this;
+
+            return variable.isDefined() ?
+                variable.getValue().formatAsString() :
+                'NULL';
+        },
+
+        /**
          * Fetches a property of an object stored in this variable
          *
          * @param {Value} nameValue
-         * @return {PropertyReference}
+         * @returns {PropertyReference}
          */
         getInstancePropertyByName: function (nameValue) {
             var variable = this;
@@ -104,7 +117,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the name of this variable, which must be unique within its scope
          *
-         * @return {string}
+         * @returns {string}
          */
         getName: function () {
             return this.name;
@@ -142,8 +155,28 @@ module.exports = require('pauser')([
             return this.getValue().getNative();
         },
 
+        /**
+         * Fetches a reference to this variable's value
+         *
+         * @returns {Reference}
+         */
         getReference: function () {
-            return new VariableReference(this);
+            var variable = this;
+
+            if (variable.reference) {
+                // This variable already refers to something else, so return its target
+                return variable.reference;
+            }
+
+            // Implicitly define a "slot" to contain this variable's value
+            variable.reference = new ReferenceSlot(variable.valueFactory);
+
+            if (variable.value) {
+                variable.reference.setValue(variable.value);
+                variable.value = null; // This variable now has a reference (to the slot) and not a value
+            }
+
+            return variable.reference;
         },
 
         incrementBy: function (rightValue) {
@@ -157,7 +190,7 @@ module.exports = require('pauser')([
          * either with a value directly assigned or by being
          * a reference to another variable/reference
          *
-         * @return {boolean}
+         * @returns {boolean}
          */
         isDefined: function () {
             var variable = this;
@@ -269,7 +302,7 @@ module.exports = require('pauser')([
          * Returns the value that was assigned
          *
          * @param {Reference|Value} value
-         * @return {Value}
+         * @returns {Value}
          */
         setValue: function (value) {
             var variable = this;

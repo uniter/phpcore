@@ -271,4 +271,86 @@ EOS
             20
         ]);
     });
+
+    it('should correctly handle an undefined variable being passed as a function argument', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+ini_set('error_reporting', E_ALL); // Notices are hidden by default
+
+$result = [];
+
+function myFunc($myVar) {
+    return $myVar;
+}
+
+$result['undef var'] = myFunc($myUndefinedVar);
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('a_module.php', php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal({
+            'undef var': null
+        });
+        expect(engine.getStderr().readAll()).to.equal('PHP Notice:  Undefined variable: myUndefinedVar in a_module.php on line 10\n');
+        expect(engine.getStdout().readAll()).to.equal('\nNotice: Undefined variable: myUndefinedVar in a_module.php on line 10\n');
+    });
+
+    // This test ensures that when a trace is formatted, any undefined variables or references
+    // that may have been passed as arguments are handled correctly
+    it('should correctly handle an undefined variable being passed as a function argument alongside a TypeError', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+ini_set('error_reporting', E_ALL); // Notices are hidden by default
+
+function myFunc($myVar, MyClass $myObject) {
+    return $myVar;
+}
+
+// Note that 21 is not an instance of MyClass so is invalid
+myFunc($myUndefinedVar, 21);
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect(function () {
+            engine.execute();
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught TypeError: Argument 2 passed to myFunc() must be an instance of MyClass, int given, ' +
+            'called in /path/to/my_module.php on line 9 and defined in /path/to/my_module.php:4 ' +
+            // NB: Extraneous context info here is added by PHPFatalError (PHPError),
+            //     but not output to stdout/stderr
+            'in /path/to/my_module.php on line 4'
+        );
+        expect(engine.getStderr().readAll()).to.equal(
+            nowdoc(function () {/*<<<EOS
+PHP Notice:  Undefined variable: myUndefinedVar in /path/to/my_module.php on line 9
+PHP Fatal error:  Uncaught TypeError: Argument 2 passed to myFunc() must be an instance of MyClass, int given, called in /path/to/my_module.php on line 9 and defined in /path/to/my_module.php:4
+Stack trace:
+#0 /path/to/my_module.php(9): myFunc(NULL, 21)
+#1 {main}
+  thrown in /path/to/my_module.php on line 4
+
+EOS
+*/;}) //jshint ignore:line
+        );
+        expect(engine.getStdout().readAll()).to.equal(
+            nowdoc(function () {/*<<<EOS
+
+Notice: Undefined variable: myUndefinedVar in /path/to/my_module.php on line 9
+
+Fatal error: Uncaught TypeError: Argument 2 passed to myFunc() must be an instance of MyClass, int given, called in /path/to/my_module.php on line 9 and defined in /path/to/my_module.php:4
+Stack trace:
+#0 /path/to/my_module.php(9): myFunc(NULL, 21)
+#1 {main}
+  thrown in /path/to/my_module.php on line 4
+
+EOS
+*/;}) //jshint ignore:line
+        );
+    });
 });

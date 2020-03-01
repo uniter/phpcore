@@ -31,7 +31,7 @@ _.extend(ElementProvider.prototype, {
      * @param {Value} key
      * @param {Value|null} value
      * @param {Reference|null} reference
-     * @return {ElementReference}
+     * @returns {ElementReference}
      */
     createElement: function (valueFactory, callStack, arrayValue, key, value, reference) {
         return new ElementReference(valueFactory, callStack, arrayValue, key, value, reference);

@@ -137,7 +137,7 @@ _.extend(CallStack.prototype, {
     /**
      * Fetches the number of calls on the stack (stack depth)
      *
-     * @return {number}
+     * @returns {number}
      */
     getLength: function () {
         return this.calls.length;
@@ -220,7 +220,7 @@ _.extend(CallStack.prototype, {
      * executing a built-in function called from a PHP method, the PHP method
      * would be the PHP-land (userland) caller.
      *
-     * @return {Call|null}
+     * @returns {Call|null}
      */
     getUserlandCallee: function () {
         var call,
@@ -250,7 +250,7 @@ _.extend(CallStack.prototype, {
      * executing a built-in function called from a PHP method, the PHP method
      * would be the PHP-land (userland) caller.
      *
-     * @return {Call|null}
+     * @returns {Call|null}
      */
     getUserlandCaller: function () {
         var call,

@@ -113,7 +113,7 @@ _.extend(ScopeFactory.prototype, {
      * @param {Scope} effectiveScope
      * @param {string} callerFilePath
      * @param {string} type The type of load, eg. `eval` or `include`
-     * @return {LoadScope}
+     * @returns {LoadScope}
      */
     createLoadScope: function (effectiveScope, callerFilePath, type) {
         var factory = this;
@@ -127,7 +127,7 @@ _.extend(ScopeFactory.prototype, {
      * @param {Namespace} namespace
      * @param {Namespace} globalNamespace
      * @param {Module} module
-     * @return {NamespaceScope}
+     * @returns {NamespaceScope}
      */
     createNamespaceScope: function (namespace, globalNamespace, module) {
         var factory = this;

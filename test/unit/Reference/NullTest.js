@@ -55,6 +55,12 @@ describe('NullReference', function () {
         });
     });
 
+    describe('formatAsString()', function () {
+        it('should return "NULL"', function () {
+            expect(this.reference.formatAsString()).to.equal('NULL');
+        });
+    });
+
     describe('getNative()', function () {
         it('should return null', function () {
             expect(this.reference.getNative()).to.be.null;
@@ -75,6 +81,12 @@ describe('NullReference', function () {
             this.reference.incrementBy(this.valueFactory.createInteger(4));
 
             expect(this.onSet).to.have.been.calledOnce;
+        });
+    });
+
+    describe('isDefined()', function () {
+        it('should return false', function () {
+            expect(this.reference.isDefined()).to.be.false;
         });
     });
 

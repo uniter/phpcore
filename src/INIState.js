@@ -31,7 +31,7 @@ _.extend(INIState.prototype, {
      * Fetches an INI option, returning null if it is not defined
      *
      * @param {string} name
-     * @return {*}
+     * @returns {*}
      */
     get: function (name) {
         return hasOwn.call(this.settings, name) ?

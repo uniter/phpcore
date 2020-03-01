@@ -61,6 +61,40 @@ describe('Parameter', function () {
         );
     });
 
+    describe('coerceArgument()', function () {
+        it('should return the argument unchanged when the parameter is passed by reference', function () {
+            var variable = sinon.createStubInstance(Variable);
+
+            expect(parameter.coerceArgument(variable)).to.equal(variable);
+        });
+
+        it('should return the argument\'s value when the parameter is passed by value', function () {
+            var value = valueFactory.createString('my value'),
+                variable = sinon.createStubInstance(Variable);
+            variable.getValue.returns(value);
+            parameter = new Parameter(
+                callStack,
+                translator,
+                'myParam',
+                6,
+                typeObject,
+                context,
+                false,
+                defaultValueProvider,
+                '/path/to/my/module.php',
+                101
+            );
+
+            expect(parameter.coerceArgument(variable)).to.equal(value);
+        });
+    });
+
+    describe('getLineNumber()', function () {
+        it('should return the line number', function () {
+            expect(parameter.getLineNumber()).to.equal(101);
+        });
+    });
+
     describe('populateDefaultArgument()', function () {
         it('should return the given argument reference when valid', function () {
             var argumentReference = sinon.createStubInstance(Variable),

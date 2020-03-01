@@ -40,7 +40,7 @@ _.extend(HookableElementProvider.prototype, {
      * @param {Value} key
      * @param {Value|null }value
      * @param {Reference|null} reference
-     * @return {HookableElementReference}
+     * @returns {HookableElementReference}
      */
     createElement: function (valueFactory, callStack, arrayValue, key, value, reference) {
         var provider = this,

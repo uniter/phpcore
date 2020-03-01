@@ -60,8 +60,7 @@ module.exports = require('pauser')([
     require('./Value'),
     require('./ValueFactory'),
     require('./Variable'),
-    require('./VariableFactory'),
-    require('./Reference/Variable')
+    require('./VariableFactory')
 ], function (
     _,
     builtinTypes,
@@ -113,8 +112,7 @@ module.exports = require('pauser')([
     Value,
     ValueFactory,
     Variable,
-    VariableFactory,
-    VariableReference
+    VariableFactory
 ) {
     var THROWABLE_INTERFACE = 'Throwable',
         hasOwn = {}.hasOwnProperty,
@@ -275,7 +273,6 @@ module.exports = require('pauser')([
             referenceFactory = new ReferenceFactory(
                 AccessorReference,
                 NullReference,
-                VariableReference,
                 valueFactory
             ),
             classAutoloader = new ClassAutoloader(valueFactory),
@@ -357,7 +354,7 @@ module.exports = require('pauser')([
 
                     // $GLOBALS should have a recursive reference to itself
                     globalsArray.getElementByKey(valueFactory.createString('GLOBALS'))
-                        .setReference(referenceFactory.createVariable(globalsSuperGlobal));
+                        .setReference(globalsSuperGlobal.getReference());
 
                     // Install hooks to ensure that modifications to the $GLOBALS array
                     // are reflected in the corresponding global variables
@@ -706,7 +703,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the ErrorReporting service
          *
-         * @return {ErrorReporting}
+         * @returns {ErrorReporting}
          */
         getErrorReporting: function () {
             return this.errorReporting;
@@ -724,7 +721,7 @@ module.exports = require('pauser')([
          * Fetches the native value of an INI option
          *
          * @param {string} name
-         * @return {*}
+         * @returns {*}
          */
         getINIOption: function (name) {
             return this.iniState.get(name);
@@ -733,7 +730,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the Loader for the runtime state, used for include/require and eval(...)
          *
-         * @return {Loader}
+         * @returns {Loader}
          */
         getLoader: function () {
             return this.loader;
@@ -750,7 +747,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the Output service for the runtime state, used for handling buffering and writing to standard out
          *
-         * @return {Output}
+         * @returns {Output}
          */
         getOutput: function () {
             return this.output;
@@ -759,7 +756,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the ReferenceFactory service
          *
-         * @return {ReferenceFactory}
+         * @returns {ReferenceFactory}
          */
         getReferenceFactory: function () {
             return this.referenceFactory;
@@ -768,7 +765,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the ScopeFactory for the runtime state
          *
-         * @return {ScopeFactory}
+         * @returns {ScopeFactory}
          */
         getScopeFactory: function () {
             return this.scopeFactory;
@@ -793,7 +790,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the Translator service
          *
-         * @return {Translator}
+         * @returns {Translator}
          */
         getTranslator: function () {
             return this.translator;

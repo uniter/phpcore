@@ -67,6 +67,15 @@ _.extend(UndeclaredStaticPropertyReference.prototype, {
     },
 
     /**
+     * Determines whether this reference is defined
+     *
+     * @returns {boolean}
+     */
+    isDefined: function () {
+        return false;
+    },
+
+    /**
      * Undeclared properties are classed as empty
      *
      * @returns {boolean}

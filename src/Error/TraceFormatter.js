@@ -35,7 +35,7 @@ _.extend(TraceFormatter.prototype, {
         _.each(trace, function (callData) {
             // Convert arguments to a string representation
             var args = _.map(callData.args, function (argValue) {
-                return argValue.getValue().formatAsString();
+                return argValue.formatAsString();
             });
 
             traceStrings.push(

@@ -17,14 +17,12 @@ module.exports = require('pauser')([
     /**
      * @param {class} AccessorReference
      * @param {class} NullReference
-     * @param {class} VariableReference
      * @param {ValueFactory} valueFactory
      * @constructor
      */
     function ReferenceFactory(
         AccessorReference,
         NullReference,
-        VariableReference,
         valueFactory
     ) {
         /**
@@ -39,10 +37,6 @@ module.exports = require('pauser')([
          * @type {ValueFactory}
          */
         this.valueFactory = valueFactory;
-        /**
-         * @type {class}
-         */
-        this.VariableReference = VariableReference;
     }
 
     _.extend(ReferenceFactory.prototype, {
@@ -68,16 +62,6 @@ module.exports = require('pauser')([
             var factory = this;
 
             return new factory.NullReference(factory.valueFactory);
-        },
-
-        /**
-         * Creates a new VariableReference
-         *
-         * @param {Variable} variable
-         * @returns {VariableReference}
-         */
-        createVariable: function (variable) {
-            return new this.VariableReference(variable);
         }
     });
 

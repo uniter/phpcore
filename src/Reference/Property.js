@@ -16,7 +16,8 @@ var _ = require('microdash'),
     MAGIC_SET = '__set',
     MAGIC_UNSET = '__unset',
     PHPError = phpCommon.PHPError,
-    Reference = require('./Reference');
+    Reference = require('./Reference'),
+    ReferenceSlot = require('./ReferenceSlot');
 
 /**
  * @param {ValueFactory} valueFactory
@@ -118,16 +119,32 @@ _.extend(PropertyReference.prototype, {
         return this.index;
     },
 
-    getInstancePropertyByName: function (name) {
-        return this.getValue().getInstancePropertyByName(name);
-    },
-
     getKey: function () {
         return this.key;
     },
 
+    /**
+     * Fetches a reference to this property's value
+     *
+     * @returns {Reference}
+     */
     getReference: function () {
-        return this;
+        var property = this;
+
+        if (property.reference) {
+            // This property already refers to something else, so return its target
+            return property.reference;
+        }
+
+        // Implicitly define a "slot" to contain this property's value
+        property.reference = new ReferenceSlot(property.valueFactory);
+
+        if (property.value) {
+            property.reference.setValue(property.value);
+            property.value = null; // This property now has a reference (to the slot) and not a value
+        }
+
+        return property.reference;
     },
 
     /**

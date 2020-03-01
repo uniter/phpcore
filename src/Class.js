@@ -137,6 +137,7 @@ module.exports = require('pauser')([
             // Pass the class object to the property initialiser (if any),
             // so that it may refer to other properties/constants of this class with self::*
             staticProperties[name] = new StaticPropertyReference(
+                valueFactory,
                 callStack,
                 classObject,
                 name,
@@ -360,7 +361,7 @@ module.exports = require('pauser')([
          * an ancestor or by an interface implemented by this class or an ancestor
          *
          * @param {string} name
-         * @return {Value}
+         * @returns {Value}
          */
         getConstantByName: function (name) {
             var classObject = this,
@@ -606,7 +607,7 @@ module.exports = require('pauser')([
          * of the specified other class
          *
          * @param {Class} otherClass
-         * @return {boolean}
+         * @returns {boolean}
          */
         isInFamilyOf: function (otherClass) {
             var classObject = this;

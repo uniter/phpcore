@@ -12,20 +12,17 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
-    ValueFactory = require('../../src/ValueFactory').sync(),
-    Variable = require('../../src/Variable').sync();
+    ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('ReferenceFactory', function () {
     beforeEach(function () {
         this.AccessorReference = sinon.stub();
         this.NullReference = sinon.stub();
-        this.VariableReference = sinon.stub();
         this.valueFactory = sinon.createStubInstance(ValueFactory);
 
         this.factory = new ReferenceFactory(
             this.AccessorReference,
             this.NullReference,
-            this.VariableReference,
             this.valueFactory
         );
     });
@@ -72,28 +69,6 @@ describe('ReferenceFactory', function () {
             this.NullReference.returns(reference);
 
             expect(this.factory.createNull()).to.equal(reference);
-        });
-    });
-
-    describe('createVariable()', function () {
-        beforeEach(function () {
-            this.variable = sinon.createStubInstance(Variable);
-        });
-
-        it('should create the VariableReference correctly', function () {
-            this.factory.createVariable(this.variable);
-
-            expect(this.VariableReference).to.have.been.calledOnce;
-            expect(this.VariableReference).to.have.been.calledWith(
-                sinon.match.same(this.variable)
-            );
-        });
-
-        it('should return the created VariableReference', function () {
-            var reference = sinon.createStubInstance(this.VariableReference);
-            this.VariableReference.returns(reference);
-
-            expect(this.factory.createVariable(this.variable)).to.equal(reference);
         });
     });
 });
