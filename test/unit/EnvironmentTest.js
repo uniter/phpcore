@@ -14,10 +14,12 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     Environment = require('../../src/Environment'),
     ErrorReporting = require('../../src/Error/ErrorReporting'),
+    FFIResult = require('../../src/FFI/Result'),
     PHPError = phpCommon.PHPError,
     PHPFatalError = phpCommon.PHPFatalError,
     PHPParseError = phpCommon.PHPParseError,
     PHPState = require('../../src/PHPState').sync(),
+    Promise = require('lie'),
     Value = require('../../src/Value').sync();
 
 describe('Environment', function () {
@@ -25,6 +27,36 @@ describe('Environment', function () {
         this.state = sinon.createStubInstance(PHPState);
 
         this.environment = new Environment(this.state);
+    });
+
+    describe('createFFIResult()', function () {
+        beforeEach(function () {
+            this.asyncCallback = sinon.stub();
+            this.syncCallback = sinon.stub();
+
+            this.syncCallback.returns(21);
+            this.asyncCallback.callsFake(function () {
+                return Promise.resolve(101);
+            });
+        });
+
+        it('should return an instance of FFI Result', function () {
+            expect(this.environment.createFFIResult(this.syncCallback, this.asyncCallback)).to.be.an.instanceOf(FFIResult);
+        });
+
+        describe('the instance of FFI Result returned', function () {
+            beforeEach(function () {
+                this.ffiResult = this.environment.createFFIResult(this.syncCallback, this.asyncCallback);
+            });
+
+            it('should be passed the sync callback correctly', function () {
+                expect(this.ffiResult.getSync()).to.equal(21);
+            });
+
+            it('should be passed the async callback correctly', function () {
+                expect(this.ffiResult.getAsync()).to.eventually.equal(101);
+            });
+        });
     });
 
     describe('defineClass()', function () {

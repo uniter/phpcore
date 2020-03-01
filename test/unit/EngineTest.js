@@ -16,7 +16,6 @@ var expect = require('chai').expect,
     Environment = require('../../src/Environment'),
     FFIResult = require('../../src/FFI/Result'),
     PauseException = require('pausable/src/PauseException'),
-    Promise = require('lie'),
     Scope = require('../../src/Scope').sync(),
     PHPState = require('../../src/PHPState').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
@@ -66,33 +65,16 @@ describe('Engine', function () {
     });
 
     describe('createFFIResult()', function () {
-        beforeEach(function () {
-            this.asyncCallback = sinon.stub();
-            this.syncCallback = sinon.stub();
+        it('should create an FFI Result via the Environment', function () {
+            var ffiResult = sinon.createStubInstance(FFIResult),
+                asyncCallback = sinon.stub(),
+                syncCallback = sinon.stub();
+            this.environment.createFFIResult
+                .withArgs(sinon.match.same(syncCallback), sinon.match.same(asyncCallback))
+                .returns(ffiResult);
             this.createEngine();
 
-            this.syncCallback.returns(21);
-            this.asyncCallback.callsFake(function () {
-                return Promise.resolve(101);
-            });
-        });
-
-        it('should return an instance of FFI Result', function () {
-            expect(this.engine.createFFIResult(this.syncCallback, this.asyncCallback)).to.be.an.instanceOf(FFIResult);
-        });
-
-        describe('the instance of FFI Result returned', function () {
-            beforeEach(function () {
-                this.ffiResult = this.engine.createFFIResult(this.syncCallback, this.asyncCallback);
-            });
-
-            it('should be passed the sync callback correctly', function () {
-                expect(this.ffiResult.getSync()).to.equal(21);
-            });
-
-            it('should be passed the async callback correctly', function () {
-                expect(this.ffiResult.getAsync()).to.eventually.equal(101);
-            });
+            expect(this.engine.createFFIResult(syncCallback, asyncCallback)).to.equal(ffiResult);
         });
     });
 

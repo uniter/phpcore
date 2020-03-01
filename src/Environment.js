@@ -11,6 +11,7 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
+    FFIResult = require('./FFI/Result'),
     PHPError = phpCommon.PHPError,
     PHPFatalError = phpCommon.PHPFatalError,
     PHPParseError = phpCommon.PHPParseError;
@@ -27,6 +28,17 @@ function Environment(state) {
 }
 
 _.extend(Environment.prototype, {
+    /**
+     * Creates a new FFI Result, to provide the result of a call to a JS function
+     *
+     * @param {Function} syncCallback
+     * @param {Function|null} asyncCallback
+     * @returns {FFIResult}
+     */
+    createFFIResult: function (syncCallback, asyncCallback) {
+        return new FFIResult(syncCallback, asyncCallback);
+    },
+
     /**
      * Defines a new class (in any namespace)
      *

@@ -12,7 +12,6 @@
 var _ = require('microdash'),
     PATH = 'path',
     ExitValueWrapper = require('./Value/Exit'),
-    FFIResult = require('./FFI/Result'),
     ObjectValueWrapper = require('./Value/Object'),
     Promise = require('lie'),
     ToolsWrapper = require('./Tools');
@@ -82,7 +81,7 @@ _.extend(Engine.prototype, {
      * @returns {FFIResult}
      */
     createFFIResult: function (syncCallback, asyncCallback) {
-        return new FFIResult(syncCallback, asyncCallback);
+        return this.environment.createFFIResult(syncCallback, asyncCallback);
     },
 
     /**
