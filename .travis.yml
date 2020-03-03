@@ -2,3 +2,8 @@ language: node_js
 
 node_js:
     - "8"
+
+env:
+    global:
+        # Raise the Node.js memory limit
+        - NODE_OPTIONS=--max-old-space-size=4096
