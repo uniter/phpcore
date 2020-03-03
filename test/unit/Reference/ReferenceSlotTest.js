@@ -81,6 +81,19 @@ describe('ReferenceSlot', function () {
         });
     });
 
+    describe('getValueOrNull()', function () {
+        it('should return the value when the slot has one set', function () {
+            var value = factory.createString('my value');
+            reference.setValue(value);
+
+            expect(reference.getValueOrNull()).to.equal(value);
+        });
+
+        it('should return a NullValue when the slot has no value set', function () {
+            expect(reference.getValueOrNull().getType()).to.equal('null');
+        });
+    });
+
     describe('incrementBy()', function () {
         it('should add the given value to the variable\'s value and assign it back to the variable', function () {
             reference.setValue(factory.createInteger(20));

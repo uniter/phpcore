@@ -18,31 +18,36 @@ var expect = require('chai').expect,
     ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('ObjectElementReference', function () {
+    var element,
+        keyValue,
+        objectValue,
+        valueFactory;
+
     beforeEach(function () {
-        this.keyValue = sinon.createStubInstance(StringValue);
-        this.objectValue = sinon.createStubInstance(ObjectValue);
-        this.valueFactory = new ValueFactory();
+        keyValue = sinon.createStubInstance(StringValue);
+        objectValue = sinon.createStubInstance(ObjectValue);
+        valueFactory = new ValueFactory();
 
-        this.objectValue.callMethod.withArgs(
+        objectValue.callMethod.withArgs(
             'offsetExists',
-            sinon.match([sinon.match.same(this.keyValue)])
-        ).returns(this.valueFactory.createBoolean(true));
-        this.objectValue.callMethod.withArgs(
+            sinon.match([sinon.match.same(keyValue)])
+        ).returns(valueFactory.createBoolean(true));
+        objectValue.callMethod.withArgs(
             'offsetGet',
-            sinon.match([sinon.match.same(this.keyValue)])
-        ).returns(this.valueFactory.createString('hello'));
+            sinon.match([sinon.match.same(keyValue)])
+        ).returns(valueFactory.createString('hello'));
 
-        this.reference = new ObjectElementReference(this.valueFactory, this.objectValue, this.keyValue);
+        element = new ObjectElementReference(valueFactory, objectValue, keyValue);
     });
 
     describe('concatWith()', function () {
         it('should append the given value to the result of the getter and pass it to the setter', function () {
-            this.reference.concatWith(this.valueFactory.createString(' world'));
+            element.concatWith(valueFactory.createString(' world'));
 
-            expect(this.objectValue.callMethod).to.have.been.calledWith(
+            expect(objectValue.callMethod).to.have.been.calledWith(
                 'offsetSet',
                 sinon.match([
-                    sinon.match.same(this.keyValue),
+                    sinon.match.same(keyValue),
                     sinon.match(function (value) {
                         return value instanceof Value && value.getNative() === 'hello world';
                     })
@@ -53,17 +58,17 @@ describe('ObjectElementReference', function () {
 
     describe('decrementBy()', function () {
         it('should subtract the given value from the result of the getter and pass it to the setter', function () {
-            this.objectValue.callMethod.withArgs(
+            objectValue.callMethod.withArgs(
                 'offsetGet',
-                sinon.match([sinon.match.same(this.keyValue)])
-            ).returns(this.valueFactory.createInteger(21));
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createInteger(21));
 
-            this.reference.decrementBy(this.valueFactory.createInteger(10));
+            element.decrementBy(valueFactory.createInteger(10));
 
-            expect(this.objectValue.callMethod).to.have.been.calledWith(
+            expect(objectValue.callMethod).to.have.been.calledWith(
                 'offsetSet',
                 sinon.match([
-                    sinon.match.same(this.keyValue),
+                    sinon.match.same(keyValue),
                     sinon.match(function (value) {
                         return value instanceof Value && value.getNative() === 11;
                     })
@@ -74,17 +79,17 @@ describe('ObjectElementReference', function () {
 
     describe('divideBy()', function () {
         it('should divide the result of the getter by the given value and pass it to the setter', function () {
-            this.objectValue.callMethod.withArgs(
+            objectValue.callMethod.withArgs(
                 'offsetGet',
-                sinon.match([sinon.match.same(this.keyValue)])
-            ).returns(this.valueFactory.createInteger(40));
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createInteger(40));
 
-            this.reference.divideBy(this.valueFactory.createInteger(2));
+            element.divideBy(valueFactory.createInteger(2));
 
-            expect(this.objectValue.callMethod).to.have.been.calledWith(
+            expect(objectValue.callMethod).to.have.been.calledWith(
                 'offsetSet',
                 sinon.match([
-                    sinon.match.same(this.keyValue),
+                    sinon.match.same(keyValue),
                     sinon.match(function (value) {
                         return value instanceof Value && value.getNative() === 20;
                     })
@@ -95,23 +100,44 @@ describe('ObjectElementReference', function () {
 
     describe('getNative()', function () {
         it('should return the native value of the result from ArrayAccess::offsetGet(...)', function () {
-            expect(this.reference.getNative()).to.equal('hello');
+            expect(element.getNative()).to.equal('hello');
+        });
+    });
+
+    describe('getValueOrNull()', function () {
+        it('should return the value when the element is defined', function () {
+            var value = valueFactory.createString('my value');
+            objectValue.callMethod.withArgs(
+                'offsetGet',
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(value);
+
+            expect(element.getValueOrNull()).to.equal(value);
+        });
+
+        it('should return a NullValue when the element is not defined', function () {
+            objectValue.callMethod.withArgs(
+                'offsetExists',
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createBoolean(false));
+
+            expect(element.getValueOrNull().getType()).to.equal('null');
         });
     });
 
     describe('incrementBy()', function () {
         it('should add the given value to the result of the getter and pass it to the setter', function () {
-            this.objectValue.callMethod.withArgs(
+            objectValue.callMethod.withArgs(
                 'offsetGet',
-                sinon.match([sinon.match.same(this.keyValue)])
-            ).returns(this.valueFactory.createInteger(21));
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createInteger(21));
 
-            this.reference.incrementBy(this.valueFactory.createInteger(6));
+            element.incrementBy(valueFactory.createInteger(6));
 
-            expect(this.objectValue.callMethod).to.have.been.calledWith(
+            expect(objectValue.callMethod).to.have.been.calledWith(
                 'offsetSet',
                 sinon.match([
-                    sinon.match.same(this.keyValue),
+                    sinon.match.same(keyValue),
                     sinon.match(function (value) {
                         return value instanceof Value && value.getNative() === 27;
                     })
@@ -122,119 +148,119 @@ describe('ObjectElementReference', function () {
 
     describe('isDefined()', function () {
         it('should return true when ArrayAccess::offsetExists(...) returns true', function () {
-            this.objectValue.callMethod.withArgs(
+            objectValue.callMethod.withArgs(
                 'offsetExists',
-                sinon.match([sinon.match.same(this.keyValue)])
-            ).returns(this.valueFactory.createBoolean(true));
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createBoolean(true));
 
-            expect(this.reference.isDefined()).to.be.true;
+            expect(element.isDefined()).to.be.true;
         });
 
         it('should return false when ArrayAccess::offsetExists(...) returns false', function () {
-            this.objectValue.callMethod.withArgs(
+            objectValue.callMethod.withArgs(
                 'offsetExists',
-                sinon.match([sinon.match.same(this.keyValue)])
-            ).returns(this.valueFactory.createBoolean(false));
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createBoolean(false));
 
-            expect(this.reference.isDefined()).to.be.false;
+            expect(element.isDefined()).to.be.false;
         });
     });
 
     describe('isEmpty()', function () {
         it('should return true when ArrayAccess::offsetExists(...) returns false', function () {
-            this.objectValue.callMethod.withArgs(
+            objectValue.callMethod.withArgs(
                 'offsetExists',
-                sinon.match([sinon.match.same(this.keyValue)])
-            ).returns(this.valueFactory.createBoolean(false));
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createBoolean(false));
 
-            expect(this.reference.isEmpty()).to.be.true;
+            expect(element.isEmpty()).to.be.true;
         });
 
         it('should return true when ArrayAccess::offsetExists(...) returns true but ::offsetGet(...) empty', function () {
             var offsetGetReturnValue = sinon.createStubInstance(Value);
-            this.objectValue.callMethod.withArgs(
+            objectValue.callMethod.withArgs(
                 'offsetExists',
-                sinon.match([sinon.match.same(this.keyValue)])
-            ).returns(this.valueFactory.createBoolean(true));
-            this.objectValue.callMethod.withArgs(
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createBoolean(true));
+            objectValue.callMethod.withArgs(
                 'offsetGet',
-                sinon.match([sinon.match.same(this.keyValue)])
+                sinon.match([sinon.match.same(keyValue)])
             ).returns(offsetGetReturnValue);
             offsetGetReturnValue.isEmpty.returns(true);
 
-            expect(this.reference.isEmpty()).to.be.true;
+            expect(element.isEmpty()).to.be.true;
         });
 
         it('should return false when ArrayAccess::offsetExists(...) returns true and ::offsetGet(...) not empty', function () {
             var offsetGetReturnValue = sinon.createStubInstance(Value);
-            this.objectValue.callMethod.withArgs(
+            objectValue.callMethod.withArgs(
                 'offsetExists',
-                sinon.match([sinon.match.same(this.keyValue)])
-            ).returns(this.valueFactory.createBoolean(true));
-            this.objectValue.callMethod.withArgs(
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createBoolean(true));
+            objectValue.callMethod.withArgs(
                 'offsetGet',
-                sinon.match([sinon.match.same(this.keyValue)])
+                sinon.match([sinon.match.same(keyValue)])
             ).returns(offsetGetReturnValue);
             offsetGetReturnValue.isEmpty.returns(false);
 
-            expect(this.reference.isEmpty()).to.be.false;
+            expect(element.isEmpty()).to.be.false;
         });
     });
 
     describe('isSet()', function () {
         it('should return false when ArrayAccess::offsetExists(...) returns false', function () {
-            this.objectValue.callMethod.withArgs(
+            objectValue.callMethod.withArgs(
                 'offsetExists',
-                sinon.match([sinon.match.same(this.keyValue)])
-            ).returns(this.valueFactory.createBoolean(false));
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createBoolean(false));
 
-            expect(this.reference.isSet()).to.be.false;
+            expect(element.isSet()).to.be.false;
         });
 
         it('should return false when ArrayAccess::offsetExists(...) returns true but ::offsetGet(...) is not set', function () {
             var offsetGetReturnValue = sinon.createStubInstance(Value);
-            this.objectValue.callMethod.withArgs(
+            objectValue.callMethod.withArgs(
                 'offsetExists',
-                sinon.match([sinon.match.same(this.keyValue)])
-            ).returns(this.valueFactory.createBoolean(true));
-            this.objectValue.callMethod.withArgs(
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createBoolean(true));
+            objectValue.callMethod.withArgs(
                 'offsetGet',
-                sinon.match([sinon.match.same(this.keyValue)])
+                sinon.match([sinon.match.same(keyValue)])
             ).returns(offsetGetReturnValue);
             offsetGetReturnValue.isSet.returns(false);
 
-            expect(this.reference.isSet()).to.be.false;
+            expect(element.isSet()).to.be.false;
         });
 
         it('should return true when ArrayAccess::offsetExists(...) returns true and ::offsetGet(...) is set', function () {
             var offsetGetReturnValue = sinon.createStubInstance(Value);
-            this.objectValue.callMethod.withArgs(
+            objectValue.callMethod.withArgs(
                 'offsetExists',
-                sinon.match([sinon.match.same(this.keyValue)])
-            ).returns(this.valueFactory.createBoolean(true));
-            this.objectValue.callMethod.withArgs(
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createBoolean(true));
+            objectValue.callMethod.withArgs(
                 'offsetGet',
-                sinon.match([sinon.match.same(this.keyValue)])
+                sinon.match([sinon.match.same(keyValue)])
             ).returns(offsetGetReturnValue);
             offsetGetReturnValue.isSet.returns(true);
 
-            expect(this.reference.isSet()).to.be.true;
+            expect(element.isSet()).to.be.true;
         });
     });
 
     describe('multiplyBy()', function () {
         it('should multiply the result of the getter by the given value and pass it to the setter', function () {
-            this.objectValue.callMethod.withArgs(
+            objectValue.callMethod.withArgs(
                 'offsetGet',
-                sinon.match([sinon.match.same(this.keyValue)])
-            ).returns(this.valueFactory.createInteger(2));
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createInteger(2));
 
-            this.reference.multiplyBy(this.valueFactory.createInteger(7));
+            element.multiplyBy(valueFactory.createInteger(7));
 
-            expect(this.objectValue.callMethod).to.have.been.calledWith(
+            expect(objectValue.callMethod).to.have.been.calledWith(
                 'offsetSet',
                 sinon.match([
-                    sinon.match.same(this.keyValue),
+                    sinon.match.same(keyValue),
                     sinon.match(function (value) {
                         return value instanceof Value && value.getNative() === 14;
                     })

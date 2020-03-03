@@ -151,6 +151,20 @@ module.exports = require('pauser')([
             return variable.valueFactory.createNull();
         },
 
+        /**
+         * Returns this variable's value if defined, NULL otherwise.
+         * No notice/warning will be raised if the variable has no value defined.
+         *
+         * @return {Value}
+         */
+        getValueOrNull: function () {
+            var variable = this;
+
+            return variable.isDefined() ?
+                variable.getValue() :
+                variable.valueFactory.createNull();
+        },
+
         getNative: function () {
             return this.getValue().getNative();
         },

@@ -237,6 +237,28 @@ describe('Variable', function () {
         });
     });
 
+    describe('getValueOrNull()', function () {
+        it('should return the value when the variable is defined with a value', function () {
+            var value = valueFactory.createString('my value');
+            variable.setValue(value);
+
+            expect(variable.getValueOrNull()).to.equal(value);
+        });
+
+        it('should return the value of the reference when the variable is defined with a reference', function () {
+            var reference = sinon.createStubInstance(Reference),
+                value = valueFactory.createString('my val from reference');
+            reference.getValue.returns(value);
+            variable.setReference(reference);
+
+            expect(variable.getValueOrNull()).to.equal(value);
+        });
+
+        it('should return a NullValue when the variable is not defined', function () {
+            expect(variable.getValueOrNull().getType()).to.equal('null');
+        });
+    });
+
     describe('isDefined()', function () {
         it('should return true when the variable has a value assigned', function () {
             variable.setValue(valueFactory.createString('a value'));

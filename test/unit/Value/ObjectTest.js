@@ -1555,6 +1555,12 @@ describe('Object', function () {
         });
     });
 
+    describe('getValueOrNull()', function () {
+        it('should just return this value, as values are always classed as "defined"', function () {
+            expect(this.value.getValueOrNull()).to.equal(this.value);
+        });
+    });
+
     describe('instantiate()', function () {
         beforeEach(function () {
             this.arg1Value = this.factory.createInteger(21);

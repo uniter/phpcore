@@ -190,7 +190,7 @@ _.extend(Parameter.prototype, {
             return;
         }
 
-        argumentValue = argumentReference.getValue();
+        argumentValue = argumentReference.getValueOrNull();
 
         argumentIsValid =
             // Check whether the type allows the given argument (including null,

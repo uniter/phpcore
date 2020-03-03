@@ -125,6 +125,20 @@ _.extend(Reference.prototype, {
     getValue: throwUnimplemented('getValue'),
 
     /**
+     * Returns this reference's value if defined, NULL otherwise.
+     * No notice/warning will be raised if the reference has no value defined.
+     *
+     * @return {Value}
+     */
+    getValueOrNull: function () {
+        var reference = this;
+
+        return reference.isDefined() ?
+            reference.getValue() :
+            reference.valueFactory.createNull();
+    },
+
+    /**
      * Adds the specified value to the value from this reference
      * and then assigns the result back to this reference
      *

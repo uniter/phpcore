@@ -162,4 +162,26 @@ EOS
 */;}) //jshint ignore:line
         );
     });
+
+    it('should allow a by-reference closure parameter to be passed an undefined variable without notice being raised', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+ini_set('error_reporting', E_ALL);
+
+$myClosure = function (&$myArg) {
+    $myArg = 21;
+};
+
+$myClosure($myTarget);
+
+return $myTarget;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/some/module/path.php', php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.equal(21);
+        expect(engine.getStderr().readAll()).to.equal('');
+        expect(engine.getStdout().readAll()).to.equal('');
+    });
 });

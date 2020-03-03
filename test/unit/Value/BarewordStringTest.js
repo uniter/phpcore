@@ -24,36 +24,43 @@ var expect = require('chai').expect,
     ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('BarewordString', function () {
-    beforeEach(function () {
-        this.callStack = sinon.createStubInstance(CallStack);
-        this.factory = new ValueFactory();
-        this.namespaceScope = sinon.createStubInstance(NamespaceScope);
+    var callStack,
+        createKeyValuePair,
+        createValue,
+        factory,
+        namespaceScope,
+        value;
 
-        this.callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+    beforeEach(function () {
+        callStack = sinon.createStubInstance(CallStack);
+        factory = new ValueFactory();
+        namespaceScope = sinon.createStubInstance(NamespaceScope);
+
+        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
             throw new Error(
                 'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
             );
         });
 
-        this.createKeyValuePair = function (key, value) {
+        createKeyValuePair = function (key, value) {
             var keyValuePair = sinon.createStubInstance(KeyValuePair);
             keyValuePair.getKey.returns(key);
             keyValuePair.getValue.returns(value);
             return keyValuePair;
         };
 
-        this.createValue = function (nativeValue) {
-            this.value = new BarewordStringValue(this.factory, this.callStack, nativeValue);
-        }.bind(this);
+        createValue = function (nativeValue) {
+            value = new BarewordStringValue(factory, callStack, nativeValue);
+        };
     });
 
     describe('addToArray()', function () {
         it('should raise a fatal error', function () {
-            this.createValue('mybarewordstring');
+            createValue('mybarewordstring');
 
             expect(function () {
-                this.value.addToArray(this.factory.createArray([]));
-            }.bind(this)).to.throw(
+                value.addToArray(factory.createArray([]));
+            }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
         });
@@ -65,10 +72,10 @@ describe('BarewordString', function () {
                 result,
                 resultValue = sinon.createStubInstance(Value),
                 func = sinon.stub().returns(resultValue);
-            this.namespaceScope.getFunction.withArgs('This\\SubSpace\\my_function').returns(func);
-            this.createValue('This\\SubSpace\\my_function');
+            namespaceScope.getFunction.withArgs('This\\SubSpace\\my_function').returns(func);
+            createValue('This\\SubSpace\\my_function');
 
-            result = this.value.call([argValue], this.namespaceScope);
+            result = value.call([argValue], namespaceScope);
 
             expect(result).to.equal(resultValue);
             expect(func).to.have.been.calledOnce;
@@ -79,11 +86,11 @@ describe('BarewordString', function () {
 
     describe('callMethod()', function () {
         it('should throw, as instance methods cannot exist on non-objects', function () {
-            this.createValue('something');
+            createValue('something');
 
             expect(function () {
-                this.value.callMethod('aMethod', [], this.namespaceScope);
-            }.bind(this)).to.throw(
+                value.callMethod('aMethod', [], namespaceScope);
+            }).to.throw(
                 'Fake PHP Fatal error for #core.non_object_method_call with {"name":"aMethod","type":"string"}'
             );
         });
@@ -93,14 +100,14 @@ describe('BarewordString', function () {
         it('should ask the class to call the method and return its result when non-forwarding', function () {
             var argValue = sinon.createStubInstance(Value),
                 classObject = sinon.createStubInstance(Class),
-                methodNameValue = this.factory.createString('myMethod'),
+                methodNameValue = factory.createString('myMethod'),
                 result,
                 resultValue = sinon.createStubInstance(Value);
             classObject.callMethod.returns(resultValue);
-            this.namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(classObject);
-            this.createValue('My\\Space\\MyClass');
+            namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(classObject);
+            createValue('My\\Space\\MyClass');
 
-            result = this.value.callStaticMethod(methodNameValue, [argValue], this.namespaceScope, false);
+            result = value.callStaticMethod(methodNameValue, [argValue], namespaceScope, false);
 
             expect(result).to.equal(resultValue);
             expect(classObject.callMethod).to.have.been.calledOnce;
@@ -117,14 +124,14 @@ describe('BarewordString', function () {
         it('should ask the class to call the method and return its result when forwarding', function () {
             var argValue = sinon.createStubInstance(Value),
                 classObject = sinon.createStubInstance(Class),
-                methodNameValue = this.factory.createString('myMethod'),
+                methodNameValue = factory.createString('myMethod'),
                 result,
                 resultValue = sinon.createStubInstance(Value);
             classObject.callMethod.returns(resultValue);
-            this.namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(classObject);
-            this.createValue('My\\Space\\MyClass');
+            namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(classObject);
+            createValue('My\\Space\\MyClass');
 
-            result = this.value.callStaticMethod(methodNameValue, [argValue], this.namespaceScope, true);
+            result = value.callStaticMethod(methodNameValue, [argValue], namespaceScope, true);
 
             expect(result).to.equal(resultValue);
             expect(classObject.callMethod).to.have.been.calledOnce;
@@ -141,11 +148,11 @@ describe('BarewordString', function () {
 
     describe('coerceToNativeError()', function () {
         it('should throw an error as this is invalid', function () {
-            this.createValue('mybarewordstring');
+            createValue('mybarewordstring');
 
             expect(function () {
-                this.value.coerceToNativeError();
-            }.bind(this)).to.throw(
+                value.coerceToNativeError();
+            }).to.throw(
                 'Only instances of Throwable may be thrown: tried to throw a(n) string'
             );
         });
@@ -155,40 +162,42 @@ describe('BarewordString', function () {
         it('should hand off to the right-hand operand to divide by this string', function () {
             var rightOperand = sinon.createStubInstance(Value),
                 result = sinon.createStubInstance(Value);
-            this.createValue('mybarewordstring');
-            rightOperand.divideByString.withArgs(this.value).returns(result);
+            createValue('mybarewordstring');
+            rightOperand.divideByString.withArgs(value).returns(result);
 
-            expect(this.value.divide(rightOperand)).to.equal(result);
+            expect(value.divide(rightOperand)).to.equal(result);
         });
     });
 
     describe('divideByArray()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            var leftValue = this.factory.createArray([]);
-            this.createValue('mybarewordstring');
+            var leftValue = factory.createArray([]);
+            createValue('mybarewordstring');
 
             expect(function () {
-                this.value.divideByArray(leftValue);
-            }.bind(this)).to.throw(
+                value.divideByArray(leftValue);
+            }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
         });
     });
 
     describe('getCallableName()', function () {
+        var namespace;
+
         beforeEach(function () {
-            this.namespace = sinon.createStubInstance(Namespace);
-            this.namespace.getPrefix.returns('Full\\Path\\To\\Mine\\');
-            this.namespaceScope.resolveClass.withArgs('Mine\\MyClass').returns({
-                namespace: this.namespace,
+            namespace = sinon.createStubInstance(Namespace);
+            namespace.getPrefix.returns('Full\\Path\\To\\Mine\\');
+            namespaceScope.resolveClass.withArgs('Mine\\MyClass').returns({
+                namespace: namespace,
                 name: 'MyClass'
             });
         });
 
         it('should return the resolved FQCN', function () {
-            this.createValue('Mine\\MyClass');
+            createValue('Mine\\MyClass');
 
-            expect(this.value.getCallableName(this.namespaceScope)).to.equal('Full\\Path\\To\\Mine\\MyClass');
+            expect(value.getCallableName(namespaceScope)).to.equal('Full\\Path\\To\\Mine\\MyClass');
         });
     });
 
@@ -196,29 +205,29 @@ describe('BarewordString', function () {
         it('should fetch the constant from the class', function () {
             var classObject = sinon.createStubInstance(Class),
                 resultValue = sinon.createStubInstance(Value);
-            this.namespaceScope.getClass.withArgs('This\\SubSpace\\MyClass').returns(classObject);
+            namespaceScope.getClass.withArgs('This\\SubSpace\\MyClass').returns(classObject);
             classObject.getConstantByName.withArgs('MY_CONST').returns(resultValue);
-            this.createValue('This\\SubSpace\\MyClass');
+            createValue('This\\SubSpace\\MyClass');
 
-            expect(this.value.getConstantByName('MY_CONST', this.namespaceScope)).to.equal(resultValue);
+            expect(value.getConstantByName('MY_CONST', namespaceScope)).to.equal(resultValue);
         });
     });
 
     describe('getDisplayType()', function () {
         it('should return the value type', function () {
-            this.createValue('mybarewordstring');
+            createValue('mybarewordstring');
 
-            expect(this.value.getDisplayType()).to.equal('string');
+            expect(value.getDisplayType()).to.equal('string');
         });
     });
 
     describe('getReference()', function () {
         it('should throw an error', function () {
-            this.createValue('mybarewordstring');
+            createValue('mybarewordstring');
 
             expect(function () {
-                this.value.getReference();
-            }.bind(this)).to.throw('Cannot get a reference to a value');
+                value.getReference();
+            }).to.throw('Cannot get a reference to a value');
         });
     });
 
@@ -226,59 +235,72 @@ describe('BarewordString', function () {
         it('should fetch the property\'s value from the class', function () {
             var classObject = sinon.createStubInstance(Class),
                 resultValue = sinon.createStubInstance(Value);
-            this.namespaceScope.getClass.withArgs('This\\SubSpace\\MyClass').returns(classObject);
+            namespaceScope.getClass.withArgs('This\\SubSpace\\MyClass').returns(classObject);
             classObject.getStaticPropertyByName.withArgs('myProp').returns(resultValue);
-            this.createValue('This\\SubSpace\\MyClass');
+            createValue('This\\SubSpace\\MyClass');
 
             expect(
-                this.value.getStaticPropertyByName(
-                    this.factory.createString('myProp'),
-                    this.namespaceScope
+                value.getStaticPropertyByName(
+                    factory.createString('myProp'),
+                    namespaceScope
                 )
             ).to.equal(resultValue);
         });
     });
 
+    describe('getValueOrNull()', function () {
+        it('should just return this value, as values are always classed as "defined"', function () {
+            createValue('MyString');
+
+            expect(value.getValueOrNull()).to.equal(value);
+        });
+    });
+
     describe('instantiate()', function () {
+        var classObject,
+            newObjectValue;
+
         beforeEach(function () {
-            this.classObject = sinon.createStubInstance(Class);
-            this.namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(this.classObject);
-            this.newObjectValue = sinon.createStubInstance(ObjectValue);
-            this.classObject.instantiate.returns(this.newObjectValue);
+            classObject = sinon.createStubInstance(Class);
+            namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(classObject);
+            newObjectValue = sinon.createStubInstance(ObjectValue);
+            classObject.instantiate.returns(newObjectValue);
         });
 
         it('should pass the args along', function () {
             var argValue = sinon.createStubInstance(IntegerValue);
-            this.createValue('My\\Space\\MyClass');
+            createValue('My\\Space\\MyClass');
 
-            this.value.instantiate([argValue], this.namespaceScope);
+            value.instantiate([argValue], namespaceScope);
 
-            expect(this.classObject.instantiate).to.have.been.calledOnce;
-            expect(this.classObject.instantiate).to.have.been.calledWith([sinon.match.same(argValue)]);
+            expect(classObject.instantiate).to.have.been.calledOnce;
+            expect(classObject.instantiate).to.have.been.calledWith([sinon.match.same(argValue)]);
         });
 
         it('should return the new instance created by the class', function () {
-            this.createValue('My\\Space\\MyClass');
+            createValue('My\\Space\\MyClass');
 
-            expect(this.value.instantiate([], this.namespaceScope)).to.equal(this.newObjectValue);
+            expect(value.instantiate([], namespaceScope)).to.equal(newObjectValue);
         });
     });
 
     describe('isNumeric()', function () {
         it('should return false', function () {
-            expect(this.value.isNumeric()).to.be.false;
+            expect(value.isNumeric()).to.be.false;
         });
     });
 
     describe('isTheClassOfObject()', function () {
+        var namespace;
+
         beforeEach(function () {
-            this.namespace = sinon.createStubInstance(Namespace);
-            this.namespace.getPrefix.returns('Full\\Path\\To\\Mine\\');
-            this.namespaceScope.resolveClass.withArgs('Mine\\MyClass').returns({
-                namespace: this.namespace,
+            namespace = sinon.createStubInstance(Namespace);
+            namespace.getPrefix.returns('Full\\Path\\To\\Mine\\');
+            namespaceScope.resolveClass.withArgs('Mine\\MyClass').returns({
+                namespace: namespace,
                 name: 'MyClass'
             });
-            this.createValue('Mine\\MyClass');
+            createValue('Mine\\MyClass');
         });
 
         it('should return bool(true) when the subject object\'s class is this class', function () {
@@ -286,7 +308,7 @@ describe('BarewordString', function () {
                 result;
             subjectObjectValue.classIs.withArgs('Full\\Path\\To\\Mine\\MyClass').returns(true);
 
-            result = this.value.isTheClassOfObject(subjectObjectValue, this.namespaceScope);
+            result = value.isTheClassOfObject(subjectObjectValue, namespaceScope);
 
             expect(result).to.be.an.instanceOf(BooleanValue);
             expect(result.getNative()).to.equal(true);
@@ -297,7 +319,7 @@ describe('BarewordString', function () {
                 result;
             subjectObjectValue.classIs.withArgs('Full\\Path\\To\\Mine\\MyClass').returns(false);
 
-            result = this.value.isTheClassOfObject(subjectObjectValue, this.namespaceScope);
+            result = value.isTheClassOfObject(subjectObjectValue, namespaceScope);
 
             expect(result).to.be.an.instanceOf(BooleanValue);
             expect(result.getNative()).to.equal(false);
@@ -306,11 +328,11 @@ describe('BarewordString', function () {
 
     describe('subtractFromNull()', function () {
         it('should throw an "Unsupported operand" error', function () {
-            this.createValue('mybarewordstring');
+            createValue('mybarewordstring');
 
             expect(function () {
-                this.value.subtractFromNull();
-            }.bind(this)).to.throw(
+                value.subtractFromNull();
+            }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
         });

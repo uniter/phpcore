@@ -38,7 +38,7 @@ describe('UndeclaredStaticPropertyReference', function () {
                 );
             });
 
-        reference = new UndeclaredStaticPropertyReference(callStack, classObject, 'myProperty');
+        reference = new UndeclaredStaticPropertyReference(valueFactory, callStack, classObject, 'myProperty');
     });
 
     describe('formatAsString()', function () {
@@ -54,6 +54,12 @@ describe('UndeclaredStaticPropertyReference', function () {
             }).to.throw(
                 'Fake PHP Fatal error for #core.undeclared_static_property with {"propertyName":"myProperty"}'
             );
+        });
+    });
+
+    describe('getValueOrNull()', function () {
+        it('should return a NullValue', function () {
+            expect(reference.getValueOrNull().getType()).to.equal('null');
         });
     });
 

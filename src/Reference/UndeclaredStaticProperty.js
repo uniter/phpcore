@@ -25,12 +25,13 @@ var _ = require('microdash'),
     };
 
 /**
+ * @param {ValueFactory} valueFactory
  * @param {CallStack} callStack
  * @param {Class} classObject
  * @param {string} name Name of the static property
  * @constructor
  */
-function UndeclaredStaticPropertyReference(callStack, classObject, name) {
+function UndeclaredStaticPropertyReference(valueFactory, callStack, classObject, name) {
     /**
      * @type {CallStack}
      */
@@ -43,6 +44,10 @@ function UndeclaredStaticPropertyReference(callStack, classObject, name) {
      * @type {string}
      */
     this.name = name;
+    /**
+     * @type {ValueFactory}
+     */
+    this.valueFactory = valueFactory;
 }
 
 util.inherits(UndeclaredStaticPropertyReference, Reference);

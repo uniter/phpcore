@@ -167,7 +167,7 @@ describe('ElementReference', function () {
                 );
 
                 element.getPair();
-            }.bind(this)).to.throw('Element is not defined');
+            }).to.throw('Element is not defined');
         });
     });
 
@@ -215,6 +215,30 @@ describe('ElementReference', function () {
             referenceSlot.setValue(value);
 
             expect(element.getValue()).to.equal(value);
+        });
+    });
+
+    describe('getValueOrNull()', function () {
+        it('should return the value when the element is defined with a value', function () {
+            var value = valueFactory.createString('my value');
+            element.setValue(value);
+
+            expect(element.getValueOrNull()).to.equal(value);
+        });
+
+        it('should return the value of the reference when the element is defined with a reference', function () {
+            var reference = sinon.createStubInstance(Reference),
+                value = valueFactory.createString('my val from reference');
+            reference.getValue.returns(value);
+            element.setReference(reference);
+
+            expect(element.getValueOrNull()).to.equal(value);
+        });
+
+        it('should return a NullValue when the element is not defined', function () {
+            element.unset();
+
+            expect(element.getValueOrNull().getType()).to.equal('null');
         });
     });
 

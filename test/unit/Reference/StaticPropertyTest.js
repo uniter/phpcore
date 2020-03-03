@@ -143,6 +143,24 @@ describe('StaticPropertyReference', function () {
         });
     });
 
+    describe('getValueOrNull()', function () {
+        it('should return the value when the property is defined with a value', function () {
+            var value = valueFactory.createString('my value');
+            property.setValue(value);
+
+            expect(property.getValueOrNull()).to.equal(value);
+        });
+
+        it('should return the value of the reference when the property is defined with a reference', function () {
+            var reference = sinon.createStubInstance(Reference),
+                value = valueFactory.createString('my val from reference');
+            reference.getValue.returns(value);
+            property.setReference(reference);
+
+            expect(property.getValueOrNull()).to.equal(value);
+        });
+    });
+
     describe('incrementBy()', function () {
         it('should add the given value to the property\'s value and assign it back to the property', function () {
             property.setValue(valueFactory.createInteger(20));
@@ -201,7 +219,7 @@ describe('StaticPropertyReference', function () {
         it('should throw a fatal error as static properties cannot be unset', function () {
             expect(function () {
                 property.unset();
-            }.bind(this)).to.throw(
+            }).to.throw(
                 'Fake PHP Fatal error for #core.cannot_unset_static_property with {"className":"My\\\\Namespaced\\\\ClassName","propertyName":"myProp"}'
             );
         });

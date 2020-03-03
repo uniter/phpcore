@@ -497,7 +497,12 @@ module.exports = require('pauser')([
 
                 // Undeclared static properties cannot be accessed _except_ by isset(...) or empty(...),
                 // which return the relevant boolean result (`false` and `true` respectively)
-                return new UndeclaredStaticPropertyReference(classObject.callStack, classObject, name);
+                return new UndeclaredStaticPropertyReference(
+                    classObject.valueFactory,
+                    classObject.callStack,
+                    classObject,
+                    name
+                );
             }
 
             staticProperty = classObject.staticProperties[name];

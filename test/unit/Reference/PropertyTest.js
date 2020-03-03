@@ -61,7 +61,7 @@ describe('PropertyReference', function () {
                 visibility || 'public',
                 21
             );
-        }.bind(this);
+        };
         createProperty();
     });
 
@@ -268,6 +268,30 @@ describe('PropertyReference', function () {
             it('should return NULL', function () {
                 expect(property.getValue().getType()).to.equal('null');
             });
+        });
+    });
+
+    describe('getValueOrNull()', function () {
+        it('should return the value when the property is defined with a value', function () {
+            var value = valueFactory.createString('my value');
+            property.setValue(value);
+
+            expect(property.getValueOrNull()).to.equal(value);
+        });
+
+        it('should return the value of the reference when the property is defined with a reference', function () {
+            var reference = sinon.createStubInstance(Reference),
+                value = valueFactory.createString('my val from reference');
+            reference.getValue.returns(value);
+            property.setReference(reference);
+
+            expect(property.getValueOrNull()).to.equal(value);
+        });
+
+        it('should return a NullValue when the property is not defined', function () {
+            property.unset();
+
+            expect(property.getValueOrNull().getType()).to.equal('null');
         });
     });
 

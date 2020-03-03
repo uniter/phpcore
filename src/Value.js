@@ -374,6 +374,16 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Returns this value if defined (this is for the Reference/Value interface -
+         * values are always classed as defined)
+         *
+         * @return {Value}
+         */
+        getValueOrNull: function () {
+            return this;
+        },
+
+        /**
          * Coerces this value to a number and adds one to it
          *
          * @returns {Value}

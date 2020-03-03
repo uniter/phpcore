@@ -167,7 +167,7 @@ describe('Parameter', function () {
             var argumentReference = sinon.createStubInstance(Variable),
                 argumentValue = valueFactory.createString('my invalid argument'),
                 defaultValue = valueFactory.createNull();
-            argumentReference.getValue.returns(argumentValue);
+            argumentReference.getValueOrNull.returns(argumentValue);
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
                 .returns(false); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
@@ -206,7 +206,7 @@ describe('Parameter', function () {
                 null,
                 null
             );
-            argumentReference.getValue.returns(argumentValue);
+            argumentReference.getValueOrNull.returns(argumentValue);
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
                 .returns(false); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
@@ -232,7 +232,7 @@ describe('Parameter', function () {
         it('should raise an error when argument is null but type does not allow null and there is no default', function () {
             var argumentReference = sinon.createStubInstance(Variable),
                 argumentValue = valueFactory.createNull();
-            argumentReference.getValue.returns(argumentValue);
+            argumentReference.getValueOrNull.returns(argumentValue);
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
                 .returns(false); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
@@ -270,7 +270,7 @@ describe('Parameter', function () {
         it('should raise an error when argument is null but type does not allow null and default is not null', function () {
             var argumentReference = sinon.createStubInstance(Variable),
                 argumentValue = valueFactory.createNull();
-            argumentReference.getValue.returns(argumentValue);
+            argumentReference.getValueOrNull.returns(argumentValue);
             defaultValueProvider.returns(valueFactory.createArray(['some value']));
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))

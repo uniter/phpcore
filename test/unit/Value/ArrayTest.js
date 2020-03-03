@@ -763,6 +763,12 @@ describe('Array', function () {
         });
     });
 
+    describe('getValueOrNull()', function () {
+        it('should just return this value, as values are always classed as "defined"', function () {
+            expect(value.getValueOrNull()).to.equal(value);
+        });
+    });
+
     describe('instantiate()', function () {
         it('should raise a fatal error', function () {
             expect(function () {
