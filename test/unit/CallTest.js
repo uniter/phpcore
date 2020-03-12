@@ -17,7 +17,6 @@ var expect = require('chai').expect,
     NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     Scope = require('../../src/Scope').sync(),
-    StringValue = require('../../src/Value/String').sync(),
     Value = require('../../src/Value').sync();
 
 describe('Call', function () {
@@ -29,6 +28,15 @@ describe('Call', function () {
         this.scope = sinon.createStubInstance(Scope);
 
         this.call = new Call(this.scope, this.namespaceScope, [this.argValue1, this.argValue2], this.newStaticClass);
+    });
+
+    describe('getCurrentClass()', function () {
+        it('should return the current Class from the Scope', function () {
+            var classObject = sinon.createStubInstance(Class);
+            this.scope.getCurrentClass.returns(classObject);
+
+            expect(this.call.getCurrentClass()).to.equal(classObject);
+        });
     });
 
     describe('getFilePath()', function () {
@@ -50,10 +58,8 @@ describe('Call', function () {
     });
 
     describe('getFunctionName()', function () {
-        it('should return the current function\'s name from the Scope', function () {
-            var value = sinon.createStubInstance(StringValue);
-            value.getNative.returns('myFunc');
-            this.scope.getFunctionName.returns(value);
+        it('should return the current trace frame name from the Scope', function () {
+            this.scope.getTraceFrameName.returns('myFunc');
 
             expect(this.call.getFunctionName()).to.equal('myFunc');
         });
@@ -110,6 +116,40 @@ describe('Call', function () {
             );
 
             expect(this.call.getStaticClass()).to.be.null;
+        });
+    });
+
+    describe('getThisObject()', function () {
+        it('should return the this object from the scope', function () {
+            var thisObject = sinon.createStubInstance(ObjectValue);
+            this.scope.getThisObject.returns(thisObject);
+
+            expect(this.call.getThisObject()).to.equal(thisObject);
+        });
+    });
+
+    describe('getTraceFilePath()', function () {
+        it('should fetch the path via the Scope', function () {
+            this.namespaceScope.getFilePath.returns('/my/module_path.php');
+            this.scope.getFilePath
+                .withArgs('/my/module_path.php')
+                .returns('/my/module_path.php with some additional context');
+
+            expect(this.call.getTraceFilePath()).to.equal('/my/module_path.php with some additional context');
+        });
+    });
+
+    describe('isUserland()', function () {
+        it('should return true when the called function was not defined in the global NamespaceScope', function () {
+            this.namespaceScope.isGlobal.returns(false);
+
+            expect(this.call.isUserland()).to.be.true;
+        });
+
+        it('should return false when the called function was defined in the global NamespaceScope', function () {
+            this.namespaceScope.isGlobal.returns(true);
+
+            expect(this.call.isUserland()).to.be.false;
         });
     });
 });

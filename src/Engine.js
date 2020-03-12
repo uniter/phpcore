@@ -12,7 +12,6 @@
 var _ = require('microdash'),
     PATH = 'path',
     ExitValueWrapper = require('./Value/Exit'),
-    FFIResult = require('./FFI/Result'),
     ObjectValueWrapper = require('./Value/Object'),
     Promise = require('lie'),
     ToolsWrapper = require('./Tools');
@@ -82,7 +81,7 @@ _.extend(Engine.prototype, {
      * @returns {FFIResult}
      */
     createFFIResult: function (syncCallback, asyncCallback) {
-        return new FFIResult(syncCallback, asyncCallback);
+        return this.environment.createFFIResult(syncCallback, asyncCallback);
     },
 
     /**
@@ -125,6 +124,17 @@ _.extend(Engine.prototype, {
     },
 
     /**
+     * Defines a constant with the given native value
+     *
+     * @param {string} name
+     * @param {*} value
+     * @param {object} options
+     */
+    defineConstant: function (name, value, options) {
+        this.environment.defineConstant(name, value, options);
+    },
+
+    /**
      * Defines a global variable and gives it the provided value
      *
      * @param {string} name
@@ -149,6 +159,17 @@ _.extend(Engine.prototype, {
         this.environment.defineGlobalAccessor(name, valueGetter, valueSetter);
     },
 
+    /**
+     * Defines a global function from a native JS one. If a fully-qualified name is provided
+     * with a namespace prefix, eg. `My\Lib\MyFunc` then it will be defined in the specified namespace
+     *
+     * @param {string} name
+     * @param {Function} fn
+     */
+    defineNonCoercingFunction: function (name, fn) {
+        this.environment.defineNonCoercingFunction(name, fn);
+    },
+
     defineSuperGlobal: function (name, nativeValue) {
         var engine = this,
             valueFactory = engine.environment.getState().getValueFactory(),
@@ -166,13 +187,14 @@ _.extend(Engine.prototype, {
      * or a Promise if in asynchronous mode that will later be resolved with its resulting value
      * (from a top-level `return` statement, if any - otherwise defaulting to null)
      *
-     * @return {Promise|Value}
+     * @returns {Promise|Value}
      */
     execute: function () {
         var callFactory,
             callStack,
             engine = this,
             environment = engine.environment,
+            errorReporting,
             globalNamespace,
             globalScope,
             loader,
@@ -185,10 +207,8 @@ _.extend(Engine.prototype, {
             output,
             pausable = engine.pausable,
             phpCommon = engine.phpCommon,
-            Exception = phpCommon.Exception,
             PHPError = phpCommon.PHPError,
-            PHPException,
-            PHPFatalError = phpCommon.PHPFatalError,
+            PHPParseError = phpCommon.PHPParseError,
             referenceFactory,
             resultValue,
             scopeFactory,
@@ -196,6 +216,7 @@ _.extend(Engine.prototype, {
             stderr = engine.getStderr(),
             stdin = engine.getStdin(),
             tools,
+            translator,
             valueFactory,
             wrapper = engine.wrapper,
             unwrap = function (wrapper) {
@@ -210,6 +231,7 @@ _.extend(Engine.prototype, {
 
         state = environment.getState();
         callFactory = state.getCallFactory();
+        errorReporting = state.getErrorReporting();
         loader = state.getLoader();
         moduleFactory = state.getModuleFactory();
         referenceFactory = state.getReferenceFactory();
@@ -219,10 +241,10 @@ _.extend(Engine.prototype, {
         callStack = state.getCallStack();
         globalScope = state.getGlobalScope();
         output = state.getOutput();
-        PHPException = state.getPHPExceptionClass();
         // Use the provided top-level scope if specified, otherwise use the global scope
         // (used eg. when an `include(...)` is used inside a function)
         topLevelScope = engine.topLevelScope || globalScope;
+        translator = state.getTranslator();
         module = moduleFactory.create(path);
         topLevelNamespaceScope = scopeFactory.createNamespaceScope(globalNamespace, globalNamespace, module);
 
@@ -230,11 +252,11 @@ _.extend(Engine.prototype, {
         tools = new Tools(
             callStack,
             environment,
+            translator,
             globalNamespace,
             loader,
             module,
             options,
-            path,
             referenceFactory,
             scopeFactory,
             topLevelNamespaceScope,
@@ -246,39 +268,65 @@ _.extend(Engine.prototype, {
         callStack.push(callFactory.create(topLevelScope, topLevelNamespaceScope));
 
         function handleError(error, reject) {
+            var errorValue,
+                trace;
+
             if (error instanceof ExitValue) {
                 return error;
             }
 
             if (error instanceof ObjectValue) {
-                // Uncaught PHP Exceptions become E_FATAL errors
-                (function (value) {
-                    var error = value.getForThrow();
-
-                    if (!(error instanceof PHPException)) {
-                        throw new Exception('Weird value class thrown: ' + value.getClassName());
-                    }
-
-                    error = new PHPFatalError(
-                        PHPFatalError.UNCAUGHT_EXCEPTION,
-                        {
-                            name: value.getClassName()
-                        }
-                    );
-
-                    if (isMainProgram) {
-                        stderr.write(error.message);
-                    }
-
+                if (!isMainProgram) {
+                    // For included files/eval etc., just pass the Throwable up the call stack
                     reject(error);
-                }(error));
+
+                    return;
+                }
+
+                errorValue = error;
+                error = errorValue.coerceToNativeError();
+                trace = errorValue.getInternalProperty('trace');
+
+                if (error instanceof PHPParseError) {
+                    // ParseErrors are special - when they reach the top level scope,
+                    // if nothing has caught them then they are displayed as
+                    // "PHP Parse error: ..." rather than "PHP Fatal error: Uncaught ParseError ..."
+                    errorReporting.reportError(
+                        PHPError.E_PARSE,
+                        errorValue.getProperty('message').getNative(),
+                        errorValue.getProperty('file').getNative(),
+                        errorValue.getProperty('line').getNative(),
+                        trace,
+                        false
+                    );
+                } else {
+                    errorReporting.reportError(
+                        PHPError.E_ERROR,
+                        error.getMessage(),
+                        errorValue.getProperty('file').getNative(),
+                        errorValue.getProperty('line').getNative(),
+                        trace,
+                        errorValue.getInternalProperty('reportsOwnContext')
+                    );
+                }
+
+                reject(error);
 
                 return;
             }
 
             if (error instanceof PHPError) {
+                // Some fatal errors are not catchable
+
                 if (isMainProgram) {
-                    stderr.write(error.message);
+                    errorReporting.reportError(
+                        PHPError.E_ERROR,
+                        error.getMessage(),
+                        error.getFilePath(),
+                        error.getLineNumber(),
+                        null,
+                        false
+                    );
                 }
 
                 reject(error);

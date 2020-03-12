@@ -97,6 +97,13 @@ module.exports = require('pauser')([
         },
 
         /**
+         * {@inheritdoc}
+         */
+        isCallable: function () {
+            return false;
+        },
+
+        /**
          * Null is always classed as empty
          *
          * @returns {boolean}
@@ -123,6 +130,13 @@ module.exports = require('pauser')([
 
         isEqualToString: function (stringValue) {
             return stringValue.isEqualToNull();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        isIterable: function () {
+            return false;
         },
 
         /**

@@ -11,7 +11,9 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../tools');
+    phpCommon = require('phpcommon'),
+    tools = require('../tools'),
+    PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP array access operator integration', function () {
     it('should be able to push onto both indexed and associative arrays', function () {
@@ -85,5 +87,28 @@ EOS
                 my_key: 'the value for element 21'
             }
         ]);
+    });
+
+    it('should raise a fatal error on attempting to access a non-ArrayAccess object as an array', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass {}
+
+$object = new MyClass;
+
+$dummy = $object['some key'];
+
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('my_module.php', php),
+            engine = module();
+
+        expect(function () {
+            engine.execute();
+        }.bind(this)).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Cannot use object of type MyClass as array in my_module.php on line 7'
+        );
     });
 });

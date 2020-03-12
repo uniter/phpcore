@@ -22,6 +22,7 @@ module.exports = require('pauser')([
      * @param {Function} wrappedFunction
      * @param {Scope} enclosingScope
      * @param {ObjectValue|null} thisObject
+     * @param {FunctionSpec} functionSpec
      * @constructor
      */
     function Closure(
@@ -31,7 +32,8 @@ module.exports = require('pauser')([
         enclosingScope,
         unwrappedFunction,
         wrappedFunction,
-        thisObject
+        thisObject,
+        functionSpec
     ) {
         /**
          * @type {ClosureFactory}
@@ -41,6 +43,10 @@ module.exports = require('pauser')([
          * @type {Scope}
          */
         this.enclosingScope = enclosingScope;
+        /**
+         * @type {FunctionSpec}
+         */
+        this.functionSpec = functionSpec;
         /**
          * @type {NamespaceScope}
          */
@@ -80,7 +86,8 @@ module.exports = require('pauser')([
                 closure.unwrappedFunction,
                 closure.namespaceScope,
                 scopeClass || null,
-                thisObject
+                thisObject,
+                closure.functionSpec
             );
         },
 

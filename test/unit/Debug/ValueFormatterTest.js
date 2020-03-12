@@ -88,7 +88,7 @@ describe('ValueFormatter', function () {
             key1.getNative.returns('byValElementKey');
             key1.getType.returns('string');
             key2.getNative.returns(21);
-            key2.getType.returns('integer');
+            key2.getType.returns('int');
             key3.getNative.returns('byRefElementKey');
             key3.getType.returns('string');
             this.debugFactory.createValue
@@ -196,7 +196,7 @@ describe('ValueFormatter', function () {
         it('should display an IntegerValue correctly', function () {
             var value = sinon.createStubInstance(IntegerValue);
             value.getNative.returns(21);
-            value.getType.returns('integer');
+            value.getType.returns('int');
 
             expect(this.formatter.format(value)).to.deep.equal({
                 attributes: [],

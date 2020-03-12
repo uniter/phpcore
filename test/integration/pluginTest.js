@@ -56,4 +56,44 @@ EOS
 
         expect(engine.execute().getNative()).to.equal(21);
     });
+
+    it('should support installing a plugin with custom syntax', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+log_it 121 * 2; // A custom log statement
+EOS
+*/;}), //jshint ignore:line
+            module = tools.transpile(this.runtime, null, php, {
+                phpToAST: {
+                    rules: {
+                        'N_CUSTOM_LOG': {
+                            components: [/log_it/, {name: 'arg', rule: 'N_EXPRESSION'}, /;/]
+                        },
+                        'N_NAMESPACE_SCOPED_STATEMENT': {
+                            components: {oneOf: ['N_CUSTOM_LOG', 'N_NAMESPACE_SCOPED_STATEMENT']}
+                        }
+                    }
+                },
+                transpiler: {
+                    nodes: {
+                        'N_CUSTOM_LOG': function (node, interpret, context) {
+                            return context.createStatementSourceNode(
+                                ['stdout.write("Logged: " + ', interpret(node.arg, {getValue: true}), '.getNative());'],
+                                node
+                            );
+                        }
+                    }
+                }
+            }),
+            engine = module({
+                my_binding: {
+                    my_option: 21
+                }
+            });
+
+        engine.execute();
+
+        expect(engine.getStdout().readAll()).to.equal('Logged: 242');
+    });
 });

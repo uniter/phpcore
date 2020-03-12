@@ -11,7 +11,9 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../../tools');
+    phpCommon = require('phpcommon'),
+    tools = require('../../tools'),
+    PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP builtin IteratorAggregate interface integration', function () {
     it('should support iterating over an object that implements IteratorAggregate', function () {
@@ -85,5 +87,34 @@ EOS
             ['second', 'second element'],
             ['third', 'last element']
         ]);
+    });
+
+    it('should raise an Exception when ->getIterator() returns a non-traversable', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass implements IteratorAggregate
+{
+    public function getIterator() {
+        return 21; // Not a valid iterator
+    }
+}
+
+$object = new MyClass();
+
+foreach ($object as $value) {}
+
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/module.php', php),
+            engine = module();
+
+        expect(function () {
+            engine.execute();
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Exception: Objects returned by MyClass::getIterator() ' +
+            'must be traversable or implement interface Iterator in /path/to/module.php on line 12'
+        );
     });
 });

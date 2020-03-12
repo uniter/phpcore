@@ -27,7 +27,7 @@ _.extend(ElementProviderFactory.prototype, {
     /**
      * Creates a new ElementHookCollection to be passed to a HookableElementProvider
      *
-     * @return {ElementHookCollection}
+     * @returns {ElementHookCollection}
      */
     createElementHookCollection: function () {
         return new ElementHookCollection();
@@ -38,7 +38,7 @@ _.extend(ElementProviderFactory.prototype, {
      *
      * @param {ElementProvider} baseElementProvider
      * @param {ElementHookCollection} elementHookCollection
-     * @return {HookableElementProvider}
+     * @returns {HookableElementProvider}
      */
     createHookableProvider: function (baseElementProvider, elementHookCollection) {
         return new HookableElementProvider(baseElementProvider, elementHookCollection);
@@ -47,7 +47,7 @@ _.extend(ElementProviderFactory.prototype, {
     /**
      * Creates a new ElementProvider
      *
-     * @return {ElementProvider}
+     * @returns {ElementProvider}
      */
     createProvider: function () {
         return new ElementProvider();

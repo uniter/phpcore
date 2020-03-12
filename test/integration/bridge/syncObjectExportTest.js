@@ -84,7 +84,7 @@ EOS
 $myObject->myMETHODWithDifferentCase();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('my_module.php', php),
             phpEngine = module(),
             myObject = {
                 myMethodWithDifferentCase: function () {}
@@ -102,7 +102,7 @@ EOS
             phpEngine.execute();
         }).to.throw(
             PHPFatalError,
-            'PHP Fatal error: Call to undefined method JSObject::myMETHODWithDifferentCase()'
+            'PHP Fatal error: Uncaught Error: Call to undefined method JSObject::myMETHODWithDifferentCase() in my_module.php on line 2'
         );
     });
 
@@ -164,13 +164,40 @@ class MyClass
 return new MyClass();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/module.php', php),
             phpEngine = module(),
             myObject = phpEngine.execute().getNative();
 
         expect(function () {
             myObject.throwIt(9001);
-        }).to.throw(Error, 'PHP YourException: Oh no - 9001 (custom!)');
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught YourException: Oh no - 9001 (custom!) in /path/to/module.php on line 15'
+        );
+        expect(phpEngine.getStderr().readAll()).to.equal(
+            nowdoc(function () {/*<<<EOS
+PHP Fatal error:  Uncaught YourException: Oh no - 9001 (custom!) in /path/to/module.php:15
+Stack trace:
+#0 (JavaScript code)(unknown): MyClass->throwIt(9001)
+#1 {main}
+  thrown in /path/to/module.php on line 15
+
+EOS
+*/;}) //jshint ignore:line
+        );
+        // NB: Stdout should have a leading newline written out just before the message
+        expect(phpEngine.getStdout().readAll()).to.equal(
+            nowdoc(function () {/*<<<EOS
+
+Fatal error: Uncaught YourException: Oh no - 9001 (custom!) in /path/to/module.php:15
+Stack trace:
+#0 (JavaScript code)(unknown): MyClass->throwIt(9001)
+#1 {main}
+  thrown in /path/to/module.php on line 15
+
+EOS
+*/;}) //jshint ignore:line
+        );
     });
 
     it('should always export the same PHP object to the same unwrapped JS object', function () {

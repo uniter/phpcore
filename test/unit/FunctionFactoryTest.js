@@ -16,6 +16,7 @@ var expect = require('chai').expect,
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
+    FunctionSpec = require('../../src/Function/FunctionSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     Scope = require('../../src/Scope').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
@@ -50,27 +51,27 @@ describe('FunctionFactory', function () {
 
     describe('create()', function () {
         beforeEach(function () {
+            this.functionSpec = sinon.createStubInstance(FunctionSpec);
+
             this.callCreate = function (currentObject, staticClass) {
+                this.functionSpec.coerceArguments.returnsArg(0);
+                this.functionSpec.populateDefaultArguments.returnsArg(0);
+                this.functionSpec.getFunctionName.returns(this.name);
+
                 return this.factory.create(
                     this.namespaceScope,
                     this.currentClass,
                     this.func,
                     this.name,
                     currentObject || null,
-                    staticClass || null
+                    staticClass || null,
+                    this.functionSpec
                 );
             }.bind(this);
         });
 
-        it('should store the function name against the function when specified', function () {
-            expect(this.callCreate().funcName).to.equal('myFunction');
-        });
-
-        it('should store the correct function name against the function when not specified', function () {
-            this.name = '';
-            this.namespaceScope.getNamespacePrefix.returns('My\\Namespace\\');
-
-            expect(this.callCreate().funcName).to.equal('My\\Namespace\\{closure}');
+        it('should store the FunctionSpec against the function', function () {
+            expect(this.callCreate().functionSpec.getFunctionName()).to.equal('myFunction');
         });
 
         it('should return a wrapper function', function () {
@@ -84,21 +85,11 @@ describe('FunctionFactory', function () {
                 expect(this.callCreate()()).to.equal(123);
             });
 
-            it('should pass the NamespaceScope to the ScopeFactory', function () {
-                this.callCreate()();
-
-                expect(this.scopeFactory.create).to.have.been.calledOnce;
-                expect(this.scopeFactory.create).to.have.been.calledWith(
-                    sinon.match.same(this.namespaceScope)
-                );
-            });
-
             it('should pass the current Class to the ScopeFactory', function () {
                 this.callCreate()();
 
                 expect(this.scopeFactory.create).to.have.been.calledOnce;
                 expect(this.scopeFactory.create).to.have.been.calledWith(
-                    sinon.match.any,
                     sinon.match.same(this.currentClass)
                 );
             });
@@ -111,7 +102,6 @@ describe('FunctionFactory', function () {
                 expect(this.scopeFactory.create).to.have.been.calledOnce;
                 expect(this.scopeFactory.create).to.have.been.calledWith(
                     sinon.match.any,
-                    sinon.match.any,
                     sinon.match.same(wrapperFunction)
                 );
             });
@@ -123,7 +113,6 @@ describe('FunctionFactory', function () {
 
                 expect(this.scopeFactory.create).to.have.been.calledOnce;
                 expect(this.scopeFactory.create).to.have.been.calledWith(
-                    sinon.match.any,
                     sinon.match.any,
                     sinon.match.any,
                     sinon.match.same(currentObject)
@@ -217,7 +206,6 @@ describe('FunctionFactory', function () {
                 expect(this.scopeFactory.create).to.have.been.calledWith(
                     sinon.match.any,
                     sinon.match.any,
-                    sinon.match.any,
                     sinon.match.same(jsThisObjectValue)
                 );
             });
@@ -231,9 +219,24 @@ describe('FunctionFactory', function () {
                 expect(this.scopeFactory.create).to.have.been.calledWith(
                     sinon.match.any,
                     sinon.match.any,
-                    sinon.match.any,
                     null
                 );
+            });
+
+            it('should coerce parameter arguments as required', function () {
+                var argValue1 = this.valueFactory.createInteger(21),
+                    argValue2 = this.valueFactory.createInteger(101),
+                    coercedArgValue1 = this.valueFactory.createInteger(42),
+                    coercedArgValue2 = this.valueFactory.createInteger(202),
+                    func = this.callCreate();
+                this.functionSpec.coerceArguments
+                    .withArgs([sinon.match.same(argValue1), sinon.match.same(argValue2)])
+                    .returns([coercedArgValue1, coercedArgValue2]);
+
+                func(argValue1, argValue2);
+
+                expect(this.func).to.have.been.calledOnce;
+                expect(this.func).to.have.been.calledWith(coercedArgValue1, coercedArgValue2);
             });
 
             it('should push the call onto the stack', function () {
@@ -241,6 +244,40 @@ describe('FunctionFactory', function () {
 
                 expect(this.callStack.push).to.have.been.calledOnce;
                 expect(this.callStack.push).to.have.been.calledWith(sinon.match.same(this.call));
+            });
+
+            it('should validate parameter arguments at the right point', function () {
+                var argValue1 = this.valueFactory.createInteger(21),
+                    argValue2 = this.valueFactory.createInteger(101),
+                    func = this.callCreate();
+
+                func(argValue1, argValue2);
+
+                expect(this.functionSpec.validateArguments).to.have.been.calledOnce;
+                expect(this.functionSpec.validateArguments).to.have.been.calledWith([
+                    sinon.match.same(argValue1),
+                    sinon.match.same(argValue2)
+                ]);
+                expect(this.functionSpec.validateArguments)
+                    .to.have.been.calledAfter(this.functionSpec.coerceArguments);
+            });
+
+            it('should populate default argument values at the right point', function () {
+                var argValue1 = this.valueFactory.createInteger(21),
+                    argValue2 = this.valueFactory.createInteger(101),
+                    func = this.callCreate();
+
+                func(argValue1, argValue2);
+
+                expect(this.functionSpec.populateDefaultArguments).to.have.been.calledOnce;
+                expect(this.functionSpec.populateDefaultArguments).to.have.been.calledWith([
+                    sinon.match.same(argValue1),
+                    sinon.match.same(argValue2)
+                ]);
+                expect(this.functionSpec.populateDefaultArguments)
+                    .to.have.been.calledAfter(this.functionSpec.validateArguments);
+                expect(this.functionSpec.populateDefaultArguments)
+                    .to.have.been.calledBefore(this.callStack.pop);
             });
 
             it('should pop the call off the stack when the wrapped function returns', function () {
@@ -266,9 +303,18 @@ describe('FunctionFactory', function () {
             });
 
             it('should pass arguments through to the wrapped function', function () {
-                this.callCreate()(123, 'second', 'another');
+                var argValue1 = this.valueFactory.createInteger(123),
+                    argValue2 = this.valueFactory.createString('second'),
+                    argValue3 = this.valueFactory.createString('another');
 
-                expect(this.func).to.have.been.calledWith(123, 'second', 'another');
+                this.callCreate()(argValue1, argValue2, argValue3);
+
+                expect(this.func).to.have.been.calledOnce;
+                expect(this.func).to.have.been.calledWith(
+                    sinon.match.same(argValue1),
+                    sinon.match.same(argValue2),
+                    sinon.match.same(argValue3)
+                );
             });
         });
     });

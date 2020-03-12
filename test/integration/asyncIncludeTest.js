@@ -46,7 +46,7 @@ $num = include 'abc.php';
 return $num;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('my_module.php', php),
             options = {
                 include: function (path, promise) {
                     setTimeout(function () {
@@ -59,8 +59,8 @@ EOS
         engine.execute().then(when(done, function (result) {
             expect(result.getNative()).to.equal(false);
             expect(engine.getStderr().readAll()).to.equal(nowdoc(function () {/*<<<EOS
-PHP Warning: include(abc.php): failed to open stream: No such file or directory
-PHP Warning: include(): Failed opening 'abc.php' for inclusion
+PHP Warning:  include(abc.php): failed to open stream: No such file or directory in my_module.php on line 2
+PHP Warning:  include(): Failed opening 'abc.php' for inclusion in my_module.php on line 2
 
 EOS
 */;})); //jshint ignore:line
@@ -74,7 +74,7 @@ EOS
             done(new Error('Expected rejection, got resolve: ' + result));
         }, when(done, function (error) {
             expect(error.message).to.equal(
-                'include(no_transport.php) :: No "include" transport is available for loading the module.'
+                'include(no_transport.php) :: No "include" transport option is available for loading the module.'
             );
         }));
     });

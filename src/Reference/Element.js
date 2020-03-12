@@ -15,7 +15,8 @@ var _ = require('microdash'),
     KeyReferencePair = require('../KeyReferencePair'),
     KeyValuePair = require('../KeyValuePair'),
     PHPError = phpCommon.PHPError,
-    Reference = require('./Reference');
+    Reference = require('./Reference'),
+    ReferenceSlot = require('./ReferenceSlot');
 
 function ElementReference(valueFactory, callStack, arrayValue, key, value, reference) {
     if (value && reference) {
@@ -37,10 +38,6 @@ _.extend(ElementReference.prototype, {
         var element = this;
 
         return new ElementReference(element.valueFactory, element.callStack, element.arrayValue, element.key, element.value);
-    },
-
-    getInstancePropertyByName: function (name) {
-        return this.getValue().getInstancePropertyByName(name);
     },
 
     getKey: function () {
@@ -74,8 +71,28 @@ _.extend(ElementReference.prototype, {
         throw new Error('Element is not defined');
     },
 
+    /**
+     * Fetches a reference to this element's value
+     *
+     * @returns {Reference}
+     */
     getReference: function () {
-        return this;
+        var element = this;
+
+        if (element.reference) {
+            // This element already refers to something else, so return its target
+            return element.reference;
+        }
+
+        // Implicitly define a "slot" to contain this element's value
+        element.reference = new ReferenceSlot(element.valueFactory);
+
+        if (element.value) {
+            element.reference.setValue(element.value);
+            element.value = null; // This element now has a reference (to the slot) and not a value
+        }
+
+        return element.reference;
     },
 
     getValue: function () {
@@ -96,10 +113,15 @@ _.extend(ElementReference.prototype, {
         return element.reference || element.value || null;
     },
 
+    /**
+     * Determines whether this reference is defined
+     *
+     * @returns {boolean}
+     */
     isDefined: function () {
         var element = this;
 
-        return element.value || element.reference;
+        return !!(element.value || element.reference);
     },
 
     /**
@@ -118,7 +140,7 @@ _.extend(ElementReference.prototype, {
             return element.reference.getValue().isEmpty();
         }
 
-        return false;
+        return true; // Undefined elements are empty
     },
 
     isReference: function () {

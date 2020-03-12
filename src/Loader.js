@@ -13,14 +13,18 @@ module.exports = require('pauser')([
     require('microdash'),
     require('phpcommon'),
     require('./Value/Exit'),
-    require('./Exception/LoadFailedException')
+    require('./Exception/LoadFailedException'),
+    require('./Value')
 ], function (
     _,
     phpCommon,
     ExitValue,
-    LoadFailedException
+    LoadFailedException,
+    Value
 ) {
-    var Exception = phpCommon.Exception;
+    var Exception = phpCommon.Exception,
+        PHPFatalError = phpCommon.PHPFatalError,
+        PHPParseError = phpCommon.PHPParseError;
 
     /**
      * @param {ValueFactory} valueFactory
@@ -55,10 +59,11 @@ module.exports = require('pauser')([
          * @param {Module} module
          * @param {Scope} enclosingScope
          * @param {Function} load
-         * @return {*}
+         * @returns {*}
          */
         load: function (type, path, options, environment, module, enclosingScope, load) {
             var done = false,
+                errorResult = null,
                 loader = this,
                 pause = null,
                 result,
@@ -122,19 +127,57 @@ module.exports = require('pauser')([
             }
 
             function reject(error) {
-                var subError = new LoadFailedException(error);
+                var filePath,
+                    lineNumber,
+                    subError;
+
+                if (error instanceof PHPParseError) {
+                    filePath = error.getFilePath();
+                    lineNumber = error.getLineNumber();
+
+                    // Parse errors should be thrown as a ParseError in PHP 7+
+                    // NB: The Error class' constructor will fetch file and line number info
+                    subError = loader.valueFactory.createErrorObject(
+                        'ParseError',
+                        error.getMessage(),
+                        null,
+                        null,
+                        filePath !== null ? filePath : '(unknown)',
+                        lineNumber !== null ? lineNumber : 0
+                    );
+                } else if (error instanceof PHPFatalError) {
+                    // Uncatchable fatal error (?)
+
+                    subError = error;
+                } else if (error instanceof Value) {
+                    // Throwable Error, Exception or an exit occurred (ExitValue)
+
+                    subError = error;
+                } else {
+                    subError = new LoadFailedException(error);
+                }
 
                 if (pause) {
                     pause.throw(subError);
                 } else {
-                    throw subError;
+                    errorResult = subError;
                 }
             }
 
-            load(path, {
-                reject: reject,
-                resolve: resolve
-            }, module.getFilePath(), loader.valueFactory);
+            // NB: The loader may throw an error, which will be caught and passed to reject()
+            //     for consistent behaviour
+            try {
+                load(path, {
+                    reject: reject,
+                    resolve: resolve
+                }, module.getFilePath(), loader.valueFactory);
+            } catch (error) {
+                reject(error);
+            }
+
+            if (errorResult) {
+                throw errorResult;
+            }
 
             if (done) {
                 return result;

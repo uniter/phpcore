@@ -18,17 +18,20 @@ module.exports = require('pauser')([
 ) {
     var hasOwn = {}.hasOwnProperty,
         IS_STATIC = 'isStatic',
-        PHPFatalError = phpCommon.PHPFatalError;
+        PHPError = phpCommon.PHPError,
+
+        CANNOT_ACCESS_WHEN_NO_ACTIVE_CLASS = 'core.cannot_access_when_no_active_class',
+        NO_PARENT_CLASS = 'core.no_parent_class';
 
     /**
      * @param {CallStack} callStack
      * @param {Scope} globalScope
      * @param {SuperGlobalScope} superGlobalScope
      * @param {ClosureFactory} closureFactory
+     * @param {FunctionSpecFactory} functionSpecFactory
      * @param {ValueFactory} valueFactory
      * @param {VariableFactory} variableFactory
      * @param {ReferenceFactory} referenceFactory
-     * @param {NamespaceScope} namespaceScope
      * @param {Class|null} currentClass
      * @param {Function|null} currentFunction
      * @param {ObjectValue|null} thisObject
@@ -39,10 +42,10 @@ module.exports = require('pauser')([
         globalScope,
         superGlobalScope,
         closureFactory,
+        functionSpecFactory,
         valueFactory,
         variableFactory,
         referenceFactory,
-        namespaceScope,
         currentClass,
         currentFunction,
         thisObject
@@ -51,11 +54,14 @@ module.exports = require('pauser')([
 
         this.callStack = callStack;
         this.closureFactory = closureFactory;
+        /**
+         * @type {Class|null}
+         */
         this.currentClass = currentClass;
         this.currentFunction = currentFunction;
         this.errorsSuppressed = false;
+        this.functionSpecFactory = functionSpecFactory;
         this.globalScope = globalScope || this;
-        this.namespaceScope = namespaceScope;
         this.referenceFactory = referenceFactory;
         this.superGlobalScope = superGlobalScope;
         this.thisObject = currentFunction && currentFunction[IS_STATIC] ? null : thisObject;
@@ -74,12 +80,16 @@ module.exports = require('pauser')([
         /**
          * Creates a closure, either static (with no `$this` object bound) or non-static
          *
+         * @param {NamespaceScope} namespaceScope
          * @param {Function} func
-         * @param {boolean|undefined} isStatic
+         * @param {Array=} parametersSpecData
+         * @param {boolean=} isStatic
+         * @param {number|null=} lineNumber
          * @returns {Closure}
          */
-        createClosure: function (func, isStatic) {
-            var scope = this,
+        createClosure: function (namespaceScope, func, parametersSpecData, isStatic, lineNumber) {
+            var functionSpec,
+                scope = this,
                 thisObject = null;
 
             // Fetch the `$this` object to bind to the closure from the current scope,
@@ -89,15 +99,30 @@ module.exports = require('pauser')([
                 thisObject = scope.thisObject;
             }
 
+            functionSpec = scope.functionSpecFactory.createClosureSpec(
+                namespaceScope,
+                scope.currentClass,
+                parametersSpecData || [],
+                namespaceScope.getFilePath(),
+                lineNumber
+            );
+
             return scope.closureFactory.create(
                 scope,
                 func,
-                scope.namespaceScope,
+                namespaceScope,
                 scope.currentClass,
-                thisObject
+                thisObject,
+                functionSpec
             );
         },
 
+        /**
+         * Defines a variable with the given name in this scope
+         *
+         * @param {string} name
+         * @returns {Variable}
+         */
         defineVariable: function (name) {
             var scope = this,
                 variable = scope.variableFactory.createVariable(name);
@@ -107,6 +132,11 @@ module.exports = require('pauser')([
             return variable;
         },
 
+        /**
+         * Defines one or more variables with the given names in this scope
+         *
+         * @param {string[]} names
+         */
         defineVariables: function (names) {
             var scope = this;
 
@@ -134,13 +164,24 @@ module.exports = require('pauser')([
             return values;
         },
 
-        expose: function (object, name) {
+        /**
+         * Defines a variable in the current scope with the given native value
+         *
+         * @param {Value|*} value
+         * @param {string} name
+         */
+        expose: function (value, name) {
             var scope = this,
                 valueFactory = scope.valueFactory;
 
-            scope.defineVariable(name).setValue(valueFactory.coerce(object));
+            scope.defineVariable(name).setValue(valueFactory.coerce(value));
         },
 
+        /**
+         * Fetches the name of the current class, or an empty string if there is none
+         *
+         * @returns {StringValue}
+         */
         getClassName: function () {
             var scope = this;
 
@@ -160,7 +201,7 @@ module.exports = require('pauser')([
 
             if (!scope.currentClass) {
                 // PHP Fatal error: Uncaught Error: Cannot access self:: when no class scope is active
-                throw new PHPFatalError(PHPFatalError.CANNOT_ACCESS_WHEN_NO_ACTIVE_CLASS, {
+                scope.callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_ACCESS_WHEN_NO_ACTIVE_CLASS, {
                     className: 'self'
                 });
             }
@@ -168,39 +209,58 @@ module.exports = require('pauser')([
             return scope.valueFactory.createString(scope.currentClass.getName());
         },
 
+        /**
+         * Fetches the current class, if any
+         *
+         * @returns {Class|null}
+         */
         getCurrentClass: function () {
             return this.currentClass;
         },
 
+        /**
+         * Fetches the current file path, taking eval into account
+         *
+         * @param {string|null} filePath
+         * @returns {string|null}
+         */
+        getFilePath: function (filePath) {
+            return filePath; // Passes through unaltered: see LoadScope for where a change is made
+        },
+
+        /**
+         * Fetches the current function name (used by eg. the magic __FUNCTION__ constant)
+         *
+         * @returns {StringValue}
+         */
         getFunctionName: function () {
             var scope = this,
                 functionName = '';
 
             if (scope.currentFunction) {
-                functionName = scope.currentFunction.funcName;
-
-                if (!scope.currentClass) {
-                    functionName = scope.namespaceScope.getNamespacePrefix() + functionName;
-                }
+                // NB: Method functions have no special treatment here -
+                //     the owning namespace and/or class will be omitted
+                functionName = scope.currentFunction.functionSpec.getUnprefixedFunctionName();
             }
 
             return scope.valueFactory.createString(functionName);
         },
 
-        getMethodName: function () {
+        /**
+         * Fetches the current method name (used by eg. the magic __METHOD__ constant)
+         *
+         * Note that this differs from .getFunctionName() when the current function is a method
+         *
+         * @param {boolean=} isStaticCall
+         * @returns {StringValue}
+         */
+        getMethodName: function (isStaticCall) {
             var scope = this,
                 functionName = '';
 
             if (scope.currentFunction) {
-                functionName = scope.currentFunction.funcName;
-
-                if (scope.currentClass) {
-                    // Methods are prefixed with namespace, class and `::`
-                    functionName = scope.currentClass.getName() + '::' + functionName;
-                } else {
-                    // Normal functions are prefixed with namespace
-                    functionName = scope.namespaceScope.getNamespacePrefix() + functionName;
-                }
+                // NB: Methods are prefixed with namespace, class and `::`
+                functionName = scope.currentFunction.functionSpec.getFunctionName(isStaticCall !== false);
             }
 
             return scope.valueFactory.createString(functionName);
@@ -218,7 +278,7 @@ module.exports = require('pauser')([
 
             if (!scope.currentClass) {
                 // PHP Fatal error: Uncaught Error: Cannot access parent:: when no class scope is active
-                throw new PHPFatalError(PHPFatalError.CANNOT_ACCESS_WHEN_NO_ACTIVE_CLASS, {
+                scope.callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_ACCESS_WHEN_NO_ACTIVE_CLASS, {
                     className: 'parent'
                 });
             }
@@ -227,7 +287,7 @@ module.exports = require('pauser')([
 
             if (!superClass) {
                 // PHP Fatal error: Uncaught Error: Cannot access parent:: when current class scope has no parent
-                throw new PHPFatalError(PHPFatalError.NO_PARENT_CLASS);
+                scope.callStack.raiseTranslatedError(PHPError.E_ERROR, NO_PARENT_CLASS);
             }
 
             return scope.valueFactory.createString(superClass.getName());
@@ -246,7 +306,7 @@ module.exports = require('pauser')([
 
             if (!staticClass) {
                 // PHP Fatal error: Uncaught Error: Cannot access static:: when no class scope is active
-                throw new PHPFatalError(PHPFatalError.CANNOT_ACCESS_WHEN_NO_ACTIVE_CLASS, {
+                scope.callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_ACCESS_WHEN_NO_ACTIVE_CLASS, {
                     className: 'static'
                 });
             }
@@ -254,10 +314,41 @@ module.exports = require('pauser')([
             return scope.valueFactory.createString(staticClass.getName());
         },
 
+        /**
+         * Fetches the current object (the value of $this) if any
+         *
+         * @returns {ObjectValue|null}
+         */
         getThisObject: function () {
             return this.thisObject;
         },
 
+        /**
+         * Fetches the current function or method name as used in stack traces
+         *
+         * Note that this differs from .getFunctionName() and .getMethodName()
+         *
+         * @returns {string}
+         */
+        getTraceFrameName: function () {
+            var scope = this,
+                functionName = '';
+
+            if (scope.currentFunction) {
+                // NB: Methods are prefixed with namespace, class and `::`
+                functionName = scope.currentFunction.functionSpec.getFunctionTraceFrameName(scope.isStatic());
+            }
+
+            return functionName;
+        },
+
+        /**
+         * Fetches a variable for the current or super global scope,
+         * implicitly defining it if needed
+         *
+         * @param {string} name
+         * @returns {Variable}
+         */
         getVariable: function (name) {
             var scope = this,
                 variable;
@@ -298,9 +389,7 @@ module.exports = require('pauser')([
             }
 
             scope.getVariable(variableName).setReference(
-                scope.referenceFactory.createVariable(
-                    scope.globalScope.getVariable(variableName)
-                )
+                scope.globalScope.getVariable(variableName).getReference()
             );
         },
 
@@ -339,36 +428,63 @@ module.exports = require('pauser')([
 
                 // Define a variable in the current scope that is a reference
                 // to the static variable stored against either the current function or the global scope if none
-                scope.getVariable(variableName).setReference(
-                    scope.referenceFactory.createVariable(
-                        staticVariable
-                    )
-                );
+                scope.getVariable(variableName).setReference(staticVariable.getReference());
             } else {
                 scope.getVariable(variableName).setValue(initialValue);
             }
         },
 
+        /**
+         * Whether this call scope is in a static context or not
+         *
+         * @returns {boolean}
+         */
+        isStatic: function () {
+            return !this.thisObject;
+        },
+
+        /**
+         * Suppresses errors for this and any descendant scopes
+         */
         suppressErrors: function () {
             this.errorsSuppressed = true;
         },
 
+        /**
+         * Suppresses errors for only this and not any descendant scopes
+         */
         suppressOwnErrors: function () {
             this.ownErrorsSuppressed = true;
         },
 
+        /**
+         * Determines whether errors have been suppressed for this and any descendant scopes
+         *
+         * @returns {boolean}
+         */
         suppressesErrors: function () {
             return this.errorsSuppressed;
         },
 
+        /**
+         * Determines whether errors have been suppressed for this but not any descendant scopes
+         *
+         * @returns {boolean}
+         */
         suppressesOwnErrors: function () {
             return this.ownErrorsSuppressed;
         },
 
+        /**
+         * Unsuppresses errors for this and any descendant scopes
+         */
         unsuppressErrors: function () {
             this.errorsSuppressed = false;
         },
 
+        /**
+         * Unsuppresses errors for this but not any descendant scopes
+         */
         unsuppressOwnErrors: function () {
             this.ownErrorsSuppressed = false;
         }

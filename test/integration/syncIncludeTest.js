@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     nowdoc = require('nowdoc'),
     tools = require('./tools'),
+    PHPFatalError = phpCommon.PHPFatalError,
     PHPParseError = phpCommon.PHPParseError;
 
 describe('PHP synchronous "include" statement integration', function () {
@@ -43,6 +44,44 @@ EOS
         expect(engine.getStdout().readAll()).to.equal('before inside after');
     });
 
+    it('should correctly handle magic constants used from inside the included file', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+function myFunction () {
+    return include '/sub/path/to/magic_constants.php';
+}
+return myFunction();
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            options = {
+                path: '/path/to/my/caller.php',
+                include: function (path, promise) {
+                    var childPHP = nowdoc(function () {/*<<<EOS
+<?php
+
+return [
+    'magic file const' => __FILE__,
+    'magic dir const' => __DIR__,
+    'magic line const' => __LINE__,
+    'magic function const' => __FUNCTION__,
+    'magic method const' => __METHOD__
+];
+EOS
+*/;}); //jshint ignore:line
+                    promise.resolve(tools.syncTranspile(path, childPHP));
+                }
+            };
+
+        expect(module(options).execute().getNative()).to.deep.equal({
+            'magic file const': '/sub/path/to/magic_constants.php',
+            'magic dir const': '/sub/path/to',
+            'magic line const': 6,
+            'magic function const': '', // Included module should not be aware of the including function
+            'magic method const': ''    // Included module should not be aware of the including method
+        });
+    });
+
     it('should pass the calling file\'s path to the transport', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -68,7 +107,7 @@ $num = include 'abc.php';
 return $num;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('a_module.php', php),
             options = {
                 include: function (path, promise) {
                     promise.reject();
@@ -78,8 +117,8 @@ EOS
 
             expect(engine.execute().getNative()).to.equal(false);
             expect(engine.getStderr().readAll()).to.equal(nowdoc(function () {/*<<<EOS
-PHP Warning: include(abc.php): failed to open stream: No such file or directory
-PHP Warning: include(): Failed opening 'abc.php' for inclusion
+PHP Warning:  include(abc.php): failed to open stream: No such file or directory in a_module.php on line 2
+PHP Warning:  include(): Failed opening 'abc.php' for inclusion in a_module.php on line 2
 
 EOS
 */;})); //jshint ignore:line
@@ -88,20 +127,135 @@ EOS
     it('should correctly trap a parse error in included file', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
+
 $num = include 'abc.php';
 return $num;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('my_parent.php', php),
             options = {
                 include: function (path, promise) {
-                    promise.resolve(tools.syncTranspile(path, '<?php abab'));
+                    try {
+                        promise.resolve(tools.syncTranspile(path, '<?php abab'));
+                    } catch (error) {
+                        promise.reject(error);
+                    }
                 }
-            };
+            },
+            engine = module(options);
 
+        // NB:  The line number and file of the ParseError should be that of the included file,
+        //      not the includer/parent
+        // NB2: Unlike other errors, an uncaught ParseError is displayed as "PHP Parse error: ..."
+        //      as below, _not_ as eg. "PHP Fatal error: Uncaught ParseError ..."
         expect(function () {
-            module(options).execute();
-        }).to.throw(PHPParseError, 'PHP Parse error: syntax error, unexpected $end in abc.php on line 1');
+            engine.execute();
+        }).to.throw(PHPParseError, 'PHP Parse error: syntax error, unexpected end of file in abc.php on line 1');
+        expect(engine.getStderr().readAll()).to.equal(
+            'PHP Parse error:  syntax error, unexpected end of file in abc.php on line 1\n'
+        );
+        // NB: Stdout should have a leading newline written out just before the message
+        expect(engine.getStdout().readAll()).to.equal(
+            '\nParse error: syntax error, unexpected end of file in abc.php on line 1\n'
+        );
+    });
+
+    it('should correctly trap a compile-time fatal error in included file', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+// Some padding to increase the line number of the caller
+
+$num = include 'my_invalid_goto.php';
+return $num;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile('my_parent.php', php),
+            options = {
+                include: function (path, promise) {
+                    // Goto to undefined label in included file should raise a fatal error
+                    try {
+                        promise.resolve(tools.syncTranspile(path, '<?php\n\ngoto my_undefined_label;'));
+                    } catch (error) {
+                        promise.reject(error);
+                    }
+                }
+            },
+            engine = module(options);
+
+        // NB:  The line number and file of the error should be that of the included file,
+        //      not the includer/parent
+        // NB2: Unlike other errors, an uncaught compile-time fatal error is displayed as "PHP Fatal error: ..."
+        //      as below, _not_ as eg. "PHP Fatal error: Uncaught Error ..."
+        expect(function () {
+            engine.execute();
+        }).to.throw(PHPFatalError, 'PHP Fatal error: \'goto\' to undefined label \'my_undefined_label\' in my_invalid_goto.php on line 3');
+        expect(engine.getStderr().readAll()).to.equal(
+            'PHP Fatal error:  \'goto\' to undefined label \'my_undefined_label\' in my_invalid_goto.php on line 3\n'
+        );
+        // NB: Stdout should have a leading newline written out just before the message
+        expect(engine.getStdout().readAll()).to.equal(
+            '\nFatal error: \'goto\' to undefined label \'my_undefined_label\' in my_invalid_goto.php on line 3\n'
+        );
+    });
+
+    it('should correctly trap a runtime error in included file that is uncaught and becomes fatal', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+// Some padding to increase the line number of the caller
+
+$num = include '/some/path/my_undefined_function_caller.php';
+return $num;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile('my_parent.php', php),
+            options = {
+                include: function (path, promise) {
+                    try {
+                        promise.resolve(tools.syncTranspile(path, '<?php\n\nmy_undefined_func();'));
+                    } catch (error) {
+                        promise.reject(error);
+                    }
+                }
+            },
+            engine = module(options);
+
+        // NB: The line number and file of the error should be that of the included file,
+        //     not the includer/parent
+        expect(function () {
+            engine.execute();
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Call to undefined function my_undefined_func() in /some/path/my_undefined_function_caller.php on line 3'
+        );
+        // Stdout (and stderr) should have the file/line combination in colon-separated format
+        expect(engine.getStdout().readAll()).to.equal(
+            // NB: Stdout should have a leading newline written out just before the message
+            nowdoc(function () {/*<<<EOS
+
+Fatal error: Uncaught Error: Call to undefined function my_undefined_func() in /some/path/my_undefined_function_caller.php:3
+Stack trace:
+#0 my_parent.php(5): include()
+#1 {main}
+  thrown in /some/path/my_undefined_function_caller.php on line 3
+
+EOS
+*/;}) //jshint ignore:line
+        );
+        // Stderr should have the whole message prefixed with "PHP " and two spaces before "Uncaught ..."
+        expect(engine.getStderr().readAll()).to.equal(
+            // There should be no space between the "before" string printed and the error message
+            nowdoc(function () {/*<<<EOS
+PHP Fatal error:  Uncaught Error: Call to undefined function my_undefined_func() in /some/path/my_undefined_function_caller.php:3
+Stack trace:
+#0 my_parent.php(5): include()
+#1 {main}
+  thrown in /some/path/my_undefined_function_caller.php on line 3
+
+EOS
+*/;}) //jshint ignore:line
+        );
     });
 
     it('should correctly trap when no include transport is configured', function () {
@@ -109,7 +263,7 @@ EOS
 
         expect(function () {
             module().execute();
-        }).to.throw('include(no_transport.php) :: No "include" transport is available for loading the module.');
+        }).to.throw('include(no_transport.php) :: No "include" transport option is available for loading the module.');
     });
 
     it('should use the same stdout stream for included modules', function () {

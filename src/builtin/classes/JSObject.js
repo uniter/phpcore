@@ -10,11 +10,14 @@
 'use strict';
 
 var _ = require('microdash'),
+    phpCommon = require('phpcommon'),
     FFIResult = require('../../FFI/Result'),
-    PHPFatalError = require('phpcommon').PHPFatalError;
+    PHPError = phpCommon.PHPError,
+    UNDEFINED_METHOD = 'core.undefined_method';
 
 module.exports = function (internals) {
-    var pausable = internals.pausable,
+    var callStack = internals.callStack,
+        pausable = internals.pausable,
         /**
          * Checks whether the returned result is an FFI Result and if so,
          * if we are in async mode, it pauses PHP execution until the promise
@@ -66,13 +69,10 @@ module.exports = function (internals) {
                 result;
 
             if (!_.isFunction(object[name])) {
-                throw new PHPFatalError(
-                    PHPFatalError.UNDEFINED_METHOD,
-                    {
-                        className: 'JSObject',
-                        methodName: name
-                    }
-                );
+                callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_METHOD, {
+                    className: 'JSObject',
+                    methodName: name
+                });
             }
 
             result = object[name].apply(object, args);

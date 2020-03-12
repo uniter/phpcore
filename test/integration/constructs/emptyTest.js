@@ -22,7 +22,6 @@ class MyClass {
     public static $myVar = 0;
 }
 
-$object = new stdClass;
 $aRandomVar = 0;
 $anArray = ['anElement' => false];
 $anObject = (object)['aProp' => ''];
@@ -97,13 +96,15 @@ EOS
 <?php
 
 class MyClass {}
+$anArray = ['anElement' => 21];
 
 $object = new stdClass;
 
 $result = [];
 $result[] = empty($aRandomVar);
-$result[] = empty($anArray['anElement']);
-$result[] = empty($anObject->aProp);
+$result[] = empty($anArray['anUndefinedElement']);
+$result[] = empty($anUndefinedArray['anElement']);
+$result[] = empty($anUndefinedObject->aProp);
 $result[] = empty(MyClass::$someUndefinedProp);
 
 return $result;
@@ -116,6 +117,7 @@ EOS
             true, // Not defined, so classed as empty
             true,
             true,
+            true,
             true
         ]);
         // No warnings/notices should be raised, even though the variable/element/property are not defined
@@ -125,6 +127,7 @@ EOS
     it('should not suppress errors from a function called inside empty(...) construct', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
+ini_set('error_reporting', E_ALL); // Notices are hidden by default
 
 function myFunc() {
     return $anotherUndefVar;
@@ -135,13 +138,13 @@ $result = empty($undefVar[myFunc()]);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('the_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.be.true; // Expect true, as the variable was not defined
         expect(engine.getStderr().readAll()).to.equal(
             nowdoc(function () {/*<<<EOS
-PHP Notice: Undefined variable: anotherUndefVar
+PHP Notice:  Undefined variable: anotherUndefVar in the_module.php on line 5
 
 EOS
 */;}) //jshint ignore:line

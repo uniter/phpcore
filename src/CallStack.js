@@ -15,18 +15,28 @@ var _ = require('microdash'),
     PHPFatalError = phpCommon.PHPFatalError;
 
 /**
- * @param {Stream} stderr
+ * @param {ValueFactory} valueFactory
+ * @param {Translator} translator
+ * @param {ErrorReporting} errorReporting
  * @constructor
  */
-function CallStack(stderr) {
+function CallStack(valueFactory, translator, errorReporting) {
     /**
      * @type {Call[]}
      */
     this.calls = [];
     /**
-     * @type {Stream}
+     * @type {ErrorReporting}
      */
-    this.stderr = stderr;
+    this.errorReporting = errorReporting;
+    /**
+     * @type {Translator}
+     */
+    this.translator = translator;
+    /**
+     * @type {ValueFactory}
+     */
+    this.valueFactory = valueFactory;
 }
 
 _.extend(CallStack.prototype, {
@@ -39,6 +49,28 @@ _.extend(CallStack.prototype, {
         var chain = this;
 
         return chain.calls[chain.calls.length - 2] || null;
+    },
+
+    /**
+     * Fetches the path to the file containing the last line of code executed
+     *
+     * @returns {string|null}
+     */
+    getCallerFilePath: function () {
+        var caller = this.getUserlandCaller();
+
+        return caller ? caller.getFilePath() : null;
+    },
+
+    /**
+     * Fetches the number of the last line of code executed in the caller
+     *
+     * @returns {number|null}
+     */
+    getCallerLastLine: function () {
+        var caller = this.getUserlandCaller();
+
+        return caller ? caller.getLastLine() : null;
     },
 
     /**
@@ -77,7 +109,7 @@ _.extend(CallStack.prototype, {
             return null;
         }
 
-        return call.getScope().getCurrentClass();
+        return call.getCurrentClass();
     },
 
     /**
@@ -86,7 +118,9 @@ _.extend(CallStack.prototype, {
      * @returns {string|null}
      */
     getLastFilePath: function () {
-        return this.getCurrent().getFilePath();
+        var caller = this.getUserlandCallee();
+
+        return caller ? caller.getFilePath() : null;
     },
 
     /**
@@ -95,13 +129,15 @@ _.extend(CallStack.prototype, {
      * @returns {number|null}
      */
     getLastLine: function () {
-        return this.getCurrent().getLastLine();
+        var caller = this.getUserlandCallee();
+
+        return caller ? caller.getLastLine() : null;
     },
 
     /**
      * Fetches the number of calls on the stack (stack depth)
      *
-     * @return {number}
+     * @returns {number}
      */
     getLength: function () {
         return this.calls.length;
@@ -135,7 +171,7 @@ _.extend(CallStack.prototype, {
     },
 
     /**
-     * Fetches the ObjectValue that is the current `$this` object
+     * Fetches the ObjectValue that is the current `$this` object, if any
      *
      * @returns {ObjectValue|null}
      */
@@ -146,7 +182,7 @@ _.extend(CallStack.prototype, {
             return null;
         }
 
-        return currentCall.getScope().getThisObject();
+        return currentCall.getThisObject();
     },
 
     /**
@@ -155,24 +191,88 @@ _.extend(CallStack.prototype, {
      * @returns {{index: number, file: string, line: number, func: function, args: *[]}[]}
      */
     getTrace: function () {
-        var callStack = this,
+        var call,
+            callStack = this,
+            index,
             trace = [],
-            chronoIndex = callStack.calls.length - 1;
+            chronoIndex = callStack.calls.length - 2;
 
-        _.each(callStack.calls, function (call, index) {
+        for (index = 1; index < callStack.calls.length; index++) {
+            call = callStack.calls[index];
+
             trace.unshift({
                 // Most recent call should have index 0
                 index: chronoIndex--,
-                file: call.getFilePath(),
+                file: callStack.calls[index - 1].getTraceFilePath(),
                 // Fetch the line number the call _occurred on_, rather than the line
                 // last executed inside the called function
-                line: index > 0 ? callStack.calls[index - 1].getLastLine() : null,
+                line: callStack.calls[index - 1].getLastLine(),
                 func: call.getFunctionName(),
                 args: call.getFunctionArgs()
             });
-        });
+        }
 
         return trace;
+    },
+
+    /**
+     * Fetches the PHP-land call for the current stack frame. If we are currently
+     * executing a built-in function called from a PHP method, the PHP method
+     * would be the PHP-land (userland) caller.
+     *
+     * @returns {Call|null}
+     */
+    getUserlandCallee: function () {
+        var call,
+            callStack = this,
+            index;
+
+        if (callStack.calls.length === 0) {
+            return null;
+        }
+
+        index = callStack.calls.length - 1;
+        call = callStack.calls[index];
+
+        do {
+            if (call.isUserland() || index === 0) {
+                return call;
+            }
+
+            call = callStack.calls[--index];
+        } while (call);
+
+        throw new Error('Could not find a valid userland callee');
+    },
+
+    /**
+     * Fetches the PHP-land call for the current stack frame. If we are currently
+     * executing a built-in function called from a PHP method, the PHP method
+     * would be the PHP-land (userland) caller.
+     *
+     * @returns {Call|null}
+     */
+    getUserlandCaller: function () {
+        var call,
+            callStack = this,
+            index;
+
+        if (callStack.calls.length < 2) {
+            return null;
+        }
+
+        index = callStack.calls.length - 2;
+        call = callStack.calls[index];
+
+        do {
+            if (call.isUserland() || index === 0) {
+                return call;
+            }
+
+            call = callStack.calls[--index];
+        } while (call);
+
+        throw new Error('Could not find a valid userland caller');
     },
 
     /**
@@ -203,40 +303,105 @@ _.extend(CallStack.prototype, {
     /**
      * Raises an error/warning with the specified level and message
      *
+     * @TODO: Most places where this function is called provide built-in strings,
+     *        which we should move to translations. An exception is trigger_error(...)'s user-provided messages
      * @param {string} level One of the PHPError.E_* constants, eg. `PHPError.E_WARNING`
      * @param {string} message String text message representing the error
+     * @param {string=} errorClass
+     * @param {boolean=} reportsOwnContext Whether the error handles reporting its own file/line context
      */
-    raiseError: function (level, message) {
+    raiseError: function (level, message, errorClass, reportsOwnContext) {
         var call,
             chain = this,
             calls = chain.calls,
-            error,
             index;
 
-        if (level === PHPError.E_FATAL) {
-            // (Fatal) errors need to actually stop execution
-            throw new PHPFatalError(PHPFatalError.GENERIC, {
-                message: message + '\n'
-            });
+        if (level === PHPError.E_ERROR) {
+            // Throw an uncatchable fatal error (catchable errors must be thrown
+            // via .raiseTranslatedError(...))
+            throw new PHPFatalError(message, chain.getLastFilePath(), chain.getLastLine());
         }
 
         // Some constructs like isset(...) should only suppress errors
         // for their own scope
-        if (chain.getCurrent().getScope().suppressesOwnErrors()) {
+        call = chain.getCurrent();
+
+        if (call && call.suppressesOwnErrors()) {
             return;
         }
 
+        // Check whether any parent scope is set to suppress errors (eg. with the @-operator)
         for (index = calls.length - 1; index >= 0; --index) {
             call = calls[index];
 
-            if (call.getScope().suppressesErrors()) {
+            if (call.suppressesErrors()) {
                 return;
             }
         }
 
-        error = new PHPError(level, message);
+        chain.errorReporting.reportError(
+            level,
+            message,
+            chain.getLastFilePath(),
+            chain.getLastLine(),
+            chain.getTrace(),
+            !!reportsOwnContext
+        );
+    },
 
-        chain.stderr.write(error.message + '\n');
+    /**
+     * Raises a catchable Error or a notice/warning with the specified level, message translation key and variables
+     *
+     * @param {string} level One of the PHPError.E_* constants, eg. `PHPError.E_WARNING`
+     * @param {string} translationKey
+     * @param {Object.<string, string>=} placeholderVariables
+     * @param {string=} errorClass
+     * @param {boolean=} reportsOwnContext Whether the error handles reporting its own file/line context
+     * @param {string=} filePath
+     * @param {number=} lineNumber
+     * @throws {ObjectValue} Throws an ObjectValue-wrapped Throwable if not a notice or warning
+     */
+    raiseTranslatedError: function (
+        level,
+        translationKey,
+        placeholderVariables,
+        errorClass,
+        reportsOwnContext,
+        filePath,
+        lineNumber
+    ) {
+        var callStack = this,
+            message = callStack.translator.translate(translationKey, placeholderVariables);
+
+        if (level === PHPError.E_ERROR) {
+            // Non-warning/non-notice errors need to actually stop execution
+            // NB: The Error class' constructor will fetch file and line number info
+            throw callStack.valueFactory.createErrorObject(
+                errorClass || 'Error',
+                message,
+                null,
+                null,
+                filePath,
+                lineNumber,
+                reportsOwnContext
+            );
+        }
+
+        callStack.raiseError(level, message, errorClass, reportsOwnContext);
+    },
+
+    /**
+     * Raises an uncatchable PHP fatal error with the specified message translation key and variables
+     *
+     * @param {string} translationKey
+     * @param {Object.<string, string>=} placeholderVariables
+     * @throws {PHPFatalError} Throws an uncatchable PHPFatalError
+     */
+    raiseUncatchableFatalError: function (translationKey, placeholderVariables) {
+        var callStack = this,
+            message = callStack.translator.translate(translationKey, placeholderVariables);
+
+        callStack.raiseError(PHPError.E_ERROR, message);
     }
 });
 

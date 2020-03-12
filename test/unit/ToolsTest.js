@@ -22,15 +22,19 @@ var expect = require('chai').expect,
     KeyValuePair = require('../../src/KeyValuePair'),
     List = require('../../src/List'),
     Loader = require('../../src/Loader').sync(),
+    LoadFailedException = require('../../src/Exception/LoadFailedException'),
+    LoadScope = require('../../src/LoadScope'),
     Module = require('../../src/Module'),
     Namespace = require('../../src/Namespace').sync(),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
+    PHPError = phpCommon.PHPError,
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     Scope = require('../../src/Scope').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
     StringValue = require('../../src/Value/String').sync(),
     Tools = require('../../src/Tools').sync(),
+    Translator = phpCommon.Translator,
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('Tools', function () {
@@ -40,21 +44,36 @@ describe('Tools', function () {
         this.environment = sinon.createStubInstance(Environment);
         this.globalNamespace = sinon.createStubInstance(Namespace);
         this.loader = sinon.createStubInstance(Loader);
+        this.namespaceScope = sinon.createStubInstance(NamespaceScope);
         this.referenceFactory = sinon.createStubInstance(ReferenceFactory);
         this.module = sinon.createStubInstance(Module);
         this.scopeFactory = sinon.createStubInstance(ScopeFactory);
         this.topLevelNamespaceScope = sinon.createStubInstance(NamespaceScope);
         this.topLevelScope = sinon.createStubInstance(Scope);
+        this.translator = sinon.createStubInstance(Translator);
         this.valueFactory = new ValueFactory(null, this.callStack);
+
+        this.callStack.raiseTranslatedError
+            .withArgs(PHPError.E_ERROR)
+            .callsFake(function (level, translationKey, placeholderVariables) {
+                throw new Error(
+                    'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+                );
+            });
+        this.topLevelNamespaceScope.getFilePath.returns('/path/to/my/module.php');
+        this.translator.translate
+            .callsFake(function (translationKey, placeholderVariables) {
+                return '[Translated] ' + translationKey + ' ' + JSON.stringify(placeholderVariables || {});
+            });
 
         this.tools = new Tools(
             this.callStack,
             this.environment,
+            this.translator,
             this.globalNamespace,
             this.loader,
             this.module,
             {}, // Options
-            '/path/to/my/module.php',
             this.referenceFactory,
             this.scopeFactory,
             this.topLevelNamespaceScope,
@@ -71,9 +90,14 @@ describe('Tools', function () {
                 wrappedFunction = function () {};
             closureClass.getName.returns('Closure');
             this.globalNamespace.getClass.withArgs('Closure').returns(closureClass);
-            this.currentScope.createClosure.withArgs(sinon.match.same(wrappedFunction)).returns(closure);
+            this.currentScope.createClosure
+                .withArgs(
+                    sinon.match.same(this.namespaceScope),
+                    sinon.match.same(wrappedFunction)
+                )
+                .returns(closure);
 
-            objectValue = this.tools.createClosure(wrappedFunction, this.currentScope);
+            objectValue = this.tools.createClosure(wrappedFunction, this.currentScope, this.namespaceScope);
 
             expect(objectValue.getType()).to.equal('object');
             expect(objectValue.getClassName()).to.equal('Closure');
@@ -166,6 +190,7 @@ describe('Tools', function () {
                 this.tools = new Tools(
                     this.callStack,
                     this.environment,
+                    this.translator,
                     this.globalNamespace,
                     this.loader,
                     this.module,
@@ -173,13 +198,15 @@ describe('Tools', function () {
                         // Options
                         'eval': this.evalOption
                     },
-                    '/path/to/my/parent/module.php',
                     this.referenceFactory,
                     this.scopeFactory,
                     this.topLevelNamespaceScope,
                     this.topLevelScope,
                     this.valueFactory
                 );
+
+                this.topLevelNamespaceScope.getFilePath.returns('/path/to/my/parent/module.php');
+                this.callStack.getLastLine.returns(123);
             });
 
             it('should invoke the Loader with the "eval" type', function () {
@@ -188,12 +215,23 @@ describe('Tools', function () {
                 expect(this.loader.load).to.have.been.calledWith('eval');
             });
 
-            it('should invoke the Loader with the correct special path string', function () {
+            it('should invoke the Loader with the correct special path string when the line number is available', function () {
                 this.tools.eval('some_code()', this.evalScope);
 
                 expect(this.loader.load).to.have.been.calledWith(
                     sinon.match.any,
-                    '/path/to/my/parent/module.php : eval()\'d code'
+                    '[Translated] core.eval_path {"path":"/path/to/my/parent/module.php","lineNumber":123}'
+                );
+            });
+
+            it('should invoke the Loader with the correct special path string when the line number is unavailable', function () {
+                this.callStack.getLastLine.returns(null);
+
+                this.tools.eval('some_code()', this.evalScope);
+
+                expect(this.loader.load).to.have.been.calledWith(
+                    sinon.match.any,
+                    '[Translated] core.eval_path {"path":"/path/to/my/parent/module.php","lineNumber":"[Translated] core.unknown {}"}'
                 );
             });
 
@@ -232,7 +270,12 @@ describe('Tools', function () {
                 );
             });
 
-            it('should invoke the Loader with the provided current Scope', function () {
+            it('should invoke the Loader with a correctly created Eval LoadScope', function () {
+                var evalLoadScope = sinon.createStubInstance(LoadScope);
+                this.scopeFactory.createLoadScope
+                    .withArgs(sinon.match.same(this.evalScope), '/path/to/my/parent/module.php', 'eval')
+                    .returns(evalLoadScope);
+
                 this.tools.eval('some_code()', this.evalScope);
 
                 expect(this.loader.load).to.have.been.calledWith(
@@ -241,7 +284,7 @@ describe('Tools', function () {
                     sinon.match.any,
                     sinon.match.any,
                     sinon.match.any,
-                    sinon.match.same(this.evalScope)
+                    sinon.match.same(evalLoadScope)
                 );
             });
 
@@ -313,22 +356,9 @@ describe('Tools', function () {
 
     describe('getNormalizedPath()', function () {
         it('should return "(program)" when no module path was provided', function () {
-            var tools = new Tools(
-                this.callStack,
-                this.environment,
-                this.globalNamespace,
-                this.loader,
-                this.module,
-                {}, // Options
-                null,
-                this.referenceFactory,
-                this.scopeFactory,
-                this.topLevelNamespaceScope,
-                this.topLevelScope,
-                this.valueFactory
-            );
+            this.topLevelNamespaceScope.getFilePath.returns(null);
 
-            expect(tools.getNormalizedPath()).to.equal('(program)');
+            expect(this.tools.getNormalizedPath()).to.equal('(program)');
         });
 
         it('should return the path when a module path was provided', function () {
@@ -336,41 +366,55 @@ describe('Tools', function () {
         });
     });
 
+    describe('getParentClassName()', function () {
+        it('should return the FQCN of the parent class when class has one, as a wrapped string value', function () {
+            var classObject = sinon.createStubInstance(Class),
+                parentClassObject = sinon.createStubInstance(Class),
+                value;
+            classObject.getSuperClass.returns(parentClassObject);
+            parentClassObject.getName.returns('My\\Fqcn\\OfMy\\ParentClass');
+
+            value = this.tools.getParentClassName(classObject);
+
+            expect(value.getType()).to.equal('string');
+            expect(value.getNative()).to.equal('My\\Fqcn\\OfMy\\ParentClass');
+        });
+
+        it('should raise an error when the class has no parent', function () {
+            var classObject = sinon.createStubInstance(Class);
+            classObject.getSuperClass.returns(null);
+
+            expect(function () {
+                this.tools.getParentClassName(classObject);
+            }.bind(this)).to.throw(
+                'Fake PHP Fatal error for #core.no_parent_class with {}'
+            );
+        });
+    });
+
     describe('getPathDirectory()', function () {
         it('should return "" when no module path was provided', function () {
-            var tools = new Tools(
-                this.callStack,
-                this.environment,
-                this.globalNamespace,
-                this.loader,
-                this.module,
-                {}, // Options
-                null,
-                this.referenceFactory,
-                this.scopeFactory,
-                this.topLevelNamespaceScope,
-                this.topLevelScope,
-                this.valueFactory
-            );
+            this.topLevelNamespaceScope.getFilePath.returns(null);
 
-            expect(tools.getPathDirectory().getNative()).to.equal('');
+            expect(this.tools.getPathDirectory().getNative()).to.equal('');
         });
 
         it('should return the parent path for a script inside a subfolder', function () {
             var tools = new Tools(
                 this.callStack,
                 this.environment,
+                this.translator,
                 this.globalNamespace,
                 this.loader,
                 this.module,
                 {}, // Options
-                '/my/path/to/my_script.php',
                 this.referenceFactory,
                 this.scopeFactory,
                 this.topLevelNamespaceScope,
                 this.topLevelScope,
                 this.valueFactory
             );
+            this.topLevelNamespaceScope.getFilePath.returns('/my/path/to/my_script.php');
 
             expect(tools.getPathDirectory().getNative()).to.equal('/my/path/to');
         });
@@ -379,17 +423,18 @@ describe('Tools', function () {
             var tools = new Tools(
                 this.callStack,
                 this.environment,
+                this.translator,
                 this.globalNamespace,
                 this.loader,
                 this.module,
                 {}, // Options
-                'my_script.php',
                 this.referenceFactory,
                 this.scopeFactory,
                 this.topLevelNamespaceScope,
                 this.topLevelScope,
                 this.valueFactory
             );
+            this.topLevelNamespaceScope.getFilePath.returns('my_script.php');
 
             expect(tools.getPathDirectory().getNative()).to.equal('');
         });
@@ -398,19 +443,178 @@ describe('Tools', function () {
             var tools = new Tools(
                 this.callStack,
                 this.environment,
+                this.translator,
                 this.globalNamespace,
                 this.loader,
                 this.module,
                 {}, // Options
-                '/my_script.php',
                 this.referenceFactory,
                 this.scopeFactory,
                 this.topLevelNamespaceScope,
                 this.topLevelScope,
                 this.valueFactory
             );
+            this.topLevelNamespaceScope.getFilePath.returns('/my_script.php');
 
             expect(tools.getPathDirectory().getNative()).to.equal('');
+        });
+    });
+
+    describe('include()', function () {
+        describe('when no "include" option has been specified', function () {
+            it('should throw', function () {
+                expect(function () {
+                    this.tools.include('/some/path/to/my_included_module.php');
+                }.bind(this)).to.throw(
+                    Exception,
+                    'include(/some/path/to/my_included_module.php) :: No "include" transport option is available for loading the module.'
+                );
+            });
+        });
+
+        describe('when the "include" option has been specified', function () {
+            beforeEach(function () {
+                this.includeOption = sinon.stub();
+                this.includeScope = sinon.createStubInstance(Scope);
+                this.tools = new Tools(
+                    this.callStack,
+                    this.environment,
+                    this.translator,
+                    this.globalNamespace,
+                    this.loader,
+                    this.module,
+                    {
+                        // Options
+                        'include': this.includeOption
+                    },
+                    this.referenceFactory,
+                    this.scopeFactory,
+                    this.topLevelNamespaceScope,
+                    this.topLevelScope,
+                    this.valueFactory
+                );
+
+                this.topLevelNamespaceScope.getFilePath.returns('/path/to/my/parent/module.php');
+                this.callStack.getLastLine.returns(123);
+            });
+
+            it('should invoke the Loader with the "include" type', function () {
+                this.tools.include('/some/path/to/my_included_module.php', this.includeScope);
+
+                expect(this.loader.load).to.have.been.calledWith('include');
+            });
+
+            it('should invoke the Loader with the correct included path string', function () {
+                this.tools.include('/some/path/to/my_included_module.php', this.includeScope);
+
+                expect(this.loader.load).to.have.been.calledWith(
+                    sinon.match.any,
+                    '/some/path/to/my_included_module.php'
+                );
+            });
+
+            it('should invoke the Loader with the current options', function () {
+                this.tools.include('/some/path/to/my_included_module.php', this.includeScope);
+
+                expect(this.loader.load).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    {
+                        'include': sinon.match.same(this.includeOption)
+                    }
+                );
+            });
+
+            it('should invoke the Loader with the Environment', function () {
+                this.tools.include('/some/path/to/my_included_module.php', this.includeScope);
+
+                expect(this.loader.load).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.same(this.environment)
+                );
+            });
+
+            it('should invoke the Loader with the current Module', function () {
+                this.tools.include('/some/path/to/my_included_module.php', this.includeScope);
+
+                expect(this.loader.load).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.same(this.module)
+                );
+            });
+
+            it('should invoke the Loader with a correctly created IncludeScope', function () {
+                var includeLoadScope = sinon.createStubInstance(LoadScope);
+                this.scopeFactory.createLoadScope
+                    .withArgs(sinon.match.same(this.includeScope), '/path/to/my/parent/module.php', 'include')
+                    .returns(includeLoadScope);
+
+                this.tools.include('/some/path/to/my_included_module.php', this.includeScope);
+
+                expect(this.loader.load).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.same(includeLoadScope)
+                );
+            });
+
+            it('should provide the Loader with a load function that calls the "include" option correctly', function () {
+                var loadFunction,
+                    promise = {},
+                    resultValue = this.valueFactory.createString('my include\'d module result');
+                this.includeOption
+                    .withArgs(
+                        '/some/path/to/my_included_module.php',
+                        sinon.match.same(promise),
+                        '/path/to/my/parent/module.php',
+                        sinon.match.same(this.valueFactory)
+                    )
+                    .returns(resultValue);
+                this.tools.include('/some/path/to/my_included_module.php', this.includeScope);
+
+                loadFunction = this.loader.load.args[0][6];
+
+                expect(loadFunction).to.be.a('function');
+                expect(
+                    loadFunction(
+                        '/some/path/to/my_included_module.php',
+                        promise,
+                        '/path/to/my/parent/module.php',
+                        this.valueFactory
+                    )
+                ).to.equal(resultValue);
+            });
+
+            it('should return the result from the Loader', function () {
+                var resultValue = this.valueFactory.createString('my include\'d module result');
+                this.loader.load.returns(resultValue);
+
+                expect(this.tools.include('/some/path/to/my_included_module.php', this.includeScope))
+                    .to.equal(resultValue);
+            });
+
+            it('should return bool(false) on LoadFailedException', function () {
+                this.loader.load.throws(new LoadFailedException(new Error('Oh dear')));
+
+                expect(this.tools.include('/some/path/to/my_included_module.php', this.includeScope).getNative())
+                    .to.be.false;
+            });
+
+            it('should not catch any other type of error', function () {
+                this.loader.load.throws(new Error('Bang!'));
+
+                expect(function () {
+                    this.tools.include('/some/path/to/my_included_module.php', this.includeScope);
+                }.bind(this)).to.throw('Bang!');
+            });
         });
     });
 
@@ -429,6 +633,7 @@ describe('Tools', function () {
                 this.tools = new Tools(
                     this.callStack,
                     this.environment,
+                    this.translator,
                     this.globalNamespace,
                     this.loader,
                     this.module,
@@ -436,7 +641,6 @@ describe('Tools', function () {
                         // Options
                         'tick': this.tickOption
                     },
-                    '/path/to/my/module.php',
                     this.referenceFactory,
                     this.scopeFactory,
                     this.topLevelNamespaceScope,

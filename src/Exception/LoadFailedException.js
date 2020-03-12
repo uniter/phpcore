@@ -35,7 +35,7 @@ _.extend(LoadFailedException.prototype, {
     /**
      * Fetches the previous error or exception that caused the load to fail
      *
-     * @return {Error}
+     * @returns {Error}
      */
     getPreviousError: function () {
         return this.previousError;

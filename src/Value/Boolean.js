@@ -20,8 +20,8 @@ module.exports = require('pauser')([
     util,
     Value
 ) {
-    var PHPError = phpCommon.PHPError,
-        PHPFatalError = phpCommon.PHPFatalError;
+    var UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types',
+        PHPError = phpCommon.PHPError;
 
     function BooleanValue(factory, callStack, value) {
         Value.call(this, factory, callStack, 'boolean', !!value);
@@ -126,6 +126,13 @@ module.exports = require('pauser')([
         },
 
         /**
+         * {@inheritdoc}
+         */
+        isCallable: function () {
+            return false;
+        },
+
+        /**
          * Determines whether this boolean is classed as "empty" or not.
          * Only false is classed as empty
          *
@@ -152,6 +159,13 @@ module.exports = require('pauser')([
             return stringValue.factory.createBoolean(
                 stringValue.coerceToBoolean().getNative() === booleanValue.getNative()
             );
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        isIterable: function () {
+            return false;
         },
 
         /**
@@ -190,8 +204,11 @@ module.exports = require('pauser')([
                 rightValue.factory.createInteger(product);
         },
 
+        /**
+         * Calculates the ones' complement of this value
+         */
         onesComplement: function () {
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
         shiftLeftBy: function (rightValue) {

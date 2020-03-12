@@ -32,6 +32,15 @@ _.extend(NullReference.prototype, {
     },
 
     /**
+     * Determines whether this reference is defined
+     *
+     * @returns {boolean}
+     */
+    isDefined: function () {
+        return false;
+    },
+
+    /**
      * Determines whether this reference is empty or not
      * (NULL references are always empty)
      *

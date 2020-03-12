@@ -62,7 +62,16 @@ module.exports = require('pauser')([
         },
         Exception = phpCommon.Exception,
         PHPError = phpCommon.PHPError,
-        PHPFatalError = phpCommon.PHPFatalError;
+        PHPFatalError = phpCommon.PHPFatalError,
+        PHPParseError = phpCommon.PHPParseError,
+
+        CANNOT_ACCESS_PROPERTY = 'core.cannot_access_property',
+        CANNOT_USE_WRONG_TYPE_AS = 'core.cannot_use_wrong_type_as',
+        OBJECT_FROM_GET_ITERATOR_MUST_BE_TRAVERSABLE = 'core.object_from_get_iterator_must_be_traversable',
+        UNCAUGHT_EMPTY_THROWABLE = 'core.uncaught_empty_throwable',
+        UNCAUGHT_THROWABLE = 'core.uncaught_throwable',
+        UNDEFINED_PROPERTY = 'core.undefined_property',
+        UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types';
 
     /**
      * Represents an instance of a class. There is a JS<->PHP bridge
@@ -70,12 +79,13 @@ module.exports = require('pauser')([
      *
      * @param {ValueFactory} factory
      * @param {CallStack} callStack
+     * @param {Translator} translator
      * @param {object} object
      * @param {Class} classObject
      * @param {number} id
      * @constructor
      */
-    function ObjectValue(factory, callStack, object, classObject, id) {
+    function ObjectValue(factory, callStack, translator, object, classObject, id) {
         Value.call(this, factory, callStack, 'object', object);
 
         /**
@@ -115,43 +125,66 @@ module.exports = require('pauser')([
          * @type {Object.<string, object>}
          */
         this.privatePropertiesByFQCN = {};
+        /**
+         * @type {Translator}
+         */
+        this.translator = translator;
     }
 
     util.inherits(ObjectValue, Value);
 
     _.extend(ObjectValue.prototype, {
+        /**
+         * Adds this value to another
+         *
+         * @param {Value} rightValue
+         * @returns {Value}
+         */
         add: function (rightValue) {
             return rightValue.addToObject(this);
         },
 
+        /**
+         * Adds this value to an array
+         */
         addToArray: function () {
             var value = this;
 
             value.callStack.raiseError(
                 PHPError.E_NOTICE,
-                'Object of class ' + value.classObject.getName() + ' could not be converted to int'
+                'Object of class ' + value.classObject.getName() + ' could not be converted to number'
             );
 
-            throw new PHPFatalError(PHPFatalError.UNSUPPORTED_OPERAND_TYPES);
+            value.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
+        /**
+         * Adds this value to a boolean
+         *
+         * @param {BooleanValue} booleanValue
+         */
         addToBoolean: function (booleanValue) {
             var value = this;
 
             value.callStack.raiseError(
                 PHPError.E_NOTICE,
-                'Object of class ' + value.classObject.getName() + ' could not be converted to int'
+                'Object of class ' + value.classObject.getName() + ' could not be converted to number'
             );
 
             return value.factory.createInteger((booleanValue.getNative() ? 1 : 0) + 1);
         },
 
+        /**
+         * Adds this value to a float
+         *
+         * @param {FloatValue} floatValue
+         */
         addToFloat: function (floatValue) {
             var value = this;
 
             value.callStack.raiseError(
                 PHPError.E_NOTICE,
-                'Object of class ' + value.classObject.getName() + ' could not be converted to int'
+                'Object of class ' + value.classObject.getName() + ' could not be converted to number'
             );
 
             return value.factory.createFloat(floatValue.getNative() + 1);
@@ -193,7 +226,7 @@ module.exports = require('pauser')([
          * Calls the magic __invoke() method for this object
          *
          * @param {Reference[]|Value[]|Variable[]} args
-         * @return {Reference|Value}
+         * @returns {Reference|Value}
          */
         call: function (args) {
             return this.callMethod('__invoke', args);
@@ -232,7 +265,7 @@ module.exports = require('pauser')([
          * Determines whether this object is an instance of the given class
          *
          * @param {string} className
-         * @return {boolean}
+         * @returns {boolean}
          */
         classIs: function (className) {
             return this.classObject.is(className);
@@ -245,7 +278,7 @@ module.exports = require('pauser')([
         /**
          * Coerces this ObjectValue to an ArrayValue
          *
-         * @return {ArrayValue}
+         * @returns {ArrayValue}
          */
         coerceToArray: function () {
             var elements = [],
@@ -283,7 +316,7 @@ module.exports = require('pauser')([
 
             value.callStack.raiseError(
                 PHPError.E_NOTICE,
-                'Object of class ' + value.classObject.getName() + ' could not be converted to int'
+                'Object of class ' + value.classObject.getName() + ' could not be converted to number'
             );
 
             return value.factory.createInteger(1);
@@ -295,15 +328,46 @@ module.exports = require('pauser')([
          * @returns {Error}
          */
         coerceToNativeError: function () {
-            var value = this;
+            var message,
+                value = this;
 
-            if (!value.classObject.is('Exception')) {
-                throw new Error('Cannot coerce non-Exception instance to a native JS error');
+            // Uncaught PHP Throwables become E_FATAL errors
+
+            if (!value.classIs('Throwable')) {
+                // TODO: Change for PHP 7:
+                //       "Fatal error: Uncaught Error: Can only throw objects in Command line code:1"
+                //       "Fatal error: Uncaught Error: Cannot throw objects that do not implement Throwable in Command line code:1"
+                //       These will probably need to be handled with transpiler-level changes,
+                //       so that a throw statement becomes eg. `tools.throw(...)` as it is too late
+                //       to make these checks at this point, due to the original context being lost
+                throw new Exception('Weird value class thrown: ' + value.getClassName());
             }
 
-            return new Error(
-                'PHP ' + value.getClassName() + ': ' +
-                value.callMethod('getMessage', []).getNative()
+            if (value.classIs('ParseError')) {
+                return new PHPParseError(
+                    value.getProperty('message').getNative(),
+                    value.getProperty('file').getNative(),
+                    value.getProperty('line').getNative()
+                );
+            }
+
+            message = value.getProperty('message').getNative();
+
+            if (message !== '') {
+                message = value.translator.translate(UNCAUGHT_THROWABLE, {
+                    name: value.getClassName(),
+                    message: message
+                });
+            } else {
+                message = value.translator.translate(UNCAUGHT_EMPTY_THROWABLE, {
+                    name: value.getClassName()
+                });
+            }
+
+            return new PHPFatalError(
+                message,
+                value.getProperty('file').getNative(),
+                value.getProperty('line').getNative()
             );
         },
 
@@ -400,7 +464,7 @@ module.exports = require('pauser')([
         /**
          * Builds a string representation of this value
          *
-         * @return {string}
+         * @returns {string}
          */
         formatAsString: function () {
             return 'Object(' + this.getClassName() + ')';
@@ -415,7 +479,7 @@ module.exports = require('pauser')([
             var value = this;
 
             if (value.classObject.is('Closure')) {
-                return value.value.funcName;
+                return value.value.functionSpec.getFunctionName(true);
             }
 
             return value.getClassName() + '::__invoke()';
@@ -433,7 +497,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the name of the class of this object
          *
-         * @return {string}
+         * @returns {string}
          */
         getClassName: function () {
             return this.classObject.getName();
@@ -494,6 +558,14 @@ module.exports = require('pauser')([
         },
 
         /**
+         * {@inheritdoc}
+         */
+        getDisplayType: function () {
+            // For objects, we want to display the class FQCN and not just "object"
+            return this.getClassName();
+        },
+
+        /**
          * Fetches an element of the value this reference resolves to
          *
          * @param {number} index
@@ -535,7 +607,7 @@ module.exports = require('pauser')([
                 return new ObjectElement(value.factory, value, keyValue);
             }
 
-            throw new PHPFatalError(PHPFatalError.CANNOT_USE_WRONG_TYPE_AS, {
+            value.callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_USE_WRONG_TYPE_AS, {
                 actual: value.classObject.getName(),
                 expected: 'array'
             });
@@ -549,15 +621,6 @@ module.exports = require('pauser')([
          */
         getForAssignment: function () {
             return this;
-        },
-
-        /**
-         * Returns the native value that represents the error
-         *
-         * @returns {object}
-         */
-        getForThrow: function () {
-            return this.value;
         },
 
         /**
@@ -586,7 +649,7 @@ module.exports = require('pauser')([
          * Fetches an instance property of this object
          *
          * @param {Value} nameValue
-         * @return {PropertyReference}
+         * @returns {PropertyReference}
          */
         getInstancePropertyByName: function (nameValue) {
             var callingClass,
@@ -598,6 +661,7 @@ module.exports = require('pauser')([
                 classOfObject = value.classObject;
 
             if (value.classObject.hasStaticPropertyByName(name)) {
+                // TODO: Change for PHP 7 (see https://www.php.net/manual/en/migration70.incompatible.php)
                 value.callStack.raiseError(
                     PHPError.E_STRICT,
                     'Accessing static property ' + value.classObject.getName() + '::$' + name + ' as non static'
@@ -638,7 +702,7 @@ module.exports = require('pauser')([
                             !callingClass.isInFamilyOf(classOfObject)
                         )
                     ) {
-                        throw new PHPFatalError(PHPFatalError.CANNOT_ACCESS_PROPERTY, {
+                        value.callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_ACCESS_PROPERTY, {
                             className: classOfObject.getName(),
                             propertyName: name,
                             visibility: 'protected'
@@ -656,12 +720,25 @@ module.exports = require('pauser')([
                         null;
 
                     if (propertyReference) {
-                        // Property is private, but we're not trying to access it from inside the class
-                        throw new PHPFatalError(PHPFatalError.CANNOT_ACCESS_PROPERTY, {
-                            className: classInHierarchy.getName(),
-                            propertyName: name,
-                            visibility: 'private'
-                        });
+                        if (callingClass && callingClass.extends(classInHierarchy)) {
+                            // We're in a class that is a descendant of the one that defines the private property
+                            value.callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_PROPERTY, {
+                                className: callingClass.getName(),
+                                propertyName: name
+                            });
+                        } else if (callingClass && classInHierarchy !== classOfObject) {
+                            // The current object is a descendant of the one that defines the private property,
+                            // but we're in a class that is an ancestor of the definer -
+                            // just treat the property as not defined
+                            break;
+                        } else {
+                            // Property is private, but we're not trying to access it from inside the class
+                            value.callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_ACCESS_PROPERTY, {
+                                className: classOfObject.getName(),
+                                propertyName: name,
+                                visibility: 'private'
+                            });
+                        }
                     }
 
                     classInHierarchy = classInHierarchy.getSuperClass();
@@ -682,7 +759,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the names of all visible instance properties of this object, wrapped as values
          *
-         * @return {Value[]}
+         * @returns {Value[]}
          */
         getInstancePropertyNames: function () {
             var callingClass,
@@ -756,7 +833,7 @@ module.exports = require('pauser')([
          * or the object itself if it implements Traversable via Iterator or IteratorAggregate.
          * Used by transpiled foreach loops over objects implementing Iterator.
          *
-         * @return {ArrayIterator|ObjectValue}
+         * @returns {ArrayIterator|ObjectValue}
          */
         getIterator: function () {
             var value = this,
@@ -769,9 +846,13 @@ module.exports = require('pauser')([
                 iteratorValue = iteratorValue.callMethod('getIterator');
 
                 if (iteratorValue.getType() !== 'object' || !iteratorValue.classIs('Iterator')) {
-                    throw value.factory.instantiateObject('Exception', [
-                        'Objects returned by ' + value.getClassName() + '::getIterator() must be traversable or implement interface Iterator'
-                    ]);
+                    throw value.factory.createTranslatedExceptionObject(
+                        'Exception',
+                        OBJECT_FROM_GET_ITERATOR_MUST_BE_TRAVERSABLE,
+                        {
+                            className: value.getClassName()
+                        }
+                    );
                 }
             }
 
@@ -789,7 +870,7 @@ module.exports = require('pauser')([
          * Fetches a key (property name) of this object by its index
          *
          * @param {number} index
-         * @return {Value|null}
+         * @returns {Value|null}
          */
         getKeyByIndex: function (index) {
             var value = this,
@@ -801,7 +882,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the length (number of properties) for this object, regardless of their visibility
          *
-         * @return {number}
+         * @returns {number}
          */
         getLength: function () {
             var value = this,
@@ -867,7 +948,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the wrapped native JS object
          *
-         * @return {object}
+         * @returns {object}
          */
         getObject: function () {
             return this.value;
@@ -966,10 +1047,20 @@ module.exports = require('pauser')([
          *
          * @param {Reference|Value} classNameValue
          * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
-         * @return {BooleanValue}
+         * @returns {BooleanValue}
          */
         isAnInstanceOf: function (classNameValue, namespaceOrNamespaceScope) {
             return classNameValue.isTheClassOfObject(this, namespaceOrNamespaceScope);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        isCallable: function () {
+            var value = this;
+
+            return value.classIs('Closure') ||
+                value.isMethodDefined('__invoke');
         },
 
         /**
@@ -1005,7 +1096,7 @@ module.exports = require('pauser')([
          * Determines whether this object is equal (but not necessarily identical) to another
          *
          * @param {ObjectValue} rightValue
-         * @return {BooleanValue}
+         * @returns {BooleanValue}
          */
         isEqualToObject: function (rightValue) {
             var equal = true,
@@ -1070,6 +1161,13 @@ module.exports = require('pauser')([
         },
 
         /**
+         * {@inheritdoc}
+         */
+        isIterable: function () {
+            return this.classIs('Traversable');
+        },
+
+        /**
          * Determines whether the class of this object defines an instance or static method with the given name
          *
          * @param {string} methodName
@@ -1083,7 +1181,7 @@ module.exports = require('pauser')([
          * Determines whether this iterator has finished iterating or not.
          * Used by transpiled foreach loops over objects implementing Iterator.
          *
-         * @return {boolean}
+         * @returns {boolean}
          */
         isNotFinished: function () {
             var value = this;

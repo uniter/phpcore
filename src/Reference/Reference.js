@@ -9,7 +9,12 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    throwUnimplemented = function (functionName) {
+        return function () {
+            throw new Error('Reference.' + functionName + '() :: Not implemented');
+        };
+    };
 
 /**
  * Interface for references to extend to allow instanceof checking
@@ -50,6 +55,51 @@ _.extend(Reference.prototype, {
     },
 
     /**
+     * Divides the value from this reference by the specified value
+     * and then assigns the result back to this reference
+     *
+     * Used by the `/=` operator
+     *
+     * @param {Value} rightValue
+     */
+    divideBy: function (rightValue) {
+        var reference = this;
+
+        reference.setValue(reference.getValue().divide(rightValue));
+    },
+
+    /**
+     * Formats the reference (which may not be defined) for display in stack traces etc.
+     *
+     * @returns {string}
+     */
+    formatAsString: function () {
+        var reference = this;
+
+        return reference.isDefined() ?
+            reference.getValue().formatAsString() :
+            'NULL';
+    },
+
+    /**
+     * Fetches the value of this reference when it is being assigned to a variable or another reference.
+     * This is used to implement the copy-on-assignment behaviour of PHP arrays
+     *
+     * @returns {Value}
+     */
+    getForAssignment: throwUnimplemented('getForAssignment'),
+
+    /**
+     * Fetches an instance property of this reference's value (assuming it contains an object) by its name
+     *
+     * @param {string} name
+     * @returns {PropertyReference}
+     */
+    getInstancePropertyByName: function (name) {
+        return this.getValue().getInstancePropertyByName(name);
+    },
+
+    /**
      * Fetches the native value of the PHP value being referred to
      *
      * @returns {*}
@@ -58,12 +108,34 @@ _.extend(Reference.prototype, {
         return this.getValue().getNative();
     },
 
+    /**
+     * Fetches this reference
+     *
+     * @returns {Reference}
+     */
     getReference: function () {
         return this;
     },
 
-    getValue: function () {
-        throw new Error('Not implemented');
+    /**
+     * Fetches the value this reference stores, if any
+     *
+     * @returns {Value|null}
+     */
+    getValue: throwUnimplemented('getValue'),
+
+    /**
+     * Returns this reference's value if defined, NULL otherwise.
+     * No notice/warning will be raised if the reference has no value defined.
+     *
+     * @return {Value}
+     */
+    getValueOrNull: function () {
+        var reference = this;
+
+        return reference.isDefined() ?
+            reference.getValue() :
+            reference.valueFactory.createNull();
     },
 
     /**
@@ -81,16 +153,38 @@ _.extend(Reference.prototype, {
     },
 
     /**
+     * Determines whether this reference is defined
+     *
+     * @returns {boolean}
+     */
+    isDefined: throwUnimplemented('isDefined'),
+
+    /**
      * Determines whether the reference is classed as "empty" or not
      *
      * @returns {boolean}
      */
-    isEmpty: function () {
-        throw new Error('Not implemented');
-    },
+    isEmpty: throwUnimplemented('isEmpty'),
 
-    isSet: function () {
-        throw new Error('Not implemented');
+    /**
+     * Determines whether the reference is classed as "set" or not
+     *
+     * @returns {boolean}
+     */
+    isSet: throwUnimplemented('isSet'),
+
+    /**
+     * Multiplies the specified value by the value from this reference
+     * and then assigns the result back to this reference
+     *
+     * Used by the `*=` operator
+     *
+     * @param {Value} rightValue
+     */
+    multiplyBy: function (rightValue) {
+        var reference = this;
+
+        reference.setValue(reference.getValue().multiply(rightValue));
     },
 
     /**
@@ -151,9 +245,14 @@ _.extend(Reference.prototype, {
         return incrementedValue;
     },
 
-    setValue: function () {
-        throw new Error('Not implemented');
-    }
+    /**
+     * Sets the value of this reference. If it was already assigned a value it will be overwritten,
+     * otherwise if it was already assigned a sub-reference then that reference will be assigned the value
+     *
+     * @param {Value} value
+     * @returns {Value} Returns the value that was set
+     */
+    setValue: throwUnimplemented('setValue')
 });
 
 module.exports = Reference;

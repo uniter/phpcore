@@ -80,6 +80,7 @@ EOS
     it('should not suppress errors from a function called inside isset(...) construct', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
+ini_set('error_reporting', E_ALL); // Notices are hidden by default
 
 function myFunc() {
     return $anotherUndefVar;
@@ -90,13 +91,13 @@ $result = isset($undefVar[myFunc()]);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('a_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.be.false;
         expect(engine.getStderr().readAll()).to.equal(
             nowdoc(function () {/*<<<EOS
-PHP Notice: Undefined variable: anotherUndefVar
+PHP Notice:  Undefined variable: anotherUndefVar in a_module.php on line 5
 
 EOS
 */;}) //jshint ignore:line

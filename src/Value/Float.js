@@ -130,6 +130,13 @@ module.exports = require('pauser')([
         },
 
         /**
+         * {@inheritdoc}
+         */
+        isCallable: function () {
+            return false;
+        },
+
+        /**
          * Determines whether this float is classed as "empty" or not.
          * Only zero is classed as empty
          *
@@ -169,6 +176,13 @@ module.exports = require('pauser')([
             var floatValue = this;
 
             return floatValue.factory.createBoolean(floatValue.value === stringValue.coerceToFloat().value);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        isIterable: function () {
+            return false;
         },
 
         /**

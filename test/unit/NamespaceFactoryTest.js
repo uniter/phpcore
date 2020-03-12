@@ -14,6 +14,7 @@ var expect = require('chai').expect,
     CallStack = require('../../src/CallStack'),
     ClassAutoloader = require('../../src/ClassAutoloader').sync(),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
+    FunctionSpecFactory = require('../../src/Function/FunctionSpecFactory'),
     Namespace = require('../../src/Namespace').sync(),
     NamespaceFactory = require('../../src/NamespaceFactory'),
     ValueFactory = require('../../src/ValueFactory').sync();
@@ -23,6 +24,7 @@ describe('NamespaceFactory', function () {
         this.callStack = sinon.createStubInstance(CallStack);
         this.classAutoloader = sinon.createStubInstance(ClassAutoloader);
         this.functionFactory = sinon.createStubInstance(FunctionFactory);
+        this.functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
         this.Namespace = sinon.stub();
         this.valueFactory = sinon.createStubInstance(ValueFactory);
 
@@ -30,6 +32,7 @@ describe('NamespaceFactory', function () {
             this.Namespace,
             this.callStack,
             this.functionFactory,
+            this.functionSpecFactory,
             this.valueFactory,
             this.classAutoloader
         );
@@ -90,10 +93,23 @@ describe('NamespaceFactory', function () {
             );
         });
 
+        it('should pass the FunctionSpecFactory to the namespace', function () {
+            this.callCreate();
+
+            expect(this.Namespace).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(this.functionSpecFactory)
+            );
+        });
+
         it('should pass the ClassAutoloader to the namespace', function () {
             this.callCreate();
 
             expect(this.Namespace).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -106,6 +122,7 @@ describe('NamespaceFactory', function () {
             this.callCreate();
 
             expect(this.Namespace).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -126,6 +143,7 @@ describe('NamespaceFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
                 null
             );
         });
@@ -134,6 +152,7 @@ describe('NamespaceFactory', function () {
             this.callCreate();
 
             expect(this.Namespace).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -150,6 +169,7 @@ describe('NamespaceFactory', function () {
             this.callCreate();
 
             expect(this.Namespace).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,

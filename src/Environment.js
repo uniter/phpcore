@@ -9,13 +9,36 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    phpCommon = require('phpcommon'),
+    FFIResult = require('./FFI/Result'),
+    PHPError = phpCommon.PHPError,
+    PHPFatalError = phpCommon.PHPFatalError,
+    PHPParseError = phpCommon.PHPParseError;
 
+/**
+ * @param {PHPState} state
+ * @constructor
+ */
 function Environment(state) {
+    /**
+     * @type {PHPState}
+     */
     this.state = state;
 }
 
 _.extend(Environment.prototype, {
+    /**
+     * Creates a new FFI Result, to provide the result of a call to a JS function
+     *
+     * @param {Function} syncCallback
+     * @param {Function|null} asyncCallback
+     * @returns {FFIResult}
+     */
+    createFFIResult: function (syncCallback, asyncCallback) {
+        return new FFIResult(syncCallback, asyncCallback);
+    },
+
     /**
      * Defines a new class (in any namespace)
      *
@@ -39,6 +62,17 @@ _.extend(Environment.prototype, {
     },
 
     /**
+     * Defines a constant with the given native value
+     *
+     * @param {string} name
+     * @param {*} value
+     * @param {object} options
+     */
+    defineConstant: function (name, value, options) {
+        this.state.defineConstant(name, value, options);
+    },
+
+    /**
      * Defines a global variable and gives it the provided value
      *
      * @param {string} name
@@ -57,6 +91,17 @@ _.extend(Environment.prototype, {
      */
     defineGlobalAccessor: function (name, valueGetter, valueSetter) {
         this.state.defineGlobalAccessor(name, valueGetter, valueSetter);
+    },
+
+    /**
+     * Defines a global function from a native JS one. If a fully-qualified name is provided
+     * with a namespace prefix, eg. `My\Lib\MyFunc` then it will be defined in the specified namespace
+     *
+     * @param {string} name
+     * @param {Function} fn
+     */
+    defineNonCoercingFunction: function (name, fn) {
+        this.state.defineNonCoercingFunction(name, fn);
     },
 
     defineSuperGlobal: function (name, value) {
@@ -93,6 +138,40 @@ _.extend(Environment.prototype, {
 
     getStdout: function () {
         return this.state.getStdout();
+    },
+
+    /**
+     * Reports a PHPError (fatal or parse error) originating from the parser or transpiler
+     *
+     * @param {PHPError} error
+     * @throws {Error} Throws if a non-PHPError is given
+     */
+    reportError: function (error) {
+        var errorReporting = this.state.getErrorReporting();
+
+        // Handle any PHP errors from the transpiler or parser using the ErrorReporting
+        // mechanism for PHPCore (as INI settings such as `display_errors` should take effect)
+        if (error instanceof PHPFatalError) {
+            errorReporting.reportError(
+                PHPError.E_ERROR,
+                error.getMessage(),
+                error.getFilePath(),
+                error.getLineNumber(),
+                null,
+                false
+            );
+        } else if (error instanceof PHPParseError) {
+            errorReporting.reportError(
+                PHPError.E_PARSE,
+                error.getMessage(),
+                error.getFilePath(),
+                error.getLineNumber(),
+                null,
+                false
+            );
+        } else {
+            throw new Error('Invalid error type given');
+        }
     }
 });
 

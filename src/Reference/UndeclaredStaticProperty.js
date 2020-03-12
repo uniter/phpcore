@@ -12,21 +12,30 @@
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
     util = require('util'),
-    PHPFatalError = phpCommon.PHPFatalError,
+    PHPError = phpCommon.PHPError,
     Reference = require('./Reference'),
+
+    UNDECLARED_STATIC_PROPERTY = 'core.undeclared_static_property',
+
     throwUndeclaredStaticPropertyAccessFatalError = function (reference) {
-        throw new PHPFatalError(PHPFatalError.UNDECLARED_STATIC_PROPERTY, {
+        reference.callStack.raiseTranslatedError(PHPError.E_ERROR, UNDECLARED_STATIC_PROPERTY, {
             className: reference.classObject.name,
             propertyName: reference.name
         });
     };
 
 /**
+ * @param {ValueFactory} valueFactory
+ * @param {CallStack} callStack
  * @param {Class} classObject
  * @param {string} name Name of the static property
  * @constructor
  */
-function UndeclaredStaticPropertyReference(classObject, name) {
+function UndeclaredStaticPropertyReference(valueFactory, callStack, classObject, name) {
+    /**
+     * @type {CallStack}
+     */
+    this.callStack = callStack;
     /**
      * @type {Class}
      */
@@ -35,6 +44,10 @@ function UndeclaredStaticPropertyReference(classObject, name) {
      * @type {string}
      */
     this.name = name;
+    /**
+     * @type {ValueFactory}
+     */
+    this.valueFactory = valueFactory;
 }
 
 util.inherits(UndeclaredStaticPropertyReference, Reference);
@@ -56,6 +69,15 @@ _.extend(UndeclaredStaticPropertyReference.prototype, {
      */
     getValue: function () {
         throwUndeclaredStaticPropertyAccessFatalError(this);
+    },
+
+    /**
+     * Determines whether this reference is defined
+     *
+     * @returns {boolean}
+     */
+    isDefined: function () {
+        return false;
     },
 
     /**

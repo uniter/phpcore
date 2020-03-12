@@ -51,11 +51,24 @@ module.exports = require('pauser')([
      *
      * @param {Resumable|null} pausable
      * @param {string} mode
-     * @param {CallStack} callStack
      * @param {ElementProvider} elementProvider
+     * @param {Translator} translator
+     * @param {CallFactory} callFactory
+     * @param {ErrorPromoter} errorPromoter
      * @constructor
      */
-    function ValueFactory(pausable, mode, callStack, elementProvider) {
+    function ValueFactory(
+        pausable,
+        mode,
+        elementProvider,
+        translator,
+        callFactory,
+        errorPromoter
+    ) {
+        /**
+         * @type {CallFactory}
+         */
+        this.callFactory = callFactory;
         /**
          * @type {ElementProvider}
          */
@@ -68,9 +81,13 @@ module.exports = require('pauser')([
          */
         this.nextObjectID = 1;
         /**
-         * @type {CallStack}
+         * @type {CallStack|null}
          */
-        this.callStack = callStack;
+        this.callStack = null;
+        /**
+         * @type {ErrorPromoter}
+         */
+        this.errorPromoter = errorPromoter;
         /**
          * @type {Namespace|null}
          */
@@ -83,6 +100,10 @@ module.exports = require('pauser')([
          * @type {Resumable|null}
          */
         this.pausable = pausable;
+        /**
+         * @type {Translator}
+         */
+        this.translator = translator;
         /**
          * Used for mapping exported unwrapped objects back to their original ObjectValue
          * when they are passed back to PHP-land
@@ -137,7 +158,7 @@ module.exports = require('pauser')([
          * Creates an ArrayIterator
          *
          * @param {ArrayValue|ObjectValue} arrayLikeValue
-         * @return {ArrayIterator}
+         * @returns {ArrayIterator}
          */
         createArrayIterator: function (arrayLikeValue) {
             return new ArrayIterator(arrayLikeValue);
@@ -153,6 +174,53 @@ module.exports = require('pauser')([
 
             return new BooleanValue(factory, factory.callStack, value);
         },
+
+        /**
+         * Creates an ObjectValue wrapping a PHP Error instance (eg. a call to an undefined method)
+         *
+         * @param {string} className eg. Error, ParseError, DivisionByZeroError
+         * @param {string|null=} message
+         * @param {number|null=} code
+         * @param {ObjectValue|null=} previousThrowable
+         * @param {string=} filePath To override the file path
+         * @param {number=} lineNumber To override the line number
+         * @param {boolean=} reportsOwnContext Whether the error handles reporting its own file/line context
+         * @returns {ObjectValue}
+         */
+        createErrorObject: function (
+            className,
+            message,
+            code,
+            previousThrowable,
+            filePath,
+            lineNumber,
+            reportsOwnContext
+        ) {
+            var factory = this,
+                errorObject = factory.globalNamespace.getClass(className).instantiate([
+                    factory.createString(message || ''),
+                    factory.createInteger(code || 0),
+                    previousThrowable || factory.createNull()
+                ]);
+
+            if (reportsOwnContext) {
+                errorObject.setInternalProperty('reportsOwnContext', true);
+            }
+
+            // File and line cannot be passed as constructor args,
+            // so we need to manually set them here if specified
+
+            if (filePath !== null && filePath !== undefined) {
+                errorObject.setProperty('file', factory.createString(filePath));
+            }
+
+            if (lineNumber !== null && lineNumber !== undefined) {
+                errorObject.setProperty('line', factory.createInteger(lineNumber));
+            }
+
+            return errorObject;
+        },
+
         createExit: function (statusValue) {
             var factory = this;
 
@@ -273,11 +341,26 @@ module.exports = require('pauser')([
 
             return new NullValue(factory, factory.callStack);
         },
-        createObject: function (value, classObject) {
+
+        /**
+         * Creates an ObjectValue for a given native value and class
+         *
+         * @param {object} nativeValue
+         * @param {Class} classObject
+         * @returns {ObjectValue}
+         */
+        createObject: function (nativeValue, classObject) {
             var factory = this;
 
             // Object ID tracking is incomplete: ID should be freed when all references are lost
-            return new ObjectValue(factory, factory.callStack, value, classObject, factory.nextObjectID++);
+            return new ObjectValue(
+                factory,
+                factory.callStack,
+                factory.translator,
+                nativeValue,
+                classObject,
+                factory.nextObjectID++
+            );
         },
 
         /**
@@ -286,12 +369,20 @@ module.exports = require('pauser')([
          * and coerces its return value back to a native too.
          *
          * @param {ObjectValue} object
-         * @return {PHPObject}
+         * @returns {PHPObject}
          */
         createPHPObject: function (object) {
             var factory = this;
 
-            return new PHPObject(factory.pausable, factory.mode, factory, object);
+            return new PHPObject(
+                factory.callFactory,
+                factory.callStack,
+                factory.errorPromoter,
+                factory.pausable,
+                factory.mode,
+                factory,
+                object
+            );
         },
 
         createStdClassObject: function () {
@@ -306,11 +397,75 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Creates an ObjectValue wrapping a PHP Error instance (eg. a call to an undefined method)
+         *
+         * @param {string} className eg. Error, ParseError, DivisionByZeroError
+         * @param {string} translationKey
+         * @param {Object.<string, string>=} placeholderVariables
+         * @param {number|null=} code
+         * @param {ObjectValue|null=} previousThrowable
+         * @param {string=} filePath To override the file path
+         * @param {number=} lineNumber To override the line number
+         * @returns {ObjectValue}
+         */
+        createTranslatedErrorObject: function (
+            className,
+            translationKey,
+            placeholderVariables,
+            code,
+            previousThrowable,
+            filePath,
+            lineNumber
+        ) {
+            var factory = this,
+                message = factory.translator.translate(translationKey, placeholderVariables);
+
+            return factory.createErrorObject(
+                className,
+                message,
+                code,
+                previousThrowable,
+                filePath,
+                lineNumber
+            );
+        },
+
+        /**
+         * Creates an ObjectValue wrapping a PHP Exception instance (eg. a RuntimeException)
+         *
+         * @param {string} className eg. Exception, LogicException, RuntimeException
+         * @param {string} translationKey
+         * @param {Object.<string, string>=} placeholderVariables
+         * @param {number|null=} code
+         * @param {ObjectValue|null=} previousThrowable
+         * @returns {ObjectValue}
+         */
+        createTranslatedExceptionObject: function (
+            className,
+            translationKey,
+            placeholderVariables,
+            code,
+            previousThrowable
+        ) {
+            var factory = this,
+                message = factory.translator.translate(translationKey, placeholderVariables);
+
+            return factory.instantiateObject(
+                className,
+                [
+                    message,
+                    code,
+                    previousThrowable
+                ]
+            );
+        },
+
+        /**
          * Fetches the unwrapped object that an ObjectValue has been unwrapped to,
          * or returns null if there is no existing mapping
          *
          * @param objectValue
-         * @return {object|null}
+         * @returns {object|null}
          */
         getUnwrappedObjectFromValue: function (objectValue) {
             return this.valueToUnwrappedObjectMap.get(objectValue) || null;
@@ -321,7 +476,7 @@ module.exports = require('pauser')([
          *
          * @param {string} className
          * @param {Array} constructorArgNatives
-         * @return {ObjectValue}
+         * @returns {ObjectValue}
          */
         instantiateObject: function (className, constructorArgNatives) {
             var factory = this,
@@ -348,6 +503,21 @@ module.exports = require('pauser')([
             factory.unwrappedObjectToValueMap.set(unwrappedObject, objectValue);
             factory.valueToUnwrappedObjectMap.set(objectValue, unwrappedObject);
         },
+
+        /**
+         * Sets the CallStack to use for created value objects
+         *
+         * @param {CallStack} callStack
+         */
+        setCallStack: function (callStack) {
+            this.callStack = callStack;
+        },
+
+        /**
+         * Sets the root/global namespace
+         *
+         * @param {Namespace} globalNamespace
+         */
         setGlobalNamespace: function (globalNamespace) {
             this.globalNamespace = globalNamespace;
         }

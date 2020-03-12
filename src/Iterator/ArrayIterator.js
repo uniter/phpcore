@@ -64,7 +64,7 @@ _.extend(ArrayIterator.prototype, {
      * If the array is empty or the pointer is past the end of the array,
      * null will be returned.
      *
-     * @return {Value|null}
+     * @returns {Value|null}
      */
     getCurrentKey: function () {
         var iterator = this;
@@ -75,7 +75,7 @@ _.extend(ArrayIterator.prototype, {
     /**
      * Fetches the ArrayValue or ObjectValue that this iterator iterates over
      *
-     * @return {ArrayValue|ObjectValue}
+     * @returns {ArrayValue|ObjectValue}
      */
     getIteratedValue: function () {
         return this.arrayLikeValue;
@@ -84,7 +84,7 @@ _.extend(ArrayIterator.prototype, {
     /**
      * Determines whether this iterator is pointing past the end of the array being iterated over
      *
-     * @return {boolean}
+     * @returns {boolean}
      */
     isNotFinished: function () {
         var iterator = this;

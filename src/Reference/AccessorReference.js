@@ -32,6 +32,15 @@ _.extend(AccessorReference.prototype, {
         return reference.valueFactory.coerce(reference.valueGetter());
     },
 
+    /**
+     * Determines whether this reference is defined
+     *
+     * @returns {boolean}
+     */
+    isDefined: function () {
+        return true;
+    },
+
     setValue: function (value) {
         this.valueSetter(value.getNative());
 

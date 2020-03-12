@@ -16,6 +16,7 @@ var expect = require('chai').expect,
     Closure = require('../../src/Closure').sync(),
     ClosureFactory = require('../../src/ClosureFactory').sync(),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
+    FunctionSpec = require('../../src/Function/FunctionSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     Scope = require('../../src/Scope').sync(),
@@ -34,6 +35,7 @@ describe('ClosureFactory', function () {
     describe('create()', function () {
         beforeEach(function () {
             this.enclosingScope = sinon.createStubInstance(Scope);
+            this.functionSpec = sinon.createStubInstance(FunctionSpec);
             this.namespaceScope = sinon.createStubInstance(NamespaceScope);
             this.scopeClass = sinon.createStubInstance(Class);
             this.thisObject = sinon.createStubInstance(ObjectValue);
@@ -50,7 +52,8 @@ describe('ClosureFactory', function () {
                     this.unwrappedFunction,
                     this.namespaceScope,
                     dontUseScopeClass ? null : this.scopeClass,
-                    dontUseThisObject ? null : this.thisObject
+                    dontUseThisObject ? null : this.thisObject,
+                    this.functionSpec
                 );
             }.bind(this);
         });
@@ -217,6 +220,21 @@ describe('ClosureFactory', function () {
             );
         });
 
+        it('should pass the FunctionSpec to the FunctionFactory', function () {
+            this.callCreate(true, true);
+
+            expect(this.functionFactory.create).to.have.been.calledOnce;
+            expect(this.functionFactory.create).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(this.functionSpec)
+            );
+        });
+
         it('should pass the factory to the Closure', function () {
             this.callCreate();
 
@@ -298,6 +316,22 @@ describe('ClosureFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.same(this.thisObject)
+            );
+        });
+
+        it('should pass the FunctionSpec to the Closure', function () {
+            this.callCreate();
+
+            expect(this.Closure).to.have.been.calledOnce;
+            expect(this.Closure).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(this.functionSpec)
             );
         });
 

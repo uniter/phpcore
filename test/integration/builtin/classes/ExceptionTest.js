@@ -11,11 +11,50 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../../tools');
+    phpCommon = require('phpcommon'),
+    tools = require('../../tools'),
+    PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP builtin Exception class integration', function () {
     describe('getFile()', function () {
-        it('should return the file path for an Exception instance when tracked', function () {
+        it('should return the file path for an Exception instance when known', function () {
+            var php = nowdoc(function () {/*<<<EOS
+<?php
+
+function myFirstThrower() {
+    $exception = new Exception('Bang one');
+
+    return $exception->getFile();
+}
+
+function mySecondThrower() {
+    $exception = new Exception('Bang two');
+
+    return $exception->getFile();
+}
+
+$result = [];
+
+$result[] = myFirstThrower();
+$result[] = mySecondThrower();
+
+$exception = new Exception('Bang three');
+$result[] = $exception->getFile();
+
+return $result;
+
+EOS
+*/;}),//jshint ignore:line
+                module = tools.syncTranspile('/my/test/module.php', php);
+
+            expect(module().execute().getNative()).to.deep.equal([
+                '/my/test/module.php', // From myFirstThrower
+                '/my/test/module.php', // From mySecondThrower
+                '/my/test/module.php'  // From the top-level scope exception
+            ]);
+        });
+
+        it('should return null as the file path for an Exception instance when not known', function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -44,16 +83,15 @@ return $result;
 EOS
 */;}),//jshint ignore:line
                 module = tools.syncTranspile(null, php, {
-                    // Capture offsets of all nodes for line tracking
-                    phpToAST: {captureAllBounds: true},
-                    // Record line numbers for statements/expressions
-                    phpToJS: {lineNumbers: true}
+                    // Turn off line tracking
+                    phpToAST: {captureAllBounds: false},
+                    phpToJS: {lineNumbers: false}
                 });
 
-            expect(module({path: '/my/test/module.php'}).execute().getNative()).to.deep.equal([
-                '/my/test/module.php', // From myFirstThrower
-                '/my/test/module.php', // From mySecondThrower
-                '/my/test/module.php'  // From the top-level scope exception
+            expect(module().execute().getNative()).to.deep.equal([
+                null, // From myFirstThrower
+                null, // From mySecondThrower
+                null  // From the top-level scope exception
             ]);
         });
 
@@ -78,14 +116,9 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php, {
-                    // Capture offsets of all nodes for line tracking
-                    phpToAST: {captureAllBounds: true},
-                    // Record line numbers for statements/expressions
-                    phpToJS: {lineNumbers: true}
-                });
+                module = tools.syncTranspile('/my/test/module.php', php);
 
-            expect(module({path: '/my/test/module.php'}).execute().getNative()).to.deep.equal([
+            expect(module().execute().getNative()).to.deep.equal([
                 '/my/custom/file/path'
             ]);
         });
@@ -120,17 +153,53 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php, {
-                    // Capture offsets of all nodes for line tracking
-                    phpToAST: {captureAllBounds: true},
-                    // Record line numbers for statements/expressions
-                    phpToJS: {lineNumbers: true}
-                });
+                module = tools.syncTranspile(null, php);
 
             expect(module().execute().getNative()).to.deep.equal([
                 4,  // From myFirstThrower
                 10, // From mySecondThrower
                 20  // From the top-level scope exception
+            ]);
+        });
+
+        it('should return null for the PHP line number for an Exception instance when not tracked', function () {
+            var php = nowdoc(function () {/*<<<EOS
+<?php
+
+function myFirstThrower() {
+    $exception = new Exception('Bang one');
+
+    return $exception->getLine();
+}
+
+function mySecondThrower() {
+    $exception = new Exception('Bang two');
+
+    return $exception->getLine();
+}
+
+$result = [];
+
+$result[] = myFirstThrower();
+$result[] = mySecondThrower();
+
+$exception = new Exception('Bang three');
+$result[] = $exception->getLine();
+
+return $result;
+
+EOS
+*/;}),//jshint ignore:line
+                module = tools.syncTranspile(null, php, {
+                    // Turn off line tracking
+                    phpToAST: {captureAllBounds: false},
+                    phpToJS: {lineNumbers: false}
+                });
+
+            expect(module().execute().getNative()).to.deep.equal([
+                null, // From myFirstThrower
+                null, // From mySecondThrower
+                null  // From the top-level scope exception
             ]);
         });
 
@@ -170,12 +239,7 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php, {
-                    // Capture offsets of all nodes for line tracking
-                    phpToAST: {captureAllBounds: true},
-                    // Record line numbers for statements/expressions
-                    phpToJS: {lineNumbers: true}
-                });
+                module = tools.syncTranspile(null, php);
 
             expect(module().execute().getNative()).to.deep.equal([
                 12, // From myFirstThrower
@@ -205,14 +269,9 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php, {
-                    // Capture offsets of all nodes for line tracking
-                    phpToAST: {captureAllBounds: true},
-                    // Record line numbers for statements/expressions
-                    phpToJS: {lineNumbers: true}
-                });
+                module = tools.syncTranspile('/my/test/module.php', php);
 
-            expect(module({path: '/my/test/module.php'}).execute().getNative()).to.deep.equal([
+            expect(module().execute().getNative()).to.deep.equal([
                 4127
             ]);
         });
@@ -271,14 +330,9 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php, {
-                    // Capture offsets of all nodes for line tracking
-                    phpToAST: {captureAllBounds: true},
-                    // Record line numbers for statements/expressions
-                    phpToJS: {lineNumbers: true}
-                });
+                module = tools.syncTranspile('/my/test/module.php', php);
 
-            expect(module({path: '/my/test/module.php'}).execute().getNative()).to.deep.equal([
+            expect(module().execute().getNative()).to.deep.equal([
                 'My custom message'
             ]);
         });
@@ -320,14 +374,9 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php, {
-                    // Capture offsets of all nodes for line tracking
-                    phpToAST: {captureAllBounds: true},
-                    // Record line numbers for statements/expressions
-                    phpToJS: {lineNumbers: true}
-                });
+                module = tools.syncTranspile('myModule.php', php);
 
-            expect(module({path: 'myModule.php'}).execute().getNative()).to.deep.equal([
+            expect(module().execute().getNative()).to.deep.equal([
                 // From myFirstThrower
                 nowdoc(function () {/*<<<EOS
 #0 myModule.php(17): myFirstThrower(Array, true, 21.2, 27, NULL, Object(stdClass), 'my arg')
@@ -340,6 +389,69 @@ EOS
 #0 myModule.php(22): mySecondThrower()
 #1 myModule.php(28): proxyTwo()
 #2 {main}
+EOS
+*/;}) //jshint ignore:line
+            ]);
+        });
+    });
+
+    describe('when thrown but not caught', function () {
+        var doRun,
+            outputLog;
+
+        beforeEach(function () {
+            outputLog = [];
+            doRun = function (engine) {
+                // Capture the standard streams, prefixing each write with its name
+                // so that we can ensure that what is written to each of them is in the correct order
+                // with respect to one another
+                engine.getStdout().on('data', function (data) {
+                    outputLog.push('[stdout]' + data);
+                });
+                engine.getStderr().on('data', function (data) {
+                    outputLog.push('[stderr]' + data);
+                });
+
+                return engine.execute();
+            };
+        });
+
+        it('should output the correct message for an empty Exception', function () {
+            var php = nowdoc(function () {/*<<<EOS
+<?php
+
+// -- Some padding to inflate line numbers --
+
+throw new Exception;
+EOS
+*/;}),//jshint ignore:line
+                module = tools.syncTranspile('/my/php_module.php', php),
+                engine = module();
+
+            expect(function () {
+                doRun(engine);
+            }).to.throw(
+                PHPFatalError,
+                'PHP Fatal error: Uncaught Exception in /my/php_module.php on line 5'
+            );
+            expect(outputLog).to.deep.equal([
+                nowdoc(function () {/*<<<EOS
+[stderr]PHP Fatal error:  Uncaught Exception in /my/php_module.php:5
+Stack trace:
+#0 {main}
+  thrown in /my/php_module.php on line 5
+
+EOS
+*/;}), //jshint ignore:line
+
+                // NB: Stdout should have a leading newline written out just before the message
+                nowdoc(function () {/*<<<EOS
+[stdout]
+Fatal error: Uncaught Exception in /my/php_module.php:5
+Stack trace:
+#0 {main}
+  thrown in /my/php_module.php on line 5
+
 EOS
 */;}) //jshint ignore:line
             ]);

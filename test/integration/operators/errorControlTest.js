@@ -17,6 +17,7 @@ describe('PHP error control @(...) operator integration', function () {
     it('should suppress errors in the current scope and any sub-call scopes', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
+ini_set('error_reporting', E_ALL); // Notices are hidden by default
 
 function badFunc() {
     print $myUndefVar; // Should raise a notice
@@ -43,7 +44,7 @@ $result[] = @badFunc2();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/some/module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -57,7 +58,7 @@ EOS
         // Only the unsuppressed expression should be able to raise an error
         expect(engine.getStderr().readAll()).to.equal(
             nowdoc(function () {/*<<<EOS
-PHP Notice: Undefined variable: undefVarWithNoSuppression
+PHP Notice:  Undefined variable: undefVarWithNoSuppression in /some/module.php on line 23
 
 EOS
 */;}) //jshint ignore:line

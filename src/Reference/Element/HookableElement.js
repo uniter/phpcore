@@ -37,7 +37,7 @@ _.extend(HookableElementReference.prototype, {
     /**
      * Creates a copy of this reference
      *
-     * @return {HookableElementReference}
+     * @returns {HookableElementReference}
      */
     clone: function () {
         var element = this;
@@ -49,7 +49,7 @@ _.extend(HookableElementReference.prototype, {
      * Fetches an instance property of this element (assuming it contains an object) by its name
      *
      * @param {string} name
-     * @return {PropertyReference}
+     * @returns {PropertyReference}
      */
     getInstancePropertyByName: function (name) {
         return this.decoratedElement.getInstancePropertyByName(name);
@@ -58,7 +58,7 @@ _.extend(HookableElementReference.prototype, {
     /**
      * Fetches this element's key value
      *
-     * @return {Value}
+     * @returns {Value}
      */
     getKey: function () {
         return this.decoratedElement.getKey();
@@ -80,7 +80,7 @@ _.extend(HookableElementReference.prototype, {
     /**
      * Fetches a reference to this element
      *
-     * @return {HookableElementReference}
+     * @returns {HookableElementReference}
      */
     getReference: function () {
         return this;
@@ -89,7 +89,7 @@ _.extend(HookableElementReference.prototype, {
     /**
      * Fetches the value of this element (or the value of its reference, if set)
      *
-     * @return {Value}
+     * @returns {Value}
      */
     getValue: function () {
         return this.decoratedElement.getValue();
@@ -98,7 +98,7 @@ _.extend(HookableElementReference.prototype, {
     /**
      * Fetches either the value or the reference of this element, depending on which (if any) is set
      *
-     * @return {Reference|Value}
+     * @returns {Reference|Value}
      */
     getValueReference: function () {
         return this.decoratedElement.getValueReference();
@@ -107,7 +107,7 @@ _.extend(HookableElementReference.prototype, {
     /**
      * Determines whether this element is "defined" (whether it has either a value or reference set)
      *
-     * @return {boolean}
+     * @returns {boolean}
      */
     isDefined: function () {
         return this.decoratedElement.isDefined();
@@ -125,7 +125,7 @@ _.extend(HookableElementReference.prototype, {
     /**
      * Determines whether this element has a reference set rather than a value
      *
-     * @return {boolean}
+     * @returns {boolean}
      */
     isReference: function () {
         return this.decoratedElement.isReference();
@@ -134,7 +134,7 @@ _.extend(HookableElementReference.prototype, {
     /**
      * Determines whether this element is defined and if so, whether its value or reference is "set"
      *
-     * @return {boolean}
+     * @returns {boolean}
      */
     isSet: function () {
         return this.decoratedElement.isSet();

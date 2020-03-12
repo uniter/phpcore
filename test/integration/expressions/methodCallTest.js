@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools'),
     PHPFatalError = require('phpcommon').PHPFatalError;
 
-describe('PHP synchronous method call integration', function () {
+describe('PHP synchronous instance method call integration', function () {
     it('should correctly handle calling an instance method as static', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -115,6 +115,8 @@ EOS
     it('should correctly handle calling an instance method statically from an unrelated method', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
+ini_set('error_reporting', E_ALL); // Enable E_STRICT errors
+
 class ClassOne
 {
     public $myProp;
@@ -138,13 +140,14 @@ $object->myProp = 7;
 return $object->methodTwo();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.equal(32);
+        // TODO: Change for PHP 7 (see https://www.php.net/manual/en/migration70.incompatible.php)
         expect(engine.getStderr().readAll()).to.equal(
-            'PHP Strict standards: Non-static method ClassOne::methodOne() should not be called statically, ' +
-            'assuming $this from incompatible context\n'
+            'PHP Strict standards:  Non-static method ClassOne::methodOne() should not be called statically, ' +
+            'assuming $this from incompatible context in /path/to/module.php on line 17\n'
         );
     });
 
@@ -173,17 +176,47 @@ print $object->methodTwo();
 print 'after';
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(function () {
             engine.execute();
-        }).to.throw(PHPFatalError, 'PHP Fatal error: Using $this when not in object context');
-        expect(engine.getStdout().readAll()).to.equal('before');
-        expect(engine.getStderr().readAll()).to.equal('PHP Fatal error: Using $this when not in object context');
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Using $this when not in object context in /path/to/my_module.php on line 6'
+        );
+        // Stdout (and stderr) should have the file/line combination in colon-separated format
+        expect(engine.getStdout().readAll()).to.equal(
+            // NB: Stdout should have a leading newline written out just before the message
+            nowdoc(function () {/*<<<EOS
+before
+Fatal error: Uncaught Error: Using $this when not in object context in /path/to/my_module.php:6
+Stack trace:
+#0 /path/to/my_module.php(13): ClassOne::methodOne()
+#1 /path/to/my_module.php(20): ClassTwo->methodTwo()
+#2 {main}
+  thrown in /path/to/my_module.php on line 6
+
+EOS
+*/;}) //jshint ignore:line
+        );
+        // Stderr should have the whole message prefixed with "PHP " and two spaces before "Uncaught ..."
+        expect(engine.getStderr().readAll()).to.equal(
+            // There should be no space between the "before" string printed and the error message
+            nowdoc(function () {/*<<<EOS
+PHP Fatal error:  Uncaught Error: Using $this when not in object context in /path/to/my_module.php:6
+Stack trace:
+#0 /path/to/my_module.php(13): ClassOne::methodOne()
+#1 /path/to/my_module.php(20): ClassTwo->methodTwo()
+#2 {main}
+  thrown in /path/to/my_module.php on line 6
+
+EOS
+*/;}) //jshint ignore:line
+        );
     });
 
-    it('should correctly handle attempting to access $this from a static method', function () {
+    it('should correctly handle attempting to access a member of $this from a static method', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class ClassOne
@@ -211,13 +244,85 @@ print $object->methodTwo();
 print 'after';
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/some/module/path.php', php),
             engine = module();
 
         expect(function () {
             engine.execute();
-        }).to.throw(PHPFatalError, 'PHP Fatal error: Using $this when not in object context');
-        expect(engine.getStdout().readAll()).to.equal('before');
-        expect(engine.getStderr().readAll()).to.equal('PHP Fatal error: Using $this when not in object context');
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Using $this when not in object context in /some/module/path.php on line 8'
+        );
+        // Stdout (and stderr) should have the file/line combination in colon-separated format
+        expect(engine.getStdout().readAll()).to.equal(
+            // NB: Stdout should have a leading newline written out just before the message
+            nowdoc(function () {/*<<<EOS
+before
+Fatal error: Uncaught Error: Using $this when not in object context in /some/module/path.php:8
+Stack trace:
+#0 /some/module/path.php(15): ClassOne::methodOne()
+#1 /some/module/path.php(23): ClassTwo->methodTwo()
+#2 {main}
+  thrown in /some/module/path.php on line 8
+
+EOS
+*/;}) //jshint ignore:line
+        );
+        // Stderr should have the whole message prefixed with "PHP " and two spaces before "Uncaught ..."
+        expect(engine.getStderr().readAll()).to.equal(
+            // There should be no space between the "before" string printed and the error message
+            nowdoc(function () {/*<<<EOS
+PHP Fatal error:  Uncaught Error: Using $this when not in object context in /some/module/path.php:8
+Stack trace:
+#0 /some/module/path.php(15): ClassOne::methodOne()
+#1 /some/module/path.php(23): ClassTwo->methodTwo()
+#2 {main}
+  thrown in /some/module/path.php on line 8
+
+EOS
+*/;}) //jshint ignore:line
+        );
+    });
+
+    it('should raise a fatal error on attempting to call a method of an array', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$myArray = [21, 101];
+
+$dummy = $myArray->myMethod();
+
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('my_module.php', php),
+            engine = module();
+
+        expect(function () {
+            engine.execute();
+        }.bind(this)).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Call to a member function myMethod() on array in my_module.php on line 5'
+        );
+    });
+
+    it('should raise a fatal error on attempting to call a method of an integer', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$myInt = 27;
+
+$dummy = $myInt->myMethod();
+
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('my_module.php', php),
+            engine = module();
+
+        expect(function () {
+            engine.execute();
+        }.bind(this)).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Call to a member function myMethod() on int in my_module.php on line 5'
+        );
     });
 });

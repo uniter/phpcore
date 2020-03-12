@@ -142,7 +142,7 @@ _.extend(ValueFormatter.prototype, {
                 });
             }
         } else if (
-            value.getType() === 'integer' ||
+            value.getType() === 'int' ||
             value.getType() === 'float' ||
             value.getType() === 'boolean'
         ) {

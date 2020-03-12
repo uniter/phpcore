@@ -11,11 +11,48 @@
 
 var _ = require('microdash');
 
-function NamespaceFactory(Namespace, callStack, functionFactory, valueFactory, classAutoloader) {
+/**
+ * Creates objects related to Namespaces
+ *
+ * @param {class} Namespace
+ * @param {CallStack} callStack
+ * @param {FunctionFactory} functionFactory
+ * @param {FunctionSpecFactory} functionSpecFactory
+ * @param {ValueFactory} valueFactory
+ * @param {ClassAutoloader} classAutoloader
+ * @constructor
+ */
+function NamespaceFactory(
+    Namespace,
+    callStack,
+    functionFactory,
+    functionSpecFactory,
+    valueFactory,
+    classAutoloader
+) {
+    /**
+     * @type {CallStack}
+     */
     this.callStack = callStack;
+    /**
+     * @type {ClassAutoloader}
+     */
     this.classAutoloader = classAutoloader;
+    /**
+     * @type {FunctionFactory}
+     */
     this.functionFactory = functionFactory;
+    /**
+     * @type {FunctionSpecFactory}
+     */
+    this.functionSpecFactory = functionSpecFactory;
+    /**
+     * @type {class}
+     */
     this.Namespace = Namespace;
+    /**
+     * @type {ValueFactory}
+     */
     this.valueFactory = valueFactory;
 }
 
@@ -28,6 +65,7 @@ _.extend(NamespaceFactory.prototype, {
             factory.valueFactory,
             factory,
             factory.functionFactory,
+            factory.functionSpecFactory,
             factory.classAutoloader,
             parentNamespace || null,
             name || ''

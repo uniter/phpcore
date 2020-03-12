@@ -15,6 +15,7 @@ var expect = require('chai').expect,
     Closure = require('../../src/Closure').sync(),
     ClosureFactory = require('../../src/ClosureFactory').sync(),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
+    FunctionSpec = require('../../src/Function/FunctionSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     Scope = require('../../src/Scope').sync(),
@@ -26,6 +27,7 @@ describe('Closure', function () {
         this.closureFactory = sinon.createStubInstance(ClosureFactory);
         this.enclosingScope = sinon.createStubInstance(Scope);
         this.functionFactory = sinon.createStubInstance(FunctionFactory);
+        this.functionSpec = sinon.createStubInstance(FunctionSpec);
         this.namespaceScope = sinon.createStubInstance(NamespaceScope);
         this.thisObject = sinon.createStubInstance(ObjectValue);
         this.unwrappedFunction = sinon.stub();
@@ -39,7 +41,8 @@ describe('Closure', function () {
             this.enclosingScope,
             this.unwrappedFunction,
             this.wrappedFunction,
-            this.thisObject
+            this.thisObject,
+            this.functionSpec
         );
     });
 
@@ -107,6 +110,33 @@ describe('Closure', function () {
                 sinon.match.any,
                 sinon.match.any,
                 null
+            );
+        });
+
+        it('should pass the thisObject to the ClosureFactory', function () {
+            this.callBind();
+
+            expect(this.closureFactory.create).to.have.been.calledOnce;
+            expect(this.closureFactory.create).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(this.thisObject)
+            );
+        });
+
+        it('should pass the FunctionSpec to the ClosureFactory', function () {
+            this.callBind();
+
+            expect(this.closureFactory.create).to.have.been.calledOnce;
+            expect(this.closureFactory.create).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(this.functionSpec)
             );
         });
 

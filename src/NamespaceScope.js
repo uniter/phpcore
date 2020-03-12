@@ -10,23 +10,31 @@
 'use strict';
 
 module.exports = require('pauser')([
-    require('microdash'),
-    require('phpcommon')
+    require('microdash')
 ], function (
-    _,
-    phpCommon
+    _
 ) {
     var hasOwn = {}.hasOwnProperty,
-        PHPFatalError = phpCommon.PHPFatalError;
+
+        CANNOT_USE_AS_NAME_ALREADY_IN_USE = 'core.cannot_use_as_name_already_in_use';
 
     /**
+     * Represents a block within a PHP module that is inside a namespace statement,
+     * containing classes imported with `use` statements etc.
+     *
      * @param {Namespace} globalNamespace
      * @param {ValueFactory} valueFactory
+     * @param {CallStack} callStack
      * @param {Module} module
      * @param {Namespace} namespace
+     * @param {boolean} global Whether this namespace scope is the special "invisible" global one
      * @constructor
      */
-    function NamespaceScope(globalNamespace, valueFactory, module, namespace) {
+    function NamespaceScope(globalNamespace, valueFactory, callStack, module, namespace, global) {
+        /**
+         * @type {CallStack}
+         */
+        this.callStack = callStack;
         /**
          * @type {Namespace}
          */
@@ -37,6 +45,10 @@ module.exports = require('pauser')([
          * @type {object}
          */
         this.imports = {};
+        /**
+         * @type {boolean}
+         */
+        this.global = global;
         /**
          * @type {Module}
          */
@@ -104,7 +116,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the path to the file this scope's parent module originates from
          *
-         * @returns {number|null}
+         * @returns {string|null}
          */
         getFilePath: function () {
             return this.module.getFilePath();
@@ -170,6 +182,41 @@ module.exports = require('pauser')([
             return this.namespace.getPrefix();
         },
 
+        /**
+         * Determines whether the specified class is defined for this namespace scope,
+         * taking any imports/aliases via `use` into account
+         *
+         * @param {string} name
+         * @returns {boolean}
+         */
+        hasClass: function (name) {
+            var scope = this,
+                resolvedClass = scope.resolveClass(name);
+
+            // Check whether the entire class name is aliased
+            if (hasOwn.call(scope.imports, name.toLowerCase())) {
+                return true;
+            }
+
+            return resolvedClass.namespace.hasClass(resolvedClass.name);
+        },
+
+        /**
+         * Determines whether this namespace scope is the special "invisible" global one
+         *
+         * @returns {boolean}
+         */
+        isGlobal: function () {
+            return this.global;
+        },
+
+        /**
+         * Resolves a potentially relatively- or fully-qualified class path
+         * to the Namespace instance it should be defined by and its name
+         *
+         * @param {string} name
+         * @returns {{namespace: Namespace, name: string}}
+         */
         resolveClass: function (name) {
             var match,
                 scope = this,
@@ -203,10 +250,14 @@ module.exports = require('pauser')([
                 if (match) {
                     prefix = match[1];
                     path = match[2];
+                    name = match[3];
 
                     if (hasOwn.call(scope.imports, prefix.toLowerCase())) {
                         namespace = scope.globalNamespace.getDescendant(scope.imports[prefix.toLowerCase()].substr(1) + path);
-                        name = match[3];
+                    } else {
+                        // Not an alias: look up the namespace path relative to this namespace
+                        // (ie. 'namespace Test { Our\Func(); }' -> '\Test\Our\Func();')
+                        namespace = namespace.getDescendant(prefix + path);
                     }
                 }
             }
@@ -214,6 +265,12 @@ module.exports = require('pauser')([
             return {namespace: namespace, name: name};
         },
 
+        /**
+         * Imports a class into the current namespace scope, eg. from a PHP `use ...` statement
+         *
+         * @param {string} source
+         * @param {string} alias
+         */
         use: function (source, alias) {
             var scope = this,
                 normalizedSource = source;
@@ -226,14 +283,11 @@ module.exports = require('pauser')([
                 normalizedSource = '\\' + normalizedSource;
             }
 
-            if (scope.imports[alias.toLowerCase()]) {
-                throw new PHPFatalError(
-                    PHPFatalError.NAME_ALREADY_IN_USE,
-                    {
-                        alias: alias,
-                        source: source
-                    }
-                );
+            if (scope.hasClass(alias.toLowerCase())) {
+                scope.callStack.raiseUncatchableFatalError(CANNOT_USE_AS_NAME_ALREADY_IN_USE, {
+                    alias: alias,
+                    source: source
+                });
             }
 
             scope.imports[alias.toLowerCase()] = normalizedSource;

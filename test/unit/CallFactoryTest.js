@@ -20,10 +20,11 @@ var expect = require('chai').expect,
 describe('CallFactory', function () {
     beforeEach(function () {
         this.Call = sinon.stub();
+        this.FFICall = sinon.stub();
         this.namespaceScope = sinon.createStubInstance(NamespaceScope);
         this.scope = sinon.createStubInstance(Scope);
 
-        this.factory = new CallFactory(this.Call);
+        this.factory = new CallFactory(this.Call, this.FFICall);
     });
 
     describe('create()', function () {
@@ -94,6 +95,31 @@ describe('CallFactory', function () {
                 sinon.match.any,
                 null
             );
+        });
+    });
+
+    describe('createFFICall()', function () {
+        it('should return an instance of FFICall', function () {
+            expect(this.factory.createFFICall()).to.be.an.instanceOf(this.FFICall);
+        });
+
+        it('should pass the argument values to the Call constructor if specified', function () {
+            var argValue1 = sinon.createStubInstance(Value),
+                argValue2 = sinon.createStubInstance(Value);
+
+            this.factory.createFFICall([argValue1, argValue2]);
+
+            expect(this.FFICall).to.have.been.calledOnce;
+            expect(this.FFICall).to.have.been.calledWith(
+                sinon.match([sinon.match.same(argValue1), sinon.match.same(argValue2)])
+            );
+        });
+
+        it('should pass an empty array of argument values to the Call constructor if none specified', function () {
+            this.factory.createFFICall();
+
+            expect(this.FFICall).to.have.been.calledOnce;
+            expect(this.FFICall).to.have.been.calledWith(sinon.match([]));
         });
     });
 });

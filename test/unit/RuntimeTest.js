@@ -253,7 +253,9 @@ describe('Runtime', function () {
                     classGroups: [],
                     classes: {},
                     constantGroups: [],
-                    functionGroups: []
+                    defaultINIGroups: [],
+                    functionGroups: [],
+                    translationCatalogues: []
                 },
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
@@ -306,7 +308,9 @@ describe('Runtime', function () {
                         MyClass: sinon.match.same(MyClass)
                     },
                     constantGroups: [],
-                    functionGroups: []
+                    defaultINIGroups: [],
+                    functionGroups: [],
+                    translationCatalogues: []
                 }
             );
         });
@@ -329,7 +333,9 @@ describe('Runtime', function () {
                     classGroups: [],
                     classes: {},
                     constantGroups: [],
-                    functionGroups: []
+                    defaultINIGroups: [],
+                    functionGroups: [],
+                    translationCatalogues: []
                 },
                 sinon.match.any,
                 sinon.match.any,
@@ -362,7 +368,108 @@ describe('Runtime', function () {
                     classGroups: [],
                     classes: {},
                     constantGroups: [],
-                    functionGroups: []
+                    defaultINIGroups: [],
+                    functionGroups: [],
+                    translationCatalogues: []
+                },
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any
+            );
+        });
+
+        it('should cause created environments to have the provided constant groups', function () {
+            var constantGroupFactory = sinon.stub();
+
+            this.runtime.install({
+                constantGroups: [
+                    constantGroupFactory
+                ]
+            });
+            this.runtime.createEnvironment();
+
+            expect(this.PHPState).to.have.been.calledOnce;
+            expect(this.PHPState).to.have.been.calledWith(
+                sinon.match.any,
+                {
+                    bindingGroups: [],
+                    constantGroups: [
+                        sinon.match.same(constantGroupFactory)
+                    ],
+                    classGroups: [],
+                    classes: {},
+                    defaultINIGroups: [],
+                    functionGroups: [],
+                    translationCatalogues: []
+                },
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any
+            );
+        });
+
+        it('should cause created environments to have the provided default INI option groups', function () {
+            var defaultINIGroupFactory = sinon.stub();
+
+            this.runtime.install({
+                defaultINIGroups: [
+                    defaultINIGroupFactory
+                ]
+            });
+            this.runtime.createEnvironment();
+
+            expect(this.PHPState).to.have.been.calledOnce;
+            expect(this.PHPState).to.have.been.calledWith(
+                sinon.match.any,
+                {
+                    bindingGroups: [],
+                    constantGroups: [],
+                    classGroups: [],
+                    classes: {},
+                    defaultINIGroups: [
+                        sinon.match.same(defaultINIGroupFactory)
+                    ],
+                    functionGroups: [],
+                    translationCatalogues: []
+                },
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any
+            );
+        });
+
+        it('should cause created environments to have the provided default translations', function () {
+            var defaultTranslationCatalogue = {
+                'en_GB': {
+                    'my_ns': {
+                        'my_key': 'My translated text'
+                    }
+                }
+            };
+
+            this.runtime.install({
+                translationCatalogues: [
+                    defaultTranslationCatalogue
+                ]
+            });
+            this.runtime.createEnvironment();
+
+            expect(this.PHPState).to.have.been.calledOnce;
+            expect(this.PHPState).to.have.been.calledWith(
+                sinon.match.any,
+                {
+                    bindingGroups: [],
+                    constantGroups: [],
+                    classGroups: [],
+                    classes: {},
+                    defaultINIGroups: [],
+                    functionGroups: [],
+                    translationCatalogues: [
+                        sinon.match.same(defaultTranslationCatalogue)
+                    ]
                 },
                 sinon.match.any,
                 sinon.match.any,
@@ -393,7 +500,9 @@ describe('Runtime', function () {
                         MyClass: sinon.match.same(MyClass)
                     },
                     constantGroups: [],
-                    functionGroups: []
+                    defaultINIGroups: [],
+                    functionGroups: [],
+                    translationCatalogues: []
                 }
             );
         });

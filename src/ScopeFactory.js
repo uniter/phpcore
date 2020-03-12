@@ -12,20 +12,24 @@
 var _ = require('microdash');
 
 /**
+ * @param {class} LoadScope
  * @param {class} Scope
  * @param {class} NamespaceScope
  * @param {CallStack} callStack
  * @param {SuperGlobalScope} superGlobalScope
+ * @param {FunctionSpecFactory} functionSpecFactory
  * @param {ValueFactory} valueFactory
  * @param {VariableFactory} variableFactory
  * @param {ReferenceFactory} referenceFactory
  * @constructor
  */
 function ScopeFactory(
+    LoadScope,
     Scope,
     NamespaceScope,
     callStack,
     superGlobalScope,
+    functionSpecFactory,
     valueFactory,
     variableFactory,
     referenceFactory
@@ -38,6 +42,14 @@ function ScopeFactory(
      * @type {ClosureFactory}
      */
     this.closureFactory = null;
+    /**
+     * @type {class}
+     */
+    this.LoadScope = LoadScope;
+    /**
+     * @type {FunctionSpecFactory}
+     */
+    this.functionSpecFactory = functionSpecFactory;
     /**
      * @type {Scope}
      */
@@ -72,13 +84,12 @@ _.extend(ScopeFactory.prototype, {
     /**
      * Creates a new Scope
      *
-     * @param {NamespaceScope} namespaceScope
-     * @param {Class|null} currentClass
-     * @param {Function|null} currentFunction
-     * @param {ObjectValue|null} thisObject
+     * @param {Class|null=} currentClass
+     * @param {Function|null=} currentFunction
+     * @param {ObjectValue|null=} thisObject
      * @returns {Scope}
      */
-    create: function (namespaceScope, currentClass, currentFunction, thisObject) {
+    create: function (currentClass, currentFunction, thisObject) {
         var factory = this;
 
         return new factory.Scope(
@@ -86,14 +97,28 @@ _.extend(ScopeFactory.prototype, {
             factory.globalScope,
             factory.superGlobalScope,
             factory.closureFactory,
+            factory.functionSpecFactory,
             factory.valueFactory,
             factory.variableFactory,
             factory.referenceFactory,
-            namespaceScope || null,
             currentClass || null,
             currentFunction || null,
             thisObject || null
         );
+    },
+
+    /**
+     * Creates a new LoadScope
+     *
+     * @param {Scope} effectiveScope
+     * @param {string} callerFilePath
+     * @param {string} type The type of load, eg. `eval` or `include`
+     * @returns {LoadScope}
+     */
+    createLoadScope: function (effectiveScope, callerFilePath, type) {
+        var factory = this;
+
+        return new factory.LoadScope(factory.valueFactory, effectiveScope, callerFilePath, type);
     },
 
     /**
@@ -102,12 +127,12 @@ _.extend(ScopeFactory.prototype, {
      * @param {Namespace} namespace
      * @param {Namespace} globalNamespace
      * @param {Module} module
-     * @return {NamespaceScope}
+     * @returns {NamespaceScope}
      */
     createNamespaceScope: function (namespace, globalNamespace, module) {
         var factory = this;
 
-        return new factory.NamespaceScope(globalNamespace, factory.valueFactory, module, namespace);
+        return new factory.NamespaceScope(globalNamespace, factory.valueFactory, factory.callStack, module, namespace);
     },
 
     /**

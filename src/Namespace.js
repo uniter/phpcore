@@ -18,32 +18,117 @@ module.exports = require('pauser')([
     phpCommon,
     Class
 ) {
-    var IS_STATIC = 'isStatic',
+    var CALL_TO_UNDEFINED_FUNCTION = 'core.call_to_undefined_function',
+        CANNOT_DECLARE_CLASS_AS_NAME_ALREADY_IN_USE = 'core.cannot_declare_class_as_name_already_in_use',
+        CANNOT_IMPLEMENT_THROWABLE = 'core.cannot_implement_throwable',
+        CANNOT_REDECLARE_CLASS_AS_NAME_ALREADY_IN_USE = 'core.cannot_redeclare_class_as_name_already_in_use',
+        CLASS_NOT_FOUND = 'core.class_not_found',
+        CONSTANT_ALREADY_DEFINED = 'core.constant_already_defined',
+        UNDEFINED_CONSTANT = 'core.undefined_constant',
+
+        IS_METHOD = 'isMethod',
+        IS_STATIC = 'isStatic',
         MAGIC_CONSTRUCT = '__construct',
         hasOwn = {}.hasOwnProperty,
         PHPError = phpCommon.PHPError,
-        PHPFatalError = phpCommon.PHPFatalError,
         unwrapArgs = function (args) {
             return _.map(args, function (arg) {
                 return arg.getNative();
             });
         };
 
-    function Namespace(callStack, valueFactory, namespaceFactory, functionFactory, classAutoloader, parent, name) {
+    /**
+     * Represents a single namespace within the namespace hierarchy.
+     * For example, the class path `My\Lib\SubNs\MyClass` defines the namespace `My`
+     * under the global namespace, with a single Namespace instance for `My`.
+     * `SubNs` is another instance, with `My\Lib` as its parent and `My` as its grandparent.
+     *
+     * The special global namespace has the empty string as its unique name,
+     * along with null as its parent namespace.
+     *
+     * @param {CallStack} callStack
+     * @param {ValueFactory} valueFactory
+     * @param {NamespaceFactory} namespaceFactory
+     * @param {FunctionFactory} functionFactory
+     * @param {FunctionSpecFactory} functionSpecFactory
+     * @param {ClassAutoloader} classAutoloader
+     * @param {Namespace|null} parent
+     * @param {string} name
+     * @constructor
+     */
+    function Namespace(
+        callStack,
+        valueFactory,
+        namespaceFactory,
+        functionFactory,
+        functionSpecFactory,
+        classAutoloader,
+        parent,
+        name
+    ) {
+        /**
+         * @type {CallStack}
+         */
         this.callStack = callStack;
+        /**
+         * @type {Object.<string, Namespace>}
+         */
         this.children = {};
+        /**
+         * @type {ClassAutoloader}
+         */
         this.classAutoloader = classAutoloader;
+        /**
+         * @type {Object.<string, Class>}
+         */
         this.classes = {};
+        /**
+         * @type {Object.<string, {caseInsensitive: boolean, name: string, value: Value}>}
+         */
         this.constants = {};
+        /**
+         * @type {FunctionFactory}
+         */
         this.functionFactory = functionFactory;
+        /**
+         * @type {FunctionSpecFactory}
+         */
+        this.functionSpecFactory = functionSpecFactory;
+        /**
+         * @type {Object.<string, Function>}
+         */
         this.functions = {};
+        /**
+         * @type {string}
+         */
         this.name = name;
+        /**
+         * @type {NamespaceFactory}
+         */
         this.namespaceFactory = namespaceFactory;
+        /**
+         * @type {Namespace|null}
+         */
         this.parent = parent;
+        /**
+         * @type {ValueFactory}
+         */
         this.valueFactory = valueFactory;
     }
 
     _.extend(Namespace.prototype, {
+        /**
+         * Defines a class in the current namespace, either from a JS class/function or from a transpiled PHP class,
+         * where PHPToJS has generated an object containing all the information related to the class
+         *
+         * @TODO: Consider moving this to NamespaceScope.defineClass(...) rather than having that injected
+         *        as a required argument to this method?
+         *
+         * @param {string} name
+         * @param {Function|object} definition Either a Function for a native JS class or a transpiled definition object
+         * @param {NamespaceScope} namespaceScope
+         * @returns {Class} Returns the internal Class instance created
+         */
         defineClass: function (name, definition, namespaceScope) {
             var classObject,
                 constants,
@@ -56,7 +141,20 @@ module.exports = require('pauser')([
                 staticProperties,
                 InternalClass;
 
+            if (namespaceScope.hasClass(name)) {
+                namespace.callStack.raiseUncatchableFatalError(
+                    namespace.hasClass(name) ?
+                        CANNOT_REDECLARE_CLASS_AS_NAME_ALREADY_IN_USE :
+                        CANNOT_DECLARE_CLASS_AS_NAME_ALREADY_IN_USE,
+                    {
+                        className: namespace.getPrefix() + name
+                    }
+                );
+            }
+
             if (_.isFunction(definition)) {
+                // Class is defined using native JavaScript, not PHP
+
                 // Create a new, empty native constructor so that we can avoid calling
                 // the original if the derived class does not call parent::__construct(...)
                 // - Unless the class defines the special `shadowConstructor` property, which
@@ -105,6 +203,21 @@ module.exports = require('pauser')([
                 rootInternalPrototype = definition.prototype;
             } else {
                 // Class has a definition, so it was defined using PHP
+
+                // Ensure the class does not attempt to implement Throwable directly
+                _.each(definition.interfaces, function (interfaceName) {
+                    var resolvedClass = namespaceScope.resolveClass(interfaceName);
+
+                    if (resolvedClass.namespace.getName() === '' && resolvedClass.name.toLowerCase() === 'throwable') {
+                        namespace.callStack.raiseUncatchableFatalError(
+                            CANNOT_IMPLEMENT_THROWABLE,
+                            {
+                                className: namespace.getPrefix() + name
+                            }
+                        );
+                    }
+                });
+
                 InternalClass = function () {
                     var objectValue = this,
                         properties = {};
@@ -146,6 +259,7 @@ module.exports = require('pauser')([
                     // PHP5-style __construct magic method takes precedence
                     if (methodName === '__construct') {
                         if (constructorName) {
+                            // TODO: Change for PHP 7 (see https://www.php.net/manual/en/migration70.incompatible.php)
                             namespace.callStack.raiseError(PHPError.E_STRICT, 'Redefining already defined constructor for class ' + name);
                         }
 
@@ -182,14 +296,34 @@ module.exports = require('pauser')([
             );
 
             _.forOwn(methods, function (data, methodName) {
-                var method = namespace.functionFactory.create(
-                        namespaceScope,
-                        classObject,
-                        data.method,
-                        methodName
-                    );
+                var functionSpec,
+                    lineNumber = data.line,
+                    method,
+                    methodIsStatic = data[IS_STATIC],
+                    // Parameter spec data may only be provided for PHP-transpiled functions
+                    parametersSpecData = data.args;
 
-                method[IS_STATIC] = data[IS_STATIC];
+                functionSpec = namespace.functionSpecFactory.createMethodSpec(
+                    namespaceScope,
+                    classObject,
+                    methodName,
+                    parametersSpecData || [],
+                    namespace.callStack.getLastFilePath(),
+                    lineNumber || null
+                );
+
+                method = namespace.functionFactory.create(
+                    namespaceScope,
+                    classObject,
+                    data.method,
+                    methodName,
+                    null,
+                    null, // NB: No need to override the class for a method
+                    functionSpec
+                );
+
+                method[IS_METHOD] = true;
+                method[IS_STATIC] = methodIsStatic;
                 method.data = methodData;
 
                 InternalClass.prototype[methodName] = method;
@@ -207,33 +341,58 @@ module.exports = require('pauser')([
          *
          * @param {string} name
          * @param {Value} value
-         * @param {object|undefined} options
+         * @param {object=} options
          */
         defineConstant: function (name, value, options) {
-            var caseInsensitive;
+            var caseInsensitive,
+                effectiveName,
+                existingDefinition,
+                namespace = this;
 
             options = options || {};
-
             caseInsensitive = !!options.caseInsensitive;
+            existingDefinition = namespace.getConstantDefinition(name);
 
-            if (caseInsensitive) {
-                name = name.toLowerCase();
+            if (existingDefinition !== null) {
+                namespace.callStack.raiseTranslatedError(PHPError.E_NOTICE, CONSTANT_ALREADY_DEFINED, {
+                    // Use original name in the error message rather than the effective one
+                    name: namespace.getPrefix().toLowerCase() + existingDefinition.name
+                });
+
+                return; // Do not redefine the existing constant
             }
 
-            this.constants[name] = {
+            effectiveName = caseInsensitive ? name.toLowerCase() : name;
+
+            namespace.constants[effectiveName] = {
                 caseInsensitive: caseInsensitive,
+                // Store the original name for reference (as the effective one may be lower-cased)
+                name: name,
                 value: value
             };
         },
 
-        defineFunction: function (name, func, namespaceScope) {
-            var namespace = this;
+        /**
+         * Defines a new function within this namespace
+         *
+         * @param {string} name
+         * @param {Function} func
+         * @param {NamespaceScope} namespaceScope
+         * @param {Array=} parametersSpecData
+         * @param {number=} lineNumber
+         */
+        defineFunction: function (name, func, namespaceScope, parametersSpecData, lineNumber) {
+            var functionSpec,
+                namespace = this;
 
-            if (namespace.name === '') {
-                if (/__autoload/i.test(name) && func.length !== 1) {
-                    throw new PHPFatalError(PHPFatalError.EXPECT_EXACTLY_1_ARG, {name: name.toLowerCase()});
-                }
-            }
+            // Parameter spec data may only be provided for PHP-transpiled functions
+            functionSpec = namespace.functionSpecFactory.createFunctionSpec(
+                namespaceScope,
+                name,
+                parametersSpecData || [],
+                namespace.callStack.getLastFilePath(),
+                lineNumber || null
+            );
 
             namespace.functions[name.toLowerCase()] = namespace.functionFactory.create(
                 namespaceScope,
@@ -242,30 +401,38 @@ module.exports = require('pauser')([
                 // inside the current namespace instead.
                 null,
                 func,
-                name
+                name,
+                null,
+                null,
+                functionSpec
             );
         },
 
+        /**
+         * Fetches a class definition from within this namespace or a descendant.
+         * If applicable, the class autoloader will be invoked.
+         *
+         * @param {string} name
+         * @returns {Class}
+         */
         getClass: function (name) {
-            var lowerName = name.toLowerCase(),
-                namespace = this,
-                parsed = namespace.parseClassName(name);
+            var namespace = this,
+                parsed = namespace.parseName(name),
+                lowerName = parsed.name.toLowerCase();
 
-            if (parsed) {
-                return parsed.namespace.getClass(parsed.name);
-            }
-
-            if (!hasOwn.call(namespace.classes, lowerName)) {
+            if (!hasOwn.call(parsed.namespace.classes, lowerName)) {
                 // Try to autoload the class
-                namespace.classAutoloader.autoloadClass(namespace.getPrefix() + name);
+                namespace.classAutoloader.autoloadClass(parsed.namespace.getPrefix() + parsed.name);
 
                 // Raise an error if it is still not defined
-                if (!hasOwn.call(namespace.classes, lowerName)) {
-                    throw new PHPFatalError(PHPFatalError.CLASS_NOT_FOUND, {name: namespace.getPrefix() + name});
+                if (!hasOwn.call(parsed.namespace.classes, lowerName)) {
+                    namespace.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NOT_FOUND, {
+                        name: parsed.namespace.getPrefix() + parsed.name
+                    });
                 }
             }
 
-            return namespace.classes[lowerName];
+            return parsed.namespace.classes[lowerName];
         },
 
         /**
@@ -286,17 +453,34 @@ module.exports = require('pauser')([
             }
 
             if (usesNamespace) {
-                throw new PHPFatalError(PHPFatalError.UNDEFINED_CONSTANT, {name: namespace.getPrefix() + name});
-            } else {
-                namespace.callStack.raiseError(PHPError.E_NOTICE, 'Use of undefined constant ' + name + ' - assumed \'' + name + '\'');
-
-                return this.valueFactory.createString(name);
+                namespace.callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_CONSTANT, {
+                    name: namespace.getPrefix() + name
+                });
             }
+
+            namespace.callStack.raiseError(
+                PHPError.E_WARNING,
+                'Use of undefined constant ' + name + ' - assumed \'' + name + '\' ' +
+                '(this will throw an Error in a future version of PHP)'
+            );
+
+            return this.valueFactory.createString(name);
         },
 
+        /**
+         * Fetches a sub-namespace within this one, by its name. Any namespaces in the hierarchy
+         * that do not exist will be created and then cached on-demand
+         *
+         * @param {string} name
+         * @returns {Namespace}
+         */
         getDescendant: function (name) {
             var namespace = this,
                 subNamespace = namespace;
+
+            if (name === '') {
+                throw new Error('Namespace.getDescendant() :: Name cannot be empty');
+            }
 
             _.each(name.split('\\'), function (part) {
                 if (!hasOwn.call(subNamespace.children, part.toLowerCase())) {
@@ -312,6 +496,13 @@ module.exports = require('pauser')([
             return subNamespace;
         },
 
+        /**
+         * Fetches a function from the current namespace if defined, otherwise falls back
+         * to the global namespace. Raises an error if the function is not defined at all
+         *
+         * @param {string|Function} name
+         * @returns {Function}
+         */
         getFunction: function (name) {
             var globalNamespace,
                 match,
@@ -344,7 +535,9 @@ module.exports = require('pauser')([
                 return globalNamespace.functions[name.toLowerCase()];
             }
 
-            throw new PHPFatalError(PHPFatalError.CALL_TO_UNDEFINED_FUNCTION, {name: namespace.getPrefix() + name});
+            namespace.callStack.raiseTranslatedError(PHPError.E_ERROR, CALL_TO_UNDEFINED_FUNCTION, {
+                name: namespace.getPrefix() + name
+            });
         },
 
         getGlobal: function () {
@@ -395,7 +588,7 @@ module.exports = require('pauser')([
          * Fetches the definition object for a constant, or null if it is not defined
          *
          * @param {string} name
-         * @returns {object}
+         * @returns {object|null}
          */
         getConstantDefinition: function (name) {
             var globalNamespace,
@@ -431,16 +624,19 @@ module.exports = require('pauser')([
             return null;
         },
 
+        /**
+         * Determines whether or not the given class exists in this namespace (or a descendant of it)
+         * without invoking the autoloader if it does not
+         *
+         * @param {string} name
+         * @returns {boolean}
+         */
         hasClass: function (name) {
-            var lowerName = name.toLowerCase(),
-                namespace = this,
-                parsed = namespace.parseClassName(name);
+            var namespace = this,
+                parsed = namespace.parseName(name),
+                lowerName = parsed.name.toLowerCase();
 
-            if (parsed) {
-                return parsed.namespace.hasClass(parsed.name);
-            }
-
-            return hasOwn.call(namespace.classes, lowerName);
+            return hasOwn.call(parsed.namespace.classes, lowerName);
         },
 
         /**
@@ -454,17 +650,47 @@ module.exports = require('pauser')([
             return this.getConstantDefinition(name) !== null;
         },
 
-        parseClassName: function (name) {
-            var match = name.match(/^(.*?)\\([^\\]+)$/),
+        /**
+         * Returns true if this namespace defines the specified function, and false otherwise.
+         * Note that function names are case-insensitive
+         *
+         * @param {string} name
+         * @returns {boolean}
+         */
+        hasFunction: function (name) {
+            var namespace = this,
+                parsed = namespace.parseName(name),
+                lowerName = parsed.name.toLowerCase();
+
+            return hasOwn.call(parsed.namespace.functions, lowerName);
+        },
+
+        /**
+         * Parses a class, function or constant name to
+         *
+         * @param {string} name
+         * @returns {{namespace: (Namespace), name: string}|null}
+         */
+        parseName: function (name) {
+            var match = name.match(/^(\\?)(.*?)\\?([^\\]+)$/),
                 namespace = this,
                 path,
+                relativeToGlobalNamespace,
                 subNamespace;
 
             if (match) {
-                path = match[1];
-                name = match[2];
+                // Name was fully-qualified: return the resolved namespace it was inside
 
-                subNamespace = namespace.getDescendant(path);
+                relativeToGlobalNamespace = (match[1] === '\\');
+
+                path = match[2];
+                name = match[3];
+
+                subNamespace = relativeToGlobalNamespace ? namespace.getGlobalNamespace() : namespace;
+
+                if (path !== '') {
+                    subNamespace = subNamespace.getDescendant(path);
+                }
 
                 return {
                     namespace: subNamespace,
@@ -472,7 +698,10 @@ module.exports = require('pauser')([
                 };
             }
 
-            return null;
+            return {
+                namespace: namespace,
+                name: name
+            };
         },
 
         resolveClass: function (name) {

@@ -12,17 +12,33 @@
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
     util = require('util'),
-    PHPFatalError = phpCommon.PHPFatalError,
-    Reference = require('./Reference');
+    PHPError = phpCommon.PHPError,
+    Reference = require('./Reference'),
+    ReferenceSlot = require('./ReferenceSlot'),
+
+    CANNOT_UNSET_STATIC_PROPERTY = 'core.cannot_unset_static_property';
 
 /**
+ * @param {ValueFactory} valueFactory
+ * @param {CallStack} callStack
  * @param {Class} classObject
  * @param {string} name
  * @param {string} visibility "private", "protected" or "public"
  * @param {Value} value
  * @constructor
  */
-function StaticPropertyReference(classObject, name, visibility, value) {
+function StaticPropertyReference(
+    valueFactory,
+    callStack,
+    classObject,
+    name,
+    visibility,
+    value
+) {
+    /**
+     * @type {CallStack}
+     */
+    this.callStack = callStack;
     /**
      * @type {Class}
      */
@@ -40,6 +56,10 @@ function StaticPropertyReference(classObject, name, visibility, value) {
      */
     this.value = value;
     /**
+     * @type {ValueFactory}
+     */
+    this.valueFactory = valueFactory;
+    /**
      * @type {string}
      */
     this.visibility = visibility;
@@ -48,16 +68,32 @@ function StaticPropertyReference(classObject, name, visibility, value) {
 util.inherits(StaticPropertyReference, Reference);
 
 _.extend(StaticPropertyReference.prototype, {
-    getInstancePropertyByName: function (name) {
-        return this.getValue().getInstancePropertyByName(name);
-    },
-
     getName: function () {
         return this.name;
     },
 
+    /**
+     * Fetches a reference to this property's value
+     *
+     * @returns {Reference}
+     */
     getReference: function () {
-        return this;
+        var property = this;
+
+        if (property.reference) {
+            // This property already refers to something else, so return its target
+            return property.reference;
+        }
+
+        // Implicitly define a "slot" to contain this property's value
+        property.reference = new ReferenceSlot(property.valueFactory);
+
+        if (property.value) {
+            property.reference.setValue(property.value);
+            property.value = null; // This property now has a reference (to the slot) and not a value
+        }
+
+        return property.reference;
     },
 
     getValue: function () {
@@ -73,7 +109,7 @@ _.extend(StaticPropertyReference.prototype, {
     /**
      * Determines whether this property is defined
      *
-     * @return {boolean}
+     * @returns {boolean}
      */
     isDefined: function () {
         return true;
@@ -126,7 +162,7 @@ _.extend(StaticPropertyReference.prototype, {
     unset: function () {
         var property = this;
 
-        throw new PHPFatalError(PHPFatalError.CANNOT_UNSET_STATIC_PROPERTY, {
+        property.callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_UNSET_STATIC_PROPERTY, {
             className: property.classObject.getName(),
             propertyName: property.name
         });

@@ -11,6 +11,7 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     Module = require('../../src/Module'),
     Namespace = require('../../src/Namespace').sync(),
@@ -19,12 +20,25 @@ var expect = require('chai').expect,
 
 describe('NamespaceScope', function () {
     beforeEach(function () {
+        this.callStack = sinon.createStubInstance(CallStack);
         this.globalNamespace = sinon.createStubInstance(Namespace);
         this.module = sinon.createStubInstance(Module);
         this.namespace = sinon.createStubInstance(Namespace);
         this.valueFactory = new ValueFactory();
 
-        this.scope = new NamespaceScope(this.globalNamespace, this.valueFactory, this.module, this.namespace);
+        this.callStack.raiseUncatchableFatalError.callsFake(function (translationKey, placeholderVariables) {
+            throw new Error('PHP Fatal error: [' + translationKey + '] ' + JSON.stringify(placeholderVariables || {}));
+        });
+        this.globalNamespace.hasClass.returns(false);
+
+        this.scope = new NamespaceScope(
+            this.globalNamespace,
+            this.valueFactory,
+            this.callStack,
+            this.module,
+            this.namespace,
+            false
+        );
     });
 
     describe('getClass()', function () {
@@ -173,6 +187,82 @@ describe('NamespaceScope', function () {
         });
     });
 
+    describe('hasClass()', function () {
+        it('should return true when the given path has already been aliased', function () {
+            this.scope.use('My\\App\\Stuff', 'MyStuff');
+
+            expect(this.scope.hasClass('MyStuff')).to.be.true;
+        });
+
+        it('should return true when the given path is absolute and references a class defined in the global namespace', function () {
+            this.globalNamespace.hasClass
+                .withArgs('MyClass')
+                .returns(true);
+
+            expect(this.scope.hasClass('\\MyClass')).to.be.true;
+        });
+
+        it('should return true when the given path is absolute and references a class defined in a sub-namespace of the global one', function () {
+            var subNamespace = sinon.createStubInstance(Namespace);
+            this.globalNamespace.getDescendant
+                .withArgs('Some\\Sub')
+                .returns(subNamespace);
+            subNamespace.hasClass
+                .withArgs('MyClass')
+                .returns(true);
+
+            expect(this.scope.hasClass('\\Some\\Sub\\MyClass')).to.be.true;
+        });
+
+        it('should return true when the given path is relative and references a class defined in a sub-namespace of this one', function () {
+            var subNamespace = sinon.createStubInstance(Namespace);
+            this.namespace.getDescendant
+                .withArgs('Some\\Sub')
+                .returns(subNamespace);
+            subNamespace.hasClass
+                .withArgs('MyClass')
+                .returns(true);
+
+            expect(this.scope.hasClass('Some\\Sub\\MyClass')).to.be.true;
+        });
+
+        it('should return true when the given path is relative and references a class defined in a sub-namespace of this one via an alias', function () {
+            var subNamespace = sinon.createStubInstance(Namespace);
+            this.globalNamespace.getDescendant
+                .withArgs('Some\\Sub')
+                .returns(subNamespace);
+            subNamespace.hasClass
+                .withArgs('MyClass')
+                .returns(true);
+            this.scope.use('Some', 'IndirectlySome');
+
+            expect(this.scope.hasClass('IndirectlySome\\Sub\\MyClass')).to.be.true;
+        });
+
+        it('should return false when the given class is not defined', function () {
+            expect(this.scope.hasClass('\\SomeUndefinedClass')).to.be.false;
+        });
+    });
+
+    describe('isGlobal()', function () {
+        it('should return true when this is the special invisible global NamespaceScope', function () {
+            var scope = new NamespaceScope(
+                this.globalNamespace,
+                this.valueFactory,
+                this.callStack,
+                this.module,
+                this.namespace,
+                true
+            );
+
+            expect(scope.isGlobal()).to.be.true;
+        });
+
+        it('should return false for a normal NamespaceScope', function () {
+            expect(this.scope.isGlobal()).to.be.false;
+        });
+    });
+
     describe('resolveClass()', function () {
         it('should support resolving a class with no imports involved', function () {
             var result = this.scope.resolveClass('MyClass');
@@ -203,6 +293,19 @@ describe('NamespaceScope', function () {
             expect(result.name).to.equal('PhpClass');
         });
 
+        it('should support resolving a relative path to a class defined in a sub-namespace of this one', function () {
+            var result,
+                subNamespace = sinon.createStubInstance(Namespace);
+            this.namespace.getDescendant
+                .withArgs('Some\\Sub')
+                .returns(subNamespace);
+
+            result = this.scope.resolveClass('Some\\Sub\\MyClass');
+
+            expect(result.namespace).to.equal(subNamespace);
+            expect(result.name).to.equal('MyClass');
+        });
+
         it('should support resolving an absolute class path', function () {
             var result,
                 subNamespace = sinon.createStubInstance(Namespace);
@@ -229,7 +332,9 @@ describe('NamespaceScope', function () {
 
             expect(function () {
                 this.scope.use('My\\App\\Stuff', 'mYSTuff');
-            }.bind(this)).to.throw('Cannot use My\\App\\Stuff as mYSTuff because the name is already in use');
+            }.bind(this)).to.throw(
+                'PHP Fatal error: [core.cannot_use_as_name_already_in_use] {"alias":"mYSTuff","source":"My\\\\App\\\\Stuff"}'
+            );
         });
     });
 });
