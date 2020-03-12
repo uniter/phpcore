@@ -27,7 +27,7 @@
     "is-promise": "^2.1.0",
     "lie": "^3.0.1",
     "microdash": "~1",
-    "pausable": "^4.4.0",
+    "pausable": "^4.4.1",
     "pauser": "~1",
     "phpcommon": "^2.0.0"
   },
