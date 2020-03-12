@@ -664,18 +664,18 @@ module.exports = require('pauser')([
                 );
             }
 
-            // We'll need an "unwrapped class", which is a native JS class
-            // that extends this PHP class' internal class and defines a native method
-            // for each method of the PHP class
-            if (!classObject.UnwrappedClass) {
-                defineUnwrappedClass(classObject);
-            }
-
             // Reuse unwrapped objects, both to save memory and to allow testing for equality
             unwrappedObject = classObject.valueFactory.getUnwrappedObjectFromValue(instance);
 
             if (unwrappedObject) {
                 return unwrappedObject;
+            }
+
+            // We'll need an "unwrapped class", which is a native JS class
+            // that extends this PHP class' internal class and defines a native method
+            // for each method of the PHP class
+            if (!classObject.UnwrappedClass) {
+                defineUnwrappedClass(classObject);
             }
 
             unwrappedObject = new classObject.UnwrappedClass(classObject.valueFactory.createPHPObject(instance));
