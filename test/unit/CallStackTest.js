@@ -243,6 +243,7 @@ describe('CallStack', function () {
         describe('with three calls', function () {
             beforeEach(function () {
                 this.entryCall = sinon.createStubInstance(Call);
+                this.entryCall.getTraceFilePath.returns('(Entry file)');
                 this.entryCall.getLastLine.returns(4);
                 this.firstCall = sinon.createStubInstance(Call);
                 this.firstCall.getTraceFilePath.returns('/path/to/oldest/call.php');
@@ -283,9 +284,9 @@ describe('CallStack', function () {
             it('should give each entry the correct file path', function () {
                 var trace = this.callStack.getTrace();
 
-                expect(trace[0].file).to.equal('/path/to/newest/call.php');
-                expect(trace[1].file).to.equal('/path/to/second/call.php');
-                expect(trace[2].file).to.equal('/path/to/oldest/call.php');
+                expect(trace[0].file).to.equal('/path/to/second/call.php');
+                expect(trace[1].file).to.equal('/path/to/oldest/call.php');
+                expect(trace[2].file).to.equal('(Entry file)');
             });
 
             it('should give each entry the correct line (from the previous call)', function () {
@@ -510,14 +511,14 @@ describe('CallStack', function () {
                     [
                         {
                             args: [],
-                            file: null,
+                            file: '/my/userland/module.php',
                             func: 'some_builtin',
                             index: 0,
                             line: 101
                         },
                         {
                             args: [],
-                            file: '/my/userland/module.php',
+                            file: '/my/initial/module.php',
                             func: 'myFunction',
                             index: 1,
                             line: 27

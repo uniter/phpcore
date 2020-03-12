@@ -25,6 +25,7 @@ module.exports = require('pauser')([
     require('./Reference/Element/ElementProviderFactory'),
     require('./Error/ErrorConfiguration'),
     require('./Error/ErrorConverter'),
+    require('./Error/ErrorPromoter'),
     require('./Error/ErrorReporting'),
     require('./FFI/Call'),
     require('./Function/FunctionContext'),
@@ -77,6 +78,7 @@ module.exports = require('pauser')([
     ElementProviderFactory,
     ErrorConfiguration,
     ErrorConverter,
+    ErrorPromoter,
     ErrorReporting,
     FFICall,
     FunctionContext,
@@ -255,12 +257,11 @@ module.exports = require('pauser')([
             elementProvider = elementProviderFactory.createProvider(),
             moduleFactory = new ModuleFactory(Module),
             translator = new Translator(),
-            valueFactory = new ValueFactory(pausable, mode, elementProvider, translator),
             iniState = new INIState(),
             getConstant = this.getConstant.bind(this),
             errorConfiguration = new ErrorConfiguration(iniState),
             errorConverter = new ErrorConverter(getConstant),
-            traceFormatter = new TraceFormatter(),
+            traceFormatter = new TraceFormatter(translator),
             errorReporting = new ErrorReporting(
                 errorConfiguration,
                 errorConverter,
@@ -269,6 +270,8 @@ module.exports = require('pauser')([
                 stdout,
                 stderr
             ),
+            errorPromoter = new ErrorPromoter(errorReporting),
+            valueFactory = new ValueFactory(pausable, mode, elementProvider, translator, callFactory, errorPromoter),
             callStack = new CallStack(valueFactory, translator, errorReporting, stderr),
             referenceFactory = new ReferenceFactory(
                 AccessorReference,
@@ -404,6 +407,8 @@ module.exports = require('pauser')([
             callStack: callStack,
             classAutoloader: classAutoloader,
             errorConfiguration: errorConfiguration,
+            errorPromoter: errorPromoter,
+            errorReporting: errorReporting,
             getBinding: function (bindingName) {
                 if (state.bindings === null) {
                     // Option groups are loaded before bindings, so if any of them attempt to access a binding

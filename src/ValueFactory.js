@@ -53,9 +53,22 @@ module.exports = require('pauser')([
      * @param {string} mode
      * @param {ElementProvider} elementProvider
      * @param {Translator} translator
+     * @param {CallFactory} callFactory
+     * @param {ErrorPromoter} errorPromoter
      * @constructor
      */
-    function ValueFactory(pausable, mode, elementProvider, translator) {
+    function ValueFactory(
+        pausable,
+        mode,
+        elementProvider,
+        translator,
+        callFactory,
+        errorPromoter
+    ) {
+        /**
+         * @type {CallFactory}
+         */
+        this.callFactory = callFactory;
         /**
          * @type {ElementProvider}
          */
@@ -71,6 +84,10 @@ module.exports = require('pauser')([
          * @type {CallStack|null}
          */
         this.callStack = null;
+        /**
+         * @type {ErrorPromoter}
+         */
+        this.errorPromoter = errorPromoter;
         /**
          * @type {Namespace|null}
          */
@@ -357,7 +374,15 @@ module.exports = require('pauser')([
         createPHPObject: function (object) {
             var factory = this;
 
-            return new PHPObject(factory.pausable, factory.mode, factory, object);
+            return new PHPObject(
+                factory.callFactory,
+                factory.callStack,
+                factory.errorPromoter,
+                factory.pausable,
+                factory.mode,
+                factory,
+                object
+            );
         },
 
         createStdClassObject: function () {

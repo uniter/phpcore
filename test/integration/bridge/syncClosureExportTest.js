@@ -49,13 +49,33 @@ EOS
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
-return function ($firstParam, $secondParam) {
-    return [$firstParam, $secondParam];
-};
+// -- Some padding to inflate line numbers a bit --
+
+// Fetch from a separate file to check file paths are resolved correctly
+$myClosure = require_once('/another/path/to/my_closure_provider.php');
+
+return $myClosure;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
-            phpEngine = module(),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            phpEngine = module({
+                include: function (path, promise) {
+                    if (path === '/another/path/to/my_closure_provider.php') {
+                        promise.resolve(tools.syncTranspile(path, nowdoc(function () {/*<<<EOS
+<?php
+
+$yourClosure = function ($firstParam, $secondParam) {
+    return [$firstParam, $secondParam];
+};
+
+return $yourClosure;
+EOS
+*/;}))); //jshint ignore:line
+                    } else {
+                        promise.reject();
+                    }
+                }
+            }),
             unwrappedClosure = phpEngine.execute().getNative();
 
         expect(function () {
@@ -63,7 +83,31 @@ EOS
         }).to.throw(
             PHPFatalError,
             'PHP Fatal error: Uncaught ArgumentCountError: Too few arguments to function {closure}(), ' +
-            '1 passed in (JavaScript code) on line (unknown) and exactly 2 expected in my_module.php on line 3'
+            '1 passed in (JavaScript code) on line (unknown) and exactly 2 expected in /another/path/to/my_closure_provider.php on line 3'
+        );
+        expect(phpEngine.getStderr().readAll()).to.equal(
+            nowdoc(function () {/*<<<EOS
+PHP Fatal error:  Uncaught ArgumentCountError: Too few arguments to function {closure}(), 1 passed in (JavaScript code) on line (unknown) and exactly 2 expected in /another/path/to/my_closure_provider.php:3
+Stack trace:
+#0 (JavaScript code)(unknown): {closure}(21)
+#1 {main}
+  thrown in /another/path/to/my_closure_provider.php on line 3
+
+EOS
+*/;}) //jshint ignore:line
+        );
+        // NB: Stdout should have a leading newline written out just before the message
+        expect(phpEngine.getStdout().readAll()).to.equal(
+            nowdoc(function () {/*<<<EOS
+
+Fatal error: Uncaught ArgumentCountError: Too few arguments to function {closure}(), 1 passed in (JavaScript code) on line (unknown) and exactly 2 expected in /another/path/to/my_closure_provider.php:3
+Stack trace:
+#0 (JavaScript code)(unknown): {closure}(21)
+#1 {main}
+  thrown in /another/path/to/my_closure_provider.php on line 3
+
+EOS
+*/;}) //jshint ignore:line
         );
     });
 });

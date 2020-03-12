@@ -174,6 +174,30 @@ EOS
             PHPFatalError,
             'PHP Fatal error: Uncaught YourException: Oh no - 9001 (custom!) in /path/to/module.php on line 15'
         );
+        expect(phpEngine.getStderr().readAll()).to.equal(
+            nowdoc(function () {/*<<<EOS
+PHP Fatal error:  Uncaught YourException: Oh no - 9001 (custom!) in /path/to/module.php:15
+Stack trace:
+#0 (JavaScript code)(unknown): MyClass->throwIt(9001)
+#1 {main}
+  thrown in /path/to/module.php on line 15
+
+EOS
+*/;}) //jshint ignore:line
+        );
+        // NB: Stdout should have a leading newline written out just before the message
+        expect(phpEngine.getStdout().readAll()).to.equal(
+            nowdoc(function () {/*<<<EOS
+
+Fatal error: Uncaught YourException: Oh no - 9001 (custom!) in /path/to/module.php:15
+Stack trace:
+#0 (JavaScript code)(unknown): MyClass->throwIt(9001)
+#1 {main}
+  thrown in /path/to/module.php on line 15
+
+EOS
+*/;}) //jshint ignore:line
+        );
     });
 
     it('should always export the same PHP object to the same unwrapped JS object', function () {

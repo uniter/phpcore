@@ -9,17 +9,22 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    UNKNOWN = 'core.unknown';
 
 /**
  * Standard way to convert a call stack trace (returned by CallStack.getTrace())
  * to a printable formatted form. Used by Error::getTraceAsString(), Exception::getTraceAsString()
  * and when an uncaught fatal error is written to stdout/stderr.
  *
+ * @param {Translator} translator
  * @constructor
  */
-function TraceFormatter() {
-
+function TraceFormatter(translator) {
+    /**
+     * @type {Translator}
+     */
+    this.translator = translator;
 }
 
 _.extend(TraceFormatter.prototype, {
@@ -30,16 +35,18 @@ _.extend(TraceFormatter.prototype, {
      * @returns {string}
      */
     format: function (trace) {
-        var traceStrings = [];
+        var formatter = this,
+            traceStrings = [];
 
         _.each(trace, function (callData) {
             // Convert arguments to a string representation
             var args = _.map(callData.args, function (argValue) {
                 return argValue.formatAsString();
-            });
+            }),
+                line = callData.line || formatter.translator.translate(UNKNOWN);
 
             traceStrings.push(
-                '#' + callData.index + ' ' + callData.file + '(' + callData.line + '): ' +
+                '#' + callData.index + ' ' + callData.file + '(' + line + '): ' +
                 callData.func + '(' + args.join(', ') + ')'
             );
         });

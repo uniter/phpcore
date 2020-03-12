@@ -21,6 +21,7 @@ module.exports = function (internals) {
 
             return method;
         },
+        errorPromoter = internals.errorPromoter,
         globalNamespace = internals.globalNamespace,
         valueFactory = internals.valueFactory;
 
@@ -219,6 +220,7 @@ module.exports = function (internals) {
                 args.push(valueFactory.coerce(arg));
             });
 
+            // Push an FFI call onto the stack, representing the call from JavaScript-land
             callStack.push(callFactory.createFFICall([].slice.call(arguments)));
 
             function popFFICall() {
@@ -242,7 +244,10 @@ module.exports = function (internals) {
                             function (error) {
                                 if (valueFactory.isValue(error) && error.getType() === 'object') {
                                     // Method threw a PHP Throwable, so throw a native JS error for it
-                                    reject(error.coerceToNativeError());
+
+                                    // Feed the error into the ErrorReporting mechanism,
+                                    // so it will be written to stdout/stderr as applicable
+                                    reject(errorPromoter.promote(error));
                                     return;
                                 }
 
@@ -254,12 +259,18 @@ module.exports = function (internals) {
             }
 
             function invoke() {
+                var nativeError;
+
                 // Call the closure, and then unwrap its result value back to a native one
                 try {
                     return objectValue.getObject().invoke(args, thisObj).getNative();
                 } catch (error) {
                     if (valueFactory.isValue(error) && error.getType() === 'object') {
-                        throw error.coerceToNativeError();
+                        // Feed the error into the ErrorReporting mechanism,
+                        // so it will be written to stdout/stderr as applicable
+                        nativeError = errorPromoter.promote(error);
+
+                        throw nativeError;
                     }
 
                     throw error;

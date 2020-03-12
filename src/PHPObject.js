@@ -25,13 +25,36 @@ module.exports = require('pauser')([
      * anywhere along their class ancestry could benefit from being unwrapped to a PHPObject
      * as this will permit access to those from native JS code, at the expense of a more complex API.
      *
+     * @param {CallFactory} callFactory
+     * @param {CallStack} callStack
+     * @param {ErrorPromoter} errorPromoter
      * @param {Resumable|null} pausable
      * @param {string} mode
      * @param {ValueFactory} valueFactory
      * @param {ObjectValue} objectValue
      * @constructor
      */
-    function PHPObject(pausable, mode, valueFactory, objectValue) {
+    function PHPObject(
+        callFactory,
+        callStack,
+        errorPromoter,
+        pausable,
+        mode,
+        valueFactory,
+        objectValue
+    ) {
+        /**
+         * @type {CallFactory}
+         */
+        this.callFactory = callFactory;
+        /**
+         * @type {CallStack}
+         */
+        this.callStack = callStack;
+        /**
+         * @type {ErrorPromoter}
+         */
+        this.errorPromoter = errorPromoter;
         /**
          * @type {string}
          */
@@ -57,7 +80,7 @@ module.exports = require('pauser')([
          * where asynchronous (blocking) operation is possible.
          *
          * @param {string} name
-         * @returns {Promise}
+         * @returns {Promise|Value}
          */
         callMethod: function (name) {
             var phpObject = this,
@@ -68,6 +91,13 @@ module.exports = require('pauser')([
                 return phpObject.valueFactory.coerce(arg);
             });
 
+            // Push an FFI call onto the stack, representing the call from JavaScript-land
+            phpObject.callStack.push(phpObject.callFactory.createFFICall([].slice.call(arguments)));
+
+            function popFFICall() {
+                phpObject.callStack.pop();
+            }
+
             if (phpObject.mode === 'async') {
                 return new Promise(function (resolve, reject) {
                     // Call the method via Pausable to allow for blocking operation
@@ -76,6 +106,8 @@ module.exports = require('pauser')([
                         [name, args],
                         phpObject.objectValue
                     )
+                        // Pop the call off the stack _before_ returning, to mirror sync mode's behaviour
+                        .finally(popFFICall)
                         .then(
                             function (resultValue) {
                                 resolve(resultValue.getNative());
@@ -83,7 +115,7 @@ module.exports = require('pauser')([
                             function (error) {
                                 if (error instanceof ObjectValue) {
                                     // Method threw a PHP Exception, so throw a native JS error for it
-                                    reject(error.coerceToNativeError());
+                                    reject(phpObject.errorPromoter.promote(error));
                                     return;
                                 }
 
@@ -100,10 +132,12 @@ module.exports = require('pauser')([
                 } catch (error) {
                     if (error instanceof ObjectValue) {
                         // Method threw a PHP Exception, so throw a native JS error for it
-                        throw error.coerceToNativeError();
+                        throw phpObject.errorPromoter.promote(error);
                     }
 
                     throw error;
+                } finally {
+                    popFFICall();
                 }
             }
 

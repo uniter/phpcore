@@ -11,19 +11,27 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     TraceFormatter = require('../../../src/Error/TraceFormatter'),
+    Translator = phpCommon.Translator,
     ValueFactory = require('../../../src/ValueFactory').sync(),
     Variable = require('../../../src/Variable').sync();
 
 describe('TraceFormatter', function () {
     var traceFormatter,
+        translator,
         valueFactory;
 
     beforeEach(function () {
+        translator = sinon.createStubInstance(Translator);
         valueFactory = new ValueFactory();
 
-        traceFormatter = new TraceFormatter();
+        translator.translate.callsFake(function (translationKey, placeholderVariables) {
+            return '[Translated] ' + translationKey + ' ' + JSON.stringify(placeholderVariables || {});
+        });
+
+        traceFormatter = new TraceFormatter(translator);
     });
 
     describe('format()', function () {
@@ -32,7 +40,7 @@ describe('TraceFormatter', function () {
                 trace = [{
                     index: 0,
                     file: '/path/to/my/third.php',
-                    line: 1234,
+                    line: null,
                     func: 'thirdFunc',
                     args: [valueFactory.createString('third call, only arg')]
                 }, {
@@ -56,7 +64,7 @@ describe('TraceFormatter', function () {
 
             expect(traceFormatter.format(trace)).to.equal(
                 nowdoc(function () {/*<<<EOS
-#0 /path/to/my/third.php(1234): thirdFunc('third call, onl...')
+#0 /path/to/my/third.php([Translated] core.unknown {}): thirdFunc('third call, onl...')
 #1 /path/to/my/second.php(21): secondFunc('second call, fi...', 'second call, se...', 'My formatted variable')
 #2 /path/to/my/first.php(101): firstFunc(20002)
 #3 {main}

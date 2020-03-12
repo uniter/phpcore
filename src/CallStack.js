@@ -203,7 +203,7 @@ _.extend(CallStack.prototype, {
             trace.unshift({
                 // Most recent call should have index 0
                 index: chronoIndex--,
-                file: call.getTraceFilePath(),
+                file: callStack.calls[index - 1].getTraceFilePath(),
                 // Fetch the line number the call _occurred on_, rather than the line
                 // last executed inside the called function
                 line: callStack.calls[index - 1].getLastLine(),

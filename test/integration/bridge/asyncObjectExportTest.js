@@ -86,16 +86,41 @@ class MyClass
 return new MyClass();
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile('a_module.php', php);
+            module = tools.asyncTranspile('/path/to/a_module.php', php),
+            engine = module();
 
-        module().execute().then(function (result) {
+        engine.execute().then(function (result) {
             result.getNative().throwIt(9001).then(function () {
                 done(new Error('Expected an error to be thrown, but none was'));
             }, function (error) {
                 try {
                     expect(error).to.be.an.instanceOf(PHPFatalError);
                     expect(error.message).to.equal(
-                        'PHP Fatal error: Uncaught YourException: Oh no - 9001 (custom!) in a_module.php on line 15'
+                        'PHP Fatal error: Uncaught YourException: Oh no - 9001 (custom!) in /path/to/a_module.php on line 15'
+                    );
+                    expect(engine.getStderr().readAll()).to.equal(
+                        nowdoc(function () {/*<<<EOS
+PHP Fatal error:  Uncaught YourException: Oh no - 9001 (custom!) in /path/to/a_module.php:15
+Stack trace:
+#0 (JavaScript code)(unknown): MyClass->throwIt(9001)
+#1 {main}
+  thrown in /path/to/a_module.php on line 15
+
+EOS
+*/;}) //jshint ignore:line
+                    );
+                    // NB: Stdout should have a leading newline written out just before the message
+                    expect(engine.getStdout().readAll()).to.equal(
+                        nowdoc(function () {/*<<<EOS
+
+Fatal error: Uncaught YourException: Oh no - 9001 (custom!) in /path/to/a_module.php:15
+Stack trace:
+#0 (JavaScript code)(unknown): MyClass->throwIt(9001)
+#1 {main}
+  thrown in /path/to/a_module.php on line 15
+
+EOS
+*/;}) //jshint ignore:line
                     );
                     done();
                 } catch (error) {
