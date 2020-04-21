@@ -25,31 +25,41 @@ var expect = require('chai').expect,
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('PHPState', function () {
-    beforeEach(function () {
-        this.installedBuiltinTypes = {};
-        this.optionSet = sinon.createStubInstance(OptionSet);
-        this.stdin = sinon.createStubInstance(Stream);
-        this.stdout = sinon.createStubInstance(Stream);
-        this.stderr = sinon.createStubInstance(Stream);
-        this.pausable = {};
-        this.runtime = sinon.createStubInstance(Runtime);
-        this.valueFactory = new ValueFactory();
+    var installedBuiltinTypes,
+        optionSet,
+        state,
+        stderr,
+        stdin,
+        stdout,
+        pausable,
+        runtime,
+        valueFactory;
 
-        this.state = new PHPState(
-            this.runtime,
-            this.installedBuiltinTypes,
-            this.stdin,
-            this.stdout,
-            this.stderr,
-            this.pausable,
+    beforeEach(function () {
+        installedBuiltinTypes = {};
+        optionSet = sinon.createStubInstance(OptionSet);
+        stdin = sinon.createStubInstance(Stream);
+        stdout = sinon.createStubInstance(Stream);
+        stderr = sinon.createStubInstance(Stream);
+        pausable = {};
+        runtime = sinon.createStubInstance(Runtime);
+        valueFactory = new ValueFactory();
+
+        state = new PHPState(
+            runtime,
+            installedBuiltinTypes,
+            stdin,
+            stdout,
+            stderr,
+            pausable,
             'async'
         );
     });
 
     describe('constructor', function () {
         it('should install non-namespaced classes into the global namespace', function () {
-            this.state = new PHPState(
-                this.runtime,
+            state = new PHPState(
+                runtime,
                 {
                     classes: {
                         'MyClass': function () {
@@ -57,20 +67,20 @@ describe('PHPState', function () {
                         }
                     }
                 },
-                this.stdin,
-                this.stdout,
-                this.stderr,
-                this.pausable,
+                stdin,
+                stdout,
+                stderr,
+                pausable,
                 'async'
             );
 
-            expect(this.state.getGlobalNamespace().hasClass('MyClass')).to.be.true;
+            expect(state.getGlobalNamespace().hasClass('MyClass')).to.be.true;
         });
 
         it('should install namespaced classes into the correct namespace', function () {
             var MyClass = sinon.stub();
-            this.state = new PHPState(
-                this.runtime,
+            state = new PHPState(
+                runtime,
                 {
                     classes: {
                         'Some\\Stuff\\AClass': function () {
@@ -78,21 +88,21 @@ describe('PHPState', function () {
                         }
                     }
                 },
-                this.stdin,
-                this.stdout,
-                this.stderr,
-                this.pausable,
+                stdin,
+                stdout,
+                stderr,
+                pausable,
                 'async'
             );
 
-            expect(this.state.getGlobalNamespace().hasClass('AClass')).to.be.false;
-            expect(this.state.getGlobalNamespace().getDescendant('Some\\Stuff').hasClass('AClass')).to.be.true;
+            expect(state.getGlobalNamespace().hasClass('AClass')).to.be.false;
+            expect(state.getGlobalNamespace().getDescendant('Some\\Stuff').hasClass('AClass')).to.be.true;
         });
 
         it('should throw if a class that does not extend another attempts to call its superconstructor', function () {
             var AClass;
-            this.state = new PHPState(
-                this.runtime,
+            state = new PHPState(
+                runtime,
                 {
                     classes: {
                         'Some\\Stuff\\AClass': function (internals) {
@@ -104,24 +114,24 @@ describe('PHPState', function () {
                         }
                     }
                 },
-                this.stdin,
-                this.stdout,
-                this.stderr,
-                this.pausable,
+                stdin,
+                stdout,
+                stderr,
+                pausable,
                 'async'
             );
-            AClass = this.state.getGlobalNamespace().getClass('Some\\Stuff\\AClass');
+            AClass = state.getGlobalNamespace().getClass('Some\\Stuff\\AClass');
 
             expect(function () {
                 AClass.instantiate();
-            }.bind(this)).to.throw(
+            }).to.throw(
                 'Cannot call superconstructor: no superclass is defined for class "Some\\Stuff\\AClass"'
             );
         });
 
         it('should allow function group factories to access constants early', function () {
-            this.state = new PHPState(
-                this.runtime,
+            state = new PHPState(
+                runtime,
                 {
                     constantGroups: [
                         function () {
@@ -141,19 +151,19 @@ describe('PHPState', function () {
                         }
                     ]
                 },
-                this.stdin,
-                this.stdout,
-                this.stderr,
-                this.pausable,
+                stdin,
+                stdout,
+                stderr,
+                pausable,
                 'async'
             );
 
-            expect(this.state.getFunction('getMyConstant').call().getNative()).to.equal(21);
+            expect(state.getFunction('getMyConstant').call().getNative()).to.equal(21);
         });
 
         it('should define functions correctly with a FunctionSpec', function () {
-            this.state = new PHPState(
-                this.runtime,
+            state = new PHPState(
+                runtime,
                 {
                     functionGroups: [
                         function (internals) {
@@ -165,20 +175,20 @@ describe('PHPState', function () {
                         }
                     ]
                 },
-                this.stdin,
-                this.stdout,
-                this.stderr,
-                this.pausable,
+                stdin,
+                stdout,
+                stderr,
+                pausable,
                 'async'
             );
 
-            expect(this.state.getFunction('myFunction').functionSpec.getFunctionName())
+            expect(state.getFunction('myFunction').functionSpec.getFunctionName())
                 .to.equal('myFunction');
         });
 
         it('should allow functions to be aliased', function () {
-            this.state = new PHPState(
-                this.runtime,
+            state = new PHPState(
+                runtime,
                 {
                     functionGroups: [
                         function (internals) {
@@ -192,25 +202,25 @@ describe('PHPState', function () {
                         }
                     ]
                 },
-                this.stdin,
-                this.stdout,
-                this.stderr,
-                this.pausable,
+                stdin,
+                stdout,
+                stderr,
+                pausable,
                 'async'
             );
 
-            expect(this.state.getFunction('myAliasForFunc').call().getNative())
+            expect(state.getFunction('myAliasForFunc').call().getNative())
                 .to.equal('my result');
         });
 
         it('should install any option groups as options', function () {
-            this.state = new PHPState(
-                this.runtime,
+            state = new PHPState(
+                runtime,
                 {},
-                this.stdin,
-                this.stdout,
-                this.stderr,
-                this.pausable,
+                stdin,
+                stdout,
+                stderr,
+                pausable,
                 'async',
                 [
                     function (internals) {
@@ -221,18 +231,18 @@ describe('PHPState', function () {
                 ]
             );
 
-            expect(this.state.getOptions().myOption.getType()).to.equal('string');
-            expect(this.state.getOptions().myOption.getNative()).to.equal('my option value');
+            expect(state.getOptions().myOption.getType()).to.equal('string');
+            expect(state.getOptions().myOption.getNative()).to.equal('my option value');
         });
 
         it('should install any initial options as options', function () {
-            this.state = new PHPState(
-                this.runtime,
+            state = new PHPState(
+                runtime,
                 {},
-                this.stdin,
-                this.stdout,
-                this.stderr,
-                this.pausable,
+                stdin,
+                stdout,
+                stderr,
+                pausable,
                 'async',
                 [],
                 {
@@ -240,12 +250,12 @@ describe('PHPState', function () {
                 }
             );
 
-            expect(this.state.getOptions().yourOption).to.equal(21);
+            expect(state.getOptions().yourOption).to.equal(21);
         });
 
         it('should install any binding groups', function () {
-            this.state = new PHPState(
-                this.runtime,
+            state = new PHPState(
+                runtime,
                 {
                     bindingGroups: [
                         function () {
@@ -257,19 +267,19 @@ describe('PHPState', function () {
                         }
                     ]
                 },
-                this.stdin,
-                this.stdout,
-                this.stderr,
-                this.pausable,
+                stdin,
+                stdout,
+                stderr,
+                pausable,
                 'async'
             );
 
-            expect(this.state.getBinding('my_binding')).to.equal(21);
+            expect(state.getBinding('my_binding')).to.equal(21);
         });
 
         it('should install any default INI options, allowing access to constants early', function () {
-            this.state = new PHPState(
-                this.runtime,
+            state = new PHPState(
+                runtime,
                 {
                     constantGroups: [
                         function () {
@@ -286,19 +296,19 @@ describe('PHPState', function () {
                         }
                     ]
                 },
-                this.stdin,
-                this.stdout,
-                this.stderr,
-                this.pausable,
+                stdin,
+                stdout,
+                stderr,
+                pausable,
                 'async'
             );
 
-            expect(this.state.getINIOption('my_ini_setting')).to.equal(212);
+            expect(state.getINIOption('my_ini_setting')).to.equal(212);
         });
 
         it('should install any translations', function () {
-            this.state = new PHPState(
-                this.runtime,
+            state = new PHPState(
+                runtime,
                 {
                     translationCatalogues: [
                         {
@@ -310,27 +320,27 @@ describe('PHPState', function () {
                         }
                     ]
                 },
-                this.stdin,
-                this.stdout,
-                this.stderr,
-                this.pausable,
+                stdin,
+                stdout,
+                stderr,
+                pausable,
                 'sync'
             );
 
             expect(
-                this.state.getTranslator().translate('some_namespace.my_key', {name: 'Fred'})
+                state.getTranslator().translate('some_namespace.my_key', {name: 'Fred'})
             ).to.equal('Hello there Fred!');
         });
 
         ['async', 'sync', 'psync'].forEach(function (mode) {
             it('should expose the current synchronicity mode when "' + mode + '"', function () {
-                this.state = new PHPState(
-                    this.runtime,
+                state = new PHPState(
+                    runtime,
                     {},
-                    this.stdin,
-                    this.stdout,
-                    this.stderr,
-                    this.pausable,
+                    stdin,
+                    stdout,
+                    stderr,
+                    pausable,
                     mode,
                     [
                         function (internals) {
@@ -341,18 +351,18 @@ describe('PHPState', function () {
                     ]
                 );
 
-                expect(this.state.getOptions().myMode).to.equal(mode);
+                expect(state.getOptions().myMode).to.equal(mode);
             });
         });
 
         it('should expose the error configuration', function () {
-            this.state = new PHPState(
-                this.runtime,
+            state = new PHPState(
+                runtime,
                 {},
-                this.stdin,
-                this.stdout,
-                this.stderr,
-                this.pausable,
+                stdin,
+                stdout,
+                stderr,
+                pausable,
                 'sync',
                 [
                     function (internals) {
@@ -365,14 +375,14 @@ describe('PHPState', function () {
                 ]
             );
 
-            expect(this.state.getOptions().myErrorReportingLevel).to.equal(1234);
+            expect(state.getOptions().myErrorReportingLevel).to.equal(1234);
         });
 
         it('should throw an error if the specified binding is not defined', function () {
             expect(function () {
                 /*jshint nonew:false */
                 new PHPState(
-                    this.runtime,
+                    runtime,
                     {
                         functionGroups: [
                             function (internals) {
@@ -380,24 +390,24 @@ describe('PHPState', function () {
                             }
                         ]
                     },
-                    this.stdin,
-                    this.stdout,
-                    this.stderr,
-                    this.pausable,
+                    stdin,
+                    stdout,
+                    stderr,
+                    pausable,
                     'async'
                 );
-            }.bind(this)).to.throw(Exception, 'No binding is defined with name "some_undefined_binding"');
+            }).to.throw(Exception, 'No binding is defined with name "some_undefined_binding"');
         });
 
         it('should throw an error if any option group attempts to access a binding too early', function () {
             expect(function () {
-                this.state = new PHPState(
-                    this.runtime,
+                state = new PHPState(
+                    runtime,
                     {},
-                    this.stdin,
-                    this.stdout,
-                    this.stderr,
-                    this.pausable,
+                    stdin,
+                    stdout,
+                    stderr,
+                    pausable,
                     'async',
                     [
                         function (internals) {
@@ -405,17 +415,17 @@ describe('PHPState', function () {
                         }
                     ]
                 );
-            }.bind(this)).to.throw(Exception, 'Option groups cannot access bindings too early');
+            }).to.throw(Exception, 'Option groups cannot access bindings too early');
         });
 
         it('should set any provided INI options after all option groups have been handled', function () {
-            this.state = new PHPState(
-                this.runtime,
+            state = new PHPState(
+                runtime,
                 {},
-                this.stdin,
-                this.stdout,
-                this.stderr,
-                this.pausable,
+                stdin,
+                stdout,
+                stderr,
+                pausable,
                 'sync',
                 [],
                 {
@@ -425,24 +435,24 @@ describe('PHPState', function () {
                 }
             );
 
-            expect(this.state.getINIOption('display_errors')).to.equal('Off');
+            expect(state.getINIOption('display_errors')).to.equal('Off');
         });
     });
 
     describe('aliasFunction()', function () {
         it('should be able to alias a function defined inside a namespace', function () {
-            this.state.defineCoercingFunction('My\\Stuff\\myOriginalFunc', function (arg1, arg2) {
+            state.defineCoercingFunction('My\\Stuff\\myOriginalFunc', function (arg1, arg2) {
                 return arg1 + arg2;
             });
 
-            this.state.aliasFunction('My\\Stuff\\myOriginalFunc', 'myAliasFunc');
+            state.aliasFunction('My\\Stuff\\myOriginalFunc', 'myAliasFunc');
 
             expect(
-                this.state.getFunction('My\\Stuff\\myAliasFunc')
+                state.getFunction('My\\Stuff\\myAliasFunc')
                     .call(
                         null,
-                        this.valueFactory.createInteger(21),
-                        this.valueFactory.createInteger(4)
+                        valueFactory.createInteger(21),
+                        valueFactory.createInteger(4)
                     )
                     .getNative()
             ).to.equal(25);
@@ -452,12 +462,12 @@ describe('PHPState', function () {
     describe('defineCoercingFunction()', function () {
         it('should define a function that coerces its return value and unwraps its arguments', function () {
             var resultValue;
-            this.state.defineCoercingFunction('double_it', function (numberToDouble) {
+            state.defineCoercingFunction('double_it', function (numberToDouble) {
                 return numberToDouble * 2;
             });
 
-            resultValue = this.state.getFunction('double_it')(
-                this.valueFactory.createInteger(21)
+            resultValue = state.getFunction('double_it')(
+                valueFactory.createInteger(21)
             );
 
             expect(resultValue.getType()).to.equal('int');
@@ -465,16 +475,16 @@ describe('PHPState', function () {
         });
 
         it('should be able to define a function in a namespace', function () {
-            var namespace = this.state.getGlobalNamespace().getDescendant('My\\Stuff'),
+            var namespace = state.getGlobalNamespace().getDescendant('My\\Stuff'),
                 resultValue;
-            this.state.defineCoercingFunction('My\\Stuff\\double_it', function (numberToDouble) {
+            state.defineCoercingFunction('My\\Stuff\\double_it', function (numberToDouble) {
                 return numberToDouble * 2;
             });
 
             // Explicitly fetch via the namespace, to ensure we aren't just erroneously
             // allowing function names to contain backslashes
             resultValue = namespace.getFunction('double_it')(
-                this.valueFactory.createInteger(21)
+                valueFactory.createInteger(21)
             );
 
             expect(resultValue.getType()).to.equal('int');
@@ -482,29 +492,29 @@ describe('PHPState', function () {
         });
 
         it('should define a function correctly with a FunctionSpec', function () {
-            this.state.defineCoercingFunction('my_function', function () {});
+            state.defineCoercingFunction('my_function', function () {});
 
-            expect(this.state.getFunction('my_function').functionSpec.getFunctionName())
+            expect(state.getFunction('my_function').functionSpec.getFunctionName())
                 .to.equal('my_function');
         });
     });
 
     describe('defineConstant()', function () {
         it('should define a constant on the correct namespace', function () {
-            this.state.defineConstant('\\My\\Stuff\\MY_CONST', 21, {caseInsensitive: true});
+            state.defineConstant('\\My\\Stuff\\MY_CONST', 21, {caseInsensitive: true});
 
-            expect(this.state.getGlobalNamespace().getDescendant('My\\Stuff').getConstant('my_COnsT').getNative())
+            expect(state.getGlobalNamespace().getDescendant('My\\Stuff').getConstant('my_COnsT').getNative())
                 .to.equal(21);
         });
     });
 
     describe('defineGlobal()', function () {
         it('should define the global and assign it the given value', function () {
-            var value = this.valueFactory.createInteger(27);
+            var value = valueFactory.createInteger(27);
 
-            this.state.defineGlobal('MY_GLOB', value);
+            state.defineGlobal('MY_GLOB', value);
 
-            expect(this.state.getGlobalScope().getVariable('MY_GLOB').getValue().getNative()).to.equal(27);
+            expect(state.getGlobalScope().getVariable('MY_GLOB').getValue().getNative()).to.equal(27);
         });
     });
 
@@ -514,18 +524,18 @@ describe('PHPState', function () {
                 valueSetter = sinon.spy();
             valueGetter.returns(21);
 
-            this.state.defineGlobalAccessor('MY_GLOB', valueGetter, valueSetter);
+            state.defineGlobalAccessor('MY_GLOB', valueGetter, valueSetter);
 
-            expect(this.state.getGlobalScope().getVariable('MY_GLOB').getValue().getNative()).to.equal(21);
+            expect(state.getGlobalScope().getVariable('MY_GLOB').getValue().getNative()).to.equal(21);
         });
 
         it('should install a setter for the global', function () {
-            var value = this.valueFactory.createInteger(27),
+            var value = valueFactory.createInteger(27),
                 valueGetter = sinon.stub(),
                 valueSetter = sinon.spy();
 
-            this.state.defineGlobalAccessor('MY_GLOB', valueGetter, valueSetter);
-            this.state.getGlobalScope().getVariable('MY_GLOB').setValue(value);
+            state.defineGlobalAccessor('MY_GLOB', valueGetter, valueSetter);
+            state.getGlobalScope().getVariable('MY_GLOB').setValue(value);
 
             expect(valueSetter).to.have.been.calledOnce;
             expect(valueSetter).to.have.been.calledWith(27);
@@ -535,12 +545,12 @@ describe('PHPState', function () {
     describe('defineNonCoercingFunction()', function () {
         it('should define a function that coerces its return value but does not unwrap its arguments', function () {
             var resultValue;
-            this.state.defineNonCoercingFunction('double_it', function (numberToDoubleReference) {
+            state.defineNonCoercingFunction('double_it', function (numberToDoubleReference) {
                 return numberToDoubleReference.getValue().getNative() * 2;
             });
 
-            resultValue = this.state.getFunction('double_it')(
-                this.valueFactory.createInteger(21)
+            resultValue = state.getFunction('double_it')(
+                valueFactory.createInteger(21)
             );
 
             expect(resultValue.getType()).to.equal('int');
@@ -548,16 +558,16 @@ describe('PHPState', function () {
         });
 
         it('should be able to define a function in a namespace', function () {
-            var namespace = this.state.getGlobalNamespace().getDescendant('My\\Stuff'),
+            var namespace = state.getGlobalNamespace().getDescendant('My\\Stuff'),
                 resultValue;
-            this.state.defineNonCoercingFunction('My\\Stuff\\double_it', function (numberToDoubleReference) {
+            state.defineNonCoercingFunction('My\\Stuff\\double_it', function (numberToDoubleReference) {
                 return numberToDoubleReference.getValue().getNative() * 2;
             });
 
             // Explicitly fetch via the namespace, to ensure we aren't just erroneously
             // allowing function names to contain backslashes
             resultValue = namespace.getFunction('double_it')(
-                this.valueFactory.createInteger(21)
+                valueFactory.createInteger(21)
             );
 
             expect(resultValue.getType()).to.equal('int');
@@ -565,20 +575,20 @@ describe('PHPState', function () {
         });
 
         it('should define a function correctly with a FunctionSpec', function () {
-            this.state.defineNonCoercingFunction('my_function', function () {});
+            state.defineNonCoercingFunction('my_function', function () {});
 
-            expect(this.state.getFunction('my_function').functionSpec.getFunctionName())
+            expect(state.getFunction('my_function').functionSpec.getFunctionName())
                 .to.equal('my_function');
         });
     });
 
     describe('defineSuperGlobal()', function () {
         it('should define the superglobal and assign it the given value', function () {
-            var value = this.valueFactory.createInteger(101);
+            var value = valueFactory.createInteger(101);
 
-            this.state.defineSuperGlobal('MY_SUPER_GLOB', value);
+            state.defineSuperGlobal('MY_SUPER_GLOB', value);
 
-            expect(this.state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').getValue().getNative()).to.equal(101);
+            expect(state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').getValue().getNative()).to.equal(101);
         });
     });
 
@@ -588,18 +598,18 @@ describe('PHPState', function () {
                 valueSetter = sinon.spy();
             valueGetter.returns(21);
 
-            this.state.defineSuperGlobalAccessor('MY_SUPER_GLOB', valueGetter, valueSetter);
+            state.defineSuperGlobalAccessor('MY_SUPER_GLOB', valueGetter, valueSetter);
 
-            expect(this.state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').getValue().getNative()).to.equal(21);
+            expect(state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').getValue().getNative()).to.equal(21);
         });
 
         it('should install a setter for the superglobal', function () {
-            var value = this.valueFactory.createInteger(27),
+            var value = valueFactory.createInteger(27),
                 valueGetter = sinon.stub(),
                 valueSetter = sinon.spy();
 
-            this.state.defineSuperGlobalAccessor('MY_SUPER_GLOB', valueGetter, valueSetter);
-            this.state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').setValue(value);
+            state.defineSuperGlobalAccessor('MY_SUPER_GLOB', valueGetter, valueSetter);
+            state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').setValue(value);
 
             expect(valueSetter).to.have.been.calledOnce;
             expect(valueSetter).to.have.been.calledWith(27);
@@ -608,35 +618,35 @@ describe('PHPState', function () {
 
     describe('getConstant()', function () {
         it('should return the native value of the constant from the global namespace when defined', function () {
-            var value = this.valueFactory.createString('my value');
-            this.state.getGlobalNamespace().defineConstant('MY_CONST', value);
+            var value = valueFactory.createString('my value');
+            state.getGlobalNamespace().defineConstant('MY_CONST', value);
 
-            expect(this.state.getConstant('MY_CONST')).to.equal('my value');
+            expect(state.getConstant('MY_CONST')).to.equal('my value');
         });
 
         it('should return null when the constant is not defined', function () {
-            expect(this.state.getConstant('MY_UNDEFINED_CONST')).to.be.null;
+            expect(state.getConstant('MY_UNDEFINED_CONST')).to.be.null;
         });
     });
 
     describe('getErrorReporting()', function () {
         it('should return the ErrorReporting service', function () {
-            expect(this.state.getErrorReporting()).to.be.an.instanceOf(ErrorReporting);
+            expect(state.getErrorReporting()).to.be.an.instanceOf(ErrorReporting);
         });
     });
 
     describe('getFunction()', function () {
         it('should be able to fetch a function defined inside a namespace', function () {
-            this.state.defineCoercingFunction('My\\Stuff\\myFunc', function (arg1, arg2) {
+            state.defineCoercingFunction('My\\Stuff\\myFunc', function (arg1, arg2) {
                 return arg1 + arg2;
             });
 
             expect(
-                this.state.getFunction('My\\Stuff\\myFunc')
+                state.getFunction('My\\Stuff\\myFunc')
                     .call(
                         null,
-                        this.valueFactory.createInteger(10),
-                        this.valueFactory.createInteger(7)
+                        valueFactory.createInteger(10),
+                        valueFactory.createInteger(7)
                     )
                     .getNative()
             ).to.equal(17);
@@ -645,32 +655,32 @@ describe('PHPState', function () {
 
     describe('getLoader()', function () {
         it('should return a Loader', function () {
-            expect(this.state.getLoader()).to.be.an.instanceOf(Loader);
+            expect(state.getLoader()).to.be.an.instanceOf(Loader);
         });
     });
 
     describe('getOutput()', function () {
         it('should return an Output', function () {
-            expect(this.state.getOutput()).to.be.an.instanceOf(Output);
+            expect(state.getOutput()).to.be.an.instanceOf(Output);
         });
 
         it('should return an Output connected up to stdout', function () {
-            this.state.getOutput().write('good evening');
+            state.getOutput().write('good evening');
 
-            expect(this.stdout.write).to.have.been.calledOnce;
-            expect(this.stdout.write).to.have.been.calledWith('good evening');
+            expect(stdout.write).to.have.been.calledOnce;
+            expect(stdout.write).to.have.been.calledWith('good evening');
         });
     });
 
     describe('getScopeFactory()', function () {
         it('should return a ScopeFactory', function () {
-            expect(this.state.getScopeFactory()).to.be.an.instanceOf(ScopeFactory);
+            expect(state.getScopeFactory()).to.be.an.instanceOf(ScopeFactory);
         });
     });
 
     describe('getTranslator()', function () {
         it('should return the Translator service', function () {
-            expect(this.state.getTranslator()).to.be.an.instanceOf(Translator);
+            expect(state.getTranslator()).to.be.an.instanceOf(Translator);
         });
     });
 });
