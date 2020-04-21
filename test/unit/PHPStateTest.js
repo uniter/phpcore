@@ -148,7 +148,7 @@ describe('PHPState', function () {
                 'async'
             );
 
-            expect(this.state.getGlobalNamespace().getFunction('getMyConstant').call().getNative()).to.equal(21);
+            expect(this.state.getFunction('getMyConstant').call().getNative()).to.equal(21);
         });
 
         it('should define functions correctly with a FunctionSpec', function () {
@@ -172,8 +172,35 @@ describe('PHPState', function () {
                 'async'
             );
 
-            expect(this.state.getGlobalNamespace().getFunction('myFunction').functionSpec.getFunctionName())
+            expect(this.state.getFunction('myFunction').functionSpec.getFunctionName())
                 .to.equal('myFunction');
+        });
+
+        it('should allow functions to be aliased', function () {
+            this.state = new PHPState(
+                this.runtime,
+                {
+                    functionGroups: [
+                        function (internals) {
+                            return {
+                                myOriginalFunc: function () {
+                                    return internals.valueFactory.createString('my result');
+                                },
+
+                                myAliasForFunc: 'myOriginalFunc'
+                            };
+                        }
+                    ]
+                },
+                this.stdin,
+                this.stdout,
+                this.stderr,
+                this.pausable,
+                'async'
+            );
+
+            expect(this.state.getFunction('myAliasForFunc').call().getNative())
+                .to.equal('my result');
         });
 
         it('should install any option groups as options', function () {
@@ -402,6 +429,26 @@ describe('PHPState', function () {
         });
     });
 
+    describe('aliasFunction()', function () {
+        it('should be able to alias a function defined inside a namespace', function () {
+            this.state.defineCoercingFunction('My\\Stuff\\myOriginalFunc', function (arg1, arg2) {
+                return arg1 + arg2;
+            });
+
+            this.state.aliasFunction('My\\Stuff\\myOriginalFunc', 'myAliasFunc');
+
+            expect(
+                this.state.getFunction('My\\Stuff\\myAliasFunc')
+                    .call(
+                        null,
+                        this.valueFactory.createInteger(21),
+                        this.valueFactory.createInteger(4)
+                    )
+                    .getNative()
+            ).to.equal(25);
+        });
+    });
+
     describe('defineCoercingFunction()', function () {
         it('should define a function that coerces its return value and unwraps its arguments', function () {
             var resultValue;
@@ -409,8 +456,25 @@ describe('PHPState', function () {
                 return numberToDouble * 2;
             });
 
-            resultValue = this.state.getGlobalNamespace().getFunction('double_it')(
-                this.state.getValueFactory().createInteger(21)
+            resultValue = this.state.getFunction('double_it')(
+                this.valueFactory.createInteger(21)
+            );
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(42);
+        });
+
+        it('should be able to define a function in a namespace', function () {
+            var namespace = this.state.getGlobalNamespace().getDescendant('My\\Stuff'),
+                resultValue;
+            this.state.defineCoercingFunction('My\\Stuff\\double_it', function (numberToDouble) {
+                return numberToDouble * 2;
+            });
+
+            // Explicitly fetch via the namespace, to ensure we aren't just erroneously
+            // allowing function names to contain backslashes
+            resultValue = namespace.getFunction('double_it')(
+                this.valueFactory.createInteger(21)
             );
 
             expect(resultValue.getType()).to.equal('int');
@@ -420,7 +484,7 @@ describe('PHPState', function () {
         it('should define a function correctly with a FunctionSpec', function () {
             this.state.defineCoercingFunction('my_function', function () {});
 
-            expect(this.state.getGlobalNamespace().getFunction('my_function').functionSpec.getFunctionName())
+            expect(this.state.getFunction('my_function').functionSpec.getFunctionName())
                 .to.equal('my_function');
         });
     });
@@ -475,8 +539,25 @@ describe('PHPState', function () {
                 return numberToDoubleReference.getValue().getNative() * 2;
             });
 
-            resultValue = this.state.getGlobalNamespace().getFunction('double_it')(
-                this.state.getValueFactory().createInteger(21)
+            resultValue = this.state.getFunction('double_it')(
+                this.valueFactory.createInteger(21)
+            );
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(42);
+        });
+
+        it('should be able to define a function in a namespace', function () {
+            var namespace = this.state.getGlobalNamespace().getDescendant('My\\Stuff'),
+                resultValue;
+            this.state.defineNonCoercingFunction('My\\Stuff\\double_it', function (numberToDoubleReference) {
+                return numberToDoubleReference.getValue().getNative() * 2;
+            });
+
+            // Explicitly fetch via the namespace, to ensure we aren't just erroneously
+            // allowing function names to contain backslashes
+            resultValue = namespace.getFunction('double_it')(
+                this.valueFactory.createInteger(21)
             );
 
             expect(resultValue.getType()).to.equal('int');
@@ -486,7 +567,7 @@ describe('PHPState', function () {
         it('should define a function correctly with a FunctionSpec', function () {
             this.state.defineNonCoercingFunction('my_function', function () {});
 
-            expect(this.state.getGlobalNamespace().getFunction('my_function').functionSpec.getFunctionName())
+            expect(this.state.getFunction('my_function').functionSpec.getFunctionName())
                 .to.equal('my_function');
         });
     });
@@ -541,6 +622,24 @@ describe('PHPState', function () {
     describe('getErrorReporting()', function () {
         it('should return the ErrorReporting service', function () {
             expect(this.state.getErrorReporting()).to.be.an.instanceOf(ErrorReporting);
+        });
+    });
+
+    describe('getFunction()', function () {
+        it('should be able to fetch a function defined inside a namespace', function () {
+            this.state.defineCoercingFunction('My\\Stuff\\myFunc', function (arg1, arg2) {
+                return arg1 + arg2;
+            });
+
+            expect(
+                this.state.getFunction('My\\Stuff\\myFunc')
+                    .call(
+                        null,
+                        this.valueFactory.createInteger(10),
+                        this.valueFactory.createInteger(7)
+                    )
+                    .getNative()
+            ).to.equal(17);
         });
     });
 

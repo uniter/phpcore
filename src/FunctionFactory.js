@@ -117,6 +117,7 @@ module.exports = require('pauser')([
 
             wrapperFunc.functionSpec = functionSpec;
             wrapperFunc.isPHPCoreWrapped = true;
+            wrapperFunc.originalFunc = func;
 
             return wrapperFunc;
         },

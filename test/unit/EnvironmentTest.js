@@ -29,6 +29,15 @@ describe('Environment', function () {
         this.environment = new Environment(this.state);
     });
 
+    describe('aliasFunction()', function () {
+        it('should alias the function via the PHPState', function () {
+            this.environment.aliasFunction('originalFunc', 'aliasFunc');
+
+            expect(this.state.aliasFunction).to.have.been.calledOnce;
+            expect(this.state.aliasFunction).to.have.been.calledWith('originalFunc', 'aliasFunc');
+        });
+    });
+
     describe('createFFIResult()', function () {
         beforeEach(function () {
             this.asyncCallback = sinon.stub();

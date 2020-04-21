@@ -85,6 +85,66 @@ describe('Namespace', function () {
         }.bind(this);
     });
 
+    describe('aliasFunction()', function () {
+        it('should define the alias function correctly', function () {
+            var aliasFunction = sinon.stub(),
+                functionSpec = sinon.createStubInstance(FunctionSpec),
+                originalFunction = sinon.stub(),
+                parametersSpecData = [{name: 'param1'}, {name: 'param2'}],
+                wrappedFunction = sinon.stub();
+            this.callStack.getLastFilePath.returns('/path/to/my_module.php');
+            this.functionSpecFactory.createFunctionSpec
+                .withArgs(
+                    sinon.match.same(this.namespaceScope),
+                    'myOriginalFunc',
+                    parametersSpecData,
+                    '/path/to/my_module.php',
+                    123
+                )
+                .returns(functionSpec);
+            this.functionFactory.create
+                .withArgs(
+                    sinon.match.same(this.namespaceScope),
+                    null,
+                    sinon.match.same(originalFunction),
+                    'myOriginalFunc',
+                    null,
+                    null,
+                    sinon.match.same(functionSpec)
+                )
+                .returns(wrappedFunction);
+            this.namespace.defineFunction(
+                'myOriginalFunc',
+                originalFunction,
+                this.namespaceScope,
+                parametersSpecData,
+                123
+            );
+            wrappedFunction.functionSpec = functionSpec;
+            wrappedFunction.originalFunc = originalFunction;
+            functionSpec.createAliasFunction
+                .withArgs(
+                    'myAliasFunc',
+                    sinon.match.same(originalFunction),
+                    sinon.match.same(this.functionSpecFactory),
+                    sinon.match.same(this.functionFactory)
+                )
+                .returns(aliasFunction);
+
+            this.namespace.aliasFunction('myOriginalFunc', 'myAliasFunc');
+
+            expect(this.namespace.getFunction('myAliasFunc')).to.equal(aliasFunction);
+        });
+
+        it('should throw when the original function being aliased does not exist', function () {
+            expect(function () {
+                this.namespace.aliasFunction('myUndefinedFunc', 'myAliasFunc');
+            }.bind(this)).to.throw(
+                'Cannot alias undefined function "myUndefinedFunc"'
+            );
+        });
+    });
+
     describe('defineClass()', function () {
         it('should raise an uncatchable fatal error when the class is already defined', function () {
             this.namespace.defineClass('MyClass', function () {}, this.namespaceScope);

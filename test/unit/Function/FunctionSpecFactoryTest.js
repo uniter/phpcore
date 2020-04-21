@@ -54,6 +54,45 @@ describe('FunctionSpecFactory', function () {
         );
     });
 
+    describe('createAliasFunctionSpec()', function () {
+        var functionContext,
+            functionSpec,
+            parameter1,
+            parameter2;
+
+        beforeEach(function () {
+            functionContext = sinon.createStubInstance(FunctionContext);
+            functionSpec = sinon.createStubInstance(FunctionSpec);
+            parameter1 = sinon.createStubInstance(Parameter);
+            parameter2 = sinon.createStubInstance(Parameter);
+
+            FunctionContext
+                .withArgs(sinon.match.same(namespaceScope), 'myFunction')
+                .returns(functionContext);
+            FunctionSpec
+                .withArgs(
+                    sinon.match.same(callStack),
+                    sinon.match.same(valueFactory),
+                    sinon.match.same(functionContext),
+                    sinon.match.same(namespaceScope),
+                    [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    '/path/to/my/module.php',
+                    123
+                )
+                .returns(functionSpec);
+        });
+
+        it('should return a correctly constructed FunctionSpec', function () {
+            expect(factory.createAliasFunctionSpec(
+                namespaceScope,
+                'myFunction',
+                [parameter1, parameter2],
+                '/path/to/my/module.php',
+                123
+            )).to.equal(functionSpec);
+        });
+    });
+
     describe('createClosureSpec()', function () {
         var closureContext,
             functionSpec,
@@ -99,6 +138,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(valueFactory),
                     sinon.match.same(closureContext),
+                    sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
                     '/path/to/my/module.php',
                     123
@@ -123,6 +163,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(valueFactory),
                     sinon.match.same(closureContext),
+                    sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
                     '/path/to/my/module.php',
                     123
@@ -181,6 +222,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(valueFactory),
                     sinon.match.same(functionContext),
+                    sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
                     '/path/to/my/module.php',
                     123
@@ -243,6 +285,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(valueFactory),
                     sinon.match.same(methodContext),
+                    sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
                     '/path/to/my/module.php',
                     123

@@ -18,12 +18,21 @@ var _ = require('microdash'),
  * @param {CallStack} callStack
  * @param {ValueFactory} valueFactory
  * @param {FunctionContextInterface} context
+ * @param {NamespaceScope} namespaceScope
  * @param {Parameter[]} parameterList
  * @param {string|null} filePath
  * @param {number|null} lineNumber
  * @constructor
  */
-function FunctionSpec(callStack, valueFactory, context, parameterList, filePath, lineNumber) {
+function FunctionSpec(
+    callStack,
+    valueFactory,
+    context,
+    namespaceScope,
+    parameterList,
+    filePath,
+    lineNumber
+) {
     /**
      * @type {CallStack}
      */
@@ -40,6 +49,10 @@ function FunctionSpec(callStack, valueFactory, context, parameterList, filePath,
      * @type {number|null}
      */
     this.lineNumber = lineNumber;
+    /**
+     * @type {NamespaceScope}
+     */
+    this.namespaceScope = namespaceScope;
     /**
      * @type {Parameter[]|null[]}
      */
@@ -79,6 +92,39 @@ _.extend(FunctionSpec.prototype, {
         // TODO: PHP7 scalar types should be coerced at this point, assuming caller
         //       was in weak-types mode
         return coercedArguments;
+    },
+
+    /**
+     * Creates a new function (and its FunctionSpec) for an alias of the current FunctionSpec
+     *
+     * @param {string} aliasName
+     * @param {Function} func
+     * @param {FunctionSpecFactory} functionSpecFactory
+     * @param {FunctionFactory} functionFactory
+     * @return {Function}
+     */
+    createAliasFunction: function (aliasName, func, functionSpecFactory, functionFactory) {
+        var spec = this,
+            aliasFunctionSpec = functionSpecFactory.createAliasFunctionSpec(
+                spec.namespaceScope,
+                aliasName,
+                spec.parameterList,
+                spec.filePath,
+                spec.lineNumber
+            );
+
+        return functionFactory.create(
+            spec.namespaceScope,
+            // Class will always be null for 'normal' functions
+            // as defining a function inside a class will define it
+            // inside the current namespace instead.
+            null,
+            func,
+            aliasName,
+            null,
+            null,
+            aliasFunctionSpec
+        );
     },
 
     /**

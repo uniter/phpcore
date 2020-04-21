@@ -74,6 +74,16 @@ function Engine(
 
 _.extend(Engine.prototype, {
     /**
+     * Defines the given alias for the given function
+     *
+     * @param {string} originalName
+     * @param {string} aliasName
+     */
+    aliasFunction: function (originalName, aliasName) {
+        this.environment.aliasFunction(originalName, aliasName);
+    },
+
+    /**
      * Creates a new FFI Result, to provide the result of a call to a JS function
      *
      * @param {Function} syncCallback

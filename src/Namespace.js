@@ -118,6 +118,30 @@ module.exports = require('pauser')([
 
     _.extend(Namespace.prototype, {
         /**
+         * Defines the given alias for the given function
+         *
+         * @param {string} originalName
+         * @param {string} aliasName
+         */
+        aliasFunction: function (originalName, aliasName) {
+            var existingFunction,
+                namespace = this;
+
+            if (!namespace.hasFunction(originalName)) {
+                throw new Error('Cannot alias undefined function "' + originalName + '"');
+            }
+
+            existingFunction = namespace.getFunction(originalName);
+
+            namespace.functions[aliasName.toLowerCase()] = existingFunction.functionSpec.createAliasFunction(
+                aliasName,
+                existingFunction.originalFunc,
+                namespace.functionSpecFactory,
+                namespace.functionFactory
+            );
+        },
+
+        /**
          * Defines a class in the current namespace, either from a JS class/function or from a transpiled PHP class,
          * where PHPToJS has generated an object containing all the information related to the class
          *
@@ -666,10 +690,10 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Parses a class, function or constant name to
+         * Parses a class, function or constant name to its namespace and name
          *
          * @param {string} name
-         * @returns {{namespace: (Namespace), name: string}|null}
+         * @returns {{namespace: (Namespace), name: string}}
          */
         parseName: function (name) {
             var match = name.match(/^(\\?)(.*?)\\?([^\\]+)$/),

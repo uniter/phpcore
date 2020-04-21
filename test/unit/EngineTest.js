@@ -64,6 +64,17 @@ describe('Engine', function () {
         }.bind(this);
     });
 
+    describe('aliasFunction()', function () {
+        it('should alias the function via the Environment', function () {
+            this.createEngine();
+
+            this.engine.aliasFunction('originalFunc', 'aliasFunc');
+
+            expect(this.environment.aliasFunction).to.have.been.calledOnce;
+            expect(this.environment.aliasFunction).to.have.been.calledWith('originalFunc', 'aliasFunc');
+        });
+    });
+
     describe('createFFIResult()', function () {
         it('should create an FFI Result via the Environment', function () {
             var ffiResult = sinon.createStubInstance(FFIResult),

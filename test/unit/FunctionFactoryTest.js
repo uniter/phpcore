@@ -70,10 +70,6 @@ describe('FunctionFactory', function () {
             }.bind(this);
         });
 
-        it('should store the FunctionSpec against the function', function () {
-            expect(this.callCreate().functionSpec.getFunctionName()).to.equal('myFunction');
-        });
-
         it('should return a wrapper function', function () {
             expect(this.callCreate()).to.be.a('function');
         });
@@ -315,6 +311,18 @@ describe('FunctionFactory', function () {
                     sinon.match.same(argValue2),
                     sinon.match.same(argValue3)
                 );
+            });
+
+            it('should have the FunctionSpec stored against it', function () {
+                expect(this.callCreate().functionSpec).to.equal(this.functionSpec);
+            });
+
+            it('should have the isPHPCoreWrapped flag set against it', function () {
+                expect(this.callCreate().isPHPCoreWrapped).to.be.true;
+            });
+
+            it('should have the original function stored against it', function () {
+                expect(this.callCreate().originalFunc).to.equal(this.func);
             });
         });
     });
