@@ -142,10 +142,22 @@ module.exports = require('pauser')([
              * @param {Function} groupFactory
              */
             function installFunctionGroup(groupFactory) {
-                var groupBuiltins = groupFactory(state.internals);
+                var groupBuiltins = groupFactory(state.internals),
+                    functionAliases = {};
 
                 _.each(groupBuiltins, function (fn, name) {
-                    globalNamespace.defineFunction(name, fn, state.globalNamespaceScope);
+                    if (typeof fn === 'function') {
+                        globalNamespace.defineFunction(name, fn, state.globalNamespaceScope);
+                    } else {
+                        // Gather function aliases (strings) and install the aliases at the end
+                        // (see below), to ensure that the original functions exist first
+                        // as an alias can only be installed using an existing function's FunctionSpec
+                        functionAliases[name] = fn;
+                    }
+                });
+
+                _.forOwn(functionAliases, function (originalName, aliasName) {
+                    globalNamespace.aliasFunction(originalName, aliasName);
                 });
             }
 
@@ -460,6 +472,16 @@ module.exports = require('pauser')([
 
     _.extend(PHPState.prototype, {
         /**
+         * Defines the given alias for the given function
+         *
+         * @param {string} originalName
+         * @param {string} aliasName
+         */
+        aliasFunction: function (originalName, aliasName) {
+            this.globalNamespace.aliasFunction(originalName, aliasName);
+        },
+
+        /**
          * Defines a new class (in any namespace)
          *
          * @param {string} fqcn FQCN of the class to define
@@ -579,9 +601,10 @@ module.exports = require('pauser')([
          * @param {Function} fn
          */
         defineCoercingFunction: function (name, fn) {
-            var state = this;
+            var state = this,
+                parsed = state.globalNamespace.parseName(name);
 
-            this.globalNamespace.defineFunction(name, function () {
+            parsed.namespace.defineFunction(parsed.name, function () {
                 // Unwrap args from PHP-land to JS-land to native values
                 var args = _.map(arguments, function (argReference) {
                     return argReference.getNative();
@@ -639,9 +662,10 @@ module.exports = require('pauser')([
          * @param {Function} fn
          */
         defineNonCoercingFunction: function (name, fn) {
-            var state = this;
+            var state = this,
+                parsed = state.globalNamespace.parseName(name);
 
-            this.globalNamespace.defineFunction(name, function () {
+            parsed.namespace.defineFunction(parsed.name, function () {
                 // Call the native function, wrapping its return value as a PHP value
                 return state.valueFactory.coerce(fn.apply(null, arguments));
             }, state.globalNamespaceScope);
@@ -712,6 +736,18 @@ module.exports = require('pauser')([
          */
         getErrorReporting: function () {
             return this.errorReporting;
+        },
+
+        /**
+         * Fetches either a global function or one in a namespace
+         *
+         * @param {string} name FQCN of the function to fetch
+         * @return {Function}
+         */
+        getFunction: function (name) {
+            var parsed = this.globalNamespace.parseName(name);
+
+            return parsed.namespace.getFunction(parsed.name);
         },
 
         getGlobalNamespace: function () {

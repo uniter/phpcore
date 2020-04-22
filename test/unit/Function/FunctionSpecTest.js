@@ -16,8 +16,11 @@ var expect = require('chai').expect,
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
     FunctionContextInterface = require('../../../src/Function/FunctionContextInterface'),
+    FunctionFactory = require('../../../src/FunctionFactory').sync(),
     FunctionSpec = require('../../../src/Function/FunctionSpec'),
+    FunctionSpecFactory = require('../../../src/Function/FunctionSpecFactory'),
     Namespace = require('../../../src/Namespace').sync(),
+    NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     Parameter = require('../../../src/Function/Parameter'),
     Translator = phpCommon.Translator,
@@ -27,6 +30,7 @@ describe('FunctionSpec', function () {
     var callStack,
         context,
         globalNamespace,
+        namespaceScope,
         parameter1,
         parameter2,
         spec,
@@ -37,6 +41,7 @@ describe('FunctionSpec', function () {
         callStack = sinon.createStubInstance(CallStack);
         context = sinon.createStubInstance(FunctionContextInterface);
         globalNamespace = sinon.createStubInstance(Namespace);
+        namespaceScope = sinon.createStubInstance(NamespaceScope);
         parameter1 = sinon.createStubInstance(Parameter);
         parameter2 = sinon.createStubInstance(Parameter);
         translator = sinon.createStubInstance(Translator);
@@ -58,6 +63,7 @@ describe('FunctionSpec', function () {
             callStack,
             valueFactory,
             context,
+            namespaceScope,
             [
                 parameter1,
                 parameter2
@@ -97,6 +103,7 @@ describe('FunctionSpec', function () {
                 callStack,
                 valueFactory,
                 context,
+                namespaceScope,
                 [
                     null, // Missing parameter spec, eg. due to bundle size optimisations
                     parameter2
@@ -122,6 +129,55 @@ describe('FunctionSpec', function () {
 
             expect(result).to.have.length(1);
             expect(result[0].getNative()).to.equal('first coerced');
+        });
+    });
+
+    describe('createAliasFunction()', function () {
+        var aliasFunction,
+            aliasFunctionSpec,
+            functionFactory,
+            functionSpecFactory,
+            originalFunction;
+
+        beforeEach(function () {
+            aliasFunction = sinon.stub();
+            aliasFunctionSpec = sinon.createStubInstance(FunctionSpec);
+            functionFactory = sinon.createStubInstance(FunctionFactory);
+            functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
+            originalFunction = sinon.stub();
+
+            functionFactory.create
+                .withArgs(
+                    sinon.match.same(namespaceScope),
+                    null, // Class (always null for normal functions)
+                    sinon.match.same(originalFunction),
+                    'myAliasFunc',
+                    null,
+                    null,
+                    sinon.match.same(aliasFunctionSpec)
+                )
+                .returns(aliasFunction);
+
+            functionSpecFactory.createAliasFunctionSpec
+                .withArgs(
+                    sinon.match.same(namespaceScope),
+                    'myAliasFunc',
+                    [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    '/path/to/my/module.php',
+                    1234
+                )
+                .returns(aliasFunctionSpec);
+        });
+
+        it('should return a correctly constructed alias function', function () {
+            expect(
+                spec.createAliasFunction(
+                    'myAliasFunc',
+                    originalFunction,
+                    functionSpecFactory,
+                    functionFactory
+                )
+            ).to.equal(aliasFunction);
         });
     });
 

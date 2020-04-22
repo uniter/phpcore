@@ -21,47 +21,74 @@ var expect = require('chai').expect,
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('Engine', function () {
+    var createEngine,
+        engine,
+        environment,
+        mode,
+        options,
+        pausable,
+        phpCommon,
+        phpToAST,
+        phpToJS,
+        state,
+        topLevelScope,
+        valueFactory,
+        whenPausableIsAvailable,
+        whenPausableIsNotAvailable,
+        wrapper;
+
     beforeEach(function () {
-        var mode = 'async';
-        this.environment = sinon.createStubInstance(Environment);
-        this.options = {};
-        this.pausable = {
+        mode = 'async';
+        environment = sinon.createStubInstance(Environment);
+        options = {};
+        pausable = {
             createPause: function () {
                 return sinon.createStubInstance(PauseException);
             }
         };
-        this.phpCommon = {};
-        this.phpToAST = {};
-        this.phpToJS = {};
-        this.state = sinon.createStubInstance(PHPState);
-        this.topLevelScope = sinon.createStubInstance(Scope);
-        this.valueFactory = new ValueFactory();
-        this.wrapper = sinon.stub();
+        phpCommon = {};
+        phpToAST = {};
+        phpToJS = {};
+        state = sinon.createStubInstance(PHPState);
+        topLevelScope = sinon.createStubInstance(Scope);
+        valueFactory = new ValueFactory();
+        wrapper = sinon.stub();
 
-        this.environment.getState.returns(this.state);
-        this.state.getValueFactory.returns(this.valueFactory);
+        environment.getState.returns(state);
+        state.getValueFactory.returns(valueFactory);
 
-        this.createEngine = function (customMode) {
-            this.engine = new Engine(
-                this.environment,
-                this.topLevelScope,
-                this.phpCommon,
-                this.options,
-                this.wrapper,
-                this.pausable,
+        createEngine = function (customMode) {
+            engine = new Engine(
+                environment,
+                topLevelScope,
+                phpCommon,
+                options,
+                wrapper,
+                pausable,
                 customMode || mode
             );
-        }.bind(this);
+        };
 
-        this.whenPausableIsAvailable = function () {
+        whenPausableIsAvailable = function () {
             mode = 'async';
-            this.createEngine();
-        }.bind(this);
-        this.whenPausableIsNotAvailable = function () {
+            createEngine();
+        };
+        whenPausableIsNotAvailable = function () {
             mode = 'sync';
-            this.pausable = null;
-            this.createEngine();
-        }.bind(this);
+            pausable = null;
+            createEngine();
+        };
+    });
+
+    describe('aliasFunction()', function () {
+        it('should alias the function via the Environment', function () {
+            createEngine();
+
+            engine.aliasFunction('originalFunc', 'aliasFunc');
+
+            expect(environment.aliasFunction).to.have.been.calledOnce;
+            expect(environment.aliasFunction).to.have.been.calledWith('originalFunc', 'aliasFunc');
+        });
     });
 
     describe('createFFIResult()', function () {
@@ -69,40 +96,40 @@ describe('Engine', function () {
             var ffiResult = sinon.createStubInstance(FFIResult),
                 asyncCallback = sinon.stub(),
                 syncCallback = sinon.stub();
-            this.environment.createFFIResult
+            environment.createFFIResult
                 .withArgs(sinon.match.same(syncCallback), sinon.match.same(asyncCallback))
                 .returns(ffiResult);
-            this.createEngine();
+            createEngine();
 
-            expect(this.engine.createFFIResult(syncCallback, asyncCallback)).to.equal(ffiResult);
+            expect(engine.createFFIResult(syncCallback, asyncCallback)).to.equal(ffiResult);
         });
     });
 
     describe('createPause()', function () {
         it('should return a PauseException when the Pausable library is available', function () {
-            this.whenPausableIsAvailable();
+            whenPausableIsAvailable();
 
-            expect(this.engine.createPause()).to.be.an.instanceOf(PauseException);
+            expect(engine.createPause()).to.be.an.instanceOf(PauseException);
         });
 
         it('should throw an exception when the Pausable library is not available', function () {
-            this.whenPausableIsNotAvailable();
+            whenPausableIsNotAvailable();
 
             expect(function () {
-                this.engine.createPause();
-            }.bind(this)).to.throw('Pausable is not available');
+                engine.createPause();
+            }).to.throw('Pausable is not available');
         });
     });
 
     describe('defineClass()', function () {
         it('should define a class on the environment', function () {
             var myClassDefinitionFactory = sinon.stub();
-            this.createEngine();
+            createEngine();
 
-            this.engine.defineClass('My\\Fqcn', myClassDefinitionFactory);
+            engine.defineClass('My\\Fqcn', myClassDefinitionFactory);
 
-            expect(this.environment.defineClass).to.have.been.calledOnce;
-            expect(this.environment.defineClass).to.have.been.calledWith(
+            expect(environment.defineClass).to.have.been.calledOnce;
+            expect(environment.defineClass).to.have.been.calledWith(
                 'My\\Fqcn',
                 sinon.match.same(myClassDefinitionFactory)
             );
@@ -111,12 +138,12 @@ describe('Engine', function () {
         it('should return the defined class from the environment', function () {
             var myClassDefinitionFactory = sinon.stub(),
                 myClassObject = sinon.createStubInstance(Class);
-            this.environment.defineClass
+            environment.defineClass
                 .withArgs('My\\Fqcn', sinon.match.same(myClassDefinitionFactory))
                 .returns(myClassObject);
-            this.createEngine();
+            createEngine();
 
-            expect(this.engine.defineClass('My\\Fqcn', myClassDefinitionFactory))
+            expect(engine.defineClass('My\\Fqcn', myClassDefinitionFactory))
                 .to.equal(myClassObject);
         });
     });
@@ -124,12 +151,12 @@ describe('Engine', function () {
     describe('defineCoercingFunction()', function () {
         it('should define a coercing function on the environment', function () {
             var myFunction = sinon.stub();
-            this.createEngine();
+            createEngine();
 
-            this.engine.defineCoercingFunction('my_func', myFunction);
+            engine.defineCoercingFunction('my_func', myFunction);
 
-            expect(this.environment.defineCoercingFunction).to.have.been.calledOnce;
-            expect(this.environment.defineCoercingFunction).to.have.been.calledWith(
+            expect(environment.defineCoercingFunction).to.have.been.calledOnce;
+            expect(environment.defineCoercingFunction).to.have.been.calledWith(
                 'my_func',
                 sinon.match.same(myFunction)
             );
@@ -138,12 +165,12 @@ describe('Engine', function () {
 
     describe('defineConstant()', function () {
         it('should define a constant on the environment', function () {
-            this.createEngine();
+            createEngine();
 
-            this.engine.defineConstant('MY_CONST', 21, {caseInsensitive: true});
+            engine.defineConstant('MY_CONST', 21, {caseInsensitive: true});
 
-            expect(this.environment.defineConstant).to.have.been.calledOnce;
-            expect(this.environment.defineConstant).to.have.been.calledWith(
+            expect(environment.defineConstant).to.have.been.calledOnce;
+            expect(environment.defineConstant).to.have.been.calledWith(
                 'MY_CONST',
                 21,
                 {caseInsensitive: true}
@@ -153,14 +180,14 @@ describe('Engine', function () {
 
     describe('defineGlobal()', function () {
         it('should define a global on the environment', function () {
-            this.createEngine();
+            createEngine();
 
-            this.engine.defineGlobal('my_global', 21);
+            engine.defineGlobal('my_global', 21);
 
-            expect(this.environment.defineGlobal).to.have.been.calledOnce;
-            expect(this.environment.defineGlobal).to.have.been.calledWith('my_global');
-            expect(this.environment.defineGlobal.args[0][1].getType()).to.equal('int');
-            expect(this.environment.defineGlobal.args[0][1].getNative()).to.equal(21);
+            expect(environment.defineGlobal).to.have.been.calledOnce;
+            expect(environment.defineGlobal).to.have.been.calledWith('my_global');
+            expect(environment.defineGlobal.args[0][1].getType()).to.equal('int');
+            expect(environment.defineGlobal.args[0][1].getNative()).to.equal(21);
         });
     });
 
@@ -168,12 +195,12 @@ describe('Engine', function () {
         it('should define a global accessor on the environment', function () {
             var valueGetter = sinon.stub(),
                 valueSetter = sinon.stub();
-            this.createEngine();
+            createEngine();
 
-            this.engine.defineGlobalAccessor('my_global', valueGetter, valueSetter);
+            engine.defineGlobalAccessor('my_global', valueGetter, valueSetter);
 
-            expect(this.environment.defineGlobalAccessor).to.have.been.calledOnce;
-            expect(this.environment.defineGlobalAccessor).to.have.been.calledWith(
+            expect(environment.defineGlobalAccessor).to.have.been.calledOnce;
+            expect(environment.defineGlobalAccessor).to.have.been.calledWith(
                 'my_global',
                 sinon.match.same(valueGetter),
                 sinon.match.same(valueSetter)
@@ -184,12 +211,12 @@ describe('Engine', function () {
     describe('defineNonCoercingFunction()', function () {
         it('should define a non-coercing function on the environment', function () {
             var myFunction = sinon.stub();
-            this.createEngine();
+            createEngine();
 
-            this.engine.defineNonCoercingFunction('my_func', myFunction);
+            engine.defineNonCoercingFunction('my_func', myFunction);
 
-            expect(this.environment.defineNonCoercingFunction).to.have.been.calledOnce;
-            expect(this.environment.defineNonCoercingFunction).to.have.been.calledWith(
+            expect(environment.defineNonCoercingFunction).to.have.been.calledOnce;
+            expect(environment.defineNonCoercingFunction).to.have.been.calledWith(
                 'my_func',
                 sinon.match.same(myFunction)
             );
@@ -200,12 +227,12 @@ describe('Engine', function () {
         it('should define the superglobal on the environment', function () {
             var valueGetter = sinon.stub(),
                 valueSetter = sinon.spy();
-            this.createEngine();
+            createEngine();
 
-            this.engine.defineSuperGlobalAccessor('MY_SUPER', valueGetter, valueSetter);
+            engine.defineSuperGlobalAccessor('MY_SUPER', valueGetter, valueSetter);
 
-            expect(this.environment.defineSuperGlobalAccessor).to.have.been.calledOnce;
-            expect(this.environment.defineSuperGlobalAccessor).to.have.been.calledWith(
+            expect(environment.defineSuperGlobalAccessor).to.have.been.calledOnce;
+            expect(environment.defineSuperGlobalAccessor).to.have.been.calledWith(
                 'MY_SUPER',
                 sinon.match.same(valueGetter),
                 sinon.match.same(valueSetter)
@@ -215,10 +242,10 @@ describe('Engine', function () {
 
     describe('getConstant()', function () {
         it('should return the value of the constant from the environment', function () {
-            this.createEngine();
-            this.environment.getConstant.withArgs('A_CONST').returns('my value');
+            createEngine();
+            environment.getConstant.withArgs('A_CONST').returns('my value');
 
-            expect(this.engine.getConstant('A_CONST')).to.equal('my value');
+            expect(engine.getConstant('A_CONST')).to.equal('my value');
         });
     });
 });

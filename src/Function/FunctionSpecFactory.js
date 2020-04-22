@@ -64,6 +64,31 @@ function FunctionSpecFactory(
 
 _.extend(FunctionSpecFactory.prototype, {
     /**
+     * Creates a FunctionSpec for a function alias
+     *
+     * @param {NamespaceScope} namespaceScope
+     * @param {string} functionName
+     * @param {Parameter[]} parameters
+     * @param {string|null} filePath
+     * @param {number|null} lineNumber
+     * @returns {FunctionSpec}
+     */
+    createAliasFunctionSpec: function (namespaceScope, functionName, parameters, filePath, lineNumber) {
+        var factory = this,
+            context = new factory.FunctionContext(namespaceScope, functionName);
+
+        return new factory.FunctionSpec(
+            factory.callStack,
+            factory.valueFactory,
+            context,
+            namespaceScope,
+            parameters,
+            filePath,
+            lineNumber
+        );
+    },
+
+    /**
      * Creates a FunctionSpec from the given spec data for a closure
      *
      * @param {NamespaceScope} namespaceScope
@@ -88,6 +113,7 @@ _.extend(FunctionSpecFactory.prototype, {
             factory.callStack,
             factory.valueFactory,
             context,
+            namespaceScope,
             parameters,
             filePath,
             lineNumber
@@ -119,6 +145,7 @@ _.extend(FunctionSpecFactory.prototype, {
             factory.callStack,
             factory.valueFactory,
             context,
+            namespaceScope,
             parameters,
             filePath,
             lineNumber
@@ -151,6 +178,7 @@ _.extend(FunctionSpecFactory.prototype, {
             factory.callStack,
             factory.valueFactory,
             context,
+            namespaceScope,
             parameters,
             filePath,
             lineNumber
