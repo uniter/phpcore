@@ -23,7 +23,7 @@ module.exports = require('pauser')([
 
     /**
      * Variables can either hold a value directly or hold a pointer
-     * to a reference (an array element or an instance or static object property etc.)
+     * to a reference (an array element, object instance property or static class property etc.)
      *
      * @param {CallStack} callStack
      * @param {ValueFactory} valueFactory
