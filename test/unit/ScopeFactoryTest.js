@@ -10,6 +10,7 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
@@ -20,143 +21,181 @@ var expect = require('chai').expect,
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
     SuperGlobalScope = require('../../src/SuperGlobalScope').sync(),
+    Translator = phpCommon.Translator,
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync(),
     VariableFactory = require('../../src/VariableFactory').sync();
 
 describe('ScopeFactory', function () {
-    beforeEach(function () {
-        this.callStack = sinon.createStubInstance(CallStack);
-        this.closureFactory = sinon.createStubInstance(ClosureFactory);
-        this.functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
-        this.LoadScope = sinon.stub();
-        this.NamespaceScope = sinon.stub();
-        this.Scope = sinon.stub();
-        this.globalScope = sinon.createStubInstance(this.Scope);
-        this.referenceFactory = sinon.createStubInstance(ReferenceFactory);
-        this.superGlobalScope = sinon.createStubInstance(SuperGlobalScope);
-        this.valueFactory = sinon.createStubInstance(ValueFactory);
-        this.variableFactory = sinon.createStubInstance(VariableFactory);
+    var callStack,
+        closureFactory,
+        factory,
+        functionSpecFactory,
+        globalScope,
+        LoadScope,
+        NamespaceScope,
+        referenceFactory,
+        Scope,
+        superGlobalScope,
+        translator,
+        valueFactory,
+        variableFactory;
 
-        this.factory = new ScopeFactory(
-            this.LoadScope,
-            this.Scope,
-            this.NamespaceScope,
-            this.callStack,
-            this.superGlobalScope,
-            this.functionSpecFactory,
-            this.valueFactory,
-            this.variableFactory,
-            this.referenceFactory
+    beforeEach(function () {
+        callStack = sinon.createStubInstance(CallStack);
+        closureFactory = sinon.createStubInstance(ClosureFactory);
+        functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
+        LoadScope = sinon.stub();
+        NamespaceScope = sinon.stub();
+        Scope = sinon.stub();
+        globalScope = sinon.createStubInstance(Scope);
+        referenceFactory = sinon.createStubInstance(ReferenceFactory);
+        superGlobalScope = sinon.createStubInstance(SuperGlobalScope);
+        translator = sinon.createStubInstance(Translator);
+        valueFactory = sinon.createStubInstance(ValueFactory);
+        variableFactory = sinon.createStubInstance(VariableFactory);
+
+        factory = new ScopeFactory(
+            LoadScope,
+            Scope,
+            NamespaceScope,
+            callStack,
+            translator,
+            superGlobalScope,
+            functionSpecFactory,
+            valueFactory,
+            variableFactory,
+            referenceFactory
         );
-        this.factory.setClosureFactory(this.closureFactory);
-        this.factory.setGlobalScope(this.globalScope);
+        factory.setClosureFactory(closureFactory);
+        factory.setGlobalScope(globalScope);
     });
 
     describe('create()', function () {
+        var callCreate,
+            currentClass,
+            currentFunction,
+            name,
+            thisObject;
+
         beforeEach(function () {
-            this.name = 'MyNamespace';
-            this.currentClass = sinon.createStubInstance(Class);
-            this.currentFunction = sinon.stub();
-            this.thisObject = sinon.createStubInstance(Value);
-            this.callCreate = function () {
-                return this.factory.create(
-                    this.currentClass,
-                    this.currentFunction,
-                    this.thisObject
+            name = 'MyNamespace';
+            currentClass = sinon.createStubInstance(Class);
+            currentFunction = sinon.stub();
+            thisObject = sinon.createStubInstance(Value);
+            callCreate = function () {
+                return factory.create(
+                    currentClass,
+                    currentFunction,
+                    thisObject
                 );
-            }.bind(this);
+            };
         });
 
         it('should return an instance of Scope', function () {
-            expect(this.callCreate()).to.be.an.instanceOf(this.Scope);
+            expect(callCreate()).to.be.an.instanceOf(Scope);
         });
 
         it('should create one scope', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Scope).to.have.been.calledOnce;
+            expect(Scope).to.have.been.calledOnce;
         });
 
         it('should pass the CallStack to the scope', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Scope).to.have.been.calledWith(sinon.match.same(this.callStack));
+            expect(Scope).to.have.been.calledWith(sinon.match.same(callStack));
+        });
+
+        it('should pass the Translator to the scope', function () {
+            callCreate();
+
+            expect(Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.same(translator)
+            );
         });
 
         it('should pass the global scope to the scope', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Scope).to.have.been.calledWith(
+            expect(Scope).to.have.been.calledWith(
                 sinon.match.any,
-                sinon.match.same(this.globalScope)
+                sinon.match.any,
+                sinon.match.same(globalScope)
             );
         });
 
         it('should pass the SuperGlobalScope to the scope', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Scope).to.have.been.calledWith(
+            expect(Scope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.superGlobalScope)
+                sinon.match.any,
+                sinon.match.same(superGlobalScope)
             );
         });
 
         it('should pass the ClosureFactory to the scope', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Scope).to.have.been.calledWith(
+            expect(Scope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.closureFactory)
+                sinon.match.any,
+                sinon.match.same(closureFactory)
             );
         });
 
         it('should pass the FunctionSpecFactory to the scope', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Scope).to.have.been.calledWith(
+            expect(Scope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.functionSpecFactory)
+                sinon.match.any,
+                sinon.match.same(functionSpecFactory)
             );
         });
 
         it('should pass the ValueFactory to the scope', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Scope).to.have.been.calledWith(
+            expect(Scope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.valueFactory)
+                sinon.match.any,
+                sinon.match.same(valueFactory)
             );
         });
 
         it('should pass the VariableFactory to the scope', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Scope).to.have.been.calledWith(
+            expect(Scope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.variableFactory)
+                sinon.match.any,
+                sinon.match.same(variableFactory)
             );
         });
 
         it('should pass the ReferenceFactory to the scope', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Scope).to.have.been.calledWith(
+            expect(Scope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -164,14 +203,15 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.referenceFactory)
+                sinon.match.any,
+                sinon.match.same(referenceFactory)
             );
         });
 
         it('should pass the current class to the scope when specified', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Scope).to.have.been.calledWith(
+            expect(Scope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -180,16 +220,18 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.currentClass)
+                sinon.match.any,
+                sinon.match.same(currentClass)
             );
         });
 
         it('should pass null as the current class to the scope when not specified', function () {
-            this.currentClass = null;
+            currentClass = null;
 
-            this.callCreate();
+            callCreate();
 
-            expect(this.Scope).to.have.been.calledWith(
+            expect(Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -203,9 +245,9 @@ describe('ScopeFactory', function () {
         });
 
         it('should pass the current function to the scope when specified', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Scope).to.have.been.calledWith(
+            expect(Scope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -215,16 +257,18 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.currentFunction)
+                sinon.match.any,
+                sinon.match.same(currentFunction)
             );
         });
 
         it('should pass null as the current function to the scope when not specified', function () {
-            this.currentFunction = false;
+            currentFunction = false;
 
-            this.callCreate();
+            callCreate();
 
-            expect(this.Scope).to.have.been.calledWith(
+            expect(Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -239,9 +283,9 @@ describe('ScopeFactory', function () {
         });
 
         it('should pass the thisObject to the scope when specified', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Scope).to.have.been.calledWith(
+            expect(Scope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -252,16 +296,18 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.thisObject)
+                sinon.match.any,
+                sinon.match.same(thisObject)
             );
         });
 
         it('should pass null as the thisObject to the scope when not specified', function () {
-            this.thisObject = false;
+            thisObject = false;
 
-            this.callCreate();
+            callCreate();
 
-            expect(this.Scope).to.have.been.calledWith(
+            expect(Scope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -278,42 +324,45 @@ describe('ScopeFactory', function () {
     });
 
     describe('createLoadScope()', function () {
-        beforeEach(function () {
-            this.effectiveScope = sinon.createStubInstance(this.Scope);
+        var callCreateLoadScope,
+            effectiveScope;
 
-            this.callCreateLoadScope = function () {
-                return this.factory.createLoadScope(this.effectiveScope, '/path/to/my/caller.php', 'eval');
-            }.bind(this);
+        beforeEach(function () {
+            effectiveScope = sinon.createStubInstance(Scope);
+
+            callCreateLoadScope = function () {
+                return factory.createLoadScope(effectiveScope, '/path/to/my/caller.php', 'eval');
+            };
         });
 
         it('should return an instance of LoadScope', function () {
-            expect(this.callCreateLoadScope()).to.be.an.instanceOf(this.LoadScope);
+            expect(callCreateLoadScope()).to.be.an.instanceOf(LoadScope);
         });
 
         it('should pass the ValueFactory to the scope', function () {
-            this.callCreateLoadScope();
+            callCreateLoadScope();
 
-            expect(this.LoadScope).to.have.been.calledOnce;
-            expect(this.LoadScope).to.have.been.calledWith(
-                sinon.match.same(this.valueFactory)
+            expect(LoadScope).to.have.been.calledOnce;
+            expect(LoadScope).to.have.been.calledWith(
+                sinon.match.same(valueFactory)
             );
         });
 
         it('should pass the effective scope to the scope', function () {
-            this.callCreateLoadScope();
+            callCreateLoadScope();
 
-            expect(this.LoadScope).to.have.been.calledOnce;
-            expect(this.LoadScope).to.have.been.calledWith(
+            expect(LoadScope).to.have.been.calledOnce;
+            expect(LoadScope).to.have.been.calledWith(
                 sinon.match.any,
-                sinon.match.same(this.effectiveScope)
+                sinon.match.same(effectiveScope)
             );
         });
 
         it('should pass the caller file path to the scope', function () {
-            this.callCreateLoadScope();
+            callCreateLoadScope();
 
-            expect(this.LoadScope).to.have.been.calledOnce;
-            expect(this.LoadScope).to.have.been.calledWith(
+            expect(LoadScope).to.have.been.calledOnce;
+            expect(LoadScope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 '/path/to/my/caller.php'
@@ -321,10 +370,10 @@ describe('ScopeFactory', function () {
         });
 
         it('should pass the type to the scope', function () {
-            this.callCreateLoadScope();
+            callCreateLoadScope();
 
-            expect(this.LoadScope).to.have.been.calledOnce;
-            expect(this.LoadScope).to.have.been.calledWith(
+            expect(LoadScope).to.have.been.calledOnce;
+            expect(LoadScope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -334,72 +383,77 @@ describe('ScopeFactory', function () {
     });
 
     describe('createNamespaceScope()', function () {
-        beforeEach(function () {
-            this.globalNamespace = sinon.createStubInstance(Namespace);
-            this.module = sinon.createStubInstance(Module);
-            this.namespace = sinon.createStubInstance(Namespace);
+        var callCreateNamespaceScope,
+            globalNamespace,
+            module,
+            namespace;
 
-            this.callCreateNamespaceScope = function () {
-                return this.factory.createNamespaceScope(this.namespace, this.globalNamespace, this.module);
-            }.bind(this);
+        beforeEach(function () {
+            globalNamespace = sinon.createStubInstance(Namespace);
+            module = sinon.createStubInstance(Module);
+            namespace = sinon.createStubInstance(Namespace);
+
+            callCreateNamespaceScope = function () {
+                return factory.createNamespaceScope(namespace, globalNamespace, module);
+            };
         });
 
         it('should return an instance of NamespaceScope', function () {
-            expect(this.callCreateNamespaceScope()).to.be.an.instanceOf(this.NamespaceScope);
+            expect(callCreateNamespaceScope()).to.be.an.instanceOf(NamespaceScope);
         });
 
         it('should pass the global namespace to the scope', function () {
-            this.callCreateNamespaceScope();
+            callCreateNamespaceScope();
 
-            expect(this.NamespaceScope).to.have.been.calledOnce;
-            expect(this.NamespaceScope).to.have.been.calledWith(
-                sinon.match.same(this.globalNamespace)
+            expect(NamespaceScope).to.have.been.calledOnce;
+            expect(NamespaceScope).to.have.been.calledWith(
+                sinon.match.same(globalNamespace)
             );
         });
 
         it('should pass the ValueFactory to the scope', function () {
-            this.callCreateNamespaceScope();
+            callCreateNamespaceScope();
 
-            expect(this.NamespaceScope).to.have.been.calledOnce;
-            expect(this.NamespaceScope).to.have.been.calledWith(
+            expect(NamespaceScope).to.have.been.calledOnce;
+            expect(NamespaceScope).to.have.been.calledWith(
                 sinon.match.any,
-                sinon.match.same(this.valueFactory)
+                sinon.match.same(valueFactory)
             );
         });
 
         it('should pass the CallStack to the scope', function () {
-            this.callCreateNamespaceScope();
+            callCreateNamespaceScope();
 
-            expect(this.NamespaceScope).to.have.been.calledOnce;
-            expect(this.NamespaceScope).to.have.been.calledWith(
+            expect(NamespaceScope).to.have.been.calledOnce;
+            expect(NamespaceScope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.callStack)
+                sinon.match.same(callStack)
             );
         });
 
         it('should pass the module to the scope', function () {
-            this.callCreateNamespaceScope();
+            callCreateNamespaceScope();
 
-            expect(this.NamespaceScope).to.have.been.calledOnce;
-            expect(this.NamespaceScope).to.have.been.calledWith(
+            expect(NamespaceScope).to.have.been.calledOnce;
+            expect(NamespaceScope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.module)
+                sinon.match.same(module)
             );
         });
 
         it('should pass the namespace to the scope', function () {
-            this.callCreateNamespaceScope();
+            callCreateNamespaceScope();
 
-            expect(this.NamespaceScope).to.have.been.calledOnce;
-            expect(this.NamespaceScope).to.have.been.calledWith(
+            expect(NamespaceScope).to.have.been.calledOnce;
+            expect(NamespaceScope).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.namespace)
+                sinon.match.same(namespace)
             );
         });
     });

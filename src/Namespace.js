@@ -122,6 +122,7 @@ module.exports = require('pauser')([
          *
          * @param {string} originalName
          * @param {string} aliasName
+         * @throws {Error} Throws when the specified original function does not exist
          */
         aliasFunction: function (originalName, aliasName) {
             var existingFunction,

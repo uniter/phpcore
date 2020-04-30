@@ -36,6 +36,9 @@ module.exports = {
             'instance_of_type_actual': 'instance of ${actualType}',
             'of_generic_type_expected': 'of the type ${expectedType}',
 
+            // For any type of error that needs to be scoped to the current function
+            'scoped_error': '${function}(): ${message}',
+
             // For unknown file paths, line numbers etc.
             'unknown': 'unknown'
         }

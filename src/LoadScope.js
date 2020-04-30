@@ -243,6 +243,39 @@ _.extend(LoadScope.prototype, {
     },
 
     /**
+     * Raises a catchable Error or a notice/warning with the specified level, message translation key and variables,
+     * scoped to the current function scope
+     *
+     * @param {string} level One of the PHPError.E_* constants, eg. `PHPError.E_WARNING`
+     * @param {string} translationKey
+     * @param {Object.<string, string>=} placeholderVariables
+     * @param {string=} errorClass
+     * @param {boolean=} reportsOwnContext Whether the error handles reporting its own file/line context
+     * @param {string=} filePath
+     * @param {number=} lineNumber
+     * @throws {ObjectValue} Throws an ObjectValue-wrapped Throwable if not a notice or warning
+     */
+    raiseScopedTranslatedError: function (
+        level,
+        translationKey,
+        placeholderVariables,
+        errorClass,
+        reportsOwnContext,
+        filePath,
+        lineNumber
+    ) {
+        this.effectiveScope.raiseScopedTranslatedError(
+            level,
+            translationKey,
+            placeholderVariables,
+            errorClass,
+            reportsOwnContext,
+            filePath,
+            lineNumber
+        );
+    },
+
+    /**
      * Suppresses errors for this and any descendant scopes
      */
     suppressErrors: function () {

@@ -10,46 +10,83 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     LoadScope = require('../../src/LoadScope'),
+    PHPError = phpCommon.PHPError,
     Scope = require('../../src/Scope').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('LoadScope', function () {
-    beforeEach(function () {
-        this.valueFactory = new ValueFactory();
-        this.effectiveScope = sinon.createStubInstance(Scope);
+    var effectiveScope,
+        loadScope,
+        valueFactory;
 
-        this.loadScope = new LoadScope(this.valueFactory, this.effectiveScope, '/path/to/my/caller.php', 'eval');
+    beforeEach(function () {
+        valueFactory = new ValueFactory();
+        effectiveScope = sinon.createStubInstance(Scope);
+
+        loadScope = new LoadScope(valueFactory, effectiveScope, '/path/to/my/caller.php', 'eval');
     });
 
     describe('getFilePath()', function () {
         it('should return the caller\'s path', function () {
-            expect(this.loadScope.getFilePath()).to.equal('/path/to/my/caller.php');
+            expect(loadScope.getFilePath()).to.equal('/path/to/my/caller.php');
         });
     });
 
     describe('getFunctionName()', function () {
         it('should return an empty string, as eval/include contexts do not report the calling function, if any', function () {
-            expect(this.loadScope.getFunctionName().getNative()).to.equal('');
+            expect(loadScope.getFunctionName().getNative()).to.equal('');
         });
     });
 
     describe('getMethodName()', function () {
         it('should return an empty string, as eval/include contexts do not report the calling method, if any', function () {
-            expect(this.loadScope.getMethodName().getNative()).to.equal('');
+            expect(loadScope.getMethodName().getNative()).to.equal('');
         });
     });
 
     describe('getTraceFrameName()', function () {
         it('should return the type when "eval"', function () {
-            expect(this.loadScope.getTraceFrameName()).to.equal('eval');
+            expect(loadScope.getTraceFrameName()).to.equal('eval');
         });
 
         it('should return the type when "include"', function () {
-            var loadScope = new LoadScope(this.valueFactory, this.effectiveScope, '/path/to/my/caller.php', 'include');
+            var loadScope = new LoadScope(valueFactory, effectiveScope, '/path/to/my/caller.php', 'include');
 
             expect(loadScope.getTraceFrameName()).to.equal('include');
+        });
+    });
+
+    describe('raiseScopedTranslatedError()', function () {
+        it('should forward the call onto the effective scope', function () {
+            loadScope.raiseScopedTranslatedError(
+                PHPError.E_WARNING,
+                'my_group.my_warning',
+                {
+                    firstPlaceholder: 'first',
+                    secondPlaceholder: 'second'
+                },
+                'MyError',
+                true,
+                '/path/to/my_module.php',
+                123
+            );
+
+            expect(effectiveScope.raiseScopedTranslatedError).to.have.been.calledOnce;
+            expect(effectiveScope.raiseScopedTranslatedError).to.have.been.calledWith(
+                PHPError.E_WARNING,
+                'my_group.my_warning',
+                {
+                    firstPlaceholder: 'first',
+                    secondPlaceholder: 'second'
+                },
+                'MyError',
+                true,
+                '/path/to/my_module.php',
+                123
+            );
         });
     });
 });

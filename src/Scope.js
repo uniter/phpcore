@@ -21,10 +21,12 @@ module.exports = require('pauser')([
         PHPError = phpCommon.PHPError,
 
         CANNOT_ACCESS_WHEN_NO_ACTIVE_CLASS = 'core.cannot_access_when_no_active_class',
-        NO_PARENT_CLASS = 'core.no_parent_class';
+        NO_PARENT_CLASS = 'core.no_parent_class',
+        SCOPED_ERROR = 'core.scoped_error';
 
     /**
      * @param {CallStack} callStack
+     * @param {Translator} translator
      * @param {Scope} globalScope
      * @param {SuperGlobalScope} superGlobalScope
      * @param {ClosureFactory} closureFactory
@@ -39,6 +41,7 @@ module.exports = require('pauser')([
      */
     function Scope(
         callStack,
+        translator,
         globalScope,
         superGlobalScope,
         closureFactory,
@@ -65,6 +68,10 @@ module.exports = require('pauser')([
         this.referenceFactory = referenceFactory;
         this.superGlobalScope = superGlobalScope;
         this.thisObject = currentFunction && currentFunction[IS_STATIC] ? null : thisObject;
+        /**
+         * @type {Translator}
+         */
+        this.translator = translator;
         this.valueFactory = valueFactory;
         this.variableFactory = variableFactory;
         this.variables = {
@@ -441,6 +448,51 @@ module.exports = require('pauser')([
          */
         isStatic: function () {
             return !this.thisObject;
+        },
+
+        /**
+         * Raises a catchable Error or a notice/warning with the specified level, message translation key and variables,
+         * scoped to the current function scope
+         *
+         * @param {string} level One of the PHPError.E_* constants, eg. `PHPError.E_WARNING`
+         * @param {string} translationKey
+         * @param {Object.<string, string>=} placeholderVariables
+         * @param {string=} errorClass
+         * @param {boolean=} reportsOwnContext Whether the error handles reporting its own file/line context
+         * @param {string=} filePath
+         * @param {number=} lineNumber
+         * @throws {ObjectValue} Throws an ObjectValue-wrapped Throwable if not a notice or warning
+         */
+        raiseScopedTranslatedError: function (
+            level,
+            translationKey,
+            placeholderVariables,
+            errorClass,
+            reportsOwnContext,
+            filePath,
+            lineNumber
+        ) {
+            var scope = this,
+                message = scope.translator.translate(SCOPED_ERROR, {
+                    function: scope.getFunctionName().getNative(),
+                    message: scope.translator.translate(translationKey, placeholderVariables)
+                });
+
+            if (level === PHPError.E_ERROR) {
+                // Non-warning/non-notice errors need to actually stop execution
+                // NB: The Error class' constructor will fetch file and line number info
+                throw scope.valueFactory.createErrorObject(
+                    errorClass || 'Error',
+                    message,
+                    null,
+                    null,
+                    filePath,
+                    lineNumber,
+                    reportsOwnContext
+                );
+            }
+
+            scope.callStack.raiseError(level, message, errorClass, reportsOwnContext);
         },
 
         /**

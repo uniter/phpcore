@@ -311,6 +311,7 @@ module.exports = require('pauser')([
                 Scope,
                 NamespaceScope,
                 callStack,
+                translator,
                 superGlobalScope,
                 functionSpecFactory,
                 valueFactory,
