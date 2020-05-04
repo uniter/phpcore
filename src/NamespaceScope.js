@@ -15,6 +15,7 @@ module.exports = require('pauser')([
     _
 ) {
     var hasOwn = {}.hasOwnProperty,
+        NAMESPACE = 'namespace',
 
         CANNOT_USE_AS_NAME_ALREADY_IN_USE = 'core.cannot_use_as_name_already_in_use';
 
@@ -218,7 +219,8 @@ module.exports = require('pauser')([
          * @returns {{namespace: Namespace, name: string}}
          */
         resolveClass: function (name) {
-            var match,
+            var loweredPrefix,
+                match,
                 scope = this,
                 namespace = scope.namespace,
                 path,
@@ -251,9 +253,14 @@ module.exports = require('pauser')([
                     prefix = match[1];
                     path = match[2];
                     name = match[3];
+                    loweredPrefix = prefix.toLowerCase();
 
-                    if (hasOwn.call(scope.imports, prefix.toLowerCase())) {
-                        namespace = scope.globalNamespace.getDescendant(scope.imports[prefix.toLowerCase()].substr(1) + path);
+                    if (loweredPrefix === NAMESPACE) {
+                        // Reference uses the special "namespace" keyword as a prefix:
+                        // resolve relative to the current namespace
+                        namespace = namespace.getDescendant(path.replace(/^\\/, ''));
+                    } else if (hasOwn.call(scope.imports, loweredPrefix)) {
+                        namespace = scope.globalNamespace.getDescendant(scope.imports[loweredPrefix].substr(1) + path);
                     } else {
                         // Not an alias: look up the namespace path relative to this namespace
                         // (ie. 'namespace Test { Our\Func(); }' -> '\Test\Our\Func();')
