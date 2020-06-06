@@ -181,6 +181,18 @@ describe('String', function () {
         });
     });
 
+    describe('clone()', function () {
+        it('should raise an error', function () {
+            createValue('my string');
+
+            expect(function () {
+                value.clone();
+            }).to.throw(
+                'Fake PHP Fatal error for #core.method_called_on_non_object with {"method":"__clone"}'
+            );
+        });
+    });
+
     describe('coerceToFloat()', function () {
         _.each({
             'coercing a positive plain integer to float': {

@@ -115,7 +115,7 @@ module.exports = require('pauser')([
 
         addToArray: function (leftValue) {
             var rightValue = this,
-                resultArray = leftValue.clone();
+                resultArray = leftValue.getForAssignment();
 
             _.forOwn(rightValue.keysToElements, function (element, key) {
                 if (!hasOwn.call(resultArray.keysToElements, key)) {
@@ -204,25 +204,6 @@ module.exports = require('pauser')([
             );
         },
 
-        clone: function () {
-            var arrayValue = this,
-                orderedElements = [];
-
-            _.each(arrayValue.value, function (element) {
-                if (element.isDefined()) {
-                    orderedElements.push(element.getPair());
-                }
-            });
-
-            return new ArrayValue(
-                arrayValue.factory,
-                arrayValue.callStack,
-                orderedElements,
-                arrayValue.type,
-                arrayValue.elementProvider
-            );
-        },
-
         coerceToArray: function () {
             return this;
         },
@@ -274,8 +255,29 @@ module.exports = require('pauser')([
             return 'Array';
         },
 
+        /**
+         * Fetches a copy of this array, as in PHP arrays are always passed by value
+         * and not by reference
+         *
+         * @return {ArrayValue}
+         */
         getForAssignment: function () {
-            return this.clone();
+            var arrayValue = this,
+                orderedElements = [];
+
+            _.each(arrayValue.value, function (element) {
+                if (element.isDefined()) {
+                    orderedElements.push(element.getPairForAssignment());
+                }
+            });
+
+            return new ArrayValue(
+                arrayValue.factory,
+                arrayValue.callStack,
+                orderedElements,
+                arrayValue.type,
+                arrayValue.elementProvider
+            );
         },
 
         getKeys: function () {
@@ -363,7 +365,7 @@ module.exports = require('pauser')([
          * @returns {KeyValuePair|KeyReferencePair}
          */
         getElementPairByKey: function (key, overrideKey) {
-            return this.getElementByKey(key).getPair(overrideKey);
+            return this.getElementByKey(key).getPairForAssignment(overrideKey);
         },
 
         /**

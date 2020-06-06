@@ -937,6 +937,19 @@ describe('Class', function () {
             expect(InternalClass).to.have.been.calledWith(21, 'second');
         });
 
+        it('should call the userland constructor for the current class', function () {
+            var arg1 = sinon.createStubInstance(Value),
+                arg2 = sinon.createStubInstance(Value),
+                constructor = sinon.stub();
+            arg1.getNative.returns(21);
+            arg2.getNative.returns('second');
+            InternalClass.prototype.__construct = constructor;
+
+            classObject.instantiate([arg1, arg2]);
+
+            expect(constructor).to.have.been.calledOnce;
+        });
+
         it('should wrap an instance of the InternalClass in an ObjectValue', function () {
             sinon.stub(valueFactory, 'createObject').returns(objectValue);
 
@@ -952,6 +965,75 @@ describe('Class', function () {
             sinon.stub(valueFactory, 'createObject').returns(objectValue);
 
             expect(classObject.instantiate([])).to.equal(objectValue);
+        });
+    });
+
+    describe('instantiateBare()', function () {
+        var objectValue;
+
+        beforeEach(function () {
+            objectValue = sinon.createStubInstance(ObjectValue);
+            createClass('__construct', superClass);
+        });
+
+        it('should call the internal constructor with arguments wrapped by default', function () {
+            var arg1 = sinon.createStubInstance(Value),
+                arg2 = sinon.createStubInstance(Value);
+            sinon.stub(valueFactory, 'createObject').returns(objectValue);
+
+            classObject.instantiateBare([arg1, arg2]);
+
+            expect(InternalClass).to.have.been.calledOnce;
+            expect(InternalClass).to.have.been.calledOn(sinon.match.same(objectValue));
+            expect(InternalClass).to.have.been.calledWith(
+                sinon.match.same(arg1),
+                sinon.match.same(arg2)
+            );
+        });
+
+        it('should call the internal constructor with arguments unwrapped with auto-coercion enabled', function () {
+            var arg1 = sinon.createStubInstance(Value),
+                arg2 = sinon.createStubInstance(Value);
+            sinon.stub(valueFactory, 'createObject').returns(objectValue);
+            arg1.getNative.returns(21);
+            arg2.getNative.returns('second');
+            classObject.enableAutoCoercion();
+
+            classObject.instantiateBare([arg1, arg2]);
+
+            expect(InternalClass).to.have.been.calledOnce;
+            expect(InternalClass).to.have.been.calledOn(sinon.match.same(objectValue));
+            expect(InternalClass).to.have.been.calledWith(21, 'second');
+        });
+
+        it('should not call the userland constructor for the current class', function () {
+            var arg1 = sinon.createStubInstance(Value),
+                arg2 = sinon.createStubInstance(Value),
+                constructor = sinon.stub();
+            arg1.getNative.returns(21);
+            arg2.getNative.returns('second');
+            InternalClass.prototype.__construct = constructor;
+
+            classObject.instantiateBare([arg1, arg2]);
+
+            expect(constructor).not.to.have.been.called;
+        });
+
+        it('should wrap an instance of the InternalClass in an ObjectValue', function () {
+            sinon.stub(valueFactory, 'createObject').returns(objectValue);
+
+            classObject.instantiateBare([]);
+
+            expect(valueFactory.createObject).to.have.been.calledOnce;
+            expect(valueFactory.createObject).to.have.been.calledWith(
+                sinon.match.instanceOf(InternalClass)
+            );
+        });
+
+        it('should return the created object', function () {
+            sinon.stub(valueFactory, 'createObject').returns(objectValue);
+
+            expect(classObject.instantiateBare([])).to.equal(objectValue);
         });
     });
 

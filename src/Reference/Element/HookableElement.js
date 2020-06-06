@@ -35,17 +35,6 @@ util.inherits(HookableElementReference, Reference);
 
 _.extend(HookableElementReference.prototype, {
     /**
-     * Creates a copy of this reference
-     *
-     * @returns {HookableElementReference}
-     */
-    clone: function () {
-        var element = this;
-
-        return new HookableElementReference(element.decoratedElement, element.elementHookCollection);
-    },
-
-    /**
      * Fetches an instance property of this element (assuming it contains an object) by its name
      *
      * @param {string} name
@@ -73,8 +62,8 @@ _.extend(HookableElementReference.prototype, {
      * @param {Value|undefined} overrideKey Optional key to use rather than this element's
      * @returns {KeyReferencePair|KeyValuePair}
      */
-    getPair: function (overrideKey) {
-        return this.decoratedElement.getPair(overrideKey);
+    getPairForAssignment: function (overrideKey) {
+        return this.decoratedElement.getPairForAssignment(overrideKey);
     },
 
     /**

@@ -34,12 +34,6 @@ function ElementReference(valueFactory, callStack, arrayValue, key, value, refer
 util.inherits(ElementReference, Reference);
 
 _.extend(ElementReference.prototype, {
-    clone: function () {
-        var element = this;
-
-        return new ElementReference(element.valueFactory, element.callStack, element.arrayValue, element.key, element.value);
-    },
-
     getKey: function () {
         return this.key;
     },
@@ -52,8 +46,9 @@ _.extend(ElementReference.prototype, {
      *
      * @param {Value|undefined} overrideKey Optional key to use rather than this element's
      * @returns {KeyReferencePair|KeyValuePair}
+     * @throws {Error} Throws when the element is neither defined as a reference nor with a value
      */
-    getPair: function (overrideKey) {
+    getPairForAssignment: function (overrideKey) {
         var element = this;
 
         if (!overrideKey) {
@@ -61,7 +56,7 @@ _.extend(ElementReference.prototype, {
         }
 
         if (element.value) {
-            return new KeyValuePair(overrideKey, element.value);
+            return new KeyValuePair(overrideKey, element.value.getForAssignment());
         }
 
         if (element.reference) {

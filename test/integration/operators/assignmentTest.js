@@ -89,4 +89,34 @@ EOS
             }
         ]);
     });
+
+    it('should recursively copy arrays for assignment (shallow copy, except for nested arrays, unless references)', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+$firstArray = [21];
+$secondArray = [$firstArray];
+$thirdArray = [&$firstArray];
+
+// $thirdArray _should_ be affected as $firstArray was embedded by reference
+$firstArray[] = 'I should not affect $secondArray';
+
+$result['firstArray'] = $firstArray;
+$result['secondArray'] = $secondArray;
+$result['thirdArray'] = $thirdArray;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal({
+            firstArray: [21, 'I should not affect $secondArray'],
+            secondArray: [[21]],
+            thirdArray: [[21, 'I should not affect $secondArray']]
+        });
+    });
 });

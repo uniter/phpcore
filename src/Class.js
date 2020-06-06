@@ -300,7 +300,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Calls the constructor for the provided object
+         * Calls the userland constructor for the provided object
          *
          * @param {ObjectValue} objectValue
          * @param {Value[]} args
@@ -561,6 +561,23 @@ module.exports = require('pauser')([
          */
         instantiate: function (args) {
             var classObject = this,
+                objectValue = classObject.instantiateBare(args);
+
+            // Call the userland constructor
+            classObject.construct(objectValue, args);
+
+            return objectValue;
+        },
+
+        /**
+         * Creates a new instance of this class without calling any userland constructor
+         * (note that for JS classes the class-constructor-function will still be called)
+         *
+         * @param {Value[]} args
+         * @returns {ObjectValue}
+         */
+        instantiateBare: function (args) {
+            var classObject = this,
                 nativeObject = Object.create(classObject.InternalClass.prototype),
                 objectValue = classObject.valueFactory.createObject(nativeObject, classObject);
 
@@ -570,8 +587,6 @@ module.exports = require('pauser')([
                 objectValue,
                 unwrapArgs(args, classObject)
             );
-
-            classObject.construct(objectValue, args);
 
             return objectValue;
         },

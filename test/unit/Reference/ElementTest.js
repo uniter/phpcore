@@ -127,13 +127,17 @@ describe('ElementReference', function () {
         });
     });
 
-    describe('getPair()', function () {
-        it('should return a KeyValuePair when the element has a value', function () {
-            var pair = element.getPair();
+    describe('getPairForAssignment()', function () {
+        it('should return a KeyValuePair when the element has a value, with value fetched for assignment', function () {
+            var pair,
+                valueForAssignment = sinon.createStubInstance(Value);
+            value.getForAssignment.returns(valueForAssignment);
+
+            pair = element.getPairForAssignment();
 
             expect(pair).to.be.an.instanceOf(KeyValuePair);
             expect(pair.getKey()).to.equal(keyValue);
-            expect(pair.getValue()).to.equal(value);
+            expect(pair.getValue()).to.equal(valueForAssignment);
         });
 
         it('should return a KeyReferencePair when the element is a reference', function () {
@@ -141,7 +145,7 @@ describe('ElementReference', function () {
                 reference = sinon.createStubInstance(Reference);
             element.setReference(reference);
 
-            pair = element.getPair();
+            pair = element.getPairForAssignment();
 
             expect(pair).to.be.an.instanceOf(KeyReferencePair);
             expect(pair.getKey()).to.equal(keyValue);
@@ -150,7 +154,7 @@ describe('ElementReference', function () {
 
         it('should allow the key to be overridden when specified', function () {
             var overrideKey = valueFactory.createInteger(21),
-                pair = element.getPair(overrideKey);
+                pair = element.getPairForAssignment(overrideKey);
 
             expect(pair).to.be.an.instanceOf(KeyValuePair);
             expect(pair.getKey()).to.equal(overrideKey);
@@ -166,7 +170,7 @@ describe('ElementReference', function () {
                     keyValue
                 );
 
-                element.getPair();
+                element.getPairForAssignment();
             }).to.throw('Element is not defined');
         });
     });

@@ -89,6 +89,16 @@ describe('Float', function () {
         });
     });
 
+    describe('clone()', function () {
+        it('should raise an error', function () {
+            expect(function () {
+                value.clone();
+            }).to.throw(
+                'Fake PHP Fatal error for #core.method_called_on_non_object with {"method":"__clone"}'
+            );
+        });
+    });
+
     describe('coerceToNativeError()', function () {
         it('should throw an error as this is invalid', function () {
             expect(function () {

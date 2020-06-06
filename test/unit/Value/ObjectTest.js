@@ -305,6 +305,59 @@ describe('Object', function () {
         });
     });
 
+    describe('clone()', function () {
+        it('should return an instance created via Class.instantiateBare(...)', function () {
+            var cloneInstance = sinon.createStubInstance(ObjectValue);
+            this.classObject.instantiateBare
+                .withArgs([])
+                .returns(cloneInstance);
+
+            expect(this.value.clone()).to.equal(cloneInstance);
+        });
+
+        it('should copy any instance properties from the original to the clone', function () {
+            var cloneInstance = sinon.createStubInstance(ObjectValue);
+            this.classObject.instantiateBare
+                .withArgs([])
+                .returns(cloneInstance);
+
+            this.value.clone();
+
+            expect(cloneInstance.setProperty).to.have.been.calledTwice;
+            expect(cloneInstance.setProperty).to.have.been.calledWith('firstProp', sinon.match.same(this.prop1));
+            expect(cloneInstance.setProperty).to.have.been.calledWith('secondProp', sinon.match.same(this.prop2));
+        });
+
+        it('should call the magic __clone() method on the clone if defined', function () {
+            var cloneInstance = sinon.createStubInstance(ObjectValue);
+            this.classObject.instantiateBare
+                .withArgs([])
+                .returns(cloneInstance);
+            cloneInstance.isMethodDefined
+                .withArgs('__clone')
+                .returns(true);
+
+            this.value.clone();
+
+            expect(cloneInstance.callMethod).to.have.been.calledOnce;
+            expect(cloneInstance.callMethod).to.have.been.calledWith('__clone');
+        });
+
+        it('should not call the magic __clone() method on the original if defined', function () {
+            var cloneInstance = sinon.createStubInstance(ObjectValue);
+            this.classObject.instantiateBare
+                .withArgs([])
+                .returns(cloneInstance);
+            cloneInstance.isMethodDefined
+                .withArgs('__clone')
+                .returns(false);
+
+            this.value.clone();
+
+            expect(cloneInstance.callMethod).not.to.have.been.called;
+        });
+    });
+
     describe('coerceToArray()', function () {
         it('should handle an empty object', function () {
             var objectValue = new ObjectValue(
@@ -1521,6 +1574,15 @@ describe('Object', function () {
     describe('getObject()', function () {
         it('should return the wrapped native object', function () {
             expect(this.value.getObject()).to.equal(this.nativeObject);
+        });
+    });
+
+    describe('getPropertyNames()', function () {
+        it('should return all instance property names as native strings', function () {
+            expect(this.value.getPropertyNames()).to.deep.equal([
+                'firstProp',
+                'secondProp'
+            ]);
         });
     });
 
