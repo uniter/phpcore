@@ -258,6 +258,78 @@ EOS
         );
     });
 
+    it('should correctly trap a runtime error in function called by included file that is uncaught and becomes fatal', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+// Some padding to increase the line number of the caller
+
+$num = include '/some/path/my_undefined_function_caller.php';
+return $num;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile('my_parent.php', php),
+            options = {
+                include: function (path, promise) {
+                    try {
+                        promise.resolve(tools.syncTranspile(path,
+                            nowdoc(function () {/*<<<EOS
+<?php
+
+function subFunction() {
+    my_undefined_func();
+}
+
+subFunction();
+EOS
+*/;}) //jshint ignore:line
+                        ));
+                    } catch (error) {
+                        promise.reject(error);
+                    }
+                }
+            },
+            engine = module(options);
+
+        // NB: The line number and file of the error should be that of the included file,
+        //     not the includer/parent
+        expect(function () {
+            engine.execute();
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Call to undefined function my_undefined_func() in /some/path/my_undefined_function_caller.php on line 4'
+        );
+        // Stdout (and stderr) should have the file/line combination in colon-separated format
+        expect(engine.getStdout().readAll()).to.equal(
+            // NB: Stdout should have a leading newline written out just before the message
+            nowdoc(function () {/*<<<EOS
+
+Fatal error: Uncaught Error: Call to undefined function my_undefined_func() in /some/path/my_undefined_function_caller.php:4
+Stack trace:
+#0 /some/path/my_undefined_function_caller.php(7): subFunction()
+#1 my_parent.php(5): include()
+#2 {main}
+  thrown in /some/path/my_undefined_function_caller.php on line 4
+
+EOS
+*/;}) //jshint ignore:line
+        );
+        // Stderr should have the whole message prefixed with "PHP " and two spaces before "Uncaught ..."
+        expect(engine.getStderr().readAll()).to.equal(
+            // There should be no space between the "before" string printed and the error message
+            nowdoc(function () {/*<<<EOS
+PHP Fatal error:  Uncaught Error: Call to undefined function my_undefined_func() in /some/path/my_undefined_function_caller.php:4
+Stack trace:
+#0 /some/path/my_undefined_function_caller.php(7): subFunction()
+#1 my_parent.php(5): include()
+#2 {main}
+  thrown in /some/path/my_undefined_function_caller.php on line 4
+
+EOS
+*/;}) //jshint ignore:line
+        );
+    });
+
     it('should correctly trap when no include transport is configured', function () {
         var module = tools.syncTranspile(null, '<?php include "no_transport.php";');
 
