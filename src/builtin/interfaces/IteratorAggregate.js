@@ -9,7 +9,7 @@
 
 'use strict';
 
-module.exports = function () {
+module.exports = function (internals) {
     /**
      * Interface for user-defined iterators or objects that can be iterated themselves internally
      *
@@ -21,9 +21,7 @@ module.exports = function () {
 
     }
 
-    // TODO: Unify the way super class and interface references work -
-    //       .superClass takes a Class instance while .interfaces takes strings
-    IteratorAggregate.interfaces = ['Traversable'];
+    internals.implement('Traversable');
 
     IteratorAggregate.shadowConstructor = function () {
         var aggregateValue = this;
