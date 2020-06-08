@@ -240,7 +240,7 @@ describe('Runtime', function () {
     });
 
     describe('createEnvironment()', function () {
-        it('should create a new State instance correctly', function () {
+        it('should create a new State instance correctly when no additional plugins are specified', function () {
             this.runtime.createEnvironment({
                 myOption: 21
             });
@@ -266,6 +266,63 @@ describe('Runtime', function () {
                 {myOption: 21}
             );
         });
+
+        it('should create a new State instance correctly when additional plugins are specified', function () {
+            var bindingGroup = sinon.stub(),
+                classes = {MyClass: sinon.stub()},
+                classGroup = sinon.stub(),
+                constantGroup = sinon.stub(),
+                defaultINIGroup = sinon.stub(),
+                functionGroup = sinon.stub(),
+                optionGroup = sinon.stub(),
+                translationCatalogue = sinon.stub();
+
+            this.runtime.createEnvironment({
+                myOption: 21
+            }, [
+                // Standard plugin using a plain object
+                {
+                    bindingGroups: [bindingGroup],
+                    classGroups: [classGroup],
+                    classes: classes,
+                    constantGroups: [constantGroup]
+                },
+                function () {
+                    // Plugins may also be a function that is called to fetch the plugin data object
+
+                    return {
+                        defaultINIGroups: [defaultINIGroup],
+                        functionGroups: [functionGroup],
+                        optionGroups: [optionGroup],
+                        translationCatalogues: [translationCatalogue]
+                    };
+                }
+            ]);
+
+            expect(this.PHPState).to.have.been.calledOnce;
+            expect(this.PHPState).to.have.been.calledWith(
+                sinon.match.same(this.runtime),
+                {
+                    bindingGroups: [bindingGroup],
+                    classGroups: [classGroup],
+                    classes: classes,
+                    constantGroups: [constantGroup],
+                    defaultINIGroups: [defaultINIGroup],
+                    functionGroups: [functionGroup],
+                    translationCatalogues: [translationCatalogue]
+                },
+                sinon.match.instanceOf(Stream),
+                sinon.match.instanceOf(Stream),
+                sinon.match.instanceOf(Stream),
+                sinon.match.same(this.pausable),
+                'async',
+                [
+                    optionGroup
+                ],
+                {myOption: 21}
+            );
+        });
+
 
         it('should create a new Environment instance correctly', function () {
             var state = sinon.createStubInstance(this.PHPState);

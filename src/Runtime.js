@@ -178,24 +178,45 @@ module.exports = require('pauser')([
          * available in another outside the use of includes.
          *
          * @param {object} options
+         * @param {Array=} plugins
          * @returns {Environment}
          */
-        createEnvironment: function (options) {
+        createEnvironment: function (options, plugins) {
             var runtime = this,
+                allBuiltins = _.extend({}, runtime.builtins),
+                allOptionGroups = runtime.optionGroups,
                 stdin = new Stream(),
                 stdout = new Stream(),
                 stderr = new Stream(),
-                state = new runtime.PHPState(
-                    runtime,
-                    runtime.builtins,
-                    stdin,
-                    stdout,
-                    stderr,
-                    runtime.pausable,
-                    runtime.mode,
-                    runtime.optionGroups,
-                    options
-                );
+                state;
+
+            _.each(plugins, function (plugin) {
+                if (typeof plugin === 'function') {
+                    // Allow a plugin to be defined as a function, to allow testing
+                    plugin = plugin();
+                }
+
+                allBuiltins.translationCatalogues = allBuiltins.translationCatalogues.concat(plugin.translationCatalogues || []);
+                allBuiltins.functionGroups = allBuiltins.functionGroups.concat(plugin.functionGroups || []);
+                allBuiltins.classGroups = allBuiltins.classGroups.concat(plugin.classGroups || []);
+                allBuiltins.classes = _.extend({}, allBuiltins.classes, plugin.classes);
+                allBuiltins.constantGroups = allBuiltins.constantGroups.concat(plugin.constantGroups || []);
+                allBuiltins.defaultINIGroups = allBuiltins.defaultINIGroups.concat(plugin.defaultINIGroups || []);
+                allOptionGroups = allOptionGroups.concat(plugin.optionGroups || []);
+                allBuiltins.bindingGroups = allBuiltins.bindingGroups.concat(plugin.bindingGroups || []);
+            });
+
+            state = new runtime.PHPState(
+                runtime,
+                allBuiltins,
+                stdin,
+                stdout,
+                stderr,
+                runtime.pausable,
+                runtime.mode,
+                allOptionGroups,
+                options
+            );
 
             return new runtime.Environment(state);
         },
