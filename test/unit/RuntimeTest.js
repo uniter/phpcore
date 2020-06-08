@@ -340,6 +340,46 @@ describe('Runtime', function () {
             );
         });
 
+        it('should keep plugins isolated to the environment they were installed into', function () {
+            runtime.createEnvironment({
+                myOption: 21
+            }, [
+                // Standard plugin using a plain object
+                {
+                    bindingGroups: [sinon.stub()]
+                },
+                function () {
+                    // Plugins may also be a function that is called to fetch the plugin data object
+
+                    return {
+                        functionGroups: [sinon.stub()]
+                    };
+                }
+            ]);
+            PHPState.resetHistory();
+            runtime.createEnvironment({myOption: 101});
+
+            expect(PHPState).to.have.been.calledOnce;
+            expect(PHPState).to.have.been.calledWith(
+                sinon.match.same(runtime),
+                {
+                    bindingGroups: [],
+                    classGroups: [],
+                    classes: {},
+                    constantGroups: [],
+                    defaultINIGroups: [],
+                    functionGroups: [],
+                    translationCatalogues: []
+                },
+                sinon.match.instanceOf(Stream),
+                sinon.match.instanceOf(Stream),
+                sinon.match.instanceOf(Stream),
+                sinon.match.same(pausable),
+                'async',
+                [],
+                {myOption: 101}
+            );
+        });
 
         it('should create a new Environment instance correctly', function () {
             var state = sinon.createStubInstance(PHPState);
