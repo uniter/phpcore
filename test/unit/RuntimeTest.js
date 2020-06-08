@@ -11,122 +11,137 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
-    Environment = require('../../src/Environment'),
     Runtime = require('../../src/Runtime').sync(),
     Scope = require('../../src/Scope').sync(),
     Stream = require('../../src/Stream');
 
 describe('Runtime', function () {
+    var createRuntime,
+        Engine,
+        Environment,
+        options,
+        pausable,
+        phpCommon,
+        PHPState,
+        runtime,
+        state;
+
     beforeEach(function () {
-        this.Environment = sinon.stub();
-        this.Engine = sinon.stub();
-        this.pausable = {};
-        this.phpCommon = {};
-        this.PHPState = sinon.stub();
+        Environment = sinon.stub();
+        Engine = sinon.stub();
+        pausable = {};
+        phpCommon = {};
+        PHPState = sinon.stub();
 
-        this.Environment.callsFake(function (state) {
-            this.state = state;
+        Environment.callsFake(function (newState) {
+            state = newState;
         });
-        this.Environment.prototype.getOptions = function () {
-            return this.state.getOptions();
+        Environment.prototype.getOptions = function () {
+            return state.getOptions();
         };
-        this.PHPState.callsFake(function (runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, mode, optionGroups, options) {
-            this.options = options;
-        }.bind(this));
-        this.PHPState.prototype.getOptions = function () {
-            return this.options;
-        }.bind(this);
+        PHPState.callsFake(function (runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, mode, optionGroups, newOptions) {
+            options = newOptions;
+        });
+        PHPState.prototype.getOptions = function () {
+            return options;
+        };
 
-        this.createRuntime = function (mode) {
+        createRuntime = function (mode) {
             mode = mode || 'async';
 
-            this.runtime = new Runtime(
-                this.Environment,
-                this.Engine,
-                this.PHPState,
-                this.phpCommon,
-                mode === 'async' ? this.pausable : null,
+            runtime = new Runtime(
+                Environment,
+                Engine,
+                PHPState,
+                phpCommon,
+                mode === 'async' ? pausable : null,
                 mode
             );
-        }.bind(this);
-        this.createRuntime();
+        };
+        createRuntime();
     });
 
     describe('constructor', function () {
         it('should throw when an invalid mode is given', function () {
             expect(function () {
-                this.createRuntime('my-invalid-mode');
-            }.bind(this)).to.throw('Invalid mode "my-invalid-mode" given - must be one of "async", "psync" or "sync"');
+                createRuntime('my-invalid-mode');
+            }).to.throw('Invalid mode "my-invalid-mode" given - must be one of "async", "psync" or "sync"');
         });
 
         it('should throw when async mode is given but Pausable is not', function () {
             expect(function () {
-                this.runtime = new Runtime(
-                    this.Environment,
-                    this.Engine,
-                    this.PHPState,
-                    this.phpCommon,
+                runtime = new Runtime(
+                    Environment,
+                    Engine,
+                    PHPState,
+                    phpCommon,
                     null,
                     'async'
                 );
-            }.bind(this)).to.throw('Pausable library must be provided for async mode');
+            }).to.throw('Pausable library must be provided for async mode');
         });
     });
 
     describe('compile()', function () {
+        var wrapper;
+
         beforeEach(function () {
-            this.wrapper = sinon.stub();
+            wrapper = sinon.stub();
         });
 
         it('should return a factory function', function () {
-            expect(this.runtime.compile(this.wrapper)).to.be.a('function');
+            expect(runtime.compile(wrapper)).to.be.a('function');
         });
 
         describe('the factory function returned for async mode', function () {
+            var factory;
+
             beforeEach(function () {
-                this.factory = this.runtime.compile(this.wrapper);
+                factory = runtime.compile(wrapper);
             });
 
             it('should create a new Engine instance correctly', function () {
-                this.factory({option1: 21});
+                factory({option1: 21});
 
-                expect(this.Engine).to.have.been.calledOnce;
-                expect(this.Engine).to.have.been.calledWith(
-                    sinon.match.instanceOf(this.Environment),
+                expect(Engine).to.have.been.calledOnce;
+                expect(Engine).to.have.been.calledWith(
+                    sinon.match.instanceOf(Environment),
                     null,
-                    sinon.match.same(this.phpCommon),
+                    sinon.match.same(phpCommon),
                     {option1: 21},
-                    sinon.match.same(this.wrapper),
-                    sinon.match.same(this.pausable),
+                    sinon.match.same(wrapper),
+                    sinon.match.same(pausable),
                     'async'
                 );
             });
 
             it('should return the created Engine', function () {
-                var engine = sinon.createStubInstance(this.Engine);
-                this.Engine.returns(engine);
+                var engine = sinon.createStubInstance(Engine);
+                Engine.returns(engine);
 
-                expect(this.factory()).to.equal(engine);
+                expect(factory()).to.equal(engine);
             });
         });
 
         describe('the factory function returned for psync mode', function () {
-            beforeEach(function () {
-                this.createRuntime('psync');
+            var factory;
 
-                this.factory = this.runtime.compile(this.wrapper);
+            beforeEach(function () {
+                createRuntime('psync');
+
+                factory = runtime.compile(wrapper);
             });
 
             it('should create a new Engine instance correctly', function () {
-                this.factory({option1: 21});
+                factory({option1: 21});
 
-                expect(this.Engine).to.have.been.calledOnce;
-                expect(this.Engine).to.have.been.calledWith(
-                    sinon.match.instanceOf(this.Environment),
+                expect(Engine).to.have.been.calledOnce;
+                expect(Engine).to.have.been.calledWith(
+                    sinon.match.instanceOf(Environment),
                     null,
-                    sinon.match.same(this.phpCommon),
+                    sinon.match.same(phpCommon),
                     {option1: 21},
-                    sinon.match.same(this.wrapper),
+                    sinon.match.same(wrapper),
                     null,
                     'psync'
                 );
@@ -134,75 +149,77 @@ describe('Runtime', function () {
         });
 
         describe('the .using() method of the factory function returned', function () {
+            var factory;
+
             beforeEach(function () {
-                this.factory = this.runtime.compile(this.wrapper);
+                factory = runtime.compile(wrapper);
             });
 
             it('should return another factory function', function () {
-                expect(this.factory.using({'another-option': 21})).to.be.a('function');
+                expect(factory.using({'another-option': 21})).to.be.a('function');
             });
 
             it('should return a factory function that provides default options', function () {
-                var subFactory = this.factory.using({'first-option': 21});
+                var subFactory = factory.using({'first-option': 21});
 
                 subFactory({'second-option': 101});
 
-                expect(this.Engine).to.have.been.calledOnce;
-                expect(this.Engine).to.have.been.calledWith(
-                    sinon.match.instanceOf(this.Environment),
+                expect(Engine).to.have.been.calledOnce;
+                expect(Engine).to.have.been.calledWith(
+                    sinon.match.instanceOf(Environment),
                     null,
-                    sinon.match.same(this.phpCommon),
+                    sinon.match.same(phpCommon),
                     {'first-option': 21, 'second-option': 101},
-                    sinon.match.same(this.wrapper),
-                    sinon.match.same(this.pausable)
+                    sinon.match.same(wrapper),
+                    sinon.match.same(pausable)
                 );
             });
 
             it('should return a factory function that provides overridable default options', function () {
-                var subFactory = this.factory.using({'my-option': 21});
+                var subFactory = factory.using({'my-option': 21});
 
                 subFactory({'my-option': 101}); // Overrides the default `my-option` with value 21
 
-                expect(this.Engine).to.have.been.calledOnce;
-                expect(this.Engine).to.have.been.calledWith(
-                    sinon.match.instanceOf(this.Environment),
+                expect(Engine).to.have.been.calledOnce;
+                expect(Engine).to.have.been.calledWith(
+                    sinon.match.instanceOf(Environment),
                     null,
-                    sinon.match.same(this.phpCommon),
+                    sinon.match.same(phpCommon),
                     {'my-option': 101},
-                    sinon.match.same(this.wrapper),
-                    sinon.match.same(this.pausable)
+                    sinon.match.same(wrapper),
+                    sinon.match.same(pausable)
                 );
             });
 
             it('should return a factory function that provides a default Environment', function () {
                 var environment = sinon.createStubInstance(Environment),
-                    subFactory = this.factory.using({}, environment);
+                    subFactory = factory.using({}, environment);
 
                 subFactory();
 
-                expect(this.Engine).to.have.been.calledOnce;
-                expect(this.Engine).to.have.been.calledWith(sinon.match.same(environment));
+                expect(Engine).to.have.been.calledOnce;
+                expect(Engine).to.have.been.calledWith(sinon.match.same(environment));
             });
 
             it('should return a factory function that provides an overridable default Environment', function () {
                 var environment1 = sinon.createStubInstance(Environment),
                     environment2 = sinon.createStubInstance(Environment),
-                    subFactory = this.factory.using({'my-option': 21}, environment1);
+                    subFactory = factory.using({'my-option': 21}, environment1);
 
                 subFactory({}, environment2);
 
-                expect(this.Engine).to.have.been.calledOnce;
-                expect(this.Engine).to.have.been.calledWith(sinon.match.same(environment2));
+                expect(Engine).to.have.been.calledOnce;
+                expect(Engine).to.have.been.calledWith(sinon.match.same(environment2));
             });
 
             it('should return a factory function that provides a default top-level Scope', function () {
                 var topLevelScope = sinon.createStubInstance(Scope),
-                    subFactory = this.factory.using({'my-option': 21}, null, topLevelScope);
+                    subFactory = factory.using({'my-option': 21}, null, topLevelScope);
 
                 subFactory();
 
-                expect(this.Engine).to.have.been.calledOnce;
-                expect(this.Engine).to.have.been.calledWith(
+                expect(Engine).to.have.been.calledOnce;
+                expect(Engine).to.have.been.calledWith(
                     sinon.match.any,
                     sinon.match.same(topLevelScope)
                 );
@@ -211,12 +228,12 @@ describe('Runtime', function () {
             it('should return a factory function that provides an overridable default top-level Scope', function () {
                 var topLevelScope1 = sinon.createStubInstance(Scope),
                     topLevelScope2 = sinon.createStubInstance(Scope),
-                    subFactory = this.factory.using({'my-option': 21}, null, topLevelScope1);
+                    subFactory = factory.using({'my-option': 21}, null, topLevelScope1);
 
                 subFactory({}, null, topLevelScope2);
 
-                expect(this.Engine).to.have.been.calledOnce;
-                expect(this.Engine).to.have.been.calledWith(
+                expect(Engine).to.have.been.calledOnce;
+                expect(Engine).to.have.been.calledWith(
                     sinon.match.any,
                     sinon.match.same(topLevelScope2)
                 );
@@ -226,28 +243,28 @@ describe('Runtime', function () {
 
     describe('configure()', function () {
         it('should add a new option group with the provided options', function () {
-            this.runtime.configure({
+            runtime.configure({
                 yourOption: 1001
             });
 
-            this.runtime.createEnvironment({
+            runtime.createEnvironment({
                 myOption: 21
             });
 
-            expect(this.PHPState).to.have.been.calledOnce;
-            expect(this.PHPState.args[0][7][0]()).to.deep.equal({yourOption: 1001});
+            expect(PHPState).to.have.been.calledOnce;
+            expect(PHPState.args[0][7][0]()).to.deep.equal({yourOption: 1001});
         });
     });
 
     describe('createEnvironment()', function () {
         it('should create a new State instance correctly when no additional plugins are specified', function () {
-            this.runtime.createEnvironment({
+            runtime.createEnvironment({
                 myOption: 21
             });
 
-            expect(this.PHPState).to.have.been.calledOnce;
-            expect(this.PHPState).to.have.been.calledWith(
-                sinon.match.same(this.runtime),
+            expect(PHPState).to.have.been.calledOnce;
+            expect(PHPState).to.have.been.calledWith(
+                sinon.match.same(runtime),
                 {
                     bindingGroups: [],
                     classGroups: [],
@@ -260,7 +277,7 @@ describe('Runtime', function () {
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
-                sinon.match.same(this.pausable),
+                sinon.match.same(pausable),
                 'async',
                 [],
                 {myOption: 21}
@@ -277,7 +294,7 @@ describe('Runtime', function () {
                 optionGroup = sinon.stub(),
                 translationCatalogue = sinon.stub();
 
-            this.runtime.createEnvironment({
+            runtime.createEnvironment({
                 myOption: 21
             }, [
                 // Standard plugin using a plain object
@@ -299,9 +316,9 @@ describe('Runtime', function () {
                 }
             ]);
 
-            expect(this.PHPState).to.have.been.calledOnce;
-            expect(this.PHPState).to.have.been.calledWith(
-                sinon.match.same(this.runtime),
+            expect(PHPState).to.have.been.calledOnce;
+            expect(PHPState).to.have.been.calledWith(
+                sinon.match.same(runtime),
                 {
                     bindingGroups: [bindingGroup],
                     classGroups: [classGroup],
@@ -314,7 +331,7 @@ describe('Runtime', function () {
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
-                sinon.match.same(this.pausable),
+                sinon.match.same(pausable),
                 'async',
                 [
                     optionGroup
@@ -325,22 +342,22 @@ describe('Runtime', function () {
 
 
         it('should create a new Environment instance correctly', function () {
-            var state = sinon.createStubInstance(this.PHPState);
-            this.PHPState.returns(state);
+            var state = sinon.createStubInstance(PHPState);
+            PHPState.returns(state);
 
-            this.runtime.createEnvironment({option1: 21});
+            runtime.createEnvironment({option1: 21});
 
-            expect(this.Environment).to.have.been.calledOnce;
-            expect(this.Environment).to.have.been.calledWith(
+            expect(Environment).to.have.been.calledOnce;
+            expect(Environment).to.have.been.calledWith(
                 sinon.match.same(state)
             );
         });
 
         it('should return the created Environment', function () {
-            var environment = sinon.createStubInstance(this.Environment);
-            this.Environment.returns(environment);
+            var environment = sinon.createStubInstance(Environment);
+            Environment.returns(environment);
 
-            expect(this.runtime.createEnvironment()).to.equal(environment);
+            expect(runtime.createEnvironment()).to.equal(environment);
         });
     });
 
@@ -348,15 +365,15 @@ describe('Runtime', function () {
         it('should cause created environments to have the provided new class', function () {
             var MyClass = sinon.stub();
 
-            this.runtime.install({
+            runtime.install({
                 classes: {
                     MyClass: MyClass
                 }
             });
-            this.runtime.createEnvironment();
+            runtime.createEnvironment();
 
-            expect(this.PHPState).to.have.been.calledOnce;
-            expect(this.PHPState).to.have.been.calledWith(
+            expect(PHPState).to.have.been.calledOnce;
+            expect(PHPState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [],
@@ -375,15 +392,15 @@ describe('Runtime', function () {
         it('should cause created environments to have the provided option groups', function () {
             var optionGroupFactory = sinon.stub();
 
-            this.runtime.install({
+            runtime.install({
                 optionGroups: [
                     optionGroupFactory
                 ]
             });
-            this.runtime.createEnvironment();
+            runtime.createEnvironment();
 
-            expect(this.PHPState).to.have.been.calledOnce;
-            expect(this.PHPState).to.have.been.calledWith(
+            expect(PHPState).to.have.been.calledOnce;
+            expect(PHPState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [],
@@ -408,15 +425,15 @@ describe('Runtime', function () {
         it('should cause created environments to have the provided binding groups', function () {
             var bindingGroupFactory = sinon.stub();
 
-            this.runtime.install({
+            runtime.install({
                 bindingGroups: [
                     bindingGroupFactory
                 ]
             });
-            this.runtime.createEnvironment();
+            runtime.createEnvironment();
 
-            expect(this.PHPState).to.have.been.calledOnce;
-            expect(this.PHPState).to.have.been.calledWith(
+            expect(PHPState).to.have.been.calledOnce;
+            expect(PHPState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [
@@ -439,15 +456,15 @@ describe('Runtime', function () {
         it('should cause created environments to have the provided constant groups', function () {
             var constantGroupFactory = sinon.stub();
 
-            this.runtime.install({
+            runtime.install({
                 constantGroups: [
                     constantGroupFactory
                 ]
             });
-            this.runtime.createEnvironment();
+            runtime.createEnvironment();
 
-            expect(this.PHPState).to.have.been.calledOnce;
-            expect(this.PHPState).to.have.been.calledWith(
+            expect(PHPState).to.have.been.calledOnce;
+            expect(PHPState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [],
@@ -470,15 +487,15 @@ describe('Runtime', function () {
         it('should cause created environments to have the provided default INI option groups', function () {
             var defaultINIGroupFactory = sinon.stub();
 
-            this.runtime.install({
+            runtime.install({
                 defaultINIGroups: [
                     defaultINIGroupFactory
                 ]
             });
-            this.runtime.createEnvironment();
+            runtime.createEnvironment();
 
-            expect(this.PHPState).to.have.been.calledOnce;
-            expect(this.PHPState).to.have.been.calledWith(
+            expect(PHPState).to.have.been.calledOnce;
+            expect(PHPState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [],
@@ -507,15 +524,15 @@ describe('Runtime', function () {
                 }
             };
 
-            this.runtime.install({
+            runtime.install({
                 translationCatalogues: [
                     defaultTranslationCatalogue
                 ]
             });
-            this.runtime.createEnvironment();
+            runtime.createEnvironment();
 
-            expect(this.PHPState).to.have.been.calledOnce;
-            expect(this.PHPState).to.have.been.calledWith(
+            expect(PHPState).to.have.been.calledOnce;
+            expect(PHPState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [],
@@ -538,17 +555,17 @@ describe('Runtime', function () {
         it('should support a function being passed in that will return the builtins object', function () {
             var MyClass = sinon.stub();
 
-            this.runtime.install(function () { // Pass a function in instead of the object directly
+            runtime.install(function () { // Pass a function in instead of the object directly
                 return {
                     classes: {
                         MyClass: MyClass
                     }
                 };
             });
-            this.runtime.createEnvironment();
+            runtime.createEnvironment();
 
-            expect(this.PHPState).to.have.been.calledOnce;
-            expect(this.PHPState).to.have.been.calledWith(
+            expect(PHPState).to.have.been.calledOnce;
+            expect(PHPState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [],
