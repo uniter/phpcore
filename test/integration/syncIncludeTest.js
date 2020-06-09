@@ -82,11 +82,34 @@ EOS
         });
     });
 
+    it('should normalise the called file\'s path', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+// Deliberately use the current-dir and parent-dir path symbols to check for normalisation
+$message = include 'my/./path/to/../abc.php';
+
+return $message;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            options = {
+                path: 'my/caller.php',
+                include: function (path, promise) {
+                    promise.resolve(tools.syncTranspile(path, '<?php return "Hello from " . __FILE__ . "!";'));
+                }
+            };
+
+        expect(module(options).execute().getNative()).to.equal(
+            // Ensure the symbols are resolved here
+            'Hello from my/path/abc.php!'
+        );
+    });
+
     it('should pass the calling file\'s path to the transport', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
-$num = include 'abc.php';
-return $num;
+$message = include 'abc.php';
+return $message;
 EOS
 */;}),//jshint ignore:line
             module = tools.syncTranspile(null, php),
