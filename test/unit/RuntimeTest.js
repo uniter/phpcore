@@ -191,6 +191,28 @@ describe('Runtime', function () {
                 );
             });
 
+            it('should return a nestable factory function that provides overridable default options', function () {
+                var subFactory = factory
+                    .using({'my-option': 'initial value'})
+                    .using({'my-option': 'second value', 'your-option': 'unchanged value'})
+                    .using({'my-option': 'third value'});
+
+                subFactory({'my-option': 'final value'}); // Overrides the default `my-option` with value 'final option'
+
+                expect(Engine).to.have.been.calledOnce;
+                expect(Engine).to.have.been.calledWith(
+                    sinon.match.instanceOf(Environment),
+                    null,
+                    sinon.match.same(phpCommon),
+                    {
+                        'my-option': 'final value',
+                        'your-option': 'unchanged value'
+                    },
+                    sinon.match.same(wrapper),
+                    sinon.match.same(pausable)
+                );
+            });
+
             it('should return a factory function that provides a default Environment', function () {
                 var environment = sinon.createStubInstance(Environment),
                     subFactory = factory.using({}, environment);

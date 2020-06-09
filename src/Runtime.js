@@ -124,34 +124,56 @@ module.exports = require('pauser')([
             }
 
             /**
+             * Creates a function to be exposed as .using(...) on the module factory,
+             * allowing the new module factory returned when .using(...) is called
+             * to itself expose a .using(...) method recursively
+             *
+             * @param {Function} factory
+             * @return {Function}
+             */
+            function createSubFactory(factory) {
+                /**
+                 * Creates a new factory function with some optional default options,
+                 * environment and top-level Scope
+                 *
+                 * @param {object=} defaultOptions
+                 * @param {Environment=} defaultEnvironment
+                 * @param {Scope=} defaultTopLevelScope
+                 * @returns {Function}
+                 */
+                return function subFactory(defaultOptions, defaultEnvironment, defaultTopLevelScope) {
+                    /**
+                     * A proxying factory function that applies these defaults
+                     * and then forwards onto the original factory function
+                     *
+                     * @param {object=} options
+                     * @param {Environment=} environment
+                     * @param {Scope=} topLevelScope
+                     * @returns {Engine}
+                     */
+                    function proxy(options, environment, topLevelScope) {
+                        options = _.extend({}, defaultOptions, options);
+                        environment = environment || defaultEnvironment;
+                        topLevelScope = topLevelScope || defaultTopLevelScope;
+
+                        return factory(options, environment, topLevelScope);
+                    }
+
+                    /**
+                     * Creates a new factory function with some optional default options,
+                     * environment and top-level Scope
+                     */
+                    proxy.using = createSubFactory(proxy);
+
+                    return proxy;
+                };
+            }
+
+            /**
              * Creates a new factory function with some optional default options,
              * environment and top-level Scope
-             *
-             * @param {object=} defaultOptions
-             * @param {Environment=} defaultEnvironment
-             * @param {Scope=} defaultTopLevelScope
-             * @returns {Function}
              */
-            factory.using = function (defaultOptions, defaultEnvironment, defaultTopLevelScope) {
-                /**
-                 * A proxying factory function that applies these defaults
-                 * and then forwards onto the original factory function
-                 *
-                 * @param {object=} options
-                 * @param {Environment=} environment
-                 * @param {Scope=} topLevelScope
-                 * @returns {Engine}
-                 */
-                function proxy(options, environment, topLevelScope) {
-                    options = _.extend({}, defaultOptions, options);
-                    environment = environment || defaultEnvironment;
-                    topLevelScope = topLevelScope || defaultTopLevelScope;
-
-                    return factory(options, environment, topLevelScope);
-                }
-
-                return proxy;
-            };
+            factory.using = createSubFactory(factory);
 
             return factory;
         },
