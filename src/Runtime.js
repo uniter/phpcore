@@ -18,6 +18,8 @@ module.exports = require('pauser')([
     PHPState,
     Stream
 ) {
+    var hasOwn = {}.hasOwnProperty;
+
     /**
      * PHPCore API encapsulator.
      *
@@ -97,6 +99,34 @@ module.exports = require('pauser')([
                 phpCommon = runtime.phpCommon;
 
             /**
+             * Extends an existing option set with a new set of options,
+             * with special handling for the "path" option as once that option
+             * has been set, its value cannot be overridden. This is because
+             * the include transport configured may set a path on the returned
+             * module factory (via .using(...)) but that would otherwise
+             * be overridden by the default path provided by Loader (where the
+             * default path is just a normalised version of the requested path,
+             * rather than a resolved real path)
+             *
+             * @param {Object|null} existingOptions
+             * @param {Object|null} newOptions
+             * @return {Object}
+             */
+            function extendOptions(existingOptions, newOptions) {
+                if (
+                    existingOptions &&
+                    newOptions &&
+                    hasOwn.call(existingOptions, 'path') &&
+                    hasOwn.call(newOptions, 'path')
+                ) {
+                    newOptions = _.extend({}, newOptions);
+                    delete newOptions.path;
+                }
+
+                return _.extend({}, existingOptions, newOptions);
+            }
+
+            /**
              * Creates a new Engine instance using this runtime's context.
              *
              * @param {object} options
@@ -152,7 +182,7 @@ module.exports = require('pauser')([
                      * @returns {Engine}
                      */
                     function proxy(options, environment, topLevelScope) {
-                        options = _.extend({}, defaultOptions, options);
+                        options = extendOptions(defaultOptions, options);
                         environment = environment || defaultEnvironment;
                         topLevelScope = topLevelScope || defaultTopLevelScope;
 

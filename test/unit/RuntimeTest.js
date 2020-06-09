@@ -213,6 +213,91 @@ describe('Runtime', function () {
                 );
             });
 
+            it('should not allow the special "path" option to be overridden once set', function () {
+                var subFactory = factory
+                    .using({'my-option': 'initial value', 'path': '/the/path/to/use'})
+                    .using({'my-option': 'second value', 'path': '/ignored/second/path'})
+                    .using({'my-option': 'third value'});
+
+                subFactory({
+                    'my-option': 'final value',
+                    'path': '/ignored/third/path'
+                });
+
+                expect(Engine).to.have.been.calledOnce;
+                expect(Engine).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match({
+                        'path': '/the/path/to/use'
+                    })
+                );
+            });
+
+            it('should allow overriding the "path" option from a given Environment', function () {
+                var environment = sinon.createStubInstance(Environment),
+                    subFactory;
+                environment.getOptions.returns({
+                    path: '/inherited/path/option/to/ignore'
+                });
+                subFactory = factory
+                    .using({'my-option': 'initial value', 'path': '/the/path/to/use'})
+                    .using({'my-option': 'second value', 'path': '/ignored/second/path'})
+                    .using({'my-option': 'third value'});
+
+                subFactory({
+                    'my-option': 'final value',
+                    'path': '/ignored/third/path'
+                }, environment);
+
+                expect(Engine).to.have.been.calledOnce;
+                expect(Engine).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match({
+                        'path': '/the/path/to/use'
+                    })
+                );
+            });
+
+            it('should support no arguments being passed (although pointless usage)', function () {
+                var subFactory = factory.using(); // No args passed to .using(...)
+
+                subFactory({
+                    'my-option': 'my value'
+                });
+
+                expect(Engine).to.have.been.calledOnce;
+                expect(Engine).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match({
+                        'my-option': 'my value'
+                    })
+                );
+            });
+
+            it('should support no arguments being passed to the resulting new factory (although pointless usage)', function () {
+                var subFactory = factory.using({
+                    'path': 'my/path'
+                });
+
+                subFactory(); // No args passed to the factory function
+
+                expect(Engine).to.have.been.calledOnce;
+                expect(Engine).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match({
+                        'path': 'my/path'
+                    })
+                );
+            });
+
             it('should return a factory function that provides a default Environment', function () {
                 var environment = sinon.createStubInstance(Environment),
                     subFactory = factory.using({}, environment);

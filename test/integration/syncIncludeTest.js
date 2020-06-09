@@ -502,4 +502,31 @@ EOS
 
         expect(engine.execute().getNative()).to.equal(131);
     });
+
+    it('should allow the include transport to provide an absolute path when fetched relatively via the "include_path"', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+// Deliberately use the current-dir and parent-dir path symbols to check for normalisation
+$message = include 'my/relative/path.php';
+
+return $message;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            options = {
+                path: 'my/caller.php',
+                include: function (path, promise) {
+                    promise.resolve(
+                        tools.syncTranspile(
+                            '/my/resolved/absolute/path/to_module.php',
+                            '<?php return "Hello from " . __FILE__ . "!";'
+                        )
+                    );
+                }
+            };
+
+        expect(module(options).execute().getNative()).to.equal(
+            'Hello from /my/resolved/absolute/path/to_module.php!'
+        );
+    });
 });
