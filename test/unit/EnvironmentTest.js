@@ -20,14 +20,17 @@ var expect = require('chai').expect,
     PHPParseError = phpCommon.PHPParseError,
     PHPState = require('../../src/PHPState').sync(),
     Promise = require('lie'),
-    Value = require('../../src/Value').sync();
+    Value = require('../../src/Value').sync(),
+    ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('Environment', function () {
     var environment,
-        state;
+        state,
+        valueFactory;
 
     beforeEach(function () {
         state = sinon.createStubInstance(PHPState);
+        valueFactory = new ValueFactory();
 
         environment = new Environment(state);
     });
@@ -195,6 +198,14 @@ describe('Environment', function () {
         });
     });
 
+    describe('getGlobal()', function () {
+        it('should return the value of the global from the PHPState', function () {
+            state.getGlobal.withArgs('myGlobal').returns(valueFactory.createInteger(1234));
+
+            expect(environment.getGlobal('myGlobal').getNative()).to.equal(1234);
+        });
+    });
+
     describe('getOptions()', function () {
         it('should return the raw options object from the PHPState', function () {
             var options = {'my-option': 27};
@@ -257,6 +268,17 @@ describe('Environment', function () {
             expect(function () {
                 environment.reportError(new Error('I am not a PHPError'));
             }).to.throw('Invalid error type given');
+        });
+    });
+
+    describe('setGlobal()', function () {
+        it('should set the value of the global via the PHPState', function () {
+            var value = valueFactory.createInteger(1234);
+
+            environment.setGlobal('myGlobal', value);
+
+            expect(state.setGlobal).to.have.been.calledOnce;
+            expect(state.setGlobal).to.have.been.calledWith('myGlobal', sinon.match.same(value));
         });
     });
 });

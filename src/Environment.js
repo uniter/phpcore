@@ -130,6 +130,17 @@ _.extend(Environment.prototype, {
         return this.state.getConstant(name);
     },
 
+    /**
+     * Fetches the value of a global variable, if defined.
+     * If the variable is not defined then a NULL value will be returned.
+     *
+     * @param {string} name
+     * @return {Value}
+     */
+    getGlobal: function (name) {
+        return this.state.getGlobal(name);
+    },
+
     getOptions: function () {
         return this.state.getOptions();
     },
@@ -182,6 +193,20 @@ _.extend(Environment.prototype, {
         } else {
             throw new Error('Invalid error type given');
         }
+    },
+
+    /**
+     * Sets the value of an existing PHP global. If a native value is given
+     * then it will be coerced to a PHP one.
+     * If the global is not defined than an error will be thrown -
+     * use .defineGlobal(...) when defining a new variable
+     *
+     * @param {string} name
+     * @param {Value|*} value
+     * @throws {Error} Throws if the variable is not defined in the global scope
+     */
+    setGlobal: function (name, value) {
+        this.state.setGlobal(name, value);
     }
 });
 

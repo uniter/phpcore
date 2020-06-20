@@ -62,7 +62,7 @@ EOS
         });
     });
 
-    it('should support cloning an instance of a custom class implementing __clone', function () {
+    it('should support cloning an instance of a custom class implementing __clone defined in PHP-land', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -116,6 +116,94 @@ EOS
 */;}), //jshint ignore:line
             module = tools.syncTranspile(null, php),
             engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal({
+            'identity': false, // Clone should be a different object instance,
+            'original prop1, first': 'one',
+            'original prop2, first': 'two',
+            'original prop3, first': 'set by constructor: 1',
+            'clone prop1, first': 'one',
+            'clone prop2, first': 'two, modified by __clone',
+            'clone prop3, first': 'set by constructor: 1', // Constructor should not be re-called for clone
+
+            'original prop1, second': 'one',
+            'original prop2, second': 'two', // Should not be modified
+            'original prop3, second': 'set by constructor: 1',
+            'clone prop1, second': 'one, but modified outside class',
+            'clone prop2, second': 'two, modified by __clone',
+            'clone prop3, second': 'set by constructor: 1'
+        });
+    });
+
+    it('should support cloning an instance of a custom non-coercing JS class implementing __clone defined in JS-land', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$counter = 1;
+
+$original = new MyClass;
+$original->prop1 = 'one';
+$original->prop2 = 'two';
+
+$clone = clone $original;
+
+$result = [];
+
+// Before modification
+$result['identity'] = $clone === $original;
+$result['original prop1, first'] = $original->prop1;
+$result['original prop2, first'] = $original->prop2;
+$result['original prop3, first'] = $original->prop3;
+$result['clone prop1, first'] = $clone->prop1;
+$result['clone prop2, first'] = $clone->prop2;
+$result['clone prop3, first'] = $clone->prop3;
+
+// After modification
+$clone->prop1 = 'one, but modified outside class';
+
+$result['original prop1, second'] = $original->prop1;
+$result['original prop2, second'] = $original->prop2; // Should not be modified
+$result['original prop3, second'] = $original->prop3;
+$result['clone prop1, second'] = $clone->prop1;
+$result['clone prop2, second'] = $clone->prop2;
+$result['clone prop3, second'] = $clone->prop3;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        engine.defineClass('MyClass', function (internals) {
+            var valueFactory = internals.valueFactory;
+
+            function MyClass() {
+                this.setProperty('prop1', valueFactory.createNull());
+                this.setProperty('prop2', valueFactory.createNull());
+                this.setProperty(
+                    'prop3',
+                    valueFactory.createString(
+                        'set by constructor: ' + internals.getGlobal('counter').getNative()
+                    )
+                );
+
+                internals.setGlobal('counter', internals.getGlobal('counter').increment());
+            }
+
+            MyClass.prototype.__clone = function () {
+                this.setProperty(
+                    'prop2',
+                    valueFactory.createString(
+                        this.getProperty('prop2').getNative() +
+                        ', modified by __clone'
+                    )
+                );
+            };
+
+            internals.disableAutoCoercion();
+
+            return MyClass;
+        });
 
         expect(engine.execute().getNative()).to.deep.equal({
             'identity': false, // Clone should be a different object instance,

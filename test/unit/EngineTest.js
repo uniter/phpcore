@@ -248,4 +248,26 @@ describe('Engine', function () {
             expect(engine.getConstant('A_CONST')).to.equal('my value');
         });
     });
+
+    describe('getGlobal()', function () {
+        it('should return the value of the global from the environment', function () {
+            createEngine();
+            environment.getGlobal.withArgs('myGlobal').returns(valueFactory.createInteger(1234));
+
+            expect(engine.getGlobal('myGlobal').getNative()).to.equal(1234);
+        });
+    });
+
+    describe('setGlobal()', function () {
+        it('should set the value of the global via the environment', function () {
+            var value;
+            createEngine();
+            value = valueFactory.createInteger(1234);
+
+            engine.setGlobal('myGlobal', value);
+
+            expect(environment.setGlobal).to.have.been.calledOnce;
+            expect(environment.setGlobal).to.have.been.calledWith('myGlobal', sinon.match.same(value));
+        });
+    });
 });

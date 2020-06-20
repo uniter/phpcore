@@ -125,14 +125,23 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Defines a variable with the given name in this scope
+         * Defines a variable with the given name in this scope. If it is already defined,
+         * in this scope (not including the superglobal scope) then an error will be thrown
          *
          * @param {string} name
          * @returns {Variable}
+         * @throws {Error} Throws when the variable is already defined in this scope
          */
         defineVariable: function (name) {
             var scope = this,
-                variable = scope.variableFactory.createVariable(name);
+                variable;
+
+            if (hasOwn.call(scope.variables, name)) {
+                // Variable is already defined, just return
+                throw new Error('Variable "' + name + '" is already defined in this scope');
+            }
+
+            variable = scope.variableFactory.createVariable(name);
 
             scope.variables[name] = variable;
 
@@ -379,6 +388,17 @@ module.exports = require('pauser')([
             }
 
             return variable;
+        },
+
+        /**
+         * Determines whether this scope defines the specified variable or not
+         * (not including the superglobal scope)
+         *
+         * @param {string} name
+         * @returns {boolean}
+         */
+        hasVariable: function (name) {
+            return hasOwn.call(this.variables, name);
         },
 
         /**
