@@ -1176,6 +1176,30 @@ describe('Class', function () {
                 expect(unwrapped.doubleMyPropAndAdd(21)).to.equal(29);
             });
 
+            it('should also proxy methods inherited from the prototype chain', function () {
+                var instance = sinon.createStubInstance(ObjectValue),
+                    nativeObject = {myProp: 4},
+                    unwrapped;
+                instance.callMethod
+                    .withArgs('doubleMyPropAndAdd', 21)
+                    .returns(valueFactory.createInteger(29));
+                sinon.stub(valueFactory, 'createPHPObject').callsFake(function (objectValue) {
+                    var phpObject = sinon.createStubInstance(PHPObject);
+                    phpObject.callMethod.callsFake(function (name, args) {
+                        return objectValue.callMethod(name, args).getNative();
+                    });
+                    return phpObject;
+                });
+                InternalClass.prototype = Object.create({
+                    // Define the method up the prototype chain
+                    doubleMyPropAndAdd: function () {}
+                });
+
+                unwrapped = classObject.unwrapInstanceForJS(instance, nativeObject);
+
+                expect(unwrapped.doubleMyPropAndAdd(21)).to.equal(29);
+            });
+
             it('should always return the same instance of the generated UnwrappedClass for each ObjectValue', function () {
                 var existingUnwrapped,
                     instance = sinon.createStubInstance(ObjectValue),

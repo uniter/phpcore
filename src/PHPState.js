@@ -504,7 +504,7 @@ module.exports = require('pauser')([
                      * Calls the constructor for the superclass of this class, if this class extends another
                      *
                      * @param {ObjectValue|object} instance Unwrapped or wrapped instance (see below)
-                     * @param {Value[]} args Arguments
+                     * @param {Value[]|*[]} args Arguments (Value objects if non-coercing, native if coercing)
                      */
                     callSuperConstructor: function (instance, args) {
                         var argValues,
