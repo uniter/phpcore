@@ -597,12 +597,16 @@ describe('PHPState', function () {
     });
 
     describe('defineSuperGlobal()', function () {
-        it('should define the superglobal and assign it the given value', function () {
-            var value = valueFactory.createInteger(101);
+        it('should be able to define a superglobal and assign it the given Value object', function () {
+            state.defineSuperGlobal('MY_SUPER_GLOB', valueFactory.createInteger(27));
 
-            state.defineSuperGlobal('MY_SUPER_GLOB', value);
+            expect(state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').getValue().getNative()).to.equal(27);
+        });
 
-            expect(state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').getValue().getNative()).to.equal(101);
+        it('should be able to define a superglobal and assign it the given native value', function () {
+            state.defineSuperGlobal('MY_SUPER_GLOB', 1001);
+
+            expect(state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').getValue().getNative()).to.equal(1001);
         });
     });
 

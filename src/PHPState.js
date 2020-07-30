@@ -689,13 +689,17 @@ module.exports = require('pauser')([
         /**
          * Defines a super global variable (available in all scopes implicitly,
          * unlike a normal global which is not available unless imported with a `global` statement)
-         * and gives it the provided value
+         * and gives it the provided value. If a native value is given then it will be coerced to a PHP one.
          *
          * @param {string} name
-         * @param {Value} value
+         * @param {Value|*} value
          */
         defineSuperGlobal: function (name, value) {
-            this.superGlobalScope.defineVariable(name).setValue(value);
+            var state = this;
+
+            state.superGlobalScope
+                .defineVariable(name)
+                .setValue(state.valueFactory.coerce(value));
         },
 
         /**

@@ -223,6 +223,21 @@ describe('Engine', function () {
         });
     });
 
+    describe('defineSuperGlobal()', function () {
+        it('should define the super global on the environment', function () {
+            var value = valueFactory.createInteger(21);
+            createEngine();
+
+            engine.defineSuperGlobal('myGlobal', value);
+
+            expect(environment.defineSuperGlobal).to.have.been.calledOnce;
+            expect(environment.defineSuperGlobal).to.have.been.calledWith(
+                'myGlobal',
+                sinon.match.same(value)
+            );
+        });
+    });
+
     describe('defineSuperGlobalAccessor()', function () {
         it('should define the superglobal on the environment', function () {
             var valueGetter = sinon.stub(),

@@ -180,12 +180,16 @@ _.extend(Engine.prototype, {
         this.environment.defineNonCoercingFunction(name, fn);
     },
 
-    defineSuperGlobal: function (name, nativeValue) {
-        var engine = this,
-            valueFactory = engine.environment.getState().getValueFactory(),
-            value = valueFactory.coerce(nativeValue);
-
-        engine.environment.defineSuperGlobal(name, value);
+    /**
+     * Defines a super global variable (available in all scopes implicitly,
+     * unlike a normal global which is not available unless imported with a `global` statement)
+     * and gives it the provided value. If a native value is given then it will be coerced to a PHP one.
+     *
+     * @param {string} name
+     * @param {Value|*} value
+     */
+    defineSuperGlobal: function (name, value) {
+        this.environment.defineSuperGlobal(name, value);
     },
 
     defineSuperGlobalAccessor: function (name, valueGetter, valueSetter) {

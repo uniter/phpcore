@@ -114,6 +114,14 @@ _.extend(Environment.prototype, {
         this.state.defineNonCoercingFunction(name, fn);
     },
 
+    /**
+     * Defines a super global variable (available in all scopes implicitly,
+     * unlike a normal global which is not available unless imported with a `global` statement)
+     * and gives it the provided value. If a native value is given then it will be coerced to a PHP one.
+     *
+     * @param {string} name
+     * @param {Value|*} value
+     */
     defineSuperGlobal: function (name, value) {
         this.state.defineSuperGlobal(name, value);
     },

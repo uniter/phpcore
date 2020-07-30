@@ -165,6 +165,7 @@ describe('Environment', function () {
     describe('defineSuperGlobal()', function () {
         it('should define the super global on the state', function () {
             var value = sinon.createStubInstance(Value);
+
             environment.defineSuperGlobal('myGlobal', value);
 
             expect(state.defineSuperGlobal).to.have.been.calledOnce;
