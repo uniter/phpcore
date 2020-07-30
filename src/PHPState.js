@@ -122,7 +122,7 @@ module.exports = require('pauser')([
             var globalNamespace = state.globalNamespace;
 
             /**
-             * Bindings allow components of a plugin to share data.
+             * Bindings allow components of an addon to share data.
              *
              * @param {Function} groupFactory
              */
@@ -254,8 +254,8 @@ module.exports = require('pauser')([
             _.each(installedBuiltinTypes.constantGroups, installConstantGroup);
             _.each(installedBuiltinTypes.defaultINIGroups, installDefaultINIOptionGroup);
             _.each(installedBuiltinTypes.bindingGroups, installBindingGroup);
-            // TODO: Add "exposures" for plugins to expose things to transpiled code
-            // TODO: Add "externals" for plugins to expose things to external code (eg. engine.getExternal(...))?
+            // TODO: Add "exposures" for addons to expose things to transpiled code
+            // TODO: Add "externals" for addons to expose things to external code (eg. engine.getExternal(...))?
             _.each(installedBuiltinTypes.functionGroups, installFunctionGroup);
             _.each(installedBuiltinTypes.classGroups, installClassGroup);
             _.forOwn(installedBuiltinTypes.classes, installClass);
@@ -717,7 +717,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches the specified binding from an installed plugin
+         * Fetches the specified binding from an installed addon
          *
          * @param {string} bindingName
          * @returns {*}

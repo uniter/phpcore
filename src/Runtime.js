@@ -230,10 +230,10 @@ module.exports = require('pauser')([
          * available in another outside the use of includes.
          *
          * @param {object} options
-         * @param {Array=} plugins
+         * @param {Array=} addons
          * @returns {Environment}
          */
-        createEnvironment: function (options, plugins) {
+        createEnvironment: function (options, addons) {
             var runtime = this,
                 allBuiltins = _.extend({}, runtime.builtins),
                 allOptionGroups = runtime.optionGroups,
@@ -242,20 +242,20 @@ module.exports = require('pauser')([
                 stderr = new Stream(),
                 state;
 
-            _.each(plugins, function (plugin) {
-                if (typeof plugin === 'function') {
-                    // Allow a plugin to be defined as a function, to allow testing
-                    plugin = plugin();
+            _.each(addons, function (addon) {
+                if (typeof addon === 'function') {
+                    // Allow an addon to be defined as a function, to allow testing
+                    addon = addon();
                 }
 
-                allBuiltins.translationCatalogues = allBuiltins.translationCatalogues.concat(plugin.translationCatalogues || []);
-                allBuiltins.functionGroups = allBuiltins.functionGroups.concat(plugin.functionGroups || []);
-                allBuiltins.classGroups = allBuiltins.classGroups.concat(plugin.classGroups || []);
-                allBuiltins.classes = _.extend({}, allBuiltins.classes, plugin.classes);
-                allBuiltins.constantGroups = allBuiltins.constantGroups.concat(plugin.constantGroups || []);
-                allBuiltins.defaultINIGroups = allBuiltins.defaultINIGroups.concat(plugin.defaultINIGroups || []);
-                allOptionGroups = allOptionGroups.concat(plugin.optionGroups || []);
-                allBuiltins.bindingGroups = allBuiltins.bindingGroups.concat(plugin.bindingGroups || []);
+                allBuiltins.translationCatalogues = allBuiltins.translationCatalogues.concat(addon.translationCatalogues || []);
+                allBuiltins.functionGroups = allBuiltins.functionGroups.concat(addon.functionGroups || []);
+                allBuiltins.classGroups = allBuiltins.classGroups.concat(addon.classGroups || []);
+                allBuiltins.classes = _.extend({}, allBuiltins.classes, addon.classes);
+                allBuiltins.constantGroups = allBuiltins.constantGroups.concat(addon.constantGroups || []);
+                allBuiltins.defaultINIGroups = allBuiltins.defaultINIGroups.concat(addon.defaultINIGroups || []);
+                allOptionGroups = allOptionGroups.concat(addon.optionGroups || []);
+                allBuiltins.bindingGroups = allBuiltins.bindingGroups.concat(addon.bindingGroups || []);
             });
 
             state = new runtime.PHPState(
@@ -285,7 +285,7 @@ module.exports = require('pauser')([
             var builtins = this.builtins;
 
             if (typeof newBuiltins === 'function') {
-                // Allow a plugin to be defined as a function, to allow testing
+                // Allow an addon to be defined as a function, to allow testing
                 newBuiltins = newBuiltins();
             }
 

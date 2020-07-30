@@ -364,7 +364,7 @@ describe('Runtime', function () {
     });
 
     describe('createEnvironment()', function () {
-        it('should create a new State instance correctly when no additional plugins are specified', function () {
+        it('should create a new State instance correctly when no additional addons are specified', function () {
             runtime.createEnvironment({
                 myOption: 21
             });
@@ -391,7 +391,7 @@ describe('Runtime', function () {
             );
         });
 
-        it('should create a new State instance correctly when additional plugins are specified', function () {
+        it('should create a new State instance correctly when additional addons are specified', function () {
             var bindingGroup = sinon.stub(),
                 classes = {MyClass: sinon.stub()},
                 classGroup = sinon.stub(),
@@ -404,7 +404,7 @@ describe('Runtime', function () {
             runtime.createEnvironment({
                 myOption: 21
             }, [
-                // Standard plugin using a plain object
+                // Standard addon using a plain object
                 {
                     bindingGroups: [bindingGroup],
                     classGroups: [classGroup],
@@ -412,7 +412,7 @@ describe('Runtime', function () {
                     constantGroups: [constantGroup]
                 },
                 function () {
-                    // Plugins may also be a function that is called to fetch the plugin data object
+                    // Addons may also be a function that is called to fetch the addon data object
 
                     return {
                         defaultINIGroups: [defaultINIGroup],
@@ -447,16 +447,16 @@ describe('Runtime', function () {
             );
         });
 
-        it('should keep plugins isolated to the environment they were installed into', function () {
+        it('should keep addons isolated to the environment they were installed into', function () {
             runtime.createEnvironment({
                 myOption: 21
             }, [
-                // Standard plugin using a plain object
+                // Standard addon using a plain object
                 {
                     bindingGroups: [sinon.stub()]
                 },
                 function () {
-                    // Plugins may also be a function that is called to fetch the plugin data object
+                    // Addons may also be a function that is called to fetch the addon data object
 
                     return {
                         functionGroups: [sinon.stub()]

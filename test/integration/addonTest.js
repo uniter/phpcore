@@ -13,14 +13,14 @@ var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
     tools = require('./tools');
 
-describe('Custom plugin integration', function () {
+describe('Custom addon integration', function () {
     var runtime;
 
     beforeEach(function () {
         runtime = tools.createSyncRuntime();
     });
 
-    it('should support installing a plugin with a binding', function () {
+    it('should support installing an addon with a binding', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 return get_my_value();
@@ -58,7 +58,7 @@ EOS
         expect(engine.execute().getNative()).to.equal(21);
     });
 
-    it('should support installing a plugin with custom syntax', function () {
+    it('should support installing an addon with custom syntax', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -98,7 +98,7 @@ EOS
         expect(engine.getStdout().readAll()).to.equal('Logged: 242');
     });
 
-    describe('when installing a plugin into an environment (rather than into the entire runtime)', function () {
+    describe('when installing an addon into an environment (rather than into the entire runtime)', function () {
         var environment,
             module;
 
@@ -139,13 +139,13 @@ EOS
             module = tools.transpile(runtime, null, php);
         });
 
-        it('should correctly install the plugin', function () {
+        it('should correctly install the addon', function () {
             var engine = module({}, environment);
 
             expect(engine.execute().getNative()).to.equal(42);
         });
 
-        it('should keep the plugin isolated to the environment', function () {
+        it('should keep the addon isolated to the environment', function () {
             var module2;
             module({}, environment).execute();
             module2 = tools.transpile(runtime, null, '<?php return function_exists("double_it");');
