@@ -26,7 +26,7 @@
     "es6-weak-map": "^2.0.3",
     "is-promise": "^2.2.2",
     "lie": "^3.0.1",
-    "microdash": "^1.4.1",
+    "microdash": "^1.4.2",
     "pausable": "^4.4.2",
     "pauser": "~1",
     "phpcommon": "^2.0.0"
