@@ -26,7 +26,7 @@
     "es6-weak-map": "^2.0.3",
     "is-promise": "^2.2.2",
     "lie": "^3.0.1",
-    "microdash": "~1",
+    "microdash": "^1.4.1",
     "pausable": "^4.4.2",
     "pauser": "~1",
     "phpcommon": "^2.0.0"
@@ -34,11 +34,11 @@
   "devDependencies": {
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
-    "jshint": "^2.10.2",
-    "mocha": "^7.1.2",
+    "jshint": "^2.12.0",
+    "mocha": "^7.2.0",
     "nowdoc": "^1.0.1",
-    "phptoast": "^7.1.0",
-    "phptojs": "^7.1.0",
+    "phptoast": "^8.0.0",
+    "phptojs": "^8.0.0",
     "sinon": "^5.1.1",
     "sinon-chai": "^3.3.0"
   },
