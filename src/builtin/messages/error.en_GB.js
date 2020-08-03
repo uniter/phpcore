@@ -30,6 +30,7 @@ module.exports = {
             'class_not_found': 'Class \'${name}\' not found',
             'function_name_must_be_string': 'Function name must be a string',
             'invalid_value_for_type': 'Argument ${index} passed to ${func}() must be ${expectedType}, ${actualType} given, called in ${callerFile} on line ${callerLine} and defined in ${definitionFile}:${definitionLine}',
+            'method_called_on_non_object': '${method} method called on non-object',
             'no_parent_class': 'Cannot access parent:: when current class scope has no parent',
             'non_object_method_call': 'Call to a member function ${name}() on ${type}',
             'object_from_get_iterator_must_be_traversable': 'Objects returned by ${className}::getIterator() must be traversable or implement interface Iterator',

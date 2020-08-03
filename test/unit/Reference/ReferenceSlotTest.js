@@ -147,7 +147,7 @@ describe('ReferenceSlot', function () {
             reference.setValue(originalValue);
         });
 
-        it('should assign the incremented value to the referenced variable', function () {
+        it('should assign the incremented value to the slot', function () {
             reference.postIncrement();
 
             expect(reference.getValue()).to.equal(incrementedValue);
@@ -169,7 +169,7 @@ describe('ReferenceSlot', function () {
             reference.setValue(originalValue);
         });
 
-        it('should assign the decremented value to the referenced variable', function () {
+        it('should assign the decremented value to the slot', function () {
             reference.preDecrement();
 
             expect(reference.getValue()).to.equal(decrementedValue);
@@ -191,7 +191,7 @@ describe('ReferenceSlot', function () {
             reference.setValue(originalValue);
         });
 
-        it('should assign the incremented value to the referenced variable', function () {
+        it('should assign the incremented value to the slot', function () {
             reference.preIncrement();
 
             expect(reference.getValue()).to.equal(incrementedValue);

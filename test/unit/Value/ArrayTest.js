@@ -369,6 +369,16 @@ describe('Array', function () {
         });
     });
 
+    describe('clone()', function () {
+        it('should raise an error', function () {
+            expect(function () {
+                value.clone();
+            }).to.throw(
+                'Fake PHP Fatal error for #core.method_called_on_non_object with {"method":"__clone"}'
+            );
+        });
+    });
+
     describe('coerceToNativeError()', function () {
         it('should throw an error as this is invalid', function () {
             expect(function () {
@@ -635,6 +645,32 @@ describe('Array', function () {
             expect(pair.getKey().getNative()).to.equal(21);
             expect(pair.getValue()).to.be.an.instanceOf(StringValue);
             expect(pair.getValue().getNative()).to.equal('value of first el');
+        });
+    });
+
+    describe('getForAssignment()', function () {
+        it('should return a copy of the array', function () {
+            var cloneValue = value.getForAssignment();
+
+            expect(cloneValue).to.not.equal(value);
+            expect(cloneValue.getNative()).to.deep.equal(value.getNative());
+        });
+
+        it('should perform a shallow copy of non-array descendants', function () {
+            var cloneValue,
+                elementKey3 = factory.createString('secondEl'),
+                elementValue3 = sinon.createStubInstance(ObjectValue),
+                element3 = createKeyValuePair(
+                    elementKey3,
+                    elementValue3
+                );
+            elementValue3.getForAssignment.returns(elementValue3);
+            elements.push(element3);
+            createValue();
+
+            cloneValue = value.getForAssignment();
+
+            expect(cloneValue.getElementByKey(elementKey3).getValue()).to.equal(elementValue3);
         });
     });
 

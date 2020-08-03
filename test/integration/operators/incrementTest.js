@@ -14,6 +14,41 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP increment "++" operator integration', function () {
+    it('should be able to increment a variable or variable reference', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+$myNumber = 21;
+$myRef =& $myNumber;
+
+$result['initial number'] = $myNumber;
+$result['initial ref'] = $myRef;
+$result['number post-inc'] = $myNumber++;
+$result['ref post-inc'] = $myRef++;
+$result['number pre-inc'] = ++$myNumber;
+$result['ref pre-inc'] = ++$myRef;
+$result['final number'] = $myNumber;
+$result['final ref'] = $myRef;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal({
+            'initial number': 21,
+            'initial ref': 21,
+            'number post-inc': 21, // Post-increment won't have been able to update the property yet
+            'ref post-inc': 22,    // The previous post-increment will have updated the property by now
+            'number pre-inc': 24,
+            'ref pre-inc': 25,
+            'final number': 25,
+            'final ref': 25
+        });
+    });
+
     it('should be able to increment an instance property', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

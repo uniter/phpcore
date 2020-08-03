@@ -226,6 +226,37 @@ describe('Scope', function () {
         });
     });
 
+    describe('defineVariable()', function () {
+        it('should define a variable with the specified name in this scope', function () {
+            createScope();
+
+            scope.defineVariable('myVar');
+
+            expect(scope.hasVariable('myVar')).to.be.true;
+        });
+
+        it('should return the defined variable', function () {
+            var variable;
+            createScope();
+
+            variable = scope.defineVariable('myVar');
+
+            expect(variable).to.be.an.instanceOf(Variable);
+            expect(variable.getName()).to.equal('myVar');
+        });
+
+        it('should throw when a variable is already defined with the given name', function () {
+            createScope();
+            scope.defineVariable('myVar');
+
+            expect(function () {
+                scope.defineVariable('myVar');
+            }).to.throw(
+                'Variable "myVar" is already defined in this scope'
+            );
+        });
+    });
+
     describe('exportVariables()', function () {
         it('should export all defined variables in addition to the super globals', function () {
             var superGlobalValue = sinon.createStubInstance(Value),
@@ -514,6 +545,28 @@ describe('Scope', function () {
             createScope();
 
             expect(scope.getVariable('_ENV')).to.equal(superGlobal);
+        });
+    });
+
+    describe('hasVariable()', function () {
+        it('should return true when the specified variable is defined', function () {
+            createScope();
+            scope.defineVariable('myVar', 21);
+
+            expect(scope.hasVariable('myVar')).to.be.true;
+        });
+
+        it('should return true when the specified variable is defined and happens to be called "hasOwnProperty"', function () {
+            createScope();
+            scope.defineVariable('hasOwnProperty', 101);
+
+            expect(scope.hasVariable('hasOwnProperty')).to.be.true;
+        });
+
+        it('should return false when the specified variable is not defined', function () {
+            createScope();
+
+            expect(scope.hasVariable('myUndefinedVar')).to.be.false;
         });
     });
 

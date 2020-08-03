@@ -40,7 +40,9 @@ module.exports = require('pauser')([
          * @param {Class} classObject
          */
         defineUnwrappedClass = function (classObject) {
-            var currentClass;
+            var currentClass,
+                currentPrototype,
+                methodNamesProxied = {};
 
             /**
              * @param {PHPObject} phpObject
@@ -64,11 +66,35 @@ module.exports = require('pauser')([
 
             currentClass = classObject;
 
+            /*
+             * Iterate up the class hierarchy, proxying methods as we go. Note that
+             * in most cases the first class' prototype chain is probably all we need
+             * to process, however some classes in the hierarchy may have non-standard
+             * native objects (eg. JSObject) and so we need to process each one's
+             * prototype chain just in case.
+             */
             while (currentClass) {
-                /*jshint loopfunc: true */
-                _.forOwn(currentClass.InternalClass.prototype, function (method, methodName) {
-                    defineProxyMethod(methodName);
-                });
+                currentPrototype = currentClass.InternalClass.prototype;
+
+                while (currentPrototype !== null && currentPrototype !== Object.prototype) {
+                    /*jshint loopfunc: true */
+                    _.forOwn(currentPrototype, function (property, propertyName) {
+                        if (
+                            // Only proxy methods
+                            typeof property !== 'function' ||
+                            // Only proxy each method once
+                            methodNamesProxied[propertyName] === true
+                        ) {
+                            return;
+                        }
+
+                        defineProxyMethod(propertyName);
+
+                        methodNamesProxied[propertyName] = true;
+                    });
+
+                    currentPrototype = Object.getPrototypeOf(currentPrototype);
+                }
 
                 currentClass = currentClass.superClass;
             }
@@ -300,7 +326,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Calls the constructor for the provided object
+         * Calls the userland constructor for the provided object
          *
          * @param {ObjectValue} objectValue
          * @param {Value[]} args
@@ -561,6 +587,23 @@ module.exports = require('pauser')([
          */
         instantiate: function (args) {
             var classObject = this,
+                objectValue = classObject.instantiateBare(args);
+
+            // Call the userland constructor
+            classObject.construct(objectValue, args);
+
+            return objectValue;
+        },
+
+        /**
+         * Creates a new instance of this class without calling any userland constructor
+         * (note that for JS classes the class-constructor-function will still be called)
+         *
+         * @param {Value[]} args
+         * @returns {ObjectValue}
+         */
+        instantiateBare: function (args) {
+            var classObject = this,
                 nativeObject = Object.create(classObject.InternalClass.prototype),
                 objectValue = classObject.valueFactory.createObject(nativeObject, classObject);
 
@@ -570,8 +613,6 @@ module.exports = require('pauser')([
                 objectValue,
                 unwrapArgs(args, classObject)
             );
-
-            classObject.construct(objectValue, args);
 
             return objectValue;
         },

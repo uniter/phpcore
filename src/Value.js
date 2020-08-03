@@ -21,6 +21,7 @@ module.exports = require('pauser')([
     var PHPError = phpCommon.PHPError,
 
         CLASS_NAME_NOT_VALID = 'core.class_name_not_valid',
+        METHOD_CALLED_ON_NON_OBJECT = 'core.method_called_on_non_object',
         NON_OBJECT_METHOD_CALL = 'core.non_object_method_call',
         UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types',
 
@@ -120,6 +121,17 @@ module.exports = require('pauser')([
          */
         callStaticMethod: function () {
             this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
+        },
+
+        /**
+         * Returns a clone of this value, or throws an Error if not supported
+         *
+         * @throws {ObjectValue}
+         */
+        clone: function () {
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, METHOD_CALLED_ON_NON_OBJECT, {
+                method: '__clone'
+            });
         },
 
         /**

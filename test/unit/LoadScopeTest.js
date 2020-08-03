@@ -30,8 +30,12 @@ describe('LoadScope', function () {
     });
 
     describe('getFilePath()', function () {
-        it('should return the caller\'s path', function () {
-            expect(loadScope.getFilePath()).to.equal('/path/to/my/caller.php');
+        it('should return the caller\'s path when the given file path is null', function () {
+            expect(loadScope.getFilePath(null)).to.equal('/path/to/my/caller.php');
+        });
+
+        it('should return the given file path when not null', function () {
+            expect(loadScope.getFilePath('/my/given/caller_path.php')).to.equal('/my/given/caller_path.php');
         });
     });
 

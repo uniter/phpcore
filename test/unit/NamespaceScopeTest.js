@@ -324,6 +324,30 @@ describe('NamespaceScope', function () {
             expect(result.namespace).to.equal(this.globalNamespace);
             expect(result.name).to.equal('MyClass');
         });
+
+        it('should support resolving a path prefixed with the special namespace keyword to the current namespace only, ignoring any "use" imports', function () {
+            var result,
+                subNamespace = sinon.createStubInstance(Namespace);
+            this.namespace.getDescendant.withArgs('Stuff\\Here').returns(subNamespace);
+            this.scope.use('Some\\Other\\StuffNamespace', 'Stuff');
+
+            result = this.scope.resolveClass('namespace\\Stuff\\Here\\MyClass');
+
+            expect(result.namespace).to.equal(subNamespace);
+            expect(result.name).to.equal('MyClass');
+        });
+
+        it('should support resolving a path prefixed with the special namespace keyword using mixed case to the current namespace only, ignoring any "use" imports', function () {
+            var result,
+                subNamespace = sinon.createStubInstance(Namespace);
+            this.namespace.getDescendant.withArgs('Stuff\\Here').returns(subNamespace);
+            this.scope.use('Some\\Other\\StuffNamespace', 'Stuff');
+
+            result = this.scope.resolveClass('naMESPaCe\\Stuff\\Here\\MyClass');
+
+            expect(result.namespace).to.equal(subNamespace);
+            expect(result.name).to.equal('MyClass');
+        });
     });
 
     describe('use()', function () {

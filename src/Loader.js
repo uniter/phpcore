@@ -11,12 +11,14 @@
 
 module.exports = require('pauser')([
     require('microdash'),
+    require('path'),
     require('phpcommon'),
     require('./Value/Exit'),
     require('./Exception/LoadFailedException'),
     require('./Value')
 ], function (
     _,
+    path,
     phpCommon,
     ExitValue,
     LoadFailedException,
@@ -53,7 +55,7 @@ module.exports = require('pauser')([
          * When the relevant transport options are installed.
          *
          * @param {string} type The type of load to be done, eg. `eval` or `include`
-         * @param {string} path The path to the resource being loaded
+         * @param {string} filePath The path to the resource being loaded
          * @param {object} options
          * @param {Environment} environment
          * @param {Module} module
@@ -61,15 +63,13 @@ module.exports = require('pauser')([
          * @param {Function} load
          * @returns {*}
          */
-        load: function (type, path, options, environment, module, enclosingScope, load) {
+        load: function (type, filePath, options, environment, module, enclosingScope, load) {
             var done = false,
                 errorResult = null,
                 loader = this,
                 pause = null,
                 result,
-                subOptions = _.extend({}, options, {
-                    'path': path
-                });
+                subOptions;
 
             function completeWith(moduleResult) {
                 done = true;
@@ -114,7 +114,7 @@ module.exports = require('pauser')([
 
                 // Handle PHP code string being returned from loader for module
                 if (_.isString(valueOrModule)) {
-                    throw new Exception(type + '(' + path + ') :: Returning a PHP string is not supported');
+                    throw new Exception(type + '(' + filePath + ') :: Returning a PHP string is not supported');
                 }
 
                 // Handle a value object being returned as the module's return value
@@ -123,7 +123,7 @@ module.exports = require('pauser')([
                     return;
                 }
 
-                throw new Exception(type + '(' + path + ') :: Module is in a weird format');
+                throw new Exception(type + '(' + filePath + ') :: Module is in a weird format');
             }
 
             function reject(error) {
@@ -164,10 +164,19 @@ module.exports = require('pauser')([
                 }
             }
 
+            // Resolve "./" and "../" components in the file path
+            filePath = path.normalize(filePath);
+
+            subOptions = _.extend({}, options, {
+                // TODO: Can we improve this? Can we include a module's path in its compiled output,
+                //       rather than having the runtime provide its path like this?
+                'path': filePath
+            });
+
             // NB: The loader may throw an error, which will be caught and passed to reject()
             //     for consistent behaviour
             try {
-                load(path, {
+                load(filePath, {
                     reject: reject,
                     resolve: resolve
                 }, module.getFilePath(), loader.valueFactory);
@@ -185,7 +194,7 @@ module.exports = require('pauser')([
 
             if (!loader.pausable) {
                 // Pausable is not available, so we cannot yield while the module is loaded
-                throw new Exception(type + '(' + path + ') :: Async support not enabled');
+                throw new Exception(type + '(' + filePath + ') :: Async support not enabled');
             }
 
             pause = loader.pausable.createPause();

@@ -130,10 +130,11 @@ _.extend(LoadScope.prototype, {
     /**
      * Fetches the current file path, taking eval or include into account
      *
+     * @param {string|null} filePath
      * @returns {string|null}
      */
-    getFilePath: function () {
-        return this.callerFilePath;
+    getFilePath: function (filePath) {
+        return filePath !== null ? filePath : this.callerFilePath;
     },
 
     /**

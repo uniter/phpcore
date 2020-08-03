@@ -247,50 +247,70 @@ module.exports = require('pauser')([
             variable.setValue(variable.getValue().multiply(rightValue));
         },
 
+        /**
+         * Decrements the stored value, returning its original value
+         *
+         * @returns {Value}
+         */
         postDecrement: function () {
             var variable = this,
-                decrementedValue = variable.value.decrement(),
-                result = variable.value;
+                decrementedValue = variable.getValue().decrement(),
+                result = variable.getValue();
 
             if (decrementedValue) {
-                variable.value = decrementedValue;
+                variable.setValue(decrementedValue);
             }
 
             return result;
         },
 
+        /**
+         * Decrements the stored value, returning its new value
+         *
+         * @returns {Value}
+         */
         preDecrement: function () {
             var variable = this,
-                decrementedValue = variable.value.decrement();
+                decrementedValue = variable.getValue().decrement();
 
             if (decrementedValue) {
-                variable.value = decrementedValue;
+                variable.setValue(decrementedValue);
             }
 
-            return variable.value;
+            return variable.getValue();
         },
 
+        /**
+         * Increments the stored value, returning its original value
+         *
+         * @returns {Value}
+         */
         postIncrement: function () {
             var variable = this,
-                incrementedValue = variable.value.increment(),
-                result = variable.value;
+                incrementedValue = variable.getValue().increment(),
+                result = variable.getValue();
 
             if (incrementedValue) {
-                variable.value = incrementedValue;
+                variable.setValue(incrementedValue);
             }
 
             return result;
         },
 
+        /**
+         * Increments the stored value, returning its new value
+         *
+         * @returns {Value}
+         */
         preIncrement: function () {
             var variable = this,
-                incrementedValue = variable.value.increment();
+                incrementedValue = variable.getValue().increment();
 
             if (incrementedValue) {
-                variable.value = incrementedValue;
+                variable.setValue(incrementedValue);
             }
 
-            return variable.value;
+            return variable.getValue();
         },
 
         /**

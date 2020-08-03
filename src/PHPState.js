@@ -122,7 +122,7 @@ module.exports = require('pauser')([
             var globalNamespace = state.globalNamespace;
 
             /**
-             * Bindings allow components of a plugin to share data.
+             * Bindings allow components of an addon to share data.
              *
              * @param {Function} groupFactory
              */
@@ -254,8 +254,8 @@ module.exports = require('pauser')([
             _.each(installedBuiltinTypes.constantGroups, installConstantGroup);
             _.each(installedBuiltinTypes.defaultINIGroups, installDefaultINIOptionGroup);
             _.each(installedBuiltinTypes.bindingGroups, installBindingGroup);
-            // TODO: Add "exposures" for plugins to expose things to transpiled code
-            // TODO: Add "externals" for plugins to expose things to external code (eg. engine.getExternal(...))?
+            // TODO: Add "exposures" for addons to expose things to transpiled code
+            // TODO: Add "externals" for addons to expose things to external code (eg. engine.getExternal(...))?
             _.each(installedBuiltinTypes.functionGroups, installFunctionGroup);
             _.each(installedBuiltinTypes.classGroups, installClassGroup);
             _.forOwn(installedBuiltinTypes.classes, installClass);
@@ -436,13 +436,16 @@ module.exports = require('pauser')([
                 return state.bindings[bindingName];
             }.bind(this),
             getConstant: getConstant,
+            getGlobal: this.getGlobal.bind(this),
             globalNamespace: globalNamespace,
+            globalScope: globalScope,
             iniState: this.iniState,
             mode: mode,
             optionSet: this.optionSet,
             output: this.output,
             pausable: pausable,
             runtime: runtime,
+            setGlobal: this.setGlobal.bind(this),
             stdout: stdout,
             traceFormatter: traceFormatter,
             translator: translator,
@@ -501,7 +504,7 @@ module.exports = require('pauser')([
                      * Calls the constructor for the superclass of this class, if this class extends another
                      *
                      * @param {ObjectValue|object} instance Unwrapped or wrapped instance (see below)
-                     * @param {Value[]} args Arguments
+                     * @param {Value[]|*[]} args Arguments (Value objects if non-coercing, native if coercing)
                      */
                     callSuperConstructor: function (instance, args) {
                         var argValues,
@@ -632,13 +635,24 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Defines a global variable and gives it the provided value
+         * Defines a global variable and gives it the provided value,
+         * if not already defined. If the variable is already defined
+         * in this scope then an error will be thrown
          *
          * @param {string} name
-         * @param {Value} value
+         * @param {Value|*} value Value object or native value to be coerced
+         * @throws {Error} Throws when the global scope already defines the specified variable
          */
         defineGlobal: function (name, value) {
-            this.globalScope.defineVariable(name).setValue(value);
+            var state = this;
+
+            if (state.globalScope.hasVariable(name)) {
+                throw new Error(
+                    'PHPState.defineGlobal() :: Variable "' + name + '" is already defined in the global scope'
+                );
+            }
+
+            state.globalScope.defineVariable(name).setValue(state.valueFactory.coerce(value));
         },
 
         /**
@@ -675,13 +689,17 @@ module.exports = require('pauser')([
         /**
          * Defines a super global variable (available in all scopes implicitly,
          * unlike a normal global which is not available unless imported with a `global` statement)
-         * and gives it the provided value
+         * and gives it the provided value. If a native value is given then it will be coerced to a PHP one.
          *
          * @param {string} name
-         * @param {Value} value
+         * @param {Value|*} value
          */
         defineSuperGlobal: function (name, value) {
-            this.superGlobalScope.defineVariable(name).setValue(value);
+            var state = this;
+
+            state.superGlobalScope
+                .defineVariable(name)
+                .setValue(state.valueFactory.coerce(value));
         },
 
         /**
@@ -699,7 +717,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches the specified binding from an installed plugin
+         * Fetches the specified binding from an installed addon
          *
          * @param {string} bindingName
          * @returns {*}
@@ -749,6 +767,17 @@ module.exports = require('pauser')([
             var parsed = this.globalNamespace.parseName(name);
 
             return parsed.namespace.getFunction(parsed.name);
+        },
+
+        /**
+         * Fetches the value of a global variable, if defined.
+         * If the variable is not defined then a NULL value will be returned.
+         *
+         * @param {string} name
+         * @return {Value}
+         */
+        getGlobal: function (name) {
+            return this.globalScope.getVariable(name).getValueOrNull();
         },
 
         getGlobalNamespace: function () {
@@ -840,6 +869,28 @@ module.exports = require('pauser')([
 
         getValueFactory: function () {
             return this.valueFactory;
+        },
+
+        /**
+         * Sets the value of an existing PHP global. If a native value is given
+         * then it will be coerced to a PHP one.
+         * If the global is not defined than an error will be thrown -
+         * use .defineGlobal(...) when defining a new variable
+         *
+         * @param {string} name
+         * @param {Value|*} value Value object or native value to be coerced
+         * @throws {Error} Throws if the variable is not defined in the global scope
+         */
+        setGlobal: function (name, value) {
+            var state = this;
+
+            if (!state.globalScope.hasVariable(name)) {
+                throw new Error(
+                    'PHPState.setGlobal() :: Variable "' + name + '" is not defined in the global scope'
+                );
+            }
+
+            state.globalScope.getVariable(name).setValue(state.valueFactory.coerce(value));
         }
     });
 

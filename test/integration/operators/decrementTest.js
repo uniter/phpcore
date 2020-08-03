@@ -14,6 +14,41 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP decrement "--" operator integration', function () {
+    it('should be able to decrement a variable or variable reference', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+$myNumber = 21;
+$myRef =& $myNumber;
+
+$result['initial number'] = $myNumber;
+$result['initial ref'] = $myRef;
+$result['number post-dec'] = $myNumber--;
+$result['ref post-dec'] = $myRef--;
+$result['number pre-dec'] = --$myNumber;
+$result['ref pre-dec'] = --$myRef;
+$result['final number'] = $myNumber;
+$result['final ref'] = $myRef;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal({
+            'initial number': 21,
+            'initial ref': 21,
+            'number post-dec': 21, // Post-decrement won't have been able to update the property yet
+            'ref post-dec': 20,    // The previous post-decrement will have updated the property by now
+            'number pre-dec': 18,
+            'ref pre-dec': 17,
+            'final number': 17,
+            'final ref': 17
+        });
+    });
+
     it('should be able to decrement an instance property', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

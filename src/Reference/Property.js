@@ -74,25 +74,6 @@ util.inherits(PropertyReference, Reference);
 
 _.extend(PropertyReference.prototype, {
     /**
-     * Makes a copy of this property
-     *
-     * @returns {PropertyReference}
-     */
-    clone: function () {
-        var property = this;
-
-        return new PropertyReference(
-            property.valueFactory,
-            property.callStack,
-            property.objectValue,
-            property.key,
-            property.classObject,
-            property.visibility,
-            property.index
-        );
-    },
-
-    /**
      * Fetches the unique name of this property as viewed from outside the class (eg. when casting to array)
      *
      * @returns {*}

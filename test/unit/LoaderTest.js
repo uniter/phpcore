@@ -48,12 +48,14 @@ describe('Loader', function () {
 
     describe('load()', function () {
         describe('when Pausable is not available', function () {
+            var moduleFactoryFunction;
+
             beforeEach(function () {
                 this.loadCallback = sinon.spy(function (path, promise) {
-                    var stubModule = sinon.stub();
-                    stubModule.returns(this.subEngine);
+                    moduleFactoryFunction = sinon.stub();
+                    moduleFactoryFunction.returns(this.subEngine);
 
-                    promise.resolve(stubModule);
+                    promise.resolve(moduleFactoryFunction);
                 }.bind(this));
                 this.loader = new SyncLoader(this.valueFactory, null);
 
@@ -127,6 +129,85 @@ describe('Loader', function () {
                     sinon.match.any,
                     sinon.match.any,
                     sinon.match.same(this.valueFactory)
+                );
+            });
+
+            it('should pass the sub module options to the module factory function', function () {
+                this.loader.load(
+                    'include',
+                    '/path/to/my/module.php',
+                    {
+                        myExtraOption: 21
+                    },
+                    this.environment,
+                    this.module,
+                    this.enclosingScope,
+                    this.loadCallback
+                );
+
+                expect(moduleFactoryFunction).to.have.been.calledOnce;
+                expect(moduleFactoryFunction).to.have.been.calledWith(sinon.match({
+                    myExtraOption: 21
+                }));
+            });
+
+            it('should normalise the file path passed to the module factory function', function () {
+                this.loader.load(
+                    'include',
+                    // Ensure the same-dir and parent-dir symbols here are normalised below
+                    '/path/./to/../my/module.php',
+                    {},
+                    this.environment,
+                    this.module,
+                    this.enclosingScope,
+                    this.loadCallback
+                );
+
+                expect(moduleFactoryFunction).to.have.been.calledOnce;
+                expect(moduleFactoryFunction).to.have.been.calledWith(sinon.match({
+                    // Ensure the same-dir and parent-dir symbols above are normalised
+                    path: '/path/my/module.php'
+                }));
+            });
+
+            it('should pass the Environment to the module factory function', function () {
+                this.loader.load(
+                    'include',
+                    '/path/to/my/module.php',
+                    {
+                        myExtraOption: 21
+                    },
+                    this.environment,
+                    this.module,
+                    this.enclosingScope,
+                    this.loadCallback
+                );
+
+                expect(moduleFactoryFunction).to.have.been.calledOnce;
+                expect(moduleFactoryFunction).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.same(this.environment)
+                );
+            });
+
+            it('should pass the enclosing Scope to the module factory function', function () {
+                this.loader.load(
+                    'include',
+                    '/path/to/my/module.php',
+                    {
+                        myExtraOption: 21
+                    },
+                    this.environment,
+                    this.module,
+                    this.enclosingScope,
+                    this.loadCallback
+                );
+
+                expect(moduleFactoryFunction).to.have.been.calledOnce;
+                expect(moduleFactoryFunction).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.same(this.enclosingScope)
                 );
             });
 

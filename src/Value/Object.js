@@ -61,6 +61,7 @@ module.exports = require('pauser')([
             };
         },
         Exception = phpCommon.Exception,
+        MAGIC_CLONE = '__clone',
         PHPError = phpCommon.PHPError,
         PHPFatalError = phpCommon.PHPFatalError,
         PHPParseError = phpCommon.PHPParseError,
@@ -271,8 +272,37 @@ module.exports = require('pauser')([
             return this.classObject.is(className);
         },
 
+        /**
+         * Returns a clone of this object value
+         *
+         * @returns {ObjectValue}
+         */
         clone: function () {
-            throw new Error('Unimplemented');
+            var value = this,
+                // Avoid calling the __construct() class constructor when cloning,
+                // however note that the native constructor will still be called
+                // as that is used to initialise properties for PHP-defined classes etc.
+                cloneObjectValue = value.classObject.instantiateBare(
+                    // TODO: Consider storing the arguments passed to the constructor,
+                    //       so that they may be passed here - however this may then leak memory
+                    //       as we would be holding on to references to those arguments' values
+                    []
+                );
+
+            // Clones are shallow: each property's value is simply copied over to the clone.
+            // (Note that arrays will be copied as is done for assignments.)
+            // If a deep clone is required then the user must implement the magic __clone method
+            // and perform the recursion themselves.
+            _.each(value.getPropertyNames(), function (name) {
+                cloneObjectValue.setProperty(name, value.getProperty(name));
+            });
+
+            // Call the magic __clone method if defined
+            if (cloneObjectValue.isMethodDefined(MAGIC_CLONE)) {
+                cloneObjectValue.callMethod(MAGIC_CLONE);
+            }
+
+            return cloneObjectValue;
         },
 
         /**
@@ -956,6 +986,17 @@ module.exports = require('pauser')([
 
         getPointer: function () {
             return this.pointer;
+        },
+
+        /**
+         * Fetches the names of all instance properties of this object
+         *
+         * @returns {string[]}
+         */
+        getPropertyNames: function () {
+            return this.getInstancePropertyNames().map(function (nameValue) {
+                return nameValue.getNative();
+            });
         },
 
         /**

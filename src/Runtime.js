@@ -18,6 +18,8 @@ module.exports = require('pauser')([
     PHPState,
     Stream
 ) {
+    var hasOwn = {}.hasOwnProperty;
+
     /**
      * PHPCore API encapsulator.
      *
@@ -97,6 +99,34 @@ module.exports = require('pauser')([
                 phpCommon = runtime.phpCommon;
 
             /**
+             * Extends an existing option set with a new set of options,
+             * with special handling for the "path" option as once that option
+             * has been set, its value cannot be overridden. This is because
+             * the include transport configured may set a path on the returned
+             * module factory (via .using(...)) but that would otherwise
+             * be overridden by the default path provided by Loader (where the
+             * default path is just a normalised version of the requested path,
+             * rather than a resolved real path)
+             *
+             * @param {Object|null} existingOptions
+             * @param {Object|null} newOptions
+             * @return {Object}
+             */
+            function extendOptions(existingOptions, newOptions) {
+                if (
+                    existingOptions &&
+                    newOptions &&
+                    hasOwn.call(existingOptions, 'path') &&
+                    hasOwn.call(newOptions, 'path')
+                ) {
+                    newOptions = _.extend({}, newOptions);
+                    delete newOptions.path;
+                }
+
+                return _.extend({}, existingOptions, newOptions);
+            }
+
+            /**
              * Creates a new Engine instance using this runtime's context.
              *
              * @param {object} options
@@ -124,34 +154,56 @@ module.exports = require('pauser')([
             }
 
             /**
+             * Creates a function to be exposed as .using(...) on the module factory,
+             * allowing the new module factory returned when .using(...) is called
+             * to itself expose a .using(...) method recursively
+             *
+             * @param {Function} factory
+             * @return {Function}
+             */
+            function createSubFactory(factory) {
+                /**
+                 * Creates a new factory function with some optional default options,
+                 * environment and top-level Scope
+                 *
+                 * @param {object=} defaultOptions
+                 * @param {Environment=} defaultEnvironment
+                 * @param {Scope=} defaultTopLevelScope
+                 * @returns {Function}
+                 */
+                return function subFactory(defaultOptions, defaultEnvironment, defaultTopLevelScope) {
+                    /**
+                     * A proxying factory function that applies these defaults
+                     * and then forwards onto the original factory function
+                     *
+                     * @param {object=} options
+                     * @param {Environment=} environment
+                     * @param {Scope=} topLevelScope
+                     * @returns {Engine}
+                     */
+                    function proxy(options, environment, topLevelScope) {
+                        options = extendOptions(defaultOptions, options);
+                        environment = environment || defaultEnvironment;
+                        topLevelScope = topLevelScope || defaultTopLevelScope;
+
+                        return factory(options, environment, topLevelScope);
+                    }
+
+                    /**
+                     * Creates a new factory function with some optional default options,
+                     * environment and top-level Scope
+                     */
+                    proxy.using = createSubFactory(proxy);
+
+                    return proxy;
+                };
+            }
+
+            /**
              * Creates a new factory function with some optional default options,
              * environment and top-level Scope
-             *
-             * @param {object=} defaultOptions
-             * @param {Environment=} defaultEnvironment
-             * @param {Scope=} defaultTopLevelScope
-             * @returns {Function}
              */
-            factory.using = function (defaultOptions, defaultEnvironment, defaultTopLevelScope) {
-                /**
-                 * A proxying factory function that applies these defaults
-                 * and then forwards onto the original factory function
-                 *
-                 * @param {object=} options
-                 * @param {Environment=} environment
-                 * @param {Scope=} topLevelScope
-                 * @returns {Engine}
-                 */
-                function proxy(options, environment, topLevelScope) {
-                    options = _.extend({}, defaultOptions, options);
-                    environment = environment || defaultEnvironment;
-                    topLevelScope = topLevelScope || defaultTopLevelScope;
-
-                    return factory(options, environment, topLevelScope);
-                }
-
-                return proxy;
-            };
+            factory.using = createSubFactory(factory);
 
             return factory;
         },
@@ -178,24 +230,45 @@ module.exports = require('pauser')([
          * available in another outside the use of includes.
          *
          * @param {object} options
+         * @param {Array=} addons
          * @returns {Environment}
          */
-        createEnvironment: function (options) {
+        createEnvironment: function (options, addons) {
             var runtime = this,
+                allBuiltins = _.extend({}, runtime.builtins),
+                allOptionGroups = runtime.optionGroups,
                 stdin = new Stream(),
                 stdout = new Stream(),
                 stderr = new Stream(),
-                state = new runtime.PHPState(
-                    runtime,
-                    runtime.builtins,
-                    stdin,
-                    stdout,
-                    stderr,
-                    runtime.pausable,
-                    runtime.mode,
-                    runtime.optionGroups,
-                    options
-                );
+                state;
+
+            _.each(addons, function (addon) {
+                if (typeof addon === 'function') {
+                    // Allow an addon to be defined as a function, to allow testing
+                    addon = addon();
+                }
+
+                allBuiltins.translationCatalogues = allBuiltins.translationCatalogues.concat(addon.translationCatalogues || []);
+                allBuiltins.functionGroups = allBuiltins.functionGroups.concat(addon.functionGroups || []);
+                allBuiltins.classGroups = allBuiltins.classGroups.concat(addon.classGroups || []);
+                allBuiltins.classes = _.extend({}, allBuiltins.classes, addon.classes);
+                allBuiltins.constantGroups = allBuiltins.constantGroups.concat(addon.constantGroups || []);
+                allBuiltins.defaultINIGroups = allBuiltins.defaultINIGroups.concat(addon.defaultINIGroups || []);
+                allOptionGroups = allOptionGroups.concat(addon.optionGroups || []);
+                allBuiltins.bindingGroups = allBuiltins.bindingGroups.concat(addon.bindingGroups || []);
+            });
+
+            state = new runtime.PHPState(
+                runtime,
+                allBuiltins,
+                stdin,
+                stdout,
+                stderr,
+                runtime.pausable,
+                runtime.mode,
+                allOptionGroups,
+                options
+            );
 
             return new runtime.Environment(state);
         },
@@ -212,7 +285,7 @@ module.exports = require('pauser')([
             var builtins = this.builtins;
 
             if (typeof newBuiltins === 'function') {
-                // Allow a plugin to be defined as a function, to allow testing
+                // Allow an addon to be defined as a function, to allow testing
                 newBuiltins = newBuiltins();
             }
 

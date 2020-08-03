@@ -509,12 +509,26 @@ describe('PHPState', function () {
     });
 
     describe('defineGlobal()', function () {
-        it('should define the global and assign it the given value', function () {
-            var value = valueFactory.createInteger(27);
+        it('should be able to define a global and assign it the given Value object', function () {
+            state.defineGlobal('myGlobal', valueFactory.createInteger(27));
 
-            state.defineGlobal('MY_GLOB', value);
+            expect(state.getGlobalScope().getVariable('myGlobal').getValue().getNative()).to.equal(27);
+        });
 
-            expect(state.getGlobalScope().getVariable('MY_GLOB').getValue().getNative()).to.equal(27);
+        it('should be able to define a global and assign it the given native value', function () {
+            state.defineGlobal('myGlobal', 1001);
+
+            expect(state.getGlobalScope().getVariable('myGlobal').getValue().getNative()).to.equal(1001);
+        });
+
+        it('should throw when the global is already defined', function () {
+            state.defineGlobal('myGlobal', 21);
+
+            expect(function () {
+                state.defineGlobal('myGlobal', 21); // Attempt to redefine
+            }).to.throw(
+                'PHPState.defineGlobal() :: Variable "myGlobal" is already defined in the global scope'
+            );
         });
     });
 
@@ -583,12 +597,16 @@ describe('PHPState', function () {
     });
 
     describe('defineSuperGlobal()', function () {
-        it('should define the superglobal and assign it the given value', function () {
-            var value = valueFactory.createInteger(101);
+        it('should be able to define a superglobal and assign it the given Value object', function () {
+            state.defineSuperGlobal('MY_SUPER_GLOB', valueFactory.createInteger(27));
 
-            state.defineSuperGlobal('MY_SUPER_GLOB', value);
+            expect(state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').getValue().getNative()).to.equal(27);
+        });
 
-            expect(state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').getValue().getNative()).to.equal(101);
+        it('should be able to define a superglobal and assign it the given native value', function () {
+            state.defineSuperGlobal('MY_SUPER_GLOB', 1001);
+
+            expect(state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').getValue().getNative()).to.equal(1001);
         });
     });
 
@@ -653,6 +671,20 @@ describe('PHPState', function () {
         });
     });
 
+    describe('getGlobal()', function () {
+        it('should be able to fetch the value of a defined global variable', function () {
+            state.defineGlobal('myGlobal', valueFactory.createInteger(9876));
+
+            expect(state.getGlobal('myGlobal').getNative()).to.equal(9876);
+        });
+
+        it('should return a NULL value for an undefined global variable', function () {
+            var value = state.getGlobal('myUndefinedGlobal');
+
+            expect(value.getType()).to.equal('null');
+        });
+    });
+
     describe('getLoader()', function () {
         it('should return a Loader', function () {
             expect(state.getLoader()).to.be.an.instanceOf(Loader);
@@ -681,6 +713,32 @@ describe('PHPState', function () {
     describe('getTranslator()', function () {
         it('should return the Translator service', function () {
             expect(state.getTranslator()).to.be.an.instanceOf(Translator);
+        });
+    });
+
+    describe('setGlobal()', function () {
+        it('should be able to change the value of a defined variable to a Value object', function () {
+            state.defineGlobal('myGlobal', valueFactory.createInteger(21));
+
+            state.setGlobal('myGlobal', valueFactory.createInteger(1001));
+
+            expect(state.getGlobal('myGlobal').getNative()).to.equal(1001);
+        });
+
+        it('should be able to change the value of a defined variable to a native value', function () {
+            state.defineGlobal('myGlobal', valueFactory.createInteger(21));
+
+            state.setGlobal('myGlobal', 987654);
+
+            expect(state.getGlobal('myGlobal').getNative()).to.equal(987654);
+        });
+
+        it('should throw when the specified variable is not defined', function () {
+            expect(function () {
+                state.setGlobal('myUndefinedGlobal', 987654);
+            }).to.throw(
+                'PHPState.setGlobal() :: Variable "myUndefinedGlobal" is not defined in the global scope'
+            );
         });
     });
 });

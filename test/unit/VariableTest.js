@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
+    IntegerValue = require('../../src/Value/Integer').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
     PropertyReference = require('../../src/Reference/Property'),
@@ -301,6 +302,102 @@ describe('Variable', function () {
             variable.setValue(value);
 
             expect(variable.isEmpty()).to.be.false;
+        });
+    });
+
+    describe('postDecrement()', function () {
+        var decrementedValue,
+            originalValue;
+
+        beforeEach(function () {
+            originalValue = sinon.createStubInstance(IntegerValue);
+            decrementedValue = sinon.createStubInstance(IntegerValue);
+            decrementedValue.getForAssignment.returns(decrementedValue);
+            originalValue.decrement.returns(decrementedValue);
+            originalValue.getForAssignment.returns(originalValue);
+            variable.setValue(originalValue);
+        });
+
+        it('should assign the decremented value to the variable', function () {
+            variable.postDecrement();
+
+            expect(variable.getValue()).to.equal(decrementedValue);
+        });
+
+        it('should return the original value', function () {
+            expect(variable.postDecrement()).to.equal(originalValue);
+        });
+    });
+
+    describe('postIncrement()', function () {
+        var incrementedValue,
+            originalValue;
+
+        beforeEach(function () {
+            originalValue = sinon.createStubInstance(IntegerValue);
+            incrementedValue = sinon.createStubInstance(IntegerValue);
+            incrementedValue.getForAssignment.returns(incrementedValue);
+            originalValue.increment.returns(incrementedValue);
+            originalValue.getForAssignment.returns(originalValue);
+            variable.setValue(originalValue);
+        });
+
+        it('should assign the incremented value to the variable', function () {
+            variable.postIncrement();
+
+            expect(variable.getValue()).to.equal(incrementedValue);
+        });
+
+        it('should return the original value', function () {
+            expect(variable.postIncrement()).to.equal(originalValue);
+        });
+    });
+
+    describe('preDecrement()', function () {
+        var decrementedValue,
+            originalValue;
+
+        beforeEach(function () {
+            originalValue = sinon.createStubInstance(IntegerValue);
+            decrementedValue = sinon.createStubInstance(IntegerValue);
+            decrementedValue.getForAssignment.returns(decrementedValue);
+            originalValue.decrement.returns(decrementedValue);
+            originalValue.getForAssignment.returns(originalValue);
+            variable.setValue(originalValue);
+        });
+
+        it('should assign the decremented value to the variable', function () {
+            variable.preDecrement();
+
+            expect(variable.getValue()).to.equal(decrementedValue);
+        });
+
+        it('should return the decremented value', function () {
+            expect(variable.preDecrement()).to.equal(decrementedValue);
+        });
+    });
+
+    describe('preIncrement()', function () {
+        var incrementedValue,
+            originalValue;
+
+        beforeEach(function () {
+            originalValue = sinon.createStubInstance(IntegerValue);
+            incrementedValue = sinon.createStubInstance(IntegerValue);
+            incrementedValue.getForAssignment.returns(incrementedValue);
+            originalValue.increment.returns(incrementedValue);
+            originalValue.getForAssignment.returns(originalValue);
+            variable.setValue(originalValue);
+        });
+
+        it('should assign the incremented value to the referenced variable', function () {
+            variable.preIncrement();
+
+            expect(variable.getValue()).to.equal(incrementedValue);
+        });
+
+        it('should return the incremented value', function () {
+            expect(variable.preIncrement()).to.equal(incrementedValue);
         });
     });
 
