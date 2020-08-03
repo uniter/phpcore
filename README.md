@@ -1,7 +1,7 @@
 PHPCore
 =======
 
-[![Build Status](https://secure.travis-ci.org/uniter/phpcore.png?branch=master)](http://travis-ci.org/uniter/phpcore)
+[![Build Status](https://github.com/uniter/phpcore/workflows/CI/badge.svg)](https://github.com/uniter/phpcore/actions?query=workflow%3ACI)
 
 Minimal PHP core library for PHP environments.
 
