@@ -19,6 +19,7 @@ var expect = require('chai').expect,
     ElementReference = require('../../src/Reference/Element'),
     Environment = require('../../src/Environment'),
     Exception = phpCommon.Exception,
+    KeyReferencePair = require('../../src/KeyReferencePair'),
     KeyValuePair = require('../../src/KeyValuePair'),
     List = require('../../src/List'),
     Loader = require('../../src/Loader').sync(),
@@ -29,6 +30,7 @@ var expect = require('chai').expect,
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
+    Reference = require('../../src/Reference/Reference'),
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     Scope = require('../../src/Scope').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
@@ -132,6 +134,20 @@ describe('Tools', function () {
             result = this.tools.createInstance(namespaceScope, classNameValue, [argValue1, argValue2]);
 
             expect(result).to.equal(instanceValue);
+        });
+    });
+
+    describe('createKeyReferencePair()', function () {
+        it('should return the created instance of KeyReferencePair', function () {
+            var keyValue = this.valueFactory.createString('my key'),
+                result,
+                reference = sinon.createStubInstance(Reference);
+
+            result = this.tools.createKeyReferencePair(keyValue, reference);
+
+            expect(result).to.be.an.instanceOf(KeyReferencePair);
+            expect(result.getKey()).to.equal(keyValue);
+            expect(result.getReference()).to.equal(reference);
         });
     });
 

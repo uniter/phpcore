@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP array literal integration', function () {
-    it('should allow elements to be defined with a reference to a variable', function () {
+    it('should allow indexed elements to be defined with a reference to a variable', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $myVar = 4;
@@ -32,6 +32,26 @@ EOS
             4,
             27
         ]);
+    });
+
+    it('should allow associative elements to be defined with a reference to a variable', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$myVar = 4;
+
+$myArray = [21, $myVar, 'myRef' => &$myVar];
+$myVar = 27;
+
+return $myArray;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.deep.equal({
+            0: 21,
+            1: 4,
+            'myRef': 27
+        });
     });
 
     it('should allow elements to be defined with the value of a property', function () {

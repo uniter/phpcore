@@ -13,6 +13,7 @@ module.exports = require('pauser')([
     require('microdash'),
     require('phpcommon'),
     require('./Debug/DebugVariable'),
+    require('./KeyReferencePair'),
     require('./KeyValuePair'),
     require('./List'),
     require('./Exception/LoadFailedException')
@@ -20,6 +21,7 @@ module.exports = require('pauser')([
     _,
     phpCommon,
     DebugVariable,
+    KeyReferencePair,
     KeyValuePair,
     List,
     LoadFailedException
@@ -173,6 +175,17 @@ module.exports = require('pauser')([
          */
         createInstance: function (namespaceScope, classNameValue, args) {
             return classNameValue.instantiate(args, namespaceScope);
+        },
+
+        /**
+         * Creates a new KeyReferencePair
+         *
+         * @param {Value} key
+         * @param {Reference|Variable} reference
+         * @returns {KeyReferencePair}
+         */
+        createKeyReferencePair: function (key, reference) {
+            return new KeyReferencePair(key, reference);
         },
 
         /**
