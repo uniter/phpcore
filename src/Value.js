@@ -347,6 +347,11 @@ module.exports = require('pauser')([
             return this.coerceToString().getLength();
         },
 
+        /**
+         * Fetches a native representation of this value
+         *
+         * @returns {*}
+         */
         getNative: function () {
             return this.value;
         },

@@ -27,7 +27,28 @@ module.exports = require('pauser')([
     require('./Error/ErrorConverter'),
     require('./Error/ErrorPromoter'),
     require('./Error/ErrorReporting'),
+    require('./FFI/Value/AsyncObjectValue'),
     require('./FFI/Call'),
+    require('./FFI/Call/Caller'),
+    require('./FFI/Internals/ClassInternalsClassFactory'),
+    require('./FFI/Export/ExportFactory'),
+    require('./FFI/Export/ExportRepository'),
+    require('./FFI/FFIFactory'),
+    require('./FFI/Internals/FunctionInternalsClassFactory'),
+    require('./FFI/Internals/Internals'),
+    require('./FFI/Call/NativeCaller'),
+    require('./FFI/Value/PHPObject'),
+    require('./FFI/Value/Proxy/ProxyClassFactory'),
+    require('./FFI/Value/Proxy/ProxyClassRepository'),
+    require('./FFI/Value/Proxy/ProxyFactory'),
+    require('./FFI/Value/Proxy/ProxyMemberFactory'),
+    require('./FFI/Result'),
+    require('./FFI/Stack/StackHooker'),
+    require('./FFI/Export/UnwrapperRepository'),
+    require('./FFI/Call/ValueCaller'),
+    require('./FFI/Value/ValueCoercer'),
+    require('./FFI/Value/ValueHelper'),
+    require('./FFI/Value/ValueStorage'),
     require('./Function/FunctionContext'),
     require('./FunctionFactory'),
     require('./Function/FunctionSpec'),
@@ -80,7 +101,28 @@ module.exports = require('pauser')([
     ErrorConverter,
     ErrorPromoter,
     ErrorReporting,
+    FFIAsyncObjectValue,
     FFICall,
+    FFICaller,
+    FFIClassInternalsClassFactory,
+    FFIExportFactory,
+    FFIExportRepository,
+    FFIFactory,
+    FFIFunctionInternalsClassFactory,
+    FFIInternals,
+    FFINativeCaller,
+    FFIPHPObject,
+    FFIProxyClassFactory,
+    FFIProxyClassRepository,
+    FFIProxyFactory,
+    FFIProxyMemberFactory,
+    FFIResult,
+    FFIStackHooker,
+    FFIUnwrapperRepository,
+    FFIValueCaller,
+    FFIValueCoercer,
+    FFIValueHelper,
+    FFIValueStorage,
     FunctionContext,
     FunctionFactory,
     FunctionSpec,
@@ -127,7 +169,7 @@ module.exports = require('pauser')([
              * @param {Function} groupFactory
              */
             function installBindingGroup(groupFactory) {
-                var groupBindings = groupFactory(state.internals);
+                var groupBindings = groupFactory(state.ffiInternals);
 
                 _.each(groupBindings, function (bindingFactory, bindingName) {
                     var bindingOptions = state.optionSet.getOption(bindingName);
@@ -142,12 +184,12 @@ module.exports = require('pauser')([
              * @param {Function} groupFactory
              */
             function installFunctionGroup(groupFactory) {
-                var groupBuiltins = groupFactory(state.internals),
+                var groupBuiltins = groupFactory(state.ffiInternals),
                     functionAliases = {};
 
                 _.each(groupBuiltins, function (fn, name) {
                     if (typeof fn === 'function') {
-                        globalNamespace.defineFunction(name, fn, state.globalNamespaceScope);
+                        state.defineNonCoercingFunction(name, fn);
                     } else {
                         // Gather function aliases (strings) and install the aliases at the end
                         // (see below), to ensure that the original functions exist first
@@ -177,7 +219,7 @@ module.exports = require('pauser')([
              * @param {Function} groupFactory
              */
             function installClassGroup(groupFactory) {
-                var groupBuiltins = groupFactory(state.internals);
+                var groupBuiltins = groupFactory(state.ffiInternals);
 
                 _.each(groupBuiltins, function (definitionFactory, name) {
                     state.defineClass(name, definitionFactory);
@@ -190,7 +232,7 @@ module.exports = require('pauser')([
              * @param {Function} groupFactory
              */
             function installConstantGroup(groupFactory) {
-                var groupBuiltins = groupFactory(state.internals);
+                var groupBuiltins = groupFactory(state.ffiInternals);
 
                 _.each(groupBuiltins, function (value, name) {
                     globalNamespace.defineConstant(name, state.valueFactory.coerce(value));
@@ -203,7 +245,7 @@ module.exports = require('pauser')([
              * @param {Function} groupFactory
              */
             function installDefaultINIOptionGroup(groupFactory) {
-                var groupBuiltins = groupFactory(state.internals);
+                var groupBuiltins = groupFactory(state.ffiInternals);
 
                 _.each(groupBuiltins, function (value, name) {
                     state.iniState.set(name, value);
@@ -216,7 +258,7 @@ module.exports = require('pauser')([
              * @param {Function} groupFactory
              */
             function installOptionGroup(groupFactory) {
-                var groupOptions = groupFactory(state.internals);
+                var groupOptions = groupFactory(state.ffiInternals);
 
                 _.extend(state.options, groupOptions);
             }
@@ -263,7 +305,36 @@ module.exports = require('pauser')([
         Exception = phpCommon.Exception,
         Translator = phpCommon.Translator;
 
-    function PHPState(runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, mode, optionGroups, options) {
+    /**
+     * Encapsulates an internal PHP state, defining classes, functions, global variables etc.
+     *
+     * For now this class also serves as the main dependency injection container for all services
+     * that relate to a specific internal PHP environment's state.
+     *
+     * @param {Runtime} runtime
+     * @param {GlobalStackHooker} globalStackHooker
+     * @param {Object} installedBuiltinTypes
+     * @param {Stream} stdin
+     * @param {Stream} stdout
+     * @param {Stream} stderr
+     * @param {Resumable|null} pausable
+     * @param {string} mode
+     * @param {Function[]} optionGroups
+     * @param {Object} options
+     * @constructor
+     */
+    function PHPState(
+        runtime,
+        globalStackHooker,
+        installedBuiltinTypes,
+        stdin,
+        stdout,
+        stderr,
+        pausable,
+        mode,
+        optionGroups,
+        options
+    ) {
         var callFactory = new CallFactory(Call, FFICall),
             elementProviderFactory = new ElementProviderFactory(),
             elementProvider = elementProviderFactory.createProvider(),
@@ -283,7 +354,16 @@ module.exports = require('pauser')([
                 stderr
             ),
             errorPromoter = new ErrorPromoter(errorReporting),
-            valueFactory = new ValueFactory(pausable, mode, elementProvider, translator, callFactory, errorPromoter),
+            ffiValueStorage = new FFIValueStorage(),
+            valueFactory = new ValueFactory(
+                pausable,
+                mode,
+                elementProvider,
+                translator,
+                callFactory,
+                errorPromoter,
+                ffiValueStorage
+            ),
             callStack = new CallStack(valueFactory, translator, errorReporting, stderr),
             referenceFactory = new ReferenceFactory(
                 AccessorReference,
@@ -292,6 +372,38 @@ module.exports = require('pauser')([
             ),
             classAutoloader = new ClassAutoloader(valueFactory),
             superGlobalScope = new SuperGlobalScope(callStack, valueFactory),
+
+            ffiCaller = new FFICaller(
+                callFactory,
+                callStack,
+                errorPromoter,
+                pausable,
+                mode
+            ),
+            ffiNativeCaller = new FFINativeCaller(ffiCaller, mode),
+            ffiValueCaller = new FFIValueCaller(ffiCaller, mode),
+            ffiFactory = new FFIFactory(
+                FFIAsyncObjectValue,
+                FFIPHPObject,
+                FFIValueCoercer,
+                valueFactory,
+                callStack,
+                ffiNativeCaller,
+                ffiValueCaller
+            ),
+            ffiProxyMemberFactory = new FFIProxyMemberFactory(
+                valueFactory,
+                ffiValueStorage,
+                ffiNativeCaller
+            ),
+            ffiProxyClassFactory = new FFIProxyClassFactory(ffiValueStorage, ffiProxyMemberFactory),
+            ffiProxyClassRepository = new FFIProxyClassRepository(ffiProxyClassFactory),
+            ffiProxyFactory = new FFIProxyFactory(ffiProxyClassRepository, mode),
+            ffiUnwrapperRepository = new FFIUnwrapperRepository(),
+            ffiExportFactory = new FFIExportFactory(ffiUnwrapperRepository, ffiProxyFactory),
+            ffiExportRepository = new FFIExportRepository(ffiExportFactory, ffiValueStorage),
+            ffiValueHelper = new FFIValueHelper(ffiProxyFactory, ffiFactory, ffiValueStorage, mode),
+
             variableFactory = new VariableFactory(Variable, callStack, valueFactory),
             typeFactory = new TypeFactory(),
             parameterFactory = new ParameterFactory(Parameter, callStack, translator),
@@ -318,7 +430,13 @@ module.exports = require('pauser')([
                 variableFactory,
                 referenceFactory
             ),
-            functionFactory = new FunctionFactory(MethodSpec, scopeFactory, callFactory, valueFactory, callStack),
+            functionFactory = new FunctionFactory(
+                MethodSpec,
+                scopeFactory,
+                callFactory,
+                valueFactory,
+                callStack
+            ),
             closureFactory = new ClosureFactory(functionFactory, valueFactory, callStack, Closure),
             namespaceFactory = new NamespaceFactory(
                 Namespace,
@@ -326,7 +444,9 @@ module.exports = require('pauser')([
                 functionFactory,
                 functionSpecFactory,
                 valueFactory,
-                classAutoloader
+                classAutoloader,
+                ffiExportRepository,
+                ffiFactory
             ),
             globalNamespace = namespaceFactory.create(),
             // The global/default module (not eg. the same as the command line module)
@@ -341,7 +461,12 @@ module.exports = require('pauser')([
                 true
             ),
             globalScope,
+            ffiInternals,
+            ffiClassInternalsClassFactory,
+            ffiFunctionInternalsClassFactory,
             globalsSuperGlobal = superGlobalScope.defineVariable('GLOBALS'),
+            optionSet,
+            output = new Output(new OutputFactory(OutputBuffer), new StdoutBuffer(stdout)),
             state = this;
 
         scopeFactory.setClosureFactory(closureFactory);
@@ -350,6 +475,48 @@ module.exports = require('pauser')([
         classAutoloader.setGlobalNamespace(globalNamespace);
         valueFactory.setCallStack(callStack);
         valueFactory.setGlobalNamespace(globalNamespace);
+
+        // Make a copy of the options object so we don't mutate it
+        options = _.extend({}, options || {});
+
+        optionSet = new OptionSet(options);
+
+        ffiInternals = new FFIInternals(
+            mode,
+            pausable,
+            valueFactory,
+            callFactory,
+            callStack,
+            ffiValueHelper,
+            classAutoloader,
+            errorConfiguration,
+            errorPromoter,
+            errorReporting,
+            globalNamespace,
+            globalScope,
+            iniState,
+            optionSet,
+            output,
+            runtime,
+            stdout,
+            traceFormatter,
+            translator,
+            state
+        );
+        ffiClassInternalsClassFactory = new FFIClassInternalsClassFactory(
+            ffiInternals,
+            ffiUnwrapperRepository,
+            valueFactory,
+            globalNamespace,
+            globalNamespaceScope
+        );
+        ffiFunctionInternalsClassFactory = new FFIFunctionInternalsClassFactory(
+            ffiInternals,
+            valueFactory,
+            ffiFactory,
+            globalNamespace,
+            globalNamespaceScope
+        );
 
         // Set up the $GLOBALS superglobal
         globalsSuperGlobal.setReference(
@@ -401,56 +568,23 @@ module.exports = require('pauser')([
             )
         );
 
-        // Make a copy of the options object so we don't mutate it
-        options = _.extend({}, options || {});
-
         this.bindings = null;
         this.callFactory = callFactory;
         this.callStack = callStack;
+        this.ClassInternals = ffiClassInternalsClassFactory.create();
         this.errorReporting = errorReporting;
+        this.FunctionInternals = ffiFunctionInternalsClassFactory.create();
         this.globalNamespace = globalNamespace;
         this.globalNamespaceScope = globalNamespaceScope;
         this.globalScope = globalScope;
         this.iniState = iniState;
         this.options = options;
-        this.optionSet = new OptionSet(options);
-        this.output = new Output(new OutputFactory(OutputBuffer), new StdoutBuffer(stdout));
-        this.internals = {
-            callFactory: callFactory,
-            callStack: callStack,
-            classAutoloader: classAutoloader,
-            errorConfiguration: errorConfiguration,
-            errorPromoter: errorPromoter,
-            errorReporting: errorReporting,
-            getBinding: function (bindingName) {
-                if (state.bindings === null) {
-                    // Option groups are loaded before bindings, so if any of them attempt to access a binding
-                    // too early then throw a meaningful error message
-                    throw new Exception('Option groups cannot access bindings too early');
-                }
+        this.optionSet = optionSet;
+        this.ffiInternals = ffiInternals;
+        this.ffiStackHooker = new FFIStackHooker(globalStackHooker, this.optionSet);
+        this.ffiValueHelper = ffiValueHelper;
+        this.output = output;
 
-                if (!hasOwn.call(state.bindings, bindingName)) {
-                    throw new Exception('No binding is defined with name "' + bindingName + '"');
-                }
-
-                return state.bindings[bindingName];
-            }.bind(this),
-            getConstant: getConstant,
-            getGlobal: this.getGlobal.bind(this),
-            globalNamespace: globalNamespace,
-            globalScope: globalScope,
-            iniState: this.iniState,
-            mode: mode,
-            optionSet: this.optionSet,
-            output: this.output,
-            pausable: pausable,
-            runtime: runtime,
-            setGlobal: this.setGlobal.bind(this),
-            stdout: stdout,
-            traceFormatter: traceFormatter,
-            translator: translator,
-            valueFactory: valueFactory
-        };
         this.loader = new Loader(valueFactory, pausable);
         this.moduleFactory = moduleFactory;
         this.referenceFactory = referenceFactory;
@@ -462,11 +596,14 @@ module.exports = require('pauser')([
         this.stdin = stdin;
         this.stdout = stdout;
         this.superGlobalScope = superGlobalScope;
+        this.throwableClassObject = null;
         this.translator = translator;
         this.valueFactory = valueFactory;
-        this.Throwable = null;
 
         setUpState(this, installedBuiltinTypes, optionGroups || []);
+
+        // Install custom FFI JS engine stack trace handling, if enabled
+        this.ffiStackHooker.hook();
 
         // Set any INI options provided
         _.forOwn(options.ini, function (value, name) {
@@ -486,6 +623,17 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Creates a new FFI Result, to provide the result of a call to a JS function
+         *
+         * @param {Function} syncCallback
+         * @param {Function|null} asyncCallback
+         * @returns {FFIResult}
+         */
+        createFFIResult: function (syncCallback, asyncCallback) {
+            return new FFIResult(syncCallback, asyncCallback, this.pausable);
+        },
+
+        /**
          * Defines a new class (in any namespace)
          *
          * @param {string} fqcn FQCN of the class to define
@@ -494,104 +642,15 @@ module.exports = require('pauser')([
          */
         defineClass: function (fqcn, definitionFactory) {
             var state = this,
-                definedInterfaceNames = [],
-                definedUnwrapper = null,
-                enableAutoCoercion = true,
-                name,
-                superClass = null,
-                Class = definitionFactory(_.extend({}, state.internals, {
-                    /**
-                     * Calls the constructor for the superclass of this class, if this class extends another
-                     *
-                     * @param {ObjectValue|object} instance Unwrapped or wrapped instance (see below)
-                     * @param {Value[]|*[]} args Arguments (Value objects if non-coercing, native if coercing)
-                     */
-                    callSuperConstructor: function (instance, args) {
-                        var argValues,
-                            instanceValue;
+                classInternals = new state.ClassInternals(fqcn),
+                classObject = classInternals.defineClass(definitionFactory);
 
-                        if (!superClass) {
-                            throw new Exception(
-                                'Cannot call superconstructor: no superclass is defined for class "' + fqcn + '"'
-                            );
-                        }
-
-                        /*
-                         * If the class is in auto-coercing mode, `instance` will be the native
-                         * object value. If the class is in non-coercing mode, `instance` will be
-                         * an ObjectValue wrapping the instance, so we need to coerce what we are passed
-                         * to make sure it is an ObjectValue as expected by Class.prototype.construct(...).
-                         * The same applies to the arguments list.
-                         */
-                        if (enableAutoCoercion) {
-                            instanceValue = state.valueFactory.coerce(instance);
-
-                            argValues = _.map(args, function (nativeArg) {
-                                return state.valueFactory.coerce(nativeArg);
-                            });
-                        } else {
-                            instanceValue = instance;
-                            argValues = args;
-                        }
-
-                        superClass.construct(instanceValue, argValues);
-                    },
-                    defineUnwrapper: function (unwrapper) {
-                        definedUnwrapper = unwrapper;
-                    },
-                    disableAutoCoercion: function () {
-                        enableAutoCoercion = false;
-                    },
-                    /**
-                     * Extends another defined class
-                     *
-                     * @param {string} fqcn
-                     */
-                    extendClass: function (fqcn) {
-                        superClass = state.globalNamespace.getClass(fqcn);
-                    },
-                    /**
-                     * Implements an interface
-                     *
-                     * @param {string} interfaceName
-                     */
-                    implement: function (interfaceName) {
-                        definedInterfaceNames.push(interfaceName);
-                    }
-                })),
-                classObject,
-                namespace = state.globalNamespace,
-                parsed = state.globalNamespace.parseName(fqcn);
-
-            if (superClass) {
-                Class.superClass = superClass;
-            }
-
-            // Add any new interfaces to implement to the class definition
-            if (!Class.interfaces) {
-                Class.interfaces = [];
-            }
-            [].push.apply(Class.interfaces, definedInterfaceNames);
-
-            if (name === THROWABLE_INTERFACE) {
-                if (state.Throwable) {
+            if (fqcn === THROWABLE_INTERFACE) {
+                if (state.throwableClassObject) {
                     throw new Error('PHPState.defineClass(...) :: Throwable interface is already defined');
                 }
-                state.Throwable = Class;
-            }
 
-            namespace = parsed.namespace;
-            name = parsed.name;
-
-            classObject = namespace.defineClass(name, Class, state.globalNamespaceScope);
-
-            if (definedUnwrapper) {
-                // Custom unwrappers may be used to eg. unwrap a PHP \DateTime object to a JS Date object
-                classObject.defineUnwrapper(definedUnwrapper);
-            }
-
-            if (enableAutoCoercion) {
-                classObject.enableAutoCoercion();
+                state.throwableClassObject = classObject;
             }
 
             return classObject;
@@ -605,18 +664,9 @@ module.exports = require('pauser')([
          * @param {Function} fn
          */
         defineCoercingFunction: function (name, fn) {
-            var state = this,
-                parsed = state.globalNamespace.parseName(name);
-
-            parsed.namespace.defineFunction(parsed.name, function () {
-                // Unwrap args from PHP-land to JS-land to native values
-                var args = _.map(arguments, function (argReference) {
-                    return argReference.getNative();
-                });
-
-                // Call the native function, wrapping its return value as a PHP value
-                return state.valueFactory.coerce(fn.apply(null, args));
-            }, state.globalNamespaceScope);
+            this.defineFunction(name, function () {
+                return fn;
+            });
         },
 
         /**
@@ -632,6 +682,20 @@ module.exports = require('pauser')([
                 value = state.valueFactory.coerce(nativeValue);
 
             parsed.namespace.defineConstant(parsed.name, value, options);
+        },
+
+        /**
+         * Defines a global function from a native JS one. If a fully-qualified name is provided
+         * with a namespace prefix, eg. `My\Lib\MyFunc` then it will be defined in the specified namespace
+         *
+         * @param {string} fqfn
+         * @param {Function} definitionFactory
+         */
+        defineFunction: function (fqfn, definitionFactory) {
+            var state = this,
+                functionInternals = new state.FunctionInternals(fqfn);
+
+            functionInternals.defineFunction(definitionFactory);
         },
 
         /**
@@ -677,13 +741,11 @@ module.exports = require('pauser')([
          * @param {Function} fn
          */
         defineNonCoercingFunction: function (name, fn) {
-            var state = this,
-                parsed = state.globalNamespace.parseName(name);
+            this.defineFunction(name, function (internals) {
+                internals.disableAutoCoercion();
 
-            parsed.namespace.defineFunction(parsed.name, function () {
-                // Call the native function, wrapping its return value as a PHP value
-                return state.valueFactory.coerce(fn.apply(null, arguments));
-            }, state.globalNamespaceScope);
+                return fn;
+            });
         },
 
         /**
@@ -725,7 +787,17 @@ module.exports = require('pauser')([
         getBinding: function (bindingName) {
             var state = this;
 
-            return hasOwn.call(state.bindings, bindingName) ? state.bindings[bindingName] : null;
+            if (state.bindings === null) {
+                // Option groups are loaded before bindings, so if any of them attempt to access a binding
+                // too early then throw a meaningful error message
+                throw new Exception('Option groups cannot access bindings too early');
+            }
+
+            if (!hasOwn.call(state.bindings, bindingName)) {
+                throw new Exception('No binding is defined with name "' + bindingName + '"');
+            }
+
+            return state.bindings[bindingName];
         },
 
         getCallFactory: function () {
@@ -755,6 +827,15 @@ module.exports = require('pauser')([
          */
         getErrorReporting: function () {
             return this.errorReporting;
+        },
+
+        /**
+         * Fetches the FFI value helper service
+         *
+         * @returns {ValueHelper}
+         */
+        getFFIValueHelper: function () {
+            return this.ffiValueHelper;
         },
 
         /**

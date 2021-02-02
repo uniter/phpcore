@@ -14,6 +14,8 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
     ClassAutoloader = require('../../src/ClassAutoloader').sync(),
+    ExportRepository = require('../../src/FFI/Export/ExportRepository'),
+    FFIFactory = require('../../src/FFI/FFIFactory'),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     FunctionSpec = require('../../src/Function/FunctionSpec'),
     FunctionSpecFactory = require('../../src/Function/FunctionSpecFactory'),
@@ -28,6 +30,8 @@ describe('Namespace', function () {
     var callStack,
         classAutoloader,
         createNamespace,
+        exportRepository,
+        ffiFactory,
         functionFactory,
         functionSpecFactory,
         globalNamespace,
@@ -39,6 +43,8 @@ describe('Namespace', function () {
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
         classAutoloader = sinon.createStubInstance(ClassAutoloader);
+        exportRepository = sinon.createStubInstance(ExportRepository);
+        ffiFactory = sinon.createStubInstance(FFIFactory);
         functionFactory = sinon.createStubInstance(FunctionFactory);
         functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
         namespaceFactory = sinon.createStubInstance(NamespaceFactory);
@@ -80,6 +86,8 @@ describe('Namespace', function () {
                 functionFactory,
                 functionSpecFactory,
                 classAutoloader,
+                exportRepository,
+                ffiFactory,
                 parentNamespace || null,
                 name || ''
             );

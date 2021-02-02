@@ -39,8 +39,10 @@
     "nowdoc": "^1.0.1",
     "phptoast": "^8.0.0",
     "phptojs": "^8.1.0",
+    "regexp.escape": "^1.1.0",
     "sinon": "^5.1.1",
-    "sinon-chai": "^3.3.0"
+    "sinon-chai": "^3.3.0",
+    "source-map": "^0.7.3"
   },
   "engines": {
     "node": ">=0.6"

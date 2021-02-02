@@ -32,84 +32,6 @@ module.exports = require('pauser')([
         VISIBILITY = 'visibility',
         hasOwn = {}.hasOwnProperty,
         PHPError = phpCommon.PHPError,
-        /**
-         * Defines an "unwrapped" internal class, used to export objects to JS-land
-         * with an API that provides a JS method for each PHP class method,
-         * unlike PHPObject which requires all method calls to be made via .callMethod(...)
-         *
-         * @param {Class} classObject
-         */
-        defineUnwrappedClass = function (classObject) {
-            var currentClass,
-                currentPrototype,
-                methodNamesProxied = {};
-
-            /**
-             * @param {PHPObject} phpObject
-             * @constructor
-             */
-            function UnwrappedClass(phpObject) {
-                /**
-                 * @type {PHPObject}
-                 */
-                this.phpObject = phpObject;
-            }
-            UnwrappedClass.prototype = Object.create(classObject.InternalClass.prototype);
-
-            function defineProxyMethod(methodName) {
-                UnwrappedClass.prototype[methodName] = function () {
-                    var args = [methodName].concat([].slice.call(arguments));
-
-                    return this.phpObject.callMethod.apply(this.phpObject, args);
-                };
-            }
-
-            currentClass = classObject;
-
-            /*
-             * Iterate up the class hierarchy, proxying methods as we go. Note that
-             * in most cases the first class' prototype chain is probably all we need
-             * to process, however some classes in the hierarchy may have non-standard
-             * native objects (eg. JSObject) and so we need to process each one's
-             * prototype chain just in case.
-             */
-            while (currentClass) {
-                currentPrototype = currentClass.InternalClass.prototype;
-
-                while (currentPrototype !== null && currentPrototype !== Object.prototype) {
-                    /*jshint loopfunc: true */
-                    _.forOwn(currentPrototype, function (property, propertyName) {
-                        if (
-                            // Only proxy methods
-                            typeof property !== 'function' ||
-                            // Only proxy each method once
-                            methodNamesProxied[propertyName] === true
-                        ) {
-                            return;
-                        }
-
-                        defineProxyMethod(propertyName);
-
-                        methodNamesProxied[propertyName] = true;
-                    });
-
-                    currentPrototype = Object.getPrototypeOf(currentPrototype);
-                }
-
-                currentClass = currentClass.superClass;
-            }
-
-            classObject.UnwrappedClass = UnwrappedClass;
-        },
-        unwrapArgs = function (args, classObject) {
-            if (classObject.autoCoercionEnabled) {
-                return _.map(args, function (arg) {
-                    return arg.getNative();
-                });
-            }
-
-            return args;
-        },
         getMethod = function (object, methodName) {
             var result = null;
 
@@ -126,6 +48,26 @@ module.exports = require('pauser')([
             return result;
         };
 
+    /**
+     * Represents a class exposed to PHP-land
+     *
+     * @param {ValueFactory} valueFactory
+     * @param {FunctionFactory} functionFactory
+     * @param {CallStack} callStack
+     * @param {string} name Fully-qualified class name (FQCN)
+     * @param {string} constructorName
+     * @param {Function} InternalClass
+     * @param {Object} rootInternalPrototype
+     * @param {Object} staticPropertiesData
+     * @param {Object.<string, Function>} constants Map of constant names to value factory functions
+     * @param {Class|null} superClass Parent class, if any
+     * @param {string[]} interfaceNames FQCNs (FQINs) of interfaces implemented by this class
+     * @param {NamespaceScope} namespaceScope
+     * @param {ExportRepository} exportRepository
+     * @param {ValueCoercer} valueCoercer Value coercer configured specifically for this class
+     * @param {FFIFactory} ffiFactory
+     * @constructor
+     */
     function Class(
         valueFactory,
         functionFactory,
@@ -138,15 +80,22 @@ module.exports = require('pauser')([
         constants,
         superClass,
         interfaceNames,
-        namespaceScope
+        namespaceScope,
+        exportRepository,
+        valueCoercer,
+        ffiFactory
     ) {
         var classObject = this,
             staticProperties = {};
 
-        this.autoCoercionEnabled = false;
         this.callStack = callStack;
         this.constants = constants;
         this.constructorName = constructorName;
+        this.exportRepository = exportRepository;
+        /**
+         * @type {FFIFactory}
+         */
+        this.ffiFactory = ffiFactory;
         this.functionFactory = functionFactory;
         this.interfaceNames = interfaceNames || [];
         this.InternalClass = InternalClass;
@@ -156,7 +105,13 @@ module.exports = require('pauser')([
         this.rootInternalPrototype = rootInternalPrototype;
         this.staticProperties = staticProperties;
         this.superClass = superClass || null;
-        this.unwrapper = null;
+        /**
+         * @type {ValueCoercer}
+         */
+        this.valueCoercer = valueCoercer;
+        /**
+         * @type {ValueFactory}
+         */
         this.valueFactory = valueFactory;
 
         _.each(staticPropertiesData, function (data, name) {
@@ -231,10 +186,10 @@ module.exports = require('pauser')([
                         method.apply(
                             // Some methods should never have their `this` object and args auto-coerced,
                             // eg the magic `__construct` method as it is proxied in Namespace.js
-                            classObject.autoCoercionEnabled && !method.neverCoerce ?
+                            classObject.valueCoercer.isAutoCoercionEnabled() && !method.neverCoerce ?
                                 objectValue.getObject() :
                                 objectValue,
-                            method.neverCoerce ? args : unwrapArgs(args, classObject)
+                            method.neverCoerce ? args : classObject.valueCoercer.coerceArguments(args)
                         )
                     );
                 }
@@ -350,32 +305,22 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Defines a function suitable for unwrapping instances of this class
-         * to be exported to JS-land
+         * Exports instances of this class with a defined unwrapper if one has been set,
+         * otherwise wraps them in a native JS class that extends the PHP class' internal class
          *
-         * @param {function} unwrapper
-         * @returns {*}
+         * @param {ObjectValue} objectValue
+         * @returns {Object}
          */
-        defineUnwrapper: function (unwrapper) {
-            this.unwrapper = unwrapper;
+        exportInstanceForJS: function (objectValue) {
+            return this.exportRepository.export(objectValue);
         },
 
         /**
-         * Prevents constructor and method arguments from being unwrapped
-         * to native JS values when called
+         * Determines whether this class extends the given other class
+         *
+         * @param {Class} superClass
+         * @returns {boolean}
          */
-        disableAutoCoercion: function () {
-            this.autoCoercionEnabled = false;
-        },
-
-        /**
-         * Ensures constructor and method arguments are always unwrapped
-         * to native JS values when called
-         */
-        enableAutoCoercion: function () {
-            this.autoCoercionEnabled = true;
-        },
-
         extends: function (superClass) {
             var classObject = this;
 
@@ -490,10 +435,24 @@ module.exports = require('pauser')([
             return getMethodSpec(currentNativeObject, methodName);
         },
 
+        /**
+         * Fetches the FQCN (Fully-Qualified Class Name) of this class.
+         * If the namespace prefix is not wanted, see .getUnprefixedName()
+         *
+         * @returns {string}
+         */
         getName: function () {
             return this.name;
         },
 
+        /**
+         * Fetches the name of this class with any namespace prefix removed,
+         * eg.:
+         *     class with FQCN: My\Stuff\AwesomeClass
+         *     unprefixed name: AwesomeClass
+         *
+         * @returns {string}
+         */
         getUnprefixedName: function () {
             return this.name.replace(/^.*\\/, '');
         },
@@ -580,14 +539,43 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Fetches all interfaces directly implemented by this class
+         *
+         * @returns {Class[]}
+         */
+        getInterfaces: function () {
+            var classObject = this;
+
+            return classObject.interfaceNames.map(function (interfaceName) {
+                return classObject.namespaceScope.getClass(interfaceName);
+            });
+        },
+
+        /**
+         * Returns either the given ObjectValue or its inner native object, based on the class' auto-coercion mode
+         *
+         * @param {ObjectValue} instance
+         * @returns {ObjectValue|Object}
+         */
+        getThisObjectForInstance: function (instance) {
+            return this.valueCoercer.isAutoCoercionEnabled() ? instance.getObject() : instance;
+        },
+
+        /**
          * Creates a new instance of this class
          *
-         * @param {Value[]} args
+         * @param {Value[]=} args
          * @returns {ObjectValue}
          */
         instantiate: function (args) {
             var classObject = this,
-                objectValue = classObject.instantiateBare(args);
+                objectValue;
+
+            if (!args) {
+                args = [];
+            }
+
+            objectValue = classObject.instantiateBare(args);
 
             // Call the userland constructor
             classObject.construct(objectValue, args);
@@ -599,7 +587,7 @@ module.exports = require('pauser')([
          * Creates a new instance of this class without calling any userland constructor
          * (note that for JS classes the class-constructor-function will still be called)
          *
-         * @param {Value[]} args
+         * @param {Value[]=} args
          * @returns {ObjectValue}
          */
         instantiateBare: function (args) {
@@ -607,16 +595,47 @@ module.exports = require('pauser')([
                 nativeObject = Object.create(classObject.InternalClass.prototype),
                 objectValue = classObject.valueFactory.createObject(nativeObject, classObject);
 
+            if (!args) {
+                args = [];
+            }
+
             classObject.InternalClass.apply(
                 // Always use the wrapped object value as `this` regardless of coercion status,
                 // so that non-native properties/methods may be accessed
                 objectValue,
-                unwrapArgs(args, classObject)
+                classObject.valueCoercer.coerceArguments(args)
             );
 
             return objectValue;
         },
 
+        /**
+         * Creates a new instance of this class and also sets the given internal properties (shorthand)
+         *
+         * @param {Value[]} args
+         * @param {Object.<string, *>} internals
+         * @return {ObjectValue}
+         */
+        instantiateWithInternals: function (args, internals) {
+            var classObject = this,
+                objectValue = classObject.instantiate(args);
+
+            _.forOwn(internals, function (value, name) {
+                objectValue.setInternalProperty(name, value);
+            });
+
+            return objectValue;
+        },
+
+        /**
+         * Determines whether:
+         * - This class' FQCN is the same as the one given, or
+         * - This class implements an interface with the name given, or
+         * - This class has an ancestor with the name given
+         *
+         * @param {Class} className
+         * @returns {boolean}
+         */
         is: function (className) {
             var classObject = this,
                 interfaceMatches = false;
@@ -670,7 +689,7 @@ module.exports = require('pauser')([
          * @returns {boolean}
          */
         isAutoCoercionEnabled: function () {
-            return this.autoCoercionEnabled;
+            return this.valueCoercer.isAutoCoercionEnabled();
         },
 
         /**
@@ -684,48 +703,17 @@ module.exports = require('pauser')([
 
             // Return a wrapper object that presents a promise-based API
             // for calling methods of PHP objects in sync or async mode
-            return classObject.valueFactory.createPHPObject(instance);
+            return classObject.ffiFactory.createPHPObject(instance);
         },
 
         /**
-         * Unwraps instances of this class with the defined unwrapper if one has been set,
-         * otherwise wraps them in a native JS class that extends the PHP class' internal class
+         * Unwraps arguments for a method based on the coercion & prefer-sync modes for the class
          *
-         * @param {ObjectValue} instance
-         * @param {object} nativeObject
-         * @returns {*|object}
+         * @param {Value[]} argumentValues
+         * @returns {Value[]|*[]}
          */
-        unwrapInstanceForJS: function (instance, nativeObject) {
-            var classObject = this,
-                unwrappedObject;
-
-            if (classObject.unwrapper) {
-                return classObject.unwrapper.call(
-                    classObject.autoCoercionEnabled ? nativeObject : instance
-                );
-            }
-
-            // Reuse unwrapped objects, both to save memory and to allow testing for equality
-            unwrappedObject = classObject.valueFactory.getUnwrappedObjectFromValue(instance);
-
-            if (unwrappedObject) {
-                return unwrappedObject;
-            }
-
-            // We'll need an "unwrapped class", which is a native JS class
-            // that extends this PHP class' internal class and defines a native method
-            // for each method of the PHP class
-            if (!classObject.UnwrappedClass) {
-                defineUnwrappedClass(classObject);
-            }
-
-            unwrappedObject = new classObject.UnwrappedClass(classObject.valueFactory.createPHPObject(instance));
-
-            // Store a map from the new unwrapped object back to its object value
-            // so that we can re-wrap if/when the object is passed back to PHP-land again from JS-land
-            classObject.valueFactory.mapUnwrappedObjectToValue(unwrappedObject, instance);
-
-            return unwrappedObject;
+        unwrapArguments: function (argumentValues) {
+            return this.valueCoercer.coerceArguments(argumentValues);
         }
     });
 

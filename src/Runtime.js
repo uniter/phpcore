@@ -27,11 +27,20 @@ module.exports = require('pauser')([
      * @param {class} Engine
      * @param {class} PHPState
      * @param {object} phpCommon
+     * @param {GlobalStackHooker} globalStackHooker
      * @param {Resumable|null} pausable
      * @param {string} mode
      * @constructor
      */
-    function Runtime(Environment, Engine, PHPState, phpCommon, pausable, mode) {
+    function Runtime(
+        Environment,
+        Engine,
+        PHPState,
+        phpCommon,
+        globalStackHooker,
+        pausable,
+        mode
+    ) {
         // Check the mode given is valid
         if (mode !== 'async' && mode !== 'psync' && mode !== 'sync') {
             throw new Error('Invalid mode "' + mode + '" given - must be one of "async", "psync" or "sync"');
@@ -62,6 +71,10 @@ module.exports = require('pauser')([
          * @type {class}
          */
         this.Environment = Environment;
+        /**
+         * @type {GlobalStackHooker}
+         */
+        this.globalStackHooker = globalStackHooker;
         /**
          * @type {string} One of: "async", "psync" or "sync"
          */
@@ -260,6 +273,7 @@ module.exports = require('pauser')([
 
             state = new runtime.PHPState(
                 runtime,
+                runtime.globalStackHooker,
                 allBuiltins,
                 stdin,
                 stdout,

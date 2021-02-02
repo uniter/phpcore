@@ -11,7 +11,6 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
-    FFIResult = require('./FFI/Result'),
     PHPError = phpCommon.PHPError,
     PHPFatalError = phpCommon.PHPFatalError,
     PHPParseError = phpCommon.PHPParseError;
@@ -46,7 +45,7 @@ _.extend(Environment.prototype, {
      * @returns {FFIResult}
      */
     createFFIResult: function (syncCallback, asyncCallback) {
-        return new FFIResult(syncCallback, asyncCallback);
+        return this.state.createFFIResult(syncCallback, asyncCallback);
     },
 
     /**
@@ -80,6 +79,17 @@ _.extend(Environment.prototype, {
      */
     defineConstant: function (name, value, options) {
         this.state.defineConstant(name, value, options);
+    },
+
+    /**
+     * Defines a new function (in any namespace).
+     *
+     * @param {string} name Fully-qualified name for the function to define
+     * @param {function} definitionFactory Called with `internals` object, returns the function definition
+     * @returns {Class} Returns the defined function
+     */
+    defineFunction: function (name, definitionFactory) {
+        return this.state.defineFunction(name, definitionFactory);
     },
 
     /**
@@ -215,6 +225,17 @@ _.extend(Environment.prototype, {
      */
     setGlobal: function (name, value) {
         this.state.setGlobal(name, value);
+    },
+
+    /**
+     * Takes the given proxy and returns a new one with a synchronous API,
+     * even in Promise-synchronous mode
+     *
+     * @param {ProxyClass} proxy
+     * @return {ProxyClass}
+     */
+    toNativeWithSyncApi: function (proxy) {
+        return this.state.getFFIValueHelper().toNativeWithSyncApi(proxy);
     }
 });
 

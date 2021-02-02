@@ -30,12 +30,7 @@ module.exports = require('pauser')([
         IS_STATIC = 'isStatic',
         MAGIC_CONSTRUCT = '__construct',
         hasOwn = {}.hasOwnProperty,
-        PHPError = phpCommon.PHPError,
-        unwrapArgs = function (args) {
-            return _.map(args, function (arg) {
-                return arg.getNative();
-            });
-        };
+        PHPError = phpCommon.PHPError;
 
     /**
      * Represents a single namespace within the namespace hierarchy.
@@ -52,6 +47,8 @@ module.exports = require('pauser')([
      * @param {FunctionFactory} functionFactory
      * @param {FunctionSpecFactory} functionSpecFactory
      * @param {ClassAutoloader} classAutoloader
+     * @param {ExportRepository} exportRepository
+     * @param {FFIFactory} ffiFactory
      * @param {Namespace|null} parent
      * @param {string} name
      * @constructor
@@ -63,6 +60,8 @@ module.exports = require('pauser')([
         functionFactory,
         functionSpecFactory,
         classAutoloader,
+        exportRepository,
+        ffiFactory,
         parent,
         name
     ) {
@@ -86,6 +85,14 @@ module.exports = require('pauser')([
          * @type {Object.<string, {caseInsensitive: boolean, name: string, value: Value}>}
          */
         this.constants = {};
+        /**
+         * @type {ExportRepository}
+         */
+        this.exportRepository = exportRepository;
+        /**
+         * @type {FFIFactory}
+         */
+        this.ffiFactory = ffiFactory;
         /**
          * @type {FunctionFactory}
          */
@@ -152,9 +159,15 @@ module.exports = require('pauser')([
          * @param {string} name
          * @param {Function|object} definition Either a Function for a native JS class or a transpiled definition object
          * @param {NamespaceScope} namespaceScope
+         * @param {boolean=} autoCoercionEnabled Whether the class should be auto-coercing
          * @returns {Class} Returns the internal Class instance created
          */
-        defineClass: function (name, definition, namespaceScope) {
+        defineClass: function (
+            name,
+            definition,
+            namespaceScope,
+            autoCoercionEnabled
+        ) {
             var classObject,
                 constants,
                 constructorName = null,
@@ -165,6 +178,8 @@ module.exports = require('pauser')([
                 rootInternalPrototype,
                 staticProperties,
                 InternalClass;
+
+            autoCoercionEnabled = Boolean(autoCoercionEnabled);
 
             if (namespaceScope.hasClass(name)) {
                 namespace.callStack.raiseUncatchableFatalError(
@@ -202,14 +217,14 @@ module.exports = require('pauser')([
                 };
                 InternalClass.prototype = Object.create(definition.prototype);
                 proxyConstructor = function () {
-                    var args = arguments,
+                    var
                         objectValue = this,
-                        unwrappedArgs = classObject.isAutoCoercionEnabled() ? unwrapArgs(args) : args,
-                        // Use the native object as the `this` object inside the (shadow) constructor
+                        // Will be the native object as the `this` object inside the (shadow) constructor
                         // if auto-coercion is enabled, otherwise use the ObjectValue
                         unwrappedThisObject = classObject.isAutoCoercionEnabled() ?
                             objectValue.getObject() :
-                            objectValue;
+                            objectValue,
+                        unwrappedArgs = classObject.unwrapArguments(arguments);
 
                     // Call the original native constructor
                     definition.apply(unwrappedThisObject, unwrappedArgs);
@@ -317,10 +332,16 @@ module.exports = require('pauser')([
                 constants,
                 definition.superClass,
                 definition.interfaces,
-                namespaceScope
+                namespaceScope,
+                namespace.exportRepository,
+                namespace.ffiFactory.createValueCoercer(autoCoercionEnabled),
+                namespace.ffiFactory
             );
 
             _.forOwn(methods, function (data, methodName) {
+                // TODO: For JS-defined functions, `methods` is always empty - see above.
+                //       Consider building it up with processed methods/specs etc., indexed by lowercased name,
+                //       to also solve the performance issue with the current method lookup logic.
                 var functionSpec,
                     lineNumber = data.line,
                     method,

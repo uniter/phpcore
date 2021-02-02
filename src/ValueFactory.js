@@ -11,6 +11,7 @@
 
 module.exports = require('pauser')([
     require('microdash'),
+    require('is-promise'),
     require('phpcommon'),
     require('./Iterator/ArrayIterator'),
     require('./Value/Array'),
@@ -18,17 +19,19 @@ module.exports = require('pauser')([
     require('./Value/Boolean'),
     require('./Reference/Element/ElementProvider'),
     require('./Value/Exit'),
+    require('./FFI/Result'),
     require('./Value/Float'),
     require('./Value/Integer'),
     require('./KeyValuePair'),
     require('./Value/Null'),
     require('./Value/Object'),
-    require('./PHPObject'),
+    require('./FFI/Value/PHPObject'),
     require('./Value/String'),
     require('./Value'),
-    require('es6-weak-map')
+    require('./FFI/Value/ValueStorage')
 ], function (
     _,
+    isPromise,
     phpCommon,
     ArrayIterator,
     ArrayValue,
@@ -36,6 +39,7 @@ module.exports = require('pauser')([
     BooleanValue,
     ElementProvider,
     ExitValue,
+    FFIResult,
     FloatValue,
     IntegerValue,
     KeyValuePair,
@@ -44,8 +48,10 @@ module.exports = require('pauser')([
     PHPObject,
     StringValue,
     Value,
-    WeakMap
+    ValueStorage
 ) {
+    var Exception = phpCommon.Exception;
+
     /**
      * Creates Value and related objects
      *
@@ -55,6 +61,7 @@ module.exports = require('pauser')([
      * @param {Translator} translator
      * @param {CallFactory} callFactory
      * @param {ErrorPromoter} errorPromoter
+     * @param {ValueStorage} valueStorage
      * @constructor
      */
     function ValueFactory(
@@ -63,7 +70,8 @@ module.exports = require('pauser')([
         elementProvider,
         translator,
         callFactory,
-        errorPromoter
+        errorPromoter,
+        valueStorage
     ) {
         /**
          * @type {CallFactory}
@@ -97,6 +105,15 @@ module.exports = require('pauser')([
          */
         this.mode = mode;
         /**
+         * The single NullValue for efficiency, created lazily in .createNull(...).
+         * It must be created lazily there as it depends on CallStack, which due to a circular dependency
+         * is injected via setter: .setCallStack(...). That setter is not always called, eg. by various unit tests,
+         * for simplicity.
+         *
+         * @type {NullValue|null}
+         */
+        this.nullValue = null;
+        /**
          * @type {Resumable|null}
          */
         this.pausable = pausable;
@@ -105,30 +122,75 @@ module.exports = require('pauser')([
          */
         this.translator = translator;
         /**
-         * Used for mapping exported unwrapped objects back to their original ObjectValue
-         * when they are passed back to PHP-land
-         *
-         * @type {WeakMap}
+         * @type {ValueStorage}
          */
-        this.unwrappedObjectToValueMap = new WeakMap();
-        /**
-         * @type {WeakMap}
-         */
-        this.valueToUnwrappedObjectMap = new WeakMap();
+        this.valueStorage = valueStorage || new ValueStorage();
     }
 
     _.extend(ValueFactory.prototype, {
+        /**
+         * Attempts to resolve the given value to a Value object instance.
+         * - If already a Value instance, simply returns it.
+         * - If an FFIResult, it is handled as appropriate (pausing PHP execution if in async mode)
+         * - If any other primitive or object, it is coerced to a Value instance
+         *
+         * @param {*} value
+         * @return {Value}
+         */
         coerce: function (value) {
+            var factory = this;
+
             if (value instanceof Value) {
                 return value;
             }
 
-            return this.createFromNative(value);
+            if (value instanceof FFIResult) {
+                // An FFI Result was returned, so we need to handle it as appropriate
+                return value.resolve(factory);
+            }
+
+            // TODO: Consider removing this behaviour altogether now that we have FFIResult?
+            if (isPromise(value) && factory.pausable) {
+                // A promise was returned (note that returning an FFIResult is preferred)
+                return this.coercePromise(value);
+            }
+
+            return factory.createFromNative(value);
         },
+
+        /**
+         * Coerces the given array-like of natives and/or values
+         * into an array where all have been coerced to values
+         *
+         * @param {*[]} arrayLike
+         * @returns {Value[]}
+         */
+        coerceList: function (arrayLike) {
+            var coercedValues = [],
+                factory = this;
+
+            _.each(arrayLike, function (element) {
+                coercedValues.push(factory.coerce(element));
+            });
+
+            return coercedValues;
+        },
+
+        /**
+         * Coerces a JavaScript object to a PHP object instance of the special JSObject class
+         *
+         * @param {Object|Value} value
+         * @return {ObjectValue|Value}
+         * @throws {Error} Throws when a value other than an ObjectValue instance, null or undefined is given
+         */
         coerceObject: function (value) {
             var factory = this;
 
             if (value instanceof Value) {
+                if (value.getType() !== 'object') {
+                    throw new Exception('Tried to coerce a Value of type "' + value.getType() + '" to object');
+                }
+
                 return value;
             }
 
@@ -142,6 +204,43 @@ module.exports = require('pauser')([
 
             return factory.createObject(value, factory.globalNamespace.getClass('JSObject'));
         },
+
+        /**
+         * Awaits a promise (in async mode). Throws if in psync or sync mode
+         *
+         * @param {Promise} promise
+         * @returns {Value}
+         */
+        coercePromise: function (promise) {
+            var factory = this,
+                pause;
+
+            if (!factory.pausable) {
+                throw new Exception('Cannot await a promise in non-async mode');
+            }
+
+            pause = factory.pausable.createPause();
+
+            // Wait for the returned promise to resolve or reject before continuing
+            promise.then(function (resultValue) {
+                // Remember we still need to coerce the result
+                pause.resume(factory.coerce(resultValue));
+            }, function (error) {
+                pause.throw(error);
+            });
+
+            return pause.now();
+        },
+
+        /**
+         * Creates a PHP ArrayValue. A custom element provider may optionally be provided,
+         * if special elements are required (for example, HookableElements, which are used
+         * by the special $GLOBALS superglobal for two-way binding to global variables)
+         *
+         * @param {Array} value
+         * @param {ElementProvider|HookableElementProvider=} elementProvider
+         * @return {ArrayValue}
+         */
         createArray: function (value, elementProvider) {
             var factory = this;
 
@@ -164,15 +263,46 @@ module.exports = require('pauser')([
             return new ArrayIterator(arrayLikeValue);
         },
 
+        /**
+         * Creates a BarewordStringValue
+         *
+         * @param {string} value
+         * @return {BarewordStringValue}
+         */
         createBarewordString: function (value) {
             var factory = this;
 
             return new BarewordStringValue(factory, factory.callStack, value);
         },
+
+        /**
+         * Creates a BooleanValue
+         *
+         * TODO: Consider having only two instances of BooleanValue, one for true and one for false,
+         *       to save on memory usage
+         *
+         * @param {boolean} value
+         * @return {BooleanValue}
+         */
         createBoolean: function (value) {
             var factory = this;
 
             return new BooleanValue(factory, factory.callStack, value);
+        },
+
+        /**
+         * Instantiates a PHP Closure instance with the given internal closure object
+         *
+         * @param {Closure} closure Internal closure object
+         * @return {ObjectValue}
+         */
+        createClosureObject: function (closure) {
+            var factory = this,
+                closureClass = factory.globalNamespace.getClass('Closure');
+
+            return closureClass.instantiateWithInternals([], {
+                'closure': closure
+            });
         },
 
         /**
@@ -221,16 +351,31 @@ module.exports = require('pauser')([
             return errorObject;
         },
 
+        /**
+         * Creates an ExitValue. This is a special type of value only returned as the result
+         * of an `exit;` or `die;` statement being executed from PHP
+         *
+         * @param {Value} statusValue
+         * @return {ExitValue}
+         */
         createExit: function (statusValue) {
             var factory = this;
 
             return new ExitValue(factory, factory.callStack, statusValue);
         },
+
+        /**
+         * Creates a FloatValue
+         *
+         * @param {number} value
+         * @return {FloatValue}
+         */
         createFloat: function (value) {
             var factory = this;
 
             return new FloatValue(factory, factory.callStack, value);
         },
+
         /**
          * Coerces a native JavaScript value to a suitable *Value object,
          * based on its type. For example, a string primitive value from JS
@@ -264,6 +409,7 @@ module.exports = require('pauser')([
 
             return factory.createFromNativeObject(nativeValue);
         },
+
         /**
          * Coerces a native JavaScript object to either an ArrayValue or ObjectValue object,
          * depending on its suitability to be cast as an associative array
@@ -281,9 +427,9 @@ module.exports = require('pauser')([
                 return nativeObject.getObjectValue();
             }
 
-            if (factory.unwrappedObjectToValueMap.has(nativeObject)) {
+            if (factory.valueStorage.hasObjectValueForExport(nativeObject)) {
                 // Objects exported with .getNative() are mapped back to their original ObjectValue
-                return factory.unwrappedObjectToValueMap.get(nativeObject);
+                return factory.valueStorage.getObjectValueForExport(nativeObject);
             }
 
             // Handle plain objects -> associative arrays
@@ -309,6 +455,7 @@ module.exports = require('pauser')([
 
             return factory.createObject(nativeObject, factory.globalNamespace.getClass('JSObject'));
         },
+
         /**
          * Takes a native Array object and converts it to a wrapped ArrayValue for PHP
          *
@@ -331,15 +478,34 @@ module.exports = require('pauser')([
 
             return factory.createArray(orderedElements);
         },
+
+        /**
+         * Creates an IntegerValue
+         *
+         * @param {number} value
+         * @return {IntegerValue}
+         */
         createInteger: function (value) {
             var factory = this;
 
             return new IntegerValue(factory, factory.callStack, value);
         },
+
+        /**
+         * Creates a NullValue
+         *
+         * Note that there is only ever a single instance of NullValue to save on memory usage.
+         *
+         * @return {NullValue}
+         */
         createNull: function () {
             var factory = this;
 
-            return new NullValue(factory, factory.callStack);
+            if (factory.nullValue === null) {
+                factory.nullValue = new NullValue(factory, factory.callStack);
+            }
+
+            return factory.nullValue;
         },
 
         /**
@@ -364,32 +530,22 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates a PHPObject, which wraps an ObjectValue and allows its methods
-         * to be called and passed native values for its parameter arguments
-         * and coerces its return value back to a native too.
+         * Creates an instance of the builtin stdClass class
          *
-         * @param {ObjectValue} object
-         * @returns {PHPObject}
+         * @return {ObjectValue}
          */
-        createPHPObject: function (object) {
-            var factory = this;
-
-            return new PHPObject(
-                factory.callFactory,
-                factory.callStack,
-                factory.errorPromoter,
-                factory.pausable,
-                factory.mode,
-                factory,
-                object
-            );
-        },
-
         createStdClassObject: function () {
             var factory = this;
 
             return factory.globalNamespace.getClass('stdClass').instantiate();
         },
+
+        /**
+         * Creates a StringValue
+         *
+         * @param {string} value
+         * @return {StringValue}
+         */
         createString: function (value) {
             var factory = this;
 
@@ -461,17 +617,6 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches the unwrapped object that an ObjectValue has been unwrapped to,
-         * or returns null if there is no existing mapping
-         *
-         * @param objectValue
-         * @returns {object|null}
-         */
-        getUnwrappedObjectFromValue: function (objectValue) {
-            return this.valueToUnwrappedObjectMap.get(objectValue) || null;
-        },
-
-        /**
          * Creates an ObjectValue instance of the specified class
          *
          * @param {string} className
@@ -487,21 +632,14 @@ module.exports = require('pauser')([
             return factory.globalNamespace.getClass(className).instantiate(constructorArgValues);
         },
 
+        /**
+         * Determines whether the given object is a PHP Value instance
+         *
+         * @param {Object} object
+         * @return {boolean}
+         */
         isValue: function (object) {
             return object instanceof Value;
-        },
-        /**
-         * Allows an unwrapped object to later be mapped back to its original ObjectValue
-         * (eg. when passed back to PHP-land from JS-land as a method argument)
-         *
-         * @param {object} unwrappedObject
-         * @param {ObjectValue} objectValue
-         */
-        mapUnwrappedObjectToValue: function (unwrappedObject, objectValue) {
-            var factory = this;
-
-            factory.unwrappedObjectToValueMap.set(unwrappedObject, objectValue);
-            factory.valueToUnwrappedObjectMap.set(objectValue, unwrappedObject);
         },
 
         /**

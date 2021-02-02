@@ -13,19 +13,9 @@
 
 'use strict';
 
-var phpCommon = require('phpcommon'),
-    DebugFactory = require('./src/Debug/DebugFactory'),
-    DebugFormatter = require('./src/Debug/DebugFormatter'),
-    DebugFormatterInstaller = require('./src/Debug/DebugFormatterInstaller'),
-    DebugValue = require('./src/Debug/DebugValue'),
-    Engine = require('./src/Engine'),
-    Environment = require('./src/Environment'),
-    PHPState = require('./src/PHPState').sync(),
-    Runtime = require('./src/Runtime').sync(),
-    ValueFormatter = require('./src/Debug/ValueFormatter'),
-    runtime = new Runtime(Environment, Engine, PHPState, phpCommon, null, 'sync'),
-    debugFactory = new DebugFactory(DebugFormatter, DebugValue, ValueFormatter);
+var debugFormatterInstaller = require('./src/shared/debugFormatterInstaller'),
+    runtimeFactory = require('./src/shared/runtimeFactory');
 
-new DebugFormatterInstaller(global, debugFactory).install();
+debugFormatterInstaller.install();
 
-module.exports = runtime;
+module.exports = runtimeFactory.create('sync');

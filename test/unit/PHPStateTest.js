@@ -14,6 +14,8 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     ErrorReporting = require('../../src/Error/ErrorReporting'),
     Exception = phpCommon.Exception,
+    FFIResult = require('../../src/FFI/Result'),
+    GlobalStackHooker = require('../../src/FFI/Stack/GlobalStackHooker'),
     Loader = require('../../src/Loader').sync(),
     OptionSet = require('../../src/OptionSet'),
     Output = require('../../src/Output/Output'),
@@ -25,7 +27,8 @@ var expect = require('chai').expect,
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('PHPState', function () {
-    var installedBuiltinTypes,
+    var globalStackHooker,
+        installedBuiltinTypes,
         optionSet,
         state,
         stderr,
@@ -36,6 +39,7 @@ describe('PHPState', function () {
         valueFactory;
 
     beforeEach(function () {
+        globalStackHooker = sinon.createStubInstance(GlobalStackHooker);
         installedBuiltinTypes = {};
         optionSet = sinon.createStubInstance(OptionSet);
         stdin = sinon.createStubInstance(Stream);
@@ -47,6 +51,7 @@ describe('PHPState', function () {
 
         state = new PHPState(
             runtime,
+            globalStackHooker,
             installedBuiltinTypes,
             stdin,
             stdout,
@@ -60,6 +65,7 @@ describe('PHPState', function () {
         it('should install non-namespaced classes into the global namespace', function () {
             state = new PHPState(
                 runtime,
+                globalStackHooker,
                 {
                     classes: {
                         'MyClass': function () {
@@ -81,6 +87,7 @@ describe('PHPState', function () {
             var MyClass = sinon.stub();
             state = new PHPState(
                 runtime,
+                globalStackHooker,
                 {
                     classes: {
                         'Some\\Stuff\\AClass': function () {
@@ -103,6 +110,7 @@ describe('PHPState', function () {
             var AClass;
             state = new PHPState(
                 runtime,
+                globalStackHooker,
                 {
                     classes: {
                         'Some\\Stuff\\AClass': function (internals) {
@@ -132,6 +140,7 @@ describe('PHPState', function () {
         it('should allow function group factories to access constants early', function () {
             state = new PHPState(
                 runtime,
+                globalStackHooker,
                 {
                     constantGroups: [
                         function () {
@@ -164,6 +173,7 @@ describe('PHPState', function () {
         it('should define functions correctly with a FunctionSpec', function () {
             state = new PHPState(
                 runtime,
+                globalStackHooker,
                 {
                     functionGroups: [
                         function (internals) {
@@ -189,6 +199,7 @@ describe('PHPState', function () {
         it('should allow functions to be aliased', function () {
             state = new PHPState(
                 runtime,
+                globalStackHooker,
                 {
                     functionGroups: [
                         function (internals) {
@@ -216,6 +227,7 @@ describe('PHPState', function () {
         it('should install any option groups as options', function () {
             state = new PHPState(
                 runtime,
+                globalStackHooker,
                 {},
                 stdin,
                 stdout,
@@ -238,6 +250,7 @@ describe('PHPState', function () {
         it('should install any initial options as options', function () {
             state = new PHPState(
                 runtime,
+                globalStackHooker,
                 {},
                 stdin,
                 stdout,
@@ -256,6 +269,7 @@ describe('PHPState', function () {
         it('should install any binding groups', function () {
             state = new PHPState(
                 runtime,
+                globalStackHooker,
                 {
                     bindingGroups: [
                         function () {
@@ -280,6 +294,7 @@ describe('PHPState', function () {
         it('should install any default INI options, allowing access to constants early', function () {
             state = new PHPState(
                 runtime,
+                globalStackHooker,
                 {
                     constantGroups: [
                         function () {
@@ -309,6 +324,7 @@ describe('PHPState', function () {
         it('should install any translations', function () {
             state = new PHPState(
                 runtime,
+                globalStackHooker,
                 {
                     translationCatalogues: [
                         {
@@ -336,6 +352,7 @@ describe('PHPState', function () {
             it('should expose the current synchronicity mode when "' + mode + '"', function () {
                 state = new PHPState(
                     runtime,
+                    globalStackHooker,
                     {},
                     stdin,
                     stdout,
@@ -358,6 +375,7 @@ describe('PHPState', function () {
         it('should expose the error configuration', function () {
             state = new PHPState(
                 runtime,
+                globalStackHooker,
                 {},
                 stdin,
                 stdout,
@@ -383,6 +401,7 @@ describe('PHPState', function () {
                 /*jshint nonew:false */
                 new PHPState(
                     runtime,
+                    globalStackHooker,
                     {
                         functionGroups: [
                             function (internals) {
@@ -403,6 +422,7 @@ describe('PHPState', function () {
             expect(function () {
                 state = new PHPState(
                     runtime,
+                    globalStackHooker,
                     {},
                     stdin,
                     stdout,
@@ -421,6 +441,7 @@ describe('PHPState', function () {
         it('should set any provided INI options after all option groups have been handled', function () {
             state = new PHPState(
                 runtime,
+                globalStackHooker,
                 {},
                 stdin,
                 stdout,
@@ -456,6 +477,17 @@ describe('PHPState', function () {
                     )
                     .getNative()
             ).to.equal(25);
+        });
+    });
+
+    describe('createFFIResult()', function () {
+        it('should return an FFIResult', function () {
+            var asyncCallback = sinon.stub(),
+                syncCallback = sinon.stub().returns(21),
+                result = state.createFFIResult(syncCallback, asyncCallback);
+
+            expect(result).to.be.an.instanceOf(FFIResult);
+            expect(result.getSync()).to.equal(21);
         });
     });
 
@@ -505,6 +537,42 @@ describe('PHPState', function () {
 
             expect(state.getGlobalNamespace().getDescendant('My\\Stuff').getConstant('my_COnsT').getNative())
                 .to.equal(21);
+        });
+    });
+
+    describe('defineFunction()', function () {
+        it('should be able to define a coercing function', function () {
+            var func,
+                resultValue;
+            state.defineFunction('My\\Stuff\\my_multiplier', function () {
+                return function (num1, num2) {
+                    return num1 * num2;
+                };
+            });
+            func = state.getFunction('My\\Stuff\\my_multiplier');
+
+            resultValue = func(valueFactory.createInteger(4), valueFactory.createInteger(3));
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(12);
+        });
+
+        it('should be able to define a non-coercing function', function () {
+            var func,
+                resultValue;
+            state.defineFunction('My\\Stuff\\my_multiplier', function (internals) {
+                internals.disableAutoCoercion();
+
+                return function (num1Reference, num2Reference) {
+                    return num1Reference.getValue().getNative() * num2Reference.getValue().getNative();
+                };
+            });
+            func = state.getFunction('My\\Stuff\\my_multiplier');
+
+            resultValue = func(valueFactory.createInteger(4), valueFactory.createInteger(3));
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(12);
         });
     });
 

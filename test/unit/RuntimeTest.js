@@ -11,6 +11,7 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    GlobalStackHooker = require('../../src/FFI/Stack/GlobalStackHooker'),
     Runtime = require('../../src/Runtime').sync(),
     Scope = require('../../src/Scope').sync(),
     Stream = require('../../src/Stream');
@@ -19,6 +20,7 @@ describe('Runtime', function () {
     var createRuntime,
         Engine,
         Environment,
+        globalStackHooker,
         options,
         pausable,
         phpCommon,
@@ -29,6 +31,7 @@ describe('Runtime', function () {
     beforeEach(function () {
         Environment = sinon.stub();
         Engine = sinon.stub();
+        globalStackHooker = sinon.createStubInstance(GlobalStackHooker);
         pausable = {};
         phpCommon = {};
         PHPState = sinon.stub();
@@ -39,7 +42,18 @@ describe('Runtime', function () {
         Environment.prototype.getOptions = function () {
             return state.getOptions();
         };
-        PHPState.callsFake(function (runtime, installedBuiltinTypes, stdin, stdout, stderr, pausable, mode, optionGroups, newOptions) {
+        PHPState.callsFake(function (
+            runtime,
+            globalStackHooker,
+            installedBuiltinTypes,
+            stdin,
+            stdout,
+            stderr,
+            pausable,
+            mode,
+            optionGroups,
+            newOptions
+        ) {
             options = newOptions;
         });
         PHPState.prototype.getOptions = function () {
@@ -54,6 +68,7 @@ describe('Runtime', function () {
                 Engine,
                 PHPState,
                 phpCommon,
+                globalStackHooker,
                 mode === 'async' ? pausable : null,
                 mode
             );
@@ -75,6 +90,7 @@ describe('Runtime', function () {
                     Engine,
                     PHPState,
                     phpCommon,
+                    globalStackHooker,
                     null,
                     'async'
                 );
@@ -359,7 +375,7 @@ describe('Runtime', function () {
             });
 
             expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState.args[0][7][0]()).to.deep.equal({yourOption: 1001});
+            expect(PHPState.args[0][8][0]()).to.deep.equal({yourOption: 1001});
         });
     });
 
@@ -372,6 +388,7 @@ describe('Runtime', function () {
             expect(PHPState).to.have.been.calledOnce;
             expect(PHPState).to.have.been.calledWith(
                 sinon.match.same(runtime),
+                sinon.match.same(globalStackHooker),
                 {
                     bindingGroups: [],
                     classGroups: [],
@@ -426,6 +443,7 @@ describe('Runtime', function () {
             expect(PHPState).to.have.been.calledOnce;
             expect(PHPState).to.have.been.calledWith(
                 sinon.match.same(runtime),
+                sinon.match.same(globalStackHooker),
                 {
                     bindingGroups: [bindingGroup],
                     classGroups: [classGroup],
@@ -469,6 +487,7 @@ describe('Runtime', function () {
             expect(PHPState).to.have.been.calledOnce;
             expect(PHPState).to.have.been.calledWith(
                 sinon.match.same(runtime),
+                sinon.match.same(globalStackHooker),
                 {
                     bindingGroups: [],
                     classGroups: [],
@@ -522,6 +541,7 @@ describe('Runtime', function () {
             expect(PHPState).to.have.been.calledOnce;
             expect(PHPState).to.have.been.calledWith(
                 sinon.match.any,
+                sinon.match.any,
                 {
                     bindingGroups: [],
                     classGroups: [],
@@ -548,6 +568,7 @@ describe('Runtime', function () {
 
             expect(PHPState).to.have.been.calledOnce;
             expect(PHPState).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 {
                     bindingGroups: [],
@@ -582,6 +603,7 @@ describe('Runtime', function () {
             expect(PHPState).to.have.been.calledOnce;
             expect(PHPState).to.have.been.calledWith(
                 sinon.match.any,
+                sinon.match.any,
                 {
                     bindingGroups: [
                         sinon.match.same(bindingGroupFactory)
@@ -613,6 +635,7 @@ describe('Runtime', function () {
             expect(PHPState).to.have.been.calledOnce;
             expect(PHPState).to.have.been.calledWith(
                 sinon.match.any,
+                sinon.match.any,
                 {
                     bindingGroups: [],
                     constantGroups: [
@@ -643,6 +666,7 @@ describe('Runtime', function () {
 
             expect(PHPState).to.have.been.calledOnce;
             expect(PHPState).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 {
                     bindingGroups: [],
@@ -681,6 +705,7 @@ describe('Runtime', function () {
             expect(PHPState).to.have.been.calledOnce;
             expect(PHPState).to.have.been.calledWith(
                 sinon.match.any,
+                sinon.match.any,
                 {
                     bindingGroups: [],
                     constantGroups: [],
@@ -713,6 +738,7 @@ describe('Runtime', function () {
 
             expect(PHPState).to.have.been.calledOnce;
             expect(PHPState).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 {
                     bindingGroups: [],
