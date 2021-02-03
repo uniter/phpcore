@@ -41,11 +41,17 @@ _.extend(V8FrameStackHooker.prototype, {
 
         // Hook the creation of error stack traces in V8 using the Stack Trace API
         NativeError.prepareStackTrace = function (error/*, structuredStackTrace*/) {
-            return hooker.stackCleaner.cleanStack(
+            var cleanedStack = hooker.stackCleaner.cleanStack(
                 error.stack,
                 // Allow one extra line for the error message
                 stackTraceLimit + 1
             );
+
+            // For older versions of V8 we need to write to the .stack property,
+            // as the return value from .prepareStackTrace(...) is not always respected
+            error.stack = cleanedStack;
+
+            return cleanedStack;
         };
 
         /**

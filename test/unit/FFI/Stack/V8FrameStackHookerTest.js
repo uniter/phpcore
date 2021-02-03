@@ -82,6 +82,14 @@ describe('V8FrameStackHooker', function () {
                 expect(NativeError.prepareStackTrace(error)).to.equal('my cleaned stack');
             });
 
+            it('should assign the cleaned error stack from StackCleaner to .stack', function () {
+                frameStackHooker.hook(frame);
+
+                NativeError.prepareStackTrace(error);
+
+                expect(error.stack).to.equal('my cleaned stack');
+            });
+
             it('should pass the original value of Error.stackTraceLimit + 1 when not changed', function () {
                 frameStackHooker.hook(frame);
                 NativeError.prepareStackTrace(error);

@@ -110,7 +110,12 @@ var _ = require('microdash'),
 
     // Errors from a Function constructor-created function may be offset by the function signature
     // (currently 2), so we need to calculate this in order to adjust for source mapping below
-    errorStackLineOffset = new Function('return new Error().stack;')().match(/<anonymous>:(\d+):\d+/)[1] - 1;
+    // (Note that the unused "require" arg is given so that the signature matches the Function(...) eval above)
+    errorStackLineOffset = new Function(
+        'require',
+        'return new Error().stack;'
+    )()
+        .match(/<anonymous>:(\d+):\d+/)[1] - 1;
 
 module.exports = {
     createAsyncEnvironment: function (options, addons) {
@@ -175,8 +180,14 @@ module.exports = {
 
                 // Normalise Mocha frames
                 stack = stack.replace(new RegExp('^(.*)' + escapeRegex(mochaPath) + '(.*:)\\d+:\\d+', 'gm'), '$1/path/to/mocha$2??:??');
+                // Group Mocha frames (to allow for differences between versions)
+                stack = stack.replace(/(?:(?:.*\/path\/to\/mocha.*)([\r\n]*))+/mg, '    at [Mocha internals]$1');
+
                 // Normalise Node.js internal frames
-                stack = stack.replace(new RegExp(/^(.*?)(?:node:)?internal(\/.*?)(?:\.js)?:\d+:\d+/gm), '$1/path/to/internal$2:??:??');
+                stack = stack.replace(/^(?:([^/(]+?\()([^/]+?)\.js|(.*?)(?:node:)?internal\/(.*?)(?:\.js)?):\d+:\d+/gm, '$1$3/path/to/internal/$2$4:??:??');
+                // Group Node.js internal frames (to allow for differences between versions)
+                stack = stack.replace(/(?:(?:.*\/path\/to\/internal.*)([\r\n]*))+/mg, '    at [Node.js internals]$1');
+
                 // Normalise PHPCore frames
                 stack = stack.replace(new RegExp(escapeRegex(phpCorePath), 'g'), '/path/to/phpcore');
 
