@@ -176,7 +176,7 @@ module.exports = {
                 // Normalise Mocha frames
                 stack = stack.replace(new RegExp('^(.*)' + escapeRegex(mochaPath) + '(.*:)\\d+:\\d+', 'gm'), '$1/path/to/mocha$2??:??');
                 // Normalise Node.js internal frames
-                stack = stack.replace(new RegExp(/^(.*?)node:internal(\/.*:)\d+:\d+/gm), '$1/path/to/internal$2??:??');
+                stack = stack.replace(new RegExp(/^(.*?)(?:node:)?internal(\/.*?)(?:\.js)?:\d+:\d+/gm), '$1/path/to/internal$2:??:??');
                 // Normalise PHPCore frames
                 stack = stack.replace(new RegExp(escapeRegex(phpCorePath), 'g'), '/path/to/phpcore');
 
