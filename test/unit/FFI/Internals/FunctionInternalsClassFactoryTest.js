@@ -153,7 +153,7 @@ describe('FFI FunctionInternalsClassFactory', function () {
                         callDefineFunction();
                         valueCoercer.coerceArguments
                             .withArgs(sinon.match(function (args) {
-                                return args[0] === 21 && args[1] === 'second arg'
+                                return args[0] === 21 && args[1] === 'second arg';
                             }))
                             .returns([coercedArg1, coercedArg2]);
                         nativeFunction
