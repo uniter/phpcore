@@ -421,7 +421,7 @@ module.exports = require('pauser')([
         /**
          * Determines whether this value is callable
          *
-         * @param {NamespaceScope} namespaceScope
+         * @param {Namespace} globalNamespace
          * @returns {boolean}
          */
         isCallable: throwUnimplemented,

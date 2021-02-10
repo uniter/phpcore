@@ -1041,7 +1041,7 @@ describe('String', function () {
                 .returns(true);
             createValue('myFunction');
 
-            expect(value.isCallable(namespaceScope)).to.be.true;
+            expect(value.isCallable(globalNamespace)).to.be.true;
         });
 
         it('should return true for a static method name that exists', function () {
@@ -1058,7 +1058,7 @@ describe('String', function () {
                 .returns(methodSpec);
             createValue('My\\Fqcn::myMethod');
 
-            expect(value.isCallable(namespaceScope)).to.be.true;
+            expect(value.isCallable(globalNamespace)).to.be.true;
         });
 
         it('should return false for a function name that doesn\'t exist', function () {
@@ -1067,7 +1067,7 @@ describe('String', function () {
                 .returns(false);
             createValue('myNonExistentFunction');
 
-            expect(value.isCallable(namespaceScope)).to.be.false;
+            expect(value.isCallable(globalNamespace)).to.be.false;
         });
 
         it('should return false for a static method that doesn\'t exist for a defined class', function () {
@@ -1083,7 +1083,7 @@ describe('String', function () {
                 .returns(null);
             createValue('My\\Fqcn::myMethod');
 
-            expect(value.isCallable(namespaceScope)).to.be.false;
+            expect(value.isCallable(globalNamespace)).to.be.false;
         });
 
         it('should return false for a static method of a non-existent class', function () {
@@ -1092,7 +1092,7 @@ describe('String', function () {
                 .returns(false);
             createValue('My\\NonExistentFqcn::myMethod');
 
-            expect(value.isCallable(namespaceScope)).to.be.false;
+            expect(value.isCallable(globalNamespace)).to.be.false;
         });
     });
 

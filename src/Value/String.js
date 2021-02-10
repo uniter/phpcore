@@ -293,14 +293,13 @@ module.exports = require('pauser')([
         /**
          * {@inheritdoc}
          */
-        isCallable: function (namespaceScope) {
+        isCallable: function (globalNamespace) {
             // Must just be the name of a function or static method - as this is a normal string
             // and not a bareword, it should just be resolved as a FQCN
             // and not relative to the current namespace scope
 
             var className,
                 classObject,
-                globalNamespace = namespaceScope.getGlobalNamespace(),
                 match,
                 methodName,
                 value = this;

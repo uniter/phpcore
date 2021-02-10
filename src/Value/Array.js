@@ -427,9 +427,8 @@ module.exports = require('pauser')([
         /**
          * {@inheritdoc}
          */
-        isCallable: function (namespaceScope) {
+        isCallable: function (globalNamespace) {
             var classObject,
-                globalNamespace,
                 methodNameValue,
                 objectOrClassValue,
                 arrayValue = this,
@@ -439,7 +438,6 @@ module.exports = require('pauser')([
                 return false;
             }
 
-            globalNamespace = namespaceScope.getGlobalNamespace();
             objectOrClassValue = value[0].getValue();
             methodNameValue = value[1].getValue();
 
