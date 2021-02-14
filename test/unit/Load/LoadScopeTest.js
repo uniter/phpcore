@@ -12,10 +12,10 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
-    LoadScope = require('../../src/LoadScope'),
+    LoadScope = require('../../../src/Load/LoadScope'),
     PHPError = phpCommon.PHPError,
-    Scope = require('../../src/Scope').sync(),
-    ValueFactory = require('../../src/ValueFactory').sync();
+    Scope = require('../../../src/Scope').sync(),
+    ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('LoadScope', function () {
     var effectiveScope,

@@ -15,26 +15,22 @@ module.exports = require('pauser')([
     require('./Debug/DebugVariable'),
     require('./KeyReferencePair'),
     require('./KeyValuePair'),
-    require('./List'),
-    require('./Exception/LoadFailedException')
+    require('./List')
 ], function (
     _,
     phpCommon,
     DebugVariable,
     KeyReferencePair,
     KeyValuePair,
-    List,
-    LoadFailedException
+    List
 ) {
     var Exception = phpCommon.Exception,
-        hasOwn = {}.hasOwnProperty,
 
         EVAL_PATH = 'core.eval_path',
         NO_PARENT_CLASS = 'core.no_parent_class',
         UNKNOWN = 'core.unknown',
 
         EVAL_OPTION = 'eval',
-        INCLUDE_OPTION = 'include',
         TICK_OPTION = 'tick',
         PHPError = phpCommon.PHPError;
 
@@ -44,6 +40,8 @@ module.exports = require('pauser')([
      * @param {Translator} translator
      * @param {Namespace} globalNamespace
      * @param {Loader} loader
+     * @param {Includer} includer
+     * @param {OnceIncluder} onceIncluder
      * @param {Module} module
      * @param {Object} options
      * @param {ReferenceFactory} referenceFactory
@@ -59,6 +57,8 @@ module.exports = require('pauser')([
         translator,
         globalNamespace,
         loader,
+        includer,
+        onceIncluder,
         module,
         options,
         referenceFactory,
@@ -80,9 +80,9 @@ module.exports = require('pauser')([
          */
         this.globalNamespace = globalNamespace;
         /**
-         * @type {Object.<string, boolean>}
+         * @type {Includer}
          */
-        this.includedPaths = {};
+        this.includer = includer;
         /**
          * @type {Loader}
          */
@@ -91,6 +91,10 @@ module.exports = require('pauser')([
          * @type {Module}
          */
         this.module = module;
+        /**
+         * @type {OnceIncluder}
+         */
+        this.onceIncluder = onceIncluder;
         /**
          * @type {Object}
          */
@@ -376,24 +380,30 @@ module.exports = require('pauser')([
          * Throws if no include transport has been configured.
          *
          * @param {string} includedPath
-         * @param {Scope} includeScope
+         * @param {Scope} enclosingScope
          * @returns {Value}
+         * @throws {Exception} When no include transport has been configured
+         * @throws {Error} When the loader throws a generic error
          */
-        includeOnce: function (includedPath, includeScope) {
+        includeOnce: function (includedPath, enclosingScope) {
             var tools = this;
 
-            if (hasOwn.call(tools.includedPaths, includedPath)) {
-                return tools.valueFactory.createBoolean(true);
-            }
-
-            tools.includedPaths[includedPath] = true;
-
-            return tools.include(includedPath, includeScope);
+            return tools.onceIncluder.includeOnce(
+                'include_once',
+                PHPError.E_WARNING, // For includes, only a warning is raised on failure
+                tools.environment,
+                tools.module,
+                tools.topLevelNamespaceScope,
+                includedPath,
+                enclosingScope,
+                tools.options
+            );
         },
 
         /**
          * Includes the specified module, returning its return value.
          * Throws if no include transport has been configured.
+         * Raises a warning and returns false if the module cannot be found.
          *
          * @param {string} includedPath
          * @param {Scope} enclosingScope
@@ -402,50 +412,18 @@ module.exports = require('pauser')([
          * @throws {Error} When the loader throws a generic error
          */
         include: function (includedPath, enclosingScope) {
-            var includeScope,
-                tools = this;
+            var tools = this;
 
-            if (!tools.options[INCLUDE_OPTION]) {
-                throw new Exception(
-                    'include(' + includedPath + ') :: No "include" transport option is available for loading the module.'
-                );
-            }
-
-            includeScope = tools.scopeFactory.createLoadScope(
+            return tools.includer.include(
+                'include',
+                PHPError.E_WARNING, // For includes, only a warning is raised on failure
+                tools.environment,
+                tools.module,
+                tools.topLevelNamespaceScope,
+                includedPath,
                 enclosingScope,
-                tools.topLevelNamespaceScope.getFilePath(),
-                'include'
+                tools.options
             );
-
-            try {
-                return tools.loader.load(
-                    'include',
-                    includedPath,
-                    tools.options,
-                    tools.environment,
-                    tools.module,
-                    includeScope,
-                    function (path, promise, parentPath, valueFactory) {
-                        return tools.options[INCLUDE_OPTION](path, promise, parentPath, valueFactory);
-                    }
-                );
-            } catch (error) {
-                if (!(error instanceof LoadFailedException)) {
-                    // Rethrow for anything other than the expected possible exception(s) trying to load the module
-                    throw error;
-                }
-
-                tools.callStack.raiseError(
-                    PHPError.E_WARNING,
-                    'include(' + includedPath + '): failed to open stream: No such file or directory'
-                );
-                tools.callStack.raiseError(
-                    PHPError.E_WARNING,
-                    'include(): Failed opening \'' + includedPath + '\' for inclusion'
-                );
-
-                return tools.valueFactory.createBoolean(false);
-            }
         },
 
         /**
@@ -457,16 +435,58 @@ module.exports = require('pauser')([
             this.callStack.instrumentCurrent(finder);
         },
 
-        requireOnce: function () {
-            // FIXME: This should not be identical to include() or require()
+        /**
+         * Includes the specified module if it has not been included yet.
+         * If it has not already been included, the module's return value is returned,
+         * otherwise boolean true will be returned.
+         * Throws if no include transport has been configured.
+         * Raises a fatal error if the module cannot be found.
+         *
+         * @param {string} includedPath
+         * @param {Scope} enclosingScope
+         * @throws {Exception} When no include transport has been configured
+         * @throws {Error} When the loader throws a generic error
+         * @returns {Value}
+         */
+        requireOnce: function (includedPath, enclosingScope) {
+            var tools = this;
 
-            return this.include.apply(this, arguments);
+            return tools.onceIncluder.includeOnce(
+                'require_once',
+                PHPError.E_ERROR, // For requires, a fatal error is raised on failure
+                tools.environment,
+                tools.module,
+                tools.topLevelNamespaceScope,
+                includedPath,
+                enclosingScope,
+                tools.options
+            );
         },
 
-        require: function () {
-            // FIXME: This should not be identical to include()
+        /**
+         * Includes the specified module, returning its return value.
+         * Throws if no include transport has been configured.
+         * Raises a fatal error if the module cannot be found.
+         *
+         * @param {string} includedPath
+         * @param {Scope} enclosingScope
+         * @returns {Value}
+         * @throws {Exception} When no include transport has been configured
+         * @throws {Error} When the loader throws a generic error
+         */
+        require: function (includedPath, enclosingScope) {
+            var tools = this;
 
-            return this.include.apply(this, arguments);
+            return tools.includer.include(
+                'require',
+                PHPError.E_ERROR, // For requires, a fatal error is raised on failure
+                tools.environment,
+                tools.module,
+                tools.topLevelNamespaceScope,
+                includedPath,
+                enclosingScope,
+                tools.options
+            );
         },
 
         /**

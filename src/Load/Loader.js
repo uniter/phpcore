@@ -13,9 +13,9 @@ module.exports = require('pauser')([
     require('microdash'),
     require('path'),
     require('phpcommon'),
-    require('./Value/Exit'),
-    require('./Exception/LoadFailedException'),
-    require('./Value')
+    require('../Value/Exit'),
+    require('../Exception/LoadFailedException'),
+    require('../Value')
 ], function (
     _,
     path,

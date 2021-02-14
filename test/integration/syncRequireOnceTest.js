@@ -11,16 +11,18 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
-    tools = require('./tools');
+    tools = require('./tools'),
+    PHPFatalError = phpCommon.PHPFatalError;
 
-describe('PHP synchronous "include_once" statement integration', function () {
-    it('should correctly handle including the same file multiple times with include_once(...)', function () {
+describe('PHP synchronous "require_once" statement integration', function () {
+    it('should correctly handle including the same file multiple times', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
-$result[] = include_once 'abc.php';
-$result[] = include_once 'abc.php';
+$result[] = require_once 'abc.php';
+$result[] = require_once 'abc.php';
 return $result;
 EOS
 */;}),//jshint ignore:line
@@ -35,17 +37,17 @@ EOS
 
         expect(module(options).execute().getNative()).to.deep.equal([
             'the one and only',
-            true // include_once returns with bool(true) if file has already been included
+            true // require_once returns with bool(true) if file has already been included
         ]);
         expect(includeTransport).to.have.been.calledOnce;
     });
 
-    it('should correctly handle including the same file multiple times with require(...) then include_once(...)', function () {
+    it('should correctly handle requiring the same file multiple times with include(...) then require_once(...)', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
-$result[] = require 'abc.php';
-$result[] = include_once 'abc.php';
+$result[] = include 'abc.php';
+$result[] = require_once 'abc.php';
 return $result;
 EOS
 */;}),//jshint ignore:line
@@ -60,7 +62,7 @@ EOS
 
         expect(module(options).execute().getNative()).to.deep.equal([
             'the one and only',
-            true // include_once returns with bool(true) if file has already been included
+            true // require_once returns with bool(true) if file has already been included
         ]);
         expect(includeTransport).to.have.been.calledOnce;
     });
@@ -68,7 +70,7 @@ EOS
     it('should correctly handle a rejection', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
-$num = include_once 'abc.php';
+$num = require_once 'abc.php';
 return $num;
 EOS
 */;}),//jshint ignore:line
@@ -80,10 +82,15 @@ EOS
             },
             engine = module(options);
 
-        expect(engine.execute().getNative()).to.equal(false);
+        expect(function () {
+            engine.execute();
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: require_once(): Failed opening \'abc.php\' for inclusion in a_module.php on line 2'
+        );
         expect(engine.getStderr().readAll()).to.equal(nowdoc(function () {/*<<<EOS
-PHP Warning:  include_once(abc.php): failed to open stream: No such file or directory in a_module.php on line 2
-PHP Warning:  include_once(): Failed opening 'abc.php' for inclusion in a_module.php on line 2
+PHP Warning:  require_once(abc.php): failed to open stream: No such file or directory in a_module.php on line 2
+PHP Fatal error:  require_once(): Failed opening 'abc.php' for inclusion in a_module.php on line 2
 
 EOS
 */;})); //jshint ignore:line
