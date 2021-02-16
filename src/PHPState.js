@@ -53,9 +53,10 @@ module.exports = require('pauser')([
     require('./FunctionFactory'),
     require('./Function/FunctionSpec'),
     require('./Function/FunctionSpecFactory'),
+    require('./Load/Includer'),
     require('./INIState'),
-    require('./Loader'),
-    require('./LoadScope'),
+    require('./Load/Loader'),
+    require('./Load/LoadScope'),
     require('./Function/MethodContext'),
     require('./MethodSpec'),
     require('./Module'),
@@ -64,6 +65,7 @@ module.exports = require('pauser')([
     require('./NamespaceFactory'),
     require('./NamespaceScope'),
     require('./Reference/Null'),
+    require('./Load/OnceIncluder'),
     require('./OptionSet'),
     require('./Output/Output'),
     require('./Output/OutputBuffer'),
@@ -77,6 +79,8 @@ module.exports = require('pauser')([
     require('./ScopeFactory'),
     require('./Output/StdoutBuffer'),
     require('./SuperGlobalScope'),
+    require('./Tools'),
+    require('./ToolsFactory'),
     require('./Error/TraceFormatter'),
     require('./Type/TypeFactory'),
     require('./Value'),
@@ -127,6 +131,7 @@ module.exports = require('pauser')([
     FunctionFactory,
     FunctionSpec,
     FunctionSpecFactory,
+    Includer,
     INIState,
     Loader,
     LoadScope,
@@ -138,6 +143,7 @@ module.exports = require('pauser')([
     NamespaceFactory,
     NamespaceScope,
     NullReference,
+    OnceIncluder,
     OptionSet,
     Output,
     OutputBuffer,
@@ -151,6 +157,8 @@ module.exports = require('pauser')([
     ScopeFactory,
     StdoutBuffer,
     SuperGlobalScope,
+    Tools,
+    ToolsFactory,
     TraceFormatter,
     TypeFactory,
     Value,
@@ -465,9 +473,13 @@ module.exports = require('pauser')([
             ffiClassInternalsClassFactory,
             ffiFunctionInternalsClassFactory,
             globalsSuperGlobal = superGlobalScope.defineVariable('GLOBALS'),
+            loader = new Loader(valueFactory, pausable),
+            includer,
+            onceIncluder,
             optionSet,
             output = new Output(new OutputFactory(OutputBuffer), new StdoutBuffer(stdout)),
-            state = this;
+            state = this,
+            toolsFactory;
 
         scopeFactory.setClosureFactory(closureFactory);
         globalScope = scopeFactory.create();
@@ -480,6 +492,27 @@ module.exports = require('pauser')([
         options = _.extend({}, options || {});
 
         optionSet = new OptionSet(options);
+
+        includer = new Includer(
+            callStack,
+            valueFactory,
+            scopeFactory,
+            loader,
+            optionSet
+        );
+        onceIncluder = new OnceIncluder(valueFactory, includer);
+        toolsFactory = new ToolsFactory(
+            Tools,
+            callStack,
+            translator,
+            globalNamespace,
+            loader,
+            includer,
+            onceIncluder,
+            referenceFactory,
+            scopeFactory,
+            valueFactory
+        );
 
         ffiInternals = new FFIInternals(
             mode,
@@ -585,7 +618,7 @@ module.exports = require('pauser')([
         this.ffiValueHelper = ffiValueHelper;
         this.output = output;
 
-        this.loader = new Loader(valueFactory, pausable);
+        this.loader = loader;
         this.moduleFactory = moduleFactory;
         this.referenceFactory = referenceFactory;
         this.scopeFactory = scopeFactory;
@@ -597,6 +630,7 @@ module.exports = require('pauser')([
         this.stdout = stdout;
         this.superGlobalScope = superGlobalScope;
         this.throwableClassObject = null;
+        this.toolsFactory = toolsFactory;
         this.translator = translator;
         this.valueFactory = valueFactory;
 
@@ -937,6 +971,15 @@ module.exports = require('pauser')([
 
         getSuperGlobalScope: function () {
             return this.superGlobalScope;
+        },
+
+        /**
+         * Fetches the ToolsFactory service
+         *
+         * @returns {ToolsFactory}
+         */
+        getToolsFactory: function () {
+            return this.toolsFactory;
         },
 
         /**

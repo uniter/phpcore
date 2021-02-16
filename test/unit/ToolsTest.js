@@ -19,16 +19,17 @@ var expect = require('chai').expect,
     ElementReference = require('../../src/Reference/Element'),
     Environment = require('../../src/Environment'),
     Exception = phpCommon.Exception,
+    Includer = require('../../src/Load/Includer').sync(),
     KeyReferencePair = require('../../src/KeyReferencePair'),
     KeyValuePair = require('../../src/KeyValuePair'),
     List = require('../../src/List'),
-    Loader = require('../../src/Loader').sync(),
-    LoadFailedException = require('../../src/Exception/LoadFailedException'),
-    LoadScope = require('../../src/LoadScope'),
+    Loader = require('../../src/Load/Loader').sync(),
+    LoadScope = require('../../src/Load/LoadScope'),
     Module = require('../../src/Module'),
     Namespace = require('../../src/Namespace').sync(),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
+    OnceIncluder = require('../../src/Load/OnceIncluder').sync(),
     PHPError = phpCommon.PHPError,
     Reference = require('../../src/Reference/Reference'),
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
@@ -44,9 +45,11 @@ describe('Tools', function () {
         currentScope,
         environment,
         globalNamespace,
+        includer,
         loader,
         module,
         namespaceScope,
+        onceIncluder,
         referenceFactory,
         scopeFactory,
         tools,
@@ -60,8 +63,10 @@ describe('Tools', function () {
         currentScope = sinon.createStubInstance(Scope);
         environment = sinon.createStubInstance(Environment);
         globalNamespace = sinon.createStubInstance(Namespace);
+        includer = sinon.createStubInstance(Includer);
         loader = sinon.createStubInstance(Loader);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
+        onceIncluder = sinon.createStubInstance(OnceIncluder);
         referenceFactory = sinon.createStubInstance(ReferenceFactory);
         module = sinon.createStubInstance(Module);
         scopeFactory = sinon.createStubInstance(ScopeFactory);
@@ -90,8 +95,10 @@ describe('Tools', function () {
             translator,
             globalNamespace,
             loader,
+            includer,
+            onceIncluder,
             module,
-            {}, // Options
+            {my: 'options'}, // Options
             referenceFactory,
             scopeFactory,
             topLevelNamespaceScope,
@@ -228,6 +235,8 @@ describe('Tools', function () {
                     translator,
                     globalNamespace,
                     loader,
+                    includer,
+                    onceIncluder,
                     module,
                     {
                         // Options
@@ -441,6 +450,8 @@ describe('Tools', function () {
                 translator,
                 globalNamespace,
                 loader,
+                includer,
+                onceIncluder,
                 module,
                 {}, // Options
                 referenceFactory,
@@ -461,6 +472,8 @@ describe('Tools', function () {
                 translator,
                 globalNamespace,
                 loader,
+                includer,
+                onceIncluder,
                 module,
                 {}, // Options
                 referenceFactory,
@@ -481,6 +494,8 @@ describe('Tools', function () {
                 translator,
                 globalNamespace,
                 loader,
+                includer,
+                onceIncluder,
                 module,
                 {}, // Options
                 referenceFactory,
@@ -495,164 +510,87 @@ describe('Tools', function () {
         });
     });
 
-    describe('include()', function () {
-        describe('when no "include" option has been specified', function () {
-            it('should throw', function () {
-                expect(function () {
-                    tools.include('/some/path/to/my_included_module.php');
-                }).to.throw(
-                    Exception,
-                    'include(/some/path/to/my_included_module.php) :: No "include" transport option is available for loading the module.'
-                );
-            });
+    describe('includeOnce()', function () {
+        it('should return the result of including via the OnceIncluder', function () {
+            var enclosingScope = sinon.createStubInstance(Scope),
+                resultValue = valueFactory.createString('my result');
+            onceIncluder.includeOnce
+                .withArgs(
+                    'include_once',
+                    PHPError.E_WARNING, // For includes, only a warning is raised on failure
+                    sinon.match.same(environment),
+                    sinon.match.same(module),
+                    sinon.match.same(topLevelNamespaceScope),
+                    '/my/included_path.php',
+                    sinon.match.same(enclosingScope),
+                    {my: 'options'}
+                )
+                .returns(resultValue);
+
+            expect(tools.includeOnce('/my/included_path.php', enclosingScope)).to.equal(resultValue);
         });
+    });
 
-        describe('when the "include" option has been specified', function () {
-            var includeOption,
-                includeScope;
+    describe('include()', function () {
+        it('should return the result of including via the Includer', function () {
+            var enclosingScope = sinon.createStubInstance(Scope),
+                resultValue = valueFactory.createString('my result');
+            includer.include
+                .withArgs(
+                    'include',
+                    PHPError.E_WARNING, // For includes, only a warning is raised on failure
+                    sinon.match.same(environment),
+                    sinon.match.same(module),
+                    sinon.match.same(topLevelNamespaceScope),
+                    '/my/included_path.php',
+                    sinon.match.same(enclosingScope),
+                    {my: 'options'}
+                )
+                .returns(resultValue);
 
-            beforeEach(function () {
-                includeOption = sinon.stub();
-                includeScope = sinon.createStubInstance(Scope);
-                tools = new Tools(
-                    callStack,
-                    environment,
-                    translator,
-                    globalNamespace,
-                    loader,
-                    module,
-                    {
-                        // Options
-                        'include': includeOption
-                    },
-                    referenceFactory,
-                    scopeFactory,
-                    topLevelNamespaceScope,
-                    topLevelScope,
-                    valueFactory
-                );
+            expect(tools.include('/my/included_path.php', enclosingScope)).to.equal(resultValue);
+        });
+    });
 
-                topLevelNamespaceScope.getFilePath.returns('/path/to/my/parent/module.php');
-                callStack.getLastLine.returns(123);
-            });
+    describe('requireOnce()', function () {
+        it('should return the result of requiring via the OnceIncluder', function () {
+            var enclosingScope = sinon.createStubInstance(Scope),
+                resultValue = valueFactory.createString('my result');
+            onceIncluder.includeOnce
+                .withArgs(
+                    'require_once',
+                    PHPError.E_ERROR, // For requires, a fatal error is raised on failure
+                    sinon.match.same(environment),
+                    sinon.match.same(module),
+                    sinon.match.same(topLevelNamespaceScope),
+                    '/my/required_path.php',
+                    sinon.match.same(enclosingScope),
+                    {my: 'options'}
+                )
+                .returns(resultValue);
 
-            it('should invoke the Loader with the "include" type', function () {
-                tools.include('/some/path/to/my_included_module.php', includeScope);
+            expect(tools.requireOnce('/my/required_path.php', enclosingScope)).to.equal(resultValue);
+        });
+    });
 
-                expect(loader.load).to.have.been.calledWith('include');
-            });
+    describe('require()', function () {
+        it('should return the result of including via the Includer', function () {
+            var enclosingScope = sinon.createStubInstance(Scope),
+                resultValue = valueFactory.createString('my result');
+            includer.include
+                .withArgs(
+                    'require',
+                    PHPError.E_ERROR, // For requires, a fatal error is raised on failure
+                    sinon.match.same(environment),
+                    sinon.match.same(module),
+                    sinon.match.same(topLevelNamespaceScope),
+                    '/my/required_path.php',
+                    sinon.match.same(enclosingScope),
+                    {my: 'options'}
+                )
+                .returns(resultValue);
 
-            it('should invoke the Loader with the correct included path string', function () {
-                tools.include('/some/path/to/my_included_module.php', includeScope);
-
-                expect(loader.load).to.have.been.calledWith(
-                    sinon.match.any,
-                    '/some/path/to/my_included_module.php'
-                );
-            });
-
-            it('should invoke the Loader with the current options', function () {
-                tools.include('/some/path/to/my_included_module.php', includeScope);
-
-                expect(loader.load).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.any,
-                    {
-                        'include': sinon.match.same(includeOption)
-                    }
-                );
-            });
-
-            it('should invoke the Loader with the Environment', function () {
-                tools.include('/some/path/to/my_included_module.php', includeScope);
-
-                expect(loader.load).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.same(environment)
-                );
-            });
-
-            it('should invoke the Loader with the current Module', function () {
-                tools.include('/some/path/to/my_included_module.php', includeScope);
-
-                expect(loader.load).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.same(module)
-                );
-            });
-
-            it('should invoke the Loader with a correctly created IncludeScope', function () {
-                var includeLoadScope = sinon.createStubInstance(LoadScope);
-                scopeFactory.createLoadScope
-                    .withArgs(sinon.match.same(includeScope), '/path/to/my/parent/module.php', 'include')
-                    .returns(includeLoadScope);
-
-                tools.include('/some/path/to/my_included_module.php', includeScope);
-
-                expect(loader.load).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.same(includeLoadScope)
-                );
-            });
-
-            it('should provide the Loader with a load function that calls the "include" option correctly', function () {
-                var loadFunction,
-                    promise = {},
-                    resultValue = valueFactory.createString('my include\'d module result');
-                includeOption
-                    .withArgs(
-                        '/some/path/to/my_included_module.php',
-                        sinon.match.same(promise),
-                        '/path/to/my/parent/module.php',
-                        sinon.match.same(valueFactory)
-                    )
-                    .returns(resultValue);
-                tools.include('/some/path/to/my_included_module.php', includeScope);
-
-                loadFunction = loader.load.args[0][6];
-
-                expect(loadFunction).to.be.a('function');
-                expect(
-                    loadFunction(
-                        '/some/path/to/my_included_module.php',
-                        promise,
-                        '/path/to/my/parent/module.php',
-                        valueFactory
-                    )
-                ).to.equal(resultValue);
-            });
-
-            it('should return the result from the Loader', function () {
-                var resultValue = valueFactory.createString('my include\'d module result');
-                loader.load.returns(resultValue);
-
-                expect(tools.include('/some/path/to/my_included_module.php', includeScope))
-                    .to.equal(resultValue);
-            });
-
-            it('should return bool(false) on LoadFailedException', function () {
-                loader.load.throws(new LoadFailedException(new Error('Oh dear')));
-
-                expect(tools.include('/some/path/to/my_included_module.php', includeScope).getNative())
-                    .to.be.false;
-            });
-
-            it('should not catch any other type of error', function () {
-                loader.load.throws(new Error('Bang!'));
-
-                expect(function () {
-                    tools.include('/some/path/to/my_included_module.php', includeScope);
-                }).to.throw('Bang!');
-            });
+            expect(tools.require('/my/required_path.php', enclosingScope)).to.equal(resultValue);
         });
     });
 
@@ -676,6 +614,8 @@ describe('Tools', function () {
                     translator,
                     globalNamespace,
                     loader,
+                    includer,
+                    onceIncluder,
                     module,
                     {
                         // Options

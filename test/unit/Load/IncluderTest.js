@@ -1,0 +1,276 @@
+/*
+ * PHPCore - PHP environment runtime components
+ * Copyright (c) Dan Phillimore (asmblah)
+ * https://github.com/uniter/phpcore/
+ *
+ * Released under the MIT license
+ * https://github.com/uniter/phpcore/raw/master/MIT-LICENSE.txt
+ */
+
+'use strict';
+
+var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
+    sinon = require('sinon'),
+    CallStack = require('../../../src/CallStack'),
+    Environment = require('../../../src/Environment'),
+    Exception = phpCommon.Exception,
+    Includer = require('../../../src/Load/Includer').sync(),
+    Loader = require('../../../src/Load/Loader').sync(),
+    LoadFailedException = require('../../../src/Exception/LoadFailedException'),
+    LoadScope = require('../../../src/Load/LoadScope'),
+    Module = require('../../../src/Module'),
+    NamespaceScope = require('../../../src/NamespaceScope').sync(),
+    OptionSet = require('../../../src/OptionSet'),
+    PHPError = phpCommon.PHPError,
+    Scope = require('../../../src/Scope').sync(),
+    ScopeFactory = require('../../../src/ScopeFactory'),
+    ValueFactory = require('../../../src/ValueFactory').sync();
+
+describe('Includer', function () {
+    var callStack,
+        enclosingScope,
+        environment,
+        includer,
+        loader,
+        module,
+        namespaceScope,
+        optionSet,
+        scopeFactory,
+        topLevelNamespaceScope,
+        topLevelScope,
+        valueFactory;
+
+    beforeEach(function () {
+        callStack = sinon.createStubInstance(CallStack);
+        enclosingScope = sinon.createStubInstance(Scope);
+        environment = sinon.createStubInstance(Environment);
+        includer = sinon.createStubInstance(Includer);
+        loader = sinon.createStubInstance(Loader);
+        module = sinon.createStubInstance(Module);
+        namespaceScope = sinon.createStubInstance(NamespaceScope);
+        optionSet = sinon.createStubInstance(OptionSet);
+        scopeFactory = sinon.createStubInstance(ScopeFactory);
+        topLevelNamespaceScope = sinon.createStubInstance(NamespaceScope);
+        topLevelScope = sinon.createStubInstance(Scope);
+        valueFactory = new ValueFactory(null, callStack);
+
+        callStack.raiseError
+            .withArgs(PHPError.E_ERROR)
+            .callsFake(function (level, message) {
+                throw new Error('Fake PHP ' + level + ': ' + message);
+            });
+        topLevelNamespaceScope.getFilePath.returns('/path/to/my/module.php');
+
+        includer = new Includer(
+            callStack,
+            valueFactory,
+            scopeFactory,
+            loader,
+            optionSet
+        );
+    });
+
+    describe('include()', function () {
+        var callInclude;
+
+        beforeEach(function () {
+            callInclude = function (includedPath, type, errorLevel, options) {
+                return includer.include(
+                    type || 'include',
+                    errorLevel || PHPError.E_WARNING,
+                    environment,
+                    module,
+                    topLevelNamespaceScope,
+                    includedPath,
+                    enclosingScope,
+                    options || {}
+                );
+            };
+        });
+
+        describe('when no "include" option has been specified', function () {
+            it('should throw', function () {
+                expect(function () {
+                    callInclude('/some/path/to/my_included_module.php');
+                }).to.throw(
+                    Exception,
+                    'include(/some/path/to/my_included_module.php) :: No "include" transport option is available for loading the module.'
+                );
+            });
+        });
+
+        describe('when the "include" option has been specified', function () {
+            var includeOption;
+
+            beforeEach(function () {
+                includeOption = sinon.stub();
+
+                optionSet.getOption
+                    .withArgs('include')
+                    .returns(includeOption);
+
+                topLevelNamespaceScope.getFilePath
+                    .returns('/path/to/my/parent/module.php');
+            });
+
+            it('should invoke the Loader with the "include" type', function () {
+                callInclude('/some/path/to/my_included_module.php');
+
+                expect(loader.load).to.have.been.calledWith('include');
+            });
+
+            it('should invoke the Loader with the correct included path string', function () {
+                callInclude('/some/path/to/my_included_module.php');
+
+                expect(loader.load).to.have.been.calledWith(
+                    sinon.match.any,
+                    '/some/path/to/my_included_module.php'
+                );
+            });
+
+            it('should invoke the Loader with the current options', function () {
+                callInclude('/some/path/to/my_included_module.php', null, null, {my: 'options'});
+
+                expect(loader.load).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    {my: 'options'}
+                );
+            });
+
+            it('should invoke the Loader with the Environment', function () {
+                callInclude('/some/path/to/my_included_module.php');
+
+                expect(loader.load).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.same(environment)
+                );
+            });
+
+            it('should invoke the Loader with the current Module', function () {
+                callInclude('/some/path/to/my_included_module.php');
+
+                expect(loader.load).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.same(module)
+                );
+            });
+
+            it('should invoke the Loader with a correctly created IncludeScope', function () {
+                var includeLoadScope = sinon.createStubInstance(LoadScope);
+                scopeFactory.createLoadScope
+                    .withArgs(sinon.match.same(enclosingScope), '/path/to/my/parent/module.php', 'include')
+                    .returns(includeLoadScope);
+
+                callInclude('/some/path/to/my_included_module.php');
+
+                expect(loader.load).to.have.been.calledWith(
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.any,
+                    sinon.match.same(includeLoadScope)
+                );
+            });
+
+            it('should provide the Loader with a load function that calls the "include" option correctly', function () {
+                var loadFunction,
+                    promise = {},
+                    resultValue = valueFactory.createString('my include\'d module result');
+                includeOption
+                    .withArgs(
+                        '/some/path/to/my_included_module.php',
+                        sinon.match.same(promise),
+                        '/path/to/my/parent/module.php',
+                        sinon.match.same(valueFactory)
+                    )
+                    .returns(resultValue);
+                callInclude('/some/path/to/my_included_module.php', enclosingScope);
+
+                loadFunction = loader.load.args[0][6];
+
+                expect(loadFunction).to.be.a('function');
+                expect(
+                    loadFunction(
+                        '/some/path/to/my_included_module.php',
+                        promise,
+                        '/path/to/my/parent/module.php',
+                        valueFactory
+                    )
+                ).to.equal(resultValue);
+            });
+
+            it('should return the result from the Loader', function () {
+                var resultValue = valueFactory.createString('my include\'d module result');
+                loader.load.returns(resultValue);
+
+                expect(callInclude('/some/path/to/my_included_module.php'))
+                    .to.equal(resultValue);
+            });
+
+            it('should return bool(false) on LoadFailedException', function () {
+                loader.load.throws(new LoadFailedException(new Error('Oh dear')));
+
+                expect(callInclude('/some/path/to/my_included_module.php').getNative())
+                    .to.be.false;
+            });
+
+            it('should not catch any other type of error', function () {
+                loader.load.throws(new Error('Bang!'));
+
+                expect(function () {
+                    callInclude('/some/path/to/my_included_module.php');
+                }).to.throw('Bang!');
+            });
+        });
+    });
+
+    describe('hasModuleBeenIncluded()', function () {
+        var callInclude;
+
+        beforeEach(function () {
+            var includeOption = sinon.stub();
+
+            optionSet.getOption
+                .withArgs('include')
+                .returns(includeOption);
+
+            callInclude = function (includedPath, type, errorLevel, options) {
+                return includer.include(
+                    type || 'include',
+                    errorLevel || PHPError.E_WARNING,
+                    environment,
+                    module,
+                    topLevelNamespaceScope,
+                    includedPath,
+                    enclosingScope,
+                    options || {}
+                );
+            };
+        });
+
+        it('should return true when a module has been included once', function () {
+            callInclude('/my/included_path.php');
+
+            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.true;
+        });
+
+        it('should return true when a module has been included multiple times', function () {
+            callInclude('/my/included_path.php');
+            callInclude('/my/included_path.php'); // Second include of the same module
+
+            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.true;
+        });
+
+        it('should return false when a module has not been included', function () {
+            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.false;
+        });
+    });
+});

@@ -12,7 +12,6 @@
 var _ = require('microdash'),
     PATH = 'path',
     Promise = require('lie'),
-    ToolsWrapper = require('./Tools'),
     ValueWrapper = require('./Value');
 
 /**
@@ -223,7 +222,6 @@ _.extend(Engine.prototype, {
             errorReporting,
             globalNamespace,
             globalScope,
-            loader,
             mode = engine.mode,
             module,
             moduleFactory,
@@ -235,21 +233,18 @@ _.extend(Engine.prototype, {
             phpCommon = engine.phpCommon,
             PHPError = phpCommon.PHPError,
             PHPParseError = phpCommon.PHPParseError,
-            referenceFactory,
             resultValue,
             scopeFactory,
             state,
             stderr = engine.getStderr(),
             stdin = engine.getStdin(),
             tools,
-            translator,
-            valueFactory,
+            toolsFactory,
             wrapper = engine.wrapper,
             unwrap = function (wrapper) {
                 return mode === 'async' ? wrapper.async(pausable) : wrapper.sync();
             },
             // TODO: Wrap this module with `pauser` to remove the need for this
-            Tools = unwrap(ToolsWrapper),
             Value = unwrap(ValueWrapper),
             topLevelNamespaceScope,
             topLevelScope;
@@ -257,37 +252,21 @@ _.extend(Engine.prototype, {
         state = environment.getState();
         callFactory = state.getCallFactory();
         errorReporting = state.getErrorReporting();
-        loader = state.getLoader();
         moduleFactory = state.getModuleFactory();
-        referenceFactory = state.getReferenceFactory();
         scopeFactory = state.getScopeFactory();
-        valueFactory = state.getValueFactory();
         globalNamespace = state.getGlobalNamespace();
         callStack = state.getCallStack();
         globalScope = state.getGlobalScope();
         output = state.getOutput();
+        toolsFactory = state.getToolsFactory();
         // Use the provided top-level scope if specified, otherwise use the global scope
         // (used eg. when an `include(...)` is used inside a function)
         topLevelScope = engine.topLevelScope || globalScope;
-        translator = state.getTranslator();
         module = moduleFactory.create(path);
         topLevelNamespaceScope = scopeFactory.createNamespaceScope(globalNamespace, globalNamespace, module);
 
         // Create the runtime tools object, referenced by the transpiled JS output from PHPToJS
-        tools = new Tools(
-            callStack,
-            environment,
-            translator,
-            globalNamespace,
-            loader,
-            module,
-            options,
-            referenceFactory,
-            scopeFactory,
-            topLevelNamespaceScope,
-            topLevelScope,
-            valueFactory
-        );
+        tools = toolsFactory.create(environment, module, topLevelNamespaceScope, topLevelScope, options);
 
         // Push the 'main' global scope call onto the stack
         callStack.push(callFactory.create(topLevelScope, topLevelNamespaceScope));
