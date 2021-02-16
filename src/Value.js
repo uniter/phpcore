@@ -347,6 +347,11 @@ module.exports = require('pauser')([
             return this.coerceToString().getLength();
         },
 
+        /**
+         * Fetches a native representation of this value
+         *
+         * @returns {*}
+         */
         getNative: function () {
             return this.value;
         },
@@ -416,7 +421,7 @@ module.exports = require('pauser')([
         /**
          * Determines whether this value is callable
          *
-         * @param {NamespaceScope} namespaceScope
+         * @param {Namespace} globalNamespace
          * @returns {boolean}
          */
         isCallable: throwUnimplemented,

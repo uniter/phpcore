@@ -63,14 +63,10 @@ module.exports = require('pauser')([
         Exception = phpCommon.Exception,
         MAGIC_CLONE = '__clone',
         PHPError = phpCommon.PHPError,
-        PHPFatalError = phpCommon.PHPFatalError,
-        PHPParseError = phpCommon.PHPParseError,
 
         CANNOT_ACCESS_PROPERTY = 'core.cannot_access_property',
         CANNOT_USE_WRONG_TYPE_AS = 'core.cannot_use_wrong_type_as',
         OBJECT_FROM_GET_ITERATOR_MUST_BE_TRAVERSABLE = 'core.object_from_get_iterator_must_be_traversable',
-        UNCAUGHT_EMPTY_THROWABLE = 'core.uncaught_empty_throwable',
-        UNCAUGHT_THROWABLE = 'core.uncaught_throwable',
         UNDEFINED_PROPERTY = 'core.undefined_property',
         UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types';
 
@@ -214,13 +210,16 @@ module.exports = require('pauser')([
          * @returns {Closure}
          */
         bindClosure: function (thisValue, scopeClass) {
-            var value = this;
+            var closure,
+                value = this;
 
-            if (!(value.value instanceof Closure)) {
+            if (!value.classIs('Closure')) {
                 throw new Error('bindClosure() :: Value is not a Closure');
             }
 
-            return value.value.bind(thisValue, scopeClass);
+            closure = value.getInternalProperty('closure');
+
+            return closure.bind(thisValue, scopeClass);
         },
 
         /**
@@ -238,7 +237,8 @@ module.exports = require('pauser')([
          *
          * @param {string} name
          * @param {Value[]?} args
-         * @returns {Value|null} Returns the result of the method if it exists, or null if it does not exist
+         * @returns {Value} Returns the result of the method if it exists
+         * @throws {PHPFatalError} Throws when the method does not exist
          */
         callMethod: function (name, args) {
             var value = this;
@@ -355,11 +355,12 @@ module.exports = require('pauser')([
         /**
          * Unwraps this instance of Exception to a native JS error
          *
-         * @returns {Error}
+         * TODO: Move the Throwable check elsewhere and deprecate this method in favour of .getNative()?
+         *
+         * @returns {Error|*}
          */
         coerceToNativeError: function () {
-            var message,
-                value = this;
+            var value = this;
 
             // Uncaught PHP Throwables become E_FATAL errors
 
@@ -369,36 +370,11 @@ module.exports = require('pauser')([
                 //       "Fatal error: Uncaught Error: Cannot throw objects that do not implement Throwable in Command line code:1"
                 //       These will probably need to be handled with transpiler-level changes,
                 //       so that a throw statement becomes eg. `tools.throw(...)` as it is too late
-                //       to make these checks at this point, due to the original context being lost
+                //       to make these checks at this point, due to the original stack/context being lost
                 throw new Exception('Weird value class thrown: ' + value.getClassName());
             }
 
-            if (value.classIs('ParseError')) {
-                return new PHPParseError(
-                    value.getProperty('message').getNative(),
-                    value.getProperty('file').getNative(),
-                    value.getProperty('line').getNative()
-                );
-            }
-
-            message = value.getProperty('message').getNative();
-
-            if (message !== '') {
-                message = value.translator.translate(UNCAUGHT_THROWABLE, {
-                    name: value.getClassName(),
-                    message: message
-                });
-            } else {
-                message = value.translator.translate(UNCAUGHT_EMPTY_THROWABLE, {
-                    name: value.getClassName()
-                });
-            }
-
-            return new PHPFatalError(
-                message,
-                value.getProperty('file').getNative(),
-                value.getProperty('line').getNative()
-            );
+            return value.getNative();
         },
 
         coerceToNumber: function () {
@@ -948,31 +924,28 @@ module.exports = require('pauser')([
          * Unwraps this PHP object value to something that non-PHPCore JS code will understand.
          * Special PHP classes like Closure and stdClass are unwrapped specially
          *
-         * @returns {Function|PHPObject|object|*}
+         * @returns {Object|*}
          */
         getNative: function () {
-            var result,
-                value = this;
+            var value = this;
 
-            // Don't wrap JS objects in PHPObject
-            // TODO: Move this out to JSObject.js by setting a custom unwrapper
-            if (value.classObject.getName() === 'JSObject') {
-                return value.value;
-            }
+            return value.classObject.exportInstanceForJS(value);
+        },
 
-            // Don't wrap stdClass objects in PHPObject, unwrap them recursively
-            // TODO: Move this out to stdClass.js by setting a custom unwrapper
-            if (value.classObject.getName() === 'stdClass') {
-                result = {};
+        /**
+         * Fetches a map of all non-private property names to values
+         *
+         * @returns {Object.<string, Value>}
+         */
+        getNonPrivateProperties: function () {
+            var value = this,
+                propertyNamesToValues = {};
 
-                _.forOwn(value.nonPrivateProperties, function (propertyReference, propertyName) {
-                    result[propertyName] = propertyReference.getValue().getNative();
-                });
+            _.forOwn(value.nonPrivateProperties, function (propertyReference, propertyName) {
+                propertyNamesToValues[propertyName] = propertyReference.getValue();
+            });
 
-                return result;
-            }
-
-            return value.classObject.unwrapInstanceForJS(value, value.value);
+            return propertyNamesToValues;
         },
 
         /**
@@ -1019,6 +992,17 @@ module.exports = require('pauser')([
          */
         getStaticPropertyByName: function (nameValue) {
             return this.classObject.getStaticPropertyByName(nameValue.getNative());
+        },
+
+        /**
+         * Fetches either this ObjectValue or its inner native object, based on the class' auto-coercion mode
+         *
+         * @returns {ObjectValue|Object}
+         */
+        getThisObject: function () {
+            var value = this;
+
+            return value.classObject.getThisObjectForInstance(value);
         },
 
         /**
@@ -1074,13 +1058,16 @@ module.exports = require('pauser')([
          * @returns {Value}
          */
         invokeClosure: function (args) {
-            var value = this;
+            var closure,
+                value = this;
 
-            if (!(value.value instanceof Closure)) {
-                throw new Error('bindClosure() :: Value is not a Closure');
+            if (!value.classIs('Closure')) {
+                throw new Error('invokeClosure() :: Value is not a Closure');
             }
 
-            return value.value.invoke(args);
+            closure = value.getInternalProperty('closure');
+
+            return closure.invoke(args);
         },
 
         /**

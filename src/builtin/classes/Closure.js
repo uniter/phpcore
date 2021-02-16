@@ -115,10 +115,7 @@ module.exports = function (internals) {
                 scopeClass = null;
             }
 
-            return valueFactory.createObject(
-                closureValue.bindClosure(newThisValue, scopeClass),
-                globalNamespace.getClass('Closure')
-            );
+            return valueFactory.createClosureObject(closureValue.bindClosure(newThisValue, scopeClass));
         }),
 
         /**
@@ -179,10 +176,7 @@ module.exports = function (internals) {
                 scopeClass = null;
             }
 
-            return valueFactory.createObject(
-                closureValue.bindClosure(newThisValue, scopeClass),
-                globalNamespace.getClass('Closure')
-            );
+            return valueFactory.createClosureObject(closureValue.bindClosure(newThisValue, scopeClass));
         },
 
         /**
@@ -204,21 +198,17 @@ module.exports = function (internals) {
      * is returned from PHP-land to JS-land. We need to export a callable native JS function
      * so that JS-land code can neatly call into the PHP-land closure like this.
      */
-    internals.defineUnwrapper(function () {
-        var objectValue = this;
+    internals.defineUnwrapper(function (objectValue) {
+        var closure = objectValue.getInternalProperty('closure');
 
         // Unwrap PHP Closures to native JS functions that may be called
         // just like any other (with arguments coerced from JS->PHP
         // and the return value coerced from PHP->JS automatically)
-        return function () {
+        return function __uniterInboundStackMarker__() {
             // Wrap thisObj in *Value object
             var thisObj = valueFactory.coerceObject(this),
-                args = [];
-
-            // Wrap all native JS values in *Value objects
-            _.each(arguments, function (arg) {
-                args.push(valueFactory.coerce(arg));
-            });
+                // Wrap all native JS values in *Value objects
+                args = valueFactory.coerceList(arguments);
 
             // Push an FFI call onto the stack, representing the call from JavaScript-land
             callStack.push(callFactory.createFFICall([].slice.call(arguments)));
@@ -231,9 +221,9 @@ module.exports = function (internals) {
                 return new Promise(function (resolve, reject) {
                     // Call the method via Pausable to allow for blocking operation
                     internals.pausable.call(
-                        objectValue.getObject().invoke,
+                        closure.invoke,
                         [args, thisObj],
-                        objectValue.getObject()
+                        closure
                     )
                         // Pop the call off the stack _before_ returning, to mirror sync mode's behaviour
                         .finally(popFFICall)
@@ -263,7 +253,7 @@ module.exports = function (internals) {
 
                 // Call the closure, and then unwrap its result value back to a native one
                 try {
-                    return objectValue.getObject().invoke(args, thisObj).getNative();
+                    return closure.invoke(args, thisObj).getNative();
                 } catch (error) {
                     if (valueFactory.isValue(error) && error.getType() === 'object') {
                         // Feed the error into the ErrorReporting mechanism,

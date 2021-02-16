@@ -851,7 +851,7 @@ describe('Array', function () {
             );
             createValue();
 
-            expect(value.isCallable(namespaceScope)).to.be.true;
+            expect(value.isCallable(globalNamespace)).to.be.true;
         });
 
         it('should return true for a valid static method name of a given class', function () {
@@ -876,21 +876,21 @@ describe('Array', function () {
             );
             createValue();
 
-            expect(value.isCallable(namespaceScope)).to.be.true;
+            expect(value.isCallable(globalNamespace)).to.be.true;
         });
 
         it('should return false for an empty array', function () {
             elements.length = 0;
             createValue();
 
-            expect(value.isCallable(namespaceScope)).to.be.false;
+            expect(value.isCallable(globalNamespace)).to.be.false;
         });
 
         it('should return false for an array with one element', function () {
             elements.length = 1;
             createValue();
 
-            expect(value.isCallable(namespaceScope)).to.be.false;
+            expect(value.isCallable(globalNamespace)).to.be.false;
         });
 
         it('should return false for an array with a non-string second element', function () {
@@ -899,7 +899,7 @@ describe('Array', function () {
                 factory.createInteger(21)
             );
 
-            expect(value.isCallable(namespaceScope)).to.be.false;
+            expect(value.isCallable(globalNamespace)).to.be.false;
         });
 
         it('should return false for a non-existent class', function () {
@@ -916,7 +916,7 @@ describe('Array', function () {
             );
             createValue();
 
-            expect(value.isCallable(namespaceScope)).to.be.false;
+            expect(value.isCallable(globalNamespace)).to.be.false;
         });
 
         it('should return false for a non-existent instance method', function () {
@@ -943,7 +943,7 @@ describe('Array', function () {
             );
             createValue();
 
-            expect(value.isCallable(namespaceScope)).to.be.false;
+            expect(value.isCallable(globalNamespace)).to.be.false;
         });
 
         it('should return true for a non-existent static method', function () {
@@ -967,7 +967,7 @@ describe('Array', function () {
             );
             createValue();
 
-            expect(value.isCallable(namespaceScope)).to.be.false;
+            expect(value.isCallable(globalNamespace)).to.be.false;
         });
     });
 

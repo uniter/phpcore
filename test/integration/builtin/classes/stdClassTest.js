@@ -85,4 +85,32 @@ EOS
         expect(engine.getStdout().readAll()).to.equal('\nNotice: Undefined property: stdClass::$anUndefinedProperty in /my/test/module.php on line 7\n');
         expect(engine.getStderr().readAll()).to.equal('PHP Notice:  Undefined property: stdClass::$anUndefinedProperty in /my/test/module.php on line 7\n');
     });
+
+    it('should export stdClass instances to a plain object structure recursively', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = new stdClass;
+$result->firstProp = 'the value of firstProp';
+$result->secondProp = 'the value of secondProp';
+
+$result->objectProp = new stdClass;
+$result->objectProp->firstNestedProp = 'value of first nested prop';
+$result->objectProp->secondNestedProp = 'value of second nested prop';
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile('/my/test/module.php', php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal({
+            // See the custom unwrapper defined in src/builtin/classes/stdClass.js
+            firstProp: 'the value of firstProp',
+            secondProp: 'the value of secondProp',
+            objectProp: {
+                firstNestedProp: 'value of first nested prop',
+                secondNestedProp:  'value of second nested prop'
+            }
+        });
+    });
 });

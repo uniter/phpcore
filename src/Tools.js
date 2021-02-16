@@ -141,15 +141,14 @@ module.exports = require('pauser')([
         createClosure: function (func, scope, namespaceScope, parametersSpecData, isStatic, lineNumber) {
             var tools = this;
 
-            return tools.valueFactory.createObject(
+            return tools.valueFactory.createClosureObject(
                 scope.createClosure(
                     namespaceScope,
                     func,
                     parametersSpecData || [],
                     !!isStatic,
                     lineNumber || null
-                ),
-                tools.globalNamespace.getClass('Closure')
+                )
             );
         },
 

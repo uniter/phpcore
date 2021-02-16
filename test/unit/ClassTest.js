@@ -9,36 +9,46 @@
 
 'use strict';
 
-var expect = require('chai').expect,
+var _ = require('microdash'),
+    expect = require('chai').expect,
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
+    ExportRepository = require('../../src/FFI/Export/ExportRepository'),
+    FFIFactory = require('../../src/FFI/FFIFactory'),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
-    PHPObject = require('../../src/PHPObject').sync(),
     MethodSpec = require('../../src/MethodSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
+    PHPObject = require('../../src/FFI/Value/PHPObject').sync(),
     StaticPropertyReference = require('../../src/Reference/StaticProperty'),
     UndeclaredStaticPropertyReference = require('../../src/Reference/UndeclaredStaticProperty'),
     Value = require('../../src/Value').sync(),
+    ValueCoercer = require('../../src/FFI/Value/ValueCoercer'),
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('Class', function () {
     var callStack,
         classObject,
         createClass,
+        exportRepository,
+        ffiFactory,
         functionFactory,
         interfaceObject,
         namespaceScope,
         superClass,
+        valueCoercer,
         valueFactory,
         InternalClass;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        exportRepository = sinon.createStubInstance(ExportRepository);
+        ffiFactory = sinon.createStubInstance(FFIFactory);
         functionFactory = sinon.createStubInstance(FunctionFactory);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         superClass = sinon.createStubInstance(Class);
+        valueCoercer = sinon.createStubInstance(ValueCoercer);
         valueFactory = new ValueFactory(null, callStack);
         InternalClass = sinon.stub();
         interfaceObject = sinon.createStubInstance(Class);
@@ -54,6 +64,17 @@ describe('Class', function () {
                 'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
             );
         });
+
+        valueCoercer.coerceArguments.callsFake(function (argumentValues) {
+            if (valueCoercer.isAutoCoercionEnabled()) {
+                argumentValues = _.map(argumentValues, function (argumentValue) {
+                    return argumentValue.getNative();
+                });
+            }
+
+            return argumentValues;
+        });
+        valueCoercer.isAutoCoercionEnabled.returns(false);
 
         createClass = function (constructorName, superClass, constants) {
             classObject = new Class(
@@ -87,7 +108,10 @@ describe('Class', function () {
                 constants || {},
                 superClass,
                 ['My\\Interface'],
-                namespaceScope
+                namespaceScope,
+                exportRepository,
+                valueCoercer,
+                ffiFactory
             );
         };
         createClass('__construct', null);
@@ -129,7 +153,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue = sinon.createStubInstance(Value);
                     methodFunction.returns(resultValue);
-                    classObject.disableAutoCoercion();
+                    valueCoercer.isAutoCoercionEnabled.returns(false);
 
                     expect(callMethod('myMethod', [argValue])).to.equal(resultValue);
                     expect(methodFunction).to.have.been.calledOnce;
@@ -141,7 +165,7 @@ describe('Class', function () {
                         resultValue;
                     argValue.getNative.returns('the arg');
                     methodFunction.returns('the result');
-                    classObject.enableAutoCoercion();
+                    valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethod', [argValue]);
 
@@ -155,7 +179,7 @@ describe('Class', function () {
                     it('should not pass along the static class', function () {
                         var resultValue = sinon.createStubInstance(Value);
                         methodFunction.returns(resultValue);
-                        classObject.disableAutoCoercion();
+                        valueCoercer.isAutoCoercionEnabled.returns(false);
 
                         callMethod('myMethod', [], true);
 
@@ -167,7 +191,7 @@ describe('Class', function () {
                     it('should pass along the static class', function () {
                         var resultValue = sinon.createStubInstance(Value);
                         methodFunction.returns(resultValue);
-                        classObject.disableAutoCoercion();
+                        valueCoercer.isAutoCoercionEnabled.returns(false);
 
                         callMethod('myMethod', [], false);
 
@@ -193,7 +217,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue = sinon.createStubInstance(Value);
                     methodFunction.returns(resultValue);
-                    classObject.disableAutoCoercion();
+                    valueCoercer.isAutoCoercionEnabled.returns(false);
 
                     expect(callMethod('myMethodWithWrongCase', [argValue])).to.equal(resultValue);
                     expect(methodFunction).to.have.been.calledOnce;
@@ -205,7 +229,7 @@ describe('Class', function () {
                         resultValue;
                     argValue.getNative.returns('the arg');
                     methodFunction.returns('the result');
-                    classObject.enableAutoCoercion();
+                    valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethodWithWrongCase', [argValue]);
 
@@ -230,7 +254,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue = sinon.createStubInstance(Value);
                     methodFunction.returns(resultValue);
-                    classObject.disableAutoCoercion();
+                    valueCoercer.isAutoCoercionEnabled.returns(false);
 
                     expect(callMethod('myMethod', [argValue])).to.equal(resultValue);
                     expect(methodFunction).to.have.been.calledOnce;
@@ -242,7 +266,7 @@ describe('Class', function () {
                         resultValue;
                     argValue.getNative.returns('the arg');
                     methodFunction.returns('the result');
-                    classObject.enableAutoCoercion();
+                    valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethod', [argValue]);
 
@@ -298,7 +322,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue = sinon.createStubInstance(Value);
                     methodFunction.returns(resultValue);
-                    classObject.disableAutoCoercion();
+                    valueCoercer.isAutoCoercionEnabled.returns(false);
 
                     expect(callMethod('myMethod', [argValue])).to.equal(resultValue);
                     expect(methodFunction).to.have.been.calledOnce;
@@ -310,7 +334,7 @@ describe('Class', function () {
                         resultValue;
                     argValue.getNative.returns('the arg');
                     methodFunction.returns('the result');
-                    classObject.enableAutoCoercion();
+                    valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethod', [argValue]);
 
@@ -334,7 +358,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue = sinon.createStubInstance(Value);
                     methodFunction.returns(resultValue);
-                    classObject.disableAutoCoercion();
+                    valueCoercer.isAutoCoercionEnabled.returns(false);
 
                     expect(callMethod('myMethodWithWrongCase', [argValue])).to.equal(resultValue);
                     expect(methodFunction).to.have.been.calledOnce;
@@ -346,7 +370,7 @@ describe('Class', function () {
                         resultValue;
                     argValue.getNative.returns('the arg');
                     methodFunction.returns('the result');
-                    classObject.enableAutoCoercion();
+                    valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethodWithWrongCase', [argValue]);
 
@@ -371,7 +395,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue = sinon.createStubInstance(Value);
                     methodFunction.returns(resultValue);
-                    classObject.disableAutoCoercion();
+                    valueCoercer.isAutoCoercionEnabled.returns(false);
 
                     expect(callMethod('myMethod', [argValue])).to.equal(resultValue);
                     expect(methodFunction).to.have.been.calledOnce;
@@ -383,7 +407,7 @@ describe('Class', function () {
                         resultValue;
                     argValue.getNative.returns('the arg');
                     methodFunction.returns('the result');
-                    classObject.enableAutoCoercion();
+                    valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethod', [argValue]);
 
@@ -466,6 +490,18 @@ describe('Class', function () {
         });
     });
 
+    describe('exportInstanceForJS()', function () {
+        it('should return the instance exported via the ExportRepository', function () {
+            var instance = {my: 'export'},
+                objectValue = sinon.createStubInstance(ObjectValue);
+            exportRepository.export
+                .withArgs(sinon.match.same(objectValue))
+                .returns(instance);
+
+            expect(classObject.exportInstanceForJS(objectValue)).to.equal(instance);
+        });
+    });
+
     describe('getConstantByName()', function () {
         beforeEach(function () {
             interfaceObject.getConstantByName.throws(new Error('Constant not defined'));
@@ -516,6 +552,21 @@ describe('Class', function () {
             }).to.throw(
                 'Fake PHP Fatal error for #core.undefined_class_constant with {"name":"MY_CONST"}'
             );
+        });
+    });
+
+    describe('getInterfaces()', function () {
+        it('should return all interfaces implemented by this class', function () {
+            var interfaceObject = sinon.createStubInstance(Class),
+                result;
+            namespaceScope.getClass
+                .withArgs('My\\Interface')
+                .returns(interfaceObject);
+
+            result = classObject.getInterfaces();
+
+            expect(result).to.have.length(1);
+            expect(result[0]).to.equal(interfaceObject);
         });
     });
 
@@ -691,6 +742,12 @@ describe('Class', function () {
                     expect(classObject.getMethodSpec('myMethod')).to.be.null;
                 });
             });
+        });
+    });
+
+    describe('getName()', function () {
+        it('should return the Fully-Qualified Class Name (FQCN)', function () {
+            expect(classObject.getName()).to.equal('My\\Class\\Path\\Here');
         });
     });
 
@@ -899,6 +956,30 @@ describe('Class', function () {
         });
     });
 
+    describe('getThisObjectForInstance()', function () {
+        it('should return the ObjectValue when non-coercing', function () {
+            var objectValue = sinon.createStubInstance(ObjectValue);
+            valueCoercer.isAutoCoercionEnabled.returns(false);
+
+            expect(classObject.getThisObjectForInstance(objectValue)).to.equal(objectValue);
+        });
+
+        it('should return the native object when coercing', function () {
+            var nativeObject = {my: 'object'},
+                objectValue = sinon.createStubInstance(ObjectValue);
+            objectValue.getObject.returns(nativeObject);
+            valueCoercer.isAutoCoercionEnabled.returns(true);
+
+            expect(classObject.getThisObjectForInstance(objectValue)).to.equal(nativeObject);
+        });
+    });
+
+    describe('getUnprefixedName()', function () {
+        it('should return the class name without namespace prefix', function () {
+            expect(classObject.getUnprefixedName()).to.equal('Here');
+        });
+    });
+
     describe('instantiate()', function () {
         var objectValue;
 
@@ -928,7 +1009,7 @@ describe('Class', function () {
             sinon.stub(valueFactory, 'createObject').returns(objectValue);
             arg1.getNative.returns(21);
             arg2.getNative.returns('second');
-            classObject.enableAutoCoercion();
+            valueCoercer.isAutoCoercionEnabled.returns(true);
 
             classObject.instantiate([arg1, arg2]);
 
@@ -997,7 +1078,7 @@ describe('Class', function () {
             sinon.stub(valueFactory, 'createObject').returns(objectValue);
             arg1.getNative.returns(21);
             arg2.getNative.returns('second');
-            classObject.enableAutoCoercion();
+            valueCoercer.isAutoCoercionEnabled.returns(true);
 
             classObject.instantiateBare([arg1, arg2]);
 
@@ -1037,6 +1118,29 @@ describe('Class', function () {
         });
     });
 
+    describe('instantiateWithInternals()', function () {
+        var objectValue;
+
+        beforeEach(function () {
+            objectValue = sinon.createStubInstance(ObjectValue);
+            sinon.stub(valueFactory, 'createObject').returns(objectValue);
+            createClass('__construct', superClass);
+        });
+
+        it('should set the given internal properties on the object', function () {
+            classObject.instantiateWithInternals([], {
+                myInternal: 'my value'
+            });
+
+            expect(objectValue.setInternalProperty).to.have.been.calledOnce;
+            expect(objectValue.setInternalProperty).to.have.been.calledWith('myInternal', 'my value');
+        });
+
+        it('should return the created object', function () {
+            expect(classObject.instantiateWithInternals([], {})).to.equal(objectValue);
+        });
+    });
+
     describe('is()', function () {
         beforeEach(function () {
             createClass('__construct', superClass);
@@ -1072,21 +1176,16 @@ describe('Class', function () {
     });
 
     describe('isAutoCoercionEnabled()', function () {
-        it('should return false by default', function () {
+        it('should return false when disabled', function () {
+            valueCoercer.isAutoCoercionEnabled.returns(false);
+
             expect(classObject.isAutoCoercionEnabled()).to.be.false;
         });
 
         it('should return true when enabled', function () {
-            classObject.enableAutoCoercion();
+            valueCoercer.isAutoCoercionEnabled.returns(true);
 
             expect(classObject.isAutoCoercionEnabled()).to.be.true;
-        });
-
-        it('should return false when re-disabled', function () {
-            classObject.enableAutoCoercion();
-            classObject.disableAutoCoercion();
-
-            expect(classObject.isAutoCoercionEnabled()).to.be.false;
         });
     });
 
@@ -1121,107 +1220,24 @@ describe('Class', function () {
         it('should return a PHPObject that wraps the provided instance of this class', function () {
             var instance = sinon.createStubInstance(ObjectValue),
                 phpObject = sinon.createStubInstance(PHPObject);
-            sinon.stub(valueFactory, 'createPHPObject').withArgs(sinon.match.same(instance)).returns(phpObject);
+            ffiFactory.createPHPObject
+                .withArgs(sinon.match.same(instance))
+                .returns(phpObject);
 
             expect(classObject.proxyInstanceForJS(instance)).to.equal(phpObject);
         });
     });
 
-    describe('unwrapInstanceForJS()', function () {
-        describe('when an unwrapper is defined', function () {
-            it('should use the unwrapper to unwrap correctly when auto-coercion is disabled', function () {
-                var instance = sinon.createStubInstance(ObjectValue),
-                    nativeObject = {};
-                instance.getProperty.withArgs('myProp').returns(valueFactory.createString('my first result'));
-                classObject.defineUnwrapper(function () {
-                    return {yourProp: this.getProperty('myProp').getNative()};
-                });
+    describe('unwrapArguments()', function () {
+        it('should return the arguments coerced by the ValueCoercer', function () {
+            var originalValue1 = valueFactory.createInteger(4),
+                originalValue2 = valueFactory.createInteger(7);
+            valueCoercer.coerceArguments
+                .withArgs([sinon.match.same(originalValue1), sinon.match.same(originalValue2)])
+                .returns([4, 7]);
 
-                expect(classObject.unwrapInstanceForJS(instance, nativeObject)).to.deep.equal({
-                    yourProp: 'my first result'
-                });
-            });
-
-            it('should use the unwrapper to unwrap correctly when auto-coercion is enabled', function () {
-                var instance = sinon.createStubInstance(ObjectValue),
-                    nativeObject = {myProp: 'my second result'};
-                classObject.defineUnwrapper(function () {
-                    return {yourProp: this.myProp};
-                });
-                classObject.enableAutoCoercion();
-
-                expect(classObject.unwrapInstanceForJS(instance, nativeObject)).to.deep.equal({
-                    yourProp: 'my second result'
-                });
-            });
-        });
-
-        describe('when no unwrapper is defined', function () {
-            it('should return an instance of the generated UnwrappedClass, able to call methods', function () {
-                var instance = sinon.createStubInstance(ObjectValue),
-                    nativeObject = {myProp: 4},
-                    unwrapped;
-                instance.callMethod.withArgs('doubleMyPropAndAdd', 21).returns(valueFactory.createInteger(29));
-                sinon.stub(valueFactory, 'createPHPObject').callsFake(function (objectValue) {
-                    var phpObject = sinon.createStubInstance(PHPObject);
-                    phpObject.callMethod.callsFake(function (name, args) {
-                        return objectValue.callMethod(name, args).getNative();
-                    });
-                    return phpObject;
-                });
-                InternalClass.prototype.doubleMyPropAndAdd = function () {};
-
-                unwrapped = classObject.unwrapInstanceForJS(instance, nativeObject);
-
-                expect(unwrapped.doubleMyPropAndAdd(21)).to.equal(29);
-            });
-
-            it('should also proxy methods inherited from the prototype chain', function () {
-                var instance = sinon.createStubInstance(ObjectValue),
-                    nativeObject = {myProp: 4},
-                    unwrapped;
-                instance.callMethod
-                    .withArgs('doubleMyPropAndAdd', 21)
-                    .returns(valueFactory.createInteger(29));
-                sinon.stub(valueFactory, 'createPHPObject').callsFake(function (objectValue) {
-                    var phpObject = sinon.createStubInstance(PHPObject);
-                    phpObject.callMethod.callsFake(function (name, args) {
-                        return objectValue.callMethod(name, args).getNative();
-                    });
-                    return phpObject;
-                });
-                InternalClass.prototype = Object.create({
-                    // Define the method up the prototype chain
-                    doubleMyPropAndAdd: function () {}
-                });
-
-                unwrapped = classObject.unwrapInstanceForJS(instance, nativeObject);
-
-                expect(unwrapped.doubleMyPropAndAdd(21)).to.equal(29);
-            });
-
-            it('should always return the same instance of the generated UnwrappedClass for each ObjectValue', function () {
-                var existingUnwrapped,
-                    instance = sinon.createStubInstance(ObjectValue),
-                    nativeObject = {myProp: 4};
-                existingUnwrapped = classObject.unwrapInstanceForJS(instance, nativeObject);
-
-                expect(classObject.unwrapInstanceForJS(instance, nativeObject)).to.equal(existingUnwrapped);
-            });
-
-            it('should map the unwrapped object back to the original ObjectValue', function () {
-                var instance = sinon.createStubInstance(ObjectValue),
-                    nativeObject = {myProp: 'my second result'};
-                sinon.stub(valueFactory, 'mapUnwrappedObjectToValue');
-
-                classObject.unwrapInstanceForJS(instance, nativeObject);
-
-                expect(valueFactory.mapUnwrappedObjectToValue).to.have.been.calledOnce;
-                expect(valueFactory.mapUnwrappedObjectToValue).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.same(instance)
-                );
-            });
+            expect(classObject.unwrapArguments([originalValue1, originalValue2]))
+                .to.deep.equal([4, 7]);
         });
     });
 });

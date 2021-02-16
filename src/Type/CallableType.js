@@ -52,7 +52,7 @@ _.extend(CallableType.prototype, {
      * {@inheritdoc}
      */
     allowsValue: function (value) {
-        return value.isCallable(this.namespaceScope) ||
+        return value.isCallable(this.namespaceScope.getGlobalNamespace()) ||
             (this.allowsNull() && value.getType() === 'null');
     },
 

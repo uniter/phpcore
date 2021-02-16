@@ -13,19 +13,24 @@ var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     CallableType = require('../../../src/Type/CallableType'),
+    Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     Translator = phpCommon.Translator,
     Value = require('../../../src/Value').sync(),
     ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('CallableType', function () {
-    var namespaceScope,
+    var globalNamespace,
+        namespaceScope,
         type,
         valueFactory;
 
     beforeEach(function () {
+        globalNamespace = sinon.createStubInstance(Namespace);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         valueFactory = new ValueFactory();
+
+        namespaceScope.getGlobalNamespace.returns(globalNamespace);
 
         type = new CallableType(namespaceScope, false);
     });
@@ -45,14 +50,18 @@ describe('CallableType', function () {
     describe('allowsValue()', function () {
         it('should return true for a callable', function () {
             var callableValue = sinon.createStubInstance(Value);
-            callableValue.isCallable.returns(true);
+            callableValue.isCallable
+                .withArgs(sinon.match.same(globalNamespace))
+                .returns(true);
 
             expect(type.allowsValue(callableValue)).to.be.true;
         });
 
         it('should return false for a non-callable', function () {
             var callableValue = sinon.createStubInstance(Value);
-            callableValue.isCallable.returns(false);
+            callableValue.isCallable
+                .withArgs(sinon.match.same(globalNamespace))
+                .returns(false);
 
             expect(type.allowsValue(callableValue)).to.be.false;
         });

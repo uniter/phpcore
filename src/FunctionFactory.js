@@ -24,7 +24,13 @@ module.exports = require('pauser')([
      * @param {CallStack} callStack
      * @constructor
      */
-    function FunctionFactory(MethodSpec, scopeFactory, callFactory, valueFactory, callStack) {
+    function FunctionFactory(
+        MethodSpec,
+        scopeFactory,
+        callFactory,
+        valueFactory,
+        callStack
+    ) {
         /**
          * @type {CallFactory}
          */
@@ -106,7 +112,12 @@ module.exports = require('pauser')([
 
                         result = func.apply(scope, args);
 
-                        // TODO: Coerce the result as needed (if the PHP function has a return type defined)
+                        // Coerce the result to a Value object, handling any FFIResult as needed
+                        // (in async mode this could result in a pause if required)
+                        result = factory.valueFactory.coerce(result);
+
+                        // TODO: Coerce the result as needed (if the PHP function has a return type defined
+                        //       and we are in loose-types mode)
                     } finally {
                         // Pop the call off the stack when done
                         factory.callStack.pop();

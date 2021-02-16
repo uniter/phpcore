@@ -11,45 +11,11 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
-    FFIResult = require('../../FFI/Result'),
     PHPError = phpCommon.PHPError,
     UNDEFINED_METHOD = 'core.undefined_method';
 
 module.exports = function (internals) {
-    var callStack = internals.callStack,
-        pausable = internals.pausable,
-        /**
-         * Checks whether the returned result is an FFI Result and if so,
-         * if we are in async mode, it pauses PHP execution until the promise
-         * returned from the async fetcher is resolved or rejected
-         *
-         * @param {*} result
-         */
-        handleFFIResult = function (result) {
-            var pause;
-
-            if (!(result instanceof FFIResult)) {
-                // A non-FFI Result was returned: nothing special to do
-                return result;
-            }
-
-            if (!pausable) {
-                // We're in sync mode - use the synchronous fetcher as we are unable
-                // to wait for an asynchronous operation to complete
-                return result.getSync();
-            }
-
-            pause = pausable.createPause();
-
-            // Wait for the returned promise to resolve or reject before continuing
-            result.getAsync().then(function (resultValue) {
-                pause.resume(resultValue);
-            }, function (error) {
-                pause.throw(error);
-            });
-
-            return pause.now();
-        };
+    var callStack = internals.callStack;
 
     function JSObject() {
 
@@ -64,7 +30,7 @@ module.exports = function (internals) {
          * @param {*[]} args
          * @returns {*}
          */
-        '__call': function (name, args) {
+        '__call': function __uniterOutboundStackMarker__(name, args) {
             var object = this,
                 result;
 
@@ -77,9 +43,7 @@ module.exports = function (internals) {
 
             result = object[name].apply(object, args);
 
-            // A promise may be returned from the method, in which case
-            // we need to block PHP execution until it is resolved or rejected
-            return handleFFIResult(result);
+            return result;
         },
 
         /**
@@ -109,9 +73,7 @@ module.exports = function (internals) {
 
             result = object.apply(null, arguments);
 
-            // A promise may be returned from the function, in which case
-            // we need to block PHP execution until it is resolved or rejected
-            return handleFFIResult(result);
+            return result;
         },
 
         /**
@@ -134,6 +96,14 @@ module.exports = function (internals) {
         '__unset': function (propertyName) {
             delete this[propertyName];
         }
+    });
+
+    internals.defineUnwrapper(function (nativeObject) {
+        /*
+         * JSObjects are objects that originate from JS-land and were subsequently passed into PHP-land -
+         * when we want to unwrap them to pass back to JS-land, simply return the original native object
+         */
+        return nativeObject;
     });
 
     return JSObject;

@@ -16,6 +16,37 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP builtin Error class integration', function () {
+    it('should correctly export a PHP Error instance to JS-land', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+return new Error('Oh dear');
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module({
+                eval: function (evalPHP, path, promise) {
+                    promise.resolve(tools.syncTranspile(path, evalPHP));
+                }
+            }),
+            resultNativeError,
+            resultValue;
+
+        resultValue = engine.execute();
+
+        expect(resultValue.getType()).to.equal('object');
+        expect(resultValue.getClassName()).to.equal('Error');
+        resultNativeError = resultValue.getNative();
+        // Note that this coercion is defined by a custom unwrapper in src/builtin/interfaces/Throwable.js
+        expect(resultNativeError).to.be.an.instanceOf(PHPFatalError);
+        expect(resultNativeError.getFilePath()).to.equal('/path/to/my_module.php');
+        expect(resultNativeError.getLevel()).to.equal('Fatal error');
+        expect(resultNativeError.getLineNumber()).to.equal(3);
+        expect(resultNativeError.getMessage()).to.equal('Uncaught Error: Oh dear');
+        expect(engine.getStderr().readAll()).to.equal('');
+        expect(engine.getStdout().readAll()).to.equal('');
+    });
+
     describe('getFile()', function () {
         it('should return the file path for an Error instance when known', function () {
             var php = nowdoc(function () {/*<<<EOS

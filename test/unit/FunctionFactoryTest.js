@@ -91,10 +91,14 @@ describe('FunctionFactory', function () {
         });
 
         describe('the wrapper function returned', function () {
-            it('should return the result from the wrapped function', function () {
+            it('should return the result from the wrapped function coerced to a Value', function () {
+                var resultValue;
                 originalFunc.returns(123);
 
-                expect(callCreate()()).to.equal(123);
+                resultValue = callCreate()();
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(123);
             });
 
             it('should pass the current Class to the ScopeFactory', function () {

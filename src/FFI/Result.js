@@ -19,14 +19,19 @@ var _ = require('microdash'),
  * while also providing a way to fetch it synchronously in sync mode.
  *
  * @param {Function} syncCallback
- * @param {Function|null} asyncCallback
+ * @param {Function=} asyncCallback
+ * @param {Resumable=} pausable
  * @constructor
  */
-function Result(syncCallback, asyncCallback) {
+function Result(syncCallback, asyncCallback, pausable) {
     /**
      * @type {Function|null}
      */
     this.asyncCallback = asyncCallback;
+    /**
+     * @type {Resumable|null}
+     */
+    this.pausable = pausable || null;
     /**
      * @type {Function}
      */
@@ -66,6 +71,40 @@ _.extend(Result.prototype, {
      */
     getSync: function () {
         return this.syncCallback();
+    },
+
+    /**
+     * Resolves this FFI result to a value, awaiting the Promise
+     * returned by the async callback if needed
+     *
+     * @param {ValueFactory} valueFactory
+     * @return {Value}
+     */
+    resolve: function (valueFactory) {
+        var result = this,
+            pause;
+
+        if (!result.pausable) {
+            /**
+             * We're in either sync or psync mode - use the synchronous fetcher
+             * as we are unable to wait for an asynchronous operation to complete.
+             * Remember that we still need to coerce the result as needed,
+             * in case the fetcher returns an unwrapped native JS value.
+             */
+            return valueFactory.coerce(result.getSync());
+        }
+
+        pause = result.pausable.createPause();
+
+        // Wait for the returned promise to resolve or reject before continuing
+        result.getAsync().then(function (resultValue) {
+            // Remember we still need to coerce the result as above
+            pause.resume(valueFactory.coerce(resultValue));
+        }, function (error) {
+            pause.throw(error);
+        });
+
+        return pause.now();
     }
 });
 

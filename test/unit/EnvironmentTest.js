@@ -15,22 +15,26 @@ var expect = require('chai').expect,
     Environment = require('../../src/Environment'),
     ErrorReporting = require('../../src/Error/ErrorReporting'),
     FFIResult = require('../../src/FFI/Result'),
+    FFIValueHelper = require('../../src/FFI/Value/ValueHelper'),
     PHPError = phpCommon.PHPError,
     PHPFatalError = phpCommon.PHPFatalError,
     PHPParseError = phpCommon.PHPParseError,
     PHPState = require('../../src/PHPState').sync(),
-    Promise = require('lie'),
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('Environment', function () {
     var environment,
+        ffiValueHelper,
         state,
         valueFactory;
 
     beforeEach(function () {
+        ffiValueHelper = sinon.createStubInstance(FFIValueHelper);
         state = sinon.createStubInstance(PHPState);
         valueFactory = new ValueFactory();
+
+        state.getFFIValueHelper.returns(ffiValueHelper);
 
         environment = new Environment(state);
     });
@@ -45,37 +49,15 @@ describe('Environment', function () {
     });
 
     describe('createFFIResult()', function () {
-        var asyncCallback,
-            syncCallback;
+        it('should return an FFIResult created via the PHPState', function () {
+            var result = sinon.createStubInstance(FFIResult),
+                asyncCallback = sinon.stub(),
+                syncCallback = sinon.stub();
+            state.createFFIResult
+                .withArgs(sinon.match.same(syncCallback), sinon.match.same(asyncCallback))
+                .returns(result);
 
-        beforeEach(function () {
-            asyncCallback = sinon.stub();
-            syncCallback = sinon.stub();
-
-            syncCallback.returns(21);
-            asyncCallback.callsFake(function () {
-                return Promise.resolve(101);
-            });
-        });
-
-        it('should return an instance of FFI Result', function () {
-            expect(environment.createFFIResult(syncCallback, asyncCallback)).to.be.an.instanceOf(FFIResult);
-        });
-
-        describe('the instance of FFI Result returned', function () {
-            var ffiResult;
-
-            beforeEach(function () {
-                ffiResult = environment.createFFIResult(syncCallback, asyncCallback);
-            });
-
-            it('should be passed the sync callback correctly', function () {
-                expect(ffiResult.getSync()).to.equal(21);
-            });
-
-            it('should be passed the async callback correctly', function () {
-                expect(ffiResult.getAsync()).to.eventually.equal(101);
-            });
+            expect(environment.createFFIResult(syncCallback, asyncCallback)).to.equal(result);
         });
     });
 
@@ -117,6 +99,31 @@ describe('Environment', function () {
                 21,
                 {caseInsensitive: true}
             );
+        });
+    });
+
+    describe('defineFunction()', function () {
+        it('should define a function on the PHPState', function () {
+            var myFunctionDefinitionFactory = sinon.stub();
+
+            environment.defineFunction('My\\Fqcn', myFunctionDefinitionFactory);
+
+            expect(state.defineFunction).to.have.been.calledOnce;
+            expect(state.defineFunction).to.have.been.calledWith(
+                'My\\Fqcn',
+                sinon.match.same(myFunctionDefinitionFactory)
+            );
+        });
+
+        it('should return the defined function from the PHPState', function () {
+            var myFunctionDefinitionFactory = sinon.stub(),
+                myFunctionObject = sinon.stub();
+            state.defineFunction
+                .withArgs('My\\Fqcn', sinon.match.same(myFunctionDefinitionFactory))
+                .returns(myFunctionObject);
+
+            expect(environment.defineFunction('My\\Fqcn', myFunctionDefinitionFactory))
+                .to.equal(myFunctionObject);
         });
     });
 
@@ -280,6 +287,18 @@ describe('Environment', function () {
 
             expect(state.setGlobal).to.have.been.calledOnce;
             expect(state.setGlobal).to.have.been.calledWith('myGlobal', sinon.match.same(value));
+        });
+    });
+
+    describe('toNativeWithSyncApi()', function () {
+        it('should return a new sync-API ProxyClass instance via the PHPState', function () {
+            var originalProxy = sinon.stub(),
+                syncApiProxy = sinon.stub();
+            ffiValueHelper.toNativeWithSyncApi
+                .withArgs(sinon.match.same(originalProxy))
+                .returns(syncApiProxy);
+
+            expect(environment.toNativeWithSyncApi(originalProxy)).to.equal(syncApiProxy);
         });
     });
 });

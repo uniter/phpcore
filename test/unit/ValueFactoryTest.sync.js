@@ -12,31 +12,37 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    BarewordStringValue = require('../../src/Value/BarewordString').sync(),
     CallFactory = require('../../src/CallFactory'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
+    Closure = require('../../src/Closure').sync(),
     ArrayIterator = require('../../src/Iterator/ArrayIterator'),
     ArrayValue = require('../../src/Value/Array').sync(),
     ElementProvider = require('../../src/Reference/Element/ElementProvider'),
     ErrorPromoter = require('../../src/Error/ErrorPromoter'),
+    Exception = phpCommon.Exception,
+    FFIResult = require('../../src/FFI/Result'),
     IntegerValue = require('../../src/Value/Integer').sync(),
     Namespace = require('../../src/Namespace').sync(),
     NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
-    PHPObject = require('../../src/PHPObject').sync(),
+    PHPObject = require('../../src/FFI/Value/PHPObject').sync(),
+    Promise = require('lie'),
     Translator = phpCommon.Translator,
     Value = require('../../src/Value').sync(),
-    ValueFactory = require('../../src/ValueFactory').sync();
+    ValueFactory = require('../../src/ValueFactory').sync(),
+    ValueStorage = require('../../src/FFI/Value/ValueStorage');
 
-describe('ValueFactory', function () {
+describe('ValueFactory (sync mode)', function () {
     var callFactory,
         callStack,
         elementProvider,
         errorPromoter,
         factory,
         globalNamespace,
-        pausable,
-        translator;
+        translator,
+        valueStorage;
 
     beforeEach(function () {
         callFactory = sinon.createStubInstance(CallFactory);
@@ -44,30 +50,89 @@ describe('ValueFactory', function () {
         elementProvider = new ElementProvider();
         errorPromoter = sinon.createStubInstance(ErrorPromoter);
         globalNamespace = sinon.createStubInstance(Namespace);
-        pausable = {};
         translator = sinon.createStubInstance(Translator);
+        valueStorage = new ValueStorage();
 
         translator.translate
             .callsFake(function (translationKey, placeholderVariables) {
                 return '[Translated] ' + translationKey + ' ' + JSON.stringify(placeholderVariables || {});
             });
 
-        factory = new ValueFactory(pausable, 'async', elementProvider, translator, callFactory, errorPromoter);
+        factory = new ValueFactory(
+            null,
+            'sync',
+            elementProvider,
+            translator,
+            callFactory,
+            errorPromoter,
+            valueStorage
+        );
         factory.setCallStack(callStack);
         factory.setGlobalNamespace(globalNamespace);
     });
 
+    describe('coerce()', function () {
+        it('should just return a Value object', function () {
+            var value = factory.createInteger(21);
+
+            expect(factory.coerce(value)).to.equal(value);
+        });
+
+        it('should resolve an FFIResult', function () {
+            var resolvedResult = factory.createInteger(21),
+                ffiResult = sinon.createStubInstance(FFIResult);
+            ffiResult.resolve
+                .withArgs(sinon.match.same(factory))
+                .returns(resolvedResult);
+
+            expect(factory.coerce(ffiResult)).to.equal(resolvedResult);
+        });
+    });
+
+    describe('coerceList()', function () {
+        it('should coerce all values given for an array-like value', function () {
+            var result,
+                values = {
+                    // Deliberately use an array-like object rather than an array
+                    length: 2,
+                    0: 'first',
+                    1: 'second'
+                };
+
+            result = factory.coerceList(values);
+
+            expect(result).to.have.length(2);
+            expect(result[0].getType()).to.equal('string');
+            expect(result[0].getNative()).to.equal('first');
+            expect(result[1].getType()).to.equal('string');
+            expect(result[1].getNative()).to.equal('second');
+        });
+    });
+
     describe('coerceObject()', function () {
-        it('should return Value instances untouched', function () {
+        it('should return ObjectValue instances untouched', function () {
             var value = sinon.createStubInstance(Value);
+            value.getType.returns('object');
 
             expect(factory.coerceObject(value)).to.equal(value);
+        });
+
+        it('should throw when a non-Object Value is given', function () {
+            expect(function () {
+                var value = factory.createInteger(21);
+
+                factory.coerceObject(value);
+            }).to.throw(Exception, 'Tried to coerce a Value of type "int" to object');
         });
 
         it('should wrap native arrays as JSObjects', function () {
             var nativeArray = [21],
                 JSObjectClass = sinon.createStubInstance(Class),
                 objectValue;
+            JSObjectClass.exportInstanceForJS
+                .callsFake(function (instance) {
+                    return instance.getObject();
+                });
             JSObjectClass.getName.returns('JSObject');
             JSObjectClass.getSuperClass.returns(null);
             JSObjectClass.is.withArgs('JSObject').returns(true);
@@ -98,6 +163,29 @@ describe('ValueFactory', function () {
         });
     });
 
+    describe('coercePromise()', function () {
+        it('should throw as Pausable is not available in sync mode', function () {
+            expect(function () {
+                factory.coercePromise(Promise.resolve());
+            }).to.throw('Cannot await a promise in non-async mode');
+        });
+    });
+
+    describe('createArray()', function () {
+        it('should be able to create an ArrayValue with the given native element values', function () {
+            var value = factory.createArray([21, 'second', 'third']);
+
+            expect(value.getType()).to.equal('array');
+            expect(value.getLength()).to.equal(3);
+            expect(value.getElementByIndex(0).getValue().getType()).to.equal('int');
+            expect(value.getElementByIndex(0).getValue().getNative()).to.equal(21);
+            expect(value.getElementByIndex(1).getValue().getType()).to.equal('string');
+            expect(value.getElementByIndex(1).getValue().getNative()).to.equal('second');
+            expect(value.getElementByIndex(2).getValue().getType()).to.equal('string');
+            expect(value.getElementByIndex(2).getValue().getNative()).to.equal('third');
+        });
+    });
+
     describe('createArrayIterator()', function () {
         it('should return an ArrayIterator on the specified value', function () {
             var arrayValue = sinon.createStubInstance(ArrayValue),
@@ -105,6 +193,49 @@ describe('ValueFactory', function () {
 
             expect(iterator).to.be.an.instanceOf(ArrayIterator);
             expect(iterator.getIteratedValue()).to.equal(arrayValue);
+        });
+    });
+
+    describe('createBarewordString()', function () {
+        it('should return a BarewordString', function () {
+            var value = factory.createBarewordString('mybareword');
+
+            expect(value).to.be.an.instanceOf(BarewordStringValue);
+            expect(value.getNative()).to.equal('mybareword');
+        });
+    });
+
+    describe('createBoolean()', function () {
+        it('should be able to create a BooleanValue with value true', function () {
+            var value = factory.createBoolean(true);
+
+            expect(value.getType()).to.equal('boolean');
+            expect(value.getNative()).to.be.true;
+        });
+
+        it('should be able to create a BooleanValue with value false', function () {
+            var value = factory.createBoolean(false);
+
+            expect(value.getType()).to.equal('boolean');
+            expect(value.getNative()).to.be.false;
+        });
+    });
+
+    describe('createClosureObject()', function () {
+        it('should create an ObjectValue of class Closure with the given internal Closure', function () {
+            var closureClassObject = sinon.createStubInstance(Class),
+                closure = sinon.createStubInstance(Closure),
+                objectValue = sinon.createStubInstance(ObjectValue);
+            globalNamespace.getClass
+                .withArgs('Closure')
+                .returns(closureClassObject);
+            closureClassObject.instantiateWithInternals
+                .withArgs(sinon.match.any, {
+                    closure: sinon.match.same(closure)
+                })
+                .returns(objectValue);
+
+            expect(factory.createClosureObject(closure)).to.equal(objectValue);
         });
     });
 
@@ -243,6 +374,15 @@ describe('ValueFactory', function () {
         });
     });
 
+    describe('createFloat()', function () {
+        it('should return a FloatValue with the specified value', function () {
+            var value = factory.createFloat(123.456);
+
+            expect(value.getType()).to.equal('float');
+            expect(value.getNative()).to.equal(123.456);
+        });
+    });
+
     describe('createFromNative()', function () {
         it('should return an indexed array when an indexed native array is given', function () {
             var nativeArray = [25, 28],
@@ -287,6 +427,10 @@ describe('ValueFactory', function () {
                     return factory.coerce(aMethod);
                 }
             });
+            JSObjectClass.exportInstanceForJS
+                .callsFake(function (instance) {
+                    return instance.getObject();
+                });
             JSObjectClass.getMethodSpec.withArgs('__get').returns({});
             JSObjectClass.getName.returns('JSObject');
             JSObjectClass.getSuperClass.returns(null);
@@ -308,6 +452,10 @@ describe('ValueFactory', function () {
             var nativeFunction = function () {},
                 JSObjectClass = sinon.createStubInstance(Class),
                 objectValue;
+            JSObjectClass.exportInstanceForJS
+                .callsFake(function (instance) {
+                    return instance.getObject();
+                });
             JSObjectClass.getName.returns('JSObject');
             JSObjectClass.getSuperClass.returns(null);
             JSObjectClass.is.withArgs('JSObject').returns(true);
@@ -332,7 +480,7 @@ describe('ValueFactory', function () {
         it('should unwrap an object exported as an Unwrapped back to its original ObjectValue', function () {
             var objectValue = sinon.createStubInstance(ObjectValue),
                 unwrappedObject = {};
-            factory.mapUnwrappedObjectToValue(unwrappedObject, objectValue);
+            factory.valueStorage.setObjectValueForExport(unwrappedObject, objectValue);
 
             expect(factory.createFromNative(unwrappedObject)).to.equal(objectValue);
         });
@@ -357,6 +505,32 @@ describe('ValueFactory', function () {
         });
     });
 
+    describe('createInteger()', function () {
+        it('should return an IntegerValue with the specified value', function () {
+            var value = factory.createInteger(123);
+
+            expect(value.getType()).to.equal('int');
+            expect(value.getNative()).to.equal(123);
+        });
+    });
+
+    describe('createNull()', function () {
+        it('should return a NullValue', function () {
+            var value = factory.createNull();
+
+            expect(value.getType()).to.equal('null');
+            expect(value.getNative()).to.be.null;
+        });
+
+        it('should always return the same NullValue for efficiency', function () {
+            var firstNullValue = factory.createNull(),
+                secondNullValue = factory.createNull();
+
+            expect(secondNullValue.getType()).to.equal('null');
+            expect(secondNullValue).to.equal(firstNullValue);
+        });
+    });
+
     describe('createObject()', function () {
         it('should return a correctly constructed ObjectValue', function () {
             var classObject = sinon.createStubInstance(Class),
@@ -371,18 +545,6 @@ describe('ValueFactory', function () {
         });
     });
 
-    describe('createPHPObject()', function () {
-        it('should return a PHPObject wrapping the ObjectValue', function () {
-            var value = sinon.createStubInstance(ObjectValue),
-                phpObject;
-
-            phpObject = factory.createPHPObject(value);
-
-            expect(phpObject).to.be.an.instanceOf(PHPObject);
-            expect(phpObject.getObjectValue()).to.equal(value);
-        });
-    });
-
     describe('createStdClassObject()', function () {
         it('should return an ObjectValue wrapping the created stdClass instance', function () {
             var value = sinon.createStubInstance(ObjectValue),
@@ -392,6 +554,15 @@ describe('ValueFactory', function () {
             stdClassClass.instantiate.returns(value);
 
             expect(factory.createStdClassObject()).to.equal(value);
+        });
+    });
+
+    describe('createString()', function () {
+        it('should return a correctly constructed StringValue', function () {
+            var value = factory.createString('my string');
+
+            expect(value.getType()).to.equal('string');
+            expect(value.getNative()).to.equal('my string');
         });
     });
 
@@ -573,22 +744,6 @@ describe('ValueFactory', function () {
         });
     });
 
-    describe('getUnwrappedObjectFromValue()', function () {
-        it('should return the unwrapped object for an object that has been mapped before', function () {
-            var objectValue = sinon.createStubInstance(ObjectValue),
-                unwrappedObject = {unwrapped: 'yes'};
-            factory.mapUnwrappedObjectToValue(unwrappedObject, objectValue);
-
-            expect(factory.getUnwrappedObjectFromValue(objectValue)).to.equal(unwrappedObject);
-        });
-
-        it('should return null for a value that has not been mapped before', function () {
-            var objectValue = sinon.createStubInstance(ObjectValue);
-
-            expect(factory.getUnwrappedObjectFromValue(objectValue)).to.be.null;
-        });
-    });
-
     describe('instantiateObject()', function () {
         var myClassObject,
             objectValue;
@@ -616,6 +771,20 @@ describe('ValueFactory', function () {
             expect(myClassObject.instantiate.args[0][0][0].getNative()).to.equal(21);
             expect(myClassObject.instantiate.args[0][0][1].getType()).to.equal('string');
             expect(myClassObject.instantiate.args[0][0][1].getNative()).to.equal('second arg');
+        });
+    });
+
+    describe('isValue()', function () {
+        it('should return true when given a Value object', function () {
+            var value = factory.createInteger(27);
+
+            expect(factory.isValue(value)).to.be.true;
+        });
+
+        it('should return false when given a non-Value object', function () {
+            var object = {my: 'non-Value object'};
+
+            expect(factory.isValue(object)).to.be.false;
         });
     });
 });

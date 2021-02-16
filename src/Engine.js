@@ -11,10 +11,9 @@
 
 var _ = require('microdash'),
     PATH = 'path',
-    ExitValueWrapper = require('./Value/Exit'),
-    ObjectValueWrapper = require('./Value/Object'),
     Promise = require('lie'),
-    ToolsWrapper = require('./Tools');
+    ToolsWrapper = require('./Tools'),
+    ValueWrapper = require('./Value');
 
 /**
  * Executes a transpiled PHP module
@@ -145,6 +144,19 @@ _.extend(Engine.prototype, {
     },
 
     /**
+     * Defines a new function (in any namespace).
+     * Note that the function will be defined on the current engine's environment,
+     * so any other engines that share this environment will also see the new function
+     *
+     * @param {string} name Fully-qualified name for the function to define
+     * @param {function} definitionFactory Called with `internals` object, returns the function definition
+     * @returns {Class} Returns the defined function
+     */
+    defineFunction: function (name, definitionFactory) {
+        return this.environment.defineFunction(name, definitionFactory);
+    },
+
+    /**
      * Defines a global variable and gives it the provided value
      *
      * @param {string} name
@@ -203,7 +215,7 @@ _.extend(Engine.prototype, {
      *
      * @returns {Promise|Value}
      */
-    execute: function () {
+    execute: function __uniterInboundStackMarker__() {
         var callFactory,
             callStack,
             engine = this,
@@ -237,9 +249,8 @@ _.extend(Engine.prototype, {
                 return mode === 'async' ? wrapper.async(pausable) : wrapper.sync();
             },
             // TODO: Wrap this module with `pauser` to remove the need for this
-            ExitValue = unwrap(ExitValueWrapper),
-            ObjectValue = unwrap(ObjectValueWrapper),
             Tools = unwrap(ToolsWrapper),
+            Value = unwrap(ValueWrapper),
             topLevelNamespaceScope,
             topLevelScope;
 
@@ -285,11 +296,11 @@ _.extend(Engine.prototype, {
             var errorValue,
                 trace;
 
-            if (error instanceof ExitValue) {
+            if (error instanceof Value && error.getType() === 'exit') {
                 return error;
             }
 
-            if (error instanceof ObjectValue) {
+            if (error instanceof Value && error.getType() === 'object') {
                 if (!isMainProgram) {
                     // For included files/eval etc., just pass the Throwable up the call stack
                     reject(error);
@@ -470,6 +481,17 @@ _.extend(Engine.prototype, {
      */
     setGlobal: function (name, value) {
         this.environment.setGlobal(name, value);
+    },
+
+    /**
+     * Takes the given proxy and returns a new one with a synchronous API,
+     * even in Promise-synchronous mode
+     *
+     * @param {ProxyClass} proxy
+     * @return {ProxyClass}
+     */
+    toNativeWithSyncApi: function (proxy) {
+        return this.environment.toNativeWithSyncApi(proxy);
     }
 });
 

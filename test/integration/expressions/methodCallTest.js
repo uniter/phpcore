@@ -95,7 +95,57 @@ class MyChild extends MyParent
 {
     public function myChildMethod()
     {
-        return 4 + MyParent::myParentMethod();
+        return 4 + MyParent::myParentMethod(); // Call the method on the parent with the current $this context
+    }
+
+    public function myParentMethod() // Override the method from the parent
+    {
+        return 'I should not be used';
+    }
+}
+
+$object = new MyChild();
+$object->myProp = 7;
+
+return $object->myChildMethod();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.equal(32);
+        expect(engine.getStderr().readAll()).to.equal('');
+    });
+
+    it('should correctly handle calling a grandparent instance method statically from a child instance method call', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+class MyGrandparent
+{
+    public $myProp;
+
+    public function myGrandparentMethod()
+    {
+        return $this->myProp + 21;
+    }
+}
+class MyParent extends MyGrandparent
+{
+    public function myGrandparentMethod() // Override the method from the grandparent
+    {
+        return 'I should not be used';
+    }
+}
+class MyChild extends MyParent
+{
+    public function myChildMethod()
+    {
+        return 4 + MyGrandparent::myGrandparentMethod(); // Call the method on the grandparent with the current $this context
+    }
+
+    public function myGrandparentMethod() // Override the method from the grandparent and parent
+    {
+        return 'I should not be used either';
     }
 }
 

@@ -9,7 +9,8 @@
 
 'use strict';
 
-var closureClassFactory = require('../../../../src/builtin/classes/Closure'),
+var _ = require('microdash'),
+    closureClassFactory = require('../../../../src/builtin/classes/Closure'),
     expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
@@ -70,10 +71,20 @@ describe('PHP builtin Closure class', function () {
         InternalClosureClass = closureClassFactory(internals);
         closureClass = sinon.createStubInstance(Class);
         closureClass.getName.returns('Closure');
+        closureClass.instantiateWithInternals.callsFake(function (args, internals) {
+            var objectValue = valueFactory.createObject({}, closureClass);
+
+            _.forOwn(internals, function (value, name) {
+                objectValue.setInternalProperty(name, value);
+            });
+
+            return objectValue;
+        });
         stdClassClass = sinon.createStubInstance(Class);
         stdClassClass.getName.returns('stdClass');
         globalNamespace.getClass.withArgs('Closure').returns(closureClass);
         globalNamespace.getClass.withArgs('stdClass').returns(stdClassClass);
+        valueFactory.setGlobalNamespace(globalNamespace);
     });
 
     describe('static ::bind()', function () {
@@ -110,7 +121,7 @@ describe('PHP builtin Closure class', function () {
             var result = callBind();
 
             expect(result).to.be.an.instanceOf(ObjectValue);
-            expect(result.getObject()).to.equal(boundClosure);
+            expect(result.getInternalProperty('closure')).to.equal(boundClosure);
             expect(result.getClass()).to.equal(closureClass);
         });
 
@@ -250,7 +261,7 @@ describe('PHP builtin Closure class', function () {
             var result = callBindTo();
 
             expect(result).to.be.an.instanceOf(ObjectValue);
-            expect(result.getObject()).to.equal(boundClosure);
+            expect(result.getInternalProperty('closure')).to.equal(boundClosure);
             expect(result.getClass()).to.equal(closureClass);
         });
 
@@ -344,18 +355,21 @@ describe('PHP builtin Closure class', function () {
             sinon.stub(valueFactory, 'coerceObject')
                 .withArgs(sinon.match.same(nativeThisObject))
                 .returns(coercedThisObject);
-            closureValue = sinon.createStubInstance(ObjectValue);
-            closureValue.classIs.withArgs('Closure').returns(true);
-            closureValue.getClassName.returns('Closure');
-            closureValue.getObject.returns(closure);
-            closureValue.getType.returns('object');
+            closureValue = valueFactory.createObject({}, closureClass);
+            closureValue.setInternalProperty('closure', closure);
 
             callUnwrapper = function () {
-                unwrappedClosure = internals.defineUnwrapper.args[0][0].call(closureValue);
+                unwrappedClosure = internals.defineUnwrapper.args[0][0].call(closureValue, closureValue);
             }.bind(this);
         });
 
         describe('in synchronous mode (when Pausable is not available)', function () {
+            it('should have the inbound stack marker as its name for stack cleaning', function () {
+                callUnwrapper();
+
+                expect(unwrappedClosure.name).to.equal('__uniterInboundStackMarker__');
+            });
+
             it('should push an FFICall onto the stack before the closure is called', function () {
                 closure.invoke.callsFake(function () {
                     expect(callStack.push).to.have.been.calledOnce;

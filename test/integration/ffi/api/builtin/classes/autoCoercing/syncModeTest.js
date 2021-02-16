@@ -11,9 +11,9 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../tools');
+    tools = require('../../../../../tools');
 
-describe('PHP class auto-coercion integration', function () {
+describe('PHP builtin FFI class synchronous mode auto-coercion integration', function () {
     it('should correctly handle a single auto-coercing class', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -166,12 +166,12 @@ EOS
         result = engine.execute().getNative();
 
         /*
-        // Pass the unwrapped auto-coercing class' instance back twice, where we will
-        // perform a strict PHP comparison, to ensure the exposed native object is always
-        // considered identical to itself.
-        // Ideally we would be checking that it is always mapped back to the same ObjectValue
-        // instance to ensure we don't waste memory, but that cannot be tested from here
-        // as the identity check is done on the native object anyway.
+         * Pass the unwrapped auto-coercing class' instance back twice, where we will
+         * perform a strict PHP comparison, to ensure the exposed native object is always
+         * considered identical to itself.
+         * Ideally we would be checking that it is always mapped back to the same ObjectValue
+         * instance to ensure we don't waste memory, but that cannot be tested from here
+         * as the identity check is done on the native object anyway.
          */
         expect(result.strictlyCompare(result.myObject, result.myObject)).to.be.true;
         expect(engine.getStderr().readAll()).to.equal('');

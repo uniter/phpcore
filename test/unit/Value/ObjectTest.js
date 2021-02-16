@@ -31,7 +31,7 @@ var _ = require('microdash'),
     ObjectElement = require('../../../src/Reference/ObjectElement'),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
-    PHPObject = require('../../../src/PHPObject').sync(),
+    PHPObject = require('../../../src/FFI/Value/PHPObject').sync(),
     PropertyReference = require('../../../src/Reference/Property'),
     StaticPropertyReference = require('../../../src/Reference/StaticProperty'),
     Translator = phpCommon.Translator,
@@ -187,6 +187,7 @@ describe('Object', function () {
             this.scopeClass = sinon.createStubInstance(Class);
             this.thisValue = sinon.createStubInstance(ObjectValue);
 
+            this.classObject.is.withArgs('Closure').returns(true);
             this.nativeObject.bind.returns(this.boundClosure);
             this.scopeClass.getSuperClass.returns(null);
 
@@ -198,6 +199,7 @@ describe('Object', function () {
                 this.classObject,
                 this.objectID
             );
+            this.value.setInternalProperty('closure', this.nativeObject);
         });
 
         it('should pass the `$this` object to the Closure', function () {
@@ -222,14 +224,7 @@ describe('Object', function () {
         });
 
         it('should throw when the wrapped object is not a Closure', function () {
-            this.value = new ObjectValue(
-                this.factory,
-                this.callStack,
-                this.translator,
-                {},
-                this.classObject,
-                this.objectID
-            );
+            this.classObject.is.withArgs('Closure').returns(false);
 
             expect(function () {
                 this.value.bindClosure(this.thisValue, this.scopeClass);
@@ -442,62 +437,20 @@ describe('Object', function () {
     });
 
     describe('coerceToNativeError()', function () {
-        it('should coerce an instance of a class implementing Throwable with a message correctly', function () {
-            var error;
-            this.classObject.getName.returns('My\\Stuff\\MyException');
-            this.classObject.is.withArgs('Throwable').returns(true);
-            this.value.declareProperty('message', this.classObject, 'line')
-                .initialise(this.factory.createString('My PHP exception message'));
-            this.value.declareProperty('file', this.classObject, 'public')
-                .initialise(this.factory.createString('/path/to/my_module.php'));
-            this.value.declareProperty('line', this.classObject, 'line')
-                .initialise(this.factory.createInteger(4321));
+        it('should export an instance of a class implementing Throwable', function () {
+            var error,
+                exportedValue = new Error('my native error');
+            this.classObject.exportInstanceForJS
+                .withArgs(sinon.match.same(this.value))
+                .returns(exportedValue);
+            this.classObject.is
+                .withArgs('Throwable')
+                .returns(true);
 
             error = this.value.coerceToNativeError();
 
             expect(error).to.be.an.instanceOf(Error);
-            expect(error.message).to.equal(
-                'PHP Fatal error: [Translated] core.uncaught_throwable {"name":"My\\\\Stuff\\\\MyException","message":"My PHP exception message"} in /path/to/my_module.php on line 4321'
-            );
-        });
-
-        it('should coerce an instance of a class implementing Throwable with empty message correctly', function () {
-            var error;
-            this.classObject.getName.returns('My\\Stuff\\MyException');
-            this.classObject.is.withArgs('Throwable').returns(true);
-            this.value.declareProperty('message', this.classObject, 'line')
-                .initialise(this.factory.createString(''));
-            this.value.declareProperty('file', this.classObject, 'public')
-                .initialise(this.factory.createString('/path/to/my_module.php'));
-            this.value.declareProperty('line', this.classObject, 'line')
-                .initialise(this.factory.createInteger(4321));
-
-            error = this.value.coerceToNativeError();
-
-            expect(error).to.be.an.instanceOf(Error);
-            expect(error.message).to.equal(
-                'PHP Fatal error: [Translated] core.uncaught_empty_throwable {"name":"My\\\\Stuff\\\\MyException"} in /path/to/my_module.php on line 4321'
-            );
-        });
-
-        it('should coerce an instance of ParseError correctly', function () {
-            var error;
-            this.classObject.getName.returns('ParseError');
-            this.classObject.is.withArgs('ParseError').returns(true);
-            this.classObject.is.withArgs('Throwable').returns(true);
-            this.value.declareProperty('message', this.classObject, 'line')
-                .initialise(this.factory.createString('My parse error message'));
-            this.value.declareProperty('file', this.classObject, 'public')
-                .initialise(this.factory.createString('/path/to/my_module.php'));
-            this.value.declareProperty('line', this.classObject, 'line')
-                .initialise(this.factory.createInteger(1111));
-
-            error = this.value.coerceToNativeError();
-
-            expect(error).to.be.an.instanceOf(Error);
-            expect(error.message).to.equal(
-                'PHP Parse error: My parse error message in /path/to/my_module.php on line 1111'
-            );
+            expect(error.message).to.equal('my native error');
         });
 
         it('should throw when the ObjectValue does not implement Exception', function () {
@@ -1514,60 +1467,32 @@ describe('Object', function () {
     });
 
     describe('getNative()', function () {
-        describe('JSObject instances', function () {
-            beforeEach(function () {
-                this.classObject.getName.returns('JSObject');
-            });
-
-            it('should be unwrapped by returning the original JS object', function () {
-                expect(this.value.getNative()).to.equal(this.nativeObject);
-            });
+        beforeEach(function () {
+            this.classObject.exportInstanceForJS
+                .withArgs(sinon.match.same(this.value))
+                .returns(this.nativeObject);
+            this.classObject.getName.returns('JSObject');
         });
 
-        describe('stdClass instances', function () {
-            beforeEach(function () {
-                this.classObject.getName.returns('stdClass');
-            });
-
-            it('should be unwrapped as a plain object with properties unwrapped recursively', function () {
-                var subObject = new ObjectValue(
-                    this.factory,
-                    this.callStack,
-                    this.translator,
-                    {},
-                    this.classObject,
-                    this.objectID
-                );
-                subObject.declareProperty('firstNestedProp', this.classObject, 'public')
-                    .initialise(this.factory.createString('value of first nested prop'));
-                subObject.declareProperty('secondNestedProp', this.classObject, 'public')
-                    .initialise(this.factory.createString('value of second nested prop'));
-                this.value.declareProperty('objectProp', this.classObject, 'public').initialise(subObject);
-
-                expect(this.value.getNative()).to.deep.equal({
-                    firstProp: 'the value of firstProp',
-                    secondProp: 'the value of secondProp',
-                    objectProp: {
-                        firstNestedProp: 'value of first nested prop',
-                        secondNestedProp:  'value of second nested prop'
-                    }
-                });
-            });
+        it('should unwrap by returning the original JS object', function () {
+            expect(this.value.getNative()).to.equal(this.nativeObject);
         });
+    });
 
-        describe('instances of other classes', function () {
-            beforeEach(function () {
-                this.classObject.getName.returns('Some\\Other\\MyClass');
-            });
+    describe('getNonPrivateProperties()', function () {
+        it('should fetch all non-private properties', function () {
+            var properties;
+            this.value.declareProperty('myPrivateProp', this.classObject, 'private')
+                .initialise(this.factory.createString('private value'));
+            this.value.declareProperty('myProtectedProp', this.classObject, 'protected')
+                .initialise(this.factory.createString('protected value'));
 
-            it('should be unwrapped via the class', function () {
-                var unwrappedObject = {};
-                this.classObject.unwrapInstanceForJS
-                    .withArgs(sinon.match.same(this.value), sinon.match.same(this.nativeObject))
-                    .returns(unwrappedObject);
+            properties = this.value.getNonPrivateProperties();
 
-                expect(this.value.getNative()).to.equal(unwrappedObject);
-            });
+            expect(Object.keys(properties)).to.have.length(3);
+            expect(properties.firstProp.getNative()).to.equal('the value of firstProp');
+            expect(properties.secondProp.getNative()).to.equal('the value of secondProp');
+            expect(properties.myProtectedProp.getNative()).to.equal('protected value');
         });
     });
 
@@ -1614,6 +1539,17 @@ describe('Object', function () {
 
             expect(this.value.getStaticPropertyByName(this.factory.createString('myProp'), this.namespaceScope))
                 .to.equal(propertyReference);
+        });
+    });
+
+    describe('getThisObject()', function () {
+        it('should fetch the $this object via the class', function () {
+            var thisObject = {my: 'this object'};
+            this.classObject.getThisObjectForInstance
+                .withArgs(sinon.match.same(this.value))
+                .returns(thisObject);
+
+            expect(this.value.getThisObject()).to.equal(thisObject);
         });
     });
 
@@ -1725,6 +1661,9 @@ describe('Object', function () {
     describe('invokeClosure()', function () {
         beforeEach(function () {
             this.closure = sinon.createStubInstance(Closure);
+
+            this.classObject.is.withArgs('Closure').returns(true);
+
             this.value = new ObjectValue(
                 this.factory,
                 this.callStack,
@@ -1733,6 +1672,7 @@ describe('Object', function () {
                 this.classObject,
                 this.objectID
             );
+            this.value.setInternalProperty('closure', this.closure);
         });
 
         it('should pass the provided arguments to Closure.invoke(...)', function () {
@@ -1755,18 +1695,11 @@ describe('Object', function () {
         });
 
         it('should throw when the native value is not an instance of Closure', function () {
-            var value = new ObjectValue(
-                this.factory,
-                this.callStack,
-                this.translator,
-                {},
-                this.classObject,
-                this.objectID
-            );
+            this.classObject.is.withArgs('Closure').returns(false);
 
             expect(function () {
-                value.invokeClosure([]);
-            }.bind(this)).to.throw('bindClosure() :: Value is not a Closure');
+                this.value.invokeClosure([]);
+            }.bind(this)).to.throw('invokeClosure() :: Value is not a Closure');
         });
     });
 

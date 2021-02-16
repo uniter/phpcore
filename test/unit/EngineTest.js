@@ -178,6 +178,33 @@ describe('Engine', function () {
         });
     });
 
+    describe('defineFunction()', function () {
+        it('should define a function on the environment', function () {
+            var myFunctionDefinitionFactory = sinon.stub();
+            createEngine();
+
+            engine.defineFunction('My\\Fqcn', myFunctionDefinitionFactory);
+
+            expect(environment.defineFunction).to.have.been.calledOnce;
+            expect(environment.defineFunction).to.have.been.calledWith(
+                'My\\Fqcn',
+                sinon.match.same(myFunctionDefinitionFactory)
+            );
+        });
+
+        it('should return the defined function from the environment', function () {
+            var myFunctionDefinitionFactory = sinon.stub(),
+                myFunctionObject = sinon.stub();
+            environment.defineFunction
+                .withArgs('My\\Fqcn', sinon.match.same(myFunctionDefinitionFactory))
+                .returns(myFunctionObject);
+            createEngine();
+
+            expect(engine.defineFunction('My\\Fqcn', myFunctionDefinitionFactory))
+                .to.equal(myFunctionObject);
+        });
+    });
+
     describe('defineGlobal()', function () {
         it('should define a global on the environment', function () {
             createEngine();
@@ -255,6 +282,14 @@ describe('Engine', function () {
         });
     });
 
+    describe('execute()', function () {
+        it('should have the inbound stack marker as its name for stack cleaning', function () {
+            createEngine();
+
+            expect(engine.execute.name).to.equal('__uniterInboundStackMarker__');
+        });
+    });
+
     describe('getConstant()', function () {
         it('should return the value of the constant from the environment', function () {
             createEngine();
@@ -283,6 +318,19 @@ describe('Engine', function () {
 
             expect(environment.setGlobal).to.have.been.calledOnce;
             expect(environment.setGlobal).to.have.been.calledWith('myGlobal', sinon.match.same(value));
+        });
+    });
+
+    describe('toNativeWithSyncApi()', function () {
+        it('should return a new sync-API ProxyClass instance via the Environment', function () {
+            var originalProxy = sinon.stub(),
+                syncApiProxy = sinon.stub();
+            environment.toNativeWithSyncApi
+                .withArgs(sinon.match.same(originalProxy))
+                .returns(syncApiProxy);
+            createEngine();
+
+            expect(engine.toNativeWithSyncApi(originalProxy)).to.equal(syncApiProxy);
         });
     });
 });
