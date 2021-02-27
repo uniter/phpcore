@@ -104,7 +104,8 @@ module.exports = require('pauser')([
         ) {
             var includer = this,
                 includeFunction = includer.optionSet.getOption(INCLUDE_OPTION),
-                includeScope;
+                includeScope,
+                previousError;
 
             if (!includeFunction) {
                 throw new Exception(
@@ -141,9 +142,12 @@ module.exports = require('pauser')([
                     throw error;
                 }
 
+                previousError = error.getPreviousError();
+
                 includer.callStack.raiseError(
                     PHPError.E_WARNING,
-                    type + '(' + includedPath + '): failed to open stream: No such file or directory'
+                    type + '(' + includedPath + '): failed to open stream: ' +
+                        (previousError ? previousError.message : 'Unknown error')
                 );
                 includer.callStack.raiseError(
                     errorLevel,

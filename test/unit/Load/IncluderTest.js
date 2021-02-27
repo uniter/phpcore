@@ -215,11 +215,53 @@ describe('Includer', function () {
                     .to.equal(resultValue);
             });
 
-            it('should return bool(false) on LoadFailedException', function () {
-                loader.load.throws(new LoadFailedException(new Error('Oh dear')));
+            describe('on LoadFailedException', function () {
+                it('should return bool(false)', function () {
+                    loader.load.throws(new LoadFailedException(new Error('Oh dear')));
 
-                expect(callInclude('/some/path/to/my_included_module.php').getNative())
-                    .to.be.false;
+                    expect(callInclude('/some/path/to/my_included_module.php').getNative())
+                        .to.be.false;
+                });
+
+                it('should raise a warning with the underlying error when one is given', function () {
+                    loader.load.throws(new LoadFailedException(new Error('Oh dear!')));
+
+                    callInclude('/some/path/to/my_included_module.php');
+
+                    expect(callStack.raiseError).to.have.been.calledWith(
+                        PHPError.E_WARNING,
+                        'include(/some/path/to/my_included_module.php): failed to open stream: Oh dear!'
+                    );
+                });
+
+                it('should raise a warning with a generic message when no underlying error is given', function () {
+                    loader.load.throws(new LoadFailedException(null));
+
+                    callInclude('/some/path/to/my_included_module.php');
+
+                    expect(callStack.raiseError).to.have.been.calledWith(
+                        PHPError.E_WARNING,
+                        'include(/some/path/to/my_included_module.php): failed to open stream: Unknown error'
+                    );
+                });
+
+                it('should raise an error of the given level', function () {
+                    loader.load.throws(new LoadFailedException(new Error('Oh dear!')));
+
+                    expect(function () {
+                        callInclude(
+                            '/some/path/to/my_included_module.php',
+                            'require_once',
+                            PHPError.E_ERROR
+                        );
+                    }).to.throw(
+                        'Fake PHP Fatal error: require_once(): Failed opening \'/some/path/to/my_included_module.php\' for inclusion'
+                    );
+                    expect(callStack.raiseError).to.have.been.calledWith(
+                        PHPError.E_ERROR,
+                        'require_once(): Failed opening \'/some/path/to/my_included_module.php\' for inclusion'
+                    );
+                });
             });
 
             it('should not catch any other type of error', function () {

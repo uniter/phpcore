@@ -50,7 +50,7 @@ EOS
             options = {
                 include: function (path, promise) {
                     setTimeout(function () {
-                        promise.reject();
+                        promise.reject(new Error('Oh dear!'));
                     });
                 }
             },
@@ -59,7 +59,7 @@ EOS
         engine.execute().then(when(done, function (result) {
             expect(result.getNative()).to.equal(false);
             expect(engine.getStderr().readAll()).to.equal(nowdoc(function () {/*<<<EOS
-PHP Warning:  include(abc.php): failed to open stream: No such file or directory in my_module.php on line 2
+PHP Warning:  include(abc.php): failed to open stream: Oh dear! in my_module.php on line 2
 PHP Warning:  include(): Failed opening 'abc.php' for inclusion in my_module.php on line 2
 
 EOS
