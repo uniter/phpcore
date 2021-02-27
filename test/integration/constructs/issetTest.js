@@ -28,10 +28,11 @@ $anArray = ['anElement' => 100];
 $anObject = (object)['aProp' => 27];
 
 $result = [];
-$result[] = isset($aRandomVar);
-$result[] = isset($anArray['anElement']);
-$result[] = isset($anObject->aProp);
-$result[] = isset(MyClass::$myProp);
+$result['random var'] = isset($aRandomVar);
+$result['array element'] = isset($anArray['anElement']);
+$result['instance property'] = isset($anObject->aProp);
+$result['static property'] = isset(MyClass::$myProp);
+$result['multiple set values'] = isset($aRandomVar, MyClass::$myProp);
 
 return $result;
 EOS
@@ -39,12 +40,13 @@ EOS
             module = tools.syncTranspile(null, php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
-            true,
-            true,
-            true,
-            true
-        ]);
+        expect(engine.execute().getNative()).to.deep.equal({
+            'random var': true,
+            'array element': true,
+            'instance property': true,
+            'static property': true,
+            'multiple set values': true
+        });
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
@@ -57,10 +59,11 @@ class MyClass {}
 $object = new stdClass;
 
 $result = [];
-$result[] = isset($aRandomVar);
-$result[] = isset($result['aRandomElement']);
-$result[] = isset($object->aProp);
-$result[] = isset(MyClass::$myProp);
+$result['random var'] = isset($aRandomVar);
+$result['array element'] = isset($result['aRandomElement']);
+$result['instance property'] = isset($object->aProp);
+$result['static property'] = isset(MyClass::$myProp);
+$result['multiple values where one is not set'] = isset($object, MyClass::$myProp);
 
 return $result;
 EOS
@@ -68,12 +71,13 @@ EOS
             module = tools.syncTranspile(null, php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
-            false,
-            false,
-            false,
-            false
-        ]);
+        expect(engine.execute().getNative()).to.deep.equal({
+            'random var': false,
+            'array element': false,
+            'instance property': false,
+            'static property': false,
+            'multiple values where one is not set': false
+        });
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
