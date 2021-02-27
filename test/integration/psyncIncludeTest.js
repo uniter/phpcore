@@ -44,7 +44,7 @@ EOS
             module = tools.psyncTranspile('some/module.php', php),
             options = {
                 include: function (path, promise) {
-                    promise.reject();
+                    promise.reject(new Error('Oh dear!'));
                 }
             },
             engine = module(options);
@@ -52,7 +52,7 @@ EOS
         engine.execute().then(when(done, function (result) {
             expect(result.getNative()).to.equal(false);
             expect(engine.getStderr().readAll()).to.equal(nowdoc(function () {/*<<<EOS
-PHP Warning:  include(abc.php): failed to open stream: No such file or directory in some/module.php on line 2
+PHP Warning:  include(abc.php): failed to open stream: Oh dear! in some/module.php on line 2
 PHP Warning:  include(): Failed opening 'abc.php' for inclusion in some/module.php on line 2
 
 EOS

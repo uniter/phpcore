@@ -82,7 +82,7 @@ EOS
 
         expect(engine.execute().getNative()).to.equal(false);
         expect(engine.getStderr().readAll()).to.equal(nowdoc(function () {/*<<<EOS
-PHP Warning:  include_once(abc.php): failed to open stream: No such file or directory in a_module.php on line 2
+PHP Warning:  include_once(abc.php): failed to open stream: Include failed in a_module.php on line 2
 PHP Warning:  include_once(): Failed opening 'abc.php' for inclusion in a_module.php on line 2
 
 EOS
