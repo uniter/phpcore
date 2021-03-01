@@ -24,6 +24,3 @@ jobs:
 
             - name: Run tests
               run: npm test
-              env:
-                  # Raise the Node.js memory limit
-                  NODE_OPTIONS: --max-old-space-size=4096
