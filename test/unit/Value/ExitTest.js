@@ -16,21 +16,26 @@ var expect = require('chai').expect,
     ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('Exit', function () {
-    beforeEach(function () {
-        this.callStack = sinon.createStubInstance(CallStack);
-        this.factory = new ValueFactory();
-        this.statusValue = this.factory.createInteger(21);
+    var callStack,
+        factory,
+        statusValue,
+        value;
 
-        this.value = new ExitValue(this.factory, this.callStack, this.statusValue);
+    beforeEach(function () {
+        callStack = sinon.createStubInstance(CallStack);
+        factory = new ValueFactory();
+        statusValue = factory.createInteger(21);
+
+        value = new ExitValue(factory, callStack, statusValue);
     });
 
     describe('getStatus()', function () {
         it('should return the status when set', function () {
-            expect(this.value.getStatus()).to.equal(21);
+            expect(value.getStatus()).to.equal(21);
         });
 
         it('should return zero by default', function () {
-            var value = new ExitValue(this.factory, this.callStack);
+            var value = new ExitValue(factory, callStack);
 
             expect(value.getStatus()).to.equal(0);
         });
