@@ -69,6 +69,24 @@ _.extend(Call.prototype, {
     },
 
     /**
+     * Fetches the module this call occurred in
+     *
+     * @returns {Module|null}
+     */
+    getModule: function () {
+        return null;
+    },
+
+    /**
+     * Fetches the module scope of the module this call occurred in
+     *
+     * @returns {ModuleScope|null}
+     */
+    getModuleScope: function () {
+        return null;
+    },
+
+    /**
      * Fetches the scope inside the called function
      *
      * @returns {Scope}
@@ -121,6 +139,10 @@ _.extend(Call.prototype, {
         return false;
     },
 
+    resume: function () {
+        // TODO: Confirm this should be empty rather than throw?
+    },
+
     /**
      * Determines whether all errors should be suppressed for this call
      *
@@ -137,6 +159,10 @@ _.extend(Call.prototype, {
      */
     suppressesOwnErrors: function () {
         return false;
+    },
+
+    throwInto: function () {
+        // TODO: Confirm this should be empty rather than throw?
     }
 });
 

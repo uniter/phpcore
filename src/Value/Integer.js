@@ -11,40 +11,28 @@
 
 module.exports = require('pauser')([
     require('microdash'),
-    require('phpcommon'),
     require('util'),
     require('../Value')
 ], function (
     _,
-    phpCommon,
     util,
     Value
 ) {
-    var PHPError = phpCommon.PHPError;
-
-    function IntegerValue(factory, callStack, value) {
-        Value.call(this, factory, callStack, 'int', value);
+    /**
+     * @param {ValueFactory} factory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {FutureFactory} futureFactory
+     * @param {CallStack} callStack
+     * @param {number} value
+     * @constructor
+     */
+    function IntegerValue(factory, referenceFactory, futureFactory, callStack, value) {
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'int', value);
     }
 
     util.inherits(IntegerValue, Value);
 
     _.extend(IntegerValue.prototype, {
-        add: function (rightValue) {
-            return rightValue.addToInteger(this);
-        },
-
-        addToBoolean: function (booleanValue) {
-            var value = this;
-
-            return value.factory.createInteger(value.value + booleanValue.value);
-        },
-
-        addToInteger: function (rightValue) {
-            var value = this;
-
-            return value.factory.createInteger(value.value + rightValue.value);
-        },
-
         coerceToBoolean: function () {
             var value = this;
 
@@ -65,10 +53,6 @@ module.exports = require('pauser')([
             return this;
         },
 
-        coerceToNumber: function () {
-            return this;
-        },
-
         coerceToString: function () {
             var value = this;
 
@@ -79,66 +63,6 @@ module.exports = require('pauser')([
             var value = this;
 
             return value.factory.createInteger(value.value - 1);
-        },
-
-        /**
-         * Divides this integer by another value
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
-         */
-        divide: function (rightValue) {
-            return rightValue.divideByInteger(this);
-        },
-
-        /**
-         * Divides a float value by this integer
-         *
-         * @param {FloatValue} leftValue
-         * @returns {Value}
-         */
-        divideByFloat: function (leftValue) {
-            var coercedLeftValue,
-                rightValue = this,
-                divisor = rightValue.getNative();
-
-            if (divisor === 0) {
-                rightValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
-
-                return rightValue.factory.createBoolean(false);
-            }
-
-            coercedLeftValue = leftValue.coerceToNumber();
-
-            return rightValue.factory.createFloat(coercedLeftValue.getNative() / divisor);
-        },
-
-        /**
-         * Divides a non-array value by this integer
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        divideByNonArray: function (leftValue) {
-            var coercedLeftValue,
-                rightValue = this,
-                divisor = rightValue.getNative(),
-                quotient;
-
-            if (divisor === 0) {
-                rightValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
-
-                return rightValue.factory.createBoolean(false);
-            }
-
-            coercedLeftValue = leftValue.coerceToNumber();
-
-            quotient = coercedLeftValue.getNative() / divisor;
-
-            // Return result as a float if needed, otherwise keep as integer
-            return Math.round(quotient) === quotient ?
-                rightValue.factory.createInteger(quotient) :
-                rightValue.factory.createFloat(quotient);
         },
 
         formatAsString: function () {
@@ -219,99 +143,9 @@ module.exports = require('pauser')([
             return true;
         },
 
-        /**
-         * Multiplies another value by this integer
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
-         */
-        multiply: function (rightValue) {
-            return rightValue.multiplyByInteger(this);
-        },
-
-        /**
-         * Multiplies a float value by this integer
-         *
-         * @param {FloatValue} leftValue
-         * @returns {Value}
-         */
-        multiplyByFloat: function (leftValue) {
-            var coercedLeftValue = leftValue.coerceToNumber(),
-                rightValue = this,
-                multiplier = rightValue.value;
-
-            return rightValue.factory.createFloat(coercedLeftValue.getNative() * multiplier);
-        },
-
-        /**
-         * Multiplies a non-array value by this integer
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        multiplyByNonArray: function (leftValue) {
-            var coercedMultiplicand = leftValue.coerceToNumber(),
-                rightValue = this,
-                multiplier = rightValue.value,
-                product = coercedMultiplicand.getNative() * multiplier;
-
-            // Return result as a float if needed, otherwise keep as integer
-            return Math.round(product) === product ?
-                rightValue.factory.createInteger(product) :
-                rightValue.factory.createFloat(product);
-        },
-
         onesComplement: function () {
             /*jshint bitwise: false */
             return this.factory.createInteger(~this.value);
-        },
-
-        shiftLeftBy: function (rightValue) {
-            /*jshint bitwise: false */
-            var leftValue = this,
-                factory = leftValue.factory;
-
-            return factory.createInteger(leftValue.getNative() << rightValue.coerceToInteger().getNative());
-        },
-
-        shiftRightBy: function (rightValue) {
-            /*jshint bitwise: false */
-            var leftValue = this,
-                factory = leftValue.factory;
-
-            return factory.createInteger(leftValue.getNative() >> rightValue.coerceToInteger().getNative());
-        },
-
-        subtract: function (rightValue) {
-            var leftValue = this,
-                factory = leftValue.factory;
-
-            rightValue = rightValue.coerceToNumber();
-
-            // Coerce to float and return a float if either operand is a float
-            if (rightValue.getType() === 'float') {
-                return factory.createFloat(leftValue.coerceToFloat().getNative() - rightValue.coerceToFloat().getNative());
-            }
-
-            return factory.createInteger(leftValue.getNative() - rightValue.getNative());
-        },
-
-        subtractFromNull: function () {
-            var value = this;
-
-            return value.factory.createInteger(-value.getNative());
-        },
-
-        toNegative: function () {
-            var value = this;
-
-            return value.factory.createInteger(-value.value);
-        },
-
-        toPositive: function () {
-            var value = this;
-
-            return value.factory.createInteger(+value.value);
         }
     });
 

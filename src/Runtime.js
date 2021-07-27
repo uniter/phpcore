@@ -46,10 +46,10 @@ module.exports = require('pauser')([
             throw new Error('Invalid mode "' + mode + '" given - must be one of "async", "psync" or "sync"');
         }
 
-        // For async mode we require the Pausable library to be available
-        if (mode === 'async' && !pausable) {
-            throw new Error('Pausable library must be provided for async mode');
-        }
+        // // For async mode we require the Pausable library to be available
+        // if (mode === 'async' && !pausable) {
+        //     throw new Error('Pausable library must be provided for async mode');
+        // }
 
         /**
          * @type {{classes: {}, constantGroups: Array, functionGroups: Array}}
@@ -61,6 +61,7 @@ module.exports = require('pauser')([
             constantGroups: [],
             defaultINIGroups: [],
             functionGroups: [],
+            opcodeGroups: [],
             translationCatalogues: []
         };
         /**
@@ -262,6 +263,7 @@ module.exports = require('pauser')([
                 }
 
                 allBuiltins.translationCatalogues = allBuiltins.translationCatalogues.concat(addon.translationCatalogues || []);
+                allBuiltins.opcodeGroups = allBuiltins.opcodeGroups.concat(addon.opcodeGroups || []);
                 allBuiltins.functionGroups = allBuiltins.functionGroups.concat(addon.functionGroups || []);
                 allBuiltins.classGroups = allBuiltins.classGroups.concat(addon.classGroups || []);
                 allBuiltins.classes = _.extend({}, allBuiltins.classes, addon.classes);
@@ -304,6 +306,7 @@ module.exports = require('pauser')([
             }
 
             [].push.apply(builtins.translationCatalogues, newBuiltins.translationCatalogues);
+            [].push.apply(builtins.opcodeGroups, newBuiltins.opcodeGroups);
             [].push.apply(builtins.functionGroups, newBuiltins.functionGroups);
             [].push.apply(builtins.classGroups, newBuiltins.classGroups);
             _.extend(builtins.classes, newBuiltins.classes);

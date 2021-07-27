@@ -93,21 +93,6 @@ _.extend(Engine.prototype, {
     },
 
     /**
-     * Creates a Pause object for use in async mode
-     *
-     * @returns {PauseException}
-     */
-    createPause: function () {
-        var engine = this;
-
-        if (!engine.pausable) {
-            throw new Error('Pausable is not available');
-        }
-
-        return engine.pausable.createPause();
-    },
-
-    /**
      * Defines a new class (in any namespace).
      * Note that the class will be defined on the current engine's environment,
      * so any other engines that share this environment will also see the new class
@@ -174,7 +159,7 @@ _.extend(Engine.prototype, {
      *
      * @param {string} name
      * @param {Function} valueGetter
-     * @param {Function} valueSetter
+     * @param {Function=} valueSetter
      */
     defineGlobalAccessor: function (name, valueGetter, valueSetter) {
         this.environment.defineGlobalAccessor(name, valueGetter, valueSetter);
@@ -217,6 +202,8 @@ _.extend(Engine.prototype, {
     execute: function __uniterInboundStackMarker__() {
         var callFactory,
             callStack,
+            core,
+            coreFactory,
             engine = this,
             environment = engine.environment,
             errorReporting,
@@ -233,17 +220,18 @@ _.extend(Engine.prototype, {
             phpCommon = engine.phpCommon,
             PHPError = phpCommon.PHPError,
             PHPParseError = phpCommon.PHPParseError,
+            result,
             resultValue,
             scopeFactory,
             state,
-            stderr = engine.getStderr(),
-            stdin = engine.getStdin(),
             tools,
             toolsFactory,
+            valueFactory,
             wrapper = engine.wrapper,
             unwrap = function (wrapper) {
-                return mode === 'async' ? wrapper.async(pausable) : wrapper.sync();
+                return pausable ? wrapper.async(pausable) : wrapper.sync();
             },
+            userland,
             // TODO: Wrap this module with `pauser` to remove the need for this
             Value = unwrap(ValueWrapper),
             topLevelNamespaceScope,
@@ -251,6 +239,7 @@ _.extend(Engine.prototype, {
 
         state = environment.getState();
         callFactory = state.getCallFactory();
+        coreFactory = state.getCoreFactory();
         errorReporting = state.getErrorReporting();
         moduleFactory = state.getModuleFactory();
         scopeFactory = state.getScopeFactory();
@@ -259,16 +248,23 @@ _.extend(Engine.prototype, {
         globalScope = state.getGlobalScope();
         output = state.getOutput();
         toolsFactory = state.getToolsFactory();
+        userland = state.getUserland();
+        valueFactory = state.getValueFactory();
         // Use the provided top-level scope if specified, otherwise use the global scope
         // (used eg. when an `include(...)` is used inside a function)
         topLevelScope = engine.topLevelScope || globalScope;
         module = moduleFactory.create(path);
         topLevelNamespaceScope = scopeFactory.createNamespaceScope(globalNamespace, globalNamespace, module);
+        module.setScope(scopeFactory.createModuleScope(module, topLevelNamespaceScope, environment));
 
         // Create the runtime tools object, referenced by the transpiled JS output from PHPToJS
+        // @deprecated!
         tools = toolsFactory.create(environment, module, topLevelNamespaceScope, topLevelScope, options);
 
-        // Push the 'main' global scope call onto the stack
+        core = coreFactory.createCore(topLevelScope);
+
+        // Push the call for this scope onto the stack (the "main" top-level one initially,
+        // then for a load such as include or eval it will be its top-level scope)
         callStack.push(callFactory.create(topLevelScope, topLevelNamespaceScope));
 
         function handleError(error, reject) {
@@ -343,45 +339,50 @@ _.extend(Engine.prototype, {
         // Asynchronous mode - Pausable must be available
         if (mode === 'async') {
             return new Promise(function (resolve, reject) {
-                var code = 'return (' +
-                    wrapper.toString() +
-                    '(stdin, stdout, stderr, tools, globalNamespace));';
+                userland
+                    .call(wrapper, [core])
+                    .then(function (result) {
+                        var resultValue;
 
-                pausable.execute(code, {
-                    strict: true,
-                    expose: {
-                        stdin: stdin,
-                        stdout: output,
-                        stderr: stderr,
-                        tools: tools,
-                        globalNamespace: globalNamespace
-                    }
-                }).then(function (resultValue) {
-                    // Pop the top-level scope (of the include, if this module was included) off the stack
-                    // regardless of whether an error occurred
-                    callStack.pop();
+                        // Pop the top-level scope (of the include, if this module was included) off the stack
+                        // regardless of whether an error occurred
+                        callStack.pop();
 
-                    resolve(resultValue);
-                }, function (error) {
-                    var result;
+                        resultValue = result ?
+                            // Module may return a reference (eg. a variable), so always extract the value
+                            result.getValue() :
+                            // Program returns null rather than undefined if nothing is returned
+                            valueFactory.createNull();
 
-                    // Pop the top-level scope (of the include, if this module was included) off the stack
-                    // regardless of whether an error occurred
-                    callStack.pop();
+                        resolve(resultValue);
+                    })
+                    .catch(function (error) {
+                        var result;
 
-                    result = handleError(error, reject);
+                        // Pop the top-level scope (of the include, if this module was included) off the stack
+                        // regardless of whether an error occurred
+                        callStack.pop();
 
-                    if (result) {
-                        resolve(result);
-                    }
-                });
+                        result = handleError(error, reject);
+
+                        if (result) {
+                            resolve(result);
+                        }
+                    });
             });
         }
 
         // Otherwise load the module synchronously
+        // TODO: Use Userland for sync behavior too to avoid branching here?
         try {
             try {
-                resultValue = wrapper(stdin, output, stderr, tools, globalNamespace);
+                result = wrapper(core);
+
+                resultValue = result ?
+                    // Module may return a reference (eg. a variable), so always extract the value
+                    result.getValue() :
+                    // Program returns null rather than undefined if nothing is returned
+                    valueFactory.createNull();
 
                 return mode === 'psync' && isMainProgram ?
                     // Promise-sync mode - return a promise resolved with the result

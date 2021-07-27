@@ -13,12 +13,13 @@ var _ = require('microdash');
 
 /**
  * @param {Scope} scope
- * @param {NamespaceScope} namespaceScope
+ * @param {NamespaceScope} namespaceScope NamespaceScope the call was made in
+ * @param {Trace} trace
  * @param {Value[]} args
  * @param {Class|null} newStaticClass
  * @constructor
  */
-function Call(scope, namespaceScope, args, newStaticClass) {
+function Call(scope, namespaceScope, trace, args, newStaticClass) {
     /**
      * @type {Value[]}
      */
@@ -39,6 +40,10 @@ function Call(scope, namespaceScope, args, newStaticClass) {
      * @type {Scope}
      */
     this.scope = scope;
+    /**
+     * @type {Trace}
+     */
+    this.trace = trace;
 }
 
 _.extend(Call.prototype, {
@@ -94,6 +99,33 @@ _.extend(Call.prototype, {
     },
 
     /**
+     * Fetches the module this call occurred in
+     *
+     * @returns {Module}
+     */
+    getModule: function () {
+        return this.namespaceScope.getModule();
+    },
+
+    /**
+     * Fetches the module scope of the module this call occurred in
+     *
+     * @returns {ModuleScope}
+     */
+    getModuleScope: function () {
+        return this.namespaceScope.getModuleScope();
+    },
+
+    /**
+     * Fetches the NamespaceScope the called function is defined in
+     *
+     * @returns {NamespaceScope}
+     */
+    getNamespaceScope: function () {
+        return this.namespaceScope;
+    },
+
+    /**
      * Fetches the scope inside the called function
      *
      * @returns {Scope}
@@ -128,6 +160,10 @@ _.extend(Call.prototype, {
         return this.scope.getThisObject();
     },
 
+    getTrace: function () {
+        return this.trace;
+    },
+
     /**
      * Fetches the path to the file this call was made from, suitable for stack traces (so without any eval context)
      *
@@ -159,6 +195,10 @@ _.extend(Call.prototype, {
         return !this.namespaceScope.isGlobal();
     },
 
+    resume: function (resultValue) {
+        this.trace.resume(resultValue);
+    },
+
     /**
      * Determines whether all errors should be suppressed for this call
      *
@@ -175,6 +215,10 @@ _.extend(Call.prototype, {
      */
     suppressesOwnErrors: function () {
         return this.scope.suppressesOwnErrors();
+    },
+
+    throwInto: function (error) {
+        this.trace.throwInto(error);
     }
 });
 

@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP error control @(...) operator integration', function () {
-    it('should suppress errors in the current scope and any sub-call scopes', function () {
+    it('should suppress errors in the current scope and any sub-call scopes in sync mode', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL); // Notices are hidden by default
@@ -34,12 +34,12 @@ function badFunc2() {
 }
 
 $result = [];
-$result[] = @$anUnsetVar;
-@$result[] = $anotherUnsetVar;
-$result[] = @badFunc();
-$result[] = goodFunc(@$andAnotherUnsetVar);
-$result[] = $undefVarWithNoSuppression;
-$result[] = @badFunc2();
+$result['unset var, @ before var'] = @$anUnsetVar;
+@$result['unset var, @ before array access'] = $anotherUnsetVar;
+$result['badFunc'] = @badFunc();
+$result['goodFunc'] = goodFunc(@$andAnotherUnsetVar);
+$result['no suppression'] = $undefVarWithNoSuppression;
+$result['badFunc2'] = @badFunc2();
 
 return $result;
 EOS
@@ -47,14 +47,14 @@ EOS
             module = tools.syncTranspile('/some/module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
-            null,
-            null,
-            21,
-            22,
-            null,
-            null
-        ]);
+        expect(engine.execute().getNative()).to.deep.equal({
+            'unset var, @ before var': null,
+            'unset var, @ before array access': null,
+            'badFunc': 21,
+            'goodFunc': 22,
+            'no suppression': null,
+            'badFunc2': null
+        });
         // Only the unsuppressed expression should be able to raise an error
         expect(engine.getStderr().readAll()).to.equal(
             nowdoc(function () {/*<<<EOS
@@ -63,5 +63,83 @@ PHP Notice:  Undefined variable: undefVarWithNoSuppression in /some/module.php o
 EOS
 */;}) //jshint ignore:line
         );
+    });
+
+    it('should suppress errors in the current scope and any sub-call scopes in async mode with pauses', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+ini_set('error_reporting', E_ALL); // Notices are hidden by default
+
+function badFunc() {
+    print $myUndefVar; // Should raise a notice, but gets suppressed at the callsite
+    return get_async(21);
+}
+function goodFunc($msg) {
+    return get_async(22);
+}
+function returnIt($it) {
+    return get_async($it);
+}
+function badFunc2() {
+    return get_async(returnIt($anUndefVar));
+}
+
+$result = [];
+$result['unset var, @ before var'] = @$anUnsetVar;
+@$result['unset var, @ before array access'] = $anotherUnsetVar;
+@$result['unset var from get_async()'] = get_async($anotherUnsetVar);
+$result['array access with async key fetch'] = @$unsetArrayVar[get_async('my_key')][21];
+$result['async accessor global get'] = @$my_async_accessor_global;
+$result['badFunc'] = @badFunc();
+$result['goodFunc'] = goodFunc(@$andAnotherUnsetVar);
+$result['no suppression'] = $undefVarWithNoSuppression;
+$result['badFunc2'] = @badFunc2();
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/some/module.php', php),
+            engine = module();
+        engine.defineFunction('get_async', function (internals) {
+            return function (value) {
+                return internals.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(value);
+                    });
+                });
+            };
+        });
+        engine.defineGlobalAccessor(
+            'my_async_accessor_global',
+            function () {
+                return this.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(21);
+                    });
+                });
+            }
+        );
+
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal({
+                'unset var, @ before var': null,
+                'unset var, @ before array access': null,
+                'unset var from get_async()': null,
+                'array access with async key fetch': null,
+                'async accessor global get': 21,
+                'badFunc': 21,
+                'goodFunc': 22,
+                'no suppression': null,
+                'badFunc2': null
+            });
+            // Only the unsuppressed expression should be able to raise an error
+            expect(engine.getStderr().readAll()).to.equal(
+                nowdoc(function () {/*<<<EOS
+PHP Notice:  Undefined variable: undefVarWithNoSuppression in /some/module.php on line 26
+
+EOS
+*/;}) //jshint ignore:line
+            );
+        });
     });
 });

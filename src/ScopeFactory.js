@@ -12,6 +12,7 @@
 var _ = require('microdash');
 
 /**
+ * @param {class} ModuleScope
  * @param {class} LoadScope
  * @param {class} Scope
  * @param {class} NamespaceScope
@@ -25,6 +26,7 @@ var _ = require('microdash');
  * @constructor
  */
 function ScopeFactory(
+    ModuleScope,
     LoadScope,
     Scope,
     NamespaceScope,
@@ -45,17 +47,25 @@ function ScopeFactory(
      */
     this.closureFactory = null;
     /**
-     * @type {class}
-     */
-    this.LoadScope = LoadScope;
-    /**
      * @type {FunctionSpecFactory}
      */
     this.functionSpecFactory = functionSpecFactory;
     /**
+     * @type {Namespace}
+     */
+    this.globalNamespace = null;
+    /**
      * @type {Scope}
      */
     this.globalScope = null;
+    /**
+     * @type {class}
+     */
+    this.LoadScope = LoadScope;
+    /**
+     * @type {class}
+     */
+    this.ModuleScope = ModuleScope;
     /**
      * @type {class}
      */
@@ -129,6 +139,26 @@ _.extend(ScopeFactory.prototype, {
     },
 
     /**
+     * Creates a new ModuleScope
+     *
+     * @param {Module} module
+     * @param {NamespaceScope} topLevelNamespaceScope
+     * @param {Environment} environment
+     */
+    createModuleScope: function (module, topLevelNamespaceScope, environment) {
+        var factory = this;
+
+        return new factory.ModuleScope(
+            factory.valueFactory,
+            factory,
+            factory.globalNamespace,
+            module,
+            topLevelNamespaceScope,
+            environment
+        );
+    },
+
+    /**
      * Creates a new NamespaceScope
      *
      * @param {Namespace} namespace
@@ -139,7 +169,14 @@ _.extend(ScopeFactory.prototype, {
     createNamespaceScope: function (namespace, globalNamespace, module) {
         var factory = this;
 
-        return new factory.NamespaceScope(globalNamespace, factory.valueFactory, factory.callStack, module, namespace);
+        return new factory.NamespaceScope(
+            factory,
+            globalNamespace,
+            factory.valueFactory,
+            factory.callStack,
+            module,
+            namespace
+        );
     },
 
     /**
@@ -149,6 +186,15 @@ _.extend(ScopeFactory.prototype, {
      */
     setClosureFactory: function (closureFactory) {
         this.closureFactory = closureFactory;
+    },
+
+    /**
+     * Sets the global Namespace
+     *
+     * @param {Namespace} globalNamespace
+     */
+    setGlobalNamespace: function (globalNamespace) {
+        this.globalNamespace = globalNamespace;
     },
 
     /**

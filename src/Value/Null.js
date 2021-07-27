@@ -22,21 +22,25 @@ module.exports = require('pauser')([
 ) {
     var PHPError = phpCommon.PHPError;
 
-    function NullValue(factory, callStack) {
-        Value.call(this, factory, callStack, 'null', null);
+    /**
+     * @param {ValueFactory} factory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {FutureFactory} futureFactory
+     * @param {CallStack} callStack
+     * @constructor
+     */
+    function NullValue(factory, referenceFactory, futureFactory, callStack) {
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'null', null);
     }
 
     util.inherits(NullValue, Value);
 
     _.extend(NullValue.prototype, {
-        add: function (rightValue) {
-            return rightValue.addToNull();
-        },
-
-        addToBoolean: function (booleanValue) {
-            return booleanValue.coerceToInteger();
-        },
-
+        /**
+         * Overrides the implementation in Value, just returning an empty array
+         *
+         * @returns {ArrayValue}
+         */
         coerceToArray: function () {
             // Null just casts to an empty array
             return this.factory.createArray();
@@ -52,29 +56,6 @@ module.exports = require('pauser')([
 
         coerceToString: function () {
             return this.factory.createString('');
-        },
-
-        /**
-         * Divides this null by another value
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
-         */
-        divide: function (rightValue) {
-            return rightValue.divideByNull(this);
-        },
-
-        /**
-         * Divides a non-array value by this null
-         *
-         * @returns {Value}
-         */
-        divideByNonArray: function () {
-            var rightValue = this;
-
-            rightValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
-
-            return rightValue.factory.createBoolean(false);
         },
 
         formatAsString: function () {
@@ -150,43 +131,6 @@ module.exports = require('pauser')([
 
         isSet: function () {
             return false;
-        },
-
-        /**
-         * Multiplies this null by another value
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
-         */
-        multiply: function (rightValue) {
-            return rightValue.multiplyByNull(this);
-        },
-
-        /**
-         * Multiplies this value by a float
-         *
-         * @returns {FloatValue}
-         */
-        multiplyByFloat: function () {
-            return this.factory.createFloat(0);
-        },
-
-        /**
-         * Multiplies a non-array value by this null
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        multiplyByNonArray: function (leftValue) {
-            var value = this;
-
-            return leftValue.coerceToNumber().getType() === 'float' ?
-                value.factory.createFloat(0) :
-                value.factory.createInteger(0);
-        },
-
-        subtract: function (rightValue) {
-            return rightValue.subtractFromNull();
         }
     });
 

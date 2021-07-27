@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP interface statement "extends" integration', function () {
-    it('should allow a class to extend multiple other interfaces from "use" imports', function () {
+    it('should allow a class to extend multiple other interfaces from "use" imports in sync mode', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 

@@ -18,16 +18,22 @@ describe('PHP class statement class constant integration', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
-class MyClass {
-    const FIRST = 101;
+namespace My\Stuff
+{
+    class MyClass
+    {
+        const FIRST = 101;
 
-    const SECOND = self::FIRST;
+        const SECOND = self::FIRST;
+    }
 }
 
-$result = [];
-$result[] = MyClass::FIRST;
-$result[] = MyClass::SECOND;
-return $result;
+namespace {
+    $result = [];
+    $result[] = My\Stuff\MyClass::FIRST;
+    $result[] = My\Stuff\MyClass::SECOND;
+    return $result;
+}
 EOS
 */;}),//jshint ignore:line
             module = tools.syncTranspile(null, php);

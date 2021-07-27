@@ -16,12 +16,13 @@ var _ = require('microdash'),
     MAGIC_SET = '__set',
     MAGIC_UNSET = '__unset',
     PHPError = phpCommon.PHPError,
-    Reference = require('./Reference'),
-    ReferenceSlot = require('./ReferenceSlot');
+    Reference = require('./Reference');
 
 /**
  * @param {ValueFactory} valueFactory
+ * @param {ReferenceFactory} referenceFactory
  * @param {CallStack} callStack
+ * @param {Flow} flow
  * @param {ObjectValue} objectValue
  * @param {Value} key
  * @param {Class} classObject Class in the hierarchy that defines the property - may be an ancestor
@@ -29,11 +30,27 @@ var _ = require('microdash'),
  * @param {number} index
  * @constructor
  */
-function PropertyReference(valueFactory, callStack, objectValue, key, classObject, visibility, index) {
+function PropertyReference(
+    valueFactory,
+    referenceFactory,
+    callStack,
+    flow,
+    objectValue,
+    key,
+    classObject,
+    visibility,
+    index
+) {
+    Reference.call(this, referenceFactory, flow);
+
     /**
      * @type {Class}
      */
     this.classObject = classObject;
+    /**
+     * @type {Flow}
+     */
+    this.flow = flow;
     /**
      * @type {number}
      */
@@ -118,7 +135,7 @@ _.extend(PropertyReference.prototype, {
         }
 
         // Implicitly define a "slot" to contain this property's value
-        property.reference = new ReferenceSlot(property.valueFactory);
+        property.reference = property.referenceFactory.createReferenceSlot();
 
         if (property.value) {
             property.reference.setValue(property.value);
@@ -205,7 +222,7 @@ _.extend(PropertyReference.prototype, {
     /**
      * Determines whether this object property is "empty" or not
      *
-     * @returns {boolean}
+     * @returns {boolean|Future<boolean>}
      */
     isEmpty: function () {
         var property = this;
@@ -217,7 +234,11 @@ _.extend(PropertyReference.prototype, {
         if (property.objectValue.isMethodDefined(MAGIC_GET)) {
             // Magic getter method is defined, so use it to determine the property's value
             // and then check _that_ for being "empty"
-            return property.objectValue.callMethod(MAGIC_GET, [property.key]).isEmpty();
+            try {
+                return property.objectValue.callMethod(MAGIC_GET, [property.key]).isEmpty();
+            } catch (error) {
+                throw error; // FIXME
+            }
         }
 
         // Property is not defined and there is no magic getter,
@@ -298,8 +319,7 @@ _.extend(PropertyReference.prototype, {
      */
     setValue: function (value) {
         var property = this,
-            isFirstProperty = (property.objectValue.getLength() === 0),
-            valueForAssignment;
+            isFirstProperty = (property.objectValue.getLength() === 0);
 
         function pointIfFirstProperty() {
             if (isFirstProperty) {
@@ -307,32 +327,38 @@ _.extend(PropertyReference.prototype, {
             }
         }
 
-        if (property.reference) {
-            property.reference.setValue(value);
+        return value
+            .next(function (presentValue) {
+                var valueForAssignment;
 
-            pointIfFirstProperty();
+                if (property.reference) {
+                    property.reference.setValue(presentValue);
 
-            return value;
-        }
+                    pointIfFirstProperty();
 
-        valueForAssignment = value.getForAssignment();
+                    return presentValue;
+                }
 
-        if (!property.isDefined()) {
-            // Property is not defined - attempt to call magic setter method first,
-            // otherwise just dynamically define the new property by setting its value below
-            if (property.objectValue.isMethodDefined(MAGIC_SET)) {
-                property.objectValue.callMethod(MAGIC_SET, [property.key, valueForAssignment]);
+                valueForAssignment = presentValue.getForAssignment();
 
-                return value;
-            }
-        }
+                if (!property.isDefined()) {
+                    // Property is not defined - attempt to call magic setter method first,
+                    // otherwise just dynamically define the new property by setting its value below
+                    if (property.objectValue.isMethodDefined(MAGIC_SET)) {
+                        property.objectValue.callMethod(MAGIC_SET, [property.key, valueForAssignment]);
 
-        // No magic setter is defined - store the value of this property directly on itself
-        property.value = valueForAssignment;
+                        return presentValue;
+                    }
+                }
 
-        pointIfFirstProperty();
+                // No magic setter is defined - store the value of this property directly on itself
+                property.value = valueForAssignment;
 
-        return value;
+                pointIfFirstProperty();
+
+                return presentValue;
+            })
+            .yield();
     },
 
     /**

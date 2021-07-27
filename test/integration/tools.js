@@ -14,7 +14,6 @@ var _ = require('microdash'),
     escapeRegex = require('regexp.escape'),
     path = require('path'),
     mochaPath = path.dirname(require.resolve('mocha/package.json')),
-    pausable = require('pausable'),
     phpCorePath = path.resolve(__dirname, '../..'),
     phpToAST = require('phptoast'),
     phpToJS = require('phptojs'),
@@ -27,7 +26,7 @@ var _ = require('microdash'),
 
     createAsyncRuntime = function () {
         // Create an isolated runtime we can install builtins into without affecting the main singleton one
-        var runtime = runtimeFactory.create('async', pausable);
+        var runtime = runtimeFactory.create('async', null); // TODO: Remove Pausable lib
 
         // Install the standard set of builtins
         runtime.install(builtins);

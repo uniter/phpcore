@@ -113,6 +113,69 @@ _.extend(CallStack.prototype, {
     },
 
     /**
+     * Fetches the module of the current call
+     *
+     * @returns {Module|null}
+     */
+    getCurrentModule: function () {
+        return this.getCurrent().getModule();
+    },
+
+    /**
+     * Fetches the module scope of the current call
+     *
+     * @returns {ModuleScope}
+     */
+    getCurrentModuleScope: function () {
+        return this.getCurrent().getModuleScope();
+    },
+
+    /**
+     * Fetches the current NamespaceScope of the ModuleScope of the current call
+     *
+     * @returns {NamespaceScope}
+     */
+    getCurrentNamespaceScope: function () {
+        var stack = this,
+            currentCall = stack.getCurrent(),
+            currentCallNamespaceScope = currentCall.getNamespaceScope(),
+            moduleScope;
+
+        if (currentCallNamespaceScope.isGlobal()) {
+            return currentCallNamespaceScope;
+        }
+
+        moduleScope = this.getCurrentModuleScope();
+
+        if (currentCallNamespaceScope === moduleScope.getTopLevelNamespaceScope()) {
+            // We are at the top level of a module, use the ModuleScope's current NamespaceScope
+            return moduleScope.getCurrentNamespaceScope();
+        }
+
+        // Otherwise we are inside a nested scope, so use the NamespaceScope it was defined in
+        return currentCallNamespaceScope;
+    },
+
+    /**
+     * Fetches the scope of the current call
+     *
+     * @returns {Scope}
+     */
+    getCurrentScope: function () {
+        return this.getCurrent().getScope();
+    },
+
+    getCurrentTrace: function () {
+        var currentCall = this.getCurrent();
+
+        if (currentCall === null) {
+            throw new Error('CallStack.getCurrentTrace() :: No current call');
+        }
+
+        return currentCall.getTrace();
+    },
+
+    /**
      * Fetches the path to the file containing the last line of code executed
      *
      * @returns {string|null}
@@ -402,6 +465,77 @@ _.extend(CallStack.prototype, {
             message = callStack.translator.translate(translationKey, placeholderVariables);
 
         callStack.raiseError(PHPError.E_ERROR, message);
+    },
+
+    /**
+     * Restores the stack from a paused state, ready to be resumed
+     *
+     * @param {Call[]} savedCalls
+     */
+    restore: function (savedCalls) {
+        var stack = this;
+
+        if (stack.calls.length > 0) {
+            throw new Error('Cannot restore when not paused');
+        }
+
+        [].push.apply(stack.calls, savedCalls);
+
+        // var stack = this;
+        //
+        // if (stack.calls.length > 0 && savedCalls.length > 0) {
+        //     stack.calls.length = 0;
+        // }
+        //
+        // [].push.apply(stack.calls, savedCalls);
+    },
+
+    /**
+     * Resumes with a given resume value
+     *
+     * @param {*} resumeValue
+     */
+    resume: function (resumeValue) {
+        // Set up ready to be resumed from the top stack frame
+        var call = this.getUserlandCallee();
+
+        if (!call) {
+            throw new Error('CallStack.resume() :: Cannot resume when there is no userland callee');
+        }
+
+        call.resume(resumeValue);
+    },
+
+    /**
+     * Pauses the current call stack, returning the current stack state
+     * and clearing the stack contents
+     *
+     * @returns {Call[]}
+     */
+    save: function () {
+        var stack = this,
+            calls = stack.calls.slice();
+
+        // Clear the current call stack
+        stack.calls.length = 0;
+
+        return calls;
+    },
+
+    /**
+     * Resumes with a given error to throw
+     *
+     * @param {Error} error
+     */
+    throwInto: function (error) {
+        // Set up ready to be resumed from the top stack frame
+        var call = this.getUserlandCallee();
+
+        if (!call) {
+            throw new Error('CallStack.throwInto() :: Cannot throw-resume when there is no userland callee');
+        }
+
+        call.throwInto(error);
     }
 });
 

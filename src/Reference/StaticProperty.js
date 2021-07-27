@@ -14,13 +14,14 @@ var _ = require('microdash'),
     util = require('util'),
     PHPError = phpCommon.PHPError,
     Reference = require('./Reference'),
-    ReferenceSlot = require('./ReferenceSlot'),
 
     CANNOT_UNSET_STATIC_PROPERTY = 'core.cannot_unset_static_property';
 
 /**
  * @param {ValueFactory} valueFactory
+ * @param {ReferenceFactory} referenceFactory
  * @param {CallStack} callStack
+ * @param {Flow} flow
  * @param {Class} classObject
  * @param {string} name
  * @param {string} visibility "private", "protected" or "public"
@@ -29,12 +30,16 @@ var _ = require('microdash'),
  */
 function StaticPropertyReference(
     valueFactory,
+    referenceFactory,
     callStack,
+    flow,
     classObject,
     name,
     visibility,
     value
 ) {
+    Reference.call(this, referenceFactory, flow);
+
     /**
      * @type {CallStack}
      */
@@ -86,7 +91,7 @@ _.extend(StaticPropertyReference.prototype, {
         }
 
         // Implicitly define a "slot" to contain this property's value
-        property.reference = new ReferenceSlot(property.valueFactory);
+        property.reference = property.referenceFactory.createReferenceSlot();
 
         if (property.value) {
             property.reference.setValue(property.value);

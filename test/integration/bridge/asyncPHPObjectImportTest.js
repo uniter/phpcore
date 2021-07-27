@@ -11,9 +11,8 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    pausable = require('pausable'),
     tools = require('../tools'),
-    PHPObject = require('../../../src/FFI/Value/PHPObject').async(pausable);
+    PHPObject = require('../../../src/FFI/Value/PHPObject').sync();
 
 describe('PHP JS<->PHP bridge PHP object import asynchronous mode integration', function () {
     describe('when importing an exported PHP object from JS-land back into PHP-land', function () {

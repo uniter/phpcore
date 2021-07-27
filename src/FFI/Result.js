@@ -18,24 +18,32 @@ var _ = require('microdash'),
  * a result that may be fetched asynchronously to be used in async mode
  * while also providing a way to fetch it synchronously in sync mode.
  *
+ * TODO: Consider getting rid of this class and just creating & returning a FutureValue
+ *       directly from PHPState.createFFIResult()?
+ *
  * @param {Function} syncCallback
  * @param {Function=} asyncCallback
- * @param {Resumable=} pausable
+ * @param {ValueFactory} valueFactory
+ * @param {string} mode
  * @constructor
  */
-function Result(syncCallback, asyncCallback, pausable) {
+function Result(syncCallback, asyncCallback, valueFactory, mode) {
     /**
      * @type {Function|null}
      */
     this.asyncCallback = asyncCallback;
     /**
-     * @type {Resumable|null}
+     * @type {string}
      */
-    this.pausable = pausable || null;
+    this.mode = mode;
     /**
      * @type {Function}
      */
     this.syncCallback = syncCallback;
+    /**
+     * @type {ValueFactory}
+     */
+    this.valueFactory = valueFactory;
 }
 
 _.extend(Result.prototype, {
@@ -77,34 +85,37 @@ _.extend(Result.prototype, {
      * Resolves this FFI result to a value, awaiting the Promise
      * returned by the async callback if needed
      *
-     * @param {ValueFactory} valueFactory
-     * @return {Value}
+     * @return {FutureValue|Value}
      */
-    resolve: function (valueFactory) {
-        var result = this,
-            pause;
+    resolve: function () {
+        var result = this;
 
-        if (!result.pausable) {
+        if (result.mode !== 'async') {
             /**
              * We're in either sync or psync mode - use the synchronous fetcher
              * as we are unable to wait for an asynchronous operation to complete.
              * Remember that we still need to coerce the result as needed,
              * in case the fetcher returns an unwrapped native JS value.
              */
-            return valueFactory.coerce(result.getSync());
+            return result.valueFactory.coerce(result.getSync());
         }
 
-        pause = result.pausable.createPause();
-
         // Wait for the returned promise to resolve or reject before continuing
-        result.getAsync().then(function (resultValue) {
-            // Remember we still need to coerce the result as above
-            pause.resume(valueFactory.coerce(resultValue));
-        }, function (error) {
-            pause.throw(error);
-        });
+        return result.valueFactory.createFuture(function (resolve, reject) {
+            // var savedCallStack = result.futureFactory.callStack.save();
 
-        return pause.now();
+            // Wait for the returned promise to resolve or reject before continuing
+            result.getAsync().then(function (resultValue) {
+                // result.futureFactory.callStack.restore(savedCallStack);
+
+                // Note that the result will still be coerced as above
+                resolve(resultValue);
+            }, function (error) {
+                // result.futureFactory.callStack.restore(savedCallStack);
+
+                reject(error);
+            });
+        });
     }
 });
 

@@ -20,39 +20,23 @@ module.exports = require('pauser')([
     util,
     Value
 ) {
-    var PHPError = phpCommon.PHPError;
-
-    function FloatValue(factory, callStack, value) {
-        Value.call(this, factory, callStack, 'float', value);
+    /**
+     * Represents a PHP floating-point/double value
+     *
+     * @param {ValueFactory} factory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {FutureFactory} futureFactory
+     * @param {CallStack} callStack
+     * @param {number} value
+     * @constructor
+     */
+    function FloatValue(factory, referenceFactory, futureFactory, callStack, value) {
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'float', value);
     }
 
     util.inherits(FloatValue, Value);
 
     _.extend(FloatValue.prototype, {
-        add: function (rightValue) {
-            return rightValue.addToFloat(this);
-        },
-
-        addToBoolean: function (booleanValue) {
-            var value = this;
-
-            return value.factory.createFloat(value.value + Number(booleanValue.value));
-        },
-
-        addToInteger: function (integerValue) {
-            var value = this;
-
-            return value.factory.createFloat(value.value + integerValue.value);
-        },
-
-        addToObject: function (objectValue) {
-            return objectValue.addToFloat(this);
-        },
-
-        addToNull: function () {
-            return this.coerceToNumber();
-        },
-
         coerceToBoolean: function () {
             var value = this;
 
@@ -74,6 +58,11 @@ module.exports = require('pauser')([
             return this.coerceToInteger();
         },
 
+        /**
+         * Overrides the implementation in Value, as a float should stay unchanged
+         *
+         * @returns {FloatValue}
+         */
         coerceToNumber: function () {
             return this;
         },
@@ -82,38 +71,6 @@ module.exports = require('pauser')([
             var value = this;
 
             return value.factory.createString(value.value + '');
-        },
-
-        /**
-         * Divides this float by another value
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
-         */
-        divide: function (rightValue) {
-            return rightValue.divideByFloat(this);
-        },
-
-        /**
-         * Divides a non-array value by this float
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        divideByNonArray: function (leftValue) {
-            var coercedLeftValue,
-                rightValue = this,
-                divisor = rightValue.getNative();
-
-            if (divisor === 0) {
-                rightValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
-
-                return rightValue.factory.createBoolean(false);
-            }
-
-            coercedLeftValue = leftValue.coerceToNumber();
-
-            return rightValue.factory.createFloat(coercedLeftValue.getNative() / divisor);
         },
 
         formatAsString: function () {
@@ -194,62 +151,9 @@ module.exports = require('pauser')([
             return true;
         },
 
-        /**
-         * Multiplies this float by another value
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
-         */
-        multiply: function (rightValue) {
-            return rightValue.multiplyByFloat(this);
-        },
-
-        /**
-         * Multiplies a non-array value by this float
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        multiplyByNonArray: function (leftValue) {
-            var coercedMultiplicand = leftValue.coerceToNumber(),
-                rightValue = this,
-                multiplier = rightValue.value;
-
-            return rightValue.factory.createFloat(coercedMultiplicand.getNative() * multiplier);
-        },
-
         onesComplement: function () {
             /*jshint bitwise: false */
             return this.factory.createInteger(~this.value);
-        },
-
-        shiftLeftBy: function (rightValue) {
-            return this.coerceToInteger().shiftLeftBy(rightValue);
-        },
-
-        shiftRightBy: function (rightValue) {
-            return this.coerceToInteger().shiftRightBy(rightValue);
-        },
-
-        subtract: function (rightValue) {
-            var leftValue = this,
-                factory = leftValue.factory;
-
-            rightValue = rightValue.coerceToNumber();
-
-            return factory.createFloat(leftValue.getNative() - rightValue.getNative());
-        },
-
-        toNegative: function () {
-            var value = this;
-
-            return value.factory.createFloat(-value.value);
-        },
-
-        toPositive: function () {
-            var value = this;
-
-            return value.factory.createInteger(+value.value);
         }
     });
 

@@ -201,7 +201,8 @@ _.extend(ClassInternalsClassFactory.prototype, {
              * @param {string} fqcn
              */
             extendClass: function (fqcn) {
-                this.superClass = factory.globalNamespace.getClass(fqcn);
+                // TODO: Confirm that we are ok to disable autoloading here
+                this.superClass = factory.globalNamespace.getClass(fqcn, false).yieldSync();
             },
 
             /**

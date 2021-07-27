@@ -10,10 +10,15 @@
 'use strict';
 
 module.exports = require('pauser')([
+    require('./opcodes/calculation'),
     require('./functions/optionsAndInfo/config'),
+    require('./opcodes/controlExpression'),
+    require('./opcodes/controlStructure'),
     require('./constants/errorHandling'),
     require('./ini/errorHandling'),
     require('./messages/error.en_GB'),
+    require('./opcodes/instrumentation'),
+    require('./opcodes/loopStructure'),
     require('./messages/misc.en_GB'),
     require('./messages/notice.en_GB'),
     require('./constants/reserved'),
@@ -33,10 +38,15 @@ module.exports = require('pauser')([
     require('./interfaces/Traversable'),
     require('./classes/Error/TypeError')
 ], function (
+    calculationOpcodeGroup,
     configOptionsAndInfoFunctions,
+    controlExpressionOpcodeGroup,
+    controlStructureOpcodeGroup,
     errorHandlingConstants,
     errorHandlingDefaultINIOptions,
     errorMessages,
+    instrumentationOpcodeGroup,
+    loopStructureOpcodeGroup,
     miscellaneousMessages,
     noticeMessages,
     reservedConstants,
@@ -83,6 +93,13 @@ module.exports = require('pauser')([
         ],
         defaultINIGroups: [
             errorHandlingDefaultINIOptions
+        ],
+        opcodeGroups: [
+            calculationOpcodeGroup,
+            controlExpressionOpcodeGroup,
+            controlStructureOpcodeGroup,
+            instrumentationOpcodeGroup,
+            loopStructureOpcodeGroup
         ],
         translationCatalogues: [
             errorMessages,

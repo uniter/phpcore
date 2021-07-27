@@ -10,9 +10,17 @@
 'use strict';
 
 module.exports = require('pauser')([
-    require('microdash')
+    require('microdash'),
+    require('./FFI/Result'),
+    require('./Control/Pause'),
+    require('./Reference/Reference'),
+    require('./Variable')
 ], function (
-    _
+    _,
+    FFIResult,
+    Pause,
+    Reference,
+    Variable
 ) {
     var slice = [].slice;
 
@@ -22,6 +30,9 @@ module.exports = require('pauser')([
      * @param {CallFactory} callFactory
      * @param {ValueFactory} valueFactory
      * @param {CallStack} callStack
+     * @param {Flow} flow
+     * @param {ControlBridge} controlBridge
+     * @param {ControlScope} controlScope
      * @constructor
      */
     function FunctionFactory(
@@ -29,7 +40,10 @@ module.exports = require('pauser')([
         scopeFactory,
         callFactory,
         valueFactory,
-        callStack
+        callStack,
+        flow,
+        controlBridge,
+        controlScope
     ) {
         /**
          * @type {CallFactory}
@@ -39,6 +53,18 @@ module.exports = require('pauser')([
          * @type {CallStack}
          */
         this.callStack = callStack;
+        /**
+         * @type {ControlBridge}
+         */
+        this.controlBridge = controlBridge;
+        /**
+         * @type {ControlScope}
+         */
+        this.controlScope = controlScope;
+        /**
+         * @type {Flow}
+         */
+        this.flow = flow;
         /**
          * @type {class}
          */
@@ -72,13 +98,17 @@ module.exports = require('pauser')([
          */
         create: function (namespaceScope, currentClass, func, name, currentObject, staticClass, functionSpec) {
             var factory = this,
+                /**
+                 * Wraps a function exposed to PHP-land
+                 *
+                 * @returns {FutureValue}
+                 */
                 wrapperFunc = function () {
                     var args = slice.call(arguments),
                         thisObject = currentObject || this,
                         scope,
                         call,
-                        newStaticClass = null,
-                        result;
+                        newStaticClass = null;
 
                     if (factory.newStaticClassForNextCall !== null) {
                         newStaticClass = factory.newStaticClassForNextCall;
@@ -109,21 +139,94 @@ module.exports = require('pauser')([
 
                         // Now populate any optional arguments that were omitted with their default values
                         args = functionSpec.populateDefaultArguments(args);
-
-                        result = func.apply(scope, args);
-
-                        // Coerce the result to a Value object, handling any FFIResult as needed
-                        // (in async mode this could result in a pause if required)
-                        result = factory.valueFactory.coerce(result);
-
-                        // TODO: Coerce the result as needed (if the PHP function has a return type defined
-                        //       and we are in loose-types mode)
-                    } finally {
-                        // Pop the call off the stack when done
-                        factory.callStack.pop();
+                    } catch (error) {
+                        return factory.valueFactory.createRejection(error);
                     }
 
-                    return result;
+                    function finishCall(result) {
+                        var resultReference;
+
+                        if ((result instanceof Reference) || (result instanceof Variable)) {
+                            // Result is a Reference, resolve to a value if needed
+                            resultReference = functionSpec.isReturnByReference() ?
+                                result :
+                                factory.valueFactory.coerce(result);
+                        } else if (!(result instanceof FFIResult)) {
+                            // Result is either a Value or native value needing coercion
+                            // (see below for note on FFIResults)
+                            resultReference = factory.valueFactory.coerce(result);
+                        }
+
+                        if (result instanceof FFIResult) {
+                            // FFIResults must only be resolved after the call has been popped
+                            resultReference = result.resolve();
+                        }
+
+                        return resultReference;
+                    }
+
+                    function doCall() {
+                        var result;
+
+                        try {
+                            result = func.apply(scope, args);
+                        } catch (error) {
+                            if (!(error instanceof Pause)) {
+                                return factory.valueFactory.createRejection(error);
+                            }
+
+                            error.next(
+                                function (result) {
+                                    /*
+                                     * Note that the result passed here for the opcode we are about to resume
+                                     * by re-calling the userland function has already been provided (see Pause),
+                                     * so the result argument passed to this callback may be ignored.
+                                     *
+                                     * If the pause resulted in an error, then we also want to re-call
+                                     * the function in order to resume with a throwInto at the correct opcode
+                                     * (see catch handler below).
+                                     */
+                                    if (functionSpec.isUserland()) {
+                                        return doCall();
+                                    }
+
+                                    return finishCall(result);
+                                },
+                                function (error) {
+                                    /*
+                                     * Note that the error passed here for the opcode we are about to throwInto
+                                     * by re-calling the userland function has already been provided (see Pause),
+                                     * so the error argument passed to this callback may be ignored.
+                                     *
+                                     * Similar to the above, we want to re-call the function in order to resume
+                                     * with a throwInto at the correct opcode.
+                                     */
+                                    if (functionSpec.isUserland()) {
+                                        return doCall();
+                                    }
+
+                                    throw error;
+                                }
+                            );
+
+                            // We have intercepted a pause - it must be marked as complete so that the future
+                            // we will create is able to raise its own pause
+                            factory.controlScope.markPaused(error);
+
+                            // Convert the caught pause into a Future to be awaited
+                            return factory.valueFactory.createFuture(function (resolve, reject) {
+                                error.next(resolve, reject);
+                            });
+                        }
+
+                        return finishCall(result);
+                    }
+
+                    return doCall().finally(function () {
+                        // Once the call completes, whether with a result or a thrown error/exception,
+                        // pop the call off of the stack
+                        factory.callStack.pop();
+                    });
                 };
 
             wrapperFunc.functionSpec = functionSpec;

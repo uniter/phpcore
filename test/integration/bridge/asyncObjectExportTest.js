@@ -13,7 +13,8 @@ var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
     phpCommon = require('phpcommon'),
     tools = require('../tools'),
-    PHPFatalError = phpCommon.PHPFatalError;
+    PHPFatalError = phpCommon.PHPFatalError,
+    Promise = require('lie');
 
 describe('PHP JS<->PHP bridge object export asynchronous mode integration', function () {
     it('should return an object with instance methods returning promises', function () {
@@ -44,13 +45,11 @@ EOS
 
         phpEngine.expose({
             giveMeAsync: function (what) {
-                var pause = phpEngine.createPause();
-
-                setTimeout(function () {
-                    pause.resume(what);
+                return phpEngine.createFFIResult(function () {
+                    throw new Error('This test should run in async mode and use the async callback');
+                }, function () {
+                    return Promise.resolve(what);
                 });
-
-                pause.now();
             }
         }, 'tools');
 

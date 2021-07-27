@@ -18,6 +18,7 @@ module.exports = require('pauser')([
     require('../KeyValuePair'),
     require('../Reference/Null'),
     require('../Reference/Reference'),
+    require('../Reference/ReferenceSlot'),
     require('../Value'),
     require('../Variable')
 ], function (
@@ -29,6 +30,7 @@ module.exports = require('pauser')([
     KeyValuePair,
     NullReference,
     Reference,
+    ReferenceSlot,
     Value,
     Variable
 ) {
@@ -56,7 +58,27 @@ module.exports = require('pauser')([
             return keyNative;
         };
 
-    function ArrayValue(factory, callStack, orderedElements, type, elementProvider) {
+    /**
+     * Represents a PHP array value
+     *
+     * @param {ValueFactory} factory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {FutureFactory} futureFactory
+     * @param {CallStack} callStack
+     * @param {Array} orderedElements
+     * @param {string} type
+     * @param {ElementProvider|HookableElementProvider} elementProvider
+     * @constructor
+     */
+    function ArrayValue(
+        factory,
+        referenceFactory,
+        futureFactory,
+        callStack,
+        orderedElements,
+        type,
+        elementProvider
+    ) {
         var elements = [],
             keysToElements = [],
             value = this;
@@ -79,12 +101,16 @@ module.exports = require('pauser')([
                     key = factory.createFromNative(key);
                 }
 
-                if (orderedElement instanceof Reference) {
+                if (orderedElement instanceof ReferenceSlot) {
+                    // A reference was explicitly provided: the resulting array element
+                    // should be a reference
                     elementReference = orderedElement;
-                } else if (orderedElement instanceof Variable) {
-                    // TODO: Prevent Variables ever being passed to the ArrayValue ctor, only References
-                    elementValue = orderedElement.getValue();
+                } else if (orderedElement instanceof Reference || orderedElement instanceof Variable) {
+                    // For other storage types, the value contained should be extracted
+                    // and used as the array element value
+                    elementReference = orderedElement.getValue().getForAssignment();
                 } else {
+                    // Otherwise, value is either native or already a Value object: coerce to Value
                     elementValue = factory.coerce(orderedElement);
                 }
             }
@@ -99,23 +125,43 @@ module.exports = require('pauser')([
             keysToElements[sanitiseKey(key.getNative())] = element;
         });
 
-        Value.call(this, factory, callStack, type || 'array', elements);
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, type || 'array', elements);
 
+        /**
+         * @type {ElementProvider|HookableElementProvider}
+         */
         this.elementProvider = elementProvider;
+        /**
+         * @type {Object.<string, ElementReference>}
+         */
         this.keysToElements = keysToElements;
+        /**
+         * @type {number}
+         */
         this.pointer = 0;
     }
 
     util.inherits(ArrayValue, Value);
 
     _.extend(ArrayValue.prototype, {
+        /**
+         * Overrides the implementation in Value, allowing for unioning arrays together
+         * with the plus operator
+         *
+         * @param {Reference|Value|Variable} rightValue
+         * @returns {Value}
+         */
         add: function (rightValue) {
-            return rightValue.addToArray(this);
-        },
+            var leftValue = this,
+                resultArray;
 
-        addToArray: function (leftValue) {
-            var rightValue = this,
-                resultArray = leftValue.getForAssignment();
+            if (rightValue.getType() !== 'array') {
+                rightValue.coerceToNumber();
+
+                leftValue.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
+            }
+
+            resultArray = leftValue.getForAssignment();
 
             _.forOwn(rightValue.keysToElements, function (element, key) {
                 if (!hasOwn.call(resultArray.keysToElements, key)) {
@@ -124,48 +170,6 @@ module.exports = require('pauser')([
             });
 
             return resultArray;
-        },
-
-        /**
-         * Adds this value to a boolean
-         */
-        addToBoolean: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
-         * Adds this value to a float
-         */
-        addToFloat: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
-         * Adds this value to an integer
-         */
-        addToInteger: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
-         * Adds this value to null
-         */
-        addToNull: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
-         * Adds this value to an object
-         */
-        addToObject: function (objectValue) {
-            return objectValue.addToArray(this);
-        },
-
-        /**
-         * Adds this value to a string
-         */
-        addToString: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
         /**
@@ -204,6 +208,12 @@ module.exports = require('pauser')([
             );
         },
 
+        /**
+         * Overrides the implementation in Value - when an array is coerced to an array,
+         * we keep it unchanged and do not wrap it in a further array
+         *
+         * @returns {ArrayValue}
+         */
         coerceToArray: function () {
             return this;
         },
@@ -225,7 +235,7 @@ module.exports = require('pauser')([
         },
 
         coerceToNumber: function () {
-            return this.coerceToInteger();
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
         coerceToObject: function () {
@@ -271,13 +281,7 @@ module.exports = require('pauser')([
                 }
             });
 
-            return new ArrayValue(
-                arrayValue.factory,
-                arrayValue.callStack,
-                orderedElements,
-                arrayValue.type,
-                arrayValue.elementProvider
-            );
+            return arrayValue.factory.createArray(orderedElements, arrayValue.elementProvider);
         },
 
         getKeys: function () {
@@ -332,7 +336,7 @@ module.exports = require('pauser')([
 
             if (!key) {
                 // Could not be coerced to a key: error will already have been handled, just return NULL
-                return new NullReference(value.factory);
+                return value.referenceFactory.createNull();
             }
 
             keyValue = sanitiseKey(key.getNative());
@@ -352,7 +356,7 @@ module.exports = require('pauser')([
             return value.value[index] || (function () {
                     value.callStack.raiseError(PHPError.E_NOTICE, 'Undefined ' + value.referToElement(index));
 
-                    return new NullReference(value.factory);
+                    return value.referenceFactory.createNull();
                 }());
         },
 
@@ -446,7 +450,7 @@ module.exports = require('pauser')([
                     return false;
                 }
 
-                classObject = globalNamespace.getClass(objectOrClassValue.getNative());
+                classObject = globalNamespace.getClass(objectOrClassValue.getNative()).yieldSync();
             } else if (objectOrClassValue.getType() === 'object') {
                 classObject = objectOrClassValue.getClass();
             } else {
@@ -563,10 +567,6 @@ module.exports = require('pauser')([
          */
         isNumeric: function () {
             return false;
-        },
-
-        next: function () {
-            this.pointer++;
         },
 
         /**
@@ -700,14 +700,6 @@ module.exports = require('pauser')([
             value.value = newElements;
 
             return elements[0].getValue();
-        },
-
-        shiftLeftBy: function (rightValue) {
-            return this.coerceToInteger().shiftLeftBy(rightValue);
-        },
-
-        shiftRightBy: function (rightValue) {
-            return this.coerceToInteger().shiftRightBy(rightValue);
         },
 
         sort: function (callback) {

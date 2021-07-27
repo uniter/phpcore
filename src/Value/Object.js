@@ -67,14 +67,15 @@ module.exports = require('pauser')([
         CANNOT_ACCESS_PROPERTY = 'core.cannot_access_property',
         CANNOT_USE_WRONG_TYPE_AS = 'core.cannot_use_wrong_type_as',
         OBJECT_FROM_GET_ITERATOR_MUST_BE_TRAVERSABLE = 'core.object_from_get_iterator_must_be_traversable',
-        UNDEFINED_PROPERTY = 'core.undefined_property',
-        UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types';
+        UNDEFINED_PROPERTY = 'core.undefined_property';
 
     /**
      * Represents an instance of a class. There is a JS<->PHP bridge
      * that wraps objects passed in from JS-land in instances of a special JSObject builtin class.
      *
      * @param {ValueFactory} factory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
      * @param {Translator} translator
      * @param {object} object
@@ -82,8 +83,17 @@ module.exports = require('pauser')([
      * @param {number} id
      * @constructor
      */
-    function ObjectValue(factory, callStack, translator, object, classObject, id) {
-        Value.call(this, factory, callStack, 'object', object);
+    function ObjectValue(
+        factory,
+        referenceFactory,
+        futureFactory,
+        callStack,
+        translator,
+        object,
+        classObject,
+        id
+    ) {
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'object', object);
 
         /**
          * @type {Class}
@@ -131,62 +141,6 @@ module.exports = require('pauser')([
     util.inherits(ObjectValue, Value);
 
     _.extend(ObjectValue.prototype, {
-        /**
-         * Adds this value to another
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
-         */
-        add: function (rightValue) {
-            return rightValue.addToObject(this);
-        },
-
-        /**
-         * Adds this value to an array
-         */
-        addToArray: function () {
-            var value = this;
-
-            value.callStack.raiseError(
-                PHPError.E_NOTICE,
-                'Object of class ' + value.classObject.getName() + ' could not be converted to number'
-            );
-
-            value.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
-         * Adds this value to a boolean
-         *
-         * @param {BooleanValue} booleanValue
-         */
-        addToBoolean: function (booleanValue) {
-            var value = this;
-
-            value.callStack.raiseError(
-                PHPError.E_NOTICE,
-                'Object of class ' + value.classObject.getName() + ' could not be converted to number'
-            );
-
-            return value.factory.createInteger((booleanValue.getNative() ? 1 : 0) + 1);
-        },
-
-        /**
-         * Adds this value to a float
-         *
-         * @param {FloatValue} floatValue
-         */
-        addToFloat: function (floatValue) {
-            var value = this;
-
-            value.callStack.raiseError(
-                PHPError.E_NOTICE,
-                'Object of class ' + value.classObject.getName() + ' could not be converted to number'
-            );
-
-            return value.factory.createFloat(floatValue.getNative() + 1);
-        },
-
         /**
          * Moves the iterator to its next position.
          * Used by transpiled foreach loops over objects implementing Iterator.
@@ -251,11 +205,10 @@ module.exports = require('pauser')([
          *
          * @param {StringValue} nameValue
          * @param {Value[]} args
-         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
          * @param {bool} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
          * @returns {Value}
          */
-        callStaticMethod: function (nameValue, args, namespaceOrNamespaceScope, isForwarding) {
+        callStaticMethod: function (nameValue, args, isForwarding) {
             // Could be a static call in object context, in which case we want to pass
             // the object value through.
             // This will be handled by a fetch of `callStack.getThisObject()` inside `.callMethod(...)`
@@ -306,7 +259,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Coerces this ObjectValue to an ArrayValue
+         * Coerces this ObjectValue to an ArrayValue (overrides the implementation in Value)
          *
          * @returns {ArrayValue}
          */
@@ -377,10 +330,6 @@ module.exports = require('pauser')([
             return value.getNative();
         },
 
-        coerceToNumber: function () {
-            return this.coerceToInteger();
-        },
-
         coerceToKey: function () {
             this.callStack.raiseError(PHPError.E_WARNING, 'Illegal offset type');
         },
@@ -407,9 +356,7 @@ module.exports = require('pauser')([
                 propertyReference;
 
             function createProperty() {
-                return new PropertyReference(
-                    value.factory,
-                    value.callStack,
+                return value.referenceFactory.createProperty(
                     value,
                     value.factory.coerce(name),
                     classObject,
@@ -441,30 +388,6 @@ module.exports = require('pauser')([
             }
 
             return propertyReference;
-        },
-
-        /**
-         * Divides (the numeric coercion of) this object by another value
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
-         */
-        divide: function (rightValue) {
-            return rightValue.divideByObject(this);
-        },
-
-        /**
-         * Divides a non-array value by this object
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        divideByNonArray: function (leftValue) {
-            // Trigger notice due to coercion
-            this.coerceToInteger();
-
-            // Objects are always cast to int(1), so divisor will always be 1
-            return leftValue.coerceToNumber();
         },
 
         /**
@@ -587,7 +510,7 @@ module.exports = require('pauser')([
                     'Undefined ' + value.referToElement(index)
                 );
 
-                return new NullReference(value.factory);
+                return value.referenceFactory.createNull();
             }
 
             return value.getInstancePropertyByName(names[index]);
@@ -606,11 +529,11 @@ module.exports = require('pauser')([
 
             if (!keyValue) {
                 // Could not be coerced to a key: error will already have been handled, just return NULL
-                return new NullReference(value.factory);
+                return value.referenceFactory.createNull();
             }
 
             if (value.classObject.is('ArrayAccess')) {
-                return new ObjectElement(value.factory, value, keyValue);
+                return value.referenceFactory.createObjectElement(value, keyValue);
             }
 
             value.callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_USE_WRONG_TYPE_AS, {
@@ -976,6 +899,9 @@ module.exports = require('pauser')([
          * Exports a proxy object that allows JS code to call any method of this object
          * (including magic ones implemented with __call)
          *
+         * @deprecated Is this required, why not just use a non-coercing function/class?
+         *             Also, the concept of "Proxy" is now the replacement for the old "UnwrappedClass"
+         *
          * @returns {PHPObject}
          */
         getProxy: function () {
@@ -1261,30 +1187,6 @@ module.exports = require('pauser')([
 
         isTheClassOfString: function () {
             return this.factory.createBoolean(false);
-        },
-
-        /**
-         * Multiplies this object by another value
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
-         */
-        multiply: function (rightValue) {
-            return rightValue.multiplyByObject(this);
-        },
-
-        /**
-         * Multiplies this object by a non-array value
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        multiplyByNonArray: function (leftValue) {
-            // Trigger notice due to coercion
-            this.coerceToInteger();
-
-            // Objects are always cast to int(1), so multiplier will always be 1
-            return leftValue.coerceToNumber();
         },
 
         /**

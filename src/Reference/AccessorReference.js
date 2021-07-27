@@ -10,12 +10,41 @@
 'use strict';
 
 var _ = require('microdash'),
+    phpCommon = require('phpcommon'),
     util = require('util'),
+    Exception = phpCommon.Exception,
     Reference = require('./Reference');
 
-function AccessorReference(valueFactory, valueGetter, valueSetter) {
+/**
+ * Represents a special type of reference where a getter and setter callback function are provided
+ *
+ * @param {ValueFactory} valueFactory
+ * @param {ReferenceFactory} referenceFactory
+ * @param {Flow} flow
+ * @param {Function} valueGetter
+ * @param {Function|null} valueSetter
+ * @constructor
+ */
+function AccessorReference(
+    valueFactory,
+    referenceFactory,
+    flow,
+    valueGetter,
+    valueSetter
+) {
+    Reference.call(this, referenceFactory, flow);
+
+    /**
+     * @type {ValueFactory}
+     */
     this.valueFactory = valueFactory;
+    /**
+     * @type {Function}
+     */
     this.valueGetter = valueGetter;
+    /**
+     * @type {Function}
+     */
     this.valueSetter = valueSetter;
 }
 
@@ -33,18 +62,40 @@ _.extend(AccessorReference.prototype, {
     },
 
     /**
-     * Determines whether this reference is defined
-     *
-     * @returns {boolean}
+     * {@inheritdoc}
      */
     isDefined: function () {
         return true;
     },
 
-    setValue: function (value) {
-        this.valueSetter(value.getNative());
+    /**
+     * {@inheritdoc}
+     */
+    isEmpty: function () {
+        return this.getValue().next(function (resultValue) {
+            return resultValue.isEmpty();
+        });
+    },
 
-        return value;
+    /**
+     * {@inheritdoc}
+     */
+    isSet: function () {
+        return this.getValue().next(function (resultValue) {
+            return resultValue.isSet();
+        });
+    },
+
+    setValue: function (value) {
+        var reference = this;
+
+        if (!reference.valueSetter) {
+            throw new Exception('Accessor is read-only');
+        }
+
+        return value.next(function (presentValue) {
+            reference.valueSetter(presentValue.getNative());
+        });
     }
 });
 

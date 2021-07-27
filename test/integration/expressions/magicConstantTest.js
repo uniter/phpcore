@@ -352,7 +352,9 @@ namespace My\App {
     }();
 }
 
-return $result;
+namespace {
+    return $result;
+}
 EOS
 */;}), //jshint ignore:line
             module = tools.syncTranspile(null, php),

@@ -130,7 +130,13 @@ _.extend(FunctionSpecFactory.prototype, {
      * @param {number|null} lineNumber
      * @returns {FunctionSpec}
      */
-    createFunctionSpec: function (namespaceScope, functionName, parametersSpecData, filePath, lineNumber) {
+    createFunctionSpec: function (
+        namespaceScope,
+        functionName,
+        parametersSpecData,
+        filePath,
+        lineNumber
+    ) {
         var factory = this,
             context = new factory.FunctionContext(namespaceScope, functionName),
             parameters = factory.parameterListFactory.createParameterList(

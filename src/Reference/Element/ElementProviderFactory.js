@@ -17,10 +17,18 @@ var _ = require('microdash'),
 /**
  * Creates element providers and objects related to them
  *
+ * @param {Flow} flow
  * @constructor
  */
-function ElementProviderFactory() {
-
+function ElementProviderFactory(flow) {
+    /**
+     * @type {Flow}
+     */
+    this.flow = flow;
+    /**
+     * @type {ReferenceFactory|null}
+     */
+    this.referenceFactory = null;
 }
 
 _.extend(ElementProviderFactory.prototype, {
@@ -41,7 +49,14 @@ _.extend(ElementProviderFactory.prototype, {
      * @returns {HookableElementProvider}
      */
     createHookableProvider: function (baseElementProvider, elementHookCollection) {
-        return new HookableElementProvider(baseElementProvider, elementHookCollection);
+        var factory = this;
+
+        return new HookableElementProvider(
+            factory.referenceFactory,
+            factory.flow,
+            baseElementProvider,
+            elementHookCollection
+        );
     },
 
     /**
@@ -50,7 +65,16 @@ _.extend(ElementProviderFactory.prototype, {
      * @returns {ElementProvider}
      */
     createProvider: function () {
-        return new ElementProvider();
+        return new ElementProvider(this.flow);
+    },
+
+    /**
+     * Sets the ReferenceFactory
+     *
+     * @param {ReferenceFactory} referenceFactory
+     */
+    setReferenceFactory: function (referenceFactory) {
+        this.referenceFactory = referenceFactory;
     }
 });
 

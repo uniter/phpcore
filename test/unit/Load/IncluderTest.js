@@ -162,7 +162,7 @@ describe('Includer', function () {
                 );
             });
 
-            it('should invoke the Loader with a correctly created IncludeScope', function () {
+            it('should invoke the Loader with a correctly created LoadScope', function () {
                 var includeLoadScope = sinon.createStubInstance(LoadScope);
                 scopeFactory.createLoadScope
                     .withArgs(sinon.match.same(enclosingScope), '/path/to/my/parent/module.php', 'include')

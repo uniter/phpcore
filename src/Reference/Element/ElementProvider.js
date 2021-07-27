@@ -15,10 +15,18 @@ var _ = require('microdash'),
 /**
  * Creates standard (unhooked) array elements
  *
+ * @param {Flow} flow
  * @constructor
  */
-function ElementProvider() {
-
+function ElementProvider(flow) {
+    /**
+     * @type {Flow}
+     */
+    this.flow = flow;
+    /**
+     * @type {ReferenceFactory|null}
+     */
+    this.referenceFactory = null;
 }
 
 _.extend(ElementProvider.prototype, {
@@ -34,7 +42,27 @@ _.extend(ElementProvider.prototype, {
      * @returns {ElementReference}
      */
     createElement: function (valueFactory, callStack, arrayValue, key, value, reference) {
-        return new ElementReference(valueFactory, callStack, arrayValue, key, value, reference);
+        var provider = this;
+
+        return new ElementReference(
+            valueFactory,
+            provider.referenceFactory,
+            callStack,
+            provider.flow,
+            arrayValue,
+            key,
+            value,
+            reference
+        );
+    },
+
+    /**
+     * Sets the ReferenceFactory
+     *
+     * @param {ReferenceFactory} referenceFactory
+     */
+    setReferenceFactory: function (referenceFactory) {
+        this.referenceFactory = referenceFactory;
     }
 });
 

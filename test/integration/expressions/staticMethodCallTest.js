@@ -54,6 +54,32 @@ EOS
         ]);
     });
 
+    it('should allow a variable containing an array to be passed by-reference', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+class MyClass
+{
+    public static function myMethod(array &$theArray)
+    {
+        $theArray[] = 'added';
+    }
+}
+
+$myArray = [21, 101];
+MyClass::myMethod($myArray);
+
+return $myArray;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile(null, php);
+
+        expect(module().execute().getNative()).to.deep.equal([
+            21,
+            101,
+            'added'
+        ]);
+    });
+
     it('should raise a fatal error on attempting to call a static method of an integer', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

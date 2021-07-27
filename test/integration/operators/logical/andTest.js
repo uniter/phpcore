@@ -36,11 +36,17 @@ function returnFalsy() {
 
 $result = [];
 
+$result[] = returnFalsy() && returnFalsy();
+$result[] = 'done falsy && falsy';
+
 $result[] = returnFalsy() && returnTruthy();
 $result[] = 'done falsy && truthy';
 
 $result[] = returnTruthy() && returnFalsy();
 $result[] = 'done truthy && falsy';
+
+$result[] = returnTruthy() && returnTruthy();
+$result[] = 'done truthy && truthy';
 
 return $result;
 EOS
@@ -49,6 +55,11 @@ EOS
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
+            // falsy && falsy should short-circuit, not evaluating the second returnFalsy()
+            '[in returnFalsy]',
+            false,
+            'done falsy && falsy',
+
             // falsy && truthy should short-circuit, not evaluating returnTruthy()
             '[in returnFalsy]',
             false,
@@ -58,7 +69,13 @@ EOS
             '[in returnTruthy]',
             '[in returnFalsy]',
             false,
-            'done truthy && falsy'
+            'done truthy && falsy',
+
+            // truthy && truthy should not short-circuit, evaluating both
+            '[in returnTruthy]',
+            '[in returnTruthy]',
+            true,
+            'done truthy && truthy'
         ]);
     });
 });

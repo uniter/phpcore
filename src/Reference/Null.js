@@ -13,10 +13,21 @@ var _ = require('microdash'),
     util = require('util'),
     Reference = require('./Reference');
 
+/**
+ * @param {ValueFactory} valueFactory
+ * @param {Object} options
+ * @constructor
+ */
 function NullReference(valueFactory, options) {
     options = options || {};
 
+    /**
+     * @type {Function|null}
+     */
     this.onSet = options.onSet;
+    /**
+     * @type {ValueFactory}
+     */
     this.valueFactory = valueFactory;
 }
 

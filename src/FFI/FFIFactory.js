@@ -16,6 +16,8 @@ var _ = require('microdash');
  * @param {class} PHPObject
  * @param {class} ValueCoercer
  * @param {ValueFactory} valueFactory
+ * @param {ReferenceFactory} referenceFactory
+ * @param {FutureFactory} futureFactory
  * @param {CallStack} callStack
  * @param {NativeCaller} nativeCaller
  * @param {ValueCaller} valueCaller
@@ -26,6 +28,8 @@ function FFIFactory(
     PHPObject,
     ValueCoercer,
     valueFactory,
+    referenceFactory,
+    futureFactory,
     callStack,
     nativeCaller,
     valueCaller
@@ -39,6 +43,10 @@ function FFIFactory(
      */
     this.callStack = callStack;
     /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
+    /**
      * @type {Object.<boolean, ValueCoercer}
      */
     this.modeToValueCoercerMap = {};
@@ -50,6 +58,10 @@ function FFIFactory(
      * @type {class}
      */
     this.PHPObject = PHPObject;
+    /**
+     * @type {ReferenceFactory}
+     */
+    this.referenceFactory = referenceFactory;
     /**
      * @type {ValueCaller}
      */
@@ -76,6 +88,8 @@ _.extend(FFIFactory.prototype, {
 
         return new factory.AsyncObjectValue(
             factory.valueFactory,
+            factory.referenceFactory,
+            factory.futureFactory,
             factory.callStack,
             factory.valueCaller,
             wrappedObjectValue

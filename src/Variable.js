@@ -11,12 +11,10 @@
 
 module.exports = require('pauser')([
     require('microdash'),
-    require('phpcommon'),
-    require('./Reference/ReferenceSlot')
+    require('phpcommon')
 ], function (
     _,
-    phpCommon,
-    ReferenceSlot
+    phpCommon
 ) {
     var USED_THIS_OUTSIDE_OBJECT_CONTEXT = 'core.used_this_outside_object_context',
         PHPError = phpCommon.PHPError;
@@ -27,10 +25,26 @@ module.exports = require('pauser')([
      *
      * @param {CallStack} callStack
      * @param {ValueFactory} valueFactory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {Flow} flow
      * @param {string} name
      * @constructor
      */
-    function Variable(callStack, valueFactory, name) {
+    function Variable(
+        callStack,
+        valueFactory,
+        referenceFactory,
+        flow,
+        name
+    ) {
+        /**
+         * @type {CallStack}
+         */
+        this.callStack = callStack;
+        /**
+         * @type {Flow}
+         */
+        this.flow = flow;
         /**
          * @type {string}
          */
@@ -40,9 +54,9 @@ module.exports = require('pauser')([
          */
         this.reference = null;
         /**
-         * @type {CallStack}
+         * @type {ReferenceFactory}
          */
-        this.callStack = callStack;
+        this.referenceFactory = referenceFactory;
         /**
          * @type {Value|null}
          */
@@ -55,6 +69,57 @@ module.exports = require('pauser')([
 
     _.extend(Variable.prototype, {
         /**
+         * Calculates the bitwise AND of this variable's value and the given value,
+         * writing the result back to this variable
+         *
+         * @param {Value} rightValue
+         * @returns {Value}
+         */
+        bitwiseAndWith: function (rightValue) {
+            var variable = this;
+
+            return variable.flow.try(function () {
+                return variable.getValue();
+            }).next(function (leftValue) {
+                return leftValue.bitwiseAnd(rightValue);
+            }).next(function (resultValue) {
+                return variable.setValue(resultValue);
+            }).go();
+        },
+
+        /**
+         * Calculates the bitwise OR of this variable's value and the given value,
+         * writing the result back to this variable
+         *
+         * @param {Value} rightValue
+         * @returns {Value}
+         */
+        bitwiseOrWith: function (rightValue) {
+            var variable = this;
+
+            return variable.flow.try(function () {
+                return variable.getValue();
+            }).then(function (leftValue) {
+                return leftValue.bitwiseOr(rightValue);
+            }).then(function (resultValue) {
+                return variable.setValue(resultValue);
+            }).go();
+        },
+
+        /**
+         * Calculates the bitwise XOR of this variable's value and the given value,
+         * writing the result back to this variable
+         *
+         * @param {Value} rightValue
+         * @returns {Value}
+         */
+        bitwiseXorWith: function (rightValue) {
+            var variable = this;
+
+            return variable.setValue(variable.getValue().bitwiseXor(rightValue));
+        },
+
+        /**
          * Coerces this value and the specified one to strings,
          * concatenates them together and then assigns the result back to this variable
          *
@@ -63,26 +128,15 @@ module.exports = require('pauser')([
         concatWith: function (rightValue) {
             var variable = this;
 
+            // TODO: Handle async pause with Flow
             variable.setValue(variable.getValue().concat(rightValue));
         },
 
         decrementBy: function (rightValue) {
             var variable = this;
 
+            // TODO: Handle async pause with Flow
             variable.setValue(variable.getValue().subtract(rightValue));
-        },
-
-        /**
-         * Divides the value of this variable by the specified value
-         *
-         * Used by the `/=` operator
-         *
-         * @param {Value} rightValue
-         */
-        divideBy: function (rightValue) {
-            var variable = this;
-
-            variable.setValue(variable.getValue().divide(rightValue));
         },
 
         /**
@@ -94,6 +148,7 @@ module.exports = require('pauser')([
             var variable = this;
 
             return variable.isDefined() ?
+                // TODO: Handle async pause with Flow
                 variable.getValue().formatAsString() :
                 'NULL';
         },
@@ -101,6 +156,7 @@ module.exports = require('pauser')([
         /**
          * Fetches a property of an object stored in this variable
          *
+         * @deprecated TODO: Remove?
          * @param {Value} nameValue
          * @returns {PropertyReference}
          */
@@ -111,6 +167,7 @@ module.exports = require('pauser')([
                 variable.callStack.raiseTranslatedError(PHPError.E_ERROR, USED_THIS_OUTSIDE_OBJECT_CONTEXT);
             }
 
+            // TODO: Handle async pause with Flow
             return variable.getValue().getInstancePropertyByName(nameValue);
         },
 
@@ -166,6 +223,7 @@ module.exports = require('pauser')([
         },
 
         getNative: function () {
+            // TODO: Handle async pause with Flow
             return this.getValue().getNative();
         },
 
@@ -183,7 +241,7 @@ module.exports = require('pauser')([
             }
 
             // Implicitly define a "slot" to contain this variable's value
-            variable.reference = new ReferenceSlot(variable.valueFactory);
+            variable.reference = variable.referenceFactory.createReferenceSlot();
 
             if (variable.value) {
                 variable.reference.setValue(variable.value);
@@ -196,6 +254,7 @@ module.exports = require('pauser')([
         incrementBy: function (rightValue) {
             var variable = this;
 
+            // TODO: Handle async pause with Flow
             variable.setValue(variable.getValue().add(rightValue));
         },
 
@@ -215,36 +274,59 @@ module.exports = require('pauser')([
         /**
          * Determines whether this variable is classed as "empty" or not
          *
-         * @returns {boolean}
+         * @returns {boolean|Future<boolean>}
          */
         isEmpty: function () {
             var variable = this;
 
-            return !variable.isDefined() || variable.getValue().isEmpty();
+            if (variable.value) {
+                // Variable has a value - check the value for emptiness
+                return variable.value.isEmpty();
+            }
+
+            if (variable.reference) {
+                // Variable has a reference - check the reference for emptiness
+                return variable.reference.isEmpty();
+            }
+
+            // Otherwise the variable is undefined, so it is empty
+            return true;
+
+            // // TODO: Consider using a [Native]Future here
+            // return variable.flow.try(function () {
+            //     return variable.getValue();
+            // }).next(function (value) {
+            //     return value.isEmpty();
+            // }).go();
         },
 
         /**
          * Determines whether this variable is classed as "set" or not
          *
-         * @returns {boolean}
+         * @returns {boolean|Future<boolean>}
          */
         isSet: function () {
             var variable = this;
 
-            return variable.isDefined() && variable.getValue().isSet();
-        },
+            if (variable.value) {
+                // Variable has a value - check the value for emptiness
+                return variable.value.isSet();
+            }
 
-        /**
-         * Multiplies the value of this variable by the specified value
-         *
-         * Used by the `*=` operator
-         *
-         * @param {Value} rightValue
-         */
-        multiplyBy: function (rightValue) {
-            var variable = this;
+            if (variable.reference) {
+                // Variable has a reference - check the reference for emptiness
+                return variable.reference.isSet();
+            }
 
-            variable.setValue(variable.getValue().multiply(rightValue));
+            // Otherwise the variable is undefined, so it is not set
+            return false;
+
+            // // TODO: Consider using a [Native]Future here
+            // return variable.flow.try(function () {
+            //     return variable.getValue();
+            // }).next(function (value) {
+            //     return value.isSet();
+            // }).go();
         },
 
         /**
@@ -253,6 +335,7 @@ module.exports = require('pauser')([
          * @returns {Value}
          */
         postDecrement: function () {
+            // TODO: Handle async pauses with Flow
             var variable = this,
                 decrementedValue = variable.getValue().decrement(),
                 result = variable.getValue();
@@ -270,6 +353,7 @@ module.exports = require('pauser')([
          * @returns {Value}
          */
         preDecrement: function () {
+            // TODO: Handle async pauses with Flow
             var variable = this,
                 decrementedValue = variable.getValue().decrement();
 
@@ -286,6 +370,7 @@ module.exports = require('pauser')([
          * @returns {Value}
          */
         postIncrement: function () {
+            // TODO: Handle async pauses with Flow
             var variable = this,
                 incrementedValue = variable.getValue().increment(),
                 result = variable.getValue();
@@ -303,6 +388,7 @@ module.exports = require('pauser')([
          * @returns {Value}
          */
         preIncrement: function () {
+            // TODO: Handle async pauses with Flow
             var variable = this,
                 incrementedValue = variable.getValue().increment();
 
@@ -341,21 +427,25 @@ module.exports = require('pauser')([
         setValue: function (value) {
             var variable = this;
 
-            if (variable.name === 'this' && value.getType() === 'null') {
-                // Normalise the value of $this to either be set to an ObjectValue
-                // or be unset
-                variable.value = null;
+            return value
+                .next(function (presentValue) {
+                    if (variable.name === 'this' && presentValue.getType() === 'null') {
+                        // Normalise the value of $this to either be set to an ObjectValue
+                        // or be unset
+                        variable.value = null;
 
-                return value;
-            }
+                        return presentValue;
+                    }
 
-            if (variable.reference) {
-                variable.reference.setValue(value);
-            } else {
-                variable.value = value.getForAssignment();
-            }
+                    if (variable.reference) {
+                        variable.reference.setValue(presentValue);
+                    } else {
+                        variable.value = presentValue.getForAssignment();
+                    }
 
-            return value;
+                    return presentValue;
+                })
+                .yield();
         },
 
         setReference: function (reference) {

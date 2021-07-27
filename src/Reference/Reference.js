@@ -19,53 +19,35 @@ var _ = require('microdash'),
 /**
  * Interface for references to extend to allow instanceof checking
  *
+ * @param {ReferenceFactory} referenceFactory
+ * @param {Flow} flow
  * @constructor
  */
-function Reference() {
-    throw new Error('Reference is abstract, no need to instantiate it');
+function Reference(referenceFactory, flow) {
+    /**
+     * @type {Flow}
+     */
+    this.flow = flow;
+    /**
+     * @type {ReferenceFactory}
+     */
+    this.referenceFactory = referenceFactory;
 }
 
 _.extend(Reference.prototype, {
-    /**
-     * Coerces the value from this reference and the specified one to strings,
-     * concatenates them together and then assigns the result back to this reference.
-     *
-     * Used by the `.=` operator
-     *
-     * @param {Value} rightValue
-     */
-    concatWith: function (rightValue) {
-        var reference = this;
-
-        reference.setValue(reference.getValue().concat(rightValue));
-    },
-
     /**
      * Subtracts the specified value from the value from this reference
      * and then assigns the result back to this reference
      *
      * Used by the `-=` operator
      *
+     * @deprecated Remove all of these types of method from Reference, and from Variable too
      * @param {Value} rightValue
      */
     decrementBy: function (rightValue) {
         var reference = this;
 
         reference.setValue(reference.getValue().subtract(rightValue));
-    },
-
-    /**
-     * Divides the value from this reference by the specified value
-     * and then assigns the result back to this reference
-     *
-     * Used by the `/=` operator
-     *
-     * @param {Value} rightValue
-     */
-    divideBy: function (rightValue) {
-        var reference = this;
-
-        reference.setValue(reference.getValue().divide(rightValue));
     },
 
     /**
@@ -92,11 +74,11 @@ _.extend(Reference.prototype, {
     /**
      * Fetches an instance property of this reference's value (assuming it contains an object) by its name
      *
-     * @param {string} name
+     * @param {Value} nameValue
      * @returns {PropertyReference}
      */
-    getInstancePropertyByName: function (name) {
-        return this.getValue().getInstancePropertyByName(name);
+    getInstancePropertyByName: function (nameValue) {
+        return this.getValue().getInstancePropertyByName(nameValue);
     },
 
     /**
@@ -139,20 +121,6 @@ _.extend(Reference.prototype, {
     },
 
     /**
-     * Adds the specified value to the value from this reference
-     * and then assigns the result back to this reference
-     *
-     * Used by the `+=` operator
-     *
-     * @param {Value} rightValue
-     */
-    incrementBy: function (rightValue) {
-        var reference = this;
-
-        reference.setValue(reference.getValue().add(rightValue));
-    },
-
-    /**
      * Determines whether this reference is defined
      *
      * @returns {boolean}
@@ -162,7 +130,7 @@ _.extend(Reference.prototype, {
     /**
      * Determines whether the reference is classed as "empty" or not
      *
-     * @returns {boolean}
+     * @returns {boolean|Future<boolean>}
      */
     isEmpty: throwUnimplemented('isEmpty'),
 
@@ -172,20 +140,6 @@ _.extend(Reference.prototype, {
      * @returns {boolean}
      */
     isSet: throwUnimplemented('isSet'),
-
-    /**
-     * Multiplies the specified value by the value from this reference
-     * and then assigns the result back to this reference
-     *
-     * Used by the `*=` operator
-     *
-     * @param {Value} rightValue
-     */
-    multiplyBy: function (rightValue) {
-        var reference = this;
-
-        reference.setValue(reference.getValue().multiply(rightValue));
-    },
 
     /**
      * Decrements the stored value, returning its original value

@@ -96,12 +96,13 @@ module.exports = require('pauser')([
          *
          * @param {Value[]} args
          * @param {ObjectValue|undefined} thisObject
-         * @returns {Value}
+         * @returns {FutureValue|Value}
          */
         invoke: function (args, thisObject) {
             // Store the current PHP thisObj to set for the closure
             var closure = this;
 
+            // Note that the wrapped function could return a FutureValue for async handling
             return closure.valueFactory.coerce(
                 closure.wrappedFunction.apply(thisObject || closure.thisObject, args)
             );

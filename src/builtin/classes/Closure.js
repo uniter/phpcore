@@ -108,7 +108,7 @@ module.exports = function (internals) {
             // Fetch the class to use as the static scope if specified,
             // otherwise if not specified or "static", use the class of the `$this` object
             if (scopeClassName && scopeClassName !== 'static') {
-                scopeClass = globalNamespace.getClass(scopeClassName);
+                scopeClass = globalNamespace.getClass(scopeClassName).yieldSync();
             } else if (newThisValue.getType() !== 'null') {
                 scopeClass = newThisValue.getClass();
             } else {
@@ -169,7 +169,7 @@ module.exports = function (internals) {
             // Fetch the class to use as the static scope if specified,
             // otherwise if not specified or "static", use the class of the `$this` object
             if (scopeClassName && scopeClassName !== 'static') {
-                scopeClass = globalNamespace.getClass(scopeClassName);
+                scopeClass = globalNamespace.getClass(scopeClassName).yieldSync();
             } else if (newThisValue.getType() !== 'null') {
                 scopeClass = newThisValue.getClass();
             } else {
@@ -205,84 +205,57 @@ module.exports = function (internals) {
         // just like any other (with arguments coerced from JS->PHP
         // and the return value coerced from PHP->JS automatically)
         return function __uniterInboundStackMarker__() {
-            // Wrap thisObj in *Value object
-            var thisObj = valueFactory.coerceObject(this),
+            var maybeFuture,
+                // Wrap thisObj in *Value object
+                thisObj = valueFactory.coerceObject(this),
                 // Wrap all native JS values in *Value objects
                 args = valueFactory.coerceList(arguments);
 
             // Push an FFI call onto the stack, representing the call from JavaScript-land
-            callStack.push(callFactory.createFFICall([].slice.call(arguments)));
+            callStack.push(callFactory.createFFICall(args));
 
             function popFFICall() {
                 callStack.pop();
             }
 
-            if (internals.mode === 'async') {
-                return new Promise(function (resolve, reject) {
-                    // Call the method via Pausable to allow for blocking operation
-                    internals.pausable.call(
-                        closure.invoke,
-                        [args, thisObj],
-                        closure
-                    )
-                        // Pop the call off the stack _before_ returning, to mirror sync mode's behaviour
-                        .finally(popFFICall)
-                        .then(
-                            function (resultValue) {
-                                resolve(resultValue.getNative());
-                            },
-                            function (error) {
-                                if (valueFactory.isValue(error) && error.getType() === 'object') {
-                                    // Method threw a PHP Throwable, so throw a native JS error for it
-
-                                    // Feed the error into the ErrorReporting mechanism,
-                                    // so it will be written to stdout/stderr as applicable
-                                    reject(errorPromoter.promote(error));
-                                    return;
-                                }
-
-                                // Normal error: just pass it up to the caller
-                                reject(error);
-                            }
-                        );
-                });
-            }
-
-            function invoke() {
-                var nativeError;
-
-                // Call the closure, and then unwrap its result value back to a native one
-                try {
-                    return closure.invoke(args, thisObj).getNative();
-                } catch (error) {
+            maybeFuture = closure.invoke.apply(closure, [args, thisObj])
+                // Pop the call off the stack _before_ returning, to mirror sync mode's behaviour
+                .finally(popFFICall)
+                .catch(function (error) {
                     if (valueFactory.isValue(error) && error.getType() === 'object') {
+                        // Method threw a PHP Throwable, so throw a native JS error for it
+
                         // Feed the error into the ErrorReporting mechanism,
                         // so it will be written to stdout/stderr as applicable
-                        nativeError = errorPromoter.promote(error);
-
-                        throw nativeError;
+                        throw errorPromoter.promote(error);
                     }
 
+                    // Normal error: just pass it up to the caller
                     throw error;
-                } finally {
-                    popFFICall();
-                }
+                });
+
+            if (internals.mode === 'async') {
+                return new Promise(function (resolve, reject) {
+                    maybeFuture.next(
+                        function (resultValue) {
+                            // Make sure we resolve the promise with the native result value
+                            resolve(resultValue.getNative());
+                        },
+                        reject
+                    );
+                });
             }
 
             if (internals.mode === 'psync') {
                 // For Promise-synchronous mode, we need to return a promise
                 // even though the actual invocation must return synchronously
-                return new Promise(function (resolve, reject) {
-                    try {
-                        resolve(invoke());
-                    } catch (error) {
-                        reject(error);
-                    }
+                return new Promise(function (resolve) {
+                    resolve(maybeFuture.yieldSync().getNative());
                 });
             }
 
             // Otherwise we're in sync mode
-            return invoke();
+            return maybeFuture.yieldSync().getNative();
         };
     });
 

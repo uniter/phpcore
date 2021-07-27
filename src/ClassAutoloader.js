@@ -16,9 +16,21 @@ module.exports = require('pauser')([
 ) {
     var MAGIC_AUTOLOAD_FUNCTION = '__autoload';
 
-    function ClassAutoloader(valueFactory) {
+    /**
+     * @param {ValueFactory} valueFactory
+     * @param {Flow} flow
+     * @constructor
+     */
+    function ClassAutoloader(valueFactory, flow) {
+        /**
+         * @type {Flow}
+         */
+        this.flow = flow;
         this.globalNamespace = null;
         this.splStack = null;
+        /**
+         * @type {ValueFactory}
+         */
         this.valueFactory = valueFactory;
     }
 
@@ -35,6 +47,12 @@ module.exports = require('pauser')([
             splStack.push(autoloadCallable);
         },
 
+        /**
+         * Attempts to autoload the specified class
+         *
+         * @param {string} name
+         * @returns {Future<void>|FutureValue|Present|null}
+         */
         autoloadClass: function (name) {
             var autoloader = this,
                 globalNamespace = autoloader.globalNamespace,
@@ -42,21 +60,42 @@ module.exports = require('pauser')([
                 splStack = autoloader.splStack;
 
             if (splStack) {
-                _.each(splStack, function (autoloadCallable) {
-                    autoloadCallable.call([autoloader.valueFactory.createString(name)], globalNamespace);
+                // autoloader.flow.eachAsyncLegacy(splStack)
+                //     .do(function (autoloadCallable) {
+                //         autoloadCallable.call([autoloader.valueFactory.createString(name)], globalNamespace)
+                //             .getValue()
+                //             .yield();
+                //     })
+                //     .next(function () {
+                //         if (globalNamespace.hasClass(name)) {
+                //             // Autoloader has defined the class: no need to call any further autoloaders
+                //             return false;
+                //         }
+                //     })
+                //     .go();
+                //
+                // return;
 
-                    if (globalNamespace.hasClass(name)) {
-                        // Autoloader has defined the class: no need to call any further autoloaders
-                        return false;
-                    }
+                return autoloader.flow.eachAsync(splStack, function (autoloadCallable) {
+                    return autoloadCallable.call([autoloader.valueFactory.createString(name)], globalNamespace)
+                        .getValue()
+                        .next(function () {
+                            if (globalNamespace.hasClass(name)) {
+                                // Autoloader has defined the class: no need to call any further autoloaders
+                                return false;
+                            }
+                        });
                 });
-            } else {
-                magicAutoloadFunction = globalNamespace.getOwnFunction(MAGIC_AUTOLOAD_FUNCTION);
-
-                if (magicAutoloadFunction) {
-                    magicAutoloadFunction(autoloader.valueFactory.createString(name));
-                }
             }
+
+            magicAutoloadFunction = globalNamespace.getOwnFunction(MAGIC_AUTOLOAD_FUNCTION);
+
+            if (magicAutoloadFunction) {
+                return magicAutoloadFunction(autoloader.valueFactory.createString(name))
+                    .getValue();
+            }
+
+            return null;
         },
 
         removeAutoloadCallable: function (autoloadCallable) {

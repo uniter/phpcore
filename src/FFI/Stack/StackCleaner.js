@@ -41,6 +41,8 @@ _.extend(StackCleaner.prototype, {
         for (frameIndex = stackLines.length - 1; frameIndex >= 0; frameIndex--) {
             line = stackLines[frameIndex];
 
+            // TODO: Define these special func names with Object.defineProperty(...)
+            //       to accommodate minification
             if (/__uniterInboundStackMarker__/.test(line)) {
                 state = STATE_PHP_LAND;
             } else if (/__uniterOutboundStackMarker__/.test(line)) {

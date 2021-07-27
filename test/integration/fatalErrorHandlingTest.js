@@ -27,11 +27,11 @@ describe('Fatal error handling integration', function () {
                 this.outputLog.push('[stderr]' + data);
             }.bind(this));
 
-            engine.execute();
+            return engine.execute();
         }.bind(this);
     });
 
-    it('should output the correct message to both stdout and stderr when display_errors=On and error_reporting=E_ALL', function () {
+    it('should output the correct message to both stdout and stderr when display_errors=On and error_reporting=E_ALL in sync mode', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL);
@@ -68,6 +68,123 @@ Stack trace:
 EOS
 */;}) //jshint ignore:line
         ]);
+    });
+
+    it('should output the correct message to both stdout and stderr when display_errors=On and error_reporting=E_ALL from a closure in async mode', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+ini_set('error_reporting', E_ALL);
+ini_set('display_errors', 'On');
+
+call_async(function () {
+    myFunc();
+});
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/my/php_module.php', php),
+            engine = module();
+        engine.defineCoercingFunction('call_async', function (callback) {
+            return this.createFutureValue(function (resolve, reject) {
+                setImmediate(function () {
+                    callback().then(resolve, reject);
+                });
+            });
+        });
+
+        return this.doRun(engine).then(
+            function () {
+                throw new Error('Expected promise to be rejected');
+            },
+            function () {
+                expect(this.outputLog).to.deep.equal([
+                    nowdoc(function () {/*<<<EOS
+[stderr]PHP Fatal error:  Uncaught Error: Call to undefined function myFunc() in /my/php_module.php:6
+Stack trace:
+#0 (JavaScript code)(unknown): {closure}()
+#1 null(unknown): (JavaScript function)()
+#2 /my/php_module.php(5): call_async(Object(Closure))
+#3 {main}
+  thrown in /my/php_module.php on line 6
+
+EOS
+*/;}), //jshint ignore:line
+                    nowdoc(function () {/*<<<EOS
+[stdout]
+Fatal error: Uncaught Error: Call to undefined function myFunc() in /my/php_module.php:6
+Stack trace:
+#0 (JavaScript code)(unknown): {closure}()
+#1 null(unknown): (JavaScript function)()
+#2 /my/php_module.php(5): call_async(Object(Closure))
+#3 {main}
+  thrown in /my/php_module.php on line 6
+
+EOS
+*/;}), //jshint ignore:line
+                    nowdoc(function () {/*<<<EOS
+[stderr]PHP Fatal error:  Uncaught Error: Call to undefined function myFunc() in /my/php_module.php on line 6
+
+EOS
+*/;}), //jshint ignore:line
+
+                    // NB: Stdout should have a leading newline written out just before the message
+                    nowdoc(function () {/*<<<EOS
+[stdout]
+Fatal error: Uncaught Error: Call to undefined function myFunc() in /my/php_module.php on line 6
+
+EOS
+*/;}) //jshint ignore:line
+                ]);
+            }.bind(this)
+        );
+    });
+
+    it('should output the correct message to both stdout and stderr when display_errors=On and error_reporting=E_ALL after a pause in async mode', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+ini_set('error_reporting', E_ALL);
+ini_set('display_errors', 'On');
+
+wait_then_resume();
+
+myFunc();
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/my/php_module.php', php),
+            engine = module();
+        engine.defineCoercingFunction('wait_then_resume', function () {
+            return this.createFutureValue(function (resolve) {
+                setImmediate(function () {
+                    resolve();
+                });
+            });
+        });
+
+        return this.doRun(engine).then(
+            function () {
+                throw new Error('Expected promise to be rejected');
+            },
+            function () {
+                expect(this.outputLog).to.deep.equal([
+                    nowdoc(function () {/*<<<EOS
+[stderr]PHP Fatal error:  Uncaught Error: Call to undefined function myFunc() in /my/php_module.php:7
+Stack trace:
+#0 {main}
+  thrown in /my/php_module.php on line 7
+
+EOS
+*/;}), //jshint ignore:line
+                    nowdoc(function () {/*<<<EOS
+[stdout]
+Fatal error: Uncaught Error: Call to undefined function myFunc() in /my/php_module.php:7
+Stack trace:
+#0 {main}
+  thrown in /my/php_module.php on line 7
+
+EOS
+*/;}) //jshint ignore:line
+                ]);
+            }.bind(this)
+        );
     });
 
     it('should output the correct message only to stderr when display_errors=Off and error_reporting=E_ALL', function () {

@@ -18,15 +18,39 @@ module.exports = require('pauser')([
     util,
     Value
 ) {
-    function ExitValue(factory, callStack, statusValue) {
-        Value.call(this, factory, callStack, 'exit', null);
+    /**
+     * A special value that only gets created in response to the "exit" or "die" constructs
+     *
+     * @param {ValueFactory} factory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {FutureFactory} futureFactory
+     * @param {CallStack} callStack
+     * @param {Value|null} statusValue
+     * @constructor
+     */
+    function ExitValue(
+        factory,
+        referenceFactory,
+        futureFactory,
+        callStack,
+        statusValue
+    ) {
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'exit', null);
 
+        /**
+         * @type {Value|null}
+         */
         this.statusValue = statusValue;
     }
 
     util.inherits(ExitValue, Value);
 
     _.extend(ExitValue.prototype, {
+        /**
+         * Fetches the exit code, if any, otherwise 0
+         *
+         * @returns {number}
+         */
         getStatus: function () {
             var value = this;
 

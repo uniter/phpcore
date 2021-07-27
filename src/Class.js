@@ -11,14 +11,10 @@
 
 module.exports = require('pauser')([
     require('microdash'),
-    require('phpcommon'),
-    require('./Reference/StaticProperty'),
-    require('./Reference/UndeclaredStaticProperty')
+    require('phpcommon')
 ], function (
     _,
-    phpCommon,
-    StaticPropertyReference,
-    UndeclaredStaticPropertyReference
+    phpCommon
 ) {
     var IS_STATIC = 'isStatic',
         MAGIC_CALL = '__call',
@@ -52,8 +48,10 @@ module.exports = require('pauser')([
      * Represents a class exposed to PHP-land
      *
      * @param {ValueFactory} valueFactory
+     * @param {ReferenceFactory} referenceFactory
      * @param {FunctionFactory} functionFactory
      * @param {CallStack} callStack
+     * @param {Flow} flow
      * @param {string} name Fully-qualified class name (FQCN)
      * @param {string} constructorName
      * @param {Function} InternalClass
@@ -70,8 +68,10 @@ module.exports = require('pauser')([
      */
     function Class(
         valueFactory,
+        referenceFactory,
         functionFactory,
         callStack,
+        flow,
         name,
         constructorName,
         InternalClass,
@@ -96,11 +96,19 @@ module.exports = require('pauser')([
          * @type {FFIFactory}
          */
         this.ffiFactory = ffiFactory;
+        /**
+         * @type {Flow}
+         */
+        this.flow = flow;
         this.functionFactory = functionFactory;
         this.interfaceNames = interfaceNames || [];
         this.InternalClass = InternalClass;
         this.name = name;
         this.namespaceScope = namespaceScope;
+        /**
+         * @type {ReferenceFactory}
+         */
+        this.referenceFactory = referenceFactory;
         // The prototype object that we should stop at when walking up the chain
         this.rootInternalPrototype = rootInternalPrototype;
         this.staticProperties = staticProperties;
@@ -115,15 +123,20 @@ module.exports = require('pauser')([
         this.valueFactory = valueFactory;
 
         _.each(staticPropertiesData, function (data, name) {
+            var initialValue = data[VALUE](classObject);
+
+            if (initialValue === null) {
+                // If a property has no initialiser then its initial value is NULL
+                initialValue = valueFactory.createNull();
+            }
+
             // Pass the class object to the property initialiser (if any),
             // so that it may refer to other properties/constants of this class with self::*
-            staticProperties[name] = new StaticPropertyReference(
-                valueFactory,
-                callStack,
-                classObject,
+            staticProperties[name] = referenceFactory.createStaticProperty(
                 name,
+                classObject,
                 data[VISIBILITY],
-                data[VALUE](classObject)
+                initialValue
             );
         });
     }
@@ -182,6 +195,21 @@ module.exports = require('pauser')([
                         classObject.functionFactory.setNewStaticClassIfWrapped(method, currentClass);
                     }
 
+                    // // Method may pause, so we need to allow for that before coercion
+                    // return classObject.flow.try(function () {
+                    //     return method.apply(
+                    //         // Some methods should never have their `this` object and args auto-coerced,
+                    //         // eg the magic `__construct` method as it is proxied in Namespace.js
+                    //         classObject.valueCoercer.isAutoCoercionEnabled() && !method.neverCoerce ?
+                    //             objectValue.getObject() :
+                    //             objectValue,
+                    //         method.neverCoerce ? args : classObject.valueCoercer.coerceArguments(args)
+                    //     );
+                    // }).next(function (result) {
+                    //     return classObject.valueFactory.coerce(result);
+                    // }).go();
+
+                    // Method may return a Future
                     return classObject.valueFactory.coerce(
                         method.apply(
                             // Some methods should never have their `this` object and args auto-coerced,
@@ -332,12 +360,11 @@ module.exports = require('pauser')([
          * an ancestor or by an interface implemented by this class or an ancestor
          *
          * @param {string} name
-         * @returns {Value}
+         * @returns {FutureValue|Value}
          */
         getConstantByName: function (name) {
             var classObject = this,
-                i,
-                interfaceObject;
+                value = null;
 
             if (name.toLowerCase() === 'class') {
                 // The special MyClass::class constant that fetches the FQCN of the class as a string
@@ -348,23 +375,35 @@ module.exports = require('pauser')([
                 return classObject.constants[name]();
             }
 
-            for (i = 0; i < classObject.interfaceNames.length; i++) {
-                interfaceObject = classObject.namespaceScope.getClass(classObject.interfaceNames[i]);
+            return classObject.flow.eachAsync(classObject.interfaceNames, function (interfaceName) {
+                return classObject.namespaceScope.getClass(interfaceName)
+                    .next(function (interfaceObject) {
+                        // Note that this lookup may asynchronously raise an error if the constant is not defined
+                        return interfaceObject.getConstantByName(name);
+                    })
+                    .next(function (constantValue) {
+                        value = constantValue;
 
-                try {
-                    return interfaceObject.getConstantByName(name);
-                } catch (e) {
-                    // Not found, try the next interface
-                }
-            }
+                        // Found, stop iterating
+                        return false;
+                    }, function () {
+                        // Not found, try the next interface
+                    });
+            })
+                .next(function () {
+                    if (value !== null) {
+                        // Constant was defined by an interface of this class
+                        return value;
+                    }
 
-            if (classObject.superClass) {
-                return classObject.superClass.getConstantByName(name);
-            }
+                    if (classObject.superClass) {
+                        return classObject.superClass.getConstantByName(name);
+                    }
 
-            classObject.callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_CLASS_CONSTANT, {
-                name: name
-            });
+                    classObject.callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_CLASS_CONSTANT, {
+                        name: name
+                    });
+                });
         },
 
         getInternalClass: function () {
@@ -482,11 +521,9 @@ module.exports = require('pauser')([
 
                 // Undeclared static properties cannot be accessed _except_ by isset(...) or empty(...),
                 // which return the relevant boolean result (`false` and `true` respectively)
-                return new UndeclaredStaticPropertyReference(
-                    classObject.valueFactory,
-                    classObject.callStack,
-                    classObject,
-                    name
+                return classObject.referenceFactory.createUndeclaredStaticProperty(
+                    name,
+                    classObject
                 );
             }
 
@@ -547,7 +584,7 @@ module.exports = require('pauser')([
             var classObject = this;
 
             return classObject.interfaceNames.map(function (interfaceName) {
-                return classObject.namespaceScope.getClass(interfaceName);
+                return classObject.namespaceScope.getClass(interfaceName).yieldSync();
             });
         },
 
@@ -578,6 +615,7 @@ module.exports = require('pauser')([
             objectValue = classObject.instantiateBare(args);
 
             // Call the userland constructor
+            // TODO: Handle constructors that pause
             classObject.construct(objectValue, args);
 
             return objectValue;
@@ -648,7 +686,7 @@ module.exports = require('pauser')([
             // Iterate over all the interfaces implemented by this class: if any of them
             // are the requested class or extend from it, return true
             _.each(classObject.interfaceNames, function (interfaceName) {
-                var interfaceObject = classObject.namespaceScope.getClass(interfaceName);
+                var interfaceObject = classObject.namespaceScope.getClass(interfaceName).yieldSync();
 
                 if (interfaceObject.is(className)) {
                     interfaceMatches = true;

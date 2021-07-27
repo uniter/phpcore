@@ -104,4 +104,121 @@ EOS
         expect(engine.execute().getNative()).to.equal('Done!');
         expect(engine.getStdout().readAll()).to.equal('[In finally]');
     });
+
+    it('should support pause/resume where all pauses resume', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+class MyException extends Exception {}
+
+$result[] = get_async('first');
+
+try {
+    $result[] = get_async('second');
+    throw new MyException('Oh no');
+    $result[] = get_async('third');
+} catch (NotMyException $ex2) {
+    $result[] = get_async('fourth');
+} catch (MyException $ex1) {
+    $result[] = get_async('fifth');
+} finally {
+    $result[] = get_async('sixth');
+}
+$result[] = get_async('seventh');
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile(null, php),
+            engine = module();
+        engine.defineCoercingFunction('get_async', function (value) {
+            return this.createFutureValue(function (resolve) {
+                setImmediate(function () {
+                    resolve(value);
+                });
+            });
+        });
+
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal([
+                'first',
+                'second',
+                'fifth',
+                'sixth',
+                'seventh'
+            ]);
+        });
+    });
+
+    it('should support pause/resume where one pause throws-into', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+class MyException extends Exception {}
+
+$result[] = get_async('first');
+
+try {
+    $result[] = get_async('second');
+    throw new MyException('Oh no');
+    $result[] = get_async('third');
+} catch (NotMyException $ex2) {
+    $result[] = get_async('fourth');
+} catch (MyException $ex1) {
+    try {
+        // This should resume with a throwInto<Exception>(), see JS implementation of get_async() below
+        $result[] = get_async('fifth');
+    } catch (Throwable $t) {
+        $result[] = 'caught: ' .
+            $t->getMessage() .
+            ' @ ' .
+            $t->getFile() .
+            ':' .
+            $t->getLine();
+    }
+} finally {
+    $result[] = get_async('sixth');
+}
+$result[] = get_async('seventh');
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile(null, php),
+            engine = module();
+        engine.defineCoercingFunction('get_async', function (value) {
+            var internals = this;
+
+            return internals.createFutureValue(function (resolve, reject) {
+                setImmediate(function () {
+                    if (value === 'fifth') {
+                        // Throw-into with a PHP Exception instance, so it can be caught by PHP-land
+                        reject(internals.valueFactory.createErrorObject(
+                            'Exception',
+                            'Bang!',
+                            null,
+                            null,
+                            '/some/fault.php',
+                            1234
+                        ));
+                    } else {
+                        resolve(value);
+                    }
+                });
+            });
+        });
+
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal([
+                'first',
+                'second',
+                // See the nested try..catch and the get_async() JS implementation above
+                'caught: Bang! @ /some/fault.php:1234',
+                'sixth',
+                'seventh'
+            ]);
+        });
+    });
 });

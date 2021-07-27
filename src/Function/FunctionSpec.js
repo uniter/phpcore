@@ -176,6 +176,24 @@ _.extend(FunctionSpec.prototype, {
     },
 
     /**
+     * Determines whether this function returns by reference
+     *
+     * @returns {boolean}
+     */
+    isReturnByReference: function () {
+        return false; // TODO: Implement me!
+    },
+
+    /**
+     * Determines whether this is a userland PHP function (rather than a builtin).
+     *
+     * @returns {boolean}
+     */
+    isUserland: function () {
+        return !this.namespaceScope.isGlobal();
+    },
+
+    /**
      * Populates any unspecified arguments with their default values from parameters
      *
      * @param {Reference[]|Value[]|Variable[]} argumentReferenceList
@@ -189,7 +207,7 @@ _.extend(FunctionSpec.prototype, {
         // Provide special line number instrumentation while loading default arguments
         spec.callStack.instrumentCurrent(function () {
             if (!currentParameter) {
-                return null;
+                return null; // TODO: Return spec.lineNumber here?
             }
 
             return currentParameter.getLineNumber();

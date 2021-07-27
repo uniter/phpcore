@@ -23,6 +23,7 @@ module.exports = require('pauser')([
      * Represents a block within a PHP module that is inside a namespace statement,
      * containing classes imported with `use` statements etc.
      *
+     * @param {ScopeFactory} scopeFactory
      * @param {Namespace} globalNamespace
      * @param {ValueFactory} valueFactory
      * @param {CallStack} callStack
@@ -31,7 +32,7 @@ module.exports = require('pauser')([
      * @param {boolean} global Whether this namespace scope is the special "invisible" global one
      * @constructor
      */
-    function NamespaceScope(globalNamespace, valueFactory, callStack, module, namespace, global) {
+    function NamespaceScope(scopeFactory, globalNamespace, valueFactory, callStack, module, namespace, global) {
         /**
          * @type {CallStack}
          */
@@ -59,18 +60,85 @@ module.exports = require('pauser')([
          */
         this.namespace = namespace;
         /**
+         * @type {ScopeFactory}
+         */
+        this.scopeFactory = scopeFactory;
+        /**
          * @type {ValueFactory}
          */
         this.valueFactory = valueFactory;
     }
 
     _.extend(NamespaceScope.prototype, {
+        /**
+         * Defines a class in the current namespace, either from a JS class/function or from a transpiled PHP class
+         *
+         * @param {string} name
+         * @param {Function|object} definition Either a Function for a native JS class or a transpiled definition object
+         * @param {boolean=} autoCoercionEnabled Whether the class should be auto-coercing
+         * @returns {Class} Returns the internal Class instance created
+         */
+        defineClass: function (
+            name,
+            definition,
+            autoCoercionEnabled
+        ) {
+            var namespaceScope = this;
+
+            return namespaceScope.namespace.defineClass(name, definition, namespaceScope, autoCoercionEnabled);
+        },
+
+        /**
+         * Defines a constant for the current namespace, optionally making it case-insensitive
+         *
+         * @param {string} name
+         * @param {Value} value
+         * @param {object=} options
+         */
+        defineConstant: function (name, value, options) {
+            this.namespace.defineConstant(name, value, options);
+        },
+
+        /**
+         * Defines a function in the current namespace, either from a JS class/function or from a transpiled PHP function
+         *
+         * @param {string} name
+         * @param {Function} func
+         * @param {NamespaceScope} namespaceScope
+         * @param {boolean} isUserland
+         * @param {Array=} parametersSpecData
+         * @param {number=} lineNumber
+         */
+        defineFunction: function (
+            name,
+            func,
+            parametersSpecData,
+            lineNumber
+        ) {
+            var namespaceScope = this;
+
+            return namespaceScope.namespace.defineFunction(
+                name,
+                func,
+                namespaceScope,
+                parametersSpecData,
+                lineNumber
+            );
+        },
+
         getClass: function (name) {
             var resolvedClass = this.resolveClass(name);
 
+            // Note that as userland autoloaders may have been registered, this may result in a pause
             return resolvedClass.namespace.getClass(resolvedClass.name);
         },
 
+        /**
+         * Fetches a constant's value
+         *
+         * @param {string} name
+         * @returns {Value}
+         */
         getConstant: function (name) {
             var match,
                 scope = this,
@@ -112,6 +180,22 @@ module.exports = require('pauser')([
             }
 
             return namespace.getConstant(name, usesNamespace);
+        },
+
+        /**
+         * Creates a NamespaceScope for a sub-Namespace of this one
+         *
+         * @param {string} name
+         * @returns {NamespaceScope}
+         */
+        getDescendant: function (name) {
+            var scope = this;
+
+            return scope.scopeFactory.createNamespaceScope(
+                scope.namespace.getDescendant(name),
+                scope.globalNamespace,
+                scope.module
+            );
         },
 
         /**
@@ -166,6 +250,24 @@ module.exports = require('pauser')([
 
         getGlobalNamespace: function () {
             return this.globalNamespace;
+        },
+
+        /**
+         * Fetches the module this NamespaceScope exists in
+         *
+         * @returns {Module}
+         */
+        getModule: function () {
+            return this.module;
+        },
+
+        /**
+         * Fetches the module scope this NamespaceScope exists in
+         *
+         * @returns {ModuleScope}
+         */
+        getModuleScope: function () {
+            return this.module.getScope();
         },
 
         getNamespaceName: function () {
@@ -273,10 +375,11 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Imports a class into the current namespace scope, eg. from a PHP `use ...` statement
+         * Imports a class into the current namespace scope, eg. from a PHP `use ...` statement,
+         * optionally with an alias
          *
          * @param {string} source
-         * @param {string} alias
+         * @param {string=} alias
          */
         use: function (source, alias) {
             var scope = this,

@@ -11,7 +11,7 @@
 
 module.exports = require('pauser')([
     require('microdash'),
-    require('is-promise'),
+    // require('is-promise'),
     require('phpcommon'),
     require('./Iterator/ArrayIterator'),
     require('./Value/Array'),
@@ -21,17 +21,21 @@ module.exports = require('pauser')([
     require('./Value/Exit'),
     require('./FFI/Result'),
     require('./Value/Float'),
+    require('./Value/Future'),
     require('./Value/Integer'),
     require('./KeyValuePair'),
     require('./Value/Null'),
     require('./Value/Object'),
+    require('./Control/Pause'),
     require('./FFI/Value/PHPObject'),
+    require('./Reference/Reference'),
     require('./Value/String'),
     require('./Value'),
-    require('./FFI/Value/ValueStorage')
+    require('./FFI/Value/ValueStorage'),
+    require('./Variable')
 ], function (
     _,
-    isPromise,
+    // isPromise,
     phpCommon,
     ArrayIterator,
     ArrayValue,
@@ -41,14 +45,18 @@ module.exports = require('pauser')([
     ExitValue,
     FFIResult,
     FloatValue,
+    FutureValue,
     IntegerValue,
     KeyValuePair,
     NullValue,
     ObjectValue,
+    Pause,
     PHPObject,
+    Reference,
     StringValue,
     Value,
-    ValueStorage
+    ValueStorage,
+    Variable
 ) {
     var Exception = phpCommon.Exception;
 
@@ -62,6 +70,9 @@ module.exports = require('pauser')([
      * @param {CallFactory} callFactory
      * @param {ErrorPromoter} errorPromoter
      * @param {ValueStorage} valueStorage
+     * @param {Flow} flow
+     * @param {ControlBridge} controlBridge
+     * @param {ControlScope} controlScope
      * @constructor
      */
     function ValueFactory(
@@ -71,16 +82,39 @@ module.exports = require('pauser')([
         translator,
         callFactory,
         errorPromoter,
-        valueStorage
+        valueStorage,
+        flow,
+        controlBridge,
+        controlScope
     ) {
         /**
          * @type {CallFactory}
          */
         this.callFactory = callFactory;
         /**
+         * @type {CallStack|null}
+         */
+        this.callStack = null;
+        /**
+         * @type {ControlBridge}
+         */
+        this.controlBridge = controlBridge;
+        /**
+         * @type {ControlScope}
+         */
+        this.controlScope = controlScope;
+        /**
          * @type {ElementProvider}
          */
         this.elementProvider = elementProvider || new ElementProvider();
+        /**
+         * @type {Flow}
+         */
+        this.flow = flow;
+        /**
+         * @type {FutureFactory|null}
+         */
+        this.futureFactory = null;
         /**
          * Used for generating a unique ID for the next ObjectValue that is created
          * (shown in the output of var_dump(...), for example)
@@ -88,10 +122,6 @@ module.exports = require('pauser')([
          * @type {number}
          */
         this.nextObjectID = 1;
-        /**
-         * @type {CallStack|null}
-         */
-        this.callStack = null;
         /**
          * @type {ErrorPromoter}
          */
@@ -118,6 +148,10 @@ module.exports = require('pauser')([
          */
         this.pausable = pausable;
         /**
+         * @type {ReferenceFactory|null}
+         */
+        this.referenceFactory = null;
+        /**
          * @type {Translator}
          */
         this.translator = translator;
@@ -141,19 +175,37 @@ module.exports = require('pauser')([
             var factory = this;
 
             if (value instanceof Value) {
+                if (factory.controlBridge.isChainable(value)) {
+                    return value.next(function (result) {
+                        // Make sure the coerced result of a FutureValue is always a Value
+                        return factory.coerce(result);
+                    });
+                }
+
                 return value;
+            }
+
+            if (factory.controlBridge.isFuture(value)) {
+                // Value must be a plain Future and not a FutureValue, otherwise it would
+                // have been handled by the guard above
+                return factory.deriveFuture(value);
             }
 
             if (value instanceof FFIResult) {
                 // An FFI Result was returned, so we need to handle it as appropriate
-                return value.resolve(factory);
+                // (may result in a FutureValue in async mode)
+                return value.resolve();
             }
 
-            // TODO: Consider removing this behaviour altogether now that we have FFIResult?
-            if (isPromise(value) && factory.pausable) {
-                // A promise was returned (note that returning an FFIResult is preferred)
-                return this.coercePromise(value);
+            if (value instanceof Reference || value instanceof Variable) {
+                return value.getValue();
             }
+
+            // // TODO: Consider removing this behaviour altogether now that we have FFIResult?
+            // if (isPromise(value) && factory.pausable) {
+            //     // A promise was returned (note that returning an FFIResult is preferred)
+            //     return this.coercePromise(value);
+            // }
 
             return factory.createFromNative(value);
         },
@@ -202,34 +254,25 @@ module.exports = require('pauser')([
                 throw new Error('Only objects, null or undefined may be coerced to an object');
             }
 
-            return factory.createObject(value, factory.globalNamespace.getClass('JSObject'));
+            return factory.createObject(value, factory.globalNamespace.getClass('JSObject').yieldSync());
         },
 
         /**
-         * Awaits a promise (in async mode). Throws if in psync or sync mode
+         * Creates the relevant numeric value type from the result of an arithmetic operation
          *
-         * @param {Promise} promise
-         * @returns {Value}
+         * @param {FloatValue|IntegerValue} coercedLeftValue
+         * @param {FloatValue|IntegerValue} coercedRightValue
+         * @param {number} resultNative
+         * @returns {FloatValue|IntegerValue}
          */
-        coercePromise: function (promise) {
-            var factory = this,
-                pause;
+        createArithmeticResult: function (coercedLeftValue, coercedRightValue, resultNative) {
+            var factory = this;
 
-            if (!factory.pausable) {
-                throw new Exception('Cannot await a promise in non-async mode');
+            if (coercedLeftValue.getType() === 'float' || coercedRightValue.getType() === 'float') {
+                return factory.createFloat(resultNative);
             }
 
-            pause = factory.pausable.createPause();
-
-            // Wait for the returned promise to resolve or reject before continuing
-            promise.then(function (resultValue) {
-                // Remember we still need to coerce the result
-                pause.resume(factory.coerce(resultValue));
-            }, function (error) {
-                pause.throw(error);
-            });
-
-            return pause.now();
+            return factory.createInteger(resultNative);
         },
 
         /**
@@ -246,6 +289,8 @@ module.exports = require('pauser')([
 
             return new ArrayValue(
                 factory,
+                factory.referenceFactory,
+                factory.futureFactory,
                 factory.callStack,
                 value,
                 null,
@@ -267,12 +312,22 @@ module.exports = require('pauser')([
          * Creates a BarewordStringValue
          *
          * @param {string} value
+         * @param {NamespaceScope} namespaceScope
          * @return {BarewordStringValue}
          */
-        createBarewordString: function (value) {
+        createBarewordString: function (value, namespaceScope) {
             var factory = this;
 
-            return new BarewordStringValue(factory, factory.callStack, value);
+            return new BarewordStringValue(
+                factory,
+                factory.referenceFactory,
+                factory.futureFactory,
+                factory.callStack,
+                factory.flow,
+                value,
+                factory.globalNamespace,
+                namespaceScope
+            );
         },
 
         /**
@@ -287,7 +342,13 @@ module.exports = require('pauser')([
         createBoolean: function (value) {
             var factory = this;
 
-            return new BooleanValue(factory, factory.callStack, value);
+            return new BooleanValue(
+                factory,
+                factory.referenceFactory,
+                factory.futureFactory,
+                factory.callStack,
+                value
+            );
         },
 
         /**
@@ -298,7 +359,7 @@ module.exports = require('pauser')([
          */
         createClosureObject: function (closure) {
             var factory = this,
-                closureClass = factory.globalNamespace.getClass('Closure');
+                closureClass = factory.globalNamespace.getClass('Closure').yieldSync();
 
             return closureClass.instantiateWithInternals([], {
                 'closure': closure
@@ -327,7 +388,7 @@ module.exports = require('pauser')([
             reportsOwnContext
         ) {
             var factory = this,
-                errorObject = factory.globalNamespace.getClass(className).instantiate([
+                errorObject = factory.globalNamespace.getClass(className).yieldSync().instantiate([
                     factory.createString(message || ''),
                     factory.createInteger(code || 0),
                     previousThrowable || factory.createNull()
@@ -361,7 +422,13 @@ module.exports = require('pauser')([
         createExit: function (statusValue) {
             var factory = this;
 
-            return new ExitValue(factory, factory.callStack, statusValue);
+            return new ExitValue(
+                factory,
+                factory.referenceFactory,
+                factory.futureFactory,
+                factory.callStack,
+                statusValue
+            );
         },
 
         /**
@@ -373,7 +440,13 @@ module.exports = require('pauser')([
         createFloat: function (value) {
             var factory = this;
 
-            return new FloatValue(factory, factory.callStack, value);
+            return new FloatValue(
+                factory,
+                factory.referenceFactory,
+                factory.futureFactory,
+                factory.callStack,
+                value
+            );
         },
 
         /**
@@ -396,7 +469,7 @@ module.exports = require('pauser')([
             }
 
             if (_.isNumber(nativeValue)) {
-                return factory.createInteger(nativeValue);
+                return factory.createNumber(nativeValue);
             }
 
             if (_.isBoolean(nativeValue)) {
@@ -453,7 +526,7 @@ module.exports = require('pauser')([
                 // Plain object, but has methods: needs to be cast to a JSObject
             }
 
-            return factory.createObject(nativeObject, factory.globalNamespace.getClass('JSObject'));
+            return factory.createObject(nativeObject, factory.globalNamespace.getClass('JSObject').yieldSync());
         },
 
         /**
@@ -480,6 +553,35 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Creates a new FutureValue
+         *
+         * @param {Function} executor
+         * @returns {FutureValue}
+         */
+        createFuture: function (executor) {
+            var factory = this,
+                future = factory.futureFactory.createFuture(function (resolveFuture, rejectFuture) {
+                    executor(
+                        function resolve(result) {
+                            // For FutureValues, we always want to coerce the eventual result to a Value
+                            return resolveFuture(factory.coerce(result));
+                        },
+                        function reject(error) {
+                            return rejectFuture(error);
+                        }
+                    );
+                });
+
+            return new FutureValue(
+                factory,
+                factory.referenceFactory,
+                factory.futureFactory,
+                factory.callStack,
+                future
+            );
+        },
+
+        /**
          * Creates an IntegerValue
          *
          * @param {number} value
@@ -488,7 +590,13 @@ module.exports = require('pauser')([
         createInteger: function (value) {
             var factory = this;
 
-            return new IntegerValue(factory, factory.callStack, value);
+            return new IntegerValue(
+                factory,
+                factory.referenceFactory,
+                factory.futureFactory,
+                factory.callStack,
+                value
+            );
         },
 
         /**
@@ -502,10 +610,31 @@ module.exports = require('pauser')([
             var factory = this;
 
             if (factory.nullValue === null) {
-                factory.nullValue = new NullValue(factory, factory.callStack);
+                factory.nullValue = new NullValue(
+                    factory,
+                    factory.referenceFactory,
+                    factory.futureFactory,
+                    factory.callStack
+                );
             }
 
             return factory.nullValue;
+        },
+
+        /**
+         * Creates an IntegerValue if the native number given is an integer, otherwise a FloatValue
+         *
+         * @param {number} nativeValue
+         * @returns {FloatValue|IntegerValue}
+         */
+        createNumber: function (nativeValue) {
+            var factory = this;
+
+            if (Math.floor(nativeValue) === nativeValue) {
+                return factory.createInteger(nativeValue);
+            }
+
+            return factory.createFloat(nativeValue);
         },
 
         /**
@@ -521,12 +650,38 @@ module.exports = require('pauser')([
             // Object ID tracking is incomplete: ID should be freed when all references are lost
             return new ObjectValue(
                 factory,
+                factory.referenceFactory,
+                factory.futureFactory,
                 factory.callStack,
                 factory.translator,
                 nativeValue,
                 classObject,
                 factory.nextObjectID++
             );
+        },
+
+        /**
+         * Creates a new present FutureValue with the given value
+         *
+         * @param {Value} value
+         * @returns {FutureValue}
+         */
+        createPresent: function (value) {
+            return this.createFuture(function (resolve) {
+                resolve(value);
+            });
+        },
+
+        /**
+         * Creates a new Rejection for the given error
+         *
+         * @param {Error} error
+         * @returns {Rejection}
+         */
+        createRejection: function (error) {
+            return this.createFuture(function (resolve, reject) {
+                reject(error);
+            });
         },
 
         /**
@@ -537,7 +692,7 @@ module.exports = require('pauser')([
         createStdClassObject: function () {
             var factory = this;
 
-            return factory.globalNamespace.getClass('stdClass').instantiate();
+            return factory.globalNamespace.getClass('stdClass').yieldSync().instantiate();
         },
 
         /**
@@ -549,7 +704,15 @@ module.exports = require('pauser')([
         createString: function (value) {
             var factory = this;
 
-            return new StringValue(factory, factory.callStack, value);
+            return new StringValue(
+                factory,
+                factory.referenceFactory,
+                factory.futureFactory,
+                factory.callStack,
+                factory.flow,
+                value,
+                factory.globalNamespace
+            );
         },
 
         /**
@@ -613,6 +776,26 @@ module.exports = require('pauser')([
                     code,
                     previousThrowable
                 ]
+            ).yieldSync();
+        },
+
+        /**
+         * Derives a new FutureValue from an existing Future
+         *
+         * @param {Future} future
+         * @returns {FutureValue}
+         */
+        deriveFuture: function (future) {
+            var factory = this;
+
+            return new FutureValue(
+                factory,
+                factory.referenceFactory,
+                factory.futureFactory,
+                factory.callStack,
+                future.derive().next(function (value) {
+                    return factory.coerce(value); // Make sure the wrapped value is always a Value
+                })
             );
         },
 
@@ -621,7 +804,7 @@ module.exports = require('pauser')([
          *
          * @param {string} className
          * @param {Array} constructorArgNatives
-         * @returns {ObjectValue}
+         * @returns {Future<ObjectValue>|Present<ObjectValue>}
          */
         instantiateObject: function (className, constructorArgNatives) {
             var factory = this,
@@ -629,7 +812,10 @@ module.exports = require('pauser')([
                     return factory.coerce(argNative);
                 });
 
-            return factory.globalNamespace.getClass(className).instantiate(constructorArgValues);
+            return factory.globalNamespace.getClass(className)
+                .next(function (classObject) {
+                    return classObject.instantiate(constructorArgValues);
+                });
         },
 
         /**
@@ -643,6 +829,51 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Executes the given callback, which is expected to make a tail-call that may pause
+         * in async mode. If it pauses then the pause will be intercepted and turned into a FutureValue,
+         * otherwise the result will be coerced to a Value.
+         *
+         * @param {Function} executor
+         * @returns {FutureValue|Value}
+         */
+        maybeFuturise: function (executor) {
+            var factory = this,
+                result;
+
+            if (factory.mode !== 'async') {
+                return factory.coerce(executor());
+            }
+
+            try {
+                result = executor();
+            } catch (error) {
+                if (!(error instanceof Pause)) {
+                    // A normal non-pause error was raised, simply rethrow
+
+                    if (factory.mode !== 'async') {
+                        // For synchronous modes, rethrow synchronously
+                        throw error;
+                    }
+
+                    // For async mode, return a rejected FutureValue
+                    return factory.createFuture(function (resolve, reject) {
+                        reject(error);
+                    });
+                }
+
+                // We have intercepted a pause - it must be marked as complete so that the future
+                // we will create is able to raise its own pause
+                factory.controlScope.markPaused(error);
+
+                return factory.createFuture(function (resolve, reject) {
+                    error.next(resolve, reject);
+                });
+            }
+
+            return factory.coerce(result);
+        },
+
+        /**
          * Sets the CallStack to use for created value objects
          *
          * @param {CallStack} callStack
@@ -652,12 +883,30 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Sets the FutureFactory
+         *
+         * @param {FutureFactory} futureFactory
+         */
+        setFutureFactory: function (futureFactory) {
+            this.futureFactory = futureFactory;
+        },
+
+        /**
          * Sets the root/global namespace
          *
          * @param {Namespace} globalNamespace
          */
         setGlobalNamespace: function (globalNamespace) {
             this.globalNamespace = globalNamespace;
+        },
+
+        /**
+         * Sets the ReferenceFactory
+         *
+         * @param {ReferenceFactory} referenceFactory
+         */
+        setReferenceFactory: function (referenceFactory) {
+            this.referenceFactory = referenceFactory;
         }
     });
 

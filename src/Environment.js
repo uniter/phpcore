@@ -107,7 +107,7 @@ _.extend(Environment.prototype, {
      *
      * @param {string} name
      * @param {Function} valueGetter
-     * @param {Function} valueSetter
+     * @param {Function=} valueSetter
      */
     defineGlobalAccessor: function (name, valueGetter, valueSetter) {
         this.state.defineGlobalAccessor(name, valueGetter, valueSetter);

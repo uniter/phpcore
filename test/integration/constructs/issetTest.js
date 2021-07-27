@@ -81,7 +81,77 @@ EOS
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should not suppress errors from a function called inside isset(...) construct', function () {
+    it('should correctly handle multiple references being given in async mode with pauses', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$myObject = new stdClass;
+$myNumber = 21;
+
+$result = [];
+$result['multiple values with pauses where all are set'] = isset(
+    $myObject,
+    $myNumber,
+    $myAsyncSetAccessorGlobal,
+    $myAsyncSetAccessorGlobal
+);
+$result['multiple values with pauses where one is not set'] = isset(
+    $myObject,
+    $myNumber,
+    $myAsyncUnsetAccessorGlobal,
+    $myAsyncSetAccessorGlobal
+);
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            log = [],
+            module = tools.asyncTranspile(null, php),
+            engine = module();
+        engine.defineGlobalAccessor(
+            'myAsyncSetAccessorGlobal',
+            function () {
+                log.push('read of myAsyncSetAccessorGlobal');
+
+                return this.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve('I am a "set" value');
+                    });
+                });
+            }
+        );
+        engine.defineGlobalAccessor(
+            'myAsyncUnsetAccessorGlobal',
+            function () {
+                log.push('read of myAsyncUnsetAccessorGlobal');
+
+                return this.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(null);
+                    });
+                });
+            }
+        );
+
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal({
+                'multiple values with pauses where all are set': true,
+                'multiple values with pauses where one is not set': false
+            });
+            expect(engine.getStderr().readAll()).to.equal('');
+            // Ensure that we stop processing the list of references passed to isset(...)
+            // as soon as an unset one is reached
+            expect(log).to.deep.equal([
+                'read of myAsyncSetAccessorGlobal',
+                'read of myAsyncSetAccessorGlobal',
+                'read of myAsyncUnsetAccessorGlobal'
+                // Note that the final read of myAsyncSetAccessorGlobal should never occur,
+                // due to the previous tested value being unset
+            ]);
+        });
+    });
+
+    it('should not suppress errors from a function called inside isset(...) construct in sync mode', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL); // Notices are hidden by default
@@ -106,5 +176,43 @@ PHP Notice:  Undefined variable: anotherUndefVar in a_module.php on line 5
 EOS
 */;}) //jshint ignore:line
         );
+    });
+
+    it('should not suppress errors from a function called inside isset(...) construct in async mode', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+ini_set('error_reporting', E_ALL); // Notices are hidden by default
+
+function myFunc() {
+    return get_async($anotherUndefVar);
+}
+
+$result = isset($undefVar[myFunc()]);
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('a_module.php', php),
+            engine = module();
+        engine.defineFunction('get_async', function (internals) {
+            return function (value) {
+                return internals.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(value);
+                    });
+                });
+            };
+        });
+
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.be.false;
+            expect(engine.getStderr().readAll()).to.equal(
+                nowdoc(function () {/*<<<EOS
+PHP Notice:  Undefined variable: anotherUndefVar in a_module.php on line 5
+
+EOS
+*/;}) //jshint ignore:line
+            );
+        });
     });
 });

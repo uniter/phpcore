@@ -42,7 +42,9 @@ module.exports = require('pauser')([
      * along with null as its parent namespace.
      *
      * @param {CallStack} callStack
+     * @param {Flow} flow
      * @param {ValueFactory} valueFactory
+     * @param {ReferenceFactory} referenceFactory
      * @param {NamespaceFactory} namespaceFactory
      * @param {FunctionFactory} functionFactory
      * @param {FunctionSpecFactory} functionSpecFactory
@@ -55,7 +57,9 @@ module.exports = require('pauser')([
      */
     function Namespace(
         callStack,
+        flow,
         valueFactory,
+        referenceFactory,
         namespaceFactory,
         functionFactory,
         functionSpecFactory,
@@ -94,6 +98,10 @@ module.exports = require('pauser')([
          */
         this.ffiFactory = ffiFactory;
         /**
+         * @type {Flow}
+         */
+        this.flow = flow;
+        /**
          * @type {FunctionFactory}
          */
         this.functionFactory = functionFactory;
@@ -117,6 +125,10 @@ module.exports = require('pauser')([
          * @type {Namespace|null}
          */
         this.parent = parent;
+        /**
+         * @type {ReferenceFactory}
+         */
+        this.referenceFactory = referenceFactory;
         /**
          * @type {ValueFactory}
          */
@@ -177,6 +189,7 @@ module.exports = require('pauser')([
                 proxyConstructor,
                 rootInternalPrototype,
                 staticProperties,
+                superClass = null,
                 InternalClass;
 
             autoCoercionEnabled = Boolean(autoCoercionEnabled);
@@ -195,6 +208,11 @@ module.exports = require('pauser')([
             if (_.isFunction(definition)) {
                 // Class is defined using native JavaScript, not PHP
 
+                if (definition.superClass) {
+                    // Native JS classes provide their super class instance directly
+                    superClass = definition.superClass;
+                }
+
                 // Create a new, empty native constructor so that we can avoid calling
                 // the original if the derived class does not call parent::__construct(...)
                 // - Unless the class defines the special `shadowConstructor` property, which
@@ -210,9 +228,9 @@ module.exports = require('pauser')([
                         );
                     }
 
-                    if (definition.superClass) {
+                    if (superClass) {
                         // Class has a parent, call the parent's internal constructor
-                        definition.superClass.getInternalClass().call(objectValue);
+                        superClass.getInternalClass().call(objectValue);
                     }
                 };
                 InternalClass.prototype = Object.create(definition.prototype);
@@ -244,6 +262,11 @@ module.exports = require('pauser')([
             } else {
                 // Class has a definition, so it was defined using PHP
 
+                if (definition.superClass) {
+                    // Transpiled PHP-land classes provide the FQCN of their superclass
+                    superClass = namespaceScope.getClass(definition.superClass).yieldSync();
+                }
+
                 // Ensure the class does not attempt to implement Throwable directly
                 _.each(definition.interfaces, function (interfaceName) {
                     var resolvedClass = namespaceScope.resolveClass(interfaceName);
@@ -268,9 +291,9 @@ module.exports = require('pauser')([
                         properties[name] = objectValue.declareProperty(name, classObject, propertyData.visibility);
                     });
 
-                    if (definition.superClass) {
+                    if (superClass) {
                         // Class has a parent, call the parent's internal constructor
-                        definition.superClass.getInternalClass().call(objectValue);
+                        superClass.getInternalClass().call(objectValue);
                     }
 
                     // Go through and define the properties and their default values
@@ -291,8 +314,8 @@ module.exports = require('pauser')([
                 // Prevent native 'constructor' property from erroneously being detected as PHP class method
                 delete InternalClass.prototype.constructor;
 
-                if (definition.superClass) {
-                    InternalClass.prototype = Object.create(definition.superClass.getInternalClass().prototype);
+                if (superClass) {
+                    InternalClass.prototype = Object.create(superClass.getInternalClass().prototype);
                 }
 
                 _.each(definition.methods, function (data, methodName) {
@@ -322,15 +345,17 @@ module.exports = require('pauser')([
 
             classObject = new Class(
                 namespace.valueFactory,
+                namespace.referenceFactory,
                 namespace.functionFactory,
                 namespace.callStack,
+                namespace.flow,
                 namespace.getPrefix() + name,
                 constructorName,
                 InternalClass,
                 rootInternalPrototype,
                 staticProperties,
                 constants,
-                definition.superClass,
+                superClass,
                 definition.interfaces,
                 namespaceScope,
                 namespace.exportRepository,
@@ -424,14 +449,21 @@ module.exports = require('pauser')([
          * @param {string} name
          * @param {Function} func
          * @param {NamespaceScope} namespaceScope
+         * @param {boolean} isUserland
          * @param {Array=} parametersSpecData
          * @param {number=} lineNumber
          */
-        defineFunction: function (name, func, namespaceScope, parametersSpecData, lineNumber) {
+        defineFunction: function (
+            name,
+            func,
+            namespaceScope,
+            parametersSpecData,
+            lineNumber
+        ) {
             var functionSpec,
                 namespace = this;
 
-            // Parameter spec data may only be provided for PHP-transpiled functions
+            // Parameter spec data may only be provided for PHP-transpiled functions for now
             functionSpec = namespace.functionSpecFactory.createFunctionSpec(
                 namespaceScope,
                 name,
@@ -459,26 +491,29 @@ module.exports = require('pauser')([
          * If applicable, the class autoloader will be invoked.
          *
          * @param {string} name
-         * @returns {Class}
+         * @param {boolean} autoload Whether to attempt to autoload the class if it is not defined
+         * @returns {Future<Class>|Present<Class>}
          */
-        getClass: function (name) {
+        getClass: function (name, autoload) {
             var namespace = this,
                 parsed = namespace.parseName(name),
                 lowerName = parsed.name.toLowerCase();
 
-            if (!hasOwn.call(parsed.namespace.classes, lowerName)) {
-                // Try to autoload the class
-                namespace.classAutoloader.autoloadClass(parsed.namespace.getPrefix() + parsed.name);
-
+            return namespace.flow.maybeFuturise(function () {
+                if (autoload !== false && !hasOwn.call(parsed.namespace.classes, lowerName)) {
+                    // Try to autoload the class
+                    return namespace.classAutoloader.autoloadClass(parsed.namespace.getPrefix() + parsed.name);
+                }
+            }).next(function () {
                 // Raise an error if it is still not defined
                 if (!hasOwn.call(parsed.namespace.classes, lowerName)) {
                     namespace.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NOT_FOUND, {
                         name: parsed.namespace.getPrefix() + parsed.name
                     });
                 }
-            }
 
-            return parsed.namespace.classes[lowerName];
+                return parsed.namespace.classes[lowerName];
+            });
         },
 
         /**

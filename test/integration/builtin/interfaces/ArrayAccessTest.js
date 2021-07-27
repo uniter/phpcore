@@ -54,6 +54,8 @@ $result = [];
 $object = new MyStuff();
 $result['isset(offset that exists)'] = isset($object[2]); // Should be true
 $result['isset(offset that doesn\'t exist)'] = isset($object[1]); // Should be false
+$result['empty(offset that exists)'] = empty($object[2]); // Should be false
+$result['empty(offset that doesn\'t exist)'] = empty($object[1]); // Should be true
 $result['offset with value'] = $object[21]; // Should be "found 21"
 $result['offset without value'] = $object[27]; // Should be "not found"
 $result['isset(offset that returns null)'] = isset($object['get null']); // Should be false as null is not "set"
@@ -74,6 +76,8 @@ EOS
         expect(result.getNative()).to.deep.equal({
             'isset(offset that exists)': true,
             'isset(offset that doesn\'t exist)': false,
+            'empty(offset that exists)': false,
+            'empty(offset that doesn\'t exist)': true,
             'offset with value': 'found 21',
             'offset without value': 'not found',
             'isset(offset that returns null)': false,

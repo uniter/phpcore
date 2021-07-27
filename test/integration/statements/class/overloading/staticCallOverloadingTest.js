@@ -40,4 +40,8 @@ EOS
 
         expect(module().execute().getNative()).to.equal('myUndefinedMethod :: 60');
     });
+
+    // TODO: Test call from inside a closure that relies on __callStatic
+
+    // TODO: Test a JS-defined class that defines __callStatic, ie. MyClass.prototype.__callStatic
 });

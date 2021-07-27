@@ -16,11 +16,20 @@ var _ = require('microdash'),
 /**
  * Decorates an ElementReference to allow it to be hooked into
  *
+ * @param {ReferenceFactory} referenceFactory
+ * @param {Flow} flow
  * @param {ElementReference} decoratedElement
  * @param {ElementHookCollection} elementHookCollection
  * @constructor
  */
-function HookableElementReference(decoratedElement, elementHookCollection) {
+function HookableElementReference(
+    referenceFactory,
+    flow,
+    decoratedElement,
+    elementHookCollection
+) {
+    Reference.call(this, referenceFactory, flow);
+
     /**
      * @type {ElementReference}
      */
@@ -37,11 +46,11 @@ _.extend(HookableElementReference.prototype, {
     /**
      * Fetches an instance property of this element (assuming it contains an object) by its name
      *
-     * @param {string} name
+     * @param {Value} nameValue
      * @returns {PropertyReference}
      */
-    getInstancePropertyByName: function (name) {
-        return this.decoratedElement.getInstancePropertyByName(name);
+    getInstancePropertyByName: function (nameValue) {
+        return this.decoratedElement.getInstancePropertyByName(nameValue);
     },
 
     /**

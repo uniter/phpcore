@@ -26,12 +26,23 @@ var _ = require('microdash'),
 
 /**
  * @param {ValueFactory} valueFactory
+ * @param {ReferenceFactory} referenceFactory
  * @param {CallStack} callStack
+ * @param {Flow} flow
  * @param {Class} classObject
  * @param {string} name Name of the static property
  * @constructor
  */
-function UndeclaredStaticPropertyReference(valueFactory, callStack, classObject, name) {
+function UndeclaredStaticPropertyReference(
+    valueFactory,
+    referenceFactory,
+    callStack,
+    flow,
+    classObject,
+    name
+) {
+    Reference.call(this, referenceFactory, flow);
+
     /**
      * @type {CallStack}
      */

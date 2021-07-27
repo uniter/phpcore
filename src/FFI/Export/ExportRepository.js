@@ -56,7 +56,7 @@ _.extend(ExportRepository.prototype, {
          * If a primitive value is exported instead then we can ignore, as it will just
          * be coerced to and from its native value and a scalar value object
          */
-        if (typeof exportedValue === 'object' && exportedValue !== null) {
+        if ((typeof exportedValue === 'object' && exportedValue !== null) || typeof exportedValue === 'function') {
             repository.valueStorage.setObjectValueForExport(exportedValue, objectValue);
         }
 
