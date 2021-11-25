@@ -11,6 +11,7 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('../tools'),
     BarewordStringValue = require('../../../src/Value/BarewordString').sync(),
     BooleanValue = require('../../../src/Value/Boolean').sync(),
     CallStack = require('../../../src/CallStack'),
@@ -20,21 +21,30 @@ var expect = require('chai').expect,
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
-    Value = require('../../../src/Value').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    Value = require('../../../src/Value').sync();
 
 describe('BarewordString', function () {
     var callStack,
         createKeyValuePair,
         createValue,
         factory,
+        futureFactory,
+        globalNamespace,
         namespaceScope,
+        referenceFactory,
+        state,
         value;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
-        factory = new ValueFactory();
+        state = tools.createIsolatedState(null, {
+            'call_stack': callStack
+        });
+        factory = state.getValueFactory();
+        futureFactory = state.getFutureFactory();
+        globalNamespace = state.getGlobalNamespace();
         namespaceScope = sinon.createStubInstance(NamespaceScope);
+        referenceFactory = state.getReferenceFactory();
 
         callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
             throw new Error(
@@ -50,19 +60,35 @@ describe('BarewordString', function () {
         };
 
         createValue = function (nativeValue) {
-            value = new BarewordStringValue(factory, callStack, nativeValue);
+            value = new BarewordStringValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                nativeValue,
+                globalNamespace,
+                namespaceScope
+            );
         };
     });
 
-    describe('addToArray()', function () {
-        it('should raise a fatal error', function () {
+    describe('add()', function () {
+        it('should raise a fatal error when right addend is an array', function () {
             createValue('mybarewordstring');
 
             expect(function () {
-                value.addToArray(factory.createArray([]));
+                value.add(factory.createArray([]));
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
+        });
+    });
+
+    describe('asFuture()', function () {
+        it('should return a Present that resolves to this value', function () {
+            createValue('mybareword');
+
+            return expect(value.asFuture().toPromise()).to.eventually.equal(value);
         });
     });
 
@@ -97,17 +123,17 @@ describe('BarewordString', function () {
     });
 
     describe('callStaticMethod()', function () {
-        it('should ask the class to call the method and return its result when non-forwarding', function () {
+        it('should ask the class to call the method and return its result when non-forwarding', async function () {
             var argValue = sinon.createStubInstance(Value),
                 classObject = sinon.createStubInstance(Class),
                 methodNameValue = factory.createString('myMethod'),
                 result,
                 resultValue = sinon.createStubInstance(Value);
-            classObject.callMethod.returns(resultValue);
-            namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(classObject);
+            classObject.callMethod.returns(factory.createPresent(resultValue));
+            namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(futureFactory.createPresent(classObject));
             createValue('My\\Space\\MyClass');
 
-            result = value.callStaticMethod(methodNameValue, [argValue], namespaceScope, false);
+            result = await value.callStaticMethod(methodNameValue, [argValue], false).toPromise();
 
             expect(result).to.equal(resultValue);
             expect(classObject.callMethod).to.have.been.calledOnce;
@@ -121,17 +147,17 @@ describe('BarewordString', function () {
             );
         });
 
-        it('should ask the class to call the method and return its result when forwarding', function () {
+        it('should ask the class to call the method and return its result when forwarding', async function () {
             var argValue = sinon.createStubInstance(Value),
                 classObject = sinon.createStubInstance(Class),
                 methodNameValue = factory.createString('myMethod'),
                 result,
                 resultValue = sinon.createStubInstance(Value);
-            classObject.callMethod.returns(resultValue);
-            namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(classObject);
+            classObject.callMethod.returns(factory.createPresent(resultValue));
+            namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(futureFactory.createPresent(classObject));
             createValue('My\\Space\\MyClass');
 
-            result = value.callStaticMethod(methodNameValue, [argValue], namespaceScope, true);
+            result = await value.callStaticMethod(methodNameValue, [argValue], true).toPromise();
 
             expect(result).to.equal(resultValue);
             expect(classObject.callMethod).to.have.been.calledOnce;
@@ -158,24 +184,13 @@ describe('BarewordString', function () {
         });
     });
 
-    describe('divide()', function () {
-        it('should hand off to the right-hand operand to divide by this string', function () {
-            var rightOperand = sinon.createStubInstance(Value),
-                result = sinon.createStubInstance(Value);
-            createValue('mybarewordstring');
-            rightOperand.divideByString.withArgs(value).returns(result);
-
-            expect(value.divide(rightOperand)).to.equal(result);
-        });
-    });
-
-    describe('divideByArray()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createArray([]);
+    describe('divideBy()', function () {
+        it('should throw an "Unsupported operand" error when divisor is an array', function () {
+            var divisorValue = factory.createArray([]);
             createValue('mybarewordstring');
 
             expect(function () {
-                value.divideByArray(leftValue);
+                value.divideBy(divisorValue);
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
@@ -202,14 +217,18 @@ describe('BarewordString', function () {
     });
 
     describe('getConstantByName()', function () {
-        it('should fetch the constant from the class', function () {
+        it('should fetch the constant from the class', async function () {
             var classObject = sinon.createStubInstance(Class),
                 resultValue = sinon.createStubInstance(Value);
-            namespaceScope.getClass.withArgs('This\\SubSpace\\MyClass').returns(classObject);
-            classObject.getConstantByName.withArgs('MY_CONST').returns(resultValue);
+            namespaceScope.getClass
+                .withArgs('This\\SubSpace\\MyClass')
+                .returns(futureFactory.createPresent(classObject));
+            classObject.getConstantByName
+                .withArgs('MY_CONST')
+                .returns(resultValue);
             createValue('This\\SubSpace\\MyClass');
 
-            expect(value.getConstantByName('MY_CONST', namespaceScope)).to.equal(resultValue);
+            expect(await value.getConstantByName('MY_CONST', namespaceScope).toPromise()).to.equal(resultValue);
         });
     });
 
@@ -232,18 +251,22 @@ describe('BarewordString', function () {
     });
 
     describe('getStaticPropertyByName()', function () {
-        it('should fetch the property\'s value from the class', function () {
+        it('should fetch the property\'s value from the class', async function () {
             var classObject = sinon.createStubInstance(Class),
                 resultValue = sinon.createStubInstance(Value);
-            namespaceScope.getClass.withArgs('This\\SubSpace\\MyClass').returns(classObject);
-            classObject.getStaticPropertyByName.withArgs('myProp').returns(resultValue);
+            namespaceScope.getClass
+                .withArgs('This\\SubSpace\\MyClass')
+                .returns(futureFactory.createPresent(classObject));
+            classObject.getStaticPropertyByName
+                .withArgs('myProp')
+                .returns(resultValue);
             createValue('This\\SubSpace\\MyClass');
 
             expect(
-                value.getStaticPropertyByName(
+                await value.getStaticPropertyByName(
                     factory.createString('myProp'),
                     namespaceScope
-                )
+                ).toPromise()
             ).to.equal(resultValue);
         });
     });
@@ -262,7 +285,9 @@ describe('BarewordString', function () {
 
         beforeEach(function () {
             classObject = sinon.createStubInstance(Class);
-            namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(classObject);
+            namespaceScope.getClass
+                .withArgs('My\\Space\\MyClass')
+                .returns(futureFactory.createPresent(classObject));
             newObjectValue = sinon.createStubInstance(ObjectValue);
             classObject.instantiate.returns(newObjectValue);
         });
@@ -271,16 +296,16 @@ describe('BarewordString', function () {
             var argValue = sinon.createStubInstance(IntegerValue);
             createValue('My\\Space\\MyClass');
 
-            value.instantiate([argValue], namespaceScope);
+            value.instantiate([argValue]);
 
             expect(classObject.instantiate).to.have.been.calledOnce;
             expect(classObject.instantiate).to.have.been.calledWith([sinon.match.same(argValue)]);
         });
 
-        it('should return the new instance created by the class', function () {
+        it('should return the new instance created by the class', async function () {
             createValue('My\\Space\\MyClass');
 
-            expect(value.instantiate([], namespaceScope)).to.equal(newObjectValue);
+            expect(await value.instantiate([]).toPromise()).to.equal(newObjectValue);
         });
     });
 
@@ -326,12 +351,13 @@ describe('BarewordString', function () {
         });
     });
 
-    describe('subtractFromNull()', function () {
-        it('should throw an "Unsupported operand" error', function () {
+    describe('subtract()', function () {
+        it('should throw an "Unsupported operand" error when subtrahend is an array', function () {
+            var subtrahendValue = factory.createArray([]);
             createValue('mybarewordstring');
 
             expect(function () {
-                value.subtractFromNull();
+                value.subtract(subtrahendValue);
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );

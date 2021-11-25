@@ -27,7 +27,7 @@ $result[] = $myTruthyVar ? 'yes' : 'no';
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -47,7 +47,7 @@ $result[] = 1 === 2 ?: 37;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -66,7 +66,7 @@ $result[] = 1 ?: 21 ?: 30;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -109,7 +109,7 @@ $result[] = get_async('sixth');
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.defineCoercingFunction('get_async', function (value) {

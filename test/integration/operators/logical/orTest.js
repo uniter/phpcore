@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP logical "or" operator integration', function () {
-    it('should support short-circuit evaluation', function () {
+    it('should support short-circuit evaluation in async mode', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -36,46 +36,57 @@ function returnFalsy() {
 
 $result = [];
 
-$result[] = returnTruthy() || returnTruthy();
+$result[] = get_async(returnTruthy()) || get_async(returnTruthy());
 $result[] = 'done truthy || truthy';
 
-$result[] = returnTruthy() || returnFalsy();
+$result[] = get_async(returnTruthy()) || get_async(returnFalsy());
 $result[] = 'done truthy || falsy';
 
-$result[] = returnFalsy() || returnTruthy();
+$result[] = get_async(returnFalsy()) || get_async(returnTruthy());
 $result[] = 'done falsy || truthy';
 
-$result[] = returnFalsy() || returnFalsy();
+$result[] = get_async(returnFalsy()) || get_async(returnFalsy());
 $result[] = 'done falsy || falsy';
 
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
+        engine.defineFunction('get_async', function (internals) {
+            return function (value) {
+                return internals.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(value);
+                    });
+                });
+            };
+        });
 
-        expect(engine.execute().getNative()).to.deep.equal([
-            // truthy || truthy should short-circuit, not evaluating the second returnTruthy()
-            '[in returnTruthy]',
-            true,
-            'done truthy || truthy',
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal([
+                // truthy || truthy should short-circuit, not evaluating the second returnTruthy()
+                '[in returnTruthy]',
+                true,
+                'done truthy || truthy',
 
-            // truthy || falsy should short-circuit, not evaluating returnFalsy()
-            '[in returnTruthy]',
-            true,
-            'done truthy || falsy',
+                // truthy || falsy should short-circuit, not evaluating returnFalsy()
+                '[in returnTruthy]',
+                true,
+                'done truthy || falsy',
 
-            // falsy || truthy should not short-circuit, evaluating both
-            '[in returnFalsy]',
-            '[in returnTruthy]',
-            true,
-            'done falsy || truthy',
+                // falsy || truthy should not short-circuit, evaluating both
+                '[in returnFalsy]',
+                '[in returnTruthy]',
+                true,
+                'done falsy || truthy',
 
-            // falsy || falsy should not short-circuit, evaluating both
-            '[in returnFalsy]',
-            '[in returnFalsy]',
-            false,
-            'done falsy || falsy'
-        ]);
+                // falsy || falsy should not short-circuit, evaluating both
+                '[in returnFalsy]',
+                '[in returnFalsy]',
+                false,
+                'done falsy || falsy'
+            ]);
+        });
     });
 });

@@ -90,17 +90,19 @@ module.exports = require('pauser')([
          * {@inheritdoc}
          */
         isCallable: function () {
-            return false;
+            return this.futureFactory.createPresent(false);
         },
 
         /**
          * Determines whether this float is classed as "empty" or not.
          * Only zero is classed as empty
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>}
          */
         isEmpty: function () {
-            return this.value === 0;
+            var value = this;
+
+            return value.futureFactory.createPresent(value.value === 0);
         },
 
         isEqualTo: function (rightValue) {

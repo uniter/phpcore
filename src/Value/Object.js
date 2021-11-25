@@ -461,13 +461,30 @@ module.exports = require('pauser')([
          * @returns {Value}
          */
         getCurrentElementValue: function () {
-            var value = this;
+            var propertyName,
+                propertyNames,
+                value = this;
 
-            if (!value.classIs('Iterator')) {
-                throw new Exception('Object.getCurrentElementValue() :: Object does not implement Iterator');
+            if (value.classIs('Iterator')) {
+                return value.callMethod('current');
             }
 
-            return value.callMethod('current');
+            // Otherwise we're treating the object as an array.
+            propertyNames = value.getInstancePropertyNames();
+
+            if (propertyNames.length === 0) {
+                // Object is empty so can have no current value.
+                return value.factory.createNull();
+            }
+
+            if (value.pointer >= propertyNames.length) {
+                // Internal property pointer is invalid.
+                throw new Exception('ObjectValue.getCurrentElementValue() :: Pointer is invalid');
+            }
+
+            propertyName = propertyNames[value.pointer];
+
+            return value.getInstancePropertyByName(value.factory.coerce(propertyName)).getValue();
         },
 
         /**
@@ -572,6 +589,15 @@ module.exports = require('pauser')([
                 nameValue = value.factory.createString(name);
 
             return value.getInstancePropertyByName(nameValue).getValue();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        getPushElement: function () {
+            var value = this;
+
+            return value.referenceFactory.createObjectElement(value, value.factory.createNull());
         },
 
         /**
@@ -762,37 +788,43 @@ module.exports = require('pauser')([
          * or the object itself if it implements Traversable via Iterator or IteratorAggregate.
          * Used by transpiled foreach loops over objects implementing Iterator.
          *
-         * @returns {ArrayIterator|ObjectValue}
+         * @returns {Future<ArrayIterator>|FutureValue<ObjectValue>}
          */
         getIterator: function () {
             var value = this,
-                iteratorValue = value;
+                iteratorFutureValue = value;
 
             value.pointer = 0;
 
-            if (iteratorValue.classIs('IteratorAggregate')) {
+            if (value.classIs('IteratorAggregate')) {
                 // IteratorAggregate requires its ->getIterator() method to return something iterable
-                iteratorValue = iteratorValue.callMethod('getIterator');
-
-                if (iteratorValue.getType() !== 'object' || !iteratorValue.classIs('Iterator')) {
-                    throw value.factory.createTranslatedExceptionObject(
-                        'Exception',
-                        OBJECT_FROM_GET_ITERATOR_MUST_BE_TRAVERSABLE,
-                        {
-                            className: value.getClassName()
+                iteratorFutureValue = value.callMethod('getIterator')
+                    .next(function (iteratorValue) {
+                        if (iteratorValue.getType() !== 'object' || !iteratorValue.classIs('Iterator')) {
+                            throw value.factory.createTranslatedExceptionObject(
+                                'Exception',
+                                OBJECT_FROM_GET_ITERATOR_MUST_BE_TRAVERSABLE,
+                                {
+                                    className: value.getClassName()
+                                }
+                            );
                         }
-                    );
-                }
-            }
 
-            if (!iteratorValue.classIs('Iterator')) {
+                        return iteratorValue;
+                    });
+            } else if (!value.classIs('Iterator')) {
                 // Objects not implementing Traversable are iterated like arrays
-                return value.factory.createArrayIterator(value);
+                return value.futureFactory.createPresent(value.factory.createArrayIterator(value));
             }
 
-            iteratorValue.callMethod('rewind');
+            // At this point, iteratorFutureValue will either be the original ObjectValue if it implemented Iterator
+            // or the result of calling ->getIterator() if it implemented IteratorAggregate
 
-            return iteratorValue;
+            return iteratorFutureValue.next(function (iteratorValue) {
+                iteratorValue.callMethod('rewind');
+
+                return iteratorValue;
+            });
         },
 
         /**
@@ -914,7 +946,7 @@ module.exports = require('pauser')([
          * Fetches a reference to a static property of this object's class by its name
          *
          * @param {Reference|Value} nameValue
-         * @returns {StaticPropertyReference|UndeclaredStaticPropertyReference}
+         * @returns {Future<StaticPropertyReference|UndeclaredStaticPropertyReference>}
          */
         getStaticPropertyByName: function (nameValue) {
             return this.classObject.getStaticPropertyByName(nameValue.getNative());
@@ -938,7 +970,7 @@ module.exports = require('pauser')([
          * returning the resulting new JSObject instance
          *
          * @param {Value[]} args
-         * @returns {ObjectValue}
+         * @returns {FutureValue<ObjectValue>}
          */
         instantiate: function (args) {
             var value = this,
@@ -949,7 +981,7 @@ module.exports = require('pauser')([
             if (value.getClassName() !== 'JSObject') {
                 // A normal PHP object is being instantiated as a class -
                 // we just need to create a new instance of this object's class
-                return value.classObject.instantiate(args);
+                return value.factory.createPresent(value.classObject.instantiate(args));
             }
 
             // A JS function is being instantiated as a class from PHP (bridge integration)
@@ -974,7 +1006,7 @@ module.exports = require('pauser')([
 
             objectValue = value.factory.coerceObject(nativeObject);
 
-            return objectValue;
+            return value.factory.createPresent(objectValue);
         },
 
         /**
@@ -1013,17 +1045,19 @@ module.exports = require('pauser')([
         isCallable: function () {
             var value = this;
 
-            return value.classIs('Closure') ||
-                value.isMethodDefined('__invoke');
+            return value.futureFactory.createPresent(
+                value.classIs('Closure') ||
+                value.isMethodDefined('__invoke')
+            );
         },
 
         /**
          * Objects are never classed as empty
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>}
          */
         isEmpty: function () {
-            return false;
+            return this.futureFactory.createPresent(false);
         },
 
         isEqualTo: function (rightValue) {
@@ -1144,7 +1178,9 @@ module.exports = require('pauser')([
                 throw new Exception('ObjectValue.isNotFinished() :: Object does not implement Iterator');
             }
 
-            return value.callMethod('valid').coerceToBoolean().getNative();
+            return value.callMethod('valid')
+                .coerceToBoolean()
+                .asEventualNative();
         },
 
         /**
@@ -1190,25 +1226,11 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Moves the internal array-like pointer to the specified property
+         * Generates a human-readable string that refers to a property
          *
-         * @param {PropertyReference} propertyReference
+         * @param {string} key
+         * @returns {string}
          */
-        pointToProperty: function (propertyReference) {
-            var index = 0,
-                propertyName = propertyReference.getKey().getNative(),
-                value = this;
-
-            // Find the property in the set of properties visible to the current scope
-            _.each(value.getInstancePropertyNames(), function (name) {
-                if (name.getNative() === propertyName) {
-                    value.setPointer(index);
-                }
-
-                index++;
-            });
-        },
-
         referToElement: function (key) {
             return 'property: ' + this.getClassName() + '::$' + key;
         },

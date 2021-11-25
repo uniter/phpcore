@@ -13,7 +13,6 @@ var _ = require('microdash');
 
 /**
  * @param {string} mode Synchronicity mode: "async", "psync" or "sync"
- * @param {Resumable|null} pausable
  * @param {Userland} userland
  * @param {Flow} flow
  * @param {ControlScope} controlScope
@@ -46,7 +45,6 @@ var _ = require('microdash');
  */
 function Internals(
     mode,
-    pausable,
     userland,
     flow,
     controlScope,
@@ -173,11 +171,6 @@ function Internals(
     this.output = output;
     /**
      * @public
-     * @type {Resumable|null}
-     */
-    this.pausable = pausable;
-    /**
-     * @public
      * @type {PauseFactory}
      */
     this.pauseFactory = pauseFactory;
@@ -225,11 +218,6 @@ function Internals(
      * @type {ValueHelper}
      */
     this.valueHelper = valueHelper;
-
-    // // Sanity check
-    // if (mode === 'async' && !pausable) {
-    //     throw new Error('Pausable is required for async mode');
-    // }
 }
 
 _.extend(Internals.prototype, {
@@ -289,11 +277,19 @@ _.extend(Internals.prototype, {
      * Implicitly converts undefined variables/references and those containing null to arrays
      *
      * @param {Reference|Value|Variable} arrayReference
+     * @returns {Future}
      */
     implyArray: function (arrayReference) {
-        if (!arrayReference.isDefined() || arrayReference.getValue().getType() === 'null') {
-            arrayReference.setValue(this.valueFactory.createArray([]));
-        }
+        var internals = this;
+
+        return arrayReference.isEmpty().next(function (isEmpty) {
+            if (
+                (!arrayReference.isDefined() && isEmpty) ||
+                arrayReference.getValue().getType() === 'null'
+            ) {
+                arrayReference.setValue(internals.valueFactory.createArray([]));
+            }
+        });
     },
 
     /**

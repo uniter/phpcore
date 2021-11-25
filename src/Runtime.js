@@ -28,7 +28,6 @@ module.exports = require('pauser')([
      * @param {class} PHPState
      * @param {object} phpCommon
      * @param {GlobalStackHooker} globalStackHooker
-     * @param {Resumable|null} pausable
      * @param {string} mode
      * @constructor
      */
@@ -38,18 +37,12 @@ module.exports = require('pauser')([
         PHPState,
         phpCommon,
         globalStackHooker,
-        pausable,
         mode
     ) {
         // Check the mode given is valid
         if (mode !== 'async' && mode !== 'psync' && mode !== 'sync') {
             throw new Error('Invalid mode "' + mode + '" given - must be one of "async", "psync" or "sync"');
         }
-
-        // // For async mode we require the Pausable library to be available
-        // if (mode === 'async' && !pausable) {
-        //     throw new Error('Pausable library must be provided for async mode');
-        // }
 
         /**
          * @type {{classes: {}, constantGroups: Array, functionGroups: Array}}
@@ -62,6 +55,7 @@ module.exports = require('pauser')([
             defaultINIGroups: [],
             functionGroups: [],
             opcodeGroups: [],
+            serviceGroups: [],
             translationCatalogues: []
         };
         /**
@@ -85,10 +79,6 @@ module.exports = require('pauser')([
          */
         this.optionGroups = [];
         /**
-         * @type {Resumable|null}
-         */
-        this.pausable = pausable;
-        /**
          * @type {Object}
          */
         this.phpCommon = phpCommon;
@@ -109,7 +99,6 @@ module.exports = require('pauser')([
         compile: function (wrapper) {
             var runtime = this,
                 mode = runtime.mode,
-                pausable = runtime.pausable,
                 phpCommon = runtime.phpCommon;
 
             /**
@@ -162,7 +151,6 @@ module.exports = require('pauser')([
                     phpCommon,
                     options,
                     wrapper,
-                    pausable,
                     mode
                 );
             }
@@ -264,6 +252,7 @@ module.exports = require('pauser')([
 
                 allBuiltins.translationCatalogues = allBuiltins.translationCatalogues.concat(addon.translationCatalogues || []);
                 allBuiltins.opcodeGroups = allBuiltins.opcodeGroups.concat(addon.opcodeGroups || []);
+                allBuiltins.serviceGroups = allBuiltins.serviceGroups.concat(addon.serviceGroups || []);
                 allBuiltins.functionGroups = allBuiltins.functionGroups.concat(addon.functionGroups || []);
                 allBuiltins.classGroups = allBuiltins.classGroups.concat(addon.classGroups || []);
                 allBuiltins.classes = _.extend({}, allBuiltins.classes, addon.classes);
@@ -280,7 +269,6 @@ module.exports = require('pauser')([
                 stdin,
                 stdout,
                 stderr,
-                runtime.pausable,
                 runtime.mode,
                 allOptionGroups,
                 options
@@ -307,6 +295,7 @@ module.exports = require('pauser')([
 
             [].push.apply(builtins.translationCatalogues, newBuiltins.translationCatalogues);
             [].push.apply(builtins.opcodeGroups, newBuiltins.opcodeGroups);
+            [].push.apply(builtins.serviceGroups, newBuiltins.serviceGroups);
             [].push.apply(builtins.functionGroups, newBuiltins.functionGroups);
             [].push.apply(builtins.classGroups, newBuiltins.classGroups);
             _.extend(builtins.classes, newBuiltins.classes);

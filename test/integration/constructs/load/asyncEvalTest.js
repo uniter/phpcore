@@ -44,7 +44,7 @@ return (function () {
 }());
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module({
                 eval: function (evalPHP, path, promise) {
                     // Pause before resolving, to test async behaviour

@@ -24,8 +24,8 @@ module.exports = require('pauser')([
      * @param {class} StaticPropertyReference
      * @param {class} UndeclaredStaticPropertyReference
      * @param {ValueFactory} valueFactory
+     * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
-     * @param {Flow} flow
      * @constructor
      */
     function ReferenceFactory(
@@ -38,8 +38,8 @@ module.exports = require('pauser')([
         StaticPropertyReference,
         UndeclaredStaticPropertyReference,
         valueFactory,
-        callStack,
-        flow
+        futureFactory,
+        callStack
     ) {
         /**
          * @type {class}
@@ -54,9 +54,9 @@ module.exports = require('pauser')([
          */
         this.ElementReference = ElementReference;
         /**
-         * @type {Flow}
+         * @type {FutureFactory}
          */
-        this.flow = flow;
+        this.futureFactory = futureFactory;
         /**
          * @type {class}
          */
@@ -101,7 +101,6 @@ module.exports = require('pauser')([
             return new factory.AccessorReference(
                 factory.valueFactory,
                 factory,
-                factory.flow,
                 valueGetter,
                 valueSetter || null
             );
@@ -127,8 +126,8 @@ module.exports = require('pauser')([
             return new factory.ElementReference(
                 factory.valueFactory,
                 factory,
+                factory.futureFactory,
                 factory.callStack,
-                factory.flow,
                 arrayValue,
                 key,
                 value,
@@ -161,7 +160,6 @@ module.exports = require('pauser')([
             return new factory.ObjectElement(
                 factory.valueFactory,
                 factory,
-                factory.flow,
                 objectValue,
                 keyValue
             );
@@ -189,8 +187,8 @@ module.exports = require('pauser')([
             return new factory.PropertyReference(
                 factory.valueFactory,
                 factory,
+                factory.futureFactory,
                 factory.callStack,
-                factory.flow,
                 objectValue,
                 keyValue,
                 classObject,
@@ -207,7 +205,7 @@ module.exports = require('pauser')([
         createReferenceSlot: function () {
             var factory = this;
 
-            return new factory.ReferenceSlot(factory.valueFactory, factory, factory.flow);
+            return new factory.ReferenceSlot(factory.valueFactory, factory);
         },
 
         /**
@@ -216,14 +214,12 @@ module.exports = require('pauser')([
          * @param {string} name
          * @param {Class} classObject Class in the hierarchy that defines the property - may be an ancestor
          * @param {string} visibility "private", "protected" or "public"
-         * @param {Value} value
          * @returns {StaticPropertyReference}
          */
         createStaticProperty: function (
             name,
             classObject,
-            visibility,
-            value
+            visibility
         ) {
             var factory = this;
 
@@ -231,11 +227,9 @@ module.exports = require('pauser')([
                 factory.valueFactory,
                 factory,
                 factory.callStack,
-                factory.flow,
                 classObject,
                 name,
-                visibility,
-                value
+                visibility
             );
         },
 
@@ -252,8 +246,8 @@ module.exports = require('pauser')([
             return new factory.UndeclaredStaticPropertyReference(
                 factory.valueFactory,
                 factory,
+                factory.futureFactory,
                 factory.callStack,
-                factory.flow,
                 classObject,
                 name
             );

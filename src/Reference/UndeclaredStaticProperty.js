@@ -27,8 +27,8 @@ var _ = require('microdash'),
 /**
  * @param {ValueFactory} valueFactory
  * @param {ReferenceFactory} referenceFactory
+ * @param {FutureFactory} futureFactory
  * @param {CallStack} callStack
- * @param {Flow} flow
  * @param {Class} classObject
  * @param {string} name Name of the static property
  * @constructor
@@ -36,12 +36,12 @@ var _ = require('microdash'),
 function UndeclaredStaticPropertyReference(
     valueFactory,
     referenceFactory,
+    futureFactory,
     callStack,
-    flow,
     classObject,
     name
 ) {
-    Reference.call(this, referenceFactory, flow);
+    Reference.call(this, referenceFactory);
 
     /**
      * @type {CallStack}
@@ -51,6 +51,10 @@ function UndeclaredStaticPropertyReference(
      * @type {Class}
      */
     this.classObject = classObject;
+    /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
     /**
      * @type {string}
      */
@@ -64,6 +68,15 @@ function UndeclaredStaticPropertyReference(
 util.inherits(UndeclaredStaticPropertyReference, Reference);
 
 _.extend(UndeclaredStaticPropertyReference.prototype, {
+    /**
+     * Fetches the name of this undeclared property
+     *
+     * @returns {string}
+     */
+    getName: function () {
+        return this.name;
+    },
+
     /**
      * Undeclared properties cannot be accessed, only checked for empty or set state
      *
@@ -94,19 +107,19 @@ _.extend(UndeclaredStaticPropertyReference.prototype, {
     /**
      * Undeclared properties are classed as empty
      *
-     * @returns {boolean}
+     * @returns {Future<boolean>}
      */
     isEmpty: function () {
-        return true;
+        return this.futureFactory.createPresent(true);
     },
 
     /**
      * Undeclared properties are classed as unset
      *
-     * @returns {boolean}
+     * @returns {Future<boolean>}
      */
     isSet: function () {
-        return false;
+        return this.futureFactory.createPresent(false);
     },
 
     /**

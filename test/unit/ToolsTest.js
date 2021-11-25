@@ -204,7 +204,6 @@ describe('Tools', function () {
             scopeFactory.createNamespaceScope
                 .withArgs(
                     sinon.match.same(namespace),
-                    sinon.match.same(globalNamespace),
                     sinon.match.same(module)
                 )
                 .returns(namespaceScope);

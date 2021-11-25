@@ -11,24 +11,28 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('../tools'),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
     Reference = require('../../../src/Reference/Reference'),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
     StaticPropertyReference = require('../../../src/Reference/StaticProperty'),
-    StringValue = require('../../../src/Value/String').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    StringValue = require('../../../src/Value/String').sync();
 
 describe('StaticPropertyReference', function () {
     var callStack,
         classObject,
         propertyValue,
         property,
+        state,
         valueFactory;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
-        valueFactory = new ValueFactory();
+        state = tools.createIsolatedState(null, {
+            'call_stack': callStack
+        });
+        valueFactory = state.getValueFactory();
         classObject = sinon.createStubInstance(Class);
         propertyValue = sinon.createStubInstance(StringValue);
 
@@ -41,47 +45,21 @@ describe('StaticPropertyReference', function () {
         classObject.getName.returns('My\\Namespaced\\ClassName');
 
         propertyValue.formatAsString.returns('\'the value of my...\'');
+        propertyValue.getForAssignment.returns(propertyValue);
         propertyValue.getNative.returns('the value of my property');
         propertyValue.getType.returns('string');
 
         property = new StaticPropertyReference(
             valueFactory,
+            state.getReferenceFactory(),
             callStack,
             classObject,
             'myProp',
-            'protected',
-            propertyValue
+            'protected'
         );
-    });
 
-    describe('concatWith()', function () {
-        it('should append the given value to the property\'s value and assign it back to the property', function () {
-            property.setValue(valueFactory.createString('value for my prop'));
-
-            property.concatWith(valueFactory.createString(' with world on the end'));
-
-            expect(property.getNative()).to.equal('value for my prop with world on the end');
-        });
-    });
-
-    describe('decrementBy()', function () {
-        it('should subtract the given value from the property\'s value and assign it back to the property', function () {
-            property.setValue(valueFactory.createInteger(20));
-
-            property.decrementBy(valueFactory.createInteger(4));
-
-            expect(property.getNative()).to.equal(16);
-        });
-    });
-
-    describe('divideBy()', function () {
-        it('should divide the property\'s value by the given value and assign it back to the property', function () {
-            property.setValue(valueFactory.createInteger(20));
-
-            property.divideBy(valueFactory.createInteger(4));
-
-            expect(property.getNative()).to.equal(5);
-        });
+        // At runtime this is done lazily, see Class.getStaticPropertyByName(...)
+        property.setValue(propertyValue);
     });
 
     describe('formatAsString()', function () {
@@ -161,16 +139,6 @@ describe('StaticPropertyReference', function () {
         });
     });
 
-    describe('incrementBy()', function () {
-        it('should add the given value to the property\'s value and assign it back to the property', function () {
-            property.setValue(valueFactory.createInteger(20));
-
-            property.incrementBy(valueFactory.createInteger(4));
-
-            expect(property.getNative()).to.equal(24);
-        });
-    });
-
     describe('isDefined()', function () {
         it('should return true', function () {
             expect(property.isDefined()).to.be.true;
@@ -202,16 +170,6 @@ describe('StaticPropertyReference', function () {
             propertyValue.isSet.returns(false);
 
             expect(property.isSet()).to.be.false;
-        });
-    });
-
-    describe('multiplyBy()', function () {
-        it('should multiply the property\'s value by the given value and assign it back to the property', function () {
-            property.setValue(valueFactory.createInteger(20));
-
-            property.multiplyBy(valueFactory.createInteger(4));
-
-            expect(property.getNative()).to.equal(80);
         });
     });
 

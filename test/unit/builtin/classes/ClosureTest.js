@@ -14,6 +14,7 @@ var _ = require('microdash'),
     expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../../tools'),
     CallFactory = require('../../../../src/CallFactory'),
     CallStack = require('../../../../src/CallStack'),
     Class = require('../../../../src/Class').sync(),
@@ -25,7 +26,6 @@ var _ = require('microdash'),
     ObjectValue = require('../../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
     Promise = require('lie'),
-    ValueFactory = require('../../../../src/ValueFactory').sync(),
     Variable = require('../../../../src/Variable').sync();
 
 describe('PHP builtin Closure class', function () {
@@ -34,9 +34,11 @@ describe('PHP builtin Closure class', function () {
         closureClass,
         disableAutoCoercion,
         errorPromoter,
+        futureFactory,
         globalNamespace,
         InternalClosureClass,
         internals,
+        state,
         stdClassClass,
         valueFactory;
 
@@ -47,15 +49,14 @@ describe('PHP builtin Closure class', function () {
         });
         callStack = sinon.createStubInstance(CallStack);
         errorPromoter = sinon.createStubInstance(ErrorPromoter);
+        state = tools.createIsolatedState(null, {
+            'call_factory': callFactory,
+            'call_stack': callStack,
+            'error_promoter': errorPromoter
+        });
+        futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
-        valueFactory = new ValueFactory(
-            null,
-            null,
-            null,
-            null,
-            null,
-            errorPromoter
-        );
+        valueFactory = state.getValueFactory();
         disableAutoCoercion = sinon.stub();
         internals = {
             callFactory: callFactory,
@@ -82,8 +83,10 @@ describe('PHP builtin Closure class', function () {
         });
         stdClassClass = sinon.createStubInstance(Class);
         stdClassClass.getName.returns('stdClass');
-        globalNamespace.getClass.withArgs('Closure').returns(closureClass);
-        globalNamespace.getClass.withArgs('stdClass').returns(stdClassClass);
+        globalNamespace.getClass.withArgs('Closure')
+            .returns(futureFactory.createPresent(closureClass));
+        globalNamespace.getClass.withArgs('stdClass')
+            .returns(futureFactory.createPresent(stdClassClass));
         valueFactory.setGlobalNamespace(globalNamespace);
     });
 
@@ -421,7 +424,7 @@ describe('PHP builtin Closure class', function () {
             });
 
             it('should not catch a non-PHP error', function () {
-                closure.invoke.throws(new TypeError('A type error occurred'));
+                closure.invoke.returns(valueFactory.createRejection(new TypeError('A type error occurred')));
                 callUnwrapper();
 
                 expect(function () {
@@ -435,7 +438,7 @@ describe('PHP builtin Closure class', function () {
                 errorPromoter.promote
                     .withArgs(sinon.match.same(errorValue))
                     .returns(new Error('My error, coerced from a PHP exception'));
-                closure.invoke.throws(errorValue);
+                closure.invoke.returns(valueFactory.createRejection(errorValue));
                 callUnwrapper();
 
                 expect(function () {
@@ -517,7 +520,7 @@ describe('PHP builtin Closure class', function () {
             });
 
             it('should not catch a non-PHP error', function () {
-                closure.invoke.throws(new TypeError('A type error occurred'));
+                closure.invoke.returns(valueFactory.createRejection(new TypeError('A type error occurred')));
                 callUnwrapper();
 
                 return expect(unwrappedClosure())
@@ -530,7 +533,7 @@ describe('PHP builtin Closure class', function () {
                 errorPromoter.promote
                     .withArgs(sinon.match.same(errorValue))
                     .returns(new Error('My error, coerced from a PHP exception'));
-                closure.invoke.throws(errorValue);
+                closure.invoke.returns(valueFactory.createRejection(errorValue));
                 callUnwrapper();
 
                 return expect(unwrappedClosure())
@@ -596,7 +599,7 @@ describe('PHP builtin Closure class', function () {
             });
 
             it('should not catch a non-PHP error', function () {
-                closure.invoke.throws(new TypeError('A type error occurred'));
+                closure.invoke.returns(valueFactory.createRejection(new TypeError('A type error occurred')));
                 callUnwrapper();
 
                 return expect(unwrappedClosure())
@@ -609,7 +612,7 @@ describe('PHP builtin Closure class', function () {
                 errorPromoter.promote
                     .withArgs(sinon.match.same(errorValue))
                     .returns(new Error('My error, coerced from a PHP exception'));
-                closure.invoke.throws(errorValue);
+                closure.invoke.returns(valueFactory.createRejection(errorValue));
                 callUnwrapper();
 
                 return expect(unwrappedClosure())

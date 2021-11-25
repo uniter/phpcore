@@ -66,7 +66,6 @@ module.exports = require('pauser')([
      * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
      * @param {Array} orderedElements
-     * @param {string} type
      * @param {ElementProvider|HookableElementProvider} elementProvider
      * @constructor
      */
@@ -76,7 +75,6 @@ module.exports = require('pauser')([
         futureFactory,
         callStack,
         orderedElements,
-        type,
         elementProvider
     ) {
         var elements = [],
@@ -125,7 +123,7 @@ module.exports = require('pauser')([
             keysToElements[sanitiseKey(key.getNative())] = element;
         });
 
-        Value.call(this, factory, referenceFactory, futureFactory, callStack, type || 'array', elements);
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'array', elements);
 
         /**
          * @type {ElementProvider|HookableElementProvider}
@@ -321,10 +319,24 @@ module.exports = require('pauser')([
             return result;
         },
 
-        getCurrentElement: function () {
+        /**
+         * Fetches a reference to the element this array's internal pointer is currently pointing to.
+         *
+         * @returns {Reference}
+         */
+        getCurrentElementReference: function () {
             var value = this;
 
-            return value.value[value.pointer] || value.factory.createNull();
+            return value.value[value.pointer] || value.referenceFactory.createNull();
+        },
+
+        /**
+         * Fetches the value of the element this array's internal pointer is currently pointing to.
+         *
+         * @returns {Value}
+         */
+        getCurrentElementValue: function () {
+            return this.getCurrentElementReference().getValue();
         },
 
         getElementByKey: function (key) {
@@ -375,12 +387,12 @@ module.exports = require('pauser')([
         /**
          * Creates an ArrayIterator for iterating over this array. Used by transpiled foreach loops.
          *
-         * @returns {ArrayIterator}
+         * @returns {Future<ArrayIterator>}
          */
         getIterator: function () {
             var value = this;
 
-            return value.factory.createArrayIterator(value);
+            return value.futureFactory.createPresent(value.factory.createArrayIterator(value));
         },
 
         getValueReferences: function () {
@@ -408,6 +420,9 @@ module.exports = require('pauser')([
             return this.pointer;
         },
 
+        /**
+         * {@inheritdoc}
+         */
         getPushElement: function () {
             var value = this;
 
@@ -432,48 +447,54 @@ module.exports = require('pauser')([
          * {@inheritdoc}
          */
         isCallable: function (globalNamespace) {
-            var classObject,
+            var classObjectFuture,
                 methodNameValue,
                 objectOrClassValue,
                 arrayValue = this,
+                futureFactory = arrayValue.futureFactory,
                 value = arrayValue.value;
 
             if (value.length < 2) {
-                return false;
+                // We need two elements: the class FQCN or an instance plus the method name
+                return futureFactory.createPresent(false);
             }
 
             objectOrClassValue = value[0].getValue();
             methodNameValue = value[1].getValue();
 
             if (objectOrClassValue.getType() === 'string') {
-                if (!globalNamespace.hasClass(objectOrClassValue.getNative())) {
-                    return false;
-                }
-
-                classObject = globalNamespace.getClass(objectOrClassValue.getNative()).yieldSync();
+                classObjectFuture = globalNamespace.getClass(objectOrClassValue.getNative());
             } else if (objectOrClassValue.getType() === 'object') {
-                classObject = objectOrClassValue.getClass();
+                classObjectFuture = futureFactory.createPresent(objectOrClassValue.getClass());
             } else {
                 // First element must either be an object or a string
-                return false;
+                return futureFactory.createPresent(false);
             }
 
             if (methodNameValue.getType() !== 'string') {
                 // Second, method name element must be a string containing the name of a method
-                return false;
+                return futureFactory.createPresent(false);
             }
 
-            return classObject.getMethodSpec(methodNameValue.getNative()) !== null;
+            return classObjectFuture.next(function (classObject) {
+                return classObject.getMethodSpec(methodNameValue.getNative()) !== null;
+            }, function () {
+                // TODO: Ensure that the error swallowed here cannot be something important
+
+                return false;
+            });
         },
 
         /**
          * Determines whether this array is classed as "empty" or not.
          * Only empty arrays (with no elements) are classed as empty
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>}
          */
         isEmpty: function () {
-            return this.value.length === 0;
+            var value = this;
+
+            return value.futureFactory.createPresent(value.value.length === 0);
         },
 
         isEqualTo: function (rightValue) {
@@ -643,6 +664,12 @@ module.exports = require('pauser')([
             return keyValue;
         },
 
+        /**
+         * Generates a human-readable string that refers to an element
+         *
+         * @param {string} key
+         * @returns {string}
+         */
         referToElement: function (key) {
             return 'offset: ' + key;
         },

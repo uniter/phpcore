@@ -38,7 +38,7 @@ $myObject = new MyClass($tools);
 return $myObject;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             phpEngine = module(),
             myObject;
 
@@ -59,7 +59,7 @@ EOS
 $myObject->myMethod($jsObject);
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             phpEngine = module(),
             jsObject = {
                 toForceObjectCast: function () {},
@@ -119,7 +119,7 @@ $myObject->aSub = $mySubObject;
 return $myObject;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             phpEngine = module(),
             myObject = {
                 myMethodWithDifferentCase: function () {}
@@ -218,7 +218,7 @@ $myObject = new MyClass();
 return $myObject;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             phpEngine = module(),
             resultValue = phpEngine.execute();
 

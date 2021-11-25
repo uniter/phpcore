@@ -773,7 +773,7 @@ EOS
     }, function (scenario, description) {
         it(description, function () {
             var engine,
-                module = tools.syncTranspile(null, scenario.code);
+                module = tools.syncTranspile('/path/to/my_module.php', scenario.code);
 
             engine = module();
             engine.execute();

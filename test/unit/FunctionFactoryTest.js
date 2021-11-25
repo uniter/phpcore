@@ -11,44 +11,57 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('./tools'),
     Call = require('../../src/Call'),
     CallFactory = require('../../src/CallFactory'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
+    ControlBridge = require('../../src/Control/ControlBridge'),
+    ControlScope = require('../../src/Control/ControlScope'),
+    Flow = require('../../src/Control/Flow'),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     FunctionSpec = require('../../src/Function/FunctionSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     Scope = require('../../src/Scope').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
-    Value = require('../../src/Value').sync(),
-    ValueFactory = require('../../src/ValueFactory').sync();
+    Value = require('../../src/Value').sync();
 
 describe('FunctionFactory', function () {
     var call,
         callFactory,
         callStack,
+        controlBridge,
+        controlScope,
         currentClass,
         factory,
+        flow,
+        futureFactory,
         MethodSpec,
         name,
         namespaceScope,
         originalFunc,
         scope,
         scopeFactory,
+        state,
         valueFactory;
 
     beforeEach(function () {
+        state = tools.createIsolatedState();
         call = sinon.createStubInstance(Call);
         callFactory = sinon.createStubInstance(CallFactory);
         callStack = sinon.createStubInstance(CallStack);
+        controlBridge = sinon.createStubInstance(ControlBridge);
+        controlScope = sinon.createStubInstance(ControlScope);
         currentClass = sinon.createStubInstance(Class);
+        flow = sinon.createStubInstance(Flow);
+        futureFactory = state.getFutureFactory();
         originalFunc = sinon.stub();
         MethodSpec = sinon.stub();
         name = 'myFunction';
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         scope = sinon.createStubInstance(Scope);
         scopeFactory = sinon.createStubInstance(ScopeFactory);
-        valueFactory = new ValueFactory();
+        valueFactory = state.getValueFactory();
 
         callFactory.create.returns(call);
         scopeFactory.create.returns(scope);
@@ -58,7 +71,10 @@ describe('FunctionFactory', function () {
             scopeFactory,
             callFactory,
             valueFactory,
-            callStack
+            callStack,
+            flow,
+            controlBridge,
+            controlScope
         );
     });
 
@@ -68,6 +84,11 @@ describe('FunctionFactory', function () {
 
         beforeEach(function () {
             functionSpec = sinon.createStubInstance(FunctionSpec);
+
+            functionSpec.validateArguments
+                .callsFake(function () {
+                    return futureFactory.createPresent();
+                });
 
             callCreate = function (currentObject, staticClass) {
                 functionSpec.coerceArguments.returnsArg(0);
@@ -278,6 +299,17 @@ describe('FunctionFactory', function () {
                     .to.have.been.calledAfter(functionSpec.coerceArguments);
             });
 
+            it('should pop the call off the stack even when the argument validation throws', function () {
+                var error = new Error('argh');
+                functionSpec.validateArguments.returns(futureFactory.createRejection(error));
+
+                return expect(callCreate()().toPromise())
+                    .to.eventually.be.rejectedWith(error)
+                    .then(function () {
+                        expect(callStack.pop).to.have.been.calledOnce;
+                    });
+            });
+
             it('should populate default argument values at the right point', function () {
                 var argValue1 = valueFactory.createInteger(21),
                     argValue2 = valueFactory.createInteger(101),
@@ -306,10 +338,11 @@ describe('FunctionFactory', function () {
                 var error = new Error('argh');
                 originalFunc.throws(error);
 
-                expect(function () {
-                    callCreate()();
-                }).to.throw(error);
-                expect(callStack.pop).to.have.been.calledOnce;
+                return expect(callCreate()().toPromise())
+                    .to.eventually.be.rejectedWith(error)
+                    .then(function () {
+                        expect(callStack.pop).to.have.been.calledOnce;
+                    });
             });
 
             it('should pass the scope as the thisObject when calling the wrapped function', function () {

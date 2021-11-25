@@ -12,19 +12,23 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../tools'),
     MixedType = require('../../../src/Type/MixedType'),
     ObjectValue = require('../../../src/Value/Object').sync(),
-    Translator = phpCommon.Translator,
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    Translator = phpCommon.Translator;
 
 describe('MixedType', function () {
-    var type,
+    var futureFactory,
+        state,
+        type,
         valueFactory;
 
     beforeEach(function () {
-        valueFactory = new ValueFactory();
+        state = tools.createIsolatedState();
+        futureFactory = state.getFutureFactory();
+        valueFactory = state.getValueFactory();
 
-        type = new MixedType(false);
+        type = new MixedType(futureFactory, false);
     });
 
     describe('allowsNull()', function () {
@@ -34,47 +38,47 @@ describe('MixedType', function () {
     });
 
     describe('allowsValue()', function () {
-        it('should return true for an array', function () {
+        it('should return true for an array', async function () {
             var value = valueFactory.createArray([21]);
 
-            expect(type.allowsValue(value)).to.be.true;
+            expect(await type.allowsValue(value).toPromise()).to.be.true;
         });
 
-        it('should return true for a boolean', function () {
+        it('should return true for a boolean', async function () {
             var value = valueFactory.createBoolean(false);
 
-            expect(type.allowsValue(value)).to.be.true;
+            expect(await type.allowsValue(value).toPromise()).to.be.true;
         });
 
-        it('should return true for a float', function () {
+        it('should return true for a float', async function () {
             var value = valueFactory.createFloat(123.456);
 
-            expect(type.allowsValue(value)).to.be.true;
+            expect(await type.allowsValue(value).toPromise()).to.be.true;
         });
 
-        it('should return true for an integer', function () {
+        it('should return true for an integer', async function () {
             var value = valueFactory.createInteger(21);
 
-            expect(type.allowsValue(value)).to.be.true;
+            expect(await type.allowsValue(value).toPromise()).to.be.true;
         });
 
-        it('should return true for null', function () {
+        it('should return true for null', async function () {
             var value = valueFactory.createNull();
 
-            expect(type.allowsValue(value)).to.be.true;
+            expect(await type.allowsValue(value).toPromise()).to.be.true;
         });
 
-        it('should return true for an object', function () {
+        it('should return true for an object', async function () {
             var value = sinon.createStubInstance(ObjectValue);
             value.getType.returns('object');
 
-            expect(type.allowsValue(value)).to.be.true;
+            expect(await type.allowsValue(value).toPromise()).to.be.true;
         });
 
-        it('should return true for a string', function () {
+        it('should return true for a string', async function () {
             var value = valueFactory.createString('my string');
 
-            expect(type.allowsValue(value)).to.be.true;
+            expect(await type.allowsValue(value).toPromise()).to.be.true;
         });
     });
 

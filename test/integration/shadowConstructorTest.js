@@ -48,7 +48,7 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php);
+                module = tools.syncTranspile('/path/to/my_module.php', php);
 
             expect(module({}, this.environment).execute().getNative()).to.equal(27);
         });
@@ -67,7 +67,7 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php);
+                module = tools.syncTranspile('/path/to/my_module.php', php);
 
             expect(module({}, this.environment).execute().getNative()).to.equal(27);
         });
@@ -82,7 +82,7 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php);
+                module = tools.syncTranspile('/path/to/my_module.php', php);
             this.environment.defineClass('MyDerivedClass', function (internals) {
                 function MyDerivedClass() {
                 }
@@ -115,7 +115,7 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php);
+                module = tools.syncTranspile('/path/to/my_module.php', php);
 
             expect(module({}, this.environment).execute().getNative()).to.equal(27);
         });
@@ -130,7 +130,7 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php);
+                module = tools.syncTranspile('/path/to/my_module.php', php);
             this.environment.defineClass('MyDerivedClass', function (internals) {
                 function MyDerivedClass() {
                 }
@@ -178,7 +178,7 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php);
+                module = tools.syncTranspile('/path/to/my_module.php', php);
 
             expect(module({}, this.environment).execute().getNative()).to.equal(101);
         });
@@ -197,7 +197,7 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php);
+                module = tools.syncTranspile('/path/to/my_module.php', php);
 
             expect(module({}, this.environment).execute().getNative()).to.equal(101);
         });
@@ -212,7 +212,7 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php);
+                module = tools.syncTranspile('/path/to/my_module.php', php);
             this.environment.defineClass('MyDerivedClass', function (internals) {
                 function MyDerivedClass() {
                 }
@@ -245,7 +245,7 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php);
+                module = tools.syncTranspile('/path/to/my_module.php', php);
 
             expect(module({}, this.environment).execute().getNative()).to.equal(101);
         });
@@ -260,7 +260,7 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php);
+                module = tools.syncTranspile('/path/to/my_module.php', php);
             this.environment.defineClass('MyDerivedClass', function (internals) {
                 function MyDerivedClass() {
                 }

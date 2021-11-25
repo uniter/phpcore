@@ -24,13 +24,13 @@ require 'my_module.php';
 print ' after';
 EOS
 */;}), //jshint ignore:line
-            parentModule = tools.syncTranspile(null, parentPHP),
+            parentModule = tools.syncTranspile('/path/to/my_module.php', parentPHP),
             childPHP = nowdoc(function () {/*<<<EOS
 <?php
 print 'inside';
 EOS
 */;}), //jshint ignore:line
-            childModule = tools.syncTranspile(null, childPHP),
+            childModule = tools.syncTranspile('/path/to/my_module.php', childPHP),
             options = {
                 include: function (path, promise) {
                     promise.resolve(childModule);
@@ -52,7 +52,7 @@ $result[] = require 'abc.php';
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             results = ['first', 'second'],
             options = {
                 path: 'my/caller.php',

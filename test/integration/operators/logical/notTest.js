@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP logical "not" operator integration', function () {
-    it('should support short-circuit evaluation', function () {
+    it('should support evaluation in async mode with pauses', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -23,20 +23,31 @@ $falsy = 0;
 
 $result = [];
 
-$result['not truthy'] = !$truthy;
-$result['not falsy'] = !$falsy;
-$result['not-not truthy'] = !!$truthy;
+$result['not truthy'] = !get_async($truthy);
+$result['not falsy'] = !get_async($falsy);
+$result['not-not truthy'] = !!get_async($truthy);
 
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
+        engine.defineFunction('get_async', function (internals) {
+            return function (value) {
+                return internals.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(value);
+                    });
+                });
+            };
+        });
 
-        expect(engine.execute().getNative()).to.deep.equal({
-            'not truthy': false,
-            'not falsy': true,
-            'not-not truthy': true
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal({
+                'not truthy': false,
+                'not falsy': true,
+                'not-not truthy': true
+            });
         });
     });
 });

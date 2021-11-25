@@ -21,7 +21,7 @@ describe('PHP JS<->PHP bridge JS object import asynchronous mode integration', f
 return 21 + $myJSObject->myMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.expose({
@@ -50,7 +50,7 @@ EOS
 return 21 + $myJSObject->myMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.expose({

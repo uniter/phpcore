@@ -17,6 +17,7 @@ var _ = require('microdash'),
 /**
  * @param {ControlFactory} controlFactory
  * @param {PauseFactory} pauseFactory
+ * @param {ValueFactory} valueFactory
  * @param {ControlBridge} controlBridge
  * @param {class} Future
  * @constructor
@@ -24,6 +25,7 @@ var _ = require('microdash'),
 function FutureFactory(
     controlFactory,
     pauseFactory,
+    valueFactory,
     controlBridge,
     Future
 ) {
@@ -43,6 +45,10 @@ function FutureFactory(
      * @type {PauseFactory}
      */
     this.pauseFactory = pauseFactory;
+    /**
+     * @type {ValueFactory}
+     */
+    this.valueFactory = valueFactory;
 }
 
 _.extend(FutureFactory.prototype, {
@@ -59,18 +65,19 @@ _.extend(FutureFactory.prototype, {
             reject = function reject(error) {
                 // factory.callStack.restore(savedCallStack);
 
-                return sequence.throwInto(error);
+                sequence.throwInto(error);
             },
             resolve = function resolve(result) {
                 // factory.callStack.restore(savedCallStack);
 
-                if (factory.controlBridge.isChainable(result)) {
+                if (factory.controlBridge.isFuture(result)) {
                     // Future was resolved with another Future(Value), so await the new one
                     // to mirror the behaviour of chainable Promises
-                    return result.next(resolve, reject);
+                    result.next(resolve, reject);
+                    return;
                 }
 
-                return sequence.resume(result);
+                sequence.resume(result);
             };
 
         try {
@@ -84,11 +91,13 @@ _.extend(FutureFactory.prototype, {
             reject(error);
         }
 
-        return new factory.Future(factory, factory.pauseFactory, sequence);
+        return new factory.Future(factory, factory.pauseFactory, factory.valueFactory, sequence);
     },
 
     /**
      * Creates a new present Future for the given value
+     *
+     * TODO: Reinstate an actual lightweight Present class to avoid creating Sequences when unnecessary
      *
      * @param {*} value
      * @returns {Future}
@@ -130,7 +139,7 @@ _.extend(FutureFactory.prototype, {
             }
         );
 
-        return new factory.Future(factory, factory.pauseFactory, derivedSequence);
+        return new factory.Future(factory, factory.pauseFactory, factory.valueFactory, derivedSequence);
     }
 });
 

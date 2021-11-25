@@ -27,7 +27,7 @@ describe('Custom addon with custom opcodes integration', function () {
 log_it 121 * 2; // A custom log statement
 EOS
 */;}), //jshint ignore:line
-            module = tools.transpile(runtime, null, php, {
+            module = tools.transpile(runtime, '/path/to/my_module.php', php, {
                 phpToAST: {
                     rules: {
                         'N_CUSTOM_LOG': {
@@ -103,7 +103,7 @@ $result[] = my_unhooked_func('third');
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.transpile(runtime, null, php),
+            module = tools.transpile(runtime, '/path/to/my_module.php', php),
             environment = runtime.createEnvironment({}, [
                 {
                     opcodeGroups: function (internals) {

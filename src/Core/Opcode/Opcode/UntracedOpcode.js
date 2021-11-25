@@ -39,6 +39,15 @@ _.extend(UntracedOpcode.prototype, {
         return opcode.handler.apply(null, opcode.args);
     },
 
+    /**
+     * Releases this opcode back into the pool to be reused
+     *
+     * @param {OpcodePool} opcodePool
+     */
+    release: function (/* opcodePool */) {
+        // TODO: Not yet implemented!
+    },
+
     resume: function () {
         return null;
     },

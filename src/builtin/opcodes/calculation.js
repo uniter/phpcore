@@ -555,15 +555,15 @@ module.exports = function (internals) {
          *
          * @param {Reference|Value|Variable} arrayReference
          * @param {number|string} nativeKey
-         * @returns {ElementReference}
+         * @returns {Future<ElementReference>}
          */
         getElement: function (arrayReference, nativeKey) {
             // TODO: Remove need for this to be wrapped as a Value
             var keyValue = valueFactory.coerce(nativeKey);
 
-            internals.implyArray(arrayReference);
-
-            return arrayReference.getValue().getElementByKey(keyValue);
+            return internals.implyArray(arrayReference).next(function () {
+                return arrayReference.getValue().getElementByKey(keyValue);
+            });
         },
 
         /**
@@ -702,12 +702,12 @@ module.exports = function (internals) {
          *
          * @param {Reference|Value|Variable} arrayReference
          * @param {Reference|Value|Variable} keyValue
-         * @returns {ElementReference}
+         * @returns {Future<ElementReference>}
          */
         getVariableElement: function (arrayReference, keyValue) {
-            internals.implyArray(arrayReference);
-
-            return arrayReference.getValue().getElementByKey(keyValue.getValue());
+            return internals.implyArray(arrayReference).next(function () {
+                return arrayReference.getValue().getElementByKey(keyValue.getValue());
+            });
         },
 
         /**
@@ -875,12 +875,12 @@ module.exports = function (internals) {
          *
          * Used by both string interpolations ("my string $here") and heredocs.
          *
-         * @param {...Reference[]|Value[]|Variable[]} references
-         * @returns {StringValue}
+         * @param {Reference[]|Value[]|Variable[]} references
+         * @returns {FutureValue<StringValue>}
          */
-        interpolate: function () {
+        interpolate: function (references) {
             return flow.mapAsync(
-                arguments,
+                references,
                 function (reference) {
                     if (typeof reference === 'string') {
                         return reference;
@@ -906,7 +906,7 @@ module.exports = function (internals) {
                     })
                         .join('')
                 );
-            });
+            }).asValue();
         },
 
         /**
@@ -1064,17 +1064,18 @@ module.exports = function (internals) {
                 /**
                  * Return a function that accepts the references while we have errors suppressed (see above)
                  *
-                 * @param {...Reference|Value|Variable} references
+                 * @param {Reference|Value|Variable} references
                  * @returns {Value}
                  */
-                function () {
+                function (references) {
                     var allAreSet = true;
 
-                    return flow.eachAsync(arguments, function (reference) {
+                    return flow.eachAsync(references, function (reference) {
                         // This may return a FutureValue if the reference has an accessor that pauses,
                         // eg. an AccessorReference, a reference to an instance property
                         // that is handled by a magic __get() method or an ArrayAccess element
                         return valueFactory.coerce(reference.isSet())
+                            .asFuture()
                             .next(function (isSetValue) {
                                 var isSet = isSetValue.getNative();
 
@@ -1095,19 +1096,6 @@ module.exports = function (internals) {
             );
         },
 
-        // /**
-        //  * Handles logical AND ("||" or "and" operators). Note that as this operator short-circuits,
-        //  * only the left operand is passed here, with a JS "&&" operand output by the transpiler.
-        //  *
-        //  * @param {Reference|Value|Variable} leftReference
-        //  * @returns {boolean}
-        //  */
-        // logicalAnd: function (leftReference) {
-        //     // TODO: Store boolean result in trace data for resume
-        //
-        //     return leftReference.getValue().coerceToBoolean().getNative();
-        // },
-
         /**
          * Coerces to boolean and then inverts the given reference's value
          *
@@ -1117,17 +1105,6 @@ module.exports = function (internals) {
         logicalNot: function (reference) {
             // Note that the operand could evaluate to a FutureValue, for handling async operation
             return reference.getValue().logicalNot();
-        },
-
-        /**
-         * Fetches the given reference's value, coerces it to boolean and then returns the native boolean value.
-         * Used by transpiled logical AND and OR expressions to implement short-circuiting.
-         *
-         * @param {Reference|Value|Variable} reference
-         * @returns {boolean}
-         */
-        logicalTerm: function (reference) {
-            return reference.getValue().coerceToBoolean().getNative();
         },
 
         /**
@@ -1238,20 +1215,62 @@ module.exports = function (internals) {
             return reference.getValue().onesComplement();
         },
 
+        /**
+         * Decrements the stored value, returning its original value.
+         *
+         * @param {Reference} reference
+         * @returns {Value}
+         */
         postDecrement: function (reference) {
-            return reference.postDecrement();
+            var originalValue = reference.getValue(),
+                decrementedValue = originalValue.decrement();
+
+            reference.setValue(decrementedValue);
+
+            return originalValue;
         },
 
+        /**
+         * Increments the stored value, returning its original value.
+         *
+         * @param {Reference} reference
+         * @returns {Value}
+         */
         postIncrement: function (reference) {
-            return reference.postIncrement();
+            var originalValue = reference.getValue(),
+                incrementedValue = originalValue.increment();
+
+            reference.setValue(incrementedValue);
+
+            return originalValue;
         },
 
+        /**
+         * Decrements the stored value, returning its new value.
+         *
+         * @param {Reference} reference
+         * @returns {Value}
+         */
         preDecrement: function (reference) {
-            return reference.preDecrement();
+            var decrementedValue = reference.getValue().decrement();
+
+            reference.setValue(decrementedValue);
+
+            return decrementedValue;
         },
 
+        /**
+         * Increments the stored value, returning its new value
+         *
+         * @param {Reference} reference
+         * @returns {Value}
+         */
         preIncrement: function (reference) {
-            return reference.preIncrement();
+            var incrementedValue = reference.getValue().increment();
+
+            reference.setValue(incrementedValue);
+
+            return incrementedValue;
         },
 
         /**
@@ -1300,12 +1319,12 @@ module.exports = function (internals) {
          * Fetches a push element for the given array, so that a value or reference may be pushed onto it
          *
          * @param {Reference|Value|Variable} arrayReference
-         * @returns {ElementReference}
+         * @returns {Future<ElementReference>}
          */
         pushElement: function (arrayReference) {
-            internals.implyArray(arrayReference);
-
-            return arrayReference.getValue().getPushElement();
+            return internals.implyArray(arrayReference).next(function () {
+                return arrayReference.getValue().getPushElement();
+            });
         },
 
         /**
@@ -1495,10 +1514,10 @@ module.exports = function (internals) {
         /**
          * Unsets all the given references (except static properties, for which it is illegal)
          *
-         * @param {...Reference[]|Value[]|Variable[]} references
+         * @param {Reference[]|Value[]|Variable[]} references
          */
-        unset: function () {
-            _.each(arguments, function (reference) {
+        unset: function (references) {
+            _.each(references, function (reference) {
                 reference.unset();
             });
         }

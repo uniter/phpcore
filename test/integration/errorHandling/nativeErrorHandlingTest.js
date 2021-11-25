@@ -11,24 +11,28 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('./tools');
+    tools = require('../tools');
 
-describe('Fatal error handling integration', function () {
+// TODO: Improve native error handling, see logic in Engine class
+describe('Native/internal error handling integration', function () {
+    var doRun,
+        outputLog;
+
     beforeEach(function () {
-        this.outputLog = [];
-        this.doRun = function (engine) {
+        outputLog = [];
+        doRun = function (engine) {
             // Capture the standard streams, prefixing each write with its name
             // so that we can ensure that what is written to each of them is in the correct order
             // with respect to one another
             engine.getStdout().on('data', function (data) {
-                this.outputLog.push('[stdout]' + data);
-            }.bind(this));
+                outputLog.push('[stdout]' + data);
+            });
             engine.getStderr().on('data', function (data) {
-                this.outputLog.push('[stderr]' + data);
-            }.bind(this));
+                outputLog.push('[stderr]' + data);
+            });
 
             return engine.execute();
-        }.bind(this);
+        };
     });
 
     it('should output the correct message to both stdout and stderr when display_errors=On and error_reporting=E_ALL in sync mode', function () {
@@ -37,22 +41,22 @@ describe('Fatal error handling integration', function () {
 ini_set('error_reporting', E_ALL);
 ini_set('display_errors', 'On');
 
-myFunc();
+raise_native_error();
 EOS
 */;}),//jshint ignore:line
             module = tools.syncTranspile('/my/php_module.php', php),
             engine = module();
+        engine.defineCoercingFunction('raise_native_error', function () {
+            throw new Error('My native error');
+        });
 
         try {
-            this.doRun(engine);
+            doRun(engine);
         } catch (error) {}
 
-        expect(this.outputLog).to.deep.equal([
+        expect(outputLog).to.deep.equal([
             nowdoc(function () {/*<<<EOS
-[stderr]PHP Fatal error:  Uncaught Error: Call to undefined function myFunc() in /my/php_module.php:5
-Stack trace:
-#0 {main}
-  thrown in /my/php_module.php on line 5
+[stderr]PHP Fatal error:  Native JavaScript error: My native error in unknown on line unknown
 
 EOS
 */;}), //jshint ignore:line
@@ -60,10 +64,7 @@ EOS
             // NB: Stdout should have a leading newline written out just before the message
             nowdoc(function () {/*<<<EOS
 [stdout]
-Fatal error: Uncaught Error: Call to undefined function myFunc() in /my/php_module.php:5
-Stack trace:
-#0 {main}
-  thrown in /my/php_module.php on line 5
+Fatal error: Native JavaScript error: My native error in unknown on line unknown
 
 EOS
 */;}) //jshint ignore:line
@@ -77,7 +78,7 @@ ini_set('error_reporting', E_ALL);
 ini_set('display_errors', 'On');
 
 call_async(function () {
-    myFunc();
+    raise_native_error();
 });
 EOS
 */;}),//jshint ignore:line
@@ -90,51 +91,29 @@ EOS
                 });
             });
         });
+        engine.defineCoercingFunction('raise_native_error', function () {
+            throw new Error('My native error');
+        });
 
-        return this.doRun(engine).then(
+        return doRun(engine).then(
             function () {
                 throw new Error('Expected promise to be rejected');
             },
             function () {
-                expect(this.outputLog).to.deep.equal([
+                expect(outputLog).to.deep.equal([
                     nowdoc(function () {/*<<<EOS
-[stderr]PHP Fatal error:  Uncaught Error: Call to undefined function myFunc() in /my/php_module.php:6
-Stack trace:
-#0 (JavaScript code)(unknown): {closure}()
-#1 null(unknown): (JavaScript function)()
-#2 /my/php_module.php(5): call_async(Object(Closure))
-#3 {main}
-  thrown in /my/php_module.php on line 6
+[stderr]PHP Fatal error:  Native JavaScript error: My native error in unknown on line unknown
 
 EOS
 */;}), //jshint ignore:line
                     nowdoc(function () {/*<<<EOS
 [stdout]
-Fatal error: Uncaught Error: Call to undefined function myFunc() in /my/php_module.php:6
-Stack trace:
-#0 (JavaScript code)(unknown): {closure}()
-#1 null(unknown): (JavaScript function)()
-#2 /my/php_module.php(5): call_async(Object(Closure))
-#3 {main}
-  thrown in /my/php_module.php on line 6
-
-EOS
-*/;}), //jshint ignore:line
-                    nowdoc(function () {/*<<<EOS
-[stderr]PHP Fatal error:  Uncaught Error: Call to undefined function myFunc() in /my/php_module.php on line 6
-
-EOS
-*/;}), //jshint ignore:line
-
-                    // NB: Stdout should have a leading newline written out just before the message
-                    nowdoc(function () {/*<<<EOS
-[stdout]
-Fatal error: Uncaught Error: Call to undefined function myFunc() in /my/php_module.php on line 6
+Fatal error: Native JavaScript error: My native error in unknown on line unknown
 
 EOS
 */;}) //jshint ignore:line
                 ]);
-            }.bind(this)
+            }
         );
     });
 
@@ -146,7 +125,7 @@ ini_set('display_errors', 'On');
 
 wait_then_resume();
 
-myFunc();
+raise_native_error();
 EOS
 */;}),//jshint ignore:line
             module = tools.asyncTranspile('/my/php_module.php', php),
@@ -158,32 +137,29 @@ EOS
                 });
             });
         });
+        engine.defineCoercingFunction('raise_native_error', function () {
+            throw new Error('My native error');
+        });
 
-        return this.doRun(engine).then(
+        return doRun(engine).then(
             function () {
                 throw new Error('Expected promise to be rejected');
             },
             function () {
-                expect(this.outputLog).to.deep.equal([
+                expect(outputLog).to.deep.equal([
                     nowdoc(function () {/*<<<EOS
-[stderr]PHP Fatal error:  Uncaught Error: Call to undefined function myFunc() in /my/php_module.php:7
-Stack trace:
-#0 {main}
-  thrown in /my/php_module.php on line 7
+[stderr]PHP Fatal error:  Native JavaScript error: My native error in unknown on line unknown
 
 EOS
 */;}), //jshint ignore:line
                     nowdoc(function () {/*<<<EOS
 [stdout]
-Fatal error: Uncaught Error: Call to undefined function myFunc() in /my/php_module.php:7
-Stack trace:
-#0 {main}
-  thrown in /my/php_module.php on line 7
+Fatal error: Native JavaScript error: My native error in unknown on line unknown
 
 EOS
 */;}) //jshint ignore:line
                 ]);
-            }.bind(this)
+            }
         );
     });
 
@@ -194,22 +170,22 @@ ini_set('error_reporting', E_ALL);
 ini_set('display_errors', 'Off');
 
 
-myFunc();
+raise_native_error();
 EOS
 */;}),//jshint ignore:line
             module = tools.syncTranspile('/your/php_module.php', php),
             engine = module();
+        engine.defineCoercingFunction('raise_native_error', function () {
+            throw new Error('My native error');
+        });
 
         try {
-            this.doRun(engine);
+            doRun(engine);
         } catch (error) {}
 
-        expect(this.outputLog).to.deep.equal([
+        expect(outputLog).to.deep.equal([
             nowdoc(function () {/*<<<EOS
-[stderr]PHP Fatal error:  Uncaught Error: Call to undefined function myFunc() in /your/php_module.php:6
-Stack trace:
-#0 {main}
-  thrown in /your/php_module.php on line 6
+[stderr]PHP Fatal error:  Native JavaScript error: My native error in unknown on line unknown
 
 EOS
 */;}) //jshint ignore:line
@@ -224,24 +200,24 @@ ini_set('display_errors', 'On');
 
 $anUndefinedVariable;
 
-myFunc();
+raise_native_error();
 EOS
 */;}),//jshint ignore:line
             module = tools.syncTranspile('/my/php_module.php', php),
             engine = module();
+        engine.defineCoercingFunction('raise_native_error', function () {
+            throw new Error('My native error');
+        });
 
         try {
-            this.doRun(engine);
+            doRun(engine);
         } catch (error) {}
 
-        expect(this.outputLog).to.deep.equal([
+        expect(outputLog).to.deep.equal([
             // The E_NOTICE errors should be sent to neither stdout nor stderr
 
             nowdoc(function () {/*<<<EOS
-[stderr]PHP Fatal error:  Uncaught Error: Call to undefined function myFunc() in /my/php_module.php:7
-Stack trace:
-#0 {main}
-  thrown in /my/php_module.php on line 7
+[stderr]PHP Fatal error:  Native JavaScript error: My native error in unknown on line unknown
 
 EOS
 */;}), //jshint ignore:line
@@ -249,10 +225,7 @@ EOS
             // NB: Stdout should have a leading newline written out just before the message
             nowdoc(function () {/*<<<EOS
 [stdout]
-Fatal error: Uncaught Error: Call to undefined function myFunc() in /my/php_module.php:7
-Stack trace:
-#0 {main}
-  thrown in /my/php_module.php on line 7
+Fatal error: Native JavaScript error: My native error in unknown on line unknown
 
 EOS
 */;}) //jshint ignore:line

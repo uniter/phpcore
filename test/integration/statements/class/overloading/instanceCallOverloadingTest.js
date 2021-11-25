@@ -33,7 +33,7 @@ $object = new MyClass;
 return $object->myUndefinedMethod(21, 2);
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.equal('myUndefinedMethod :: 42');
     });
@@ -65,7 +65,7 @@ $object = new MyClass;
 return $object->firstMethod(21, 2);
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.equal('non-static call: undefinedSecondMethod :: 42');
     });
@@ -92,7 +92,7 @@ $object = new MyClass;
 return $object->firstMethod(21, 2);
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.equal('static call: undefinedSecondMethod :: 42');
     });

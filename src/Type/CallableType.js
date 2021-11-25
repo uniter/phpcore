@@ -52,8 +52,12 @@ _.extend(CallableType.prototype, {
      * {@inheritdoc}
      */
     allowsValue: function (value) {
-        return value.isCallable(this.namespaceScope.getGlobalNamespace()) ||
-            (this.allowsNull() && value.getType() === 'null');
+        var typeObject = this;
+
+        return value.isCallable(typeObject.namespaceScope.getGlobalNamespace())
+            .next(function (isCallable) {
+                return isCallable || (typeObject.allowsNull() && value.getType() === 'null');
+            });
     },
 
     /**

@@ -110,39 +110,6 @@ module.exports = require('pauser')([
                         call,
                         newStaticClass = null;
 
-                    if (factory.newStaticClassForNextCall !== null) {
-                        newStaticClass = factory.newStaticClassForNextCall;
-                        factory.newStaticClassForNextCall = null;
-                    } else if (staticClass) {
-                        // Allow an explicit static class to be specified, eg. by a Closure
-                        newStaticClass = staticClass;
-                    }
-
-                    if (!factory.valueFactory.isValue(thisObject)) {
-                        thisObject = null;
-                    }
-
-                    // Coerce parameter arguments as required
-                    args = functionSpec.coerceArguments(args);
-
-                    scope = factory.scopeFactory.create(currentClass, wrapperFunc, thisObject);
-                    call = factory.callFactory.create(scope, namespaceScope, args, newStaticClass);
-
-                    // Push the call onto the stack
-                    factory.callStack.push(call);
-
-                    try {
-                        // Now validate the arguments at this point (coercion was done earlier)
-                        // - if any error is raised then the call will still be popped off
-                        //   by the finally clause below
-                        functionSpec.validateArguments(args);
-
-                        // Now populate any optional arguments that were omitted with their default values
-                        args = functionSpec.populateDefaultArguments(args);
-                    } catch (error) {
-                        return factory.valueFactory.createRejection(error);
-                    }
-
                     function finishCall(result) {
                         var resultReference;
 
@@ -166,67 +133,103 @@ module.exports = require('pauser')([
                     }
 
                     function doCall() {
-                        var result;
-
-                        try {
-                            result = func.apply(scope, args);
-                        } catch (error) {
-                            if (!(error instanceof Pause)) {
-                                return factory.valueFactory.createRejection(error);
-                            }
-
-                            error.next(
-                                function (result) {
-                                    /*
-                                     * Note that the result passed here for the opcode we are about to resume
-                                     * by re-calling the userland function has already been provided (see Pause),
-                                     * so the result argument passed to this callback may be ignored.
-                                     *
-                                     * If the pause resulted in an error, then we also want to re-call
-                                     * the function in order to resume with a throwInto at the correct opcode
-                                     * (see catch handler below).
-                                     */
-                                    if (functionSpec.isUserland()) {
-                                        return doCall();
-                                    }
-
-                                    return finishCall(result);
+                        return factory.valueFactory
+                            .maybeFuturise(
+                                function () {
+                                    return func.apply(scope, args);
                                 },
-                                function (error) {
-                                    /*
-                                     * Note that the error passed here for the opcode we are about to throwInto
-                                     * by re-calling the userland function has already been provided (see Pause),
-                                     * so the error argument passed to this callback may be ignored.
-                                     *
-                                     * Similar to the above, we want to re-call the function in order to resume
-                                     * with a throwInto at the correct opcode.
-                                     */
-                                    if (functionSpec.isUserland()) {
-                                        return doCall();
-                                    }
+                                function (pause) {
+                                    pause.next(
+                                        function (result) {
+                                            /*
+                                             * Note that the result passed here for the opcode we are about to resume
+                                             * by re-calling the userland function has already been provided (see Pause),
+                                             * so the result argument passed to this callback may be ignored.
+                                             *
+                                             * If the pause resulted in an error, then we also want to re-call
+                                             * the function in order to resume with a throwInto at the correct opcode
+                                             * (see catch handler below).
+                                             */
+                                            if (functionSpec.isUserland()) {
+                                                return doCall();
+                                            }
 
-                                    throw error;
+                                            return finishCall(result);
+                                        },
+                                        function (error) {
+                                            /*
+                                             * Note that the error passed here for the opcode we are about to throwInto
+                                             * by re-calling the userland function has already been provided (see Pause),
+                                             * so the error argument passed to this callback may be ignored.
+                                             *
+                                             * Similar to the above, we want to re-call the function in order to resume
+                                             * with a throwInto at the correct opcode.
+                                             */
+                                            if (functionSpec.isUserland()) {
+                                                return doCall();
+                                            }
+
+                                            throw error;
+                                        }
+                                    );
                                 }
-                            );
-
-                            // We have intercepted a pause - it must be marked as complete so that the future
-                            // we will create is able to raise its own pause
-                            factory.controlScope.markPaused(error);
-
-                            // Convert the caught pause into a Future to be awaited
-                            return factory.valueFactory.createFuture(function (resolve, reject) {
-                                error.next(resolve, reject);
-                            });
-                        }
-
-                        return finishCall(result);
+                            )
+                            .next(finishCall);
                     }
 
-                    return doCall().finally(function () {
-                        // Once the call completes, whether with a result or a thrown error/exception,
-                        // pop the call off of the stack
-                        factory.callStack.pop();
-                    });
+                    if (factory.newStaticClassForNextCall !== null) {
+                        newStaticClass = factory.newStaticClassForNextCall;
+                        factory.newStaticClassForNextCall = null;
+                    } else if (staticClass) {
+                        // Allow an explicit static class to be specified, eg. by a Closure
+                        newStaticClass = staticClass;
+                    }
+
+                    if (!factory.valueFactory.isValue(thisObject)) {
+                        thisObject = null;
+                    }
+
+                    // Coerce parameter arguments as required
+                    args = functionSpec.coerceArguments(args);
+
+                    scope = factory.scopeFactory.create(currentClass, wrapperFunc, thisObject);
+                    call = factory.callFactory.create(scope, namespaceScope, args, newStaticClass);
+
+                    // TODO: Remove NamespaceScope concept, instead handling at compile time.
+                    namespaceScope.enter();
+
+                    // Push the call onto the stack
+                    factory.callStack.push(call);
+
+                    // Now validate the arguments at this point (coercion was done earlier)
+                    // - if any error is raised then the call will still be popped off
+                    //   by the finally clause below
+                    return functionSpec.validateArguments(args)
+                        .next(function () {
+                            /*
+                             * Now populate any optional arguments that were omitted with their default values.
+                             *
+                             * Note that default args could be async and cause a pause,
+                             *     eg. if a default value is a constant of an asynchronously autoloaded class
+                             */
+                            return functionSpec.populateDefaultArguments(args);
+                        })
+                        .next(function (populatedArguments) {
+                            args = populatedArguments;
+
+                            return doCall();
+                        })
+                        .finally(function () {
+                            // Once the call completes, whether with a result or a thrown error/exception,
+                            // pop the call off of the stack
+
+                            // TODO: This was previously not being done if an error occurred during arg defaults population, cover with unit test
+                            factory.callStack.pop();
+
+                            // TODO: Remove NamespaceScope...
+                            namespaceScope.leave();
+                        })
+                        .asValue();
                 };
 
             wrapperFunc.functionSpec = functionSpec;

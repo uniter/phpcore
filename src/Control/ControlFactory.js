@@ -16,10 +16,10 @@ var _ = require('microdash');
  * @param {class} Trace
  * @param {ControlBridge} controlBridge
  * @param {ControlScope} controlScope
- * @param {OpcodeFactory} opcodeFactory
+ * @param {OpcodePool} opcodePool
  * @constructor
  */
-function ControlFactory(Sequence, Trace, controlBridge, controlScope, opcodeFactory) {
+function ControlFactory(Sequence, Trace, controlBridge, controlScope, opcodePool) {
     /**
      * @type {ControlBridge}
      */
@@ -33,9 +33,9 @@ function ControlFactory(Sequence, Trace, controlBridge, controlScope, opcodeFact
      */
     this.flow = null;
     /**
-     * @type {OpcodeFactory}
+     * @type {OpcodePool}
      */
-    this.opcodeFactory = opcodeFactory;
+    this.opcodePool = opcodePool;
     /**
      * @type {class}
      */
@@ -66,7 +66,7 @@ _.extend(ControlFactory.prototype, {
     createTrace: function () {
         var factory = this;
 
-        return new factory.Trace(factory.opcodeFactory);
+        return new factory.Trace(factory.opcodePool);
     },
 
     /**

@@ -27,7 +27,7 @@ $result[] = log_and_return($myVar);
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php, {
+            module = tools.syncTranspile('my/caller.php', php, {
                 phpToAST: {
                     captureAllBounds: true
                 },
@@ -37,14 +37,12 @@ EOS
             }),
             log = [],
             options = {
-                path: 'my/caller.php',
                 // Define a very simple tick handler, that just logs the details of the statement
                 tick: function (path, startLine, startColumn, endLine, endColumn) {
                     log.push('tick() :: ' + path + '@' + startLine + ':' + startColumn + '-' + endLine + ':' + endColumn);
                 }
             },
             engine = module(options);
-
         engine.defineCoercingFunction('log_and_return', function (value) {
             log.push('log_and_return() :: ' + value);
 

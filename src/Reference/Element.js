@@ -22,8 +22,8 @@ var _ = require('microdash'),
  *
  * @param {ValueFactory} valueFactory
  * @param {ReferenceFactory} referenceFactory
+ * @param {FutureFactory} futureFactory
  * @param {CallStack} callStack
- * @param {Flow} flow
  * @param {ArrayValue} arrayValue
  * @param {Value} key
  * @param {Value|null} value
@@ -33,8 +33,8 @@ var _ = require('microdash'),
 function ElementReference(
     valueFactory,
     referenceFactory,
+    futureFactory,
     callStack,
-    flow,
     arrayValue,
     key,
     value,
@@ -44,12 +44,16 @@ function ElementReference(
         throw new Error('Array elements can only have a value or be a reference, not both');
     }
 
-    Reference.call(this, referenceFactory, flow);
+    Reference.call(this, referenceFactory);
 
     /**
      * @type {ArrayValue}
      */
     this.arrayValue = arrayValue;
+    /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
     /**
      * @type {Value}
      */
@@ -161,9 +165,9 @@ _.extend(ElementReference.prototype, {
     },
 
     /**
-     * Determines whether the specified array element is "empty" or not
+     * Determines whether the specified array element is "empty" or not.
      *
-     * @returns {boolean|Future}
+     * @returns {Future<boolean>}
      */
     isEmpty: function () {
         var element = this;
@@ -176,13 +180,16 @@ _.extend(ElementReference.prototype, {
             return element.reference.getValue().isEmpty();
         }
 
-        return true; // Undefined elements are empty
+        return element.futureFactory.createPresent(true); // Undefined elements are empty.
     },
 
     isReference: function () {
         return !!this.reference;
     },
 
+    /**
+     * {@inheritdoc}
+     */
     isSet: function () {
         var element = this;
 
@@ -194,7 +201,7 @@ _.extend(ElementReference.prototype, {
             return element.reference.getValue().isSet();
         }
 
-        return false;
+        return element.futureFactory.createPresent(false);
     },
 
     /**
@@ -219,6 +226,7 @@ _.extend(ElementReference.prototype, {
         element.arrayValue.defineElement(element);
 
         element.reference = reference;
+        element.value = null;
 
         if (isFirstElement) {
             element.arrayValue.pointToElement(element);

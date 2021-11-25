@@ -41,7 +41,7 @@ $newClosure = Closure::bind($closure, $newThis);
 return $newClosure();
 EOS
 */;}),//jshint ignore:line,
-                module = tools.syncTranspile(null, php),
+                module = tools.syncTranspile('/path/to/my_module.php', php),
                 engine = module(),
                 result = engine.execute();
 
@@ -86,7 +86,7 @@ namespace
 }
 EOS
 */;}),//jshint ignore:line,
-                module = tools.syncTranspile(null, php),
+                module = tools.syncTranspile('/path/to/my_module.php', php),
                 engine = module(),
                 result = engine.execute();
 
@@ -122,7 +122,7 @@ $newClosure = $closure->bindTo($newThis);
 return $newClosure();
 EOS
 */;}),//jshint ignore:line,
-                module = tools.syncTranspile(null, php),
+                module = tools.syncTranspile('/path/to/my_module.php', php),
                 engine = module(),
                 result = engine.execute();
 
@@ -166,7 +166,7 @@ namespace
 }
 EOS
 */;}),//jshint ignore:line,
-                module = tools.syncTranspile(null, php),
+                module = tools.syncTranspile('/path/to/my_module.php', php),
                 engine = module(),
                 result = engine.execute();
 

@@ -11,17 +11,24 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
-    Exception = phpCommon.Exception;
+    Exception = phpCommon.Exception,
+    Promise = require('lie');
 
 /**
  * ...
  *
  * @param {FutureFactory} futureFactory
  * @param {PauseFactory} pauseFactory
+ * @param {ValueFactory} valueFactory
  * @param {Sequence} sequence
  * @constructor
  */
-function Future(futureFactory, pauseFactory, sequence) {
+function Future(
+    futureFactory,
+    pauseFactory,
+    valueFactory,
+    sequence
+) {
     /**
      * @type {FutureFactory}
      */
@@ -34,9 +41,24 @@ function Future(futureFactory, pauseFactory, sequence) {
      * @type {Sequence}
      */
     this.sequence = sequence;
+    /**
+     * @type {ValueFactory}
+     */
+    this.valueFactory = valueFactory;
 }
 
 _.extend(Future.prototype, {
+    /**
+     * Derives a FutureValue from this future
+     *
+     * @returns {FutureValue}
+     */
+    asValue: function () {
+        var future = this;
+
+        return future.valueFactory.deriveFuture(future);
+    },
+
     /**
      * Attaches a callback to be called when the value evaluation resulted in an error.
      *
@@ -89,6 +111,19 @@ _.extend(Future.prototype, {
         future.sequence.next(resumeHandler, catchHandler);
 
         return future; // Fluent interface
+    },
+
+    /**
+     * Derives a promise of this future (shared interface with Value)
+     *
+     * @returns {Promise<*>}
+     */
+    toPromise: function () {
+        var future = this;
+
+        return new Promise(function (resolve, reject) {
+            future.derive().next(resolve, reject);
+        });
     },
 
     /**

@@ -34,7 +34,7 @@ return [
 ];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal({
             'Fib of 6': 8,
@@ -61,7 +61,7 @@ return [
 ];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal({
             'Fib of 6': 8,

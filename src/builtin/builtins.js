@@ -10,6 +10,7 @@
 'use strict';
 
 module.exports = require('pauser')([
+    require('./services/base'),
     require('./opcodes/calculation'),
     require('./functions/optionsAndInfo/config'),
     require('./opcodes/controlExpression'),
@@ -32,12 +33,14 @@ module.exports = require('pauser')([
     require('./classes/Exception'),
     require('./interfaces/Iterator'),
     require('./interfaces/IteratorAggregate'),
+    require('./classes/JSArray'),
     require('./classes/JSObject'),
     require('./classes/Error/ParseError'),
     require('./interfaces/Throwable'),
     require('./interfaces/Traversable'),
     require('./classes/Error/TypeError')
 ], function (
+    baseServiceGroup,
     calculationOpcodeGroup,
     configOptionsAndInfoFunctions,
     controlExpressionOpcodeGroup,
@@ -60,6 +63,7 @@ module.exports = require('pauser')([
     Exception,
     Iterator,
     IteratorAggregate,
+    JSArray,
     JSObject,
     ParseError,
     Throwable,
@@ -78,10 +82,11 @@ module.exports = require('pauser')([
             {'TypeError': TypeError},
             {'ArgumentCountError': ArgumentCountError},
             {'Exception': Exception},
+            {'Traversable': Traversable},
             {'Iterator': Iterator},
             {'IteratorAggregate': IteratorAggregate},
-            {'JSObject': JSObject},
-            {'Traversable': Traversable}
+            {'JSArray': JSArray},
+            {'JSObject': JSObject}
         ],
         constantGroups: [
             errorHandlingConstants,
@@ -100,6 +105,9 @@ module.exports = require('pauser')([
             controlStructureOpcodeGroup,
             instrumentationOpcodeGroup,
             loopStructureOpcodeGroup
+        ],
+        serviceGroups: [
+            baseServiceGroup
         ],
         translationCatalogues: [
             errorMessages,

@@ -37,7 +37,7 @@ _.extend(TypeInterface.prototype, {
      * would allow the given value
      *
      * @param {Value} value
-     * @returns {bool}
+     * @returns {Future<bool>}
      */
     allowsValue: throwUnimplemented('allowsValue'),
 

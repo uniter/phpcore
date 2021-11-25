@@ -165,6 +165,11 @@ _.extend(CallStack.prototype, {
         return this.getCurrent().getScope();
     },
 
+    /**
+     * Fetches the control trace for the current call
+     *
+     * @returns {Trace}
+     */
     getCurrentTrace: function () {
         var currentCall = this.getCurrent();
 

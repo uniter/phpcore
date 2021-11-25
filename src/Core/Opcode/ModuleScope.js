@@ -9,7 +9,9 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    phpCommon = require('phpcommon'),
+    Exception = phpCommon.Exception;
 
 /**
  * @param {ValueFactory} valueFactory
@@ -47,6 +49,10 @@ function ModuleScope(
      */
     this.module = module;
     /**
+     * @type {NamespaceScope[]}
+     */
+    this.namespaceScopeStack = [];
+    /**
      * @type {ScopeFactory}
      */
     this.scopeFactory = scopeFactory;
@@ -61,6 +67,18 @@ function ModuleScope(
 }
 
 _.extend(ModuleScope.prototype, {
+    /**
+     * Enters a NamespaceScope, making it the current one for this module scope
+     *
+     * @param {NamespaceScope} namespaceScope
+     */
+    enterNamespaceScope: function (namespaceScope) {
+        var scope = this;
+
+        scope.namespaceScopeStack.push(scope.currentNamespaceScope);
+        scope.currentNamespaceScope = namespaceScope;
+    },
+
     /**
      * Fetches the current NamespaceScope
      *
@@ -104,6 +122,25 @@ _.extend(ModuleScope.prototype, {
     },
 
     /**
+     * Leaves the current NamespaceScope, returning to the previous one for this module scope
+     *
+     * @param {NamespaceScope} namespaceScope
+     */
+    leaveNamespaceScope: function (namespaceScope) {
+        var scope = this;
+
+        if (scope.currentNamespaceScope !== namespaceScope) {
+            throw new Exception('leaveNamespaceScope() :: Incorrect NamespaceScope provided');
+        }
+
+        if (scope.namespaceScopeStack.length === 0) {
+            throw new Exception('leaveNamespaceScope() :: NamespaceScope stack is empty');
+        }
+
+        scope.currentNamespaceScope = scope.namespaceScopeStack.pop();
+    },
+
+    /**
      * Creates a NamespaceScope for the given descendant namespace of this one, switching to it
      *
      * @param {string} name
@@ -124,7 +161,6 @@ _.extend(ModuleScope.prototype, {
     useGlobalNamespaceScope: function () {
         var scope = this,
             namespaceScope = scope.scopeFactory.createNamespaceScope(
-                scope.globalNamespace,
                 scope.globalNamespace,
                 scope.module
             );

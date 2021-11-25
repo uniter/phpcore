@@ -17,15 +17,20 @@ var _ = require('microdash'),
 /**
  * Represents a type that can only accept an instance of the specified class or interface or null (if allowed)
  *
+ * @param {FutureFactory} futureFactory
  * @param {string} className
  * @param {boolean} nullIsAllowed
  * @constructor
  */
-function ClassType(className, nullIsAllowed) {
+function ClassType(futureFactory, className, nullIsAllowed) {
     /**
      * @type {string}
      */
     this.className = className;
+    /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
     /**
      * @type {boolean}
      */
@@ -50,8 +55,10 @@ _.extend(ClassType.prototype, {
     allowsValue: function (value) {
         var typeObject = this;
 
-        return (value.getType() === 'object' && value.classIs(typeObject.className)) ||
-            (typeObject.allowsNull() && value.getType() === 'null');
+        return typeObject.futureFactory.createPresent(
+            (value.getType() === 'object' && value.classIs(typeObject.className)) ||
+            (typeObject.allowsNull() && value.getType() === 'null')
+        );
     },
 
     /**

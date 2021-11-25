@@ -12,6 +12,10 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('./tools'),
+    ControlBridge = require('../../src/Control/ControlBridge'),
+    ControlFactory = require('../../src/Control/ControlFactory'),
+    ControlScope = require('../../src/Control/ControlScope'),
     ErrorReporting = require('../../src/Error/ErrorReporting'),
     Exception = phpCommon.Exception,
     FFIResult = require('../../src/FFI/Result'),
@@ -23,8 +27,7 @@ var expect = require('chai').expect,
     Runtime = require('../../src/Runtime').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
     Stream = require('../../src/Stream'),
-    Translator = phpCommon.Translator,
-    ValueFactory = require('../../src/ValueFactory').sync();
+    Translator = phpCommon.Translator;
 
 describe('PHPState', function () {
     var globalStackHooker,
@@ -34,7 +37,6 @@ describe('PHPState', function () {
         stderr,
         stdin,
         stdout,
-        pausable,
         runtime,
         valueFactory;
 
@@ -45,9 +47,8 @@ describe('PHPState', function () {
         stdin = sinon.createStubInstance(Stream);
         stdout = sinon.createStubInstance(Stream);
         stderr = sinon.createStubInstance(Stream);
-        pausable = {};
         runtime = sinon.createStubInstance(Runtime);
-        valueFactory = new ValueFactory();
+        valueFactory = tools.createIsolatedState().getValueFactory();
 
         state = new PHPState(
             runtime,
@@ -56,7 +57,6 @@ describe('PHPState', function () {
             stdin,
             stdout,
             stderr,
-            pausable,
             'async'
         );
     });
@@ -76,7 +76,6 @@ describe('PHPState', function () {
                 stdin,
                 stdout,
                 stderr,
-                pausable,
                 'async'
             );
 
@@ -98,7 +97,6 @@ describe('PHPState', function () {
                 stdin,
                 stdout,
                 stderr,
-                pausable,
                 'async'
             );
 
@@ -106,7 +104,7 @@ describe('PHPState', function () {
             expect(state.getGlobalNamespace().getDescendant('Some\\Stuff').hasClass('AClass')).to.be.true;
         });
 
-        it('should throw if a class that does not extend another attempts to call its superconstructor', function () {
+        it('should throw if a class that does not extend another attempts to call its superconstructor', async function () {
             var AClass;
             state = new PHPState(
                 runtime,
@@ -125,10 +123,9 @@ describe('PHPState', function () {
                 stdin,
                 stdout,
                 stderr,
-                pausable,
                 'async'
             );
-            AClass = state.getGlobalNamespace().getClass('Some\\Stuff\\AClass');
+            AClass = await state.getGlobalNamespace().getClass('Some\\Stuff\\AClass').toPromise();
 
             expect(function () {
                 AClass.instantiate();
@@ -163,7 +160,6 @@ describe('PHPState', function () {
                 stdin,
                 stdout,
                 stderr,
-                pausable,
                 'async'
             );
 
@@ -188,7 +184,6 @@ describe('PHPState', function () {
                 stdin,
                 stdout,
                 stderr,
-                pausable,
                 'async'
             );
 
@@ -216,7 +211,6 @@ describe('PHPState', function () {
                 stdin,
                 stdout,
                 stderr,
-                pausable,
                 'async'
             );
 
@@ -232,7 +226,6 @@ describe('PHPState', function () {
                 stdin,
                 stdout,
                 stderr,
-                pausable,
                 'async',
                 [
                     function (internals) {
@@ -255,7 +248,6 @@ describe('PHPState', function () {
                 stdin,
                 stdout,
                 stderr,
-                pausable,
                 'async',
                 [],
                 {
@@ -284,7 +276,6 @@ describe('PHPState', function () {
                 stdin,
                 stdout,
                 stderr,
-                pausable,
                 'async'
             );
 
@@ -314,11 +305,35 @@ describe('PHPState', function () {
                 stdin,
                 stdout,
                 stderr,
-                pausable,
                 'async'
             );
 
             expect(state.getINIOption('my_ini_setting')).to.equal(212);
+        });
+
+        it('should install any opcode handlers', function () {
+            var opcodeHandler = sinon.stub();
+            state = new PHPState(
+                runtime,
+                globalStackHooker,
+                {
+                    opcodeGroups: [
+                        function (internals) {
+                            internals.setOpcodeFetcher('calculation');
+
+                            return {
+                                'my_opcode': opcodeHandler
+                            };
+                        }
+                    ]
+                },
+                stdin,
+                stdout,
+                stderr,
+                'sync'
+            );
+
+            expect(state.getCoreBinder().getOpcodeHandlers(['my_opcode'])).to.contain(opcodeHandler);
         });
 
         it('should install any translations', function () {
@@ -339,7 +354,6 @@ describe('PHPState', function () {
                 stdin,
                 stdout,
                 stderr,
-                pausable,
                 'sync'
             );
 
@@ -357,7 +371,6 @@ describe('PHPState', function () {
                     stdin,
                     stdout,
                     stderr,
-                    pausable,
                     mode,
                     [
                         function (internals) {
@@ -380,7 +393,6 @@ describe('PHPState', function () {
                 stdin,
                 stdout,
                 stderr,
-                pausable,
                 'sync',
                 [
                     function (internals) {
@@ -412,7 +424,6 @@ describe('PHPState', function () {
                     stdin,
                     stdout,
                     stderr,
-                    pausable,
                     'async'
                 );
             }).to.throw(Exception, 'No binding is defined with name "some_undefined_binding"');
@@ -427,7 +438,6 @@ describe('PHPState', function () {
                     stdin,
                     stdout,
                     stderr,
-                    pausable,
                     'async',
                     [
                         function (internals) {
@@ -446,7 +456,6 @@ describe('PHPState', function () {
                 stdin,
                 stdout,
                 stderr,
-                pausable,
                 'sync',
                 [],
                 {
@@ -664,6 +673,40 @@ describe('PHPState', function () {
         });
     });
 
+    describe('defineServiceGroup()', function () {
+        it('should allow defining custom services', function () {
+            state.defineServiceGroup(function (internals) {
+                var getService = internals.getServiceFetcher();
+
+                return {
+                    'my_service': function () {
+                        return {'dependency': getService('my_dependency')};
+                    },
+                    'my_dependency': function () {
+                        return {'my': 'dependency'};
+                    }
+                };
+            });
+
+            expect(state.getService('my_service')).to.deep.equal({
+                'dependency': {'my': 'dependency'}
+            });
+        });
+
+        // Note that to do this correctly, an addon should be used.
+        it('should throw when attempting to redefine an instantiated service', function () {
+            expect(function () {
+                state.defineServiceGroup(function (internals) {
+                    internals.allowServiceOverride(); // Still should not allow overriding already-instantiated services.
+
+                    return {
+                        'call_stack': {my: 'invalid fake CallStack'}
+                    };
+                });
+            }).to.throw(Exception, 'Service with ID "call_stack" has already been instantiated');
+        });
+    });
+
     describe('defineSuperGlobal()', function () {
         it('should be able to define a superglobal and assign it the given Value object', function () {
             state.defineSuperGlobal('MY_SUPER_GLOB', valueFactory.createInteger(27));
@@ -712,6 +755,24 @@ describe('PHPState', function () {
 
         it('should return null when the constant is not defined', function () {
             expect(state.getConstant('MY_UNDEFINED_CONST')).to.be.null;
+        });
+    });
+
+    describe('getControlBridge()', function () {
+        it('should return the ControlBridge service', function () {
+            expect(state.getControlBridge()).to.be.an.instanceOf(ControlBridge);
+        });
+    });
+
+    describe('getControlFactory()', function () {
+        it('should return the ControlFactory service', function () {
+            expect(state.getControlFactory()).to.be.an.instanceOf(ControlFactory);
+        });
+    });
+
+    describe('getControlScope()', function () {
+        it('should return the ControlScope service', function () {
+            expect(state.getControlScope()).to.be.an.instanceOf(ControlScope);
         });
     });
 

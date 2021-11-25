@@ -28,10 +28,21 @@ module.exports = function (internals) {
          * Used by "foreach (...)" constructs.
          *
          * @param {Reference|Value|Variable} arrayReference
-         * @returns {ArrayIterator|ObjectValue}
+         * @returns {Future<ArrayIterator>|FutureValue<ObjectValue>}
          */
         getIterator: function (arrayReference) {
             return arrayReference.getValue().getIterator();
+        },
+
+        /**
+         * Fetches the given reference's value, coerces it to boolean and then returns the native boolean value.
+         * Used by transpiled logical AND and OR expressions to implement short-circuiting.
+         *
+         * @param {Reference|Value|Variable} reference
+         * @returns {boolean}
+         */
+        logicalTerm: function (reference) {
+            return reference.getValue().coerceToBoolean().getNative();
         },
 
         /**

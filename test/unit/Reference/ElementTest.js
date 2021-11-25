@@ -11,6 +11,7 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('../tools'),
     ArrayValue = require('../../../src/Value/Array').sync(),
     CallStack = require('../../../src/CallStack'),
     ElementReference = require('../../../src/Reference/Element'),
@@ -19,22 +20,29 @@ var expect = require('chai').expect,
     Reference = require('../../../src/Reference/Reference'),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
     Value = require('../../../src/Value').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync(),
     Variable = require('../../../src/Variable').sync();
 
 describe('ElementReference', function () {
     var arrayValue,
         callStack,
         element,
+        futureFactory,
         keyValue,
+        referenceFactory,
+        state,
         value,
         valueFactory;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
-        valueFactory = new ValueFactory();
+        state = tools.createIsolatedState(null, {
+            'call_stack': callStack
+        });
+        futureFactory = state.getFutureFactory();
+        valueFactory = state.getValueFactory();
         arrayValue = sinon.createStubInstance(ArrayValue);
         keyValue = valueFactory.createString('my_element');
+        referenceFactory = state.getReferenceFactory();
         value = sinon.createStubInstance(Value);
 
         value.formatAsString.returns('\'the value of my...\'');
@@ -44,41 +52,14 @@ describe('ElementReference', function () {
 
         element = new ElementReference(
             valueFactory,
+            referenceFactory,
+            futureFactory,
             callStack,
             arrayValue,
             keyValue,
-            value
+            value,
+            null
         );
-    });
-
-    describe('concatWith()', function () {
-        it('should append the given value to the element\'s value and assign it back to the element', function () {
-            element.setValue(valueFactory.createString('hello'));
-
-            element.concatWith(valueFactory.createString(' world'));
-
-            expect(element.getNative()).to.equal('hello world');
-        });
-    });
-
-    describe('decrementBy()', function () {
-        it('should subtract the given value from the element\'s value and assign it back to the element', function () {
-            element.setValue(valueFactory.createInteger(20));
-
-            element.decrementBy(valueFactory.createInteger(4));
-
-            expect(element.getNative()).to.equal(16);
-        });
-    });
-
-    describe('divideBy()', function () {
-        it('should divide the element\'s value by the given value and assign it back to the element', function () {
-            element.setValue(valueFactory.createInteger(10));
-
-            element.divideBy(valueFactory.createInteger(2));
-
-            expect(element.getNative()).to.equal(5);
-        });
     });
 
     describe('formatAsString()', function () {
@@ -165,6 +146,8 @@ describe('ElementReference', function () {
             expect(function () {
                 var element = new ElementReference(
                     valueFactory,
+                    referenceFactory,
+                    futureFactory,
                     callStack,
                     arrayValue,
                     keyValue
@@ -261,22 +244,14 @@ describe('ElementReference', function () {
         it('should return null when the element is not defined', function () {
             var element = new ElementReference(
                 valueFactory,
+                referenceFactory,
+                futureFactory,
                 callStack,
                 arrayValue,
                 keyValue
             );
 
             expect(element.getValueReference()).to.be.null;
-        });
-    });
-
-    describe('incrementBy()', function () {
-        it('should add the given value to the element\'s value and assign it back to the element', function () {
-            element.setValue(valueFactory.createInteger(20));
-
-            element.incrementBy(valueFactory.createInteger(4));
-
-            expect(element.getNative()).to.equal(24);
         });
     });
 
@@ -319,64 +294,54 @@ describe('ElementReference', function () {
     });
 
     describe('isEmpty()', function () {
-        it('should return true for an unset element', function () {
+        it('should return true for an unset element', async function () {
             element.unset();
 
-            expect(element.isEmpty()).to.be.true;
+            expect(await element.isEmpty().toPromise()).to.be.true;
         });
 
-        it('should return true when the element has a value that is empty', function () {
-            value.isEmpty.returns(true);
+        it('should return true when the element has a value that is empty', async function () {
+            value.isEmpty.returns(futureFactory.createPresent(true));
 
-            expect(element.isEmpty()).to.be.true;
+            expect(await element.isEmpty().toPromise()).to.be.true;
         });
 
-        it('should return false when the element has a value that is not empty', function () {
-            value.isEmpty.returns(false);
+        it('should return false when the element has a value that is not empty', async function () {
+            value.isEmpty.returns(futureFactory.createPresent(false));
 
-            expect(element.isEmpty()).to.be.false;
+            expect(await element.isEmpty().toPromise()).to.be.false;
         });
 
-        it('should return true when the element has a reference to a value that is empty', function () {
+        it('should return true when the element has a reference to a value that is empty', async function () {
             var reference = sinon.createStubInstance(Variable);
             reference.getValue.returns(value);
-            value.isEmpty.returns(true);
+            value.isEmpty.returns(futureFactory.createPresent(true));
             element.setReference(reference);
 
-            expect(element.isEmpty()).to.be.true;
+            expect(await element.isEmpty().toPromise()).to.be.true;
         });
 
-        it('should return false when the element has a reference to a value that is not empty', function () {
+        it('should return false when the element has a reference to a value that is not empty', async function () {
             var reference = sinon.createStubInstance(Variable);
             reference.getValue.returns(value);
-            value.isEmpty.returns(false);
+            value.isEmpty.returns(futureFactory.createPresent(false));
             element.setReference(reference);
 
-            expect(element.isEmpty()).to.be.false;
+            expect(await element.isEmpty().toPromise()).to.be.false;
         });
     });
 
     describe('isSet()', function () {
-        it('should return true if the element\'s value is set', function () {
-            value.isSet.returns(true);
+        it('should return true if the element\'s value is set', async function () {
+            value.isSet.returns(futureFactory.createPresent(true));
 
-            expect(element.isSet()).to.be.true;
+            expect(await element.isSet().toPromise()).to.be.true;
         });
 
-        it('should return false if the element\'s value is not set', function () {
-            value.isSet.returns(false);
+        it('should return false if the element\'s value is not set', async function () {
+            value.isSet.returns(futureFactory.createPresent(false));
 
-            expect(element.isSet()).to.be.false;
-        });
-    });
-
-    describe('multiplyBy()', function () {
-        it('should multiply the element\'s value by the given value and assign it back to the element', function () {
-            element.setValue(valueFactory.createInteger(10));
-
-            element.multiplyBy(valueFactory.createInteger(2));
-
-            expect(element.getNative()).to.equal(20);
+            expect(await element.isSet().toPromise()).to.be.false;
         });
     });
 
@@ -484,10 +449,10 @@ describe('ElementReference', function () {
     });
 
     describe('unset()', function () {
-        it('should leave the element no longer set', function () {
+        it('should leave the element no longer set', async function () {
             element.unset();
 
-            expect(element.isSet()).to.be.false;
+            expect(await element.isSet().toPromise()).to.be.false;
         });
     });
 });

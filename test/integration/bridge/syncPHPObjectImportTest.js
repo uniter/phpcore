@@ -53,7 +53,7 @@ class MyChildAPI extends MyParentAPI {
 return new MyChildAPI();
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php),
+                module = tools.syncTranspile('/path/to/my_module.php', php),
                 phpEngine = module();
 
             this.moduleResult = phpEngine.execute();

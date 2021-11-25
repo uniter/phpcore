@@ -30,6 +30,19 @@ function Module(filePath) {
 
 _.extend(Module.prototype, {
     /**
+     * Enters a NamespaceScope, making it the current one for this module
+     *
+     * @param {NamespaceScope} namespaceScope
+     */
+    enterNamespaceScope: function (namespaceScope) {
+        var module = this;
+
+        if (module.scope) {
+            module.scope.enterNamespaceScope(namespaceScope);
+        }
+    },
+
+    /**
      * Fetches the path to the file this module is defined in, or null if none
      *
      * @returns {string|null}
@@ -51,6 +64,19 @@ _.extend(Module.prototype, {
         }
 
         return module.scope;
+    },
+
+    /**
+     * Leaves the current NamespaceScope, returning to the previous one for this module
+     *
+     * @param {NamespaceScope} namespaceScope
+     */
+    leaveNamespaceScope: function (namespaceScope) {
+        var module = this;
+
+        if (module.scope) {
+            module.scope.leaveNamespaceScope(namespaceScope);
+        }
     },
 
     /**

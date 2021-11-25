@@ -12,6 +12,7 @@
 var _ = require('microdash'),
     expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('./tools'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     ExportRepository = require('../../src/FFI/Export/ExportRepository'),
@@ -21,11 +22,12 @@ var _ = require('microdash'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPObject = require('../../src/FFI/Value/PHPObject').sync(),
+    ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     StaticPropertyReference = require('../../src/Reference/StaticProperty'),
     UndeclaredStaticPropertyReference = require('../../src/Reference/UndeclaredStaticProperty'),
     Value = require('../../src/Value').sync(),
-    ValueCoercer = require('../../src/FFI/Value/ValueCoercer'),
-    ValueFactory = require('../../src/ValueFactory').sync();
+    Userland = require('../../src/Control/Userland'),
+    ValueCoercer = require('../../src/FFI/Value/ValueCoercer');
 
 describe('Class', function () {
     var callStack,
@@ -33,23 +35,33 @@ describe('Class', function () {
         createClass,
         exportRepository,
         ffiFactory,
+        flow,
         functionFactory,
+        futureFactory,
         interfaceObject,
         namespaceScope,
+        referenceFactory,
+        state,
         superClass,
+        userland,
         valueCoercer,
         valueFactory,
         InternalClass;
 
     beforeEach(function () {
+        state = tools.createIsolatedState();
         callStack = sinon.createStubInstance(CallStack);
         exportRepository = sinon.createStubInstance(ExportRepository);
         ffiFactory = sinon.createStubInstance(FFIFactory);
+        flow = state.getFlow();
         functionFactory = sinon.createStubInstance(FunctionFactory);
+        futureFactory = state.getFutureFactory();
         namespaceScope = sinon.createStubInstance(NamespaceScope);
+        referenceFactory = sinon.createStubInstance(ReferenceFactory);
         superClass = sinon.createStubInstance(Class);
+        userland = sinon.createStubInstance(Userland);
         valueCoercer = sinon.createStubInstance(ValueCoercer);
-        valueFactory = new ValueFactory(null, callStack);
+        valueFactory = state.getValueFactory();
         InternalClass = sinon.stub();
         interfaceObject = sinon.createStubInstance(Class);
         interfaceObject.is
@@ -63,6 +75,31 @@ describe('Class', function () {
             throw new Error(
                 'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
             );
+        });
+
+        referenceFactory.createStaticProperty.callsFake(function (name, classObject, visibility, value) {
+            var reference = sinon.createStubInstance(StaticPropertyReference);
+
+            reference.getName.returns(name);
+            reference.getValue.returns(value);
+            reference.getVisibility.returns(visibility);
+
+            reference.setValue.callsFake(function (newValue) {
+                reference.getValue.returns(newValue);
+            });
+
+            return reference;
+        });
+        referenceFactory.createUndeclaredStaticProperty.callsFake(function (name) {
+            var reference = sinon.createStubInstance(UndeclaredStaticPropertyReference);
+
+            reference.getName.returns(name);
+
+            return reference;
+        });
+
+        userland.enterIsolated.callsFake(function (executor) {
+            return valueFactory.maybeFuturise(executor);
         });
 
         valueCoercer.coerceArguments.callsFake(function (argumentValues) {
@@ -79,8 +116,12 @@ describe('Class', function () {
         createClass = function (constructorName, superClass, constants) {
             classObject = new Class(
                 valueFactory,
+                referenceFactory,
                 functionFactory,
                 callStack,
+                flow,
+                futureFactory,
+                userland,
                 'My\\Class\\Path\\Here',
                 constructorName,
                 InternalClass,
@@ -107,7 +148,7 @@ describe('Class', function () {
                 },
                 constants || {},
                 superClass,
-                ['My\\Interface'],
+                [interfaceObject],
                 namespaceScope,
                 exportRepository,
                 valueCoercer,
@@ -504,14 +545,16 @@ describe('Class', function () {
 
     describe('getConstantByName()', function () {
         beforeEach(function () {
-            interfaceObject.getConstantByName.throws(new Error('Constant not defined'));
-            superClass.getConstantByName.throws(new Error('Constant not defined'));
+            interfaceObject.getConstantByName.returns(valueFactory.createRejection(new Error('Constant not defined')));
+            superClass.getConstantByName.returns(valueFactory.createRejection(new Error('Constant not defined')));
         });
 
         it('should return the FQCN for the magic `::class` constant', function () {
             createClass('__construct', superClass);
 
-            expect(classObject.getConstantByName('class').getNative()).to.equal('My\\Class\\Path\\Here');
+            return classObject.getConstantByName('class').toPromise().then(function (value) {
+                expect(value.getNative()).to.equal('My\\Class\\Path\\Here');
+            });
         });
 
         it('should be able to fetch a constant defined by the current class', function () {
@@ -521,7 +564,25 @@ describe('Class', function () {
                 }
             });
 
-            expect(classObject.getConstantByName('MY_CONST').getNative()).to.equal('my value');
+            return classObject.getConstantByName('MY_CONST').toPromise().then(function (value) {
+                expect(value.getNative()).to.equal('my value');
+            });
+        });
+
+        it('should evaluate a constant defined by the current class within an isolated opcode', function () {
+            createClass('__construct', superClass, {
+                'MY_CONST': function () {
+                    return valueFactory.createString('my value');
+                }
+            });
+
+            return classObject.getConstantByName('MY_CONST').toPromise().then(function () {
+                expect(userland.enterIsolated).to.have.been.calledOnce;
+                expect(userland.enterIsolated).to.have.been.calledWith(
+                    sinon.match.func,
+                    sinon.match.same(namespaceScope)
+                );
+            });
         });
 
         it('should be able to fetch a constant defined by an interface implemented directly by the current class', function () {
@@ -530,8 +591,9 @@ describe('Class', function () {
                 .returns(valueFactory.createString('my value from interface'));
             createClass('__construct', superClass);
 
-            expect(classObject.getConstantByName('MY_INTERFACE_CONST').getNative())
-                .to.equal('my value from interface');
+            return classObject.getConstantByName('MY_INTERFACE_CONST').toPromise().then(function (value) {
+                expect(value.getNative()).to.equal('my value from interface');
+            });
         });
 
         it('should be able to fetch a constant defined by the superclass (or other ancestor)', function () {
@@ -540,16 +602,15 @@ describe('Class', function () {
                 .returns(valueFactory.createString('my value from superclass'));
             createClass('__construct', superClass);
 
-            expect(classObject.getConstantByName('MY_SUPER_CONST').getNative())
-                .to.equal('my value from superclass');
+            return classObject.getConstantByName('MY_SUPER_CONST').toPromise().then(function (value) {
+                expect(value.getNative()).to.equal('my value from superclass');
+            });
         });
 
         it('should raise the correct error when the constant is not defined in the class hierarchy', function () {
             createClass('__construct', null);
 
-            expect(function () {
-                classObject.getConstantByName('MY_CONST');
-            }).to.throw(
+            return expect(classObject.getConstantByName('MY_CONST').toPromise()).to.eventually.be.rejectedWith(
                 'Fake PHP Fatal error for #core.undefined_class_constant with {"name":"MY_CONST"}'
             );
         });
@@ -557,13 +618,7 @@ describe('Class', function () {
 
     describe('getInterfaces()', function () {
         it('should return all interfaces implemented by this class', function () {
-            var interfaceObject = sinon.createStubInstance(Class),
-                result;
-            namespaceScope.getClass
-                .withArgs('My\\Interface')
-                .returns(interfaceObject);
-
-            result = classObject.getInterfaces();
+            var result = classObject.getInterfaces();
 
             expect(result).to.have.length(1);
             expect(result[0]).to.equal(interfaceObject);
@@ -797,13 +852,14 @@ describe('Class', function () {
         });
 
         describe('for an undefined property', function () {
-            it('should return an UndeclaredStaticPropertyReference', function () {
+            it('should return an UndeclaredStaticPropertyReference', async function () {
                 var propertyReference;
                 createClass('__construct', null);
 
-                propertyReference = classObject.getStaticPropertyByName('myUndeclaredStaticProp');
+                propertyReference = await classObject.getStaticPropertyByName('myUndeclaredStaticProp').toPromise();
 
                 expect(propertyReference).to.be.an.instanceOf(UndeclaredStaticPropertyReference);
+                expect(propertyReference.getName()).to.equal('myUndeclaredStaticProp');
             });
         });
 
@@ -823,8 +879,8 @@ describe('Class', function () {
                     .to.equal('my inherited static prop value');
             });
 
-            it('should return when not inside any class', function () {
-                var staticProperty = classObject.getStaticPropertyByName('myPublicStaticProp');
+            it('should return when not inside any class', async function () {
+                var staticProperty = await classObject.getStaticPropertyByName('myPublicStaticProp').toPromise();
 
                 expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
                 expect(staticProperty.getName()).to.equal('myPublicStaticProp');
@@ -832,11 +888,11 @@ describe('Class', function () {
                 expect(staticProperty.getValue().getNative()).to.equal('my public static prop value');
             });
 
-            it('should return when inside a class that is not the defining one', function () {
+            it('should return when inside a class that is not the defining one', async function () {
                 var staticProperty;
                 callStack.getCurrentClass.returns(foreignClass);
 
-                staticProperty = classObject.getStaticPropertyByName('myPublicStaticProp');
+                staticProperty = await classObject.getStaticPropertyByName('myPublicStaticProp').toPromise();
 
                 expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
                 expect(staticProperty.getName()).to.equal('myPublicStaticProp');
@@ -846,11 +902,11 @@ describe('Class', function () {
         });
 
         describe('for a protected property', function () {
-            it('should return when inside the defining class', function () {
+            it('should return when inside the defining class', async function () {
                 var staticProperty;
                 callStack.getCurrentClass.returns(classObject);
 
-                staticProperty = classObject.getStaticPropertyByName('myProtectedStaticProp');
+                staticProperty = await classObject.getStaticPropertyByName('myProtectedStaticProp').toPromise();
 
                 expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
                 expect(staticProperty.getName()).to.equal('myProtectedStaticProp');
@@ -869,11 +925,11 @@ describe('Class', function () {
                 );
             });
 
-            it('should return when inside a class that is an ancestor of the definer', function () {
+            it('should return when inside a class that is an ancestor of the definer', async function () {
                 var staticProperty;
                 callStack.getCurrentClass.returns(ancestorClass);
 
-                staticProperty = classObject.getStaticPropertyByName('myProtectedStaticProp');
+                staticProperty = await classObject.getStaticPropertyByName('myProtectedStaticProp').toPromise();
 
                 expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
                 expect(staticProperty.getName()).to.equal('myProtectedStaticProp');
@@ -881,11 +937,11 @@ describe('Class', function () {
                 expect(staticProperty.getValue().getNative()).to.equal('my protected static prop value');
             });
 
-            it('should return when inside a class that is a descendant of the definer', function () {
+            it('should return when inside a class that is a descendant of the definer', async function () {
                 var staticProperty;
                 callStack.getCurrentClass.returns(descendantClass);
 
-                staticProperty = classObject.getStaticPropertyByName('myProtectedStaticProp');
+                staticProperty = await classObject.getStaticPropertyByName('myProtectedStaticProp').toPromise();
 
                 expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
                 expect(staticProperty.getName()).to.equal('myProtectedStaticProp');
@@ -895,11 +951,11 @@ describe('Class', function () {
         });
 
         describe('for a private property', function () {
-            it('should return when inside the defining class', function () {
+            it('should return when inside the defining class', async function () {
                 var staticProperty;
                 callStack.getCurrentClass.returns(classObject);
 
-                staticProperty = classObject.getStaticPropertyByName('myPrivateStaticProp');
+                staticProperty = await classObject.getStaticPropertyByName('myPrivateStaticProp').toPromise();
 
                 expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
                 expect(staticProperty.getName()).to.equal('myPrivateStaticProp');

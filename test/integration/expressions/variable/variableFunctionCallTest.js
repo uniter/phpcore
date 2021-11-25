@@ -31,7 +31,7 @@ return [
 ];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal({
             'with variable containing name': 22,
@@ -52,7 +52,7 @@ $myFunctionName = 'mYFuNcTiON';
 return $myFunctionName(30);
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.equal(32);
     });
@@ -72,7 +72,7 @@ $myFunctionName($myArray);
 return $myArray;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal([
             21,

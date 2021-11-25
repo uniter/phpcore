@@ -14,24 +14,17 @@ var _ = require('microdash'),
     Reference = require('./Reference');
 
 /**
- * Stores a value that may be referred to by multiple variables or references
+ * Stores a value that may be referred to by multiple variables or references.
+ * Note that a ReferenceSlot cannot itself have a reference assigned to it:
+ * reference-assignments will change the reference that points _to_ this slot instead.
  *
  * @param {ValueFactory} valueFactory
  * @param {ReferenceFactory} referenceFactory
- * @param {Flow} flow
  * @constructor
  */
-function ReferenceSlot(valueFactory, referenceFactory, flow) {
-    Reference.call(this, referenceFactory, flow);
+function ReferenceSlot(valueFactory, referenceFactory) {
+    Reference.call(this, referenceFactory);
 
-    /**
-     * @type {Flow}
-     */
-    this.flow = flow;
-    /**
-     * @type {ReferenceFactory}
-     */
-    this.referenceFactory = referenceFactory;
     /**
      * Implicitly define this slot with a value of NULL
      *
@@ -68,16 +61,12 @@ _.extend(ReferenceSlot.prototype, {
         return true;
     },
 
-    // /**
-    //  * {@inheritdoc}
-    //  */
-    // setAsValueOrReferenceOf: function (arrayReference) {
-    //     var reference = this;
-    //
-    //     arrayReference.getValue().getPushElement().setReference(reference);
-    //
-    //     return reference.getValue();
-    // },
+    /**
+     * {@inheritdoc}
+     */
+    isEmpty: function () {
+        return this.value.isEmpty();
+    },
 
     /**
      * {@inheritdoc}

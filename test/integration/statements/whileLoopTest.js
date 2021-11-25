@@ -30,7 +30,7 @@ while ($i > 2) {
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal([
             '[5]',
@@ -63,7 +63,7 @@ while ($i > 2) {
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal([
             '[5]',
@@ -94,7 +94,7 @@ while (get_async($i) > get_async(2)) {
 return get_async($result);
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
         engine.defineFunction('get_async', function (internals) {
             return function (value) {
@@ -139,7 +139,7 @@ while (get_async($i) > get_async(2)) {
 return get_async($result);
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
         engine.defineFunction('get_async', function (internals) {
             return function (value) {

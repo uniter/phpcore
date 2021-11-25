@@ -12,24 +12,28 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../tools'),
     ArrayType = require('../../../src/Type/ArrayType'),
     Class = require('../../../src/Class').sync(),
-    Translator = phpCommon.Translator,
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    Translator = phpCommon.Translator;
 
 describe('ArrayType', function () {
-    var type,
+    var futureFactory,
+        state,
+        type,
         valueFactory;
 
     beforeEach(function () {
-        valueFactory = new ValueFactory();
+        state = tools.createIsolatedState();
+        futureFactory = state.getFutureFactory();
+        valueFactory = state.getValueFactory();
 
-        type = new ArrayType(false);
+        type = new ArrayType(futureFactory, false);
     });
 
     describe('allowsNull()', function () {
         it('should return true when set', function () {
-            type = new ArrayType(true);
+            type = new ArrayType(futureFactory, true);
 
             expect(type.allowsNull()).to.be.true;
         });
@@ -40,19 +44,19 @@ describe('ArrayType', function () {
     });
 
     describe('allowsValue()', function () {
-        it('should return true for an array', function () {
-            expect(type.allowsValue(valueFactory.createArray([21, 101]))).to.be.true;
+        it('should return true for an array', async function () {
+            expect(await type.allowsValue(valueFactory.createArray([21, 101])).toPromise()).to.be.true;
         });
 
-        it('should return false for all other types', function () {
+        it('should return false for all other types', async function () {
             var classObject = sinon.createStubInstance(Class);
 
-            expect(type.allowsValue(valueFactory.createBoolean(true))).to.be.false;
-            expect(type.allowsValue(valueFactory.createFloat(987.123))).to.be.false;
-            expect(type.allowsValue(valueFactory.createInteger(123))).to.be.false;
-            expect(type.allowsValue(valueFactory.createNull())).to.be.false;
-            expect(type.allowsValue(valueFactory.createObject({}, classObject))).to.be.false;
-            expect(type.allowsValue(valueFactory.createString('my string'))).to.be.false;
+            expect(await type.allowsValue(valueFactory.createBoolean(true)).toPromise()).to.be.false;
+            expect(await type.allowsValue(valueFactory.createFloat(987.123)).toPromise()).to.be.false;
+            expect(await type.allowsValue(valueFactory.createInteger(123)).toPromise()).to.be.false;
+            expect(await type.allowsValue(valueFactory.createNull()).toPromise()).to.be.false;
+            expect(await type.allowsValue(valueFactory.createObject({}, classObject)).toPromise()).to.be.false;
+            expect(await type.allowsValue(valueFactory.createString('my string')).toPromise()).to.be.false;
         });
     });
 

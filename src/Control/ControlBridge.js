@@ -14,9 +14,10 @@ var _ = require('microdash');
 /**
  * @param {class} Future
  * @param {class} FutureValue
+ * @param {class} Value
  * @constructor
  */
-function ControlBridge(Future, FutureValue) {
+function ControlBridge(Future, FutureValue, Value) {
     /**
      * @type {class}
      */
@@ -25,6 +26,10 @@ function ControlBridge(Future, FutureValue) {
      * @type {class}
      */
     this.FutureValue = FutureValue;
+    /**
+     * @type {class}
+     */
+    this.Value = Value;
 }
 
 _.extend(ControlBridge.prototype, {
@@ -37,7 +42,7 @@ _.extend(ControlBridge.prototype, {
     isChainable: function (value) {
         var bridge = this;
 
-        return bridge.isFuture(value);
+        return bridge.isFuture(value) || value instanceof bridge.Value;
     },
 
     /**

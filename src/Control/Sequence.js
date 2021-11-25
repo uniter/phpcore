@@ -58,7 +58,7 @@ var _ = require('microdash'),
 
             return resultValue
                 // Evaluate any futures before continuing
-                .next(sequence.boundResume, sequence.boundThrowInto);
+                .next(resume.bind(null, sequence), throwInto.bind(null, sequence));
         }
 
         if (resultValue instanceof Sequence) {
@@ -69,7 +69,7 @@ var _ = require('microdash'),
 
             return resultValue
                 // Evaluate any sequences before continuing
-                .next(sequence.boundResume, sequence.boundThrowInto);
+                .next(resume.bind(null, sequence), throwInto.bind(null, sequence));
         }
 
         if (sequence.handlers.length === 0) {
@@ -208,14 +208,6 @@ var _ = require('microdash'),
  * @constructor
  */
 function Sequence(controlFactory, controlBridge, controlScope, flow) {
-    /**
-     * @type {Function}
-     */
-    this.boundResume = resume.bind(null, this);
-    /**
-     * @type {Function}
-     */
-    this.boundThrowInto = throwInto.bind(null, this);
     /**
      * @type {ControlBridge}
      */

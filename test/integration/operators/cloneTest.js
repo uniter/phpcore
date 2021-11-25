@@ -45,7 +45,7 @@ $result['clone prop2, second'] = $clone->prop2;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal({
@@ -114,7 +114,7 @@ $result['clone prop3, second'] = $clone->prop3;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal({
@@ -171,7 +171,7 @@ $result['clone prop3, second'] = $clone->prop3;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.defineClass('MyClass', function (internals) {
@@ -238,7 +238,7 @@ $result['myProp of clone'] = (clone $original)->myProp;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal({
@@ -269,7 +269,7 @@ $result['is clone instanceof JSObject'] = $cloneObject instanceof JSObject;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module(),
             myObject = {
                 myProp: 'initial value',

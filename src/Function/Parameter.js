@@ -24,10 +24,14 @@ var _ = require('microdash'),
  *
  * @param {CallStack} callStack
  * @param {Translator} translator
+ * @param {FutureFactory} futureFactory
+ * @param {Flow} flow
+ * @param {Userland} userland
  * @param {string|null} name
  * @param {number} index
  * @param {TypeInterface} typeObject
  * @param {FunctionContextInterface} context
+ * @param {NamespaceScope} namespaceScope
  * @param {boolean} passedByReference
  * @param {Function|null} defaultValueProvider
  * @param {string|null} filePath
@@ -37,10 +41,14 @@ var _ = require('microdash'),
 function Parameter(
     callStack,
     translator,
+    futureFactory,
+    flow,
+    userland,
     name,
     index,
     typeObject,
     context,
+    namespaceScope,
     passedByReference,
     defaultValueProvider,
     filePath,
@@ -63,6 +71,14 @@ function Parameter(
      */
     this.filePath = filePath;
     /**
+     * @type {Flow}
+     */
+    this.flow = flow;
+    /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
+    /**
      * @type {number}
      */
     this.index = index;
@@ -75,6 +91,10 @@ function Parameter(
      */
     this.name = name;
     /**
+     * @type {NamespaceScope}
+     */
+    this.namespaceScope = namespaceScope;
+    /**
      * @type {boolean}
      */
     this.passedByReference = passedByReference;
@@ -86,6 +106,10 @@ function Parameter(
      * @type {TypeInterface}
      */
     this.typeObject = typeObject;
+    /**
+     * @type {Userland}
+     */
+    this.userland = userland;
 }
 
 _.extend(Parameter.prototype, {
@@ -131,7 +155,7 @@ _.extend(Parameter.prototype, {
      * Fetches the default value for this parameter if its argument is missing
      *
      * @param {Reference|Value|Variable|null=} argumentReference
-     * @returns {Reference|Value|Variable}
+     * @returns {Future<Reference|Variable>|Value}
      */
     populateDefaultArgument: function (argumentReference) {
         var parameter = this;
@@ -142,109 +166,122 @@ _.extend(Parameter.prototype, {
                 throw new Error('Missing argument for required parameter "' + parameter.name + '"');
             }
 
-            argumentReference = parameter.defaultValueProvider();
+            // Note that the result could be a FutureValue, eg. if a constant of an asynchronously autoloaded class
+            argumentReference = parameter.userland.enterIsolated(function () {
+                return parameter.defaultValueProvider();
+            }); // No need to set NamespaceScope as it will already have been done (see FunctionFactory)
         }
 
         // TODO: For PHP 7, if the caller is in weak mode then we need to coerce if the type is scalar
 
         // Make sure we preserve any reference rather than always casting to value
-        return argumentReference;
+        return parameter.flow.chainify(argumentReference);
     },
 
     /**
      * Validates whether the given argument is valid for this parameter
      *
      * @param {Reference|Value|Variable|null=} argumentReference
+     * @returns {Future<void>} Resolved if the argument is valid or rejected with an Error otherwise
      */
     validateArgument: function (argumentReference) {
-        var actualType,
-            argumentIsValid,
-            argumentValue,
-            callerFilePath = null,
-            callerLineNumber = null,
-            definitionFilePath,
-            definitionLineNumber,
-            expectedType,
+        var argumentValue,
             parameter = this;
 
-        if (parameter.passedByReference && argumentReference instanceof Value) {
-            // Parameter expects a reference but was given a value - error
-            parameter.callStack.raiseTranslatedError(
-                PHPError.E_ERROR,
-                ONLY_VARIABLES_BY_REFERENCE,
-                {},
-                null,
-                false,
-                parameter.callStack.getCallerFilePath(),
-                parameter.callStack.getCallerLastLine()
-            );
-        }
-
-        if (!argumentReference) {
-            if (parameter.isRequired()) {
-                // This should never happen - the scenario is captured within FunctionSpec
-                throw new Error('Missing argument for required parameter "' + parameter.name + '"');
+        return parameter.futureFactory.createFuture(function (resolve, reject) {
+            if (parameter.passedByReference && argumentReference instanceof Value) {
+                // Parameter expects a reference but was given a value - error
+                parameter.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    ONLY_VARIABLES_BY_REFERENCE,
+                    {},
+                    null,
+                    false,
+                    parameter.callStack.getCallerFilePath(),
+                    parameter.callStack.getCallerLastLine()
+                );
             }
 
-            // Argument was omitted but its parameter is optional: allow it through, we'll use its default value
-            return;
-        }
+            if (!argumentReference) {
+                if (parameter.isRequired()) {
+                    // This should never happen - the scenario is captured within FunctionSpec
+                    reject(new Error('Missing argument for required parameter "' + parameter.name + '"'));
+                    return;
+                }
 
-        argumentValue = argumentReference.getValueOrNull();
+                // Argument was omitted but its parameter is optional: allow it through, we'll use its default value
+                resolve();
+                return;
+            }
 
-        argumentIsValid =
+            argumentValue = argumentReference.getValueOrNull();
+
             // Check whether the type allows the given argument (including null,
             // if it is a nullable type) or ...
-            parameter.typeObject.allowsValue(argumentValue) ||
-            (
-                // ... otherwise if null is given but not allowed by the type,
-                // null will need to have been given as the default value in order to be allowed
-                argumentValue.getType() === 'null' &&
-                parameter.defaultValueProvider &&
-                parameter.defaultValueProvider().getType() === 'null'
-            );
+            parameter.typeObject.allowsValue(argumentValue)
+                .next(function (allowsValue) {
+                    var actualType,
+                        argumentIsValid = allowsValue ||
+                            (
+                                // ... otherwise if null is given but not allowed by the type,
+                                // null will need to have been given as the default value in order to be allowed
+                                argumentValue.getType() === 'null' &&
+                                parameter.defaultValueProvider &&
+                                parameter.defaultValueProvider().getType() === 'null'
+                            ),
+                        callerFilePath = null,
+                        callerLineNumber = null,
+                        definitionFilePath,
+                        definitionLineNumber,
+                        expectedType;
 
-        if (!argumentIsValid) {
-            // TODO: For PHP 7, if the caller is in weak mode then we need to coerce if the type is scalar
+                    if (argumentIsValid) {
+                        // Nothing to do; argument is allowed
+                        return;
+                    }
 
-            definitionFilePath = parameter.filePath || parameter.translator.translate(UNKNOWN);
-            definitionLineNumber = parameter.lineNumber || parameter.translator.translate(UNKNOWN);
+                    // TODO: For PHP 7, if the caller is in weak mode then we need to coerce if the type is scalar
 
-            if (parameter.callStack.getCurrent()) {
-                callerFilePath = parameter.callStack.getCallerFilePath();
-                callerLineNumber = parameter.callStack.getCallerLastLine();
-            }
+                    definitionFilePath = parameter.filePath || parameter.translator.translate(UNKNOWN);
+                    definitionLineNumber = parameter.lineNumber || parameter.translator.translate(UNKNOWN);
 
-            actualType = argumentValue.getDisplayType();
-            expectedType = parameter.typeObject.getExpectedMessage(parameter.translator);
+                    if (parameter.callStack.getCurrent()) {
+                        callerFilePath = parameter.callStack.getCallerFilePath();
+                        callerLineNumber = parameter.callStack.getCallerLastLine();
+                    }
 
-            if (argumentValue.getType() === 'object') {
-                actualType = parameter.translator.translate(INSTANCE_OF_TYPE_ACTUAL, {
-                    actualType: actualType
-                });
-            }
+                    actualType = argumentValue.getDisplayType();
+                    expectedType = parameter.typeObject.getExpectedMessage(parameter.translator);
 
-            // Parameter is typehinted as expecting instances of a class or interface,
-            // but the given argument does not match
-            parameter.callStack.raiseTranslatedError(
-                PHPError.E_ERROR,
-                INVALID_VALUE_FOR_TYPE,
-                {
-                    index: parameter.index + 1,
-                    func: parameter.context.getName(),
-                    expectedType: expectedType,
-                    actualType: actualType,
-                    callerFile: callerFilePath !== null ? callerFilePath : parameter.translator.translate(UNKNOWN),
-                    callerLine: callerLineNumber !== null ? callerLineNumber : parameter.translator.translate(UNKNOWN),
-                    definitionFile: definitionFilePath,
-                    definitionLine: definitionLineNumber
-                },
-                'TypeError',
-                true,
-                definitionFilePath,
-                definitionLineNumber
-            );
-        }
+                    if (argumentValue.getType() === 'object') {
+                        actualType = parameter.translator.translate(INSTANCE_OF_TYPE_ACTUAL, {
+                            actualType: actualType
+                        });
+                    }
+
+                    // Parameter is typehinted as expecting instances of a class or interface,
+                    // but the given argument does not match
+                    parameter.callStack.raiseTranslatedError(
+                        PHPError.E_ERROR,
+                        INVALID_VALUE_FOR_TYPE,
+                        {
+                            index: parameter.index + 1,
+                            func: parameter.context.getName(),
+                            expectedType: expectedType,
+                            actualType: actualType,
+                            callerFile: callerFilePath !== null ? callerFilePath : parameter.translator.translate(UNKNOWN),
+                            callerLine: callerLineNumber !== null ? callerLineNumber : parameter.translator.translate(UNKNOWN),
+                            definitionFile: definitionFilePath,
+                            definitionLine: definitionLineNumber
+                        },
+                        'TypeError',
+                        true,
+                        definitionFilePath,
+                        definitionLineNumber
+                    );
+                })
+                .next(resolve, reject);
+        });
     }
 });
 

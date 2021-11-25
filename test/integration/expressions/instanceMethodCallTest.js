@@ -29,7 +29,7 @@ class MyClass
 return MyClass::myMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.equal(21);
     });
@@ -48,7 +48,7 @@ class MyClass
 return (new MyClass)->MYMEthod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.equal(21);
     });
@@ -70,7 +70,7 @@ $myArray = [21, 101];
 return $myArray;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal([
             21,
@@ -110,7 +110,7 @@ $object->myProp = 7;
 return $object->myChildMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.equal(32);
@@ -155,7 +155,7 @@ $object->myProp = 7;
 return $object->myChildMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.equal(32);

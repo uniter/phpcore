@@ -39,7 +39,7 @@ $result[] = 6;
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal([1, 4, 5, 6]);
     });
@@ -130,7 +130,7 @@ $result[] = get_async('seventh');
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
         engine.defineCoercingFunction('get_async', function (value) {
             return this.createFutureValue(function (resolve) {
@@ -186,7 +186,7 @@ $result[] = get_async('seventh');
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
         engine.defineCoercingFunction('get_async', function (value) {
             var internals = this;

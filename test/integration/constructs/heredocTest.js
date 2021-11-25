@@ -41,7 +41,7 @@ QUOTED;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -63,7 +63,7 @@ HEREDOC;
 return $myHeredoc;
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
         engine.defineGlobalAccessor(
             'firstAccessorGlobal',
@@ -125,7 +125,7 @@ HEREDOC;
 return $myHeredoc;
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
         engine.defineFunction('get_async', function (internals) {
             return function (value) {

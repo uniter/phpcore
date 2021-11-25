@@ -25,18 +25,13 @@ module.exports = require('pauser')([
      * @param {ReferenceFactory} referenceFactory
      * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
-     * @param {Flow} flow
      * @param {string} value
      * @param {Namespace} globalNamespace
      * @constructor
      */
-    function StringValue(factory, referenceFactory, futureFactory, callStack, flow, value, globalNamespace) {
+    function StringValue(factory, referenceFactory, futureFactory, callStack, value, globalNamespace) {
         Value.call(this, factory, referenceFactory, futureFactory, callStack, 'string', value);
 
-        /**
-         * @type {Flow}
-         */
-        this.flow = flow;
         /**
          * @type {Namespace}
          */
@@ -70,8 +65,7 @@ module.exports = require('pauser')([
                 classNameValue = value.factory.createString(match[1]);
                 methodNameValue = value.factory.createString(match[2]);
 
-                // Note that this may pause due to autoloading (but is a tail-call,
-                // so no special handling is required at the moment)
+                // Note that this may return a FutureValue due to autoloading.
                 return classNameValue.callStaticMethod(methodNameValue, args);
             }
 
@@ -85,16 +79,19 @@ module.exports = require('pauser')([
          * @param {StringValue} nameValue
          * @param {Value[]} args
          * @param {bool=} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
-         * @returns {Future<Value>|Present<Value>}
+         * @returns {FutureValue}
          */
         callStaticMethod: function (nameValue, args, isForwarding) {
             var value = this;
 
             // Note that this may pause due to autoloading
-            return value.globalNamespace.getClass(value.value)
-                .next(function (classObject) {
-                    return classObject.callMethod(nameValue.getNative(), args, null, null, null, !!isForwarding);
-                });
+            return value.factory.createFuture(function (resolve, reject) {
+                value.globalNamespace.getClass(value.value)
+                    .next(function (classObject) {
+                        classObject.callMethod(nameValue.getNative(), args, null, null, null, !!isForwarding)
+                            .next(resolve, reject);
+                    }, reject);
+            });
         },
 
         coerceToBoolean: function () {
@@ -174,16 +171,18 @@ module.exports = require('pauser')([
          * Fetches the value of a constant from the class this string refers to
          *
          * @param {string} name
-         * @returns {Future<Value>|Present<Value>}
+         * @returns {FutureValue}
          */
         getConstantByName: function (name) {
             var value = this;
 
             // Note that this may pause due to autoloading
-            return value.globalNamespace.getClass(value.value)
-                .next(function (classObject) {
-                    return classObject.getConstantByName(name);
-                });
+            return value.factory.createFuture(function (resolve, reject) {
+                value.globalNamespace.getClass(value.value)
+                    .next(function (classObject) {
+                        resolve(classObject.getConstantByName(name));
+                    }, reject);
+            });
         },
 
         getElementByKey: function (key) {
@@ -207,10 +206,10 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches the value of a static property of the class this string refers to
+         * Fetches a reference to a static property of the class this string refers to
          *
          * @param {StringValue} nameValue
-         * @returns {Future<Value>|Present<Value>}
+         * @returns {Future<StaticPropertyReference|UndeclaredStaticPropertyReference>}
          */
         getStaticPropertyByName: function (nameValue) {
             var value = this;
@@ -226,7 +225,7 @@ module.exports = require('pauser')([
          * Creates an instance of the class this string contains the FQCN of
          *
          * @param {Value[]} args
-         * @returns {Future<ObjectValue>|Present<ObjectValue>}
+         * @returns {FutureValue<ObjectValue>}
          */
         instantiate: function (args) {
             var value = this;
@@ -235,7 +234,8 @@ module.exports = require('pauser')([
             return value.globalNamespace.getClass(value.value)
                 .next(function (classObject) {
                     return classObject.instantiate(args);
-                });
+                })
+                .asValue();
         },
 
         isAnInstanceOf: function (classNameValue) {
@@ -251,7 +251,7 @@ module.exports = require('pauser')([
             // and not relative to the current namespace scope
 
             var className,
-                classObject,
+                classObjectFuture,
                 match,
                 methodName,
                 value = this;
@@ -268,29 +268,28 @@ module.exports = require('pauser')([
                 className = match[1];
                 methodName = match[2];
 
-                if (!globalNamespace.hasClass(className)) {
-                    return false;
-                }
+                classObjectFuture = globalNamespace.getClass(className);
 
-                // FIXME: Needs to handle async (eg. autoloading)
-                classObject = globalNamespace.getClass(className).yieldSync();
-
-                return classObject.getMethodSpec(methodName) !== null;
+                return classObjectFuture.next(function (classObject) {
+                    return classObject.getMethodSpec(methodName) !== null;
+                }, function () {
+                    return false; // Class could not be found, so method must be uncallable.
+                });
             }
 
-            return globalNamespace.hasFunction(value.value);
+            return value.futureFactory.createPresent(globalNamespace.hasFunction(value.value));
         },
 
         /**
          * Determines whether this value is classed as "empty" or not
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>}
          */
         isEmpty: function () {
             var value = this;
 
             // NB: string("0.0") is _not_ classed as empty
-            return value.value === '' || value.value === '0';
+            return value.futureFactory.createPresent(value.value === '' || value.value === '0');
         },
 
         isEqualTo: function (rightValue) {

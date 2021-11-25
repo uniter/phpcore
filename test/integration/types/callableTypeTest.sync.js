@@ -15,7 +15,7 @@ var expect = require('chai').expect,
     tools = require('../tools'),
     PHPFatalError = phpCommon.PHPFatalError;
 
-describe('PHP "callable" type integration', function () {
+describe('PHP "callable" type integration (sync mode)', function () {
     var doRun,
         outputLog;
 

@@ -47,7 +47,7 @@ $result['with static prop'] = MyClass::$myStaticProp;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module(),
             accessorValue = 21;
         engine.defineGlobalAccessor('mySeven', function () {

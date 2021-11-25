@@ -12,10 +12,35 @@
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
     PHPError = phpCommon.PHPError,
+    WeakMap = require('es6-weak-map'),
     UNDEFINED_METHOD = 'core.undefined_method';
 
 module.exports = function (internals) {
-    var callStack = internals.callStack;
+    var callStack = internals.callStack,
+        globalNamespace = internals.globalNamespace,
+        valueFactory = internals.valueFactory,
+        nativeArrayToObjectValueMap = new WeakMap(),
+        coerce = function (value) {
+            var arrayObjectValue;
+
+            if (!_.isArray(value)) {
+                return value;
+            }
+
+            // Native JS arrays must be boxed as JSArray instances in order to preserve JS semantics
+            // (arrays passed by reference rather than copied on assignment).
+            if (nativeArrayToObjectValueMap.has(value)) {
+                arrayObjectValue = nativeArrayToObjectValueMap.get(value);
+            } else {
+                arrayObjectValue = valueFactory.createObject(
+                    value,
+                    globalNamespace.getClass('JSArray').yieldSync()
+                );
+                nativeArrayToObjectValueMap.set(value, arrayObjectValue);
+            }
+
+            return arrayObjectValue;
+        };
 
     function JSObject() {
 
@@ -26,34 +51,42 @@ module.exports = function (internals) {
          * JSObject needs to implement its own way of calling out to native JS methods,
          * because the method property lookup needs to be case-sensitive, unlike PHP
          *
-         * @param {string} name
-         * @param {*[]} args
+         * @param {Value} methodNameValue
+         * @param {Value} argumentArrayValue An ArrayValue provided with method arguments
          * @returns {*}
          */
-        '__call': function __uniterOutboundStackMarker__(name, args) {
-            var object = this,
+        '__call': function __uniterOutboundStackMarker__(methodNameValue, argumentArrayValue) {
+            var nativeArguments,
+                nativeObject = this.getObject(),
+                methodName = methodNameValue.getNative(),
                 result;
 
-            if (!_.isFunction(object[name])) {
+            if (!_.isFunction(nativeObject[methodName])) {
                 callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_METHOD, {
                     className: 'JSObject',
-                    methodName: name
+                    methodName: methodName
                 });
             }
 
-            result = object[name].apply(object, args);
+            // Coerce the ArrayValue of arguments to a native array to pass to .apply(...)
+            nativeArguments = argumentArrayValue.getNative();
 
-            return result;
+            result = nativeObject[methodName].apply(nativeObject, nativeArguments);
+
+            return coerce(result);
         },
 
         /**
          * Fetches a property from the native JS object
          *
-         * @param {string} propertyName
+         * @param {Value} propertyNameValue
          * @returns {*}
          */
-        '__get': function (propertyName) {
-            return this[propertyName];
+        '__get': function (propertyNameValue) {
+            var nativeObject = this.getObject(),
+                propertyName = propertyNameValue.getNative();
+
+            return coerce(nativeObject[propertyName]);
         },
 
         /**
@@ -64,47 +97,59 @@ module.exports = function (internals) {
          * @returns {*}
          */
         '__invoke': function () {
-            var object = this,
+            var nativeArguments,
+                nativeObject = this.getObject(),
                 result;
 
-            if (!_.isFunction(object)) {
+            if (!_.isFunction(nativeObject)) {
                 throw new Error('Attempted to invoke a non-function JS object');
             }
 
-            result = object.apply(null, arguments);
+            nativeArguments = _.map(arguments, function (argument) {
+                return argument.getNative();
+            });
 
-            return result;
+            result = nativeObject.apply(null, nativeArguments);
+
+            return coerce(result);
         },
 
         /**
          * Sets a property on the native JS object
          *
-         * @param {string} propertyName
-         * @param {*} nativeValue
+         * @param {Value} propertyNameValue
+         * @param {Value} propertyValue
          */
-        '__set': function (propertyName, nativeValue) {
-            // Ensure we write the native value to properties on native JS objects -
-            // as JSObject is auto-coercing we already have it
-            this[propertyName] = nativeValue;
+        '__set': function (propertyNameValue, propertyValue) {
+            var nativeObject = this.getObject(),
+                propertyName = propertyNameValue.getNative();
+
+            // Ensure we write the native value to properties on native JS objects
+            nativeObject[propertyName] = propertyValue.getNative();
         },
 
         /**
          * Deletes a property from the native JS object when `unset($jsObject->prop)` is called from PHP-land
          *
-         * @param {string} propertyName
+         * @param {Value} propertyNameValue
          */
-        '__unset': function (propertyName) {
-            delete this[propertyName];
+        '__unset': function (propertyNameValue) {
+            var nativeObject = this.getObject(),
+                propertyName = propertyNameValue.getNative();
+
+            delete nativeObject[propertyName];
         }
     });
 
-    internals.defineUnwrapper(function (nativeObject) {
+    internals.defineUnwrapper(function (objectValue) {
         /*
          * JSObjects are objects that originate from JS-land and were subsequently passed into PHP-land -
          * when we want to unwrap them to pass back to JS-land, simply return the original native object
          */
-        return nativeObject;
+        return objectValue.getObject();
     });
+
+    internals.disableAutoCoercion();
 
     return JSObject;
 };

@@ -39,7 +39,7 @@ $result[] = empty(MyClass::$myVar);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -78,7 +78,7 @@ $result[] = empty(MyClass::$myVar);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -129,7 +129,7 @@ $result['static class property'] = empty(MyClass::$myVar);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
         engine.defineGlobalAccessor(
             'myAsyncAccessorGlobal',
@@ -165,6 +165,47 @@ EOS
         });
     });
 
+    it('should correctly resume past an empty(...) expression with a control structure after it', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$anEmptyVar = [];
+
+$result = [];
+$result['before control structure'] = empty(get_async($anEmptyVar));
+
+// This control structure will clear the expression trace state
+if (true) {
+    $result['inside control structure'] = 'some value';
+}
+
+$result['after control structure'] = empty(get_async($anEmptyVar));
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineFunction('get_async', function (internals) {
+            return function (value) {
+                return internals.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(value);
+                    });
+                });
+            };
+        });
+
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal({
+                'before control structure': true,
+                'inside control structure': 'some value',
+                'after control structure': true,
+            });
+            expect(engine.getStderr().readAll()).to.equal('');
+        });
+    });
+
     it('should correctly handle accessing undefined variables, elements and properties', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -182,7 +223,7 @@ $result[] = empty(MyClass::$someUndefinedProp);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([

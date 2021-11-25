@@ -16,27 +16,23 @@ var _ = require('microdash');
  *
  * @param {class} Namespace
  * @param {CallStack} callStack
- * @param {Flow} flow
+ * @param {FutureFactory} futureFactory
  * @param {FunctionFactory} functionFactory
  * @param {FunctionSpecFactory} functionSpecFactory
  * @param {ValueFactory} valueFactory
- * @param {ReferenceFactory} referenceFactory
  * @param {ClassAutoloader} classAutoloader
- * @param {ExportRepository} exportRepository
- * @param {FFIFactory} ffiFactory
+ * @param {ClassDefiner} classDefiner
  * @constructor
  */
 function NamespaceFactory(
     Namespace,
     callStack,
-    flow,
+    futureFactory,
     functionFactory,
     functionSpecFactory,
     valueFactory,
-    referenceFactory,
     classAutoloader,
-    exportRepository,
-    ffiFactory
+    classDefiner
 ) {
     /**
      * @type {CallStack}
@@ -47,17 +43,9 @@ function NamespaceFactory(
      */
     this.classAutoloader = classAutoloader;
     /**
-     * @type {ExportRepository}
+     * @type {ClassDefiner}
      */
-    this.exportRepository = exportRepository;
-    /**
-     * @type {FFIFactory}
-     */
-    this.ffiFactory = ffiFactory;
-    /**
-     * @type {Flow}
-     */
-    this.flow = flow;
+    this.classDefiner = classDefiner;
     /**
      * @type {FunctionFactory}
      */
@@ -67,13 +55,13 @@ function NamespaceFactory(
      */
     this.functionSpecFactory = functionSpecFactory;
     /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
+    /**
      * @type {class}
      */
     this.Namespace = Namespace;
-    /**
-     * @type {ReferenceFactory}
-     */
-    this.referenceFactory = referenceFactory;
     /**
      * @type {ValueFactory}
      */
@@ -93,15 +81,13 @@ _.extend(NamespaceFactory.prototype, {
 
         return new factory.Namespace(
             factory.callStack,
-            factory.flow,
+            factory.futureFactory,
             factory.valueFactory,
-            factory.referenceFactory,
             factory,
             factory.functionFactory,
             factory.functionSpecFactory,
             factory.classAutoloader,
-            factory.exportRepository,
-            factory.ffiFactory,
+            factory.classDefiner,
             parentNamespace || null,
             name || ''
         );

@@ -18,4 +18,4 @@ var debugFormatterInstaller = require('./src/shared/debugFormatterInstaller'),
 
 debugFormatterInstaller.install();
 
-module.exports = runtimeFactory.create('async', null);
+module.exports = runtimeFactory.create('async');

@@ -24,7 +24,7 @@ $num = include 'abc.php';
 return $num;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             options = {
                 include: function (path, promise) {
                     setTimeout(function () {
@@ -67,7 +67,7 @@ EOS
     });
 
     it('should correctly trap when no include transport is configured', function () {
-        var module = tools.asyncTranspile(null, '<?php include "no_transport.php";');
+        var module = tools.asyncTranspile('/path/to/my_module.php', '<?php include "no_transport.php";');
 
         return module().execute().then(function (result) {
             throw new Error('Expected rejection, got resolve: ' + result);
@@ -114,7 +114,7 @@ $num = include 'abc.php';
 return $num + 1;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             options = {
                 path: 'my/caller.php',
                 include: function (path, promise, callerPath, valueFactory) {
@@ -138,7 +138,7 @@ $result[] = include 'abc.php';
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             results = ['first', 'second'],
             options = {
                 path: 'my/caller.php',
@@ -192,7 +192,7 @@ class YourClass
 return MyClass::includeIt();
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             options = {
                 include: function (path, promise) {
                     var php = nowdoc(function () {/*<<<EOS

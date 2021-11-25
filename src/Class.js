@@ -11,10 +11,12 @@
 
 module.exports = require('pauser')([
     require('microdash'),
-    require('phpcommon')
+    require('phpcommon'),
+    require('es6-weak-map')
 ], function (
     _,
-    phpCommon
+    phpCommon,
+    WeakMap
 ) {
     var IS_STATIC = 'isStatic',
         MAGIC_CALL = '__call',
@@ -28,20 +30,34 @@ module.exports = require('pauser')([
         VISIBILITY = 'visibility',
         hasOwn = {}.hasOwnProperty,
         PHPError = phpCommon.PHPError,
+        methodLookupMap = new WeakMap(),
+        /**
+         * Fetches a method from the specified object
+         *
+         * TODO: Build method map when class is initialised rather than resolving at runtime like this
+         *
+         * @param {Object} object
+         * @param {string} methodName
+         * @returns {Function|null}
+         */
         getMethod = function (object, methodName) {
-            var result = null;
+            var methods;
 
-            _.forOwn(object, function (value, propertyName) {
-                if (
-                    propertyName.toLowerCase() === methodName.toLowerCase() &&
-                    _.isFunction(value)
-                ) {
-                    result = value;
-                    return false;
-                }
-            });
+            if (methodLookupMap.has(object)) {
+                methods = methodLookupMap.get(object);
+            } else {
+                methods = Object.create(null);
 
-            return result;
+                _.forOwn(object, function (value, propertyName) {
+                    if (_.isFunction(value)) {
+                        methods[propertyName.toLowerCase()] = value;
+                    }
+                });
+
+                methodLookupMap.set(object, methods);
+            }
+
+            return methods[methodName.toLowerCase()] || null;
         };
 
     /**
@@ -52,14 +68,16 @@ module.exports = require('pauser')([
      * @param {FunctionFactory} functionFactory
      * @param {CallStack} callStack
      * @param {Flow} flow
+     * @param {FutureFactory} futureFactory
+     * @param {Userland} userland
      * @param {string} name Fully-qualified class name (FQCN)
-     * @param {string} constructorName
+     * @param {string|null} constructorName
      * @param {Function} InternalClass
      * @param {Object} rootInternalPrototype
      * @param {Object} staticPropertiesData
-     * @param {Object.<string, Function>} constants Map of constant names to value factory functions
+     * @param {Object.<string, Function>} constantToProviderMap Map of constant names to value provider functions
      * @param {Class|null} superClass Parent class, if any
-     * @param {string[]} interfaceNames FQCNs (FQINs) of interfaces implemented by this class
+     * @param {Class[]} interfaces Interfaces implemented by this class
      * @param {NamespaceScope} namespaceScope
      * @param {ExportRepository} exportRepository
      * @param {ValueCoercer} valueCoercer Value coercer configured specifically for this class
@@ -72,14 +90,16 @@ module.exports = require('pauser')([
         functionFactory,
         callStack,
         flow,
+        futureFactory,
+        userland,
         name,
         constructorName,
         InternalClass,
         rootInternalPrototype,
         staticPropertiesData,
-        constants,
+        constantToProviderMap,
         superClass,
-        interfaceNames,
+        interfaces,
         namespaceScope,
         exportRepository,
         valueCoercer,
@@ -88,9 +108,21 @@ module.exports = require('pauser')([
         var classObject = this,
             staticProperties = {};
 
+        /**
+         * @type {CallStack}
+         */
         this.callStack = callStack;
-        this.constants = constants;
+        /**
+         * @type {Object<string, Function>}
+         */
+        this.constantToProviderMap = constantToProviderMap;
+        /**
+         * @type {string|null}
+         */
         this.constructorName = constructorName;
+        /**
+         * @type {ExportRepository}
+         */
         this.exportRepository = exportRepository;
         /**
          * @type {FFIFactory}
@@ -100,19 +132,68 @@ module.exports = require('pauser')([
          * @type {Flow}
          */
         this.flow = flow;
+        /**
+         * @type {FunctionFactory}
+         */
         this.functionFactory = functionFactory;
-        this.interfaceNames = interfaceNames || [];
+        /**
+         * @type {FutureFactory}
+         */
+        this.futureFactory = futureFactory;
+        /**
+         * @type {Class[]}
+         */
+        this.interfaces = interfaces;
+        /**
+         * @type {Function}
+         */
         this.InternalClass = InternalClass;
+        /**
+         * Looked up method specs, indexed by lowercase name to handle case-insensitivity
+         *
+         * @type {Object.<string, MethodSpec>}
+         */
+        this.methodSpecCache = Object.create(null);
+        /**
+         * @type {string}
+         */
         this.name = name;
+        /**
+         * @type {NamespaceScope}
+         */
         this.namespaceScope = namespaceScope;
         /**
          * @type {ReferenceFactory}
          */
         this.referenceFactory = referenceFactory;
-        // The prototype object that we should stop at when walking up the chain
+        /**
+         * The prototype object that we should stop at when walking up the chain
+         *
+         * @type {Object}
+         */
         this.rootInternalPrototype = rootInternalPrototype;
+        /**
+         * See below for creation logic, and .initialiseStaticProperties() for initialisation logic
+         *
+         * @type {Object.<string, StaticPropertyReference>}
+         */
         this.staticProperties = staticProperties;
+        /**
+         * @type {Object}
+         */
+        this.staticPropertiesData = staticPropertiesData;
+        /**
+         * @type {boolean}
+         */
+        this.staticPropertiesInitialised = false;
+        /**
+         * @type {Class|null}
+         */
         this.superClass = superClass || null;
+        /**
+         * @type {Userland}
+         */
+        this.userland = userland;
         /**
          * @type {ValueCoercer}
          */
@@ -122,21 +203,13 @@ module.exports = require('pauser')([
          */
         this.valueFactory = valueFactory;
 
+        // Create static properties: note that values are initialised lazily,
+        // see .initialiseStaticProperties()
         _.each(staticPropertiesData, function (data, name) {
-            var initialValue = data[VALUE](classObject);
-
-            if (initialValue === null) {
-                // If a property has no initialiser then its initial value is NULL
-                initialValue = valueFactory.createNull();
-            }
-
-            // Pass the class object to the property initialiser (if any),
-            // so that it may refer to other properties/constants of this class with self::*
             staticProperties[name] = referenceFactory.createStaticProperty(
                 name,
                 classObject,
-                data[VISIBILITY],
-                initialValue
+                data[VISIBILITY]
             );
         });
     }
@@ -195,25 +268,11 @@ module.exports = require('pauser')([
                         classObject.functionFactory.setNewStaticClassIfWrapped(method, currentClass);
                     }
 
-                    // // Method may pause, so we need to allow for that before coercion
-                    // return classObject.flow.try(function () {
-                    //     return method.apply(
-                    //         // Some methods should never have their `this` object and args auto-coerced,
-                    //         // eg the magic `__construct` method as it is proxied in Namespace.js
-                    //         classObject.valueCoercer.isAutoCoercionEnabled() && !method.neverCoerce ?
-                    //             objectValue.getObject() :
-                    //             objectValue,
-                    //         method.neverCoerce ? args : classObject.valueCoercer.coerceArguments(args)
-                    //     );
-                    // }).next(function (result) {
-                    //     return classObject.valueFactory.coerce(result);
-                    // }).go();
-
                     // Method may return a Future
                     return classObject.valueFactory.coerce(
                         method.apply(
                             // Some methods should never have their `this` object and args auto-coerced,
-                            // eg the magic `__construct` method as it is proxied in Namespace.js
+                            // eg the magic `__construct` method as it is proxied in NativeDefinitionBuilder.js
                             classObject.valueCoercer.isAutoCoercionEnabled() && !method.neverCoerce ?
                                 objectValue.getObject() :
                                 objectValue,
@@ -359,6 +418,9 @@ module.exports = require('pauser')([
          * Fetches the value of a constant of this class. Constants may be defined by the current class,
          * an ancestor or by an interface implemented by this class or an ancestor
          *
+         * TODO: Cache constants on first access? Cannot resolve all constants when class is initialised
+         *       because that would trigger autoloading etc.
+         *
          * @param {string} name
          * @returns {FutureValue|Value}
          */
@@ -371,16 +433,17 @@ module.exports = require('pauser')([
                 return classObject.valueFactory.createString(classObject.getName());
             }
 
-            if (hasOwn.call(classObject.constants, name)) {
-                return classObject.constants[name]();
+            if (hasOwn.call(classObject.constantToProviderMap, name)) {
+                // Allow for the constant value to be loaded asynchronously,
+                // eg. if it references a constant of a different, asynchronously autoloaded class
+                return classObject.userland.enterIsolated(function () {
+                    return classObject.constantToProviderMap[name](classObject);
+                }, classObject.namespaceScope);
             }
 
-            return classObject.flow.eachAsync(classObject.interfaceNames, function (interfaceName) {
-                return classObject.namespaceScope.getClass(interfaceName)
-                    .next(function (interfaceObject) {
-                        // Note that this lookup may asynchronously raise an error if the constant is not defined
-                        return interfaceObject.getConstantByName(name);
-                    })
+            return classObject.flow.eachAsync(classObject.interfaces, function (interfaceObject) {
+                // Note that this lookup may asynchronously raise an error if the constant is not defined
+                return interfaceObject.getConstantByName(name)
                     .next(function (constantValue) {
                         value = constantValue;
 
@@ -403,15 +466,23 @@ module.exports = require('pauser')([
                     classObject.callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_CLASS_CONSTANT, {
                         name: name
                     });
-                });
+                })
+                .asValue();
         },
 
+        /**
+         * Fetches the internal native JS class for this class exposed to PHP
+         *
+         * @returns {Function}
+         */
         getInternalClass: function () {
             return this.InternalClass;
         },
 
         /**
          * Fetches the spec for an instance or static method
+         *
+         * TODO: Merge/replace MethodSpec with FunctionSpec/MethodContext etc.?
          *
          * @param {string} methodName The name of the method to fetch the spec for
          * @param {ObjectValue=null} objectValue The wrapped ObjectValue for this instance
@@ -421,7 +492,9 @@ module.exports = require('pauser')([
          */
         getMethodSpec: function (methodName, objectValue, currentNativeObject, originalClass) {
             var classObject = this,
-                nativeObject = objectValue ? objectValue.getObject() : null;
+                lowercaseMethodName = methodName.toLowerCase(),
+                methodSpec,
+                nativeObject;
 
             function getMethodSpec(currentObject, methodName) {
                 var method = getMethod(currentObject, methodName);
@@ -451,6 +524,13 @@ module.exports = require('pauser')([
                 return getMethodSpec(currentObject, methodName);
             }
 
+            // Fetch spec from cache if possible
+            if (classObject.methodSpecCache[lowercaseMethodName]) {
+                return classObject.methodSpecCache[lowercaseMethodName];
+            }
+
+            nativeObject = objectValue ? objectValue.getObject() : null;
+
             if (!currentNativeObject) {
                 // Walk up the prototype chain from the native object
                 currentNativeObject = nativeObject;
@@ -471,7 +551,12 @@ module.exports = require('pauser')([
                 currentNativeObject = classObject.InternalClass.prototype;
             }
 
-            return getMethodSpec(currentNativeObject, methodName);
+            methodSpec = getMethodSpec(currentNativeObject, methodName);
+
+            // Cache the spec for speed next time
+            classObject.methodSpecCache[lowercaseMethodName] = methodSpec;
+
+            return methodSpec;
         },
 
         /**
@@ -497,11 +582,14 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches a reference to a static property of this class by its name
+         * Fetches a reference to a static property of this class by its name.
+         * Note that static properties are initialised lazily (not until they are required),
+         * and when any static property is fetched,
+         * all will be initialised at that point if not already done.
          *
          * @param {string} name
          * @param {Class=} calledClass
-         * @returns {StaticPropertyReference|UndeclaredStaticPropertyReference}
+         * @returns {Future<StaticPropertyReference|UndeclaredStaticPropertyReference>}
          */
         getStaticPropertyByName: function (name, calledClass) {
             var callingClass,
@@ -521,9 +609,11 @@ module.exports = require('pauser')([
 
                 // Undeclared static properties cannot be accessed _except_ by isset(...) or empty(...),
                 // which return the relevant boolean result (`false` and `true` respectively)
-                return classObject.referenceFactory.createUndeclaredStaticProperty(
-                    name,
-                    classObject
+                return classObject.futureFactory.createPresent(
+                    classObject.referenceFactory.createUndeclaredStaticProperty(
+                        name,
+                        classObject
+                    )
                 );
             }
 
@@ -559,7 +649,10 @@ module.exports = require('pauser')([
                 }
             }
 
-            return staticProperty;
+            // Lazily initialise _all_ static properties if needed before returning this one
+            return classObject.initialiseStaticProperties().next(function () {
+                return staticProperty;
+            });
         },
 
         /**
@@ -571,6 +664,12 @@ module.exports = require('pauser')([
             return this.superClass;
         },
 
+        /**
+         * Determines whether this class defines a static property with the given name
+         *
+         * @param {string} name
+         * @returns {boolean}
+         */
         hasStaticPropertyByName: function (name) {
             return hasOwn.call(this.staticProperties, name);
         },
@@ -581,11 +680,7 @@ module.exports = require('pauser')([
          * @returns {Class[]}
          */
         getInterfaces: function () {
-            var classObject = this;
-
-            return classObject.interfaceNames.map(function (interfaceName) {
-                return classObject.namespaceScope.getClass(interfaceName).yieldSync();
-            });
+            return this.interfaces;
         },
 
         /**
@@ -596,6 +691,53 @@ module.exports = require('pauser')([
          */
         getThisObjectForInstance: function (instance) {
             return this.valueCoercer.isAutoCoercionEnabled() ? instance.getObject() : instance;
+        },
+
+        /**
+         * Initialises all static properties if not already done
+         *
+         * @returns {Future}
+         */
+        initialiseStaticProperties: function () {
+            var classObject = this;
+
+            if (classObject.staticPropertiesInitialised) {
+                // No need to initialise a second time
+                return classObject.futureFactory.createPresent();
+            }
+
+            /*
+             * Static properties have not yet been initialised, do it now.
+             * Note that the initialisation may be asynchronous and need to block,
+             * eg. if the default value refers to a constant of a class not yet autoloaded
+             */
+
+            return classObject.flow.eachAsync(
+                Object.keys(classObject.staticPropertiesData),
+                function (propertyName) {
+                    var data = classObject.staticPropertiesData[propertyName];
+
+                    // Allow for the initial value to be loaded asynchronously,
+                    // eg. if it references a constant of a different, asynchronously autoloaded class
+                    return classObject.userland.enterIsolated(
+                        function () {
+                            // Pass the class object to the property initialiser (if any),
+                            // so that it may refer to other properties/constants of this class with self::*
+                            return data[VALUE](classObject);
+                        },
+                        classObject.namespaceScope
+                    ).next(function (initialValue) {
+                        if (initialValue === null) {
+                            // If a property has no initialiser then its initial value is NULL
+                            initialValue = classObject.valueFactory.createNull();
+                        }
+
+                        classObject.staticProperties[propertyName].setValue(initialValue);
+                    });
+                }
+            ).next(function () {
+                classObject.staticPropertiesInitialised = true;
+            });
         },
 
         /**
@@ -615,7 +757,7 @@ module.exports = require('pauser')([
             objectValue = classObject.instantiateBare(args);
 
             // Call the userland constructor
-            // TODO: Handle constructors that pause
+            // FIXME: Handle constructors that pause
             classObject.construct(objectValue, args);
 
             return objectValue;
@@ -671,7 +813,7 @@ module.exports = require('pauser')([
          * - This class implements an interface with the name given, or
          * - This class has an ancestor with the name given
          *
-         * @param {Class} className
+         * @param {string} className
          * @returns {boolean}
          */
         is: function (className) {
@@ -685,9 +827,7 @@ module.exports = require('pauser')([
 
             // Iterate over all the interfaces implemented by this class: if any of them
             // are the requested class or extend from it, return true
-            _.each(classObject.interfaceNames, function (interfaceName) {
-                var interfaceObject = classObject.namespaceScope.getClass(interfaceName).yieldSync();
-
+            _.each(classObject.interfaces, function (interfaceObject) {
                 if (interfaceObject.is(className)) {
                     interfaceMatches = true;
                     return false;
@@ -745,7 +885,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Unwraps arguments for a method based on the coercion & prefer-sync modes for the class
+         * Unwraps arguments for a method based on the coercion mode for the class
          *
          * @param {Value[]} argumentValues
          * @returns {Value[]|*[]}

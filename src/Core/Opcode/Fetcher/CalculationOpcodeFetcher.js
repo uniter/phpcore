@@ -12,14 +12,14 @@
 var _ = require('microdash');
 
 /**
- * @param {OpcodeFactory} opcodeFactory
+ * @param {OpcodePool} opcodePool
  * @constructor
  */
-function CalculationOpcodeFetcher(opcodeFactory) {
+function CalculationOpcodeFetcher(opcodePool) {
     /**
-     * @type {OpcodeFactory}
+     * @type {OpcodePool}
      */
-    this.opcodeFactory = opcodeFactory;
+    this.opcodePool = opcodePool;
 }
 
 _.extend(CalculationOpcodeFetcher.prototype, {
@@ -33,7 +33,7 @@ _.extend(CalculationOpcodeFetcher.prototype, {
      * @returns {CalculationOpcode}
      */
     fetchOpcode: function (trace, opIndex, handler, args) {
-        return this.opcodeFactory.createCalculationOpcode(trace, opIndex, handler, args);
+        return this.opcodePool.provideCalculationOpcode(trace, opIndex, handler, args);
     }
 });
 

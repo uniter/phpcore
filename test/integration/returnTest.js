@@ -20,7 +20,7 @@ describe('PHP "return" statement integration', function () {
 return 4;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php);
 
         return module().execute().then(function (result) {
             expect(result.getNative()).to.equal(4);
@@ -33,7 +33,7 @@ EOS
 return 4;
 EOS
 */;}),//jshint ignore:line
-            module = tools.psyncTranspile(null, php);
+            module = tools.psyncTranspile('/path/to/my_module.php', php);
 
         return module().execute().then(function (result) {
             expect(result.getNative()).to.equal(4);
@@ -46,7 +46,7 @@ EOS
 return 4;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.equal(4);
     });

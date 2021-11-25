@@ -250,6 +250,7 @@ module.exports = function (internals) {
                 // For Promise-synchronous mode, we need to return a promise
                 // even though the actual invocation must return synchronously
                 return new Promise(function (resolve) {
+                    // Use executor so that any error is caught and rejects the promise
                     resolve(maybeFuture.yieldSync().getNative());
                 });
             }

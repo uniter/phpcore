@@ -17,10 +17,15 @@ var _ = require('microdash'),
 /**
  * Represents a type that can only accept an array value
  *
+ * @param {FutureFactory} futureFactory
  * @param {boolean} nullIsAllowed
  * @constructor
  */
-function ArrayType(nullIsAllowed) {
+function ArrayType(futureFactory, nullIsAllowed) {
+    /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
     /**
      * @type {boolean}
      */
@@ -43,8 +48,12 @@ _.extend(ArrayType.prototype, {
      * {@inheritdoc}
      */
     allowsValue: function (value) {
-        return value.getType() === 'array' ||
-            (this.allowsNull() && value.getType() === 'null');
+        var typeObject = this;
+
+        return typeObject.futureFactory.createPresent(
+            value.getType() === 'array' ||
+            (typeObject.allowsNull() && value.getType() === 'null')
+        );
     },
 
     /**

@@ -64,6 +64,9 @@ $result['read of last set offset'] = $object->lastSetOffset; // Should be "an in
 $result['read of last set value'] = $object->lastSetValue;
 unset($object['my unset key']);
 $result['read of last unset offset'] = $object->unsetOffset;
+$object[] = 'my pushed value';
+$result['read of pushed offset'] = $object->lastSetOffset;
+$result['read of pushed value'] = $object->lastSetValue;
 
 return $result;
 EOS
@@ -83,7 +86,10 @@ EOS
             'isset(offset that returns null)': false,
             'read of last set offset': 'an index',
             'read of last set value': 'yep',
-            'read of last unset offset': 'my unset key'
+            'read of last unset offset': 'my unset key',
+            // Special push operator $array[] = ...;
+            'read of pushed offset': null,
+            'read of pushed value': 'my pushed value'
         });
     });
 });

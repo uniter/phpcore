@@ -90,6 +90,8 @@ module.exports = require('pauser')([
                     done = true;
 
                     if (moduleResult instanceof ExitValue) {
+                        // When including a module, Engine.js will have resolved with an ExitValue
+                        // rather than rejecting with it
                         failWith(moduleResult);
                         return;
                     }

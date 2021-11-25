@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('./tools'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     Closure = require('../../src/Closure').sync(),
@@ -23,13 +24,11 @@ var expect = require('chai').expect,
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
     Reference = require('../../src/Reference/Reference'),
-    ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     Scope = require('../../src/Scope').sync(),
     StringValue = require('../../src/Value/String').sync(),
     SuperGlobalScope = require('../../src/SuperGlobalScope').sync(),
     Translator = phpCommon.Translator,
     Value = require('../../src/Value').sync(),
-    ValueFactory = require('../../src/ValueFactory').sync(),
     Variable = require('../../src/Variable').sync(),
     VariableFactory = require('../../src/VariableFactory').sync();
 
@@ -41,11 +40,13 @@ describe('Scope', function () {
         currentClass,
         currentFunction,
         functionSpecFactory,
+        futureFactory,
         globalNamespace,
         globalScope,
         parentClass,
         referenceFactory,
         scope,
+        state,
         superGlobalScope,
         translator,
         valueFactory,
@@ -56,18 +57,22 @@ describe('Scope', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        state = tools.createIsolatedState(null, {
+            'call_stack': callStack
+        });
         closure = sinon.createStubInstance(Closure);
         currentClass = null;
         currentFunction = null;
         closureFactory = sinon.createStubInstance(ClosureFactory);
         functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
+        futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
         globalScope = sinon.createStubInstance(Scope);
         parentClass = null;
-        referenceFactory = sinon.createStubInstance(ReferenceFactory);
+        referenceFactory = state.getReferenceFactory();
         superGlobalScope = sinon.createStubInstance(SuperGlobalScope);
         translator = sinon.createStubInstance(Translator);
-        valueFactory = new ValueFactory();
+        valueFactory = state.getValueFactory();
         variableFactory = sinon.createStubInstance(VariableFactory);
 
         valueFactory.setGlobalNamespace(globalNamespace);
@@ -79,7 +84,7 @@ describe('Scope', function () {
         closureFactory.create.returns(closure);
 
         variableFactory.createVariable.callsFake(function (variableName) {
-            return new Variable(callStack, valueFactory, variableName);
+            return new Variable(callStack, valueFactory, referenceFactory, futureFactory, variableName);
         });
 
         whenCurrentClass = function () {
@@ -121,6 +126,7 @@ describe('Scope', function () {
             func = sinon.stub();
             namespaceScope = sinon.createStubInstance(NamespaceScope);
             thisObject = sinon.createStubInstance(ObjectValue);
+            thisObject.next.yields(thisObject);
 
             namespaceScope.getFilePath.returns('/path/to/my_module.php');
 
@@ -264,7 +270,9 @@ describe('Scope', function () {
                 variables;
             createScope();
             superGlobalValue.getForAssignment.returns(superGlobalValue);
+            superGlobalValue.next.yields(superGlobalValue);
             variableValue.getForAssignment.returns(variableValue);
+            variableValue.next.yields(variableValue);
             scope.defineVariable('firstVariable').setValue(variableValue);
             scope.defineVariable('anUndefinedVariable');
             superGlobalScope.exportVariables.returns({
@@ -487,6 +495,7 @@ describe('Scope', function () {
         });
 
         it('should return the correct name when function is a class method called non-statically', function () {
+            var thisObject = sinon.createStubInstance(ObjectValue);
             whenCurrentClass();
             whenCurrentFunction();
             currentFunction.functionSpec.getFunctionTraceFrameName
@@ -495,7 +504,8 @@ describe('Scope', function () {
             currentFunction.functionSpec.getFunctionTraceFrameName
                 .withArgs(false)
                 .returns('My\\Stuff\\MyClass->myMethod');
-            createScope(sinon.createStubInstance(ObjectValue));
+            thisObject.next.yields(thisObject);
+            createScope(thisObject);
 
             // NB: Note that the operator here is different: "->" vs. "::" above
             expect(scope.getTraceFrameName()).to.equal('My\\Stuff\\MyClass->myMethod');
@@ -604,7 +614,7 @@ describe('Scope', function () {
         });
 
         it('should define variable in current scope as reference to new static variable on first call', function () {
-            var staticVariable = new Variable(callStack, valueFactory, 'myVar'),
+            var staticVariable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'myVar'),
                 value = valueFactory.createString('my string');
             variableFactory.createVariable.withArgs('myVar').returns(staticVariable);
             staticVariable.setValue(value);
@@ -616,7 +626,7 @@ describe('Scope', function () {
         });
 
         it('should define variable in current scope as reference to same static variable on second call', function () {
-            var existingStaticVariable = new Variable(callStack, valueFactory, 'myVar'),
+            var existingStaticVariable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'myVar'),
                 value = valueFactory.createString('my string');
             existingStaticVariable.setValue(value);
             currentFunction.staticVariables = {myVar: existingStaticVariable};
@@ -636,7 +646,10 @@ describe('Scope', function () {
         });
 
         it('should return false when the scope is a non-static context', function () {
-            createScope(sinon.createStubInstance(ObjectValue));
+            var thisObject = sinon.createStubInstance(ObjectValue);
+            thisObject.next.yields(thisObject);
+
+            createScope(thisObject);
 
             expect(scope.isStatic()).to.be.false;
         });
@@ -659,7 +672,7 @@ describe('Scope', function () {
                 errorValue = sinon.createStubInstance(ObjectValue);
             globalNamespace.getClass
                 .withArgs('MySubError')
-                .returns(errorClassObject);
+                .returns(futureFactory.createPresent(errorClassObject));
             translator.translate
                 .withArgs('my_translation_key', {
                     my_placeholder: 'My value'

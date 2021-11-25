@@ -23,7 +23,7 @@ module.exports = function (internals) {
          * Determines whether this iterator is pointing past the end of the array being iterated over
          *
          * @param {ArrayIterator|ObjectValue} iterator
-         * @returns {boolean}
+         * @returns {boolean|Future<boolean>}
          */
         isNotFinished: function (iterator) {
             return iterator.isNotFinished();

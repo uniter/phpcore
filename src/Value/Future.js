@@ -11,6 +11,7 @@
 
 var _ = require('microdash'),
     util = require('util'),
+    Promise = require('lie'),
     Value = require('../Value').sync();
 
 /**
@@ -54,6 +55,15 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     asEventualNative: function () {
+        return this.future.derive().next(function (resultValue) {
+            return resultValue.getNative();
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    asFuture: function () {
         return this.future;
     },
 
@@ -96,6 +106,24 @@ _.extend(FutureValue.prototype, {
         value.future.catch(rejectHandler);
 
         return value; // Fluent interface
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    coerceToBoolean: function () {
+        return this.derive().next(function (presentValue) {
+            return presentValue.coerceToBoolean();
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    coerceToKey: function () {
+        return this.derive().next(function (presentValue) {
+            return presentValue.coerceToKey();
+        });
     },
 
     /**
@@ -148,6 +176,16 @@ _.extend(FutureValue.prototype, {
     /**
      * {@inheritdoc}
      */
+    formatAsString: function () {
+        // TODO: Note that returning this placeholder string may not be very useful, as any context
+        //       where this value should be formatted as string should probably have waited for it to be complete.
+        //       Consider throwing an exception or calling .yieldSync() as for .getNative() and .getType()
+        return '(Future)';
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     getNative: function () {
         // Note that .yieldSync() will error if the future is still pending
         return this.future.yieldSync().getNative();
@@ -159,6 +197,15 @@ _.extend(FutureValue.prototype, {
     getType: function () {
         // Note that .yieldSync() will error if the future is still pending
         return this.future.yieldSync().getType();
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    isCallable: function () {
+        return this.derive().next(function (resultValue) {
+            return resultValue.isCallable();
+        });
     },
 
     /**
@@ -213,7 +260,20 @@ _.extend(FutureValue.prototype, {
     next: function (resumeHandler, catchHandler) {
         var value = this;
 
-        value.future.next(resumeHandler, catchHandler);
+        value.future
+            .next(
+                function (resultValue) {
+                    // Make sure the coerced result of a FutureValue is always a Value
+                    resultValue = resumeHandler(resultValue);
+
+                    if (!value.factory.isValue(resultValue)) {
+                        resultValue = value.factory.coerce(resultValue);
+                    }
+
+                    return resultValue;
+                },
+                catchHandler
+            );
 
         return value;
     },
@@ -242,6 +302,17 @@ _.extend(FutureValue.prototype, {
     subtract: function (rightValue) {
         return this.derive().next(function (leftValue) {
             return leftValue.subtract(rightValue);
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    toPromise: function () {
+        var value = this;
+
+        return new Promise(function (resolve, reject) {
+            value.derive().next(resolve, reject);
         });
     },
 

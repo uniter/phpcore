@@ -20,7 +20,7 @@ describe('PHP "print" expression integration', function () {
 print 'hello';
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module(),
             stdoutResult = '';
 

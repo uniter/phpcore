@@ -10,8 +10,10 @@
 'use strict';
 
 var _ = require('microdash'),
-    slice = [].slice,
-    Pause = require('../../Control/Pause');
+    phpCommon = require('phpcommon'),
+    Exception = phpCommon.Exception,
+    Pause = require('../../Control/Pause'),
+    MAX_OPCODE_HANDLER_ARITY = 4;
 
 /**
  * @param {ControlBridge} controlBridge
@@ -46,10 +48,21 @@ _.extend(OpcodeHandlerFactory.prototype, {
         var wrapper = this,
             opcodeFetcher = wrapper.opcodeFetcherRepository.getFetcher(opcodeFetcherType);
 
-        return function tracedOpcodeHandler() {
+        // Check max handler arity is not exceeded
+        if (opcodeHandler.length > MAX_OPCODE_HANDLER_ARITY) {
+            throw new Exception(
+                'Opcode handler arity of ' +
+                opcodeHandler.length +
+                ' exceeds max of ' +
+                MAX_OPCODE_HANDLER_ARITY
+            );
+        }
+
+        return function tracedOpcodeHandler(arg1, arg2, arg3, arg4) {
             var trace = wrapper.callStack.getCurrentTrace(),
-                args = slice.call(arguments),
-                // TODO: Implement pooling of these Opcode objects to minimise GC pressure
+                // Note that this limit on arity must match MAX_OPCODE_HANDLER_ARITY
+                args = [arg1, arg2, arg3, arg4],
+                // Note that Opcode objects are pooled to minimise GC pressure
                 opcode = trace.fetchOpcode(opcodeFetcher, opcodeHandler, args),
                 resumeValue = opcode.resume(),
                 result;
@@ -63,7 +76,7 @@ _.extend(OpcodeHandlerFactory.prototype, {
             try {
                 result = opcode.handle();
 
-                if (wrapper.controlBridge.isChainable(result)) {
+                if (wrapper.controlBridge.isFuture(result)) {
                     // Evaluate any futures, any pauses will be handled by this try..catch
                     result = result.yield();
                 }

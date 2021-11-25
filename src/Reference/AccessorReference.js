@@ -16,11 +16,10 @@ var _ = require('microdash'),
     Reference = require('./Reference');
 
 /**
- * Represents a special type of reference where a getter and setter callback function are provided
+ * Represents a special type of reference where a getter and setter callback function are provided.
  *
  * @param {ValueFactory} valueFactory
  * @param {ReferenceFactory} referenceFactory
- * @param {Flow} flow
  * @param {Function} valueGetter
  * @param {Function|null} valueSetter
  * @constructor
@@ -28,11 +27,10 @@ var _ = require('microdash'),
 function AccessorReference(
     valueFactory,
     referenceFactory,
-    flow,
     valueGetter,
     valueSetter
 ) {
-    Reference.call(this, referenceFactory, flow);
+    Reference.call(this, referenceFactory);
 
     /**
      * @type {ValueFactory}
@@ -51,10 +49,16 @@ function AccessorReference(
 util.inherits(AccessorReference, Reference);
 
 _.extend(AccessorReference.prototype, {
+    /**
+     * {@inheritdoc}
+     */
     getReference: function () {
         return this;
     },
 
+    /**
+     * {@inheritdoc}
+     */
     getValue: function () {
         var reference = this;
 
@@ -72,20 +76,27 @@ _.extend(AccessorReference.prototype, {
      * {@inheritdoc}
      */
     isEmpty: function () {
-        return this.getValue().next(function (resultValue) {
-            return resultValue.isEmpty();
-        });
+        return this.getValue()
+            .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
+            .next(function (resultValue) {
+                return resultValue.isEmpty();
+            });
     },
 
     /**
      * {@inheritdoc}
      */
     isSet: function () {
-        return this.getValue().next(function (resultValue) {
-            return resultValue.isSet();
-        });
+        return this.getValue()
+            .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
+            .next(function (resultValue) {
+                return resultValue.isSet();
+            });
     },
 
+    /**
+     * {@inheritdoc}
+     */
     setValue: function (value) {
         var reference = this;
 
@@ -95,6 +106,9 @@ _.extend(AccessorReference.prototype, {
 
         return value.next(function (presentValue) {
             reference.valueSetter(presentValue.getNative());
+
+            // Return the set value as the result.
+            return presentValue;
         });
     }
 });

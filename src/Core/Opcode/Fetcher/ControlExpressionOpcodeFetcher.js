@@ -12,14 +12,14 @@
 var _ = require('microdash');
 
 /**
- * @param {OpcodeFactory} opcodeFactory
+ * @param {OpcodePool} opcodePool
  * @constructor
  */
-function ControlExpressionOpcodeFetcher(opcodeFactory) {
+function ControlExpressionOpcodeFetcher(opcodePool) {
     /**
-     * @type {OpcodeFactory}
+     * @type {OpcodePool}
      */
-    this.opcodeFactory = opcodeFactory;
+    this.opcodePool = opcodePool;
 }
 
 _.extend(ControlExpressionOpcodeFetcher.prototype, {
@@ -33,7 +33,7 @@ _.extend(ControlExpressionOpcodeFetcher.prototype, {
      * @returns {ControlExpressionOpcode}
      */
     fetchOpcode: function (trace, opIndex, handler, args) {
-        return this.opcodeFactory.createControlExpressionOpcode(trace, opIndex, handler, args);
+        return this.opcodePool.provideControlExpressionOpcode(trace, opIndex, handler, args);
     }
 });
 

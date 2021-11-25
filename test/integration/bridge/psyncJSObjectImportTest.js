@@ -20,7 +20,7 @@ describe('PHP JS<->PHP bridge JS object import Promise-synchronous mode integrat
 return 21 + $myJSObject->myMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.psyncTranspile(null, php),
+            module = tools.psyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.expose({
@@ -45,7 +45,7 @@ EOS
 return 21 + $myJSObject->myMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.psyncTranspile(null, php),
+            module = tools.psyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.expose({

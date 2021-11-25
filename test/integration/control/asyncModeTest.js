@@ -201,6 +201,46 @@ describe('Async control integration', function () {
         }).to.throw('My error is: from here');
     });
 
+    it('should synchronously execute further synchronous handlers attached after .yieldSync()', function () {
+        var sequence = controlFactory.createSequence();
+
+        sequence.next(function (previous) {
+            return previous + ' first';
+        });
+        sequence
+            .resume('this')
+            .yieldSync();
+        sequence.next(function (previous) {
+            return previous + ' second';
+        });
+
+        expect(sequence.yieldSync()).to.equal('this first second');
+    });
+
+    it('should throw when attempting to add an async handler (returning Future) after .yieldSync()', function () {
+        var sequence = controlFactory.createSequence();
+
+        sequence.next(function (previous) {
+            return previous + ' first';
+        });
+        sequence
+            .resume('this')
+            .yieldSync();
+        sequence.next(function (previous) {
+            return futureFactory.createFuture(function (resolve) {
+                setImmediate(function () {
+                    resolve(previous + ', async');
+                });
+            });
+        });
+
+        expect(function () {
+            sequence.yieldSync();
+        }).to.throw(
+            'Unable to yield a sequence that has not completed - did you mean to chain with .next(...)?'
+        );
+    });
+
     it('should support resuming a completed Sequence when another Sequence is returned', function (done) {
         var innerSequence,
             sequence = controlFactory.createSequence();

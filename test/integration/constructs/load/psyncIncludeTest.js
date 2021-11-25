@@ -22,7 +22,7 @@ $num = include 'abc.php';
 return $num;
 EOS
 */;}),//jshint ignore:line
-            module = tools.psyncTranspile(null, php),
+            module = tools.psyncTranspile('/path/to/my_module.php', php),
             options = {
                 include: function (path, promise) {
                     promise.resolve(tools.psyncTranspile(path, '<?php return 22;'));
@@ -61,7 +61,7 @@ EOS
     });
 
     it('should correctly trap when no include transport is configured', function (done) {
-        var module = tools.psyncTranspile(null, '<?php include "no_transport.php";');
+        var module = tools.psyncTranspile('/path/to/my_module.php', '<?php include "no_transport.php";');
 
         module().execute().then(function (result) {
             done(new Error('Expected rejection, got resolve: ' + result));
@@ -80,7 +80,7 @@ include 'my_module.php';
 print ' after';
 EOS
 */;}), //jshint ignore:line
-            module = tools.psyncTranspile(null, php),
+            module = tools.psyncTranspile('/path/to/my_module.php', php),
             options = {
                 include: function (path, promise) {
                     promise.resolve(tools.psyncTranspile(path, '<?php print 21 + 2;'));
@@ -100,7 +100,7 @@ $num = include 'abc.php';
 return $num + 1;
 EOS
 */;}),//jshint ignore:line
-            module = tools.psyncTranspile(null, php),
+            module = tools.psyncTranspile('/path/to/my_module.php', php),
             options = {
                 path: 'my/caller.php',
                 include: function (path, promise, callerPath, valueFactory) {
@@ -122,7 +122,7 @@ $result[] = include 'abc.php';
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.psyncTranspile(null, php),
+            module = tools.psyncTranspile('/path/to/my_module.php', php),
             results = ['first', 'second'],
             options = {
                 path: 'my/caller.php',
@@ -174,7 +174,7 @@ class YourClass
 return MyClass::includeIt();
 EOS
 */;}), //jshint ignore:line
-            module = tools.psyncTranspile(null, php),
+            module = tools.psyncTranspile('/path/to/my_module.php', php),
             options = {
                 include: function (path, promise) {
                     var php = nowdoc(function () {/*<<<EOS

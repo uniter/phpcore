@@ -9,10 +9,10 @@
 
 'use strict';
 
-var _ = require('microdash'),
-    expect = require('chai').expect,
+var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../tools'),
     ArrayIterator = require('../../../src/Iterator/ArrayIterator'),
     ArrayValue = require('../../../src/Value/Array').sync(),
     BooleanValue = require('../../../src/Value/Boolean').sync(),
@@ -20,14 +20,12 @@ var _ = require('microdash'),
     Class = require('../../../src/Class').sync(),
     Closure = require('../../../src/Closure').sync(),
     Exception = phpCommon.Exception,
-    FloatValue = require('../../../src/Value/Float').sync(),
     FunctionSpec = require('../../../src/Function/FunctionSpec'),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     MethodSpec = require('../../../src/MethodSpec'),
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     NullReference = require('../../../src/Reference/Null'),
-    NullValue = require('../../../src/Value/Null').sync(),
     ObjectElement = require('../../../src/Reference/ObjectElement'),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
@@ -35,27 +33,35 @@ var _ = require('microdash'),
     PropertyReference = require('../../../src/Reference/Property'),
     StaticPropertyReference = require('../../../src/Reference/StaticProperty'),
     Translator = phpCommon.Translator,
-    Value = require('../../../src/Value').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    Value = require('../../../src/Value').sync();
 
 describe('Object', function () {
     var callStack,
         classObject,
         factory,
+        futureFactory,
         globalNamespace,
         namespaceScope,
         nativeObject,
         objectID,
         prop1,
         prop2,
+        referenceFactory,
+        state,
         translator,
         value;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
         translator = sinon.createStubInstance(Translator);
-        factory = new ValueFactory(null, 'sync', null, translator);
+        state = tools.createIsolatedState(null, {
+            'call_stack': callStack,
+            'translator': translator
+        });
+        factory = state.getValueFactory();
+        futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
+        referenceFactory = state.getReferenceFactory();
         classObject = sinon.createStubInstance(Class);
         classObject.getMethodSpec.returns(null);
         classObject.getName.returns('My\\Space\\AwesomeClass');
@@ -74,7 +80,6 @@ describe('Object', function () {
             );
         });
 
-        factory.setCallStack(callStack);
         factory.setGlobalNamespace(globalNamespace);
 
         translator.translate
@@ -84,6 +89,8 @@ describe('Object', function () {
 
         value = new ObjectValue(
             factory,
+            referenceFactory,
+            futureFactory,
             callStack,
             translator,
             nativeObject,
@@ -94,74 +101,208 @@ describe('Object', function () {
         value.declareProperty('secondProp', classObject, 'public').initialise(prop2);
     });
 
-    describe('addToArray()', function () {
-        it('should raise a notice', function () {
-            try {
-                value.addToArray(factory.createArray([]));
-            } catch (error) {}
+    describe('add()', function () {
+        describe('for an array addend', function () {
+            it('should throw an "Unsupported operand" error for an array addend', function () {
+                var addendValue = factory.createArray([]);
 
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_NOTICE,
-                'Object of class My\\Space\\AwesomeClass could not be converted to number'
-            );
+                expect(function () {
+                    value.add(addendValue);
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                );
+            });
+
+            it('should raise a notice', function () {
+                var addendValue = factory.createArray([]);
+
+                try {
+                    value.add(addendValue);
+                } catch (error) {
+                }
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
         });
 
-        it('should also raise a fatal error', function () {
-            expect(function () {
-                value.addToArray(factory.createArray([]));
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
+        describe('for a boolean addend', function () {
+            it('should return the result of adding true', function () {
+                var addendOperand = factory.createBoolean(true), // Will be coerced to int(1)
+                    resultValue;
 
-    describe('addToBoolean()', function () {
-        it('should raise a notice', function () {
-            try {
-                value.addToBoolean(factory.createBoolean(true));
-            } catch (error) {}
+                resultValue = value.add(addendOperand);
 
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_NOTICE,
-                'Object of class My\\Space\\AwesomeClass could not be converted to number'
-            );
-        });
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(2);
+            });
 
-        it('should return int(2) if the boolean was true', function () {
-            var resultValue = value.addToBoolean(factory.createBoolean(true));
+            it('should return the result of adding false', function () {
+                var addendOperand = factory.createBoolean(false), // Will be coerced to int(0)
+                    resultValue;
 
-            expect(resultValue.getType()).to.equal('int');
-            expect(resultValue.getNative()).to.equal(2);
-        });
+                resultValue = value.add(addendOperand);
 
-        it('should return int(1) if the boolean was false', function () {
-            var resultValue = value.addToBoolean(factory.createBoolean(false));
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(1);
+            });
 
-            expect(resultValue.getType()).to.equal('int');
-            expect(resultValue.getNative()).to.equal(1);
-        });
-    });
+            it('should raise a notice', function () {
+                var addendValue = factory.createBoolean(true);
 
-    describe('addToFloat()', function () {
-        it('should raise a notice', function () {
-            try {
-                value.addToFloat(factory.createBoolean(true));
-            } catch (error) {}
+                value.add(addendValue);
 
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_NOTICE,
-                'Object of class My\\Space\\AwesomeClass could not be converted to number'
-            );
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
         });
 
-        it('should return the float plus 1', function () {
-            var resultValue = value.addToFloat(factory.createFloat(5.45));
+        describe('for a float addend', function () {
+            it('should return the result of adding', function () {
+                var addendOperand = factory.createFloat(2.5),
+                    resultValue;
 
-            expect(resultValue.getType()).to.equal('float');
-            expect(resultValue.getNative()).to.equal(6.45);
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(3.5);
+            });
+
+            it('should raise a notice', function () {
+                var addendValue = factory.createFloat(2.5);
+
+                value.add(addendValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
+        });
+
+        describe('for an integer addend', function () {
+            it('should return the result of adding', function () {
+                var addendOperand = factory.createInteger(2),
+                    resultValue;
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(3);
+            });
+
+            it('should raise a notice', function () {
+                var addendValue = factory.createInteger(2);
+
+                value.add(addendValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
+        });
+
+        describe('for a null addend', function () {
+            it('should add zero', function () {
+                var addendOperand = factory.createNull(),
+                    resultValue;
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(1);
+            });
+
+            it('should raise a notice', function () {
+                var addendValue = factory.createNull();
+
+                value.add(addendValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
+        });
+
+        describe('for an object addend', function () {
+            it('should return the result of adding, with the object coerced to int(1)', function () {
+                var addendOperand = sinon.createStubInstance(ObjectValue),
+                    resultValue;
+                addendOperand.coerceToNumber.returns(factory.createInteger(1));
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(2);
+            });
+
+            it('should raise a notice', function () {
+                var addendValue = sinon.createStubInstance(ObjectValue);
+                addendValue.coerceToNumber.returns(factory.createInteger(1));
+
+                value.add(addendValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
+        });
+
+        describe('for a string addend', function () {
+            it('should return the result of adding a float string', function () {
+                var addendOperand = factory.createString('2.5'),
+                    resultValue;
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(3.5);
+            });
+
+            it('should return the result of adding a float with decimal string prefix', function () {
+                var addendOperand = factory.createString('3.5.4'),
+                    resultValue;
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(4.5);
+            });
+
+            it('should return the result of adding an integer string', function () {
+                var addendOperand = factory.createString('7'),
+                    resultValue;
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(8);
+            });
+
+            it('should raise a notice', function () {
+                var addendValue = factory.createString('21');
+
+                value.add(addendValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
         });
     });
 
@@ -193,6 +334,12 @@ describe('Object', function () {
         });
     });
 
+    describe('asFuture()', function () {
+        it('should return a Present that resolves to this value', function () {
+            return expect(value.asFuture().toPromise()).to.eventually.equal(value);
+        });
+    });
+
     describe('bindClosure()', function () {
         var boundClosure,
             nativeObject,
@@ -211,6 +358,8 @@ describe('Object', function () {
 
             value = new ObjectValue(
                 factory,
+                referenceFactory,
+                futureFactory,
                 callStack,
                 translator,
                 nativeObject,
@@ -273,7 +422,7 @@ describe('Object', function () {
                 resultValue = sinon.createStubInstance(Value);
             classObject.callMethod.returns(resultValue);
 
-            expect(value.callStaticMethod(methodNameValue, [argValue], null, false)).to.equal(resultValue);
+            expect(value.callStaticMethod(methodNameValue, [argValue], false)).to.equal(resultValue);
             expect(classObject.callMethod).to.have.been.calledOnce;
             expect(classObject.callMethod).to.have.been.calledWith(
                 'myMethod',
@@ -291,7 +440,7 @@ describe('Object', function () {
                 resultValue = sinon.createStubInstance(Value);
             classObject.callMethod.returns(resultValue);
 
-            expect(value.callStaticMethod(methodNameValue, [argValue], null, true)).to.equal(resultValue);
+            expect(value.callStaticMethod(methodNameValue, [argValue], true)).to.equal(resultValue);
             expect(classObject.callMethod).to.have.been.calledOnce;
             expect(classObject.callMethod).to.have.been.calledWith(
                 'myMethod',
@@ -375,6 +524,8 @@ describe('Object', function () {
         it('should handle an empty object', function () {
             var objectValue = new ObjectValue(
                     factory,
+                    referenceFactory,
+                    futureFactory,
                     callStack,
                     translator,
                     {},
@@ -516,285 +667,283 @@ describe('Object', function () {
                 .to.be.false;
         });
 
-        it('should leave the property unset', function () {
+        it('should leave the property unset', async function () {
             value.declareProperty('myUndefinedProp');
 
-            expect(value.getInstancePropertyByName(factory.createString('myUndefinedProp')).isSet())
+            expect(await value.getInstancePropertyByName(factory.createString('myUndefinedProp')).isSet().toPromise())
                 .to.be.false;
         });
 
-        it('should leave the property empty', function () {
+        it('should leave the property empty', async function () {
             value.declareProperty('myUndefinedProp');
 
-            expect(value.getInstancePropertyByName(factory.createString('myUndefinedProp')).isEmpty())
+            expect(await value.getInstancePropertyByName(factory.createString('myUndefinedProp')).isEmpty().toPromise())
                 .to.be.true;
         });
     });
 
-    describe('divide()', function () {
-        it('should hand off to the right-hand operand to divide by this object', function () {
-            var rightOperand = sinon.createStubInstance(Value),
-                result = sinon.createStubInstance(Value);
-            rightOperand.divideByObject.withArgs(value).returns(result);
+    describe('divideBy()', function () {
+        describe('for an array divisor', function () {
+            it('should throw an "Unsupported operand" error', function () {
+                var divisorValue = factory.createArray([]);
 
-            expect(value.divide(rightOperand)).to.equal(result);
-        });
-    });
-
-    describe('divideByArray()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createArray([]);
-
-            expect(function () {
-                value.divideByArray(leftValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('divideByBoolean()', function () {
-        _.each([
-            {
-                left: true,
-                expectedResultType: IntegerValue,
-                expectedResult: 1
-            },
-            {
-                left: false,
-                expectedResultType: IntegerValue,
-                expectedResult: 0
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' / <object>`', function () {
-                var leftValue;
-
-                beforeEach(function () {
-                    leftValue = factory.createBoolean(scenario.left);
-                });
-
-                it('should return the correct value', function () {
-                    var result = value.divideByBoolean(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                it('should raise a notice due to coercion of object to int', function () {
-                    classObject.getName.returns('MyClass');
-
-                    value.divideByBoolean(leftValue);
-
-                    expect(callStack.raiseError).to.have.been.calledOnce;
-                    expect(callStack.raiseError).to.have.been.calledWith(
-                        PHPError.E_NOTICE,
-                        'Object of class MyClass could not be converted to number'
-                    );
-                });
-            });
-        });
-    });
-
-    describe('divideByFloat()', function () {
-        _.each([
-            {
-                left: 12.0,
-                expectedResultType: FloatValue,
-                expectedResult: 12.0
-            },
-            {
-                left: 0.0,
-                expectedResultType: FloatValue,
-                expectedResult: 0.0
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' / <object>`', function () {
-                var leftValue;
-
-                beforeEach(function () {
-                    leftValue = factory.createFloat(scenario.left);
-                });
-
-                it('should return the correct value', function () {
-                    var result = value.divideByFloat(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                it('should raise a notice due to coercion of object to int', function () {
-                    classObject.getName.returns('MyObjClass');
-
-                    value.divideByFloat(leftValue);
-
-                    expect(callStack.raiseError).to.have.been.calledOnce;
-                    expect(callStack.raiseError).to.have.been.calledWith(
-                        PHPError.E_NOTICE,
-                        'Object of class MyObjClass could not be converted to number'
-                    );
-                });
-            });
-        });
-    });
-
-    describe('divideByInteger()', function () {
-        _.each([
-            {
-                left: 100,
-                expectedResultType: IntegerValue,
-                expectedResult: 100
-            },
-            {
-                left: 0,
-                expectedResultType: IntegerValue,
-                expectedResult: 0
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' / <object>`', function () {
-                var leftValue;
-
-                beforeEach(function () {
-                    leftValue = factory.createInteger(scenario.left);
-                });
-
-                it('should return the correct value', function () {
-                    var result = value.divideByInteger(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                it('should raise a notice due to coercion of object to int', function () {
-                    classObject.getName.returns('MyClass');
-
-                    value.divideByInteger(leftValue);
-
-                    expect(callStack.raiseError).to.have.been.calledOnce;
-                    expect(callStack.raiseError).to.have.been.calledWith(
-                        PHPError.E_NOTICE,
-                        'Object of class MyClass could not be converted to number'
-                    );
-                });
-            });
-        });
-    });
-
-    describe('divideByNull()', function () {
-        describe('for `null / <object>`', function () {
-            var coercedLeftValue,
-                leftValue;
-
-            beforeEach(function () {
-                leftValue = sinon.createStubInstance(NullValue);
-                leftValue.getNative.returns(null);
-
-                coercedLeftValue = sinon.createStubInstance(IntegerValue);
-                coercedLeftValue.getNative.returns(0);
-                leftValue.coerceToNumber.returns(coercedLeftValue);
+                expect(function () {
+                    value.divideBy(divisorValue);
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                );
             });
 
-            it('should return int(0)', function () {
-                var result = value.divideByNull(leftValue);
+            it('should raise a notice', function () {
+                var divisorValue = factory.createArray([]);
 
-                expect(result).to.be.an.instanceOf(IntegerValue);
-                expect(result.getNative()).to.equal(0);
-            });
-
-            it('should raise a notice due to coercion of object to int', function () {
-                classObject.getName.returns('MyClass');
-
-                value.divideByNull(leftValue);
+                try {
+                    value.divideBy(divisorValue);
+                } catch (error) {
+                }
 
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class MyClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
                 );
             });
         });
-    });
 
-    describe('divideByObject()', function () {
-        var coercedLeftValue,
-            leftValue;
+        describe('for a boolean divisor', function () {
+            it('should return the result of dividing by true', function () {
+                var divisorOperand = factory.createBoolean(true), // Will be coerced to int(1)
+                    resultValue;
 
-        beforeEach(function () {
-            leftValue = sinon.createStubInstance(ObjectValue);
-            leftValue.getNative.returns({});
+                resultValue = value.divideBy(divisorOperand);
 
-            coercedLeftValue = sinon.createStubInstance(IntegerValue);
-            coercedLeftValue.getNative.returns(1);
-            leftValue.coerceToNumber.returns(coercedLeftValue);
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(1);
+            });
+
+            it('should raise a warning and return false when dividing by false', function () {
+                var divisorOperand = factory.createBoolean(false), // Will be coerced to int(0)
+                    resultValue;
+
+                resultValue = value.divideBy(divisorOperand);
+
+                // Once for object-to-number conversion, once for division by zero
+                expect(callStack.raiseError).to.have.been.calledTwice;
+                expect(callStack.raiseError)
+                    .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
+                expect(resultValue.getType()).to.equal('boolean');
+                expect(resultValue.getNative()).to.equal(false);
+            });
+
+            it('should raise a notice', function () {
+                var divisorValue = factory.createBoolean(true);
+
+                value.divideBy(divisorValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
         });
 
-        it('should return int(1)', function () {
-            var result = value.divideByObject(leftValue);
+        describe('for a float divisor', function () {
+            it('should return the result of dividing', function () {
+                var divisorOperand = factory.createFloat(0.5),
+                    resultValue;
 
-            expect(result).to.be.an.instanceOf(IntegerValue);
-            expect(result.getNative()).to.equal(1);
+                resultValue = value.divideBy(divisorOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(2);
+            });
+
+            it('should raise a warning and return false when dividing by zero', function () {
+                var divisorOperand = factory.createFloat(0),
+                    resultValue;
+
+                resultValue = value.divideBy(divisorOperand);
+
+                // Once for object-to-number conversion, once for division by zero
+                expect(callStack.raiseError).to.have.been.calledTwice;
+                expect(callStack.raiseError)
+                    .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
+                expect(resultValue.getType()).to.equal('boolean');
+                expect(resultValue.getNative()).to.equal(false);
+            });
+
+            it('should raise a notice', function () {
+                var divisorValue = factory.createFloat(1.5);
+
+                value.divideBy(divisorValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
         });
 
-        it('should raise a notice due to coercion of object to int', function () {
-            classObject.getName.returns('MyClass');
+        describe('for an integer divisor', function () {
+            it('should return the result of dividing with a float result', function () {
+                var divisorOperand = factory.createInteger(2),
+                    resultValue;
 
-            value.divideByObject(leftValue);
+                resultValue = value.divideBy(divisorOperand);
 
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_NOTICE,
-                'Object of class MyClass could not be converted to number'
-            );
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(0.5);
+            });
+
+            it('should return the result of dividing with an integer result', function () {
+                var divisorOperand = factory.createInteger(1),
+                    resultValue;
+
+                resultValue = value.divideBy(divisorOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(1);
+            });
+
+            it('should raise a warning and return false when dividing by zero', function () {
+                var divisorOperand = factory.createInteger(0),
+                    resultValue;
+
+                resultValue = value.divideBy(divisorOperand);
+
+                // Once for object-to-number conversion, once for division by zero
+                expect(callStack.raiseError).to.have.been.calledTwice;
+                expect(callStack.raiseError)
+                    .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
+                expect(resultValue.getType()).to.equal('boolean');
+                expect(resultValue.getNative()).to.equal(false);
+            });
+
+            it('should raise a notice', function () {
+                var divisorValue = factory.createInteger(21);
+
+                value.divideBy(divisorValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
         });
-    });
 
-    describe('divideByString()', function () {
-        _.each([
-            {
-                left: 'my string',
-                expectedResultType: IntegerValue,
-                expectedResult: 0
-            },
-            {
-                left: '21', // Int string is coerced to int
-                expectedResultType: IntegerValue,
-                expectedResult: 21
-            },
-            {
-                left: '27.2', // Decimal string is coerced to float
-                expectedResultType: FloatValue,
-                expectedResult: 27.2
-            },
-            {
-                left: '25.4.7', // Decimal string prefix is coerced to float
-                expectedResultType: FloatValue,
-                expectedResult: 25.4
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' / <object>`', function () {
-                var leftValue;
+        describe('for a null divisor', function () {
+            it('should raise a warning and return false', function () {
+                var divisorOperand = factory.createNull(),
+                    resultValue;
 
-                beforeEach(function () {
-                    leftValue = factory.createString(scenario.left);
-                });
+                resultValue = value.divideBy(divisorOperand);
 
-                it('should return the correct value', function () {
-                    var result = value.divideByString(leftValue);
+                // Once for object-to-number conversion, once for division by zero
+                expect(callStack.raiseError).to.have.been.calledTwice;
+                expect(callStack.raiseError)
+                    .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
+                expect(resultValue.getType()).to.equal('boolean');
+                expect(resultValue.getNative()).to.equal(false);
+            });
 
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
+            it('should raise a notice', function () {
+                var divisorValue = factory.createNull();
 
-                it('should raise a notice due to coercion of object to int', function () {
-                    classObject.getName.returns('MyClass');
+                value.divideBy(divisorValue);
 
-                    value.divideByString(leftValue);
+                // Once for object-to-number conversion, once for division by zero
+                expect(callStack.raiseError).to.have.been.calledTwice;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
+        });
 
-                    expect(callStack.raiseError).to.have.been.calledOnce;
-                    expect(callStack.raiseError).to.have.been.calledWith(
-                        PHPError.E_NOTICE,
-                        'Object of class MyClass could not be converted to number'
-                    );
-                });
+        describe('for an object divisor', function () {
+            it('should return the result of dividing', function () {
+                var divisorOperand = sinon.createStubInstance(ObjectValue),
+                    resultValue;
+                divisorOperand.coerceToNumber.returns(factory.createInteger(1));
+
+                resultValue = value.divideBy(divisorOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(1);
+            });
+
+            it('should raise a notice', function () {
+                var divisorOperand = sinon.createStubInstance(ObjectValue);
+                divisorOperand.coerceToNumber.returns(factory.createInteger(1));
+
+                value.divideBy(divisorOperand);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
+        });
+
+        describe('for a string divisor', function () {
+            it('should return the result of dividing by a float string', function () {
+                var divisorOperand = factory.createString('0.5'),
+                    resultValue;
+
+                resultValue = value.divideBy(divisorOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(2);
+            });
+
+            it('should return the result of dividing by a float with decimal string prefix', function () {
+                var divisorOperand = factory.createString('0.5.4'),
+                    resultValue;
+
+                resultValue = value.divideBy(divisorOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(2);
+            });
+
+            it('should return the result of dividing by an integer string', function () {
+                var divisorOperand = factory.createString('2'),
+                    resultValue;
+
+                resultValue = value.divideBy(divisorOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(0.5);
+            });
+
+            it('should raise a warning and return false when dividing by zero', function () {
+                var divisorOperand = factory.createString('0'),
+                    resultValue;
+
+                resultValue = value.divideBy(divisorOperand);
+
+                // Once for object-to-number conversion, once for division by zero
+                expect(callStack.raiseError).to.have.been.calledTwice;
+                expect(callStack.raiseError)
+                    .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
+                expect(resultValue.getType()).to.equal('boolean');
+                expect(resultValue.getNative()).to.equal(false);
+            });
+
+            it('should raise a notice', function () {
+                var divisorOperand = factory.createString('1.5');
+
+                value.divideBy(divisorOperand);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
             });
         });
     });
@@ -870,10 +1019,12 @@ describe('Object', function () {
                 classObject.is.returns(false);
             });
 
-            it('should throw an exception', function () {
-                expect(function () {
-                    value.getCurrentElementReference();
-                }).to.throw(Exception, 'Object.getCurrentElementValue() :: Object does not implement Iterator');
+            it('should fetch the current element', function () {
+                var propertyReference = value.getCurrentElementReference(),
+                    propertyValue = propertyReference.getValue();
+
+                expect(propertyValue.getType()).to.equal('string');
+                expect(propertyValue.getNative()).to.equal('the value of firstProp');
             });
         });
     });
@@ -905,10 +1056,11 @@ describe('Object', function () {
                 classObject.is.returns(false);
             });
 
-            it('should throw an exception', function () {
-                expect(function () {
-                    value.getCurrentElementValue();
-                }).to.throw(Exception, 'Object.getCurrentElementValue() :: Object does not implement Iterator');
+            it('should fetch the current element', function () {
+                var propertyValue = value.getCurrentElementValue();
+
+                expect(propertyValue.getType()).to.equal('string');
+                expect(propertyValue.getNative()).to.equal('the value of firstProp');
             });
         });
     });
@@ -1341,11 +1493,11 @@ describe('Object', function () {
         });
 
         describe('when the object does not implement Traversable', function () {
-            it('should return an ArrayIterator over this object', function () {
+            it('should return an ArrayIterator over this object', async function () {
                 var iterator;
                 classObject.is.returns(false);
 
-                iterator = value.getIterator();
+                iterator = await value.getIterator().toPromise();
 
                 expect(iterator).to.be.an.instanceOf(ArrayIterator);
                 expect(iterator.getIteratedValue()).to.equal(value);
@@ -1376,41 +1528,45 @@ describe('Object', function () {
                 classObject.is.returns(false);
             });
 
-            it('should return the Iterator instance returned by ->getIterator()', function () {
+            it('should return the Iterator instance returned by ->getIterator()', async function () {
                 var iteratorValue = sinon.createStubInstance(ObjectValue);
                 iteratorValue.classIs.withArgs('Iterator').returns(true);
                 iteratorValue.classIs.returns(false);
                 iteratorValue.getType.returns('object');
-                classObject.callMethod.withArgs('getIterator').returns(iteratorValue);
+                classObject.callMethod.withArgs('getIterator')
+                    .returns(futureFactory.createPresent(iteratorValue));
 
-                expect(value.getIterator()).to.equal(iteratorValue);
+                expect(await value.getIterator().toPromise()).to.equal(iteratorValue);
             });
 
-            it('should rewind the Iterator instance returned by ->getIterator()', function () {
+            it('should rewind the Iterator instance returned by ->getIterator()', async function () {
                 var iteratorValue = sinon.createStubInstance(ObjectValue);
                 iteratorValue.classIs.withArgs('Iterator').returns(true);
                 iteratorValue.classIs.returns(false);
                 iteratorValue.getType.returns('object');
-                classObject.callMethod.withArgs('getIterator').returns(iteratorValue);
+                classObject.callMethod.withArgs('getIterator')
+                    .returns(futureFactory.createPresent(iteratorValue));
 
-                value.getIterator();
+                await value.getIterator().toPromise();
 
                 expect(iteratorValue.callMethod).to.have.been.calledOnce;
                 expect(iteratorValue.callMethod).to.have.been.calledWith('rewind');
             });
 
-            it('should throw an Exception when the return value of ->getIterator() is not an object', function () {
+            it('should throw an Exception when the return value of ->getIterator() is not an object', async function () {
                 var caughtError,
                     exceptionClassObject = sinon.createStubInstance(Class),
                     exceptionObjectValue = sinon.createStubInstance(ObjectValue),
                     invalidIteratorValue = factory.createString('I am not a valid iterator');
                 exceptionClassObject.getSuperClass.returns(null);
-                classObject.callMethod.withArgs('getIterator').returns(invalidIteratorValue);
-                globalNamespace.getClass.withArgs('Exception').returns(exceptionClassObject);
+                classObject.callMethod.withArgs('getIterator')
+                    .returns(futureFactory.createPresent(invalidIteratorValue));
+                globalNamespace.getClass.withArgs('Exception')
+                    .returns(futureFactory.createPresent(exceptionClassObject));
                 exceptionClassObject.instantiate.returns(exceptionObjectValue);
 
                 try {
-                    value.getIterator();
+                    await value.getIterator().toPromise();
                 } catch (error) {
                     caughtError = error;
                 }
@@ -1422,7 +1578,7 @@ describe('Object', function () {
                 );
             });
 
-            it('should throw an Exception when the return value of ->getIterator() does not implement Iterator', function () {
+            it('should throw an Exception when the return value of ->getIterator() does not implement Iterator', async function () {
                 var caughtError,
                     exceptionClassObject = sinon.createStubInstance(Class),
                     exceptionObjectValue = sinon.createStubInstance(ObjectValue),
@@ -1430,12 +1586,14 @@ describe('Object', function () {
                 exceptionClassObject.getSuperClass.returns(null);
                 iteratorValue.classIs.returns(false);
                 iteratorValue.getType.returns('object');
-                classObject.callMethod.withArgs('getIterator').returns(iteratorValue);
-                globalNamespace.getClass.withArgs('Exception').returns(exceptionClassObject);
+                classObject.callMethod.withArgs('getIterator')
+                    .returns(futureFactory.createPresent(iteratorValue));
+                globalNamespace.getClass.withArgs('Exception')
+                    .returns(futureFactory.createPresent(exceptionClassObject));
                 exceptionClassObject.instantiate.returns(exceptionObjectValue);
 
                 try {
-                    value.getIterator();
+                    await value.getIterator().toPromise();
                 } catch (error) {
                     caughtError = error;
                 }
@@ -1613,12 +1771,12 @@ describe('Object', function () {
         });
 
         describe('for an instance of a PHP class', function () {
-            it('should return a new instance of that class', function () {
+            it('should return a new instance of that class', async function () {
                 var newObjectValue = sinon.createStubInstance(ObjectValue),
                     resultObjectValue;
                 classObject.instantiate.withArgs([sinon.match.same(arg1Value)]).returns(newObjectValue);
 
-                resultObjectValue = value.instantiate([arg1Value]);
+                resultObjectValue = await value.instantiate([arg1Value]).toPromise();
 
                 expect(resultObjectValue).to.equal(newObjectValue);
             });
@@ -1641,6 +1799,8 @@ describe('Object', function () {
 
                 value = new ObjectValue(
                     factory,
+                    referenceFactory,
+                    futureFactory,
                     callStack,
                     translator,
                     nativeObject,
@@ -1649,35 +1809,35 @@ describe('Object', function () {
                 );
             });
 
-            it('should return a JSObject wrapping a new instance of the JS function/class', function () {
+            it('should return a JSObject wrapping a new instance of the JS function/class', async function () {
                 var resultObjectValue;
 
-                resultObjectValue = value.instantiate([arg1Value]);
+                resultObjectValue = await value.instantiate([arg1Value]).toPromise();
 
                 expect(resultObjectValue).to.be.an.instanceOf(ObjectValue);
                 expect(resultObjectValue.getClass()).to.equal(classObject);
                 expect(resultObjectValue.getObject()).to.be.an.instanceOf(JSClass);
             });
 
-            it('should call the native JS function/class/constructor on the new native JS object with unwrapped args', function () {
+            it('should call the native JS function/class/constructor on the new native JS object with unwrapped args', async function () {
                 var resultObjectValue;
                 JSClass.callsFake(function () {
                     this.myProp = 1009;
                 });
 
-                resultObjectValue = value.instantiate([arg1Value]);
+                resultObjectValue = await value.instantiate([arg1Value]).toPromise();
 
                 expect(JSClass).to.have.been.calledOnce;
                 expect(resultObjectValue.getObject().myProp).to.equal(1009);
                 expect(JSClass).to.have.been.calledWith(21);
             });
 
-            it('should allow a native JS constructor function to return a different object to use', function () {
+            it('should allow a native JS constructor function to return a different object to use', async function () {
                 var resultObjectValue,
                     resultNativeObject = {my: 'native object'};
                 JSClass.returns(resultNativeObject);
 
-                resultObjectValue = value.instantiate([arg1Value]);
+                resultObjectValue = await value.instantiate([arg1Value]).toPromise();
 
                 expect(resultObjectValue).to.be.an.instanceOf(ObjectValue);
                 expect(resultObjectValue.getClass()).to.equal(classObject);
@@ -1692,6 +1852,8 @@ describe('Object', function () {
 
                 value = new ObjectValue(
                     factory,
+                    referenceFactory,
+                    futureFactory,
                     callStack,
                     translator,
                     nativeObject,
@@ -1718,6 +1880,8 @@ describe('Object', function () {
 
             value = new ObjectValue(
                 factory,
+                referenceFactory,
+                futureFactory,
                 callStack,
                 translator,
                 closure,
@@ -1776,31 +1940,31 @@ describe('Object', function () {
                 .returns(false);
         });
 
-        it('should return true for an instance of Closure', function () {
+        it('should return true for an instance of Closure', async function () {
             classObject.is
                 .withArgs('Closure')
                 .returns(true);
 
-            expect(value.isCallable()).to.be.true;
+            expect(await value.isCallable().toPromise()).to.be.true;
         });
 
-        it('should return true for an instance of a non-Closure class implementing ->__invoke()', function () {
+        it('should return true for an instance of a non-Closure class implementing ->__invoke()', async function () {
             var methodSpec = sinon.createStubInstance(MethodSpec);
             classObject.getMethodSpec
                 .withArgs('__invoke')
                 .returns(methodSpec);
 
-            expect(value.isCallable()).to.be.true;
+            expect(await value.isCallable().toPromise()).to.be.true;
         });
 
-        it('should return false for a non-Closure instance that doesn\'t implement ->__invoke()', function () {
-            expect(value.isCallable()).to.be.false;
+        it('should return false for a non-Closure instance that doesn\'t implement ->__invoke()', async function () {
+            expect(await value.isCallable().toPromise()).to.be.false;
         });
     });
 
     describe('isEmpty()', function () {
-        it('should return false', function () {
-            expect(value.isEmpty()).to.be.false;
+        it('should return false', async function () {
+            expect(await value.isEmpty().toPromise()).to.be.false;
         });
     });
 
@@ -1816,7 +1980,16 @@ describe('Object', function () {
         });
 
         it('should return true when given another object with identical properties and of the same class', function () {
-            var otherObject = new ObjectValue(factory, callStack, translator, {}, classObject, 22);
+            var otherObject = new ObjectValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                translator,
+                {},
+                classObject,
+                22
+            );
             otherObject.declareProperty('firstProp', classObject, 'public').initialise(prop1);
             otherObject.declareProperty('secondProp', classObject, 'public').initialise(prop2);
 
@@ -1824,7 +1997,16 @@ describe('Object', function () {
         });
 
         it('should return false when given another object with identical properties but of another class', function () {
-            var otherObject = new ObjectValue(factory, callStack, translator, {}, anotherClass, 22);
+            var otherObject = new ObjectValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                translator,
+                {},
+                anotherClass,
+                22
+            );
             otherObject.declareProperty('firstProp', classObject, 'public').initialise(prop1);
             otherObject.declareProperty('secondProp', classObject, 'public').initialise(prop2);
 
@@ -1832,7 +2014,16 @@ describe('Object', function () {
         });
 
         it('should return false when given another object with different properties but of the same class', function () {
-            var otherObject = new ObjectValue(factory, callStack, translator, {}, classObject, 22);
+            var otherObject = new ObjectValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                translator,
+                {},
+                classObject,
+                22
+            );
             otherObject.declareProperty('firstProp', classObject, 'public').initialise(prop1);
             otherObject.declareProperty('secondProp', classObject, 'public')
                 .initialise(factory.createInteger(1001));
@@ -2020,303 +2211,423 @@ describe('Object', function () {
         });
     });
 
-    describe('multiply()', function () {
-        it('should hand off to the right-hand operand to multiply by this object', function () {
-            var rightOperand = sinon.createStubInstance(Value),
-                result = sinon.createStubInstance(Value);
-            rightOperand.multiplyByObject.withArgs(value).returns(result);
+    describe('multiplyBy()', function () {
+        describe('for an array multiplier', function () {
+            it('should throw an "Unsupported operand" error', function () {
+                var multiplierValue = factory.createArray([]);
 
-            expect(value.multiply(rightOperand)).to.equal(result);
-        });
-    });
-
-    describe('multiplyByArray()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createArray([]);
-
-            expect(function () {
-                value.multiplyByArray(leftValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('multiplyByBoolean()', function () {
-        _.each([
-            {
-                left: true,
-                expectedResultType: IntegerValue,
-                expectedResult: 1
-            },
-            {
-                left: false,
-                expectedResultType: IntegerValue,
-                expectedResult: 0
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' * <object>`', function () {
-                var leftValue;
-
-                beforeEach(function () {
-                    leftValue = factory.createBoolean(scenario.left);
-                });
-
-                it('should return the correct value', function () {
-                    var result = value.multiplyByBoolean(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                it('should raise a notice due to coercion of object to int', function () {
-                    classObject.getName.returns('MyClass');
-
-                    value.multiplyByBoolean(leftValue);
-
-                    expect(callStack.raiseError).to.have.been.calledOnce;
-                    expect(callStack.raiseError).to.have.been.calledWith(
-                        PHPError.E_NOTICE,
-                        'Object of class MyClass could not be converted to number'
-                    );
-                });
-            });
-        });
-    });
-
-    describe('multiplyByFloat()', function () {
-        _.each([
-            {
-                left: 12.0,
-                expectedResultType: FloatValue,
-                expectedResult: 12.0
-            },
-            {
-                left: 0.0,
-                expectedResultType: FloatValue,
-                expectedResult: 0.0
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' * <object>`', function () {
-                var leftValue;
-
-                beforeEach(function () {
-                    leftValue = factory.createFloat(scenario.left);
-                });
-
-                it('should return the correct value', function () {
-                    var result = value.multiplyByFloat(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                it('should raise a notice due to coercion of object to int', function () {
-                    classObject.getName.returns('MyObjClass');
-
-                    value.multiplyByFloat(leftValue);
-
-                    expect(callStack.raiseError).to.have.been.calledOnce;
-                    expect(callStack.raiseError).to.have.been.calledWith(
-                        PHPError.E_NOTICE,
-                        'Object of class MyObjClass could not be converted to number'
-                    );
-                });
-            });
-        });
-    });
-
-    describe('multiplyByInteger()', function () {
-        _.each([
-            {
-                left: 100,
-                expectedResultType: IntegerValue,
-                expectedResult: 100
-            },
-            {
-                left: 0,
-                expectedResultType: IntegerValue,
-                expectedResult: 0
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' * <object>`', function () {
-                var leftValue;
-
-                beforeEach(function () {
-                    leftValue = factory.createInteger(scenario.left);
-                });
-
-                it('should return the correct value', function () {
-                    var result = value.multiplyByInteger(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                it('should raise a notice due to coercion of object to int', function () {
-                    classObject.getName.returns('MyClass');
-
-                    value.multiplyByInteger(leftValue);
-
-                    expect(callStack.raiseError).to.have.been.calledOnce;
-                    expect(callStack.raiseError).to.have.been.calledWith(
-                        PHPError.E_NOTICE,
-                        'Object of class MyClass could not be converted to number'
-                    );
-                });
-            });
-        });
-    });
-
-    describe('multiplyByNull()', function () {
-        describe('for `null * <object>`', function () {
-            var coercedLeftValue,
-                leftValue;
-
-            beforeEach(function () {
-                leftValue = sinon.createStubInstance(NullValue);
-                leftValue.getNative.returns(null);
-
-                coercedLeftValue = sinon.createStubInstance(IntegerValue);
-                coercedLeftValue.getNative.returns(0);
-                leftValue.coerceToNumber.returns(coercedLeftValue);
+                expect(function () {
+                    value.multiplyBy(multiplierValue);
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                );
             });
 
-            it('should return int(0)', function () {
-                var result = value.multiplyByNull(leftValue);
+            it('should raise a notice', function () {
+                var multiplierValue = factory.createArray([]);
 
-                expect(result).to.be.an.instanceOf(IntegerValue);
-                expect(result.getNative()).to.equal(0);
-            });
-
-            it('should raise a notice due to coercion of object to int', function () {
-                classObject.getName.returns('MyClass');
-
-                value.multiplyByNull(leftValue);
+                try {
+                    value.multiplyBy(multiplierValue);
+                } catch (error) {
+                }
 
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class MyClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
+        });
+
+        describe('for a boolean multiplier', function () {
+            it('should return the result of multiplying by true', function () {
+                var multiplierOperand = factory.createBoolean(true), // Will be coerced to int(1)
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(1);
+            });
+
+            it('should return the result of multiplying by false', function () {
+                var multiplierOperand = factory.createBoolean(false), // Will be coerced to int(0)
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(0);
+            });
+
+            it('should raise a notice', function () {
+                var multiplierValue = factory.createBoolean(true);
+
+                value.multiplyBy(multiplierValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
+        });
+
+        describe('for a float multiplier', function () {
+            it('should return the result of multiplying', function () {
+                var multiplierOperand = factory.createFloat(2.5),
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(2.5);
+            });
+
+            it('should raise a notice', function () {
+                var multiplierValue = factory.createFloat(1.5);
+
+                value.multiplyBy(multiplierValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
+        });
+
+        describe('for an integer multiplier', function () {
+            it('should return the result of multiplying', function () {
+                var multiplierOperand = factory.createInteger(2),
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(2);
+            });
+
+            it('should raise a notice', function () {
+                var multiplierValue = factory.createInteger(21);
+
+                value.multiplyBy(multiplierValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
+        });
+
+        describe('for a null multiplier', function () {
+            it('should return zero', function () {
+                var multiplierOperand = factory.createNull(),
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(0);
+            });
+
+            it('should raise a notice', function () {
+                var multiplierValue = factory.createNull();
+
+                value.multiplyBy(multiplierValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
+        });
+
+        describe('for an object multiplier', function () {
+            it('should return the result of multiplying', function () {
+                var multiplierOperand = sinon.createStubInstance(ObjectValue),
+                    resultValue;
+                multiplierOperand.coerceToNumber.returns(factory.createInteger(1));
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(1);
+            });
+
+            it('should raise a notice', function () {
+                var multiplierOperand = sinon.createStubInstance(ObjectValue);
+                multiplierOperand.coerceToNumber.returns(factory.createInteger(1));
+
+                value.multiplyBy(multiplierOperand);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
+        });
+
+        describe('for a string multiplier', function () {
+            it('should return the result of multiplying by a float string', function () {
+                var multiplierOperand = factory.createString('2.5'),
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(2.5);
+            });
+
+            it('should return the result of multiplying by a float with decimal string prefix', function () {
+                var multiplierOperand = factory.createString('3.5.4'),
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(3.5);
+            });
+
+            it('should return the result of multiplying by an integer string', function () {
+                var multiplierOperand = factory.createString('2'),
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(2);
+            });
+
+            it('should return zero when multiplying by zero', function () {
+                var multiplierOperand = factory.createString('0'),
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(0);
+            });
+
+            it('should raise a notice', function () {
+                var multiplierValue = factory.createString('1.5');
+
+                value.multiplyBy(multiplierValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
                 );
             });
         });
     });
 
-    describe('multiplyByObject()', function () {
-        var coercedLeftValue,
-            leftValue;
+    describe('subtract()', function () {
+        describe('for an array subtrahend', function () {
+            it('should throw an "Unsupported operand" error', function () {
+                var subtrahendValue = factory.createArray([]);
 
-        beforeEach(function () {
-            leftValue = sinon.createStubInstance(ObjectValue);
-            leftValue.getNative.returns({});
+                expect(function () {
+                    value.subtract(subtrahendValue);
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                );
+            });
 
-            coercedLeftValue = sinon.createStubInstance(IntegerValue);
-            coercedLeftValue.getNative.returns(1);
-            leftValue.coerceToNumber.returns(coercedLeftValue);
-        });
+            it('should raise a notice', function () {
+                var subtrahendValue = factory.createArray([]);
 
-        it('should return int(1)', function () {
-            var result = value.multiplyByObject(leftValue);
+                try {
+                    value.subtract(subtrahendValue);
+                } catch (error) {
+                }
 
-            expect(result).to.be.an.instanceOf(IntegerValue);
-            expect(result.getNative()).to.equal(1);
-        });
-
-        it('should raise a notice due to coercion of object to int', function () {
-            classObject.getName.returns('MyClass');
-
-            value.multiplyByObject(leftValue);
-
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_NOTICE,
-                'Object of class MyClass could not be converted to number'
-            );
-        });
-    });
-
-    describe('multiplyByString()', function () {
-        _.each([
-            {
-                left: 'my string',
-                expectedResultType: IntegerValue,
-                expectedResult: 0
-            },
-            {
-                left: '21', // Int string is coerced to int
-                expectedResultType: IntegerValue,
-                expectedResult: 21
-            },
-            {
-                left: '27.2', // Decimal string is coerced to float
-                expectedResultType: FloatValue,
-                expectedResult: 27.2
-            },
-            {
-                left: '25.4.7', // Decimal string prefix is coerced to float
-                expectedResultType: FloatValue,
-                expectedResult: 25.4
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' * <object>`', function () {
-                var leftValue;
-
-                beforeEach(function () {
-                    leftValue = factory.createString(scenario.left);
-                });
-
-                it('should return the correct value', function () {
-                    var result = value.multiplyByString(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                it('should raise a notice due to coercion of object to int', function () {
-                    classObject.getName.returns('MyClass');
-
-                    value.multiplyByString(leftValue);
-
-                    expect(callStack.raiseError).to.have.been.calledOnce;
-                    expect(callStack.raiseError).to.have.been.calledWith(
-                        PHPError.E_NOTICE,
-                        'Object of class MyClass could not be converted to number'
-                    );
-                });
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
             });
         });
-    });
 
-    describe('pointToProperty()', function () {
-        it('should set the pointer to the index of the property when native', function () {
-            var element = sinon.createStubInstance(PropertyReference);
-            element.getKey.returns(factory.createString('secondProp'));
+        describe('for a boolean subtrahend', function () {
+            it('should return the result of subtracting true', function () {
+                var subtrahendOperand = factory.createBoolean(true), // Will be coerced to int(1)
+                    resultValue;
 
-            value.pointToProperty(element);
+                resultValue = value.subtract(subtrahendOperand);
 
-            expect(value.getPointer()).to.equal(1);
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(0);
+            });
+
+            it('should return the result of subtracting false', function () {
+                var subtrahendOperand = factory.createBoolean(false), // Will be coerced to int(0)
+                    resultValue;
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(1);
+            });
+
+            it('should raise a notice', function () {
+                var subtrahendValue = factory.createBoolean(true);
+
+                value.subtract(subtrahendValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
         });
 
-        it('should set the pointer to the index of the property when added from PHP', function () {
-            var element = sinon.createStubInstance(PropertyReference);
-            element.getKey.returns(factory.createString('myNewProp'));
-            value.getInstancePropertyByName(factory.createString('myNewProp'))
-                .setValue(factory.createString('a value'));
+        describe('for a float subtrahend', function () {
+            it('should return the result of subtracting', function () {
+                var subtrahendOperand = factory.createFloat(2.5),
+                    resultValue;
 
-            value.pointToProperty(element);
+                resultValue = value.subtract(subtrahendOperand);
 
-            expect(value.getPointer()).to.equal(2);
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(-1.5);
+            });
+
+            it('should raise a notice', function () {
+                var subtrahendValue = factory.createFloat(1.5);
+
+                value.subtract(subtrahendValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
         });
-    });
 
-    describe('subtractFromNull()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            expect(function () {
-                value.subtractFromNull();
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
+        describe('for an integer subtrahend', function () {
+            it('should return the result of subtracting', function () {
+                var subtrahendOperand = factory.createInteger(2),
+                    resultValue;
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(-1);
+            });
+
+            it('should raise a notice', function () {
+                var subtrahendValue = factory.createInteger(7);
+
+                value.subtract(subtrahendValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
+        });
+
+        describe('for a null subtrahend', function () {
+            it('should subtract zero', function () {
+                var subtrahendOperand = factory.createNull(),
+                    resultValue;
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(1);
+            });
+
+            it('should raise a notice', function () {
+                var subtrahendValue = factory.createNull();
+
+                value.subtract(subtrahendValue);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
+        });
+
+        describe('for an object subtrahend', function () {
+            it('should return the result of subtracting, with the object coerced to int(1)', function () {
+                var subtrahendOperand = sinon.createStubInstance(ObjectValue),
+                    resultValue;
+                subtrahendOperand.coerceToNumber.returns(factory.createInteger(1));
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(0);
+            });
+
+            it('should raise a notice', function () {
+                var subtrahendOperand = sinon.createStubInstance(ObjectValue);
+                subtrahendOperand.coerceToNumber.returns(factory.createInteger(1));
+
+                value.subtract(subtrahendOperand);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
+        });
+
+        describe('for a string subtrahend', function () {
+            it('should return the result of subtracting a float string', function () {
+                var subtrahendOperand = factory.createString('2.5'),
+                    resultValue;
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(-1.5);
+            });
+
+            it('should return the result of subtracting a float with decimal string prefix', function () {
+                var subtrahendOperand = factory.createString('3.5.4'),
+                    resultValue;
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(-2.5);
+            });
+
+            it('should return the result of subtracting an integer string', function () {
+                var subtrahendOperand = factory.createString('7'),
+                    resultValue;
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(-6);
+            });
+
+            it('should raise a notice', function () {
+                var subtrahendOperand = factory.createString('21');
+
+                value.subtract(subtrahendOperand);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                );
+            });
         });
     });
 });

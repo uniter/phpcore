@@ -12,14 +12,14 @@
 var _ = require('microdash');
 
 /**
- * @param {OpcodeFactory} opcodeFactory
+ * @param {OpcodePool} opcodePool
  * @constructor
  */
-function LoopStructureOpcodeFetcher(opcodeFactory) {
+function LoopStructureOpcodeFetcher(opcodePool) {
     /**
-     * @type {OpcodeFactory}
+     * @type {OpcodePool}
      */
-    this.opcodeFactory = opcodeFactory;
+    this.opcodePool = opcodePool;
 }
 
 _.extend(LoopStructureOpcodeFetcher.prototype, {
@@ -40,7 +40,7 @@ _.extend(LoopStructureOpcodeFetcher.prototype, {
 
         effectiveOpIndex = trace.getEffectiveLoopStructureOpIndex(opIndex, loopIndex);
 
-        return this.opcodeFactory.createLoopStructureOpcode(trace, effectiveOpIndex, loopIndex, handler, args);
+        return this.opcodePool.provideLoopStructureOpcode(trace, effectiveOpIndex, loopIndex, handler, args);
     }
 });
 

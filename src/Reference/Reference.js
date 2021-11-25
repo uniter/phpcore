@@ -20,14 +20,9 @@ var _ = require('microdash'),
  * Interface for references to extend to allow instanceof checking
  *
  * @param {ReferenceFactory} referenceFactory
- * @param {Flow} flow
  * @constructor
  */
-function Reference(referenceFactory, flow) {
-    /**
-     * @type {Flow}
-     */
-    this.flow = flow;
+function Reference(referenceFactory) {
     /**
      * @type {ReferenceFactory}
      */
@@ -35,21 +30,6 @@ function Reference(referenceFactory, flow) {
 }
 
 _.extend(Reference.prototype, {
-    /**
-     * Subtracts the specified value from the value from this reference
-     * and then assigns the result back to this reference
-     *
-     * Used by the `-=` operator
-     *
-     * @deprecated Remove all of these types of method from Reference, and from Variable too
-     * @param {Value} rightValue
-     */
-    decrementBy: function (rightValue) {
-        var reference = this;
-
-        reference.setValue(reference.getValue().subtract(rightValue));
-    },
-
     /**
      * Formats the reference (which may not be defined) for display in stack traces etc.
      *
@@ -130,74 +110,16 @@ _.extend(Reference.prototype, {
     /**
      * Determines whether the reference is classed as "empty" or not
      *
-     * @returns {boolean|Future<boolean>}
+     * @returns {Future<boolean>}
      */
     isEmpty: throwUnimplemented('isEmpty'),
 
     /**
      * Determines whether the reference is classed as "set" or not
      *
-     * @returns {boolean}
+     * @returns {Future<boolean>}
      */
     isSet: throwUnimplemented('isSet'),
-
-    /**
-     * Decrements the stored value, returning its original value
-     *
-     * @returns {Value}
-     */
-    postDecrement: function () {
-        var reference = this,
-            originalValue = reference.getValue(),
-            decrementedValue = originalValue.decrement();
-
-        reference.setValue(decrementedValue);
-
-        return originalValue;
-    },
-
-    /**
-     * Increments the stored value, returning its original value
-     *
-     * @returns {Value}
-     */
-    postIncrement: function () {
-        var reference = this,
-            originalValue = reference.getValue(),
-            incrementedValue = originalValue.increment();
-
-        reference.setValue(incrementedValue);
-
-        return originalValue;
-    },
-
-    /**
-     * Decrements the stored value, returning its new value
-     *
-     * @returns {Value}
-     */
-    preDecrement: function () {
-        var reference = this,
-            decrementedValue = reference.getValue().decrement();
-
-        reference.setValue(decrementedValue);
-
-        return decrementedValue;
-    },
-
-    /**
-     * Increments the stored value, returning its new value
-     *
-     * @returns {Value}
-     */
-    preIncrement: function () {
-        var reference = this,
-            incrementedValue = reference.getValue().increment();
-
-        reference.setValue(incrementedValue);
-
-        return incrementedValue;
-    },
 
     /**
      * Sets the value of this reference. If it was already assigned a value it will be overwritten,

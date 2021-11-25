@@ -17,6 +17,7 @@ var _ = require('microdash'),
  *
  * @param {CallStack} callStack
  * @param {ValueFactory} valueFactory
+ * @param {Flow} flow
  * @param {FunctionContextInterface} context
  * @param {NamespaceScope} namespaceScope
  * @param {Parameter[]} parameterList
@@ -27,6 +28,7 @@ var _ = require('microdash'),
 function FunctionSpec(
     callStack,
     valueFactory,
+    flow,
     context,
     namespaceScope,
     parameterList,
@@ -45,6 +47,10 @@ function FunctionSpec(
      * @type {string|null}
      */
     this.filePath = filePath;
+    /**
+     * @type {Flow}
+     */
+    this.flow = flow;
     /**
      * @type {number|null}
      */
@@ -197,7 +203,7 @@ _.extend(FunctionSpec.prototype, {
      * Populates any unspecified arguments with their default values from parameters
      *
      * @param {Reference[]|Value[]|Variable[]} argumentReferenceList
-     * @returns {Reference[]|Value[]|Variable[]}
+     * @returns {Future<Reference[]|Value[]|Variable[]>}
      */
     populateDefaultArguments: function (argumentReferenceList) {
         var coercedArguments = argumentReferenceList.slice(),
@@ -213,37 +219,43 @@ _.extend(FunctionSpec.prototype, {
             return currentParameter.getLineNumber();
         });
 
-        _.each(spec.parameterList, function (parameter, index) {
-            if (!parameter) {
-                // Parameter is omitted due to bundle-size optimisations or similar, ignore
+        return spec.flow
+            .eachAsync(spec.parameterList, function (parameter, index) {
+                if (!parameter) {
+                    // Parameter is omitted due to bundle-size optimisations or similar, ignore
 
-                return;
-            }
+                    return;
+                }
 
-            if (parameter.isRequired() && argumentReferenceList.length <= index) {
-                // No argument is given for this required parameter - should fail validation later
+                if (parameter.isRequired() && argumentReferenceList.length <= index) {
+                    // No argument is given for this required parameter - should fail validation later
 
-                return;
-            }
+                    return;
+                }
 
-            currentParameter = parameter;
+                currentParameter = parameter;
 
-            // Coerce the argument as the parameter requires
-            coercedArguments[index] = parameter.populateDefaultArgument(argumentReferenceList[index]);
-        });
-
-        return coercedArguments;
+                // Coerce the argument as the parameter requires, allowing for async operation
+                return parameter.populateDefaultArgument(argumentReferenceList[index])
+                    .next(function (argumentValue) {
+                        coercedArguments[index] = argumentValue;
+                    });
+            })
+            .next(function () {
+                return coercedArguments;
+            });
     },
 
     /**
      * Validates that the given set of arguments are valid for this function
      *
      * @param {Reference[]|Value[]|Variable[]} argumentReferenceList
+     * @returns {Future<void>} Resolved if the arguments are valid or rejected with an Error otherwise
      */
     validateArguments: function (argumentReferenceList) {
         var spec = this;
 
-        _.each(spec.parameterList, function (parameter, index) {
+        return spec.flow.eachAsync(spec.parameterList, function (parameter, index) {
             var filePath = null,
                 lineNumber = null;
 
@@ -259,6 +271,8 @@ _.extend(FunctionSpec.prototype, {
                 }
 
                 // No argument is given for this required parameter - error
+                // TODO: Consider using callStack.raiseTranslatedError(...) instead, as we do in Parameter -
+                //       then remove this .createTranslatedErrorObject() method?
                 throw spec.valueFactory.createTranslatedErrorObject(
                     'ArgumentCountError',
                     TOO_FEW_ARGS_FOR_EXACT_COUNT,
@@ -277,7 +291,7 @@ _.extend(FunctionSpec.prototype, {
             }
 
             // Validate the argument as the parameter requires
-            parameter.validateArgument(argumentReferenceList[index]);
+            return parameter.validateArgument(argumentReferenceList[index]);
         });
     }
 });

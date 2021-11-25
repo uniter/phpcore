@@ -160,6 +160,11 @@ _.extend(Call.prototype, {
         return this.scope.getThisObject();
     },
 
+    /**
+     * Fetches the Trace for this call.
+     *
+     * @returns {Trace}
+     */
     getTrace: function () {
         return this.trace;
     },
@@ -195,6 +200,11 @@ _.extend(Call.prototype, {
         return !this.namespaceScope.isGlobal();
     },
 
+    /**
+     * Resumes this paused call's Trace with the given result value.
+     *
+     * @param {*} resultValue
+     */
     resume: function (resultValue) {
         this.trace.resume(resultValue);
     },
@@ -217,6 +227,11 @@ _.extend(Call.prototype, {
         return this.scope.suppressesOwnErrors();
     },
 
+    /**
+     * Throws the given error into this paused call's Trace.
+     *
+     * @param {Error} error
+     */
     throwInto: function (error) {
         this.trace.throwInto(error);
     }

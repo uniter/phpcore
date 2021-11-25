@@ -12,15 +12,22 @@
 var _ = require('microdash'),
     hasOwn = {}.hasOwnProperty,
     phpCommon = require('phpcommon'),
-    Exception = phpCommon.Exception;
+    Exception = phpCommon.Exception,
+    createResumePlaceholder = function (trace) {
+        return function resumePlaceholder() {
+            trace.advanceOpIndex();
+
+            return resumePlaceholder;
+        };
+    };
 
 /**
  * Records and controls execution within a Call
  *
- * @param {OpcodeFactory} opcodeFactory
+ * @param {OpcodePool} opcodePool
  * @constructor
  */
-function Trace(opcodeFactory) {
+function Trace(opcodePool) {
     /**
      * Any expression that affects control flow, or control structure condition
      * must have its boolean result cached for the lifetime of the call,
@@ -30,21 +37,25 @@ function Trace(opcodeFactory) {
      */
     this.controlFlowResults = [];
     /**
+     * @type {OpcodeInterface|null}
+     */
+    this.currentOpcode = null;
+    /**
      * @type {number}
      */
     this.currentOpIndex = 0;
-    /**
-     * @type {boolean}
-     */
-    this.inOpcode = false;
     /**
      * @type {Object.<number, number>}
      */
     this.loopOpIndexes = [];
     /**
-     * @type {OpcodeFactory}
+     * @type {OpcodePool}
      */
-    this.opcodeFactory = opcodeFactory;
+    this.opcodePool = opcodePool;
+    /**
+     * @type {OpcodeInterface[]}
+     */
+    this.opcodeStack = [];
     /**
      * @type {Object.<number, *>}
      */
@@ -69,7 +80,7 @@ function Trace(opcodeFactory) {
     /**
      * @type {Object}
      */
-    this.resumePlaceholder = {resumePlaceholder: true};
+    this.resumePlaceholder = createResumePlaceholder(this);
     /**
      * Only set when resuming with a .resume()
      *
@@ -93,11 +104,27 @@ _.extend(Trace.prototype, {
     advanceOpIndex: function () {
         var trace = this;
 
-        if (trace.inOpcode) {
+        if (trace.currentOpcode !== null) {
             return;
         }
 
         trace.currentOpIndex++;
+    },
+
+    /**
+     * Marks an opcode as entered and in progress
+     *
+     * @param {OpcodeInterface} opcode
+     * @throws {Exception} When another opcode is already in progress
+     */
+    enterOpcode: function (opcode) {
+        var trace = this;
+
+        if (trace.currentOpcode) {
+            trace.opcodeStack.push(trace.currentOpcode);
+        }
+
+        trace.currentOpcode = opcode;
     },
 
     /**
@@ -109,17 +136,30 @@ _.extend(Trace.prototype, {
      * @returns {OpcodeInterface|UntracedOpcode}
      */
     fetchOpcode: function (opcodeFetcher, opcodeHandler, args) {
-        var opIndex,
+        var opcode,
+            opIndex,
             trace = this;
 
-        if (trace.inOpcode) {
-            return trace.opcodeFactory.createUntracedOpcode(opcodeHandler, args);
+        if (trace.currentOpcode !== null) {
+            return trace.opcodePool.provideUntracedOpcode(opcodeHandler, args);
         }
 
-        trace.inOpcode = true;
         opIndex = trace.currentOpIndex;
 
-        return opcodeFetcher.fetchOpcode(trace, opIndex, opcodeHandler, args);
+        opcode = opcodeFetcher.fetchOpcode(trace, opIndex, opcodeHandler, args);
+
+        trace.currentOpcode = opcode;
+
+        return opcode;
+    },
+
+    /**
+     * Fetches the current opcode being handled, if there is one
+     *
+     * @returns {OpcodeInterface|null}
+     */
+    getCurrentOpcode: function () {
+        return this.currentOpcode;
     },
 
     /**
@@ -160,6 +200,29 @@ _.extend(Trace.prototype, {
         }
 
         return opIndex;
+    },
+
+    /**
+     * Leaves the current opcode
+     *
+     * @param {OpcodeInterface} opcode
+     * @throws {Exception} When no opcode is in progress
+     * @throws {Exception} When the given opcode is not the current one
+     */
+    leaveOpcode: function (opcode) {
+        var trace = this;
+
+        if (!trace.currentOpcode) {
+            throw new Exception('leaveOpcode() :: No opcode is in progress');
+        }
+
+        if (trace.currentOpcode !== opcode) {
+            throw new Exception('leaveOpcode() :: Incorrect opcode provided');
+        }
+
+        trace.currentOpcode.release(trace.opcodePool);
+
+        trace.currentOpcode = trace.opcodeStack.pop();
     },
 
     resume: function (resumeValue) {
@@ -206,7 +269,10 @@ _.extend(Trace.prototype, {
                 throw new Exception('resumeCalculationOpcode() :: invalid state, currentOpIndex > resumeOpIndex');
             }
 
-            trace.inOpcode = false;
+            // TODO: Does this make sense?
+            trace.currentOpcode.release(trace.opcodePool);
+
+            trace.currentOpcode = null;
 
             trace.advanceOpIndex();
 
@@ -252,7 +318,10 @@ _.extend(Trace.prototype, {
                 throw new Exception('resumeControlFlowOpcode() :: invalid state, currentOpIndex > resumeOpIndex');
             }
 
-            trace.inOpcode = false;
+            // TODO: Does this make sense?
+            trace.currentOpcode.release(trace.opcodePool);
+
+            trace.currentOpcode = null;
 
             trace.advanceOpIndex();
 
@@ -286,7 +355,8 @@ _.extend(Trace.prototype, {
 
         trace.opResultsSinceLastControlStructure[opIndex] = result;
 
-        trace.inOpcode = false;
+        trace.currentOpcode.release(trace.opcodePool);
+        trace.currentOpcode = null;
     },
 
     traceCalculationOpcodeThrow: function (opIndex, error) {
@@ -294,7 +364,8 @@ _.extend(Trace.prototype, {
 
         trace.opThrows[opIndex] = error;
 
-        trace.inOpcode = false;
+        trace.currentOpcode.release(trace.opcodePool);
+        trace.currentOpcode = null;
     },
 
     traceControlExpressionOpcodeResult: function (opIndex, result) {
@@ -305,7 +376,8 @@ _.extend(Trace.prototype, {
         trace.controlFlowResults[opIndex] = result;
         trace.opResultsSinceLastControlStructure[opIndex] = result;
 
-        trace.inOpcode = false;
+        trace.currentOpcode.release(trace.opcodePool);
+        trace.currentOpcode = null;
     },
 
     traceControlExpressionOpcodeThrow: function (opIndex, error) {
@@ -313,7 +385,8 @@ _.extend(Trace.prototype, {
 
         trace.opThrows[opIndex] = error;
 
-        trace.inOpcode = false;
+        trace.currentOpcode.release(trace.opcodePool);
+        trace.currentOpcode = null;
     },
 
     traceControlStructureOpcodeResult: function (opIndex, result) {
@@ -323,7 +396,8 @@ _.extend(Trace.prototype, {
         // Clear operation results, as we only need to keep them from the most recent control statement
         trace.opResultsSinceLastControlStructure.length = 0;
 
-        trace.inOpcode = false;
+        trace.currentOpcode.release(trace.opcodePool);
+        trace.currentOpcode = null;
     },
 
     traceControlStructureOpcodeThrow: function (opIndex, error) {
@@ -331,7 +405,8 @@ _.extend(Trace.prototype, {
 
         trace.opThrows[opIndex] = error;
 
-        trace.inOpcode = false;
+        trace.currentOpcode.release(trace.opcodePool);
+        trace.currentOpcode = null;
     }
 });
 

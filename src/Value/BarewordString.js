@@ -22,11 +22,13 @@ module.exports = require('pauser')([
      * Represents an undelimited string, which can resolve relative to the current namespace scope
      * (eg. with "use function", "use {class}" etc.)
      *
+     * Note that global constants will be transpiled as a getConstant() opcode and not a bareword,
+     * therefore a bareword is not actually a valid expression term.
+     *
      * @param {ValueFactory} factory
      * @param {ReferenceFactory} referenceFactory
      * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
-     * @param {Flow} flow
      * @param {string} value
      * @param {Namespace} globalNamespace
      * @param {NamespaceScope} namespaceScope
@@ -37,12 +39,11 @@ module.exports = require('pauser')([
         referenceFactory,
         futureFactory,
         callStack,
-        flow,
         value,
         globalNamespace,
         namespaceScope
     ) {
-        StringValue.call(this, factory, referenceFactory, futureFactory, callStack, flow, value, globalNamespace);
+        StringValue.call(this, factory, referenceFactory, futureFactory, callStack, value, globalNamespace);
 
         /**
          * @type {NamespaceScope}
@@ -53,6 +54,12 @@ module.exports = require('pauser')([
     util.inherits(BarewordStringValue, StringValue);
 
     _.extend(BarewordStringValue.prototype, {
+        /**
+         * Calls the function this bareword references.
+         *
+         * @param {Reference[]|Value[]|Variable[]} args
+         * @returns {Value}
+         */
         call: function (args) {
             var value = this,
                 func = value.namespaceScope.getFunction(value.value);
@@ -66,18 +73,19 @@ module.exports = require('pauser')([
          * @param {StringValue} nameValue
          * @param {Value[]} args
          * @param {bool} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
-         * @returns {Future<Value>|Present<Value>}
+         * @returns {FutureValue}
          */
         callStaticMethod: function (nameValue, args, isForwarding) {
             var value = this;
 
             // Note that this may pause due to autoloading
-            return value.namespaceScope.getClass(value.value)
-                .next(function (classObject) {
-                    var result = classObject.callMethod(nameValue.getNative(), args, null, null, null, !!isForwarding);
-
-                    return result;
-                });
+            return value.factory.createFuture(function (resolve, reject) {
+                value.namespaceScope.getClass(value.value)
+                    .next(function (classObject) {
+                        classObject.callMethod(nameValue.getNative(), args, null, null, null, !!isForwarding)
+                            .next(resolve, reject);
+                    }, reject);
+            });
         },
 
         /**
@@ -96,23 +104,25 @@ module.exports = require('pauser')([
          * Fetches the value of a constant from the class this string refers to
          *
          * @param {string} name
-         * @returns {Future<Value>|Present<Value>}
+         * @returns {FutureValue}
          */
         getConstantByName: function (name) {
             var value = this;
 
             // Note that this may pause due to autoloading
-            return value.namespaceScope.getClass(value.value)
-                .next(function (classObject) {
-                    return classObject.getConstantByName(name);
-                });
+            return value.factory.createFuture(function (resolve, reject) {
+                value.namespaceScope.getClass(value.value)
+                    .next(function (classObject) {
+                        resolve(classObject.getConstantByName(name));
+                    }, reject);
+            });
         },
 
         /**
-         * Fetches the value of a static property of the class this string refers to
+         * Fetches a reference to a static property of the class this string refers to
          *
          * @param {StringValue} nameValue
-         * @returns {Future<Value>|Present<Value>}
+         * @returns {Future<StaticPropertyReference|UndeclaredStaticPropertyReference>}
          */
         getStaticPropertyByName: function (nameValue) {
             var value = this;
@@ -128,7 +138,7 @@ module.exports = require('pauser')([
          * relative to the current namespace
          *
          * @param {Value[]} args
-         * @returns {Future<ObjectValue>|Present<ObjectValue>}
+         * @returns {FutureValue<ObjectValue>}
          */
         instantiate: function (args) {
             var value = this;
@@ -136,7 +146,8 @@ module.exports = require('pauser')([
             return value.namespaceScope.getClass(value.value)
                 .next(function (classObject) {
                     return classObject.instantiate(args);
-                });
+                })
+                .asValue();
         },
 
         /**

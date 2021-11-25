@@ -46,7 +46,7 @@ namespace {
 }
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal([
             21,
@@ -54,31 +54,64 @@ EOS
         ]);
     });
 
-    // FIXME: Resolving this will require the planned refactor to remove NamespaceScope.
-    it('should allow a class to extend another class defined after it', function () {
+    it('should allow a class to extend another autoloaded class', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
-class MyChildClass extends MyParentClass {
-    public function getIt() {
-        return parent::getIt() + 100;
+// Define the autoloader in a separate namespace block, to avoid the class definitions being hoisted above it
+// FIXME: Uniter's hoisting logic is not complete - currently all classes and functions are hoisted,
+//        which is not quite the correct behaviour.
+namespace My\Lib {
+    spl_autoload_register(function ($className) {
+        // Note that the asynchronous call here will cause a pause to occur during autoloading
+        switch (get_async($className)) {
+            case 'My\Lib\MyParentClass':
+                class MyParentClass {}
+                break;
+            default:
+                throw new \Exception('Unsupported class: ' . $className);
+        }
+    });
+}
+
+namespace My\Lib {
+    // NB: Not defined statically - autoloaded (see above)
+    // class MyParentClass {}
+
+    class MyChildClass extends MyParentClass {
+        public $myProp = 21;
     }
 }
 
-class MyParentClass {
-    public function getIt() {
-        return 21;
-    }
+namespace {
+    use My\Lib\MyChildClass;
+
+    $result = [];
+
+    $myObject = new MyChildClass;
+    $result[] = $myObject->myProp;
+
+    return $result;
 }
-
-$object = new MyChildClass;
-
-return $object->getIt();
 EOS
-*/;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/module.php', php),
+            engine = module();
+        engine.defineFunction('get_async', function (internals) {
+            return function (value) {
+                return internals.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(value);
+                    });
+                });
+            };
+        });
 
-        expect(module().execute().getNative()).to.equal(121);
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal([
+                21
+            ]);
+        });
     });
 
     it('should allow a JS class to call its superconstructor', function () {
@@ -102,7 +135,7 @@ namespace {
 }
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             environment = tools.createSyncEnvironment();
         environment.defineClass('My\\Space\\TheGrandparent', function (internals) {
             function TheGrandparent(theArg) {
@@ -166,7 +199,7 @@ return function () {
 };
 EOS
 */;}),//jshint ignore:line,
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module(),
             returnedClosure = engine.execute().getNative();
 

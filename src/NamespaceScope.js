@@ -32,7 +32,15 @@ module.exports = require('pauser')([
      * @param {boolean} global Whether this namespace scope is the special "invisible" global one
      * @constructor
      */
-    function NamespaceScope(scopeFactory, globalNamespace, valueFactory, callStack, module, namespace, global) {
+    function NamespaceScope(
+        scopeFactory,
+        globalNamespace,
+        valueFactory,
+        callStack,
+        module,
+        namespace,
+        global
+    ) {
         /**
          * @type {CallStack}
          */
@@ -76,7 +84,7 @@ module.exports = require('pauser')([
          * @param {string} name
          * @param {Function|object} definition Either a Function for a native JS class or a transpiled definition object
          * @param {boolean=} autoCoercionEnabled Whether the class should be auto-coercing
-         * @returns {Class} Returns the internal Class instance created
+         * @returns {Future<Class>} Returns a future that resolves to the internal Class instance created
          */
         defineClass: function (
             name,
@@ -126,6 +134,22 @@ module.exports = require('pauser')([
             );
         },
 
+        /**
+         * Enters this namespace scope
+         */
+        enter: function () {
+            var namespaceScope = this;
+
+            namespaceScope.module.enterNamespaceScope(namespaceScope);
+        },
+
+        /**
+         * Fetches a class with the given name relative to this namespace scope,
+         * autoloading if necessary
+         *
+         * @param {string} name
+         * @returns {Future<Class>}
+         */
         getClass: function (name) {
             var resolvedClass = this.resolveClass(name);
 
@@ -159,7 +183,7 @@ module.exports = require('pauser')([
                 } else {
                     name = name.substr(1);
                 }
-                // Check whether the namespace prefix is an alias
+            // Check whether the namespace prefix is an alias
             } else {
                 match = name.match(/^([^\\]+)(.*?)\\([^\\]+)$/);
 
@@ -193,7 +217,6 @@ module.exports = require('pauser')([
 
             return scope.scopeFactory.createNamespaceScope(
                 scope.namespace.getDescendant(name),
-                scope.globalNamespace,
                 scope.module
             );
         },
@@ -270,6 +293,15 @@ module.exports = require('pauser')([
             return this.module.getScope();
         },
 
+        /**
+         * Fetches the namespace this scope is in
+         *
+         * @returns {Namespace}
+         */
+        getNamespace: function () {
+            return this.namespace;
+        },
+
         getNamespaceName: function () {
             var scope = this;
 
@@ -311,6 +343,15 @@ module.exports = require('pauser')([
          */
         isGlobal: function () {
             return this.global;
+        },
+
+        /**
+         * Leaves this namespace scope, returning to the previous one
+         */
+        leave: function () {
+            var namespaceScope = this;
+
+            namespaceScope.module.leaveNamespaceScope(namespaceScope);
         },
 
         /**

@@ -12,7 +12,7 @@
 var _ = require('microdash'),
     PATH = 'path',
     Promise = require('lie'),
-    ValueWrapper = require('./Value');
+    Value = require('./Value').sync();
 
 /**
  * Executes a transpiled PHP module
@@ -22,7 +22,6 @@ var _ = require('microdash'),
  * @param {Object} phpCommon
  * @param {Object} options Configuration options for this engine
  * @param {Function} wrapper The wrapper function for the transpiled PHP module
- * @param {Resumable|null} pausable Pausable library for async mode, null for psync or sync modes
  * @param {string} mode
  * @constructor
  */
@@ -32,7 +31,6 @@ function Engine(
     phpCommon,
     options,
     wrapper,
-    pausable,
     mode
 ) {
     /**
@@ -52,10 +50,6 @@ function Engine(
         },
         options || {}
     );
-    /**
-     * @type {Resumable}
-     */
-    this.pausable = pausable;
     /**
      * @type {Object}
      */
@@ -99,10 +93,9 @@ _.extend(Engine.prototype, {
      *
      * @param {string} name FQCN for the class to define
      * @param {function} definitionFactory Called with `internals` object, returns the class definition
-     * @returns {Class} Returns the instance of Class that represents a PHP class
      */
     defineClass: function (name, definitionFactory) {
-        return this.environment.defineClass(name, definitionFactory);
+        this.environment.defineClass(name, definitionFactory);
     },
 
     /**
@@ -216,7 +209,6 @@ _.extend(Engine.prototype, {
             path = options[PATH],
             isMainProgram = engine.topLevelScope === null,
             output,
-            pausable = engine.pausable,
             phpCommon = engine.phpCommon,
             PHPError = phpCommon.PHPError,
             PHPParseError = phpCommon.PHPParseError,
@@ -228,12 +220,7 @@ _.extend(Engine.prototype, {
             toolsFactory,
             valueFactory,
             wrapper = engine.wrapper,
-            unwrap = function (wrapper) {
-                return pausable ? wrapper.async(pausable) : wrapper.sync();
-            },
             userland,
-            // TODO: Wrap this module with `pauser` to remove the need for this
-            Value = unwrap(ValueWrapper),
             topLevelNamespaceScope,
             topLevelScope;
 
@@ -254,7 +241,7 @@ _.extend(Engine.prototype, {
         // (used eg. when an `include(...)` is used inside a function)
         topLevelScope = engine.topLevelScope || globalScope;
         module = moduleFactory.create(path);
-        topLevelNamespaceScope = scopeFactory.createNamespaceScope(globalNamespace, globalNamespace, module);
+        topLevelNamespaceScope = scopeFactory.createNamespaceScope(globalNamespace, module);
         module.setScope(scopeFactory.createModuleScope(module, topLevelNamespaceScope, environment));
 
         // Create the runtime tools object, referenced by the transpiled JS output from PHPToJS
@@ -333,14 +320,30 @@ _.extend(Engine.prototype, {
                 return;
             }
 
+            // Otherwise it must be a native/internal JS error
+            if (isMainProgram) {
+                /*
+                 * TODO: Improve native error handling. Perhaps native errors (except for Uniter's
+                 *       internal Exceptions, once all either use or extend that class?) should
+                 *       be catchable as a special JSError PHP class that implements Throwable,
+                 *       leaving any uncaught ones to be reported by the existing uncaught handling
+                 */
+                errorReporting.reportError(
+                    PHPError.E_ERROR,
+                    'Native JavaScript error: ' + error.message,
+                    error.fileName || null,  // Firefox only
+                    error.lineNumber || null // Firefox only
+                );
+            }
+
             reject(error);
         }
 
-        // Asynchronous mode - Pausable must be available
+        // Asynchronous mode
         if (mode === 'async') {
             return new Promise(function (resolve, reject) {
                 userland
-                    .call(wrapper, [core])
+                    .enterTopLevel(wrapper.bind(null, core))
                     .then(function (result) {
                         var resultValue;
 

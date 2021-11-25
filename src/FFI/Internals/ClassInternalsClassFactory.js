@@ -136,13 +136,12 @@ _.extend(ClassInternalsClassFactory.prototype, {
              * Defines the class
              *
              * @param {Function} definitionFactory
-             * @return {Class}
+             * @returns {Future<Class>}
              */
             defineClass: function (definitionFactory) {
                 var internals = this,
                     name,
                     Class = definitionFactory(internals),
-                    classObject,
                     namespace,
                     // Split the FQCN into a Namespace from its prefix and its name within that namespace
                     // (ie. a FQCN of "My\Stuff\MyClass" gives Namespace<My\Stuff> and name "MyClass")
@@ -163,19 +162,19 @@ _.extend(ClassInternalsClassFactory.prototype, {
 
                 // Now create the internal Uniter class (an instance of Class)
                 // from the PHP class definition information
-                classObject = namespace.defineClass(
+                return namespace.defineClass(
                     name,
                     Class,
                     factory.globalNamespaceScope,
                     internals.enableAutoCoercion
-                );
+                ).next(function (classObject) {
+                    if (internals.unwrapper) {
+                        // Custom unwrappers may be used to eg. unwrap a PHP \DateTime object to a JS Date object
+                        factory.unwrapperRepository.defineUnwrapper(classObject, internals.unwrapper);
+                    }
 
-                if (internals.unwrapper) {
-                    // Custom unwrappers may be used to eg. unwrap a PHP \DateTime object to a JS Date object
-                    factory.unwrapperRepository.defineUnwrapper(classObject, internals.unwrapper);
-                }
-
-                return classObject;
+                    return classObject;
+                });
             },
 
             /**
@@ -202,6 +201,7 @@ _.extend(ClassInternalsClassFactory.prototype, {
              */
             extendClass: function (fqcn) {
                 // TODO: Confirm that we are ok to disable autoloading here
+                //       (not if we are dependent on autoloaders)
                 this.superClass = factory.globalNamespace.getClass(fqcn, false).yieldSync();
             },
 

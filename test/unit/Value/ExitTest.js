@@ -10,23 +10,33 @@
 'use strict';
 
 var expect = require('chai').expect,
-    sinon = require('sinon'),
-    CallStack = require('../../../src/CallStack'),
-    ExitValue = require('../../../src/Value/Exit').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    tools = require('../tools'),
+    ExitValue = require('../../../src/Value/Exit').sync();
 
 describe('Exit', function () {
     var callStack,
         factory,
+        futureFactory,
+        referenceFactory,
+        state,
         statusValue,
         value;
 
     beforeEach(function () {
-        callStack = sinon.createStubInstance(CallStack);
-        factory = new ValueFactory();
+        state = tools.createIsolatedState();
+        callStack = state.getCallStack();
+        factory = state.getValueFactory();
+        futureFactory = state.getFutureFactory();
+        referenceFactory = state.getReferenceFactory();
         statusValue = factory.createInteger(21);
 
-        value = new ExitValue(factory, callStack, statusValue);
+        value = new ExitValue(
+            factory,
+            referenceFactory,
+            futureFactory,
+            callStack,
+            statusValue
+        );
     });
 
     describe('getStatus()', function () {
@@ -35,7 +45,12 @@ describe('Exit', function () {
         });
 
         it('should return zero by default', function () {
-            var value = new ExitValue(factory, callStack);
+            var value = new ExitValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack
+            );
 
             expect(value.getStatus()).to.equal(0);
         });

@@ -11,18 +11,30 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
-    CallStack = require('../../src/CallStack'),
     SuperGlobalScope = require('../../src/SuperGlobalScope').sync(),
     Value = require('../../src/Value').sync(),
-    ValueFactory = require('../../src/ValueFactory').sync(),
+    VariableFactory = require('../../src/VariableFactory').sync(),
     Variable = require('../../src/Variable').sync();
 
 describe('SuperGlobalScope', function () {
-    beforeEach(function () {
-        this.callStack = sinon.createStubInstance(CallStack);
-        this.valueFactory = sinon.createStubInstance(ValueFactory);
+    var scope,
+        variableFactory;
 
-        this.scope = new SuperGlobalScope(this.callStack, this.valueFactory);
+    beforeEach(function () {
+        variableFactory = sinon.createStubInstance(VariableFactory);
+
+        variableFactory.createVariable.callsFake(function (name) {
+            var variable = sinon.createStubInstance(Variable);
+            variable.getName.returns(name);
+
+            variable.setValue.callsFake(function (value) {
+                variable.getValue.returns(value);
+            });
+
+            return variable;
+        });
+
+        scope = new SuperGlobalScope(variableFactory);
     });
 
     describe('exportVariables()', function () {
@@ -34,11 +46,11 @@ describe('SuperGlobalScope', function () {
             superGlobalValue1.getForAssignment.returns(superGlobalValue1);
             superGlobalValue2.getForAssignment.returns(superGlobalValue2);
             globalsSuperGlobalValue.getForAssignment.returns(globalsSuperGlobalValue);
-            this.scope.defineVariable('superGlobal1').setValue(superGlobalValue1);
-            this.scope.defineVariable('superGlobal2').setValue(superGlobalValue2);
-            this.scope.defineVariable('GLOBALS').setValue(globalsSuperGlobalValue);
+            scope.defineVariable('superGlobal1').setValue(superGlobalValue1);
+            scope.defineVariable('superGlobal2').setValue(superGlobalValue2);
+            scope.defineVariable('GLOBALS').setValue(globalsSuperGlobalValue);
 
-            variables = this.scope.exportVariables();
+            variables = scope.exportVariables();
 
             expect(variables.superGlobal1).to.equal(superGlobalValue1);
             expect(variables.superGlobal2).to.equal(superGlobalValue2);
@@ -50,16 +62,16 @@ describe('SuperGlobalScope', function () {
         it('should fetch the existing variable if already defined', function () {
             var variable,
                 fetchedVariable;
-            variable = this.scope.defineVariable('mySuperGlobalVar');
+            variable = scope.defineVariable('mySuperGlobalVar');
 
-            fetchedVariable = this.scope.getVariable('mySuperGlobalVar');
+            fetchedVariable = scope.getVariable('mySuperGlobalVar');
 
             expect(fetchedVariable).to.be.an.instanceOf(Variable);
             expect(fetchedVariable).to.equal(variable);
         });
 
         it('should return null if not defined', function () {
-            expect(this.scope.getVariable('myUndefinedVar')).to.be.null;
+            expect(scope.getVariable('myUndefinedVar')).to.be.null;
         });
     });
 });

@@ -11,14 +11,12 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
-    Class = require('../../src/Class').sync(),
+    tools = require('./tools'),
     Engine = require('../../src/Engine'),
     Environment = require('../../src/Environment'),
     FFIResult = require('../../src/FFI/Result'),
-    PauseException = require('pausable/src/PauseException'),
     Scope = require('../../src/Scope').sync(),
-    PHPState = require('../../src/PHPState').sync(),
-    ValueFactory = require('../../src/ValueFactory').sync();
+    PHPState = require('../../src/PHPState').sync();
 
 describe('Engine', function () {
     var createEngine,
@@ -26,32 +24,24 @@ describe('Engine', function () {
         environment,
         mode,
         options,
-        pausable,
         phpCommon,
         phpToAST,
         phpToJS,
         state,
         topLevelScope,
         valueFactory,
-        whenPausableIsAvailable,
-        whenPausableIsNotAvailable,
         wrapper;
 
     beforeEach(function () {
         mode = 'async';
         environment = sinon.createStubInstance(Environment);
         options = {};
-        pausable = {
-            createPause: function () {
-                return sinon.createStubInstance(PauseException);
-            }
-        };
         phpCommon = {};
         phpToAST = {};
         phpToJS = {};
         state = sinon.createStubInstance(PHPState);
         topLevelScope = sinon.createStubInstance(Scope);
-        valueFactory = new ValueFactory();
+        valueFactory = tools.createIsolatedState().getValueFactory();
         wrapper = sinon.stub();
 
         environment.getState.returns(state);
@@ -64,19 +54,8 @@ describe('Engine', function () {
                 phpCommon,
                 options,
                 wrapper,
-                pausable,
                 customMode || mode
             );
-        };
-
-        whenPausableIsAvailable = function () {
-            mode = 'async';
-            createEngine();
-        };
-        whenPausableIsNotAvailable = function () {
-            mode = 'sync';
-            pausable = null;
-            createEngine();
         };
     });
 
@@ -105,22 +84,6 @@ describe('Engine', function () {
         });
     });
 
-    describe('createPause()', function () {
-        it('should return a PauseException when the Pausable library is available', function () {
-            whenPausableIsAvailable();
-
-            expect(engine.createPause()).to.be.an.instanceOf(PauseException);
-        });
-
-        it('should throw an exception when the Pausable library is not available', function () {
-            whenPausableIsNotAvailable();
-
-            expect(function () {
-                engine.createPause();
-            }).to.throw('Pausable is not available');
-        });
-    });
-
     describe('defineClass()', function () {
         it('should define a class on the environment', function () {
             var myClassDefinitionFactory = sinon.stub();
@@ -133,18 +96,6 @@ describe('Engine', function () {
                 'My\\Fqcn',
                 sinon.match.same(myClassDefinitionFactory)
             );
-        });
-
-        it('should return the defined class from the environment', function () {
-            var myClassDefinitionFactory = sinon.stub(),
-                myClassObject = sinon.createStubInstance(Class);
-            environment.defineClass
-                .withArgs('My\\Fqcn', sinon.match.same(myClassDefinitionFactory))
-                .returns(myClassObject);
-            createEngine();
-
-            expect(engine.defineClass('My\\Fqcn', myClassDefinitionFactory))
-                .to.equal(myClassObject);
         });
     });
 

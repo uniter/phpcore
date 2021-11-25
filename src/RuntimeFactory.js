@@ -9,25 +9,15 @@
 
 'use strict';
 
-var _ = require('microdash'),
-    /**
-     * Fetches either the sync-mode class (for sync & psync modes) or async-mode class
-     *
-     * @param {Wrapper} wrapper
-     * @param {Resumable=} pausable
-     * @returns {Function}
-     */
-    unwrap = function (wrapper, pausable) {
-        return pausable ? wrapper.async(pausable) : wrapper.sync();
-    };
+var _ = require('microdash');
 
 /**
  * Instantiates the shared Runtime
  *
  * @param {class} Environment
  * @param {class} Engine
- * @param {Wrapper} PHPStateWrapper
- * @param {Wrapper} RuntimeWrapper
+ * @param {class} PHPState
+ * @param {class} Runtime
  * @param {PHPCommon} phpCommon
  * @param {GlobalStackHooker} globalStackHooker
  * @constructor
@@ -35,8 +25,8 @@ var _ = require('microdash'),
 function RuntimeFactory(
     Environment,
     Engine,
-    PHPStateWrapper,
-    RuntimeWrapper,
+    PHPState,
+    Runtime,
     phpCommon,
     globalStackHooker
 ) {
@@ -57,13 +47,13 @@ function RuntimeFactory(
      */
     this.phpCommon = phpCommon;
     /**
-     * @type {Wrapper}
+     * @type {class}
      */
-    this.PHPStateWrapper = PHPStateWrapper;
+    this.PHPState = PHPState;
     /**
-     * @type {Wrapper}
+     * @type {class}
      */
-    this.RuntimeWrapper = RuntimeWrapper;
+    this.Runtime = Runtime;
 }
 
 _.extend(RuntimeFactory.prototype, {
@@ -71,21 +61,17 @@ _.extend(RuntimeFactory.prototype, {
      * Creates a new Runtime instance
      *
      * @param {string} mode
-     * @param {Resumable=} pausable
      * @returns {Runtime}
      */
-    create: function (mode, pausable) {
-        var factory = this,
-            PHPState = unwrap(factory.PHPStateWrapper, pausable),
-            Runtime = unwrap(factory.RuntimeWrapper, pausable);
+    create: function (mode) {
+        var factory = this;
 
-        return new Runtime(
+        return new factory.Runtime(
             factory.Environment,
             factory.Engine,
-            PHPState,
+            factory.PHPState,
             factory.phpCommon,
             factory.globalStackHooker,
-            pausable || null,
             mode
         );
     }

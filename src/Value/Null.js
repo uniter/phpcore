@@ -81,16 +81,16 @@ module.exports = require('pauser')([
          * {@inheritdoc}
          */
         isCallable: function () {
-            return false;
+            return this.futureFactory.createPresent(false);
         },
 
         /**
          * Null is always classed as empty
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>}
          */
         isEmpty: function () {
-            return true;
+            return this.futureFactory.createPresent(true);
         },
 
         isEqualTo: function (rightValue) {
@@ -129,8 +129,11 @@ module.exports = require('pauser')([
             return false;
         },
 
+        /**
+         * {@inheritdoc}
+         */
         isSet: function () {
-            return false;
+            return this.futureFactory.createPresent(false);
         }
     });
 

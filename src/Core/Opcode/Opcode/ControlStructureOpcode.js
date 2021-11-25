@@ -12,6 +12,8 @@
 var _ = require('microdash');
 
 /**
+ * Represents a control structure opcode, eg. an if statement.
+ *
  * @param {Trace} trace
  * @param {number} opIndex
  * @param {Function} handler
@@ -47,6 +49,15 @@ _.extend(ControlStructureOpcode.prototype, {
         var opcode = this;
 
         return opcode.handler.apply(null, opcode.args);
+    },
+
+    /**
+     * Releases this opcode back into the pool to be reused
+     *
+     * @param {OpcodePool} opcodePool
+     */
+    release: function (/* opcodePool */) {
+        // TODO: Not yet implemented!
     },
 
     /**

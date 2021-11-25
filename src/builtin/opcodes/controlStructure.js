@@ -31,7 +31,7 @@ module.exports = function (internals) {
          *
          * @param {string} name
          * @param {object} definition Transpiled class definition object
-         * @returns {Class} Returns the defined internal Class
+         * @returns {Future<Class>}
          */
         defineClass: function (name, definition) {
             var namespaceScope = callStack.getCurrentNamespaceScope();
@@ -76,7 +76,7 @@ module.exports = function (internals) {
          *
          * @param {string} name
          * @param {object} definition Transpiled interface definition object
-         * @returns {Class} Returns the defined internal Class
+         * @returns {Future<Class>}
          */
         defineInterface: function (name, definition) {
             var namespaceScope = callStack.getCurrentNamespaceScope();

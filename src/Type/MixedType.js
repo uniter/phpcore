@@ -17,10 +17,14 @@ var _ = require('microdash'),
  * Represents an unspecified type, where any value is allowed,
  * such as a function parameter with no type specified
  *
+ * @param {FutureFactory} futureFactory
  * @constructor
  */
-function MixedType() {
-
+function MixedType(futureFactory) {
+    /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
 }
 
 util.inherits(MixedType, TypeInterface);
@@ -37,7 +41,7 @@ _.extend(MixedType.prototype, {
      * {@inheritdoc}
      */
     allowsValue: function () {
-        return true; // When no type is specified, any value is allowed
+        return this.futureFactory.createPresent(true); // When no type is specified, any value is allowed
     },
 
     /**

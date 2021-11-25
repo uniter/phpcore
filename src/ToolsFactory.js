@@ -12,6 +12,8 @@
 var _ = require('microdash');
 
 /**
+ * TODO: Remove this, as Tools et al. have been replaced by Core.
+ *
  * @param {class} Tools
  * @param {CallStack} callStack
  * @param {Translator} translator

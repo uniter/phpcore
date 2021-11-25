@@ -26,7 +26,7 @@ $result[] = require_once 'abc.php';
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             includeTransport = sinon.spy(function (path, promise, callerPath, valueFactory) {
                 promise.resolve(valueFactory.createString('the one and only'));
             }),
@@ -51,7 +51,7 @@ $result[] = require_once 'abc.php';
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             includeTransport = sinon.spy(function (path, promise, callerPath, valueFactory) {
                 promise.resolve(valueFactory.createString('the one and only'));
             }),

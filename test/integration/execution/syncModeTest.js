@@ -22,7 +22,7 @@ describe('PHP synchronous execution integration', function () {
 return 'my string';
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.equal('my string');
     });

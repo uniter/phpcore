@@ -11,51 +11,25 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('../tools'),
     NullReference = require('../../../src/Reference/Null'),
-    Value = require('../../../src/Value').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    Value = require('../../../src/Value').sync();
 
 describe('NullReference', function () {
-    var onSet,
+    var futureFactory,
+        onSet,
         reference,
+        state,
         valueFactory;
 
     beforeEach(function () {
-        valueFactory = new ValueFactory();
+        state = tools.createIsolatedState();
+        futureFactory = state.getFutureFactory();
+        valueFactory = state.getValueFactory();
         onSet = sinon.spy();
 
-        reference = new NullReference(valueFactory, {
+        reference = new NullReference(valueFactory, futureFactory, {
             onSet: onSet
-        });
-    });
-
-    describe('concatWith()', function () {
-        it('should call the `onSet()` callback once', function () {
-            reference.concatWith(valueFactory.createString(' world'));
-
-            expect(onSet).to.have.been.calledOnce;
-        });
-    });
-
-    describe('decrementBy()', function () {
-        it('should call the `onSet()` callback once', function () {
-            reference.setValue(valueFactory.createInteger(20));
-            onSet.resetHistory();
-
-            reference.decrementBy(valueFactory.createInteger(4));
-
-            expect(onSet).to.have.been.calledOnce;
-        });
-    });
-
-    describe('divideBy()', function () {
-        it('should call the `onSet()` callback once', function () {
-            reference.setValue(valueFactory.createInteger(20));
-            onSet.resetHistory();
-
-            reference.divideBy(valueFactory.createInteger(4));
-
-            expect(onSet).to.have.been.calledOnce;
         });
     });
 
@@ -83,17 +57,6 @@ describe('NullReference', function () {
         });
     });
 
-    describe('incrementBy()', function () {
-        it('should call the `onSet()` callback once', function () {
-            reference.setValue(valueFactory.createInteger(20));
-            onSet.resetHistory();
-
-            reference.incrementBy(valueFactory.createInteger(4));
-
-            expect(onSet).to.have.been.calledOnce;
-        });
-    });
-
     describe('isDefined()', function () {
         it('should return false', function () {
             expect(reference.isDefined()).to.be.false;
@@ -101,25 +64,14 @@ describe('NullReference', function () {
     });
 
     describe('isEmpty()', function () {
-        it('should return true', function () {
-            expect(reference.isEmpty()).to.be.true;
+        it('should return true', async function () {
+            expect(await reference.isEmpty().toPromise()).to.be.true;
         });
     });
 
     describe('isSet()', function () {
-        it('should return false', function () {
-            expect(reference.isSet()).to.be.false;
-        });
-    });
-
-    describe('multiplyBy()', function () {
-        it('should call the `onSet()` callback once', function () {
-            reference.setValue(valueFactory.createInteger(20));
-            onSet.resetHistory();
-
-            reference.multiplyBy(valueFactory.createInteger(4));
-
-            expect(onSet).to.have.been.calledOnce;
+        it('should return false', async function () {
+            expect(await reference.isSet().toPromise()).to.be.false;
         });
     });
 

@@ -12,25 +12,30 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('./tools'),
     CallStack = require('../../src/CallStack'),
-    IntegerValue = require('../../src/Value/Integer').sync(),
-    ObjectValue = require('../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
-    PropertyReference = require('../../src/Reference/Property'),
     Reference = require('../../src/Reference/Reference'),
     ReferenceSlot = require('../../src/Reference/ReferenceSlot'),
     StringValue = require('../../src/Value/String').sync(),
-    ValueFactory = require('../../src/ValueFactory').sync(),
     Variable = require('../../src/Variable').sync();
 
 describe('Variable', function () {
     var callStack,
+        futureFactory,
+        referenceFactory,
+        state,
         valueFactory,
         variable;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
-        valueFactory = new ValueFactory();
+        state = tools.createIsolatedState(null, {
+            'call_stack': callStack
+        });
+        futureFactory = state.getFutureFactory();
+        referenceFactory = state.getReferenceFactory();
+        valueFactory = state.getValueFactory();
 
         callStack.raiseTranslatedError
             .withArgs(PHPError.E_ERROR)
@@ -40,28 +45,7 @@ describe('Variable', function () {
                 );
             });
 
-        variable = new Variable(callStack, valueFactory, 'myVar');
-    });
-
-    describe('concatWith()', function () {
-        it('should concatenate a string onto the end of an existing string', function () {
-            variable.setValue(valueFactory.createString('hello'));
-            
-            variable.concatWith(valueFactory.createString('world'));
-            
-            expect(variable.getValue()).to.be.an.instanceOf(StringValue);
-            expect(variable.getValue().getNative()).to.equal('helloworld');
-        });
-    });
-
-    describe('divideBy()', function () {
-        it('should divide the variable\'s value by the given value and assign it back to the variable', function () {
-            variable.setValue(valueFactory.createInteger(20));
-
-            variable.divideBy(valueFactory.createInteger(4));
-
-            expect(variable.getNative()).to.equal(5);
-        });
+        variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'myVar');
     });
 
     describe('formatAsString()', function () {
@@ -81,57 +65,6 @@ describe('Variable', function () {
 
         it('should return "NULL" when the variable is not defined', function () {
             expect(variable.formatAsString()).to.equal('NULL');
-        });
-    });
-
-    describe('getInstancePropertyByName()', function () {
-        it('should return the property from the value when the variable is not $this and the value is set', function () {
-            var objectValue = sinon.createStubInstance(ObjectValue),
-                propertyReference = sinon.createStubInstance(PropertyReference);
-            objectValue.getForAssignment.returns(objectValue);
-            objectValue.getInstancePropertyByName
-                .withArgs(sinon.match(function (arg) {
-                    return arg.getNative() === 'myProp';
-                }))
-                .returns(propertyReference);
-            variable.setValue(objectValue);
-
-            expect(
-                variable.getInstancePropertyByName(
-                    valueFactory.createString('myProp')
-                )
-            ).to.equal(propertyReference);
-        });
-
-        it('should return the property from the value when the variable is $this and the value is set', function () {
-            var objectValue = sinon.createStubInstance(ObjectValue),
-                propertyReference = sinon.createStubInstance(PropertyReference);
-            variable = new Variable(callStack, valueFactory, 'this');
-            objectValue.getForAssignment.returns(objectValue);
-            objectValue.getInstancePropertyByName
-                .withArgs(sinon.match(function (arg) {
-                    return arg.getNative() === 'myProp';
-                }))
-                .returns(propertyReference);
-            variable.setValue(objectValue);
-
-            expect(
-                variable.getInstancePropertyByName(
-                    valueFactory.createString('myProp')
-                )
-            ).to.equal(propertyReference);
-        });
-
-        it('should raise a "Using $this when not in object context" error when the variable is $this and the value is not set', function () {
-            variable = new Variable(callStack, valueFactory, 'this');
-
-            expect(function () {
-                variable.getInstancePropertyByName(
-                    valueFactory.createString('myProp')
-                );
-            }).to.throw(
-                'Fake PHP Fatal error for #core.used_this_outside_object_context with {}'
-            );
         });
     });
 
@@ -212,7 +145,7 @@ describe('Variable', function () {
         });
 
         it('should raise a "Using $this when not in object context" error when the variable is $this and the value is not set', function () {
-            variable = new Variable(callStack, valueFactory, 'this');
+            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'this');
 
             expect(function () {
                 variable.getValue();
@@ -280,124 +213,30 @@ describe('Variable', function () {
     });
 
     describe('isEmpty()', function () {
-        it('should return true when the variable is unset', function () {
+        it('should return true when the variable is unset', async function () {
             variable.unset();
 
-            expect(variable.isEmpty()).to.be.true;
+            expect(await variable.isEmpty().toPromise()).to.be.true;
         });
 
-        it('should return true when the variable is set to an empty value', function () {
+        it('should return true when the variable is set to an empty value', async function () {
             var value = sinon.createStubInstance(StringValue);
             value.getForAssignment.returns(value);
-            value.isEmpty.returns(true);
+            value.isEmpty.returns(futureFactory.createPresent(true));
+            value.next.yields(value);
             variable.setValue(value);
 
-            expect(variable.isEmpty()).to.be.true;
+            expect(await variable.isEmpty().toPromise()).to.be.true;
         });
 
-        it('should return false when the variable is set to a non-empty value', function () {
+        it('should return false when the variable is set to a non-empty value', async function () {
             var value = sinon.createStubInstance(StringValue);
             value.getForAssignment.returns(value);
-            value.isEmpty.returns(false);
+            value.isEmpty.returns(futureFactory.createPresent(false));
+            value.next.yields(value);
             variable.setValue(value);
 
-            expect(variable.isEmpty()).to.be.false;
-        });
-    });
-
-    describe('postDecrement()', function () {
-        var decrementedValue,
-            originalValue;
-
-        beforeEach(function () {
-            originalValue = sinon.createStubInstance(IntegerValue);
-            decrementedValue = sinon.createStubInstance(IntegerValue);
-            decrementedValue.getForAssignment.returns(decrementedValue);
-            originalValue.decrement.returns(decrementedValue);
-            originalValue.getForAssignment.returns(originalValue);
-            variable.setValue(originalValue);
-        });
-
-        it('should assign the decremented value to the variable', function () {
-            variable.postDecrement();
-
-            expect(variable.getValue()).to.equal(decrementedValue);
-        });
-
-        it('should return the original value', function () {
-            expect(variable.postDecrement()).to.equal(originalValue);
-        });
-    });
-
-    describe('postIncrement()', function () {
-        var incrementedValue,
-            originalValue;
-
-        beforeEach(function () {
-            originalValue = sinon.createStubInstance(IntegerValue);
-            incrementedValue = sinon.createStubInstance(IntegerValue);
-            incrementedValue.getForAssignment.returns(incrementedValue);
-            originalValue.increment.returns(incrementedValue);
-            originalValue.getForAssignment.returns(originalValue);
-            variable.setValue(originalValue);
-        });
-
-        it('should assign the incremented value to the variable', function () {
-            variable.postIncrement();
-
-            expect(variable.getValue()).to.equal(incrementedValue);
-        });
-
-        it('should return the original value', function () {
-            expect(variable.postIncrement()).to.equal(originalValue);
-        });
-    });
-
-    describe('preDecrement()', function () {
-        var decrementedValue,
-            originalValue;
-
-        beforeEach(function () {
-            originalValue = sinon.createStubInstance(IntegerValue);
-            decrementedValue = sinon.createStubInstance(IntegerValue);
-            decrementedValue.getForAssignment.returns(decrementedValue);
-            originalValue.decrement.returns(decrementedValue);
-            originalValue.getForAssignment.returns(originalValue);
-            variable.setValue(originalValue);
-        });
-
-        it('should assign the decremented value to the variable', function () {
-            variable.preDecrement();
-
-            expect(variable.getValue()).to.equal(decrementedValue);
-        });
-
-        it('should return the decremented value', function () {
-            expect(variable.preDecrement()).to.equal(decrementedValue);
-        });
-    });
-
-    describe('preIncrement()', function () {
-        var incrementedValue,
-            originalValue;
-
-        beforeEach(function () {
-            originalValue = sinon.createStubInstance(IntegerValue);
-            incrementedValue = sinon.createStubInstance(IntegerValue);
-            incrementedValue.getForAssignment.returns(incrementedValue);
-            originalValue.increment.returns(incrementedValue);
-            originalValue.getForAssignment.returns(originalValue);
-            variable.setValue(originalValue);
-        });
-
-        it('should assign the incremented value to the referenced variable', function () {
-            variable.preIncrement();
-
-            expect(variable.getValue()).to.equal(incrementedValue);
-        });
-
-        it('should return the incremented value', function () {
-            expect(variable.preIncrement()).to.equal(incrementedValue);
+            expect(await variable.isEmpty().toPromise()).to.be.false;
         });
     });
 
@@ -417,7 +256,7 @@ describe('Variable', function () {
         });
 
         it('should unset $this when setting to null', function () {
-            variable = new Variable(callStack, valueFactory, 'this');
+            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'this');
 
             variable.setValue(valueFactory.createNull());
 
@@ -426,7 +265,7 @@ describe('Variable', function () {
 
         it('should return the null value when setting to null', function () {
             var value;
-            variable = new Variable(callStack, valueFactory, 'this');
+            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'this');
 
             value = variable.setValue(valueFactory.createNull());
 

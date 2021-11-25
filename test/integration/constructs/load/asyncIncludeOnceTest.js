@@ -24,7 +24,7 @@ $result[] = include_once 'abc.php';
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             options = {
                 include: function (path, promise) {
                     setTimeout(function () {
@@ -49,7 +49,7 @@ $result[] = include_once 'abc.php';
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             includeTransport = sinon.spy(function (path, promise, callerPath, valueFactory) {
                 setTimeout(function () {
                     promise.resolve(valueFactory.createString('the one and only'));

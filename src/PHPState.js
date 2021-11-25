@@ -18,13 +18,15 @@ module.exports = require('pauser')([
     require('./Core/Opcode/OpcodeHandlerFactory'),
     require('./Core/Opcode/Opcode/CalculationOpcode'),
     require('./Core/Opcode/Fetcher/CalculationOpcodeFetcher'),
-    require('./Call'),
-    require('./CallFactory'),
     require('./CallStack'),
     require('./ClassAutoloader'),
+    require('./Class/ClassDefiner'),
+    require('./Class/ClassFactory'),
+    require('./Class/ClassPromoter'),
     require('./Closure'),
     require('./Function/ClosureContext'),
     require('./ClosureFactory'),
+    require('./Service/Container'),
     require('./Control/ControlBridge'),
     require('./Core/Opcode/Opcode/ControlExpressionOpcode'),
     require('./Core/Opcode/Fetcher/ControlExpressionOpcodeFetcher'),
@@ -43,7 +45,6 @@ module.exports = require('pauser')([
     require('./Error/ErrorReporting'),
     require('./Load/Evaluator'),
     require('./FFI/Value/AsyncObjectValue'),
-    require('./FFI/Call'),
     require('./FFI/Call/Caller'),
     require('./FFI/Internals/ClassInternalsClassFactory'),
     require('./FFI/Export/ExportFactory'),
@@ -74,6 +75,7 @@ module.exports = require('pauser')([
     require('./Value/Future'),
     require('./Load/Includer'),
     require('./INIState'),
+    require('./Core/Opcode/Opcode/IsolatedOpcode'),
     require('./Load/Loader'),
     require('./Load/LoadScope'),
     require('./Core/Opcode/Opcode/LoopStructureOpcode'),
@@ -86,12 +88,14 @@ module.exports = require('pauser')([
     require('./Namespace'),
     require('./NamespaceFactory'),
     require('./NamespaceScope'),
+    require('./Class/Definition/NativeDefinitionBuilder'),
     require('./Reference/Null'),
     require('./Reference/ObjectElement'),
     require('./Load/OnceIncluder'),
     require('./Core/Opcode/Opcode/OpcodeFactory'),
     require('./Core/Opcode/Fetcher/OpcodeFetcherRepository'),
     require('./Core/Internals/OpcodeInternalsClassFactory'),
+    require('./Core/Opcode/Opcode/OpcodePool'),
     require('./OptionSet'),
     require('./Output/Output'),
     require('./Output/OutputBuffer'),
@@ -108,6 +112,7 @@ module.exports = require('pauser')([
     require('./Scope'),
     require('./ScopeFactory'),
     require('./Control/Sequence'),
+    require('./Service/ServiceInternals'),
     require('./Reference/StaticProperty'),
     require('./Output/StdoutBuffer'),
     require('./SuperGlobalScope'),
@@ -119,6 +124,7 @@ module.exports = require('pauser')([
     require('./Reference/UndeclaredStaticProperty'),
     require('./Core/Opcode/Opcode/UntracedOpcode'),
     require('./Control/Userland'),
+    require('./Class/Definition/UserlandDefinitionBuilder'),
     require('./Value'),
     require('./ValueFactory'),
     require('./Variable'),
@@ -132,13 +138,15 @@ module.exports = require('pauser')([
     OpcodeHandlerFactory,
     CalculationOpcode,
     CalculationOpcodeFetcher,
-    Call,
-    CallFactory,
     CallStack,
     ClassAutoloader,
+    ClassDefiner,
+    ClassFactory,
+    ClassPromoter,
     Closure,
     ClosureContext,
     ClosureFactory,
+    Container,
     ControlBridge,
     ControlExpressionOpcode,
     ControlExpressionOpcodeFetcher,
@@ -157,7 +165,6 @@ module.exports = require('pauser')([
     ErrorReporting,
     Evaluator,
     FFIAsyncObjectValue,
-    FFICall,
     FFICaller,
     FFIClassInternalsClassFactory,
     FFIExportFactory,
@@ -188,6 +195,7 @@ module.exports = require('pauser')([
     FutureValue,
     Includer,
     INIState,
+    IsolatedOpcode,
     Loader,
     LoadScope,
     LoopStructureOpcode,
@@ -200,12 +208,14 @@ module.exports = require('pauser')([
     Namespace,
     NamespaceFactory,
     NamespaceScope,
+    NativeDefinitionBuilder,
     NullReference,
     ObjectElement,
     OnceIncluder,
     OpcodeFactory,
     OpcodeFetcherRepository,
     OpcodeInternalsClassFactory,
+    OpcodePool,
     OptionSet,
     Output,
     OutputBuffer,
@@ -222,6 +232,7 @@ module.exports = require('pauser')([
     Scope,
     ScopeFactory,
     Sequence,
+    ServiceInternals,
     StaticPropertyReference,
     StdoutBuffer,
     SuperGlobalScope,
@@ -233,6 +244,7 @@ module.exports = require('pauser')([
     UndeclaredStaticPropertyReference,
     UntracedOpcode,
     Userland,
+    UserlandDefinitionBuilder,
     Value,
     ValueFactory,
     Variable,
@@ -301,9 +313,7 @@ module.exports = require('pauser')([
             function installClassGroup(groupFactory) {
                 var groupBuiltins = groupFactory(state.ffiInternals);
 
-                _.each(groupBuiltins, function (definitionFactory, name) {
-                    state.defineClass(name, definitionFactory);
-                });
+                _.each(groupBuiltins, installClass);
             }
 
             /**
@@ -393,8 +403,7 @@ module.exports = require('pauser')([
             _.each(installedBuiltinTypes.classGroups, installClassGroup);
             _.forOwn(installedBuiltinTypes.classes, installClass);
         },
-        Exception = phpCommon.Exception,
-        Translator = phpCommon.Translator;
+        Exception = phpCommon.Exception;
 
     /**
      * Encapsulates an internal PHP state, defining classes, functions, global variables etc.
@@ -408,7 +417,6 @@ module.exports = require('pauser')([
      * @param {Stream} stdin
      * @param {Stream} stdout
      * @param {Stream} stderr
-     * @param {Resumable|null} pausable
      * @param {string} mode
      * @param {Function[]} optionGroups
      * @param {Object} options
@@ -421,57 +429,112 @@ module.exports = require('pauser')([
         stdin,
         stdout,
         stderr,
-        pausable,
         mode,
         optionGroups,
         options
     ) {
-        var callFactory = new CallFactory(Call, FFICall),
+        /**
+         * Loads the service container, applying overrides from addons if installed.
+         *
+         * @param {PHPState} state
+         * @returns {Container}
+         */
+        function loadServiceContainer(state) {
+            /**
+             * Installs a set of service providers.
+             *
+             * @param {Function} groupFactory
+             */
+            function installServiceGroup(groupFactory) {
+                state.defineServiceGroup(groupFactory);
+            }
+
+            var container = new Container({
+                'stderr': stderr
+            });
+
+            state.container = container;
+
+            // Core services.
+            _.each(builtinTypes.serviceGroups, installServiceGroup);
+
+            // Optional installed services.
+            _.each(installedBuiltinTypes.serviceGroups, installServiceGroup);
+
+            return container;
+        }
+
+        var container = loadServiceContainer(this),
+            get = container.getServiceFetcher(),
+            /**
+             * Sets a service on the container directly. Note that this is only intended to be used
+             * transitionally - once all services have been defined using service groups,
+             * this should no longer be necessary.
+             *
+             * @param {string} id
+             * @param {Object} service
+             * @returns {*}
+             */
+            set = function (id, service) {
+                if (container.hasService(id)) {
+                    // The service has been overridden - return the overridden value instead.
+                    return container.getService(id);
+                }
+
+                container.setService(id, service);
+
+                return service;
+            },
+            callFactory = get('call_factory'),
             moduleFactory = new ModuleFactory(Module),
-            translator = new Translator(),
+            translator = get('translator'),
             iniState = new INIState(),
             getConstant = this.getConstant.bind(this),
             errorConfiguration = new ErrorConfiguration(iniState),
             errorConverter = new ErrorConverter(getConstant),
             traceFormatter = new TraceFormatter(translator),
-            errorReporting = new ErrorReporting(
+            errorReporting = set('error_reporting', new ErrorReporting(
                 errorConfiguration,
                 errorConverter,
                 traceFormatter,
                 translator,
                 stdout,
                 stderr
-            ),
-            errorPromoter = new ErrorPromoter(errorReporting),
+            )),
+            errorPromoter = set('error_promoter', new ErrorPromoter(errorReporting)),
             ffiValueStorage = new FFIValueStorage(),
-            controlBridge = new ControlBridge(Future, FutureValue),
+            controlBridge = new ControlBridge(Future, FutureValue, Value),
             controlScope = new ControlScope(),
             opcodeFactory = new OpcodeFactory(
                 CalculationOpcode,
                 ControlExpressionOpcode,
                 ControlStructureOpcode,
+                IsolatedOpcode,
                 LoopStructureOpcode,
                 UntracedOpcode
             ),
-            controlFactory = new ControlFactory(Sequence, Trace, controlBridge, controlScope, opcodeFactory),
+            opcodePool = new OpcodePool(opcodeFactory),
+            controlFactory = new ControlFactory(Sequence, Trace, controlBridge, controlScope, opcodePool),
             flow = new Flow(controlFactory, controlBridge, controlScope, mode),
-            elementProviderFactory = new ElementProviderFactory(flow),
-            elementProvider = elementProviderFactory.createProvider(),
-            valueFactory = new ValueFactory(
-                pausable,
+            valueFactory = set('value_factory', new ValueFactory(
                 mode,
-                elementProvider,
                 translator,
                 callFactory,
                 errorPromoter,
                 ffiValueStorage,
-                flow,
                 controlBridge,
                 controlScope
-            ),
-            callStack = new CallStack(valueFactory, translator, errorReporting, stderr),
+            )),
+            callStack = get('call_stack'),
             pauseFactory = new PauseFactory(Pause, callStack, controlFactory, controlScope, mode),
-            userland = new Userland(callStack, controlScope, mode),
+            userland = new Userland(callStack, controlScope, valueFactory, opcodePool, mode),
+            futureFactory = new FutureFactory(
+                controlFactory,
+                pauseFactory,
+                valueFactory,
+                controlBridge,
+                Future
+            ),
             referenceFactory = new ReferenceFactory(
                 AccessorReference,
                 ElementReference,
@@ -482,15 +545,11 @@ module.exports = require('pauser')([
                 StaticPropertyReference,
                 UndeclaredStaticPropertyReference,
                 valueFactory,
-                callStack,
-                flow
+                futureFactory,
+                callStack
             ),
-            futureFactory = new FutureFactory(
-                controlFactory,
-                pauseFactory,
-                controlBridge,
-                Future
-            ),
+            elementProviderFactory = new ElementProviderFactory(referenceFactory, futureFactory),
+            elementProvider = elementProviderFactory.createProvider(),
             classAutoloader = new ClassAutoloader(valueFactory, flow),
 
             ffiCaller = new FFICaller(
@@ -526,8 +585,8 @@ module.exports = require('pauser')([
             ffiExportRepository = new FFIExportRepository(ffiExportFactory, ffiValueStorage),
             ffiValueHelper = new FFIValueHelper(ffiProxyFactory, ffiFactory, ffiValueStorage, mode),
 
-            typeFactory = new TypeFactory(),
-            parameterFactory = new ParameterFactory(Parameter, callStack, translator),
+            typeFactory = new TypeFactory(futureFactory),
+            parameterFactory = new ParameterFactory(Parameter, callStack, translator, futureFactory, flow, userland),
             parameterTypeFactory = new ParameterTypeFactory(typeFactory),
             parameterListFactory = new ParameterListFactory(parameterFactory, parameterTypeFactory),
             functionSpecFactory = new FunctionSpecFactory(
@@ -537,9 +596,10 @@ module.exports = require('pauser')([
                 ClosureContext,
                 callStack,
                 parameterListFactory,
-                valueFactory
+                valueFactory,
+                flow
             ),
-            variableFactory = new VariableFactory(Variable, callStack, valueFactory, referenceFactory, flow),
+            variableFactory = new VariableFactory(Variable, callStack, valueFactory, referenceFactory, futureFactory),
             superGlobalScope = new SuperGlobalScope(variableFactory),
             scopeFactory = new ScopeFactory(
                 ModuleScope,
@@ -565,19 +625,42 @@ module.exports = require('pauser')([
                 controlScope
             ),
             closureFactory = new ClosureFactory(functionFactory, valueFactory, callStack, Closure),
-            namespaceFactory = new NamespaceFactory(
-                Namespace,
+            nativeDefinitionBuilder = new NativeDefinitionBuilder(ffiFactory),
+            userlandDefinitionBuilder = new UserlandDefinitionBuilder(
                 callStack,
-                flow,
-                functionFactory,
-                functionSpecFactory,
+                valueFactory,
+                ffiFactory
+            ),
+            classFactory = new ClassFactory(
                 valueFactory,
                 referenceFactory,
-                classAutoloader,
+                functionFactory,
+                callStack,
+                flow,
+                futureFactory,
+                userland,
                 ffiExportRepository,
                 ffiFactory
             ),
-            globalNamespace = namespaceFactory.create(),
+            classPromoter = new ClassPromoter(callStack, classFactory, functionFactory, functionSpecFactory),
+            classDefiner = new ClassDefiner(
+                flow,
+                futureFactory,
+                nativeDefinitionBuilder,
+                userlandDefinitionBuilder,
+                classPromoter
+            ),
+            namespaceFactory = new NamespaceFactory(
+                Namespace,
+                callStack,
+                futureFactory,
+                functionFactory,
+                functionSpecFactory,
+                valueFactory,
+                classAutoloader,
+                classDefiner
+            ),
+            globalNamespace = set('global_namespace', namespaceFactory.create()),
             // The global/default module (not eg. the same as the command line module)
             globalModule = moduleFactory.create(null),
             // "Invisible" global namespace scope, not defined by any code
@@ -604,10 +687,10 @@ module.exports = require('pauser')([
             output = new Output(new OutputFactory(OutputBuffer), new StdoutBuffer(stdout)),
             state = this,
             opcodeFetcherRepository = new OpcodeFetcherRepository({
-                'calculation': new CalculationOpcodeFetcher(opcodeFactory),
-                'controlExpression': new ControlExpressionOpcodeFetcher(opcodeFactory),
-                'controlStructure': new ControlStructureOpcodeFetcher(opcodeFactory),
-                'loopStructure': new LoopStructureOpcodeFetcher(opcodeFactory)
+                'calculation': new CalculationOpcodeFetcher(opcodePool),
+                'controlExpression': new ControlExpressionOpcodeFetcher(opcodePool),
+                'controlStructure': new ControlStructureOpcodeFetcher(opcodePool),
+                'loopStructure': new LoopStructureOpcodeFetcher(opcodePool)
             }),
             opcodeHandlerFactory = new OpcodeHandlerFactory(controlBridge, callStack, opcodeFetcherRepository),
             coreBinder = new CoreBinder(),
@@ -616,8 +699,6 @@ module.exports = require('pauser')([
 
         callFactory.setControlFactory(controlFactory);
         controlFactory.setFlow(flow);
-        elementProvider.setReferenceFactory(referenceFactory);
-        elementProviderFactory.setReferenceFactory(referenceFactory);
         flow.setFutureFactory(futureFactory);
         scopeFactory.setClosureFactory(closureFactory);
         globalScope = scopeFactory.create();
@@ -625,6 +706,7 @@ module.exports = require('pauser')([
         scopeFactory.setGlobalScope(globalScope);
         classAutoloader.setGlobalNamespace(globalNamespace);
         valueFactory.setCallStack(callStack);
+        valueFactory.setElementProvider(elementProvider);
         valueFactory.setFutureFactory(futureFactory);
         valueFactory.setGlobalNamespace(globalNamespace);
         valueFactory.setReferenceFactory(referenceFactory);
@@ -673,7 +755,6 @@ module.exports = require('pauser')([
 
         ffiInternals = new FFIInternals(
             mode,
-            pausable,
             userland,
             flow,
             controlScope,
@@ -777,12 +858,30 @@ module.exports = require('pauser')([
         this.callStack = callStack;
         this.ClassInternals = ffiClassInternalsClassFactory.create();
         /**
+         * @type {Container}
+         */
+        this.container = container;
+        /**
+         * @type {ControlBridge}
+         */
+        this.controlBridge = controlBridge;
+        /**
          * @type {ControlFactory}
          */
         this.controlFactory = controlFactory;
+        /**
+         * @type {ControlScope}
+         */
+        this.controlScope = controlScope;
+        /**
+         * @type {CoreBinder}
+         */
         this.coreBinder = coreBinder;
         this.coreFactory = coreFactory;
         this.errorReporting = errorReporting;
+        /**
+         * @type {Flow}
+         */
         this.flow = flow;
         this.FunctionInternals = ffiFunctionInternalsClassFactory.create();
         /**
@@ -812,12 +911,11 @@ module.exports = require('pauser')([
         this.scopeFactory = scopeFactory;
         this.callStack = callStack;
         this.classAutoloader = classAutoloader;
-        this.pausable = pausable;
         this.stderr = stderr;
         this.stdin = stdin;
         this.stdout = stdout;
         this.superGlobalScope = superGlobalScope;
-        this.throwableClassObject = null;
+        this.throwableInterfaceDefined = false;
         this.toolsFactory = toolsFactory;
         this.translator = translator;
         this.userland = userland;
@@ -863,22 +961,24 @@ module.exports = require('pauser')([
          *
          * @param {string} fqcn FQCN of the class to define
          * @param {function} definitionFactory Called with `internals` object, returns the class definition
-         * @returns {Class} Returns the instance of Class that represents a PHP class
          */
         defineClass: function (fqcn, definitionFactory) {
             var state = this,
-                classInternals = new state.ClassInternals(fqcn),
-                classObject = classInternals.defineClass(definitionFactory);
+                classFuture,
+                classInternals = new state.ClassInternals(fqcn);
 
             if (fqcn === THROWABLE_INTERFACE) {
-                if (state.throwableClassObject) {
+                if (state.throwableInterfaceDefined) {
                     throw new Error('PHPState.defineClass(...) :: Throwable interface is already defined');
                 }
 
-                state.throwableClassObject = classObject;
+                state.throwableInterfaceDefined = true;
             }
 
-            return classObject;
+            classFuture = classInternals.defineClass(definitionFactory);
+
+            // Ensure all built-in classes are installed synchronously (for now)
+            classFuture.yieldSync();
         },
 
         /**
@@ -1003,6 +1103,28 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Installs a set of service providers
+         *
+         * @param {Function} groupFactory
+         */
+        defineServiceGroup: function (groupFactory) {
+            var state = this,
+                internals = new ServiceInternals(state.container),
+                groupBuiltins = groupFactory(internals),
+                isOverrideAllowed = internals.isServiceOverrideAllowed();
+
+            if (isOverrideAllowed) {
+                // Service overriding is allowed, so provide the service group with the previous providers
+                // for all of the service providers they define, so that the previous versions may be called.
+                internals.setPreviousServiceProviders(state.container.getServiceProviders(Object.keys(groupBuiltins)));
+            }
+
+            _.forOwn(groupBuiltins, function (provider, id) {
+                state.container.defineService(id, provider, isOverrideAllowed);
+            });
+        },
+
+        /**
          * Defines a super global variable (available in all scopes implicitly,
          * unlike a normal global which is not available unless imported with a `global` statement)
          * and gives it the provided value. If a native value is given then it will be coerced to a PHP one.
@@ -1070,6 +1192,12 @@ module.exports = require('pauser')([
             return this.callStack;
         },
 
+        /**
+         * Fetches the native value of the given PHP constant, or null if it does not exist
+         *
+         * @param {string} name
+         * @returns {*|null}
+         */
         getConstant: function (name) {
             var value;
 
@@ -1083,12 +1211,39 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Fetches the ControlBridge service
+         *
+         * @returns {ControlBridge}
+         */
+        getControlBridge: function () {
+            return this.controlBridge;
+        },
+
+        /**
          * Fetches the ControlFactory service
          *
          * @returns {ControlFactory}
          */
         getControlFactory: function () {
             return this.controlFactory;
+        },
+
+        /**
+         * Fetches the ControlScope service
+         *
+         * @returns {ControlScope}
+         */
+        getControlScope: function () {
+            return this.controlScope;
+        },
+
+        /**
+         * Fetches the CoreBinder service
+         *
+         * @returns {CoreBinder}
+         */
+        getCoreBinder: function () {
+            return this.coreBinder;
         },
 
         /**
@@ -1116,6 +1271,15 @@ module.exports = require('pauser')([
          */
         getFFIValueHelper: function () {
             return this.ffiValueHelper;
+        },
+
+        /**
+         * Fetches the control Flow helper service
+         *
+         * @returns {Flow}
+         */
+        getFlow: function () {
+            return this.flow;
         },
 
         /**
@@ -1212,6 +1376,16 @@ module.exports = require('pauser')([
             return this.scopeFactory;
         },
 
+        /**
+         * Fetches a defined service by its ID.
+         *
+         * @param {string} id
+         * @returns {*}
+         */
+        getService: function (id) {
+            return this.container.getService(id);
+        },
+
         getStderr: function () {
             return this.stderr;
         },
@@ -1255,6 +1429,11 @@ module.exports = require('pauser')([
             return this.userland;
         },
 
+        /**
+         * Fetches the ValueFactory service
+         *
+         * @returns {ValueFactory}
+         */
         getValueFactory: function () {
             return this.valueFactory;
         },

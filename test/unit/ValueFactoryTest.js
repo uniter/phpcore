@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('./tools'),
     BarewordStringValue = require('../../src/Value/BarewordString').sync(),
     CallFactory = require('../../src/CallFactory'),
     CallStack = require('../../src/CallStack'),
@@ -28,28 +29,35 @@ var expect = require('chai').expect,
     NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPObject = require('../../src/FFI/Value/PHPObject').sync(),
-    Promise = require('lie'),
     Translator = phpCommon.Translator,
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync(),
     ValueStorage = require('../../src/FFI/Value/ValueStorage');
 
-describe('ValueFactory (sync mode)', function () {
+describe('ValueFactory', function () {
     var callFactory,
         callStack,
         elementProvider,
         errorPromoter,
         factory,
+        futureFactory,
         globalNamespace,
+        referenceFactory,
+        state,
         translator,
         valueStorage;
 
     beforeEach(function () {
-        callFactory = sinon.createStubInstance(CallFactory);
         callStack = sinon.createStubInstance(CallStack);
+        state = tools.createIsolatedState(null, {
+            'call_stack': callStack
+        });
+        callFactory = sinon.createStubInstance(CallFactory);
         elementProvider = new ElementProvider();
         errorPromoter = sinon.createStubInstance(ErrorPromoter);
+        futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
+        referenceFactory = state.getReferenceFactory();
         translator = sinon.createStubInstance(Translator);
         valueStorage = new ValueStorage();
 
@@ -59,16 +67,19 @@ describe('ValueFactory (sync mode)', function () {
             });
 
         factory = new ValueFactory(
-            null,
             'sync',
-            elementProvider,
             translator,
             callFactory,
             errorPromoter,
-            valueStorage
+            valueStorage,
+            state.getControlBridge(),
+            state.getControlScope()
         );
         factory.setCallStack(callStack);
+        factory.setElementProvider(elementProvider);
+        factory.setFutureFactory(futureFactory);
         factory.setGlobalNamespace(globalNamespace);
+        factory.setReferenceFactory(referenceFactory);
     });
 
     describe('coerce()', function () {
@@ -82,7 +93,6 @@ describe('ValueFactory (sync mode)', function () {
             var resolvedResult = factory.createInteger(21),
                 ffiResult = sinon.createStubInstance(FFIResult);
             ffiResult.resolve
-                .withArgs(sinon.match.same(factory))
                 .returns(resolvedResult);
 
             expect(factory.coerce(ffiResult)).to.equal(resolvedResult);
@@ -137,7 +147,8 @@ describe('ValueFactory (sync mode)', function () {
             JSObjectClass.getSuperClass.returns(null);
             JSObjectClass.is.withArgs('JSObject').returns(true);
             JSObjectClass.is.returns(false);
-            globalNamespace.getClass.withArgs('JSObject').returns(JSObjectClass);
+            globalNamespace.getClass.withArgs('JSObject')
+                .returns(futureFactory.createPresent(JSObjectClass));
 
             objectValue = factory.coerceObject(nativeArray);
 
@@ -160,14 +171,6 @@ describe('ValueFactory (sync mode)', function () {
             }).to.throw(
                 'Only objects, null or undefined may be coerced to an object'
             );
-        });
-    });
-
-    describe('coercePromise()', function () {
-        it('should throw as Pausable is not available in sync mode', function () {
-            expect(function () {
-                factory.coercePromise(Promise.resolve());
-            }).to.throw('Cannot await a promise in non-async mode');
         });
     });
 
@@ -228,7 +231,7 @@ describe('ValueFactory (sync mode)', function () {
                 objectValue = sinon.createStubInstance(ObjectValue);
             globalNamespace.getClass
                 .withArgs('Closure')
-                .returns(closureClassObject);
+                .returns(futureFactory.createPresent(closureClassObject));
             closureClassObject.instantiateWithInternals
                 .withArgs(sinon.match.any, {
                     closure: sinon.match.same(closure)
@@ -246,7 +249,8 @@ describe('ValueFactory (sync mode)', function () {
         beforeEach(function () {
             myClassObject = sinon.createStubInstance(Class);
             objectValue = sinon.createStubInstance(ObjectValue);
-            globalNamespace.getClass.withArgs('My\\Stuff\\MyErrorClass').returns(myClassObject);
+            globalNamespace.getClass.withArgs('My\\Stuff\\MyErrorClass')
+                .returns(futureFactory.createPresent(myClassObject));
 
             objectValue.getInternalProperty
                 .withArgs('reportsOwnContext')
@@ -436,7 +440,8 @@ describe('ValueFactory (sync mode)', function () {
             JSObjectClass.getSuperClass.returns(null);
             JSObjectClass.is.withArgs('JSObject').returns(true);
             JSObjectClass.is.returns(false);
-            globalNamespace.getClass.withArgs('JSObject').returns(JSObjectClass);
+            globalNamespace.getClass.withArgs('JSObject')
+                .returns(futureFactory.createPresent(JSObjectClass));
 
             objectValue = factory.createFromNative(nativeObject);
 
@@ -460,7 +465,8 @@ describe('ValueFactory (sync mode)', function () {
             JSObjectClass.getSuperClass.returns(null);
             JSObjectClass.is.withArgs('JSObject').returns(true);
             JSObjectClass.is.returns(false);
-            globalNamespace.getClass.withArgs('JSObject').returns(JSObjectClass);
+            globalNamespace.getClass.withArgs('JSObject')
+                .returns(futureFactory.createPresent(JSObjectClass));
 
             objectValue = factory.createFromNative(nativeFunction);
 
@@ -549,7 +555,8 @@ describe('ValueFactory (sync mode)', function () {
         it('should return an ObjectValue wrapping the created stdClass instance', function () {
             var value = sinon.createStubInstance(ObjectValue),
                 stdClassClass = sinon.createStubInstance(Class);
-            globalNamespace.getClass.withArgs('stdClass').returns(stdClassClass);
+            globalNamespace.getClass.withArgs('stdClass')
+                .returns(futureFactory.createPresent(stdClassClass));
             stdClassClass.getSuperClass.returns(null);
             stdClassClass.instantiate.returns(value);
 
@@ -573,7 +580,8 @@ describe('ValueFactory (sync mode)', function () {
         beforeEach(function () {
             myClassObject = sinon.createStubInstance(Class);
             objectValue = sinon.createStubInstance(ObjectValue);
-            globalNamespace.getClass.withArgs('My\\Stuff\\MyErrorClass').returns(myClassObject);
+            globalNamespace.getClass.withArgs('My\\Stuff\\MyErrorClass')
+                .returns(futureFactory.createPresent(myClassObject));
 
             objectValue.getInternalProperty
                 .withArgs('reportsOwnContext')
@@ -683,7 +691,8 @@ describe('ValueFactory (sync mode)', function () {
         beforeEach(function () {
             myClassObject = sinon.createStubInstance(Class);
             objectValue = sinon.createStubInstance(ObjectValue);
-            globalNamespace.getClass.withArgs('My\\Stuff\\MyErrorClass').returns(myClassObject);
+            globalNamespace.getClass.withArgs('My\\Stuff\\MyErrorClass')
+                .returns(futureFactory.createPresent(myClassObject));
 
             objectValue.getInternalProperty
                 .withArgs('reportsOwnContext')
@@ -751,20 +760,21 @@ describe('ValueFactory (sync mode)', function () {
         beforeEach(function () {
             myClassObject = sinon.createStubInstance(Class);
             objectValue = sinon.createStubInstance(ObjectValue);
-            globalNamespace.getClass.withArgs('My\\Stuff\\MyClass').returns(myClassObject);
+            globalNamespace.getClass.withArgs('My\\Stuff\\MyClass')
+                .returns(futureFactory.createPresent(myClassObject));
             myClassObject.getSuperClass.returns(null);
             myClassObject.instantiate.returns(objectValue);
         });
 
-        it('should return an instance of the specified class with constructor args coerced', function () {
-            expect(factory.instantiateObject('My\\Stuff\\MyClass')).to.equal(objectValue);
+        it('should return an instance of the specified class with constructor args coerced', async function () {
+            expect(await factory.instantiateObject('My\\Stuff\\MyClass').toPromise()).to.equal(objectValue);
         });
 
-        it('should coerce the arguments to Value objects', function () {
-            factory.instantiateObject('My\\Stuff\\MyClass', [
+        it('should coerce the arguments to Value objects', async function () {
+            await factory.instantiateObject('My\\Stuff\\MyClass', [
                 21,
                 'second arg'
-            ]);
+            ]).toPromise();
 
             expect(myClassObject.instantiate).to.have.been.calledOnce;
             expect(myClassObject.instantiate.args[0][0][0].getType()).to.equal('int');

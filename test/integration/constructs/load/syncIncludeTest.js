@@ -25,13 +25,13 @@ include 'my_module.php';
 print ' after';
 EOS
 */;}), //jshint ignore:line
-            parentModule = tools.syncTranspile(null, parentPHP),
+            parentModule = tools.syncTranspile('/path/to/my_module.php', parentPHP),
             childPHP = nowdoc(function () {/*<<<EOS
 <?php
 print 'inside';
 EOS
 */;}), //jshint ignore:line
-            childModule = tools.syncTranspile(null, childPHP),
+            childModule = tools.syncTranspile('/path/to/my_module.php', childPHP),
             options = {
                 include: function (path, promise) {
                     promise.resolve(childModule);
@@ -53,7 +53,7 @@ function myFunction () {
 return myFunction();
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             options = {
                 path: '/path/to/my/caller.php',
                 include: function (path, promise) {
@@ -91,7 +91,7 @@ $message = include 'my/./path/to/../abc.php';
 return $message;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             options = {
                 path: 'my/caller.php',
                 include: function (path, promise) {
@@ -112,9 +112,8 @@ $message = include 'abc.php';
 return $message;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('my/caller.php', php),
             options = {
-                path: 'my/caller.php',
                 include: function (path, promise, callerPath) {
                     promise.resolve(tools.syncTranspile(path, '<?php return "Hello from ' + callerPath + '!";'));
                 }
@@ -354,7 +353,7 @@ EOS
     });
 
     it('should correctly trap when no include transport is configured', function () {
-        var module = tools.syncTranspile(null, '<?php include "no_transport.php";');
+        var module = tools.syncTranspile('/path/to/my_module.php', '<?php include "no_transport.php";');
 
         expect(function () {
             module().execute();
@@ -369,7 +368,7 @@ include 'my_module.php';
 print ' after';
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             options = {
                 include: function (path, promise) {
                     promise.resolve(tools.syncTranspile(path, '<?php print 21 + 2;'));
@@ -389,7 +388,7 @@ $num = include 'abc.php';
 return $num + 1;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             options = {
                 path: 'my/caller.php',
                 include: function (path, promise, callerPath, valueFactory) {
@@ -409,7 +408,7 @@ $result[] = include 'abc.php';
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             results = ['first', 'second'],
             options = {
                 path: 'my/caller.php',
@@ -436,7 +435,7 @@ function myFunc() {
 return myFunc();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             options = {
                 include: function (path, promise) {
                     var php = nowdoc(function () {/*<<<EOS
@@ -487,7 +486,7 @@ class YourClass
 return MyClass::includeIt();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             options = {
                 include: function (path, promise) {
                     var php = nowdoc(function () {/*<<<EOS
@@ -512,7 +511,7 @@ $message = include 'my/relative/path.php';
 return $message;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             options = {
                 path: 'my/caller.php',
                 include: function (path, promise) {

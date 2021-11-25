@@ -19,15 +19,15 @@ var Engine = require('../Engine'),
     Environment = require('../Environment'),
     globalStackHooker = require('./globalStackHooker'),
     phpCommon = require('phpcommon'),
-    PHPStateWrapper = require('../PHPState'),
+    PHPState = require('../PHPState').sync(),
     RuntimeFactory = require('../RuntimeFactory'),
-    RuntimeWrapper = require('../Runtime');
+    Runtime = require('../Runtime').sync();
 
 module.exports = new RuntimeFactory(
     Environment,
     Engine,
-    PHPStateWrapper,
-    RuntimeWrapper,
+    PHPState,
+    Runtime,
     phpCommon,
     globalStackHooker
 );

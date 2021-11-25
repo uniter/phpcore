@@ -79,9 +79,8 @@ module.exports = require('pauser')([
                 throw new Exception('Caller.callMethodAsync() :: Must be in async mode');
             }
 
-            // Call the method via Flow to allow for blocking operation
-            return caller.flow
-                .callAsync(objectValue.callMethod.bind(objectValue), [methodName, args])
+            // Call the method - note that it may return a FutureValue for async operation
+            return objectValue.callMethod(methodName, args)
                 // Pop the call off the stack _before_ returning, to mirror sync mode's behaviour
                 .finally(caller.popFFICall.bind(caller))
                 .catch(function (error) {
@@ -92,7 +91,8 @@ module.exports = require('pauser')([
 
                     // Normal error: just pass it up to the caller
                     throw error;
-                });
+                })
+                .toPromise();
         },
 
         /**

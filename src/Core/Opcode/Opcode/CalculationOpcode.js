@@ -12,29 +12,27 @@
 var _ = require('microdash');
 
 /**
- * @param {Trace} trace
- * @param {number} opIndex
- * @param {Function} handler
- * @param {*[]} args
+ * Represents an opcode that performs a calculation, eg. arithmetic addition.
+ *
  * @constructor
  */
-function CalculationOpcode(trace, opIndex, handler, args) {
+function CalculationOpcode() {
     /**
-     * @type {*[]}
+     * @type {*[]|null}
      */
-    this.args = args;
+    this.args = null;
     /**
-     * @type {Function}
+     * @type {Function|null}
      */
-    this.handler = handler;
+    this.handler = null;
     /**
-     * @type {number}
+     * @type {number|null}
      */
-    this.opIndex = opIndex;
+    this.opIndex = null;
     /**
-     * @type {Trace}
+     * @type {Trace|null}
      */
-    this.trace = trace;
+    this.trace = null;
 }
 
 _.extend(CalculationOpcode.prototype, {
@@ -47,6 +45,39 @@ _.extend(CalculationOpcode.prototype, {
         var opcode = this;
 
         return opcode.handler.apply(null, opcode.args);
+    },
+
+    /**
+     * Hydrates this opcode with the relevant data
+     *
+     * @param {Trace} trace
+     * @param {number} opIndex
+     * @param {Function} handler
+     * @param {*[]} args
+     */
+    hydrate: function (trace, opIndex, handler, args) {
+        var opcode = this;
+
+        opcode.args = args;
+        opcode.handler = handler;
+        opcode.opIndex = opIndex;
+        opcode.trace = trace;
+    },
+
+    /**
+     * Releases this opcode back into the pool to be reused
+     *
+     * @param {OpcodePool} opcodePool
+     */
+    release: function (opcodePool) {
+        var opcode = this;
+
+        opcode.args = null;
+        opcode.handler = null;
+        opcode.opIndex = null;
+        opcode.trace = null;
+
+        opcodePool.returnCalculationOpcode(opcode);
     },
 
     /**

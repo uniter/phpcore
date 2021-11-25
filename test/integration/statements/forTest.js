@@ -28,7 +28,7 @@ for ($i = 5; $i > 2; $i--) {
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal([
             '[5]',
@@ -49,7 +49,7 @@ for ($i = get_async(5); get_async($i) > get_async(2); $i = get_async($i) - 1) {
 return get_async($result);
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
         engine.defineFunction('get_async', function (internals) {
             return function (value) {

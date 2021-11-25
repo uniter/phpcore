@@ -35,6 +35,8 @@ module.exports = require('pauser')([
         PHPError = phpCommon.PHPError;
 
     /**
+     * TODO: Remove this, as it has been replaced by Core.
+     *
      * @param {CallStack} callStack
      * @param {Environment} environment
      * @param {Translator} translator
@@ -222,7 +224,7 @@ module.exports = require('pauser')([
         createNamespaceScope: function (namespace) {
             var tools = this;
 
-            return tools.scopeFactory.createNamespaceScope(namespace, tools.globalNamespace, tools.module);
+            return tools.scopeFactory.createNamespaceScope(namespace, tools.module);
         },
 
         /**

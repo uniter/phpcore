@@ -18,10 +18,15 @@ var _ = require('microdash'),
  * - An array
  * - An object implementing Traversable
  *
+ * @param {FutureFactory} futureFactory
  * @param {boolean} nullIsAllowed
  * @constructor
  */
-function IterableType(nullIsAllowed) {
+function IterableType(futureFactory, nullIsAllowed) {
+    /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
     /**
      * @type {boolean}
      */
@@ -44,8 +49,12 @@ _.extend(IterableType.prototype, {
      * {@inheritdoc}
      */
     allowsValue: function (value) {
-        return value.isIterable() ||
-            (this.allowsNull() && value.getType() === 'null');
+        var typeObject = this;
+
+        return typeObject.futureFactory.createPresent(
+            value.isIterable() ||
+            (typeObject.allowsNull() && value.getType() === 'null')
+        );
     },
 
     /**

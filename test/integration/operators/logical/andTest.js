@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP logical "and" operator integration', function () {
-    it('should support short-circuit evaluation', function () {
+    it('should support short-circuit evaluation in async mode with pauses', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -36,46 +36,66 @@ function returnFalsy() {
 
 $result = [];
 
-$result[] = returnFalsy() && returnFalsy();
+$result[] = get_async(returnFalsy()) && get_async(returnFalsy());
 $result[] = 'done falsy && falsy';
 
-$result[] = returnFalsy() && returnTruthy();
+// On resume, the result of the above &&'s LHS must be kept so that
+// execution of the RHS will _not_ occur, otherwise opcode indexes will be incorrect
+if (get_async(21) === 21) {
+    $result[] = '[async control]';
+}
+
+$result[] = get_async(returnFalsy()) && get_async(returnTruthy());
 $result[] = 'done falsy && truthy';
 
-$result[] = returnTruthy() && returnFalsy();
+$result[] = get_async(returnTruthy()) && get_async(returnFalsy());
 $result[] = 'done truthy && falsy';
 
-$result[] = returnTruthy() && returnTruthy();
+$result[] = get_async(returnTruthy()) && get_async(returnTruthy());
 $result[] = 'done truthy && truthy';
 
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
+        engine.defineFunction('get_async', function (internals) {
+            return function (value) {
+                return internals.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(value);
+                    });
+                });
+            };
+        });
 
-        expect(engine.execute().getNative()).to.deep.equal([
-            // falsy && falsy should short-circuit, not evaluating the second returnFalsy()
-            '[in returnFalsy]',
-            false,
-            'done falsy && falsy',
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal([
+                // falsy && falsy should short-circuit, not evaluating the second returnFalsy()
+                '[in returnFalsy]',
+                false,
+                'done falsy && falsy',
 
-            // falsy && truthy should short-circuit, not evaluating returnTruthy()
-            '[in returnFalsy]',
-            false,
-            'done falsy && truthy',
+                // (Ensures that logical term results are stored - see notes above)
+                '[async control]',
 
-            // truthy && falsy should not short-circuit, evaluating both
-            '[in returnTruthy]',
-            '[in returnFalsy]',
-            false,
-            'done truthy && falsy',
+                // falsy && truthy should short-circuit, not evaluating returnTruthy()
+                '[in returnFalsy]',
+                false,
+                'done falsy && truthy',
 
-            // truthy && truthy should not short-circuit, evaluating both
-            '[in returnTruthy]',
-            '[in returnTruthy]',
-            true,
-            'done truthy && truthy'
-        ]);
+                // truthy && falsy should not short-circuit, evaluating both
+                '[in returnTruthy]',
+                '[in returnFalsy]',
+                false,
+                'done truthy && falsy',
+
+                // truthy && truthy should not short-circuit, evaluating both
+                '[in returnTruthy]',
+                '[in returnTruthy]',
+                true,
+                'done truthy && truthy'
+            ]);
+        });
     });
 });

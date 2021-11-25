@@ -11,7 +11,6 @@
 
 module.exports = require('pauser')([
     require('microdash'),
-    // require('is-promise'),
     require('phpcommon'),
     require('./Iterator/ArrayIterator'),
     require('./Value/Array'),
@@ -35,7 +34,6 @@ module.exports = require('pauser')([
     require('./Variable')
 ], function (
     _,
-    // isPromise,
     phpCommon,
     ArrayIterator,
     ArrayValue,
@@ -63,27 +61,21 @@ module.exports = require('pauser')([
     /**
      * Creates Value and related objects
      *
-     * @param {Resumable|null} pausable
      * @param {string} mode
-     * @param {ElementProvider} elementProvider
      * @param {Translator} translator
      * @param {CallFactory} callFactory
      * @param {ErrorPromoter} errorPromoter
      * @param {ValueStorage} valueStorage
-     * @param {Flow} flow
      * @param {ControlBridge} controlBridge
      * @param {ControlScope} controlScope
      * @constructor
      */
     function ValueFactory(
-        pausable,
         mode,
-        elementProvider,
         translator,
         callFactory,
         errorPromoter,
         valueStorage,
-        flow,
         controlBridge,
         controlScope
     ) {
@@ -106,11 +98,7 @@ module.exports = require('pauser')([
         /**
          * @type {ElementProvider}
          */
-        this.elementProvider = elementProvider || new ElementProvider();
-        /**
-         * @type {Flow}
-         */
-        this.flow = flow;
+        this.elementProvider = new ElementProvider();
         /**
          * @type {FutureFactory|null}
          */
@@ -144,10 +132,6 @@ module.exports = require('pauser')([
          */
         this.nullValue = null;
         /**
-         * @type {Resumable|null}
-         */
-        this.pausable = pausable;
-        /**
          * @type {ReferenceFactory|null}
          */
         this.referenceFactory = null;
@@ -175,13 +159,6 @@ module.exports = require('pauser')([
             var factory = this;
 
             if (value instanceof Value) {
-                if (factory.controlBridge.isChainable(value)) {
-                    return value.next(function (result) {
-                        // Make sure the coerced result of a FutureValue is always a Value
-                        return factory.coerce(result);
-                    });
-                }
-
                 return value;
             }
 
@@ -200,12 +177,6 @@ module.exports = require('pauser')([
             if (value instanceof Reference || value instanceof Variable) {
                 return value.getValue();
             }
-
-            // // TODO: Consider removing this behaviour altogether now that we have FFIResult?
-            // if (isPromise(value) && factory.pausable) {
-            //     // A promise was returned (note that returning an FFIResult is preferred)
-            //     return this.coercePromise(value);
-            // }
 
             return factory.createFromNative(value);
         },
@@ -254,7 +225,7 @@ module.exports = require('pauser')([
                 throw new Error('Only objects, null or undefined may be coerced to an object');
             }
 
-            return factory.createObject(value, factory.globalNamespace.getClass('JSObject').yieldSync());
+            return factory.createBoxedJSObject(value);
         },
 
         /**
@@ -268,7 +239,11 @@ module.exports = require('pauser')([
         createArithmeticResult: function (coercedLeftValue, coercedRightValue, resultNative) {
             var factory = this;
 
-            if (coercedLeftValue.getType() === 'float' || coercedRightValue.getType() === 'float') {
+            if (
+                coercedLeftValue.getType() === 'float' ||
+                coercedRightValue.getType() === 'float' ||
+                !Number.isInteger(resultNative) // TODO: Test me via *Value classes
+            ) {
                 return factory.createFloat(resultNative);
             }
 
@@ -293,7 +268,6 @@ module.exports = require('pauser')([
                 factory.futureFactory,
                 factory.callStack,
                 value,
-                null,
                 elementProvider || factory.elementProvider
             );
         },
@@ -323,7 +297,6 @@ module.exports = require('pauser')([
                 factory.referenceFactory,
                 factory.futureFactory,
                 factory.callStack,
-                factory.flow,
                 value,
                 factory.globalNamespace,
                 namespaceScope
@@ -349,6 +322,31 @@ module.exports = require('pauser')([
                 factory.callStack,
                 value
             );
+        },
+
+        /**
+         * Creates an ObjectValue instance of JSObject that wraps the given native object
+         *
+         * @param {Object} nativeObject
+         * @returns {ObjectValue<JSObject>}
+         */
+        createBoxedJSObject: function (nativeObject) {
+            var factory = this,
+                objectValue;
+
+            // TODO: Improve integration test coverage for this?
+            if (factory.valueStorage.hasObjectValueForExport(nativeObject)) {
+                objectValue = factory.valueStorage.getObjectValueForExport(nativeObject);
+            } else {
+                objectValue = factory.createObject(
+                    nativeObject,
+                    // JSObject class should have been installed as a builtin
+                    factory.globalNamespace.getClass('JSObject').yieldSync()
+                );
+                factory.valueStorage.setObjectValueForExport(nativeObject, objectValue);
+            }
+
+            return objectValue;
         },
 
         /**
@@ -493,7 +491,7 @@ module.exports = require('pauser')([
         createFromNativeObject: function (nativeObject) {
             var factory = this,
                 hasAMethod = false,
-                orderedElements = [];
+                orderedElements;
 
             if (nativeObject instanceof PHPObject) {
                 // PHPObjects wrap instances of PHP classes when exported with .getProxy()
@@ -515,6 +513,8 @@ module.exports = require('pauser')([
                 });
 
                 if (!hasAMethod) {
+                    orderedElements = [];
+
                     // Plain object has no methods: can be safely cast to an associative array
                     _.forOwn(nativeObject, function (value, key) {
                         orderedElements.push(new KeyValuePair(factory.coerce(key), factory.coerce(value)));
@@ -526,7 +526,7 @@ module.exports = require('pauser')([
                 // Plain object, but has methods: needs to be cast to a JSObject
             }
 
-            return factory.createObject(nativeObject, factory.globalNamespace.getClass('JSObject').yieldSync());
+            return factory.createBoxedJSObject(nativeObject);
         },
 
         /**
@@ -709,7 +709,6 @@ module.exports = require('pauser')([
                 factory.referenceFactory,
                 factory.futureFactory,
                 factory.callStack,
-                factory.flow,
                 value,
                 factory.globalNamespace
             );
@@ -804,7 +803,7 @@ module.exports = require('pauser')([
          *
          * @param {string} className
          * @param {Array} constructorArgNatives
-         * @returns {Future<ObjectValue>|Present<ObjectValue>}
+         * @returns {Future<ObjectValue>}
          */
         instantiateObject: function (className, constructorArgNatives) {
             var factory = this,
@@ -834,9 +833,10 @@ module.exports = require('pauser')([
          * otherwise the result will be coerced to a Value.
          *
          * @param {Function} executor
+         * @param {Function=} pauser Called if a pause is intercepted
          * @returns {FutureValue|Value}
          */
-        maybeFuturise: function (executor) {
+        maybeFuturise: function (executor, pauser) {
             var factory = this,
                 result;
 
@@ -861,6 +861,10 @@ module.exports = require('pauser')([
                     });
                 }
 
+                if (pauser) {
+                    pauser(error);
+                }
+
                 // We have intercepted a pause - it must be marked as complete so that the future
                 // we will create is able to raise its own pause
                 factory.controlScope.markPaused(error);
@@ -880,6 +884,15 @@ module.exports = require('pauser')([
          */
         setCallStack: function (callStack) {
             this.callStack = callStack;
+        },
+
+        /**
+         * Sets the ElementProvider.
+         *
+         * @param {ElementProvider} elementProvider
+         */
+        setElementProvider: function (elementProvider) {
+            this.elementProvider = elementProvider;
         },
 
         /**

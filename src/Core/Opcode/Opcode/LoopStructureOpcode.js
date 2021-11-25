@@ -12,6 +12,8 @@
 var _ = require('microdash');
 
 /**
+ * Represents a loop structure opcode, eg. a for loop condition.
+ *
  * @param {Trace} trace
  * @param {number} opIndex
  * @param {number} loopIndex
@@ -52,6 +54,15 @@ _.extend(LoopStructureOpcode.prototype, {
         var opcode = this;
 
         return opcode.handler.apply(null, opcode.args);
+    },
+
+    /**
+     * Releases this opcode back into the pool to be reused
+     *
+     * @param {OpcodePool} opcodePool
+     */
+    release: function (/* opcodePool */) {
+        // TODO: Not yet implemented!
     },
 
     /**

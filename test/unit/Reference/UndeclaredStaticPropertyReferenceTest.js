@@ -12,23 +12,29 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../tools'),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
     PHPError = phpCommon.PHPError,
     UndeclaredStaticPropertyReference = require('../../../src/Reference/UndeclaredStaticProperty'),
-    Value = require('../../../src/Value').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    Value = require('../../../src/Value').sync();
 
 describe('UndeclaredStaticPropertyReference', function () {
     var callStack,
         classObject,
+        futureFactory,
         reference,
+        state,
         valueFactory;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        state = tools.createIsolatedState(null, {
+            'call_stack': callStack
+        });
         classObject = sinon.createStubInstance(Class);
-        valueFactory = new ValueFactory();
+        futureFactory = state.getFutureFactory();
+        valueFactory = state.getValueFactory();
 
         callStack.raiseTranslatedError
             .withArgs(PHPError.E_ERROR)
@@ -38,7 +44,14 @@ describe('UndeclaredStaticPropertyReference', function () {
                 );
             });
 
-        reference = new UndeclaredStaticPropertyReference(valueFactory, callStack, classObject, 'myProperty');
+        reference = new UndeclaredStaticPropertyReference(
+            valueFactory,
+            state.getReferenceFactory(),
+            futureFactory,
+            callStack,
+            classObject,
+            'myProperty'
+        );
     });
 
     describe('formatAsString()', function () {
@@ -70,14 +83,14 @@ describe('UndeclaredStaticPropertyReference', function () {
     });
 
     describe('isEmpty()', function () {
-        it('should return true', function () {
-            expect(reference.isEmpty()).to.be.true;
+        it('should return true', async function () {
+            expect(await reference.isEmpty().toPromise()).to.be.true;
         });
     });
 
     describe('isSet()', function () {
-        it('should return false', function () {
-            expect(reference.isSet()).to.be.false;
+        it('should return false', async function () {
+            expect(await reference.isSet().toPromise()).to.be.false;
         });
     });
 

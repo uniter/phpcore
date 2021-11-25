@@ -11,10 +11,12 @@
 
 module.exports = require('pauser')([
     require('microdash'),
-    require('phpcommon')
+    require('phpcommon'),
+    require('lie')
 ], function (
     _,
-    phpCommon
+    phpCommon,
+    Promise
 ) {
     var PHPError = phpCommon.PHPError,
 
@@ -88,8 +90,8 @@ module.exports = require('pauser')([
          */
         add: function (rightValue) {
             var leftValue = this,
-                coercedRightValue = rightValue.coerceToNumber(),
-                coercedLeftValue = leftValue.coerceToNumber();
+                coercedLeftValue = leftValue.coerceToNumber(),
+                coercedRightValue = rightValue.coerceToNumber();
 
             if (rightValue.isFuture()) {
                 return rightValue.derive().next(function (rightValue) {
@@ -111,6 +113,26 @@ module.exports = require('pauser')([
          */
         asEventualNative: function () {
             return this.getNative();
+        },
+
+        /**
+         * Derives a Future from this value
+         *
+         * @returns {Future}
+         */
+        asFuture: function () {
+            var value = this;
+
+            return value.futureFactory.createPresent(value);
+        },
+
+        /**
+         * Derives a value from this value (shared interface with Future)
+         *
+         * @returns {Value}
+         */
+        asValue: function () {
+            return this;
         },
 
         /**
@@ -181,6 +203,14 @@ module.exports = require('pauser')([
                 ) >>> 0 // Force unsigned native JS number
             );
         },
+
+        /**
+         * Calls this value, if it is callable
+         *
+         * @param {Reference[]|Value[]|Variable[]} args
+         * @returns {Reference|Value}
+         */
+        call: throwUnimplemented,
 
         /**
          * Calls a method on an object
@@ -370,18 +400,17 @@ module.exports = require('pauser')([
 
         /**
          * Attaches a callback for when the value has been evaluated regardless of result or error.
-         * As present values are already, this simply calls the handler handler synchronously.
+         * As present values are already, this simply calls the handler synchronously.
          *
          * @param {Function} finallyHandler
          * @returns {Value}
          */
         finally: function (finallyHandler) {
-            var value = this,
-                result = finallyHandler(value);
+            var value = this;
 
-            return typeof result !== 'undefined' ?
-                value.factory.coerce(result) :
-                value;
+            finallyHandler(value);
+
+            return value; // Fluent interface
         },
 
         /**
@@ -443,6 +472,11 @@ module.exports = require('pauser')([
             return this.getNative();
         },
 
+        /**
+         * Fetches a special element that will append to the array
+         *
+         * @returns {ElementReference|NullReference}
+         */
         getPushElement: function () {
             return createNullReference(this);
         },
@@ -452,7 +486,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches a static property for a class by its name
+         * Fetches a reference to a static property for a class by its name
          */
         getStaticPropertyByName: function () {
             this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
@@ -487,7 +521,11 @@ module.exports = require('pauser')([
          *
          * @returns {Value}
          */
-        increment: throwUnimplemented,
+        increment: function () {
+            var value = this;
+
+            return value.factory.createInteger(value.getNative() + 1);
+        },
 
         /**
          * Creates an instance of the class this value refers to
@@ -504,7 +542,7 @@ module.exports = require('pauser')([
          * Determines whether this value is callable
          *
          * @param {Namespace} globalNamespace
-         * @returns {boolean}
+         * @returns {Future<boolean>}
          */
         isCallable: throwUnimplemented,
 
@@ -586,7 +624,7 @@ module.exports = require('pauser')([
         /**
          * Determines whether the value is classed as "empty" or not
          *
-         * @returns {boolean|Future<boolean>}
+         * @returns {Future<boolean>}
          */
         isEmpty: throwUnimplemented,
 
@@ -820,11 +858,11 @@ module.exports = require('pauser')([
         /**
          * Determines whether this value is classed as "set" or not
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>}
          */
         isSet: function () {
             // All values except NULL are classed as 'set'
-            return true;
+            return this.futureFactory.createPresent(true);
         },
 
         /**
@@ -926,19 +964,21 @@ module.exports = require('pauser')([
          * for the catch handler parameter.
          *
          * @param {Function} resumeHandler
-         * @returns {FutureValue}
+         * @returns {FutureValue|Value}
          */
         next: function (resumeHandler) {
-            var value = this;
+            var value = this,
+                result;
 
-            return value.factory.createFuture(function (resolve) {
-                resolve(resumeHandler(value));
-            });
+            try {
+                result = resumeHandler(value);
+            } catch (error) {
+                return value.factory.createRejection(error);
+            }
 
-            // var value = this,
-            //     result = resumeHandler(value);
-            //
-            // return value.factory.coerce(result);
+            result = value.factory.coerce(result);
+
+            return result;
         },
 
         /**
@@ -993,8 +1033,8 @@ module.exports = require('pauser')([
          */
         subtract: function (rightValue) {
             var leftValue = this,
-                coercedRightValue = rightValue.coerceToNumber(),
-                coercedLeftValue = leftValue.coerceToNumber();
+                coercedLeftValue = leftValue.coerceToNumber(),
+                coercedRightValue = rightValue.coerceToNumber();
 
             if (rightValue.isFuture()) {
                 return rightValue.derive().next(function (rightValue) {
@@ -1007,6 +1047,15 @@ module.exports = require('pauser')([
                 coercedRightValue,
                 coercedLeftValue.getNative() - coercedRightValue.getNative()
             );
+        },
+
+        /**
+         * Derives a promise of this value (shared interface with Future)
+         *
+         * @returns {Promise<Value>}
+         */
+        toPromise: function () {
+            return Promise.resolve(this);
         },
 
         /**

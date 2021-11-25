@@ -18,7 +18,6 @@ var _ = require('microdash'),
  *
  * @param {ValueFactory} valueFactory
  * @param {ReferenceFactory} referenceFactory
- * @param {Flow} flow
  * @param {ObjectValue} objectValue
  * @param {Value} keyValue
  * @constructor
@@ -26,11 +25,10 @@ var _ = require('microdash'),
 function ObjectElement(
     valueFactory,
     referenceFactory,
-    flow,
     objectValue,
     keyValue
 ) {
-    Reference.call(this, referenceFactory, flow);
+    Reference.call(this, referenceFactory);
 
     /**
      * @type {Value}
@@ -75,13 +73,14 @@ _.extend(ObjectElement.prototype, {
      * Objects may only have an element fetched if they can be treated as an array,
      * by implementing ArrayAccess
      *
-     * @returns {Future<boolean>|Present<boolean>}
+     * @returns {Future<boolean>}
      */
     isEmpty: function () {
         var element = this;
 
         return element.objectValue.callMethod('offsetExists', [element.keyValue])
             .getValue()
+            .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
             .next(function (resultValue) {
                 if (!resultValue.getNative()) {
                     // ->offsetExists(...) returned false, no need to check further
@@ -99,13 +98,14 @@ _.extend(ObjectElement.prototype, {
      * Objects may only have an element fetched if they can be treated as an array,
      * by implementing ArrayAccess
      *
-     * @returns {FutureValue<boolean>}
+     * @returns {Future<boolean>}
      */
     isSet: function () {
         var element = this;
 
         return element.objectValue.callMethod('offsetExists', [element.keyValue])
             .getValue()
+            .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
             .next(function (resultValue) {
                 if (!resultValue.getNative()) {
                     // ->offsetExists(...) returned false, no need to check further

@@ -142,4 +142,45 @@ EOS
             );
         });
     });
+
+    it('should correctly resume past an error control expression with a control structure after it', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$anUnsetVar = null;
+
+$result = [];
+$result['before control structure'] = @get_async($anUnsetVar);
+
+// This control structure will clear the expression trace state
+if (true) {
+    $result['inside control structure'] = 'some value';
+}
+
+$result['after control structure'] = @get_async($anUnsetVar);
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineFunction('get_async', function (internals) {
+            return function (value) {
+                return internals.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(value);
+                    });
+                });
+            };
+        });
+
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal({
+                'before control structure': null,
+                'inside control structure': 'some value',
+                'after control structure': null,
+            });
+            expect(engine.getStderr().readAll()).to.equal('');
+        });
+    });
 });

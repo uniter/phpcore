@@ -41,7 +41,7 @@ return (function () {
 }());
 EOS
 */;}), //jshint ignore:line
-            module = tools.psyncTranspile(null, php),
+            module = tools.psyncTranspile('/path/to/my_module.php', php),
             engine = module({
                 eval: function (evalPHP, path, promise) {
                     // Resolve instantly - we cannot pause in psync mode

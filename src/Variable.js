@@ -26,7 +26,7 @@ module.exports = require('pauser')([
      * @param {CallStack} callStack
      * @param {ValueFactory} valueFactory
      * @param {ReferenceFactory} referenceFactory
-     * @param {Flow} flow
+     * @param {FutureFactory} futureFactory
      * @param {string} name
      * @constructor
      */
@@ -34,7 +34,7 @@ module.exports = require('pauser')([
         callStack,
         valueFactory,
         referenceFactory,
-        flow,
+        futureFactory,
         name
     ) {
         /**
@@ -42,9 +42,9 @@ module.exports = require('pauser')([
          */
         this.callStack = callStack;
         /**
-         * @type {Flow}
+         * @type {FutureFactory}
          */
-        this.flow = flow;
+        this.futureFactory = futureFactory;
         /**
          * @type {string}
          */
@@ -69,77 +69,6 @@ module.exports = require('pauser')([
 
     _.extend(Variable.prototype, {
         /**
-         * Calculates the bitwise AND of this variable's value and the given value,
-         * writing the result back to this variable
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
-         */
-        bitwiseAndWith: function (rightValue) {
-            var variable = this;
-
-            return variable.flow.try(function () {
-                return variable.getValue();
-            }).next(function (leftValue) {
-                return leftValue.bitwiseAnd(rightValue);
-            }).next(function (resultValue) {
-                return variable.setValue(resultValue);
-            }).go();
-        },
-
-        /**
-         * Calculates the bitwise OR of this variable's value and the given value,
-         * writing the result back to this variable
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
-         */
-        bitwiseOrWith: function (rightValue) {
-            var variable = this;
-
-            return variable.flow.try(function () {
-                return variable.getValue();
-            }).then(function (leftValue) {
-                return leftValue.bitwiseOr(rightValue);
-            }).then(function (resultValue) {
-                return variable.setValue(resultValue);
-            }).go();
-        },
-
-        /**
-         * Calculates the bitwise XOR of this variable's value and the given value,
-         * writing the result back to this variable
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
-         */
-        bitwiseXorWith: function (rightValue) {
-            var variable = this;
-
-            return variable.setValue(variable.getValue().bitwiseXor(rightValue));
-        },
-
-        /**
-         * Coerces this value and the specified one to strings,
-         * concatenates them together and then assigns the result back to this variable
-         *
-         * @param {Value} rightValue
-         */
-        concatWith: function (rightValue) {
-            var variable = this;
-
-            // TODO: Handle async pause with Flow
-            variable.setValue(variable.getValue().concat(rightValue));
-        },
-
-        decrementBy: function (rightValue) {
-            var variable = this;
-
-            // TODO: Handle async pause with Flow
-            variable.setValue(variable.getValue().subtract(rightValue));
-        },
-
-        /**
          * Formats the variable (which may not be defined) for display in stack traces etc.
          *
          * @returns {string}
@@ -151,24 +80,6 @@ module.exports = require('pauser')([
                 // TODO: Handle async pause with Flow
                 variable.getValue().formatAsString() :
                 'NULL';
-        },
-
-        /**
-         * Fetches a property of an object stored in this variable
-         *
-         * @deprecated TODO: Remove?
-         * @param {Value} nameValue
-         * @returns {PropertyReference}
-         */
-        getInstancePropertyByName: function (nameValue) {
-            var variable = this;
-
-            if (variable.name === 'this' && variable.value === null) {
-                variable.callStack.raiseTranslatedError(PHPError.E_ERROR, USED_THIS_OUTSIDE_OBJECT_CONTEXT);
-            }
-
-            // TODO: Handle async pause with Flow
-            return variable.getValue().getInstancePropertyByName(nameValue);
         },
 
         /**
@@ -222,8 +133,13 @@ module.exports = require('pauser')([
                 variable.valueFactory.createNull();
         },
 
+        /**
+         * Fetches the native value for the value or reference of this variable.
+         * Note that if its value is a pending FutureValue, an error will be raised.
+         *
+         * @returns {*}
+         */
         getNative: function () {
-            // TODO: Handle async pause with Flow
             return this.getValue().getNative();
         },
 
@@ -251,13 +167,6 @@ module.exports = require('pauser')([
             return variable.reference;
         },
 
-        incrementBy: function (rightValue) {
-            var variable = this;
-
-            // TODO: Handle async pause with Flow
-            variable.setValue(variable.getValue().add(rightValue));
-        },
-
         /**
          * Determines whether this variable is defined,
          * either with a value directly assigned or by being
@@ -274,7 +183,7 @@ module.exports = require('pauser')([
         /**
          * Determines whether this variable is classed as "empty" or not
          *
-         * @returns {boolean|Future<boolean>}
+         * @returns {Future<boolean>}
          */
         isEmpty: function () {
             var variable = this;
@@ -290,20 +199,13 @@ module.exports = require('pauser')([
             }
 
             // Otherwise the variable is undefined, so it is empty
-            return true;
-
-            // // TODO: Consider using a [Native]Future here
-            // return variable.flow.try(function () {
-            //     return variable.getValue();
-            // }).next(function (value) {
-            //     return value.isEmpty();
-            // }).go();
+            return variable.futureFactory.createPresent(true);
         },
 
         /**
          * Determines whether this variable is classed as "set" or not
          *
-         * @returns {boolean|Future<boolean>}
+         * @returns {Future<boolean>}
          */
         isSet: function () {
             var variable = this;
@@ -319,99 +221,7 @@ module.exports = require('pauser')([
             }
 
             // Otherwise the variable is undefined, so it is not set
-            return false;
-
-            // // TODO: Consider using a [Native]Future here
-            // return variable.flow.try(function () {
-            //     return variable.getValue();
-            // }).next(function (value) {
-            //     return value.isSet();
-            // }).go();
-        },
-
-        /**
-         * Decrements the stored value, returning its original value
-         *
-         * @returns {Value}
-         */
-        postDecrement: function () {
-            // TODO: Handle async pauses with Flow
-            var variable = this,
-                decrementedValue = variable.getValue().decrement(),
-                result = variable.getValue();
-
-            if (decrementedValue) {
-                variable.setValue(decrementedValue);
-            }
-
-            return result;
-        },
-
-        /**
-         * Decrements the stored value, returning its new value
-         *
-         * @returns {Value}
-         */
-        preDecrement: function () {
-            // TODO: Handle async pauses with Flow
-            var variable = this,
-                decrementedValue = variable.getValue().decrement();
-
-            if (decrementedValue) {
-                variable.setValue(decrementedValue);
-            }
-
-            return variable.getValue();
-        },
-
-        /**
-         * Increments the stored value, returning its original value
-         *
-         * @returns {Value}
-         */
-        postIncrement: function () {
-            // TODO: Handle async pauses with Flow
-            var variable = this,
-                incrementedValue = variable.getValue().increment(),
-                result = variable.getValue();
-
-            if (incrementedValue) {
-                variable.setValue(incrementedValue);
-            }
-
-            return result;
-        },
-
-        /**
-         * Increments the stored value, returning its new value
-         *
-         * @returns {Value}
-         */
-        preIncrement: function () {
-            // TODO: Handle async pauses with Flow
-            var variable = this,
-                incrementedValue = variable.getValue().increment();
-
-            if (incrementedValue) {
-                variable.setValue(incrementedValue);
-            }
-
-            return variable.getValue();
-        },
-
-        /**
-         * Sets either the value or the reference of this variable depending on the argument provided
-         *
-         * @param {Reference|Value|Variable} referenceOrValue
-         */
-        setReferenceOrValue: function (referenceOrValue) {
-            var variable = this;
-
-            if (variable.valueFactory.isValue(referenceOrValue)) {
-                variable.setValue(referenceOrValue);
-            } else {
-                variable.setReference(referenceOrValue.getReference());
-            }
+            return variable.futureFactory.createPresent(false);
         },
 
         /**
@@ -455,22 +265,6 @@ module.exports = require('pauser')([
             variable.value = null;
 
             return variable;
-        },
-
-        toArray: function () {
-            return this.value.toArray();
-        },
-
-        toBoolean: function () {
-            return this.value.toBoolean();
-        },
-
-        toFloat: function () {
-            return this.value.toFloat();
-        },
-
-        toInteger: function () {
-            return this.value.toInteger();
         },
 
         unset: function () {

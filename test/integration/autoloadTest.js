@@ -25,7 +25,7 @@ $object = new MyClass();
 return $object->getIt();
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             options = {
                 include: function (path, promise) {
                     setTimeout(function () {
@@ -59,7 +59,7 @@ $object = new MyClass();
 return $object::MY_CONST;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             options = {
                 include: function (path, promise) {
                     setTimeout(function () {
@@ -90,7 +90,7 @@ $object = new MyClass();
 return $object::MY_CONST;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             options = {
                 include: function (path, promise) {
                     setTimeout(function () {
@@ -121,7 +121,7 @@ spl_autoload_register(function ($class) {
 return MyClass::MY_CONST;
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             options = {
                 include: function (path, promise) {
                     setTimeout(function () {

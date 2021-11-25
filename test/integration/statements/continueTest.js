@@ -30,7 +30,7 @@ $result[] = 'end';
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal([0, 1, 3, 'end']);
     });
@@ -53,7 +53,7 @@ $result[] = 'end';
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal([0, 1, 3, 'end']);
     });

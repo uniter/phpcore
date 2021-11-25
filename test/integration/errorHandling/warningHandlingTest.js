@@ -11,24 +11,27 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('./tools');
+    tools = require('../tools');
 
-describe('Warning handling integration', function () {
+describe('PHP warning handling integration', function () {
+    var doRun,
+        outputLog;
+
     beforeEach(function () {
-        this.outputLog = [];
-        this.doRun = function (engine) {
+        outputLog = [];
+        doRun = function (engine) {
             // Capture the standard streams, prefixing each write with its name
             // so that we can ensure that what is written to each of them is in the correct order
             // with respect to one another
             engine.getStdout().on('data', function (data) {
-                this.outputLog.push('[stdout]' + data);
-            }.bind(this));
+                outputLog.push('[stdout]' + data);
+            });
             engine.getStderr().on('data', function (data) {
-                this.outputLog.push('[stderr]' + data);
-            }.bind(this));
+                outputLog.push('[stderr]' + data);
+            });
 
             engine.execute();
-        }.bind(this);
+        };
     });
 
     it('should output the correct data to stdout & stderr for an unsuppressed warning when display_errors=On and error_reporting=E_ALL', function () {
@@ -50,9 +53,9 @@ EOS
             }),
             engine = module();
 
-        this.doRun(engine);
+        doRun(engine);
 
-        expect(this.outputLog).to.deep.equal([
+        expect(outputLog).to.deep.equal([
             '[stderr]PHP Warning:  Use of undefined constant MY_UNDEFINED_CONSTANT - assumed \'MY_UNDEFINED_CONSTANT\' ' +
             '(this will throw an Error in a future version of PHP) in /my/php_module.php on line 5\n',
             // NB: Stdout should have a leading newline written out just before the message
@@ -84,9 +87,9 @@ EOS
             }),
             engine = module();
 
-        this.doRun(engine);
+        doRun(engine);
 
-        expect(this.outputLog).to.deep.equal([
+        expect(outputLog).to.deep.equal([
             '[stderr]PHP Warning:  Use of undefined constant MY_UNDEFINED_CONSTANT - assumed \'MY_UNDEFINED_CONSTANT\' ' +
             '(this will throw an Error in a future version of PHP) in /my/php_module.php on line 5\n',
 

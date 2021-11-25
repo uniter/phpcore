@@ -16,10 +16,18 @@ var _ = require('microdash'),
 /**
  * @param {CallStack} callStack
  * @param {ControlScope} controlScope
+ * @param {ValueFactory} valueFactory
+ * @param {OpcodePool} opcodePool
  * @param {string} mode
  * @constructor
  */
-function Userland(callStack, controlScope, mode) {
+function Userland(
+    callStack,
+    controlScope,
+    valueFactory,
+    opcodePool,
+    mode
+) {
     /**
      * @type {CallStack}
      */
@@ -32,17 +40,31 @@ function Userland(callStack, controlScope, mode) {
      * @type {string}
      */
     this.mode = mode;
+    /**
+     * @type {OpcodePool}
+     */
+    this.opcodePool = opcodePool;
+    /**
+     * @type {ValueFactory}
+     */
+    this.valueFactory = valueFactory;
 }
 
 _.extend(Userland.prototype, {
-    call: function (handler, args) {
+    /**
+     * Enters the top-level of userland code (eg. a module)
+     *
+     * @param {Function} executor
+     * @returns {Promise|*}
+     */
+    enterTopLevel: function (executor) {
         var userland = this;
 
         if (userland.mode === 'async') {
             return new Promise(function (resolve, reject) {
                 function run() {
                     try {
-                        resolve(handler.apply(null, args));
+                        resolve(executor());
                     } catch (error) {
                         if (error instanceof Pause) {
                             error.next(
@@ -79,7 +101,36 @@ _.extend(Userland.prototype, {
             });
         }
 
-        return handler.apply(null, args);
+        return executor();
+    },
+
+    /**
+     * Enters isolated userland code, eg. a default value provider
+     * such as a default class property value provider function
+     *
+     * @param {Function} executor
+     * @param {NamespaceScope=} namespaceScope
+     * @returns {Future|FutureValue|Value}
+     */
+    enterIsolated: function (executor, namespaceScope) {
+        var userland = this,
+            trace = userland.callStack.getCurrentTrace(),
+            isolatedOpcode = userland.opcodePool.provideIsolatedOpcode();
+
+        if (namespaceScope) {
+            namespaceScope.enter();
+        }
+
+        trace.enterOpcode(isolatedOpcode);
+
+        return userland.valueFactory.maybeFuturise(executor)
+            .finally(function () {
+                trace.leaveOpcode(isolatedOpcode);
+
+                if (namespaceScope) {
+                    namespaceScope.leave();
+                }
+            });
     }
 });
 

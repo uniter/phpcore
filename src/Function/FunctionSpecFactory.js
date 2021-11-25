@@ -21,6 +21,7 @@ var _ = require('microdash');
  * @param {CallStack} callStack
  * @param {ParameterListFactory} parameterListFactory
  * @param {ValueFactory} valueFactory
+ * @param {Flow} flow
  * @constructor
  */
 function FunctionSpecFactory(
@@ -30,7 +31,8 @@ function FunctionSpecFactory(
     ClosureContext,
     callStack,
     parameterListFactory,
-    valueFactory
+    valueFactory,
+    flow
 ) {
     /**
      * @type {CallStack}
@@ -40,6 +42,10 @@ function FunctionSpecFactory(
      * @type {class}
      */
     this.ClosureContext = ClosureContext;
+    /**
+     * @type {Flow}
+     */
+    this.flow = flow;
     /**
      * @type {class}
      */
@@ -80,6 +86,7 @@ _.extend(FunctionSpecFactory.prototype, {
         return new factory.FunctionSpec(
             factory.callStack,
             factory.valueFactory,
+            factory.flow,
             context,
             namespaceScope,
             parameters,
@@ -112,6 +119,7 @@ _.extend(FunctionSpecFactory.prototype, {
         return new factory.FunctionSpec(
             factory.callStack,
             factory.valueFactory,
+            factory.flow,
             context,
             namespaceScope,
             parameters,
@@ -150,6 +158,7 @@ _.extend(FunctionSpecFactory.prototype, {
         return new factory.FunctionSpec(
             factory.callStack,
             factory.valueFactory,
+            factory.flow,
             context,
             namespaceScope,
             parameters,
@@ -183,6 +192,7 @@ _.extend(FunctionSpecFactory.prototype, {
         return new factory.FunctionSpec(
             factory.callStack,
             factory.valueFactory,
+            factory.flow,
             context,
             namespaceScope,
             parameters,

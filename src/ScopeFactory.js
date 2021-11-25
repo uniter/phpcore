@@ -162,16 +162,15 @@ _.extend(ScopeFactory.prototype, {
      * Creates a new NamespaceScope
      *
      * @param {Namespace} namespace
-     * @param {Namespace} globalNamespace
      * @param {Module} module
      * @returns {NamespaceScope}
      */
-    createNamespaceScope: function (namespace, globalNamespace, module) {
+    createNamespaceScope: function (namespace, module) {
         var factory = this;
 
         return new factory.NamespaceScope(
             factory,
-            globalNamespace,
+            factory.globalNamespace,
             factory.valueFactory,
             factory.callStack,
             module,

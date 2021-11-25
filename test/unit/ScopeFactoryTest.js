@@ -15,6 +15,7 @@ var expect = require('chai').expect,
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     ClosureFactory = require('../../src/ClosureFactory').sync(),
+    Environment = require('../../src/Environment'),
     FunctionSpecFactory = require('../../src/Function/FunctionSpecFactory'),
     Module = require('../../src/Module'),
     Namespace = require('../../src/Namespace').sync(),
@@ -31,8 +32,10 @@ describe('ScopeFactory', function () {
         closureFactory,
         factory,
         functionSpecFactory,
+        globalNamespace,
         globalScope,
         LoadScope,
+        ModuleScope,
         NamespaceScope,
         referenceFactory,
         Scope,
@@ -46,8 +49,10 @@ describe('ScopeFactory', function () {
         closureFactory = sinon.createStubInstance(ClosureFactory);
         functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
         LoadScope = sinon.stub();
+        ModuleScope = sinon.stub();
         NamespaceScope = sinon.stub();
         Scope = sinon.stub();
+        globalNamespace = sinon.createStubInstance(Namespace);
         globalScope = sinon.createStubInstance(Scope);
         referenceFactory = sinon.createStubInstance(ReferenceFactory);
         superGlobalScope = sinon.createStubInstance(SuperGlobalScope);
@@ -56,6 +61,7 @@ describe('ScopeFactory', function () {
         variableFactory = sinon.createStubInstance(VariableFactory);
 
         factory = new ScopeFactory(
+            ModuleScope,
             LoadScope,
             Scope,
             NamespaceScope,
@@ -68,6 +74,7 @@ describe('ScopeFactory', function () {
             referenceFactory
         );
         factory.setClosureFactory(closureFactory);
+        factory.setGlobalNamespace(globalNamespace);
         factory.setGlobalScope(globalScope);
     });
 
@@ -382,19 +389,109 @@ describe('ScopeFactory', function () {
         });
     });
 
+    describe('createModuleScope()', function () {
+        var callCreateModuleScope,
+            environment,
+            module,
+            namespace,
+            topLevelNamespaceScope;
+
+        beforeEach(function () {
+            environment = sinon.createStubInstance(Environment);
+            module = sinon.createStubInstance(Module);
+            namespace = sinon.createStubInstance(Namespace);
+            topLevelNamespaceScope = sinon.createStubInstance(NamespaceScope);
+
+            callCreateModuleScope = function () {
+                return factory.createModuleScope(module, topLevelNamespaceScope, environment);
+            };
+        });
+
+        it('should return an instance of ModuleScope', function () {
+            expect(callCreateModuleScope()).to.be.an.instanceOf(ModuleScope);
+        });
+
+        it('should pass the ValueFactory to the scope', function () {
+            callCreateModuleScope();
+
+            expect(ModuleScope).to.have.been.calledOnce;
+            expect(ModuleScope).to.have.been.calledWith(
+                sinon.match.same(valueFactory)
+            );
+        });
+
+        it('should pass the ScopeFactory to the scope', function () {
+            callCreateModuleScope();
+
+            expect(ModuleScope).to.have.been.calledOnce;
+            expect(ModuleScope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.same(factory)
+            );
+        });
+
+        it('should pass the global namespace to the scope', function () {
+            callCreateModuleScope();
+
+            expect(ModuleScope).to.have.been.calledOnce;
+            expect(ModuleScope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(globalNamespace)
+            );
+        });
+
+        it('should pass the module to the scope', function () {
+            callCreateModuleScope();
+
+            expect(ModuleScope).to.have.been.calledOnce;
+            expect(ModuleScope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(module)
+            );
+        });
+
+        it('should pass the top-level NamespaceScope to the scope', function () {
+            callCreateModuleScope();
+
+            expect(ModuleScope).to.have.been.calledOnce;
+            expect(ModuleScope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(topLevelNamespaceScope)
+            );
+        });
+
+        it('should pass the Environment to the scope', function () {
+            callCreateModuleScope();
+
+            expect(ModuleScope).to.have.been.calledOnce;
+            expect(ModuleScope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(environment)
+            );
+        });
+    });
+
     describe('createNamespaceScope()', function () {
         var callCreateNamespaceScope,
-            globalNamespace,
             module,
             namespace;
 
         beforeEach(function () {
-            globalNamespace = sinon.createStubInstance(Namespace);
             module = sinon.createStubInstance(Module);
             namespace = sinon.createStubInstance(Namespace);
 
             callCreateNamespaceScope = function () {
-                return factory.createNamespaceScope(namespace, globalNamespace, module);
+                return factory.createNamespaceScope(namespace, module);
             };
         });
 
@@ -402,11 +499,21 @@ describe('ScopeFactory', function () {
             expect(callCreateNamespaceScope()).to.be.an.instanceOf(NamespaceScope);
         });
 
+        it('should pass the ScopeFactory to the scope', function () {
+            callCreateNamespaceScope();
+
+            expect(NamespaceScope).to.have.been.calledOnce;
+            expect(NamespaceScope).to.have.been.calledWith(
+                sinon.match.same(factory)
+            );
+        });
+
         it('should pass the global namespace to the scope', function () {
             callCreateNamespaceScope();
 
             expect(NamespaceScope).to.have.been.calledOnce;
             expect(NamespaceScope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.same(globalNamespace)
             );
         });
@@ -417,6 +524,7 @@ describe('ScopeFactory', function () {
             expect(NamespaceScope).to.have.been.calledOnce;
             expect(NamespaceScope).to.have.been.calledWith(
                 sinon.match.any,
+                sinon.match.any,
                 sinon.match.same(valueFactory)
             );
         });
@@ -426,6 +534,7 @@ describe('ScopeFactory', function () {
 
             expect(NamespaceScope).to.have.been.calledOnce;
             expect(NamespaceScope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.same(callStack)
@@ -440,6 +549,7 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
                 sinon.match.same(module)
             );
         });
@@ -449,6 +559,7 @@ describe('ScopeFactory', function () {
 
             expect(NamespaceScope).to.have.been.calledOnce;
             expect(NamespaceScope).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,

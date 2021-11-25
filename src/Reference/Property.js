@@ -21,8 +21,8 @@ var _ = require('microdash'),
 /**
  * @param {ValueFactory} valueFactory
  * @param {ReferenceFactory} referenceFactory
+ * @param {FutureFactory} futureFactory
  * @param {CallStack} callStack
- * @param {Flow} flow
  * @param {ObjectValue} objectValue
  * @param {Value} key
  * @param {Class} classObject Class in the hierarchy that defines the property - may be an ancestor
@@ -33,24 +33,24 @@ var _ = require('microdash'),
 function PropertyReference(
     valueFactory,
     referenceFactory,
+    futureFactory,
     callStack,
-    flow,
     objectValue,
     key,
     classObject,
     visibility,
     index
 ) {
-    Reference.call(this, referenceFactory, flow);
+    Reference.call(this, referenceFactory);
 
     /**
      * @type {Class}
      */
     this.classObject = classObject;
     /**
-     * @type {Flow}
+     * @type {FutureFactory}
      */
-    this.flow = flow;
+    this.futureFactory = futureFactory;
     /**
      * @type {number}
      */
@@ -222,7 +222,7 @@ _.extend(PropertyReference.prototype, {
     /**
      * Determines whether this object property is "empty" or not
      *
-     * @returns {boolean|Future<boolean>}
+     * @returns {Future<boolean>}
      */
     isEmpty: function () {
         var property = this;
@@ -234,16 +234,12 @@ _.extend(PropertyReference.prototype, {
         if (property.objectValue.isMethodDefined(MAGIC_GET)) {
             // Magic getter method is defined, so use it to determine the property's value
             // and then check _that_ for being "empty"
-            try {
-                return property.objectValue.callMethod(MAGIC_GET, [property.key]).isEmpty();
-            } catch (error) {
-                throw error; // FIXME
-            }
+            return property.objectValue.callMethod(MAGIC_GET, [property.key]).isEmpty();
         }
 
         // Property is not defined and there is no magic getter,
         // so the property must be empty as it is unset and undefined
-        return true;
+        return property.futureFactory.createPresent(true);
     },
 
     isReference: function () {
@@ -254,21 +250,21 @@ _.extend(PropertyReference.prototype, {
      * Determines whether this property is "set".
      * A set property must be both defined and have a non-NULL value
      *
-     * @returns {boolean}
+     * @returns {Future<boolean>}
      */
     isSet: function () {
         var property = this,
             defined = property.isDefined();
 
         if (!defined) {
-            return false;
+            return property.futureFactory.createPresent(false);
         }
 
         // Check that the property resolves to something other than null,
         // otherwise it is not set
         // (no need to check for a value of native null - meaning an undefined property -
         //  as the check for that is done just above)
-        return property.value.getType() !== 'null';
+        return property.futureFactory.createPresent(property.value.getType() !== 'null');
     },
 
     /**
@@ -318,14 +314,7 @@ _.extend(PropertyReference.prototype, {
      * @returns {Value}
      */
     setValue: function (value) {
-        var property = this,
-            isFirstProperty = (property.objectValue.getLength() === 0);
-
-        function pointIfFirstProperty() {
-            if (isFirstProperty) {
-                property.objectValue.pointToProperty(property);
-            }
-        }
+        var property = this;
 
         return value
             .next(function (presentValue) {
@@ -333,8 +322,6 @@ _.extend(PropertyReference.prototype, {
 
                 if (property.reference) {
                     property.reference.setValue(presentValue);
-
-                    pointIfFirstProperty();
 
                     return presentValue;
                 }
@@ -353,8 +340,6 @@ _.extend(PropertyReference.prototype, {
 
                 // No magic setter is defined - store the value of this property directly on itself
                 property.value = valueForAssignment;
-
-                pointIfFirstProperty();
 
                 return presentValue;
             })
