@@ -203,26 +203,28 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     isCallable: function () {
-        return this.derive().next(function (resultValue) {
-            return resultValue.isCallable();
-        });
+        return this.derive()
+            .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
+            .next(function (resultValue) {
+                return resultValue.isCallable();
+            });
     },
 
     /**
      * {@inheritdoc}
      */
     isEmpty: function () {
-        // TODO: Test me?
-        return this.derive().next(function (resultValue) {
-            return resultValue.isEmpty();
-        });
+        return this.derive()
+            .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
+            .next(function (resultValue) {
+                return resultValue.isEmpty();
+            });
     },
 
     /**
      * {@inheritdoc}
      */
     isEqualTo: function (rightValue) {
-        // TODO: Test me?
         return this.derive().next(function (leftValue) {
             return leftValue.isEqualTo(rightValue);
         });
@@ -239,10 +241,11 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     isSet: function () {
-        // TODO: Test me?
-        return this.derive().next(function (resultValue) {
-            return resultValue.isSet();
-        });
+        return this.derive()
+            .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
+            .next(function (resultValue) {
+                return resultValue.isSet();
+            });
     },
 
     /**
@@ -263,7 +266,7 @@ _.extend(FutureValue.prototype, {
         value.future
             .next(
                 function (resultValue) {
-                    // Make sure the coerced result of a FutureValue is always a Value
+                    // Make sure the resolved result of a FutureValue is always a Value.
                     resultValue = resumeHandler(resultValue);
 
                     if (!value.factory.isValue(resultValue)) {
