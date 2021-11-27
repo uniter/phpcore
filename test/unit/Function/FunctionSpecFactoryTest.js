@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
+    Flow = require('../../../src/Control/Flow'),
     FunctionSpecFactory = require('../../../src/Function/FunctionSpecFactory'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     Parameter = require('../../../src/Function/Parameter'),
@@ -23,6 +24,7 @@ var expect = require('chai').expect,
 describe('FunctionSpecFactory', function () {
     var callStack,
         factory,
+        flow,
         namespaceScope,
         parameterListFactory,
         typeFactory,
@@ -34,6 +36,7 @@ describe('FunctionSpecFactory', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        flow = sinon.createStubInstance(Flow);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         parameterListFactory = sinon.createStubInstance(ParameterListFactory);
         typeFactory = sinon.createStubInstance(TypeFactory);
@@ -50,7 +53,8 @@ describe('FunctionSpecFactory', function () {
             ClosureContext,
             callStack,
             parameterListFactory,
-            valueFactory
+            valueFactory,
+            flow
         );
     });
 
@@ -73,6 +77,7 @@ describe('FunctionSpecFactory', function () {
                 .withArgs(
                     sinon.match.same(callStack),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(flow),
                     sinon.match.same(functionContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
@@ -137,6 +142,7 @@ describe('FunctionSpecFactory', function () {
                 .withArgs(
                     sinon.match.same(callStack),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(flow),
                     sinon.match.same(closureContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
@@ -162,6 +168,7 @@ describe('FunctionSpecFactory', function () {
                 .withArgs(
                     sinon.match.same(callStack),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(flow),
                     sinon.match.same(closureContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
@@ -221,6 +228,7 @@ describe('FunctionSpecFactory', function () {
                 .withArgs(
                     sinon.match.same(callStack),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(flow),
                     sinon.match.same(functionContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
@@ -284,6 +292,7 @@ describe('FunctionSpecFactory', function () {
                 .withArgs(
                     sinon.match.same(callStack),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(flow),
                     sinon.match.same(methodContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],

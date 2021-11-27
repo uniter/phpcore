@@ -12,31 +12,45 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../tools'),
     Call = require('../../../src/Call'),
     CallStack = require('../../../src/CallStack'),
     FunctionContextInterface = require('../../../src/Function/FunctionContextInterface'),
+    NamespaceScope = require('../../../src/NamespaceScope').sync(),
     Parameter = require('../../../src/Function/Parameter'),
     Translator = phpCommon.Translator,
     TypeInterface = require('../../../src/Type/TypeInterface'),
-    ValueFactory = require('../../../src/ValueFactory').sync(),
+    Userland = require('../../../src/Control/Userland'),
     Variable = require('../../../src/Variable').sync();
 
 describe('Parameter', function () {
     var callStack,
         context,
         defaultValueProvider,
+        flow,
+        futureFactory,
+        namespaceScope,
         parameter,
+        state,
         translator,
         typeObject,
+        userland,
         valueFactory;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        state = tools.createIsolatedState(null, {
+            'call_stack': callStack
+        });
         context = sinon.createStubInstance(FunctionContextInterface);
         defaultValueProvider = sinon.stub();
+        flow = state.getFlow();
+        futureFactory = state.getFutureFactory();
+        namespaceScope = sinon.createStubInstance(NamespaceScope);
         translator = sinon.createStubInstance(Translator);
         typeObject = sinon.createStubInstance(TypeInterface);
-        valueFactory = new ValueFactory();
+        userland = sinon.createStubInstance(Userland);
+        valueFactory = state.getValueFactory();
 
         callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
             throw new Error(
@@ -46,14 +60,21 @@ describe('Parameter', function () {
         translator.translate.callsFake(function (translationKey, placeholderVariables) {
             return '[Translated] ' + translationKey + ' ' + JSON.stringify(placeholderVariables || {});
         });
+        userland.enterIsolated.callsFake(function (executor) {
+            return valueFactory.maybeFuturise(executor);
+        });
 
         parameter = new Parameter(
             callStack,
             translator,
+            futureFactory,
+            flow,
+            userland,
             'myParam',
             6,
             typeObject,
             context,
+            namespaceScope,
             true,
             defaultValueProvider,
             '/path/to/my/module.php',
@@ -75,10 +96,14 @@ describe('Parameter', function () {
             parameter = new Parameter(
                 callStack,
                 translator,
+                futureFactory,
+                flow,
+                userland,
                 'myParam',
                 6,
                 typeObject,
                 context,
+                namespaceScope,
                 false,
                 defaultValueProvider,
                 '/path/to/my/module.php',
@@ -96,7 +121,7 @@ describe('Parameter', function () {
     });
 
     describe('populateDefaultArgument()', function () {
-        it('should return the given argument reference when valid', function () {
+        it('should return the given argument reference when valid', async function () {
             var argumentReference = sinon.createStubInstance(Variable),
                 argumentValue = valueFactory.createString('my arg');
             argumentReference.getValue.returns(argumentValue);
@@ -104,10 +129,10 @@ describe('Parameter', function () {
                 .withArgs(sinon.match.same(argumentValue))
                 .returns(true);
 
-            expect(parameter.populateDefaultArgument(argumentReference)).to.equal(argumentReference);
+            expect(await parameter.populateDefaultArgument(argumentReference).toPromise()).to.equal(argumentReference);
         });
 
-        it('should return the given argument reference when null and parameter is typed but default is null', function () {
+        it('should return the given argument reference when null and parameter is typed but default is null', async function () {
             var argumentReference = sinon.createStubInstance(Variable),
                 argumentValue = valueFactory.createNull(),
                 defaultValue = valueFactory.createNull();
@@ -117,17 +142,17 @@ describe('Parameter', function () {
                 .returns(false); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
             defaultValueProvider.returns(defaultValue); // Default is null, meaning null can be passed
 
-            expect(parameter.populateDefaultArgument(argumentReference)).to.equal(argumentReference);
+            expect(await parameter.populateDefaultArgument(argumentReference).toPromise()).to.equal(argumentReference);
         });
 
-        it('should create and return the default value from provider when optional and no argument given', function () {
+        it('should create and return the default value from provider when optional and no argument given', async function () {
             var defaultValue = valueFactory.createString('my default value');
             defaultValueProvider.returns(defaultValue);
             typeObject.allowsValue
                 .withArgs(sinon.match.same(defaultValue))
                 .returns(true);
 
-            expect(parameter.populateDefaultArgument(null)).to.equal(defaultValue);
+            expect(await parameter.populateDefaultArgument(null).toPromise()).to.equal(defaultValue);
         });
     });
 
@@ -136,10 +161,14 @@ describe('Parameter', function () {
             parameter = new Parameter(
                 callStack,
                 translator,
+                futureFactory,
+                flow,
+                userland,
                 'myParam',
                 6,
                 typeObject,
                 context,
+                namespaceScope,
                 true,
                 null,
                 '/path/to/my/module.php',
@@ -156,11 +185,10 @@ describe('Parameter', function () {
 
     describe('validateArgument()', function () {
         it('should raise an error when parameter expects a reference but a value was given as argument', function () {
-            expect(function () {
-                parameter.validateArgument(valueFactory.createString('my arg'));
-            }).to.throw(
-                'Fake PHP Fatal error for #core.only_variables_by_reference with {}'
-            );
+            return expect(parameter.validateArgument(valueFactory.createString('my arg')).toPromise())
+                .to.eventually.be.rejectedWith(
+                    'Fake PHP Fatal error for #core.only_variables_by_reference with {}'
+                );
         });
 
         it('should raise an error when argument is non-null and not valid and context is given', function () {
@@ -170,24 +198,23 @@ describe('Parameter', function () {
             argumentReference.getValueOrNull.returns(argumentValue);
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
-                .returns(false); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
+                .returns(futureFactory.createPresent(false)); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
             defaultValueProvider.returns(defaultValue); // Default is null, meaning null can be passed
             callStack.getCurrent.returns(sinon.createStubInstance(Call));
             callStack.getCallerFilePath.returns('/my/caller/module.php');
             callStack.getCallerLastLine.returns(12345);
 
-            expect(function () {
-                parameter.validateArgument(argumentReference);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
-                '"index":7,' +
-                '"actualType":"string",' +
-                '"callerFile":"/my/caller/module.php",' +
-                '"callerLine":12345,' +
-                '"definitionFile":"/path/to/my/module.php",' +
-                '"definitionLine":101' +
-                '}'
-            );
+            return expect(parameter.validateArgument(argumentReference).toPromise())
+                .to.eventually.be.rejectedWith(
+                    'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
+                    '"index":7,' +
+                    '"actualType":"string",' +
+                    '"callerFile":"/my/caller/module.php",' +
+                    '"callerLine":12345,' +
+                    '"definitionFile":"/path/to/my/module.php",' +
+                    '"definitionLine":101' +
+                    '}'
+                );
         });
 
         it('should raise an error when argument is non-null and not valid but context is not given', function () {
@@ -197,10 +224,14 @@ describe('Parameter', function () {
             parameter = new Parameter(
                 callStack,
                 translator,
+                futureFactory,
+                flow,
+                userland,
                 'myParam',
                 6,
                 typeObject,
                 context,
+                namespaceScope,
                 true,
                 defaultValueProvider,
                 null,
@@ -209,24 +240,23 @@ describe('Parameter', function () {
             argumentReference.getValueOrNull.returns(argumentValue);
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
-                .returns(false); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
+                .returns(futureFactory.createPresent(false)); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
             defaultValueProvider.returns(defaultValue); // Default is null, meaning null can be passed
             callStack.getCurrent.returns(sinon.createStubInstance(Call));
             callStack.getCallerFilePath.returns(null);
             callStack.getCallerLastLine.returns(null);
 
-            expect(function () {
-                parameter.validateArgument(argumentReference);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
-                '"index":7,' +
-                '"actualType":"string",' +
-                '"callerFile":"[Translated] core.unknown {}",' +
-                '"callerLine":"[Translated] core.unknown {}",' +
-                '"definitionFile":"[Translated] core.unknown {}",' +
-                '"definitionLine":"[Translated] core.unknown {}"' +
-                '}'
-            );
+            return expect(parameter.validateArgument(argumentReference).toPromise())
+                .to.eventually.be.rejectedWith(
+                    'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
+                    '"index":7,' +
+                    '"actualType":"string",' +
+                    '"callerFile":"[Translated] core.unknown {}",' +
+                    '"callerLine":"[Translated] core.unknown {}",' +
+                    '"definitionFile":"[Translated] core.unknown {}",' +
+                    '"definitionLine":"[Translated] core.unknown {}"' +
+                    '}'
+                );
         });
 
         it('should raise an error when argument is null but type does not allow null and there is no default', function () {
@@ -235,35 +265,38 @@ describe('Parameter', function () {
             argumentReference.getValueOrNull.returns(argumentValue);
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
-                .returns(false); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
+                .returns(futureFactory.createPresent(false)); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
             callStack.getCurrent.returns(sinon.createStubInstance(Call));
             callStack.getCallerFilePath.returns('/my/caller/module.php');
             callStack.getCallerLastLine.returns(12345);
             parameter = new Parameter(
                 callStack,
                 translator,
+                futureFactory,
+                flow,
+                userland,
                 'myParam',
                 6,
                 typeObject,
                 context,
+                namespaceScope,
                 true,
                 null, // No default given, so null has not been allowed
                 '/path/to/my/module.php',
                 101
             );
 
-            expect(function () {
-                parameter.validateArgument(argumentReference);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
-                '"index":7,' +
-                '"actualType":"null",' +
-                '"callerFile":"/my/caller/module.php",' +
-                '"callerLine":12345,' +
-                '"definitionFile":"/path/to/my/module.php",' +
-                '"definitionLine":101' +
-                '}'
-            );
+            return expect(parameter.validateArgument(argumentReference).toPromise())
+                .to.eventually.be.rejectedWith(
+                    'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
+                    '"index":7,' +
+                    '"actualType":"null",' +
+                    '"callerFile":"/my/caller/module.php",' +
+                    '"callerLine":12345,' +
+                    '"definitionFile":"/path/to/my/module.php",' +
+                    '"definitionLine":101' +
+                    '}'
+                );
         });
 
         // An example would be a parameter of array type with a default value of an array literal
@@ -274,44 +307,46 @@ describe('Parameter', function () {
             defaultValueProvider.returns(valueFactory.createArray(['some value']));
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
-                .returns(false); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
+                .returns(futureFactory.createPresent(false)); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
             callStack.getCurrent.returns(sinon.createStubInstance(Call));
             callStack.getCallerFilePath.returns('/my/caller/module.php');
             callStack.getCallerLastLine.returns(12345);
 
-            expect(function () {
-                parameter.validateArgument(argumentReference);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
-                '"index":7,' +
-                '"actualType":"null",' +
-                '"callerFile":"/my/caller/module.php",' +
-                '"callerLine":12345,' +
-                '"definitionFile":"/path/to/my/module.php",' +
-                '"definitionLine":101' +
-                '}'
-            );
+            return expect(parameter.validateArgument(argumentReference).toPromise())
+                .to.eventually.be.rejectedWith(
+                    'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
+                    '"index":7,' +
+                    '"actualType":"null",' +
+                    '"callerFile":"/my/caller/module.php",' +
+                    '"callerLine":12345,' +
+                    '"definitionFile":"/path/to/my/module.php",' +
+                    '"definitionLine":101' +
+                    '}'
+                );
         });
 
         it('should throw when parameter is required but no argument is given', function () {
             parameter = new Parameter(
                 callStack,
                 translator,
+                futureFactory,
+                flow,
+                userland,
                 'myParam',
                 6,
                 typeObject,
                 context,
+                namespaceScope,
                 true,
                 null, // Don't provide a default value, making the parameter required
                 '/path/to/my/module.php',
                 101
             );
 
-            expect(function () {
-                parameter.validateArgument(null);
-            }).to.throw(
-                'Missing argument for required parameter "myParam"'
-            );
+            return expect(parameter.validateArgument(null).toPromise())
+                .to.eventually.be.rejectedWith(
+                    'Missing argument for required parameter "myParam"'
+                );
         });
     });
 });

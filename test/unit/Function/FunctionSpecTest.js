@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../tools'),
     Call = require('../../../src/Call'),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
@@ -23,29 +24,37 @@ var expect = require('chai').expect,
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     Parameter = require('../../../src/Function/Parameter'),
-    Translator = phpCommon.Translator,
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    Translator = phpCommon.Translator;
 
 describe('FunctionSpec', function () {
     var callStack,
         context,
+        flow,
+        futureFactory,
         globalNamespace,
         namespaceScope,
         parameter1,
         parameter2,
         spec,
+        state,
         translator,
         valueFactory;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        translator = sinon.createStubInstance(Translator);
+        state = tools.createIsolatedState(null, {
+            'call_stack': callStack,
+            'translator': translator
+        });
         context = sinon.createStubInstance(FunctionContextInterface);
+        flow = state.getFlow();
+        futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         parameter1 = sinon.createStubInstance(Parameter);
         parameter2 = sinon.createStubInstance(Parameter);
-        translator = sinon.createStubInstance(Translator);
-        valueFactory = new ValueFactory(null, null, null, translator);
+        valueFactory = state.getValueFactory();
 
         callStack.getCurrent.returns(sinon.createStubInstance(Call));
         callStack.getLastFilePath.returns('/path/to/my/module.php');
@@ -62,6 +71,7 @@ describe('FunctionSpec', function () {
         spec = new FunctionSpec(
             callStack,
             valueFactory,
+            flow,
             context,
             namespaceScope,
             [
@@ -102,6 +112,7 @@ describe('FunctionSpec', function () {
             spec = new FunctionSpec(
                 callStack,
                 valueFactory,
+                flow,
                 context,
                 namespaceScope,
                 [
@@ -197,8 +208,8 @@ describe('FunctionSpec', function () {
                 .returns(valueFactory.createString('second coerced'));
         });
 
-        it('should return a new array of the populated argument values', function () {
-            var result = spec.populateDefaultArguments([argument1, argument2]);
+        it('should return a new array of the populated argument values', async function () {
+            var result = await spec.populateDefaultArguments([argument1, argument2]).toPromise();
 
             expect(result).to.have.length(2);
             expect(result[0].getNative()).to.equal('first coerced');
@@ -210,17 +221,15 @@ describe('FunctionSpec', function () {
                 errorValue = sinon.createStubInstance(ObjectValue);
             globalNamespace.getClass
                 .withArgs('ArgumentCountError')
-                .returns(errorClassObject);
+                .returns(futureFactory.createPresent(errorClassObject));
             errorClassObject.instantiate
                 .returns(errorValue);
             parameter2.isRequired.returns(true);
 
-            expect(function () {
-                spec.populateDefaultArguments([argument1]);
-            }).not.to.throw();
+            return expect(spec.populateDefaultArguments([argument1]).toPromise()).not.to.be.rejected;
         });
 
-        it('should provide special line number instrumentation for the current parameter', function () {
+        it('should provide special line number instrumentation for the current parameter', async function () {
             var lineNumber;
             parameter2.getLineNumber.returns(1234);
             parameter2.populateDefaultArgument
@@ -228,9 +237,11 @@ describe('FunctionSpec', function () {
                 .callsFake(function () {
                     // Read the line number for the current parameter via instrumentation
                     lineNumber = callStack.instrumentCurrent.args[0][0]();
+
+                    return futureFactory.createPresent(argument2);
                 });
 
-            spec.populateDefaultArguments([argument1, argument2]);
+            await spec.populateDefaultArguments([argument1, argument2]).toPromise();
 
             expect(lineNumber).to.equal(1234);
         });
@@ -308,7 +319,7 @@ describe('FunctionSpec', function () {
                 errorValue = sinon.createStubInstance(ObjectValue);
             globalNamespace.getClass
                 .withArgs('ArgumentCountError')
-                .returns(errorClassObject);
+                .returns(futureFactory.createPresent(errorClassObject));
             errorClassObject.instantiate
                 .withArgs([
                     sinon.match(function (arg) {
@@ -325,7 +336,7 @@ describe('FunctionSpec', function () {
             parameter2.isRequired.returns(true);
 
             try {
-                spec.validateArguments([argument1]);
+                spec.validateArguments([argument1]).yieldSync();
             } catch (error) {
                 caughtError = error;
             }
