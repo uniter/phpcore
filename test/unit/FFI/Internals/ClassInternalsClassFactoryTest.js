@@ -11,6 +11,7 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('../../tools'),
     ClassInternalsClassFactory = require('../../../../src/FFI/Internals/ClassInternalsClassFactory'),
     Class = require('../../../../src/Class').sync(),
     Internals = require('../../../../src/FFI/Internals/Internals'),
@@ -18,25 +19,30 @@ var expect = require('chai').expect,
     NamespaceScope = require('../../../../src/NamespaceScope').sync(),
     ObjectValue = require('../../../../src/Value/Object').sync(),
     UnwrapperRepository = require('../../../../src/FFI/Export/UnwrapperRepository'),
-    ValueFactory = require('../../../../src/ValueFactory').sync(),
     ValueStorage = require('../../../../src/FFI/Value/ValueStorage');
 
 describe('FFI ClassInternalsClassFactory', function () {
     var baseInternals,
         factory,
+        futureFactory,
         globalNamespace,
         globalNamespaceScope,
+        state,
         unwrapperRepository,
         valueFactory,
         valueStorage;
 
     beforeEach(function () {
+        valueStorage = sinon.createStubInstance(ValueStorage);
+        state = tools.createIsolatedState(null, {
+            'ffi_value_storage': valueStorage
+        });
         baseInternals = sinon.createStubInstance(Internals);
+        futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
         globalNamespaceScope = sinon.createStubInstance(NamespaceScope);
         unwrapperRepository = sinon.createStubInstance(UnwrapperRepository);
-        valueStorage = sinon.createStubInstance(ValueStorage);
-        valueFactory = new ValueFactory(null, null, null, null, null, null, valueStorage);
+        valueFactory = state.getValueFactory();
 
         factory = new ClassInternalsClassFactory(
             baseInternals,
@@ -88,9 +94,9 @@ describe('FFI ClassInternalsClassFactory', function () {
                         'MyClass',
                         sinon.match.same(MyClass),
                         sinon.match.same(globalNamespaceScope),
-                        true // enableAutoCoercion
+                        sinon.match.any // enableAutoCoercion
                     )
-                    .returns(classObject);
+                    .returns(futureFactory.createPresent(classObject));
             });
 
             it('should extend the base Internals instance', function () {
@@ -121,7 +127,7 @@ describe('FFI ClassInternalsClassFactory', function () {
                         superClass = sinon.createStubInstance(Class);
                         globalNamespace.getClass
                             .withArgs('My\\SuperClass')
-                            .returns(superClass);
+                            .returns(futureFactory.createPresent(superClass));
 
                         valueStorage.hasObjectValueForExport
                             .withArgs(sinon.match.same(nativeObject))
@@ -161,7 +167,7 @@ describe('FFI ClassInternalsClassFactory', function () {
                         superClass = sinon.createStubInstance(Class);
                         globalNamespace.getClass
                             .withArgs('My\\SuperClass')
-                            .returns(superClass);
+                            .returns(futureFactory.createPresent(superClass));
 
                         classInternals.disableAutoCoercion();
                         classInternals.extendClass('My\\SuperClass');
@@ -194,7 +200,7 @@ describe('FFI ClassInternalsClassFactory', function () {
                     var superClass = sinon.createStubInstance(Class);
                     globalNamespace.getClass
                         .withArgs('My\\SuperClass')
-                        .returns(superClass);
+                        .returns(futureFactory.createPresent(superClass));
                     classInternals.extendClass('My\\SuperClass');
 
                     classInternals.defineClass(definitionFactory);
@@ -251,8 +257,8 @@ describe('FFI ClassInternalsClassFactory', function () {
                     );
                 });
 
-                it('should return the Class instance from the Namespace', function () {
-                    expect(classInternals.defineClass(definitionFactory)).to.equal(classObject);
+                it('should return the Class instance from the Namespace', async function () {
+                    expect(await classInternals.defineClass(definitionFactory).toPromise()).to.equal(classObject);
                 });
             });
         });

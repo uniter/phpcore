@@ -356,7 +356,7 @@ describe('Loader (sync mode)', function () {
         });
 
         // Promise must be resolved synchronously in synchronous mode, as the code cannot pause
-        // to wait for resolve/reject without Pausable being available
+        // to wait for resolve/reject without futures' pause mechanism being available.
         it('should throw an error when the load callback does not resolve or reject the promise synchronously', function () {
             expect(function () {
                 loader.load(

@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    testTools = require('./tools'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     Closure = require('../../src/Closure').sync(),
@@ -37,13 +38,13 @@ var expect = require('chai').expect,
     ScopeFactory = require('../../src/ScopeFactory'),
     StringValue = require('../../src/Value/String').sync(),
     Tools = require('../../src/Tools').sync(),
-    Translator = phpCommon.Translator,
-    ValueFactory = require('../../src/ValueFactory').sync();
+    Translator = phpCommon.Translator;
 
 describe('Tools', function () {
     var callStack,
         currentScope,
         environment,
+        futureFactory,
         globalNamespace,
         includer,
         loader,
@@ -52,6 +53,7 @@ describe('Tools', function () {
         onceIncluder,
         referenceFactory,
         scopeFactory,
+        state,
         tools,
         topLevelNamespaceScope,
         topLevelScope,
@@ -60,8 +62,12 @@ describe('Tools', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        state = testTools.createIsolatedState(null, {
+            'call_stack': callStack
+        });
         currentScope = sinon.createStubInstance(Scope);
         environment = sinon.createStubInstance(Environment);
+        futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
         includer = sinon.createStubInstance(Includer);
         loader = sinon.createStubInstance(Loader);
@@ -73,7 +79,7 @@ describe('Tools', function () {
         topLevelNamespaceScope = sinon.createStubInstance(NamespaceScope);
         topLevelScope = sinon.createStubInstance(Scope);
         translator = sinon.createStubInstance(Translator);
-        valueFactory = new ValueFactory(null, callStack);
+        valueFactory = state.getValueFactory();
 
         callStack.raiseTranslatedError
             .withArgs(PHPError.E_ERROR)
@@ -117,7 +123,8 @@ describe('Tools', function () {
             closureClass.instantiateWithInternals
                 .withArgs([], {closure: sinon.match.same(closure)})
                 .returns(objectValue);
-            globalNamespace.getClass.withArgs('Closure').returns(closureClass);
+            globalNamespace.getClass.withArgs('Closure')
+                .returns(futureFactory.createPresent(closureClass));
             currentScope.createClosure
                 .withArgs(
                     sinon.match.same(namespaceScope),

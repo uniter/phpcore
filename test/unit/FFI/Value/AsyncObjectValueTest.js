@@ -11,16 +11,17 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('../../tools'),
     AsyncObjectValue = require('../../../../src/FFI/Value/AsyncObjectValue').sync(),
     CallStack = require('../../../../src/CallStack'),
     ObjectValue = require('../../../../src/Value/Object').sync(),
     Value = require('../../../../src/Value').sync(),
-    ValueCaller = require('../../../../src/FFI/Call/ValueCaller').sync(),
-    ValueFactory = require('../../../../src/ValueFactory').sync();
+    ValueCaller = require('../../../../src/FFI/Call/ValueCaller').sync();
 
 describe('FFI AsyncObjectValue', function () {
     var callStack,
         nativeObject,
+        state,
         value,
         valueCaller,
         valueFactory,
@@ -28,15 +29,20 @@ describe('FFI AsyncObjectValue', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        state = tools.createIsolatedState(null, {
+            'call_stack': callStack
+        });
         nativeObject = {my: 'native object'};
         valueCaller = sinon.createStubInstance(ValueCaller);
-        valueFactory = new ValueFactory();
+        valueFactory = state.getValueFactory();
         wrappedObjectValue = sinon.createStubInstance(ObjectValue);
 
         wrappedObjectValue.getObject.returns(nativeObject);
 
         value = new AsyncObjectValue(
             valueFactory,
+            state.getReferenceFactory(),
+            state.getFutureFactory(),
             callStack,
             valueCaller,
             wrappedObjectValue

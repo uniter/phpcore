@@ -793,7 +793,7 @@ module.exports = require('pauser')([
                 factory.futureFactory,
                 factory.callStack,
                 future.derive().next(function (value) {
-                    return factory.coerce(value); // Make sure the wrapped value is always a Value
+                    return factory.coerce(value); // Make sure the resolved value is always a Value.
                 })
             );
         },

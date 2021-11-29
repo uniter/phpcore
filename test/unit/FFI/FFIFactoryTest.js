@@ -11,19 +11,22 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('../tools'),
     CallStack = require('../../../src/CallStack'),
     FFIFactory = require('../../../src/FFI/FFIFactory'),
     NativeCaller = require('../../../src/FFI/Call/NativeCaller').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
-    ValueCaller = require('../../../src/FFI/Call/ValueCaller').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    ValueCaller = require('../../../src/FFI/Call/ValueCaller').sync();
 
 describe('FFIFactory', function () {
     var AsyncObjectValue,
         callStack,
         factory,
+        futureFactory,
         nativeCaller,
         PHPObject,
+        referenceFactory,
+        state,
         valueCaller,
         ValueCoercer,
         valueFactory;
@@ -31,17 +34,24 @@ describe('FFIFactory', function () {
     beforeEach(function () {
         AsyncObjectValue = sinon.stub();
         callStack = sinon.createStubInstance(CallStack);
+        state = tools.createIsolatedState(null, {
+            'call_stack': callStack
+        });
+        futureFactory = state.getFutureFactory();
         nativeCaller = sinon.createStubInstance(NativeCaller);
         PHPObject = sinon.stub();
+        referenceFactory = state.getReferenceFactory();
         valueCaller = sinon.createStubInstance(ValueCaller);
         ValueCoercer = sinon.stub();
-        valueFactory = new ValueFactory();
+        valueFactory = state.getValueFactory();
 
         factory = new FFIFactory(
             AsyncObjectValue,
             PHPObject,
             ValueCoercer,
             valueFactory,
+            referenceFactory,
+            futureFactory,
             callStack,
             nativeCaller,
             valueCaller
@@ -57,6 +67,8 @@ describe('FFIFactory', function () {
             expect(AsyncObjectValue).to.have.been.calledOnce;
             expect(AsyncObjectValue).to.have.been.calledWith(
                 sinon.match.same(valueFactory),
+                sinon.match.same(referenceFactory),
+                sinon.match.same(futureFactory),
                 sinon.match.same(callStack),
                 sinon.match.same(valueCaller),
                 sinon.match.same(wrappedObjectValue)

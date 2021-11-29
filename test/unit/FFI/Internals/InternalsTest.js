@@ -15,21 +15,31 @@ var expect = require('chai').expect,
     CallFactory = require('../../../../src/CallFactory'),
     CallStack = require('../../../../src/CallStack'),
     ClassAutoloader = require('../../../../src/ClassAutoloader').sync(),
+    ControlFactory = require('../../../../src/Control/ControlFactory'),
+    ControlScope = require('../../../../src/Control/ControlScope'),
     ErrorConfiguration = require('../../../../src/Error/ErrorConfiguration'),
     ErrorPromoter = require('../../../../src/Error/ErrorPromoter'),
     ErrorReporting = require('../../../../src/Error/ErrorReporting'),
+    Evaluator = require('../../../../src/Load/Evaluator'),
     FFIResult = require('../../../../src/FFI/Result'),
+    Flow = require('../../../../src/Control/Flow'),
+    FutureFactory = require('../../../../src/Control/FutureFactory'),
     Namespace = require('../../../../src/Namespace').sync(),
+    Includer = require('../../../../src/Load/Includer').sync(),
     INIState = require('../../../../src/INIState'),
     Internals = require('../../../../src/FFI/Internals/Internals'),
+    OnceIncluder = require('../../../../src/Load/OnceIncluder').sync(),
     OptionSet = require('../../../../src/OptionSet'),
     Output = require('../../../../src/Output/Output'),
+    PauseFactory = require('../../../../src/Control/PauseFactory'),
     PHPState = require('../../../../src/PHPState').sync(),
+    ReferenceFactory = require('../../../../src/ReferenceFactory').sync(),
     Runtime = require('../../../../src/Runtime').sync(),
     Scope = require('../../../../src/Scope').sync(),
     Stream = require('../../../../src/Stream'),
     TraceFormatter = require('../../../../src/Error/TraceFormatter'),
     Translator = phpCommon.Translator,
+    Userland = require('../../../../src/Control/Userland'),
     ValueFactory = require('../../../../src/ValueFactory').sync(),
     ValueHelper = require('../../../../src/FFI/Value/ValueHelper');
 
@@ -37,22 +47,31 @@ describe('FFI Internals', function () {
     var callFactory,
         callStack,
         classAutoloader,
+        controlFactory,
+        controlScope,
         createInternals,
         errorConfiguration,
         errorPromoter,
         errorReporting,
+        evaluator,
+        flow,
+        futureFactory,
         globalNamespace,
         globalScope,
+        includer,
         iniState,
         internals,
+        onceIncluder,
         optionSet,
         output,
-        pausable,
+        pauseFactory,
+        referenceFactory,
         runtime,
         state,
         stdout,
         traceFormatter,
         translator,
+        userland,
         valueFactory,
         valueHelper;
 
@@ -60,28 +79,46 @@ describe('FFI Internals', function () {
         callFactory = sinon.createStubInstance(CallFactory);
         callStack = sinon.createStubInstance(CallStack);
         classAutoloader = sinon.createStubInstance(ClassAutoloader);
+        controlFactory = sinon.createStubInstance(ControlFactory);
+        controlScope = sinon.createStubInstance(ControlScope);
         errorConfiguration = sinon.createStubInstance(ErrorConfiguration);
         errorPromoter = sinon.createStubInstance(ErrorPromoter);
         errorReporting = sinon.createStubInstance(ErrorReporting);
+        evaluator = sinon.createStubInstance(Evaluator);
+        flow = sinon.createStubInstance(Flow);
+        futureFactory = sinon.createStubInstance(FutureFactory);
         globalNamespace = sinon.createStubInstance(Namespace);
         globalScope = sinon.createStubInstance(Scope);
+        includer = sinon.createStubInstance(Includer);
         iniState = sinon.createStubInstance(INIState);
+        onceIncluder = sinon.createStubInstance(OnceIncluder);
         optionSet = sinon.createStubInstance(OptionSet);
         output = sinon.createStubInstance(Output);
-        pausable = {};
+        pauseFactory = sinon.createStubInstance(PauseFactory);
+        referenceFactory = sinon.createStubInstance(ReferenceFactory);
         runtime = sinon.createStubInstance(Runtime);
         state = sinon.createStubInstance(PHPState);
         stdout = sinon.createStubInstance(Stream);
         traceFormatter = sinon.createStubInstance(TraceFormatter);
         translator = sinon.createStubInstance(Translator);
+        userland = sinon.createStubInstance(Userland);
         valueFactory = new ValueFactory();
         valueHelper = sinon.createStubInstance(ValueHelper);
 
-        createInternals = function (mode, pausable) {
+        createInternals = function (mode) {
             internals = new Internals(
                 mode,
-                pausable || null,
+                userland,
+                flow,
+                controlScope,
+                includer,
+                onceIncluder,
+                evaluator,
                 valueFactory,
+                referenceFactory,
+                controlFactory,
+                pauseFactory,
+                futureFactory,
                 callFactory,
                 callStack,
                 valueHelper,
@@ -101,7 +138,7 @@ describe('FFI Internals', function () {
                 state
             );
         };
-        createInternals('async', pausable);
+        createInternals('async');
     });
 
     describe('constructor()', function () {
@@ -117,6 +154,14 @@ describe('FFI Internals', function () {
             expect(internals.classAutoloader).to.equal(classAutoloader);
         });
 
+        it('should expose the ControlFactory publicly', function () {
+            expect(internals.controlFactory).to.equal(controlFactory);
+        });
+
+        it('should expose the ControlScope publicly', function () {
+            expect(internals.controlScope).to.equal(controlScope);
+        });
+
         it('should expose the ErrorConfiguration publicly', function () {
             expect(internals.errorConfiguration).to.equal(errorConfiguration);
         });
@@ -129,12 +174,28 @@ describe('FFI Internals', function () {
             expect(internals.errorReporting).to.equal(errorReporting);
         });
 
+        it('should expose the Evaluator publicly', function () {
+            expect(internals.evaluator).to.equal(evaluator);
+        });
+
+        it('should expose Flow publicly', function () {
+            expect(internals.flow).to.equal(flow);
+        });
+
+        it('should expose the FutureFactory publicly', function () {
+            expect(internals.futureFactory).to.equal(futureFactory);
+        });
+
         it('should expose the global Namespace publicly', function () {
             expect(internals.globalNamespace).to.equal(globalNamespace);
         });
 
         it('should expose the global Scope publicly', function () {
             expect(internals.globalScope).to.equal(globalScope);
+        });
+
+        it('should expose the Includer publicly', function () {
+            expect(internals.includer).to.equal(includer);
         });
 
         it('should expose the INIState publicly', function () {
@@ -145,6 +206,10 @@ describe('FFI Internals', function () {
             expect(internals.mode).to.equal('async');
         });
 
+        it('should expose the OnceIncluder publicly', function () {
+            expect(internals.onceIncluder).to.equal(onceIncluder);
+        });
+
         it('should expose the OptionSet publicly', function () {
             expect(internals.optionSet).to.equal(optionSet);
         });
@@ -153,8 +218,12 @@ describe('FFI Internals', function () {
             expect(internals.output).to.equal(output);
         });
 
-        it('should expose Pausable publicly', function () {
-            expect(internals.pausable).to.equal(pausable);
+        it('should expose the PauseFactory publicly', function () {
+            expect(internals.pauseFactory).to.equal(pauseFactory);
+        });
+
+        it('should expose the ReferenceFactory publicly', function () {
+            expect(internals.referenceFactory).to.equal(referenceFactory);
         });
 
         it('should expose the Runtime publicly', function () {
@@ -177,18 +246,16 @@ describe('FFI Internals', function () {
             expect(internals.translator).to.equal(translator);
         });
 
+        it('should expose Userland publicly', function () {
+            expect(internals.userland).to.equal(userland);
+        });
+
         it('should expose the ValueFactory publicly', function () {
             expect(internals.valueFactory).to.equal(valueFactory);
         });
 
         it('should expose the ValueHelper publicly', function () {
             expect(internals.valueHelper).to.equal(valueHelper);
-        });
-
-        it('should throw when async mode is specified but Pausable is not', function () {
-            expect(function () {
-                createInternals('async', null);
-            }).to.throw('Pausable is required for async mode');
         });
     });
 

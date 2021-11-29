@@ -102,17 +102,11 @@ _.extend(Result.prototype, {
 
         // Wait for the returned promise to resolve or reject before continuing
         return result.valueFactory.createFuture(function (resolve, reject) {
-            // var savedCallStack = result.futureFactory.callStack.save();
-
             // Wait for the returned promise to resolve or reject before continuing
             result.getAsync().then(function (resultValue) {
-                // result.futureFactory.callStack.restore(savedCallStack);
-
                 // Note that the result will still be coerced as above
                 resolve(resultValue);
             }, function (error) {
-                // result.futureFactory.callStack.restore(savedCallStack);
-
                 reject(error);
             });
         });

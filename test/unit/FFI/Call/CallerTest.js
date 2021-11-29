@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../../tools'),
     Call = require('../../../../src/Call'),
     CallFactory = require('../../../../src/CallFactory'),
     CallStack = require('../../../../src/CallStack'),
@@ -20,8 +21,7 @@ var expect = require('chai').expect,
     Exception = phpCommon.Exception,
     FFICall = require('../../../../src/FFI/Call'),
     ObjectValue = require('../../../../src/Value/Object').sync(),
-    Promise = require('lie'),
-    ValueFactory = require('../../../../src/ValueFactory').sync();
+    Promise = require('lie');
 
 describe('Caller', function () {
     var caller,
@@ -30,44 +30,46 @@ describe('Caller', function () {
         createCaller,
         currentFFICall,
         errorPromoter,
+        futureFactory,
         objectValue,
-        pausable,
-        pausableCallPromise,
         resolveCall,
+        state,
         valueFactory;
 
     beforeEach(function () {
         callFactory = sinon.createStubInstance(CallFactory);
         callStack = sinon.createStubInstance(CallStack);
+        state = tools.createIsolatedState(null, {
+            'call_factory': callFactory,
+            'call_stack': callStack
+        });
         currentFFICall = sinon.createStubInstance(FFICall);
         errorPromoter = sinon.createStubInstance(ErrorPromoter);
+        futureFactory = state.getFutureFactory();
         objectValue = sinon.createStubInstance(ObjectValue);
-        pausableCallPromise = new Promise(function (resolve) {
-            resolveCall = resolve;
-        });
-        pausable = {
-            call: sinon.stub().returns(pausableCallPromise)
-        };
-        valueFactory = new ValueFactory();
+        valueFactory = state.getValueFactory();
 
         callStack.getCurrent.returns(currentFFICall);
+        objectValue.callMethod.returns(valueFactory.createFuture(function (resolve) {
+            resolveCall = resolve;
+        }));
         objectValue.getType.returns('object');
 
-        createCaller = function (pausable, mode) {
+        createCaller = function (mode) {
             caller = new Caller(
                 callFactory,
                 callStack,
                 errorPromoter,
-                pausable || null,
+                state.getFlow(),
                 mode || 'async'
             );
         };
     });
 
     describe('callMethodAsync()', function () {
-        describe('in asynchronous mode (when Pausable is available)', function () {
+        describe('in asynchronous mode', function () {
             beforeEach(function () {
-                createCaller(pausable, 'async');
+                createCaller('async');
             });
 
             it('should return a Promise', function () {
@@ -78,7 +80,7 @@ describe('Caller', function () {
                     .to.be.an.instanceOf(Promise);
             });
 
-            it('should resolve the Promise when the call returns via Pausable', function () {
+            it('should resolve the Promise when the call returns', function () {
                 var promise = caller.callMethodAsync(objectValue, 'myMethod', [
                     valueFactory.createInteger(21),
                     valueFactory.createInteger(23)
@@ -89,7 +91,7 @@ describe('Caller', function () {
                 return expect(promise).to.eventually.be.fulfilled;
             });
 
-            it('should resolve with the result when the call returns via Pausable', function () {
+            it('should resolve with the result when the call returns', function () {
                 var promise = caller.callMethodAsync(objectValue, 'myMethod', [
                     valueFactory.createInteger(21),
                     valueFactory.createInteger(23)
@@ -104,9 +106,9 @@ describe('Caller', function () {
             });
         });
 
-        describe('in synchronous mode (when Pausable is unavailable)', function () {
+        describe('in synchronous mode', function () {
             beforeEach(function () {
-                createCaller(null, 'sync');
+                createCaller('sync');
             });
 
             it('should throw an Exception', function () {
@@ -118,9 +120,9 @@ describe('Caller', function () {
             });
         });
 
-        describe('in Promise-synchronous mode (when Pausable is unavailable)', function () {
+        describe('in Promise-synchronous mode', function () {
             beforeEach(function () {
-                createCaller(null, 'psync');
+                createCaller('psync');
             });
 
             it('should throw an Exception', function () {
@@ -134,9 +136,9 @@ describe('Caller', function () {
     });
 
     describe('callMethodSyncLike()', function () {
-        describe('in asynchronous mode (when Pausable is available)', function () {
+        describe('in asynchronous mode', function () {
             beforeEach(function () {
-                createCaller(pausable, 'async');
+                createCaller('async');
             });
 
             it('should throw an Exception', function () {
@@ -148,9 +150,9 @@ describe('Caller', function () {
             });
         });
 
-        describe('in synchronous mode (when Pausable is unavailable)', function () {
+        describe('in synchronous mode', function () {
             beforeEach(function () {
-                createCaller(null, 'sync');
+                createCaller('sync');
             });
 
             it('should return the wrapped result', function () {
@@ -167,7 +169,7 @@ describe('Caller', function () {
             });
 
             it('should not catch a non-PHP error', function () {
-                objectValue.callMethod.throws(new TypeError('A type error occurred'));
+                objectValue.callMethod.returns(futureFactory.createRejection(new TypeError('A type error occurred')));
 
                 expect(function () {
                     caller.callMethodSyncLike(objectValue, 'myMethod', []);
@@ -177,10 +179,11 @@ describe('Caller', function () {
             it('should promote a PHP error to a native JS one and rethrow it as that', function () {
                 var errorValue = sinon.createStubInstance(ObjectValue);
                 errorValue.getType.returns('object');
+                errorValue.yieldSync.throws(errorValue);
                 errorPromoter.promote
                     .withArgs(sinon.match.same(errorValue))
                     .returns(new Error('My error, coerced from a PHP exception'));
-                objectValue.callMethod.throws(errorValue);
+                objectValue.callMethod.returns(errorValue);
 
                 expect(function () {
                     caller.callMethodSyncLike(objectValue, 'myMethod', []);
@@ -188,9 +191,9 @@ describe('Caller', function () {
             });
         });
 
-        describe('in Promise-synchronous mode (when Pausable is unavailable), sync unenforced', function () {
+        describe('in Promise-synchronous mode, sync unenforced', function () {
             beforeEach(function () {
-                createCaller(null, 'psync');
+                createCaller('psync');
             });
 
             it('should return a Promise', function () {
@@ -217,9 +220,9 @@ describe('Caller', function () {
             });
         });
 
-        describe('in Promise-synchronous mode (when Pausable is unavailable), sync unenforced', function () {
+        describe('in Promise-synchronous mode, sync unenforced', function () {
             beforeEach(function () {
-                createCaller(null, 'psync');
+                createCaller('psync');
             });
 
             it('should return the synchronous result without wrapping it in a Promise', function () {
@@ -239,7 +242,7 @@ describe('Caller', function () {
 
     describe('pushFFICall()', function () {
         beforeEach(function () {
-            createCaller(null, 'sync');
+            createCaller('sync');
         });
 
         it('should push an FFICall onto the stack', function () {
@@ -263,7 +266,7 @@ describe('Caller', function () {
 
     describe('popFFICall()', function () {
         beforeEach(function () {
-            createCaller(null, 'sync');
+            createCaller('sync');
         });
 
         it('should pop the current FFICall off the stack', function () {

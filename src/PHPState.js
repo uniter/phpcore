@@ -502,7 +502,7 @@ module.exports = require('pauser')([
                 stderr
             )),
             errorPromoter = set('error_promoter', new ErrorPromoter(errorReporting)),
-            ffiValueStorage = new FFIValueStorage(),
+            ffiValueStorage = set('ffi_value_storage', new FFIValueStorage()),
             controlBridge = new ControlBridge(Future, FutureValue, Value),
             controlScope = new ControlScope(),
             opcodeFactory = new OpcodeFactory(

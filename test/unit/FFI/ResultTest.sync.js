@@ -11,13 +11,18 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
-    Result = require('../../../src/FFI/Result'),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    tools = require('../tools'),
+    Result = require('../../../src/FFI/Result');
 
 describe('FFIResult (sync mode)', function () {
-    var syncCallback;
+    var state,
+        syncCallback,
+        valueFactory;
 
     beforeEach(function () {
+        state = tools.createIsolatedState();
+        valueFactory = state.getValueFactory();
+
         syncCallback = sinon.stub();
     });
 
@@ -26,7 +31,7 @@ describe('FFIResult (sync mode)', function () {
             var result;
             syncCallback.returns(21);
 
-            result = new Result(syncCallback);
+            result = new Result(syncCallback, null, valueFactory, 'sync');
 
             return expect(result.getAsync()).to.eventually.equal(21);
         });
@@ -38,21 +43,15 @@ describe('FFIResult (sync mode)', function () {
                 result;
             syncCallback.returns(99);
 
-            result = new Result(syncCallback, asyncCallback);
+            result = new Result(syncCallback, asyncCallback, valueFactory, 'sync');
 
             expect(result.getSync()).to.equal(99);
         });
     });
 
     describe('resolve()', function () {
-        var valueFactory;
-
-        beforeEach(function () {
-            valueFactory = new ValueFactory();
-        });
-
         it('should return the result from .getSync(), coerced to a Value object', function () {
-            var ffiResult = new Result(syncCallback),
+            var ffiResult = new Result(syncCallback, null, valueFactory, 'sync'),
                 resultValue;
             syncCallback.returns(1234);
 

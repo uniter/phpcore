@@ -25,7 +25,6 @@ var _ = require('microdash'),
     NullValue = require('../../../../src/Value/Null').sync(),
     ObjectValue = require('../../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
-    Promise = require('lie'),
     Variable = require('../../../../src/Variable').sync();
 
 describe('PHP builtin Closure class', function () {
@@ -66,7 +65,6 @@ describe('PHP builtin Closure class', function () {
             errorPromoter: errorPromoter,
             globalNamespace: globalNamespace,
             mode: 'sync',
-            pausable: null,
             valueFactory: valueFactory
         };
         InternalClosureClass = closureClassFactory(internals);
@@ -366,7 +364,7 @@ describe('PHP builtin Closure class', function () {
             }.bind(this);
         });
 
-        describe('in synchronous mode (when Pausable is not available)', function () {
+        describe('in synchronous mode', function () {
             it('should have the inbound stack marker as its name for stack cleaning', function () {
                 callUnwrapper();
 
@@ -447,25 +445,9 @@ describe('PHP builtin Closure class', function () {
             });
         });
 
-        describe('in asynchronous mode (when Pausable is available)', function () {
-            var pausableCall;
-
+        describe('in asynchronous mode', function () {
             beforeEach(function () {
-                pausableCall = sinon.spy(function (func, args, thisObj) {
-                    return new Promise(function (resolve, reject) {
-                        setTimeout(function () {
-                            try {
-                                resolve(func.apply(thisObj, args));
-                            } catch (error) {
-                                reject(error);
-                            }
-                        }, 1);
-                    });
-                });
                 internals.mode = 'async';
-                internals.pausable = {
-                    call: pausableCall
-                };
             });
 
             it('should push an FFICall onto the stack before the closure is called', function () {
@@ -544,7 +526,6 @@ describe('PHP builtin Closure class', function () {
         describe('in Promise-synchronous mode', function () {
             beforeEach(function () {
                 internals.mode = 'psync';
-                internals.pausable = null;
             });
 
             it('should push an FFICall onto the stack before the closure is called', function () {

@@ -11,24 +11,26 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('../../../tools'),
     NativeCaller = require('../../../../../src/FFI/Call/NativeCaller').sync(),
     ObjectValue = require('../../../../../src/Value/Object').sync(),
     ProxyMemberFactory = require('../../../../../src/FFI/Value/Proxy/ProxyMemberFactory'),
-    ValueFactory = require('../../../../../src/ValueFactory').sync(),
     ValueStorage = require('../../../../../src/FFI/Value/ValueStorage');
 
 describe('FFI ProxyMemberFactory', function () {
     var factory,
         nativeCaller,
         objectValue,
+        state,
         valueFactory,
         valueStorage;
 
     beforeEach(function () {
+        state = tools.createIsolatedState();
         objectValue = sinon.createStubInstance(ObjectValue);
         nativeCaller = sinon.createStubInstance(NativeCaller);
         valueStorage = sinon.createStubInstance(ValueStorage);
-        valueFactory = new ValueFactory(null, null, null, null, null, null, valueStorage);
+        valueFactory = state.getValueFactory();
 
         factory = new ProxyMemberFactory(
             valueFactory,
