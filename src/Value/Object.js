@@ -322,7 +322,7 @@ module.exports = require('pauser')([
                 //       "Fatal error: Uncaught Error: Can only throw objects in Command line code:1"
                 //       "Fatal error: Uncaught Error: Cannot throw objects that do not implement Throwable in Command line code:1"
                 //       These will probably need to be handled with transpiler-level changes,
-                //       so that a throw statement becomes eg. `tools.throw(...)` as it is too late
+                //       so that a throw statement becomes eg. `throwError(...)` as it is too late
                 //       to make these checks at this point, due to the original stack/context being lost
                 throw new Exception('Weird value class thrown: ' + value.getClassName());
             }

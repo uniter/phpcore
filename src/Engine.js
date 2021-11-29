@@ -216,8 +216,6 @@ _.extend(Engine.prototype, {
             resultValue,
             scopeFactory,
             state,
-            tools,
-            toolsFactory,
             valueFactory,
             wrapper = engine.wrapper,
             userland,
@@ -234,7 +232,6 @@ _.extend(Engine.prototype, {
         callStack = state.getCallStack();
         globalScope = state.getGlobalScope();
         output = state.getOutput();
-        toolsFactory = state.getToolsFactory();
         userland = state.getUserland();
         valueFactory = state.getValueFactory();
         // Use the provided top-level scope if specified, otherwise use the global scope
@@ -243,10 +240,6 @@ _.extend(Engine.prototype, {
         module = moduleFactory.create(path);
         topLevelNamespaceScope = scopeFactory.createNamespaceScope(globalNamespace, module);
         module.setScope(scopeFactory.createModuleScope(module, topLevelNamespaceScope, environment));
-
-        // Create the runtime tools object, referenced by the transpiled JS output from PHPToJS
-        // @deprecated!
-        tools = toolsFactory.create(environment, module, topLevelNamespaceScope, topLevelScope, options);
 
         core = coreFactory.createCore(topLevelScope);
 

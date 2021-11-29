@@ -116,8 +116,6 @@ module.exports = require('pauser')([
     require('./Reference/StaticProperty'),
     require('./Output/StdoutBuffer'),
     require('./SuperGlobalScope'),
-    require('./Tools'),
-    require('./ToolsFactory'),
     require('./Control/Trace'),
     require('./Error/TraceFormatter'),
     require('./Type/TypeFactory'),
@@ -236,8 +234,6 @@ module.exports = require('pauser')([
     StaticPropertyReference,
     StdoutBuffer,
     SuperGlobalScope,
-    Tools,
-    ToolsFactory,
     Trace,
     TraceFormatter,
     TypeFactory,
@@ -694,8 +690,7 @@ module.exports = require('pauser')([
             }),
             opcodeHandlerFactory = new OpcodeHandlerFactory(controlBridge, callStack, opcodeFetcherRepository),
             coreBinder = new CoreBinder(),
-            coreFactory,
-            toolsFactory;
+            coreFactory;
 
         callFactory.setControlFactory(controlFactory);
         controlFactory.setFlow(flow);
@@ -731,20 +726,6 @@ module.exports = require('pauser')([
             optionSet,
             callStack,
             loader
-        );
-
-        // FIXME: Deprecated: replaced by CoreFactory
-        toolsFactory = new ToolsFactory(
-            Tools,
-            callStack,
-            translator,
-            globalNamespace,
-            loader,
-            includer,
-            onceIncluder,
-            referenceFactory,
-            scopeFactory,
-            valueFactory
         );
 
         coreFactory = new CoreFactory(
@@ -916,7 +897,6 @@ module.exports = require('pauser')([
         this.stdout = stdout;
         this.superGlobalScope = superGlobalScope;
         this.throwableInterfaceDefined = false;
-        this.toolsFactory = toolsFactory;
         this.translator = translator;
         this.userland = userland;
         this.valueFactory = valueFactory;
@@ -1400,15 +1380,6 @@ module.exports = require('pauser')([
 
         getSuperGlobalScope: function () {
             return this.superGlobalScope;
-        },
-
-        /**
-         * Fetches the ToolsFactory service
-         *
-         * @returns {ToolsFactory}
-         */
-        getToolsFactory: function () {
-            return this.toolsFactory;
         },
 
         /**
