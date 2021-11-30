@@ -47,10 +47,6 @@ function ObjectElement(
 util.inherits(ObjectElement, Reference);
 
 _.extend(ObjectElement.prototype, {
-    getReference: function () {
-        return this;
-    },
-
     getValue: function () {
         var element = this;
 

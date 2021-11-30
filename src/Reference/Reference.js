@@ -128,7 +128,14 @@ _.extend(Reference.prototype, {
      * @param {Value} value
      * @returns {Value} Returns the value that was set
      */
-    setValue: throwUnimplemented('setValue')
+    setValue: throwUnimplemented('setValue'),
+
+    /**
+     * Unsets the value of this reference.
+     *
+     * @returns {Future}
+     */
+    unset: throwUnimplemented('unset')
 });
 
 module.exports = Reference;
