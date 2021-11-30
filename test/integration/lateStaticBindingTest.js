@@ -66,4 +66,59 @@ EOS
         );
         expect(engine.getStderr().readAll()).to.equal('');
     });
+
+    it('should support late-bound static property access from forwarded and non-forwarded contexts', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+class A {
+    private static $myProp = 'from A';
+
+    public static function inheritedMethod() {
+        static::readStaticProp();
+    }
+
+    public static function readStaticProp() {
+        $GLOBALS['result'][] = static::$myProp;
+    }
+}
+
+class B extends A {
+    private static $myProp = 'from B';
+
+    public static function runTest() {
+        A::inheritedMethod();
+        parent::inheritedMethod();
+        self::inheritedMethod();
+    }
+
+    public static function readStaticProp() {
+        $GLOBALS['result'][] = static::$myProp;
+    }
+}
+
+class C extends B {
+    private static $myProp = 'from C';
+
+    public static function readStaticProp() {
+        $GLOBALS['result'][] = static::$myProp;
+    }
+}
+
+C::runTest();
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            'from A',
+            'from C',
+            'from C'
+        ]);
+    });
 });
