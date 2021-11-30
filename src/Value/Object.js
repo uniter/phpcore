@@ -226,9 +226,10 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Returns a clone of this object value
+         * Returns a clone of this object value. Note that the userland __clone() method, if defined,
+         * may pause, in which case a FutureValue will be returned that eventually resolves to the clone.
          *
-         * @returns {ObjectValue}
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
          */
         clone: function () {
             var value = this,
@@ -252,7 +253,10 @@ module.exports = require('pauser')([
 
             // Call the magic __clone method if defined
             if (cloneObjectValue.isMethodDefined(MAGIC_CLONE)) {
-                cloneObjectValue.callMethod(MAGIC_CLONE);
+                // Note that this could pause by returning a FutureValue, which we handle.
+                return cloneObjectValue.callMethod(MAGIC_CLONE).next(function () {
+                    return cloneObjectValue;
+                });
             }
 
             return cloneObjectValue;

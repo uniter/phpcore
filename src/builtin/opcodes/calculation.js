@@ -241,7 +241,7 @@ module.exports = function (internals) {
          * Clones the given ObjectValue
          *
          * @param {Reference|Value|Variable} objectReference
-         * @returns {ObjectValue}
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
          */
         clone: function (objectReference) {
             return objectReference.getValue().clone();

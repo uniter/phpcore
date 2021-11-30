@@ -495,6 +495,7 @@ describe('Object', function () {
             classObject.instantiateBare
                 .withArgs([])
                 .returns(cloneInstance);
+            cloneInstance.callMethod.returns(factory.createNull());
             cloneInstance.isMethodDefined
                 .withArgs('__clone')
                 .returns(true);
@@ -503,6 +504,22 @@ describe('Object', function () {
 
             expect(cloneInstance.callMethod).to.have.been.calledOnce;
             expect(cloneInstance.callMethod).to.have.been.calledWith('__clone');
+        });
+
+        it('should eventually resolve with the clone', async function () {
+            var cloneInstance = sinon.createStubInstance(ObjectValue);
+            classObject.instantiateBare
+                .withArgs([])
+                .returns(cloneInstance);
+            cloneInstance.callMethod
+                .withArgs('__clone')
+                .returns(factory.createNull());
+            cloneInstance.isMethodDefined
+                .withArgs('__clone')
+                .returns(true);
+            cloneInstance.toPromise.returns(Promise.resolve(cloneInstance));
+
+            expect(await value.clone().toPromise()).to.equal(cloneInstance);
         });
 
         it('should not call the magic __clone() method on the original if defined', function () {
