@@ -348,7 +348,7 @@ module.exports = function (internals) {
          *
          * @param {Reference|Value|Variable} classNameReference
          * @param {Value[]} args Arguments to pass to the constructor
-         * @returns {ObjectValue}
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
          */
         createInstance: function (classNameReference, args) {
             var classNameValue = classNameReference.getValue();

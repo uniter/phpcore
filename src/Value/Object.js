@@ -974,18 +974,17 @@ module.exports = require('pauser')([
          * returning the resulting new JSObject instance
          *
          * @param {Value[]} args
-         * @returns {FutureValue<ObjectValue>}
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
          */
         instantiate: function (args) {
             var value = this,
                 nativeObject,
-                objectValue,
                 unwrappedArgs;
 
             if (value.getClassName() !== 'JSObject') {
                 // A normal PHP object is being instantiated as a class -
                 // we just need to create a new instance of this object's class
-                return value.factory.createPresent(value.classObject.instantiate(args));
+                return value.classObject.instantiate(args);
             }
 
             // A JS function is being instantiated as a class from PHP (bridge integration)
@@ -1008,9 +1007,7 @@ module.exports = require('pauser')([
              */
             nativeObject = new (function () {}.bind.apply(value.value, [undefined].concat(unwrappedArgs)))();
 
-            objectValue = value.factory.coerceObject(nativeObject);
-
-            return value.factory.createPresent(objectValue);
+            return value.factory.coerceObject(nativeObject);
         },
 
         /**

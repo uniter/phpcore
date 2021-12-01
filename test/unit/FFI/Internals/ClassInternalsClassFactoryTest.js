@@ -155,6 +155,17 @@ describe('FFI ClassInternalsClassFactory', function () {
                         expect(superClass.construct.args[0][1][1].getType()).to.equal('int');
                         expect(superClass.construct.args[0][1][1].getNative()).to.equal(21);
                     });
+
+                    it('should return the result to allow for pausing', async function () {
+                        var resultValue;
+                        superClass.construct.returns(valueFactory.createPresent(valueFactory.createString('my result')));
+
+                        resultValue = await classInternals.callSuperConstructor(nativeObject, ['my arg'])
+                            .toPromise();
+
+                        expect(resultValue.getType()).to.equal('string');
+                        expect(resultValue.getNative()).to.equal('my result');
+                    });
                 });
 
                 describe('when extending a super class, in non-coercing mode', function () {

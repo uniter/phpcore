@@ -96,4 +96,87 @@ EOS
             'PHP Strict standards:  Redefining already defined constructor for class MyClass in /path/to/my_module.php on line 10\n'
         );
     });
+
+    it('should support pauses in the userland __construct() method for the current class', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+class MyClass
+{
+    public $fixedProp = 'original value';
+    public $modifiedProp = 'original value';
+
+    public function __construct()
+    {
+        $this->modifiedProp = get_async('new value');
+    }
+}
+
+$myObject = new MyClass;
+
+$result['fixed prop'] = $myObject->fixedProp;
+$result['modified prop'] = $myObject->modifiedProp;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineCoercingFunction('get_async', function (value) {
+            return this.createFutureValue(function (resolve) {
+                setImmediate(function () {
+                    resolve(value);
+                });
+            });
+        });
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'fixed prop': 'original value',
+            'modified prop': 'new value'
+        });
+    });
+
+    it('should support pauses in the userland __construct() method inherited from a super class', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+class MySuper
+{
+    public function __construct()
+    {
+        $this->modifiedProp = get_async('new value');
+    }
+}
+
+class MyClass extends MySuper
+{
+    public $fixedProp = 'original value';
+    public $modifiedProp = 'original value';
+}
+
+$myObject = new MyClass;
+
+$result['fixed prop'] = $myObject->fixedProp;
+$result['modified prop'] = $myObject->modifiedProp;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineCoercingFunction('get_async', function (value) {
+            return this.createFutureValue(function (resolve) {
+                setImmediate(function () {
+                    resolve(value);
+                });
+            });
+        });
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'fixed prop': 'original value',
+            'modified prop': 'new value'
+        });
+    });
 });

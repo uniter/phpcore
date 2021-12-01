@@ -1791,6 +1791,7 @@ describe('Object', function () {
             it('should return a new instance of that class', async function () {
                 var newObjectValue = sinon.createStubInstance(ObjectValue),
                     resultObjectValue;
+                newObjectValue.toPromise.returns(Promise.resolve(newObjectValue));
                 classObject.instantiate.withArgs([sinon.match.same(arg1Value)]).returns(newObjectValue);
 
                 resultObjectValue = await value.instantiate([arg1Value]).toPromise();
@@ -1811,6 +1812,7 @@ describe('Object', function () {
                     var newObjectValue = sinon.createStubInstance(ObjectValue);
                     newObjectValue.getClass.returns(classObject);
                     newObjectValue.getObject.returns(nativeObject);
+                    newObjectValue.toPromise.returns(Promise.resolve(newObjectValue));
                     return newObjectValue;
                 });
 

@@ -372,23 +372,33 @@ module.exports = require('pauser')([
          *
          * @param {ObjectValue} objectValue
          * @param {Value[]} args
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
          */
         construct: function (objectValue, args) {
             var classObject = this;
 
             if (!classObject.constructorName) {
                 // Class does not define a constructor: call the superclass' constructor
-                // if it has one, otherwise do nothing
+                // if it has one, otherwise do nothing.
                 if (classObject.superClass) {
-                    classObject.superClass.construct(objectValue, args);
+                    // Note that this may return a FutureValue if the constructor paused.
+                    return classObject.superClass.construct(objectValue, args);
                 }
 
-                return;
+                return objectValue;
             }
 
             // Call the constructor for the current class and not via the object value,
-            // as the method may have been overridden by descendant classes
-            classObject.callMethod(classObject.constructorName, args, objectValue);
+            // as the method may have been overridden by descendant classes.
+            return classObject.callMethod(classObject.constructorName, args, objectValue)
+                /*
+                 * Discard the result value of the constructor method and return the new ObjectValue.
+                 * Note that if a pause occurs inside the constructor, a FutureValue will
+                 * be returned.
+                 */
+                .next(function () {
+                    return objectValue;
+                });
         },
 
         /**
@@ -744,7 +754,7 @@ module.exports = require('pauser')([
          * Creates a new instance of this class
          *
          * @param {Value[]=} args
-         * @returns {ObjectValue}
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
          */
         instantiate: function (args) {
             var classObject = this,
@@ -756,11 +766,9 @@ module.exports = require('pauser')([
 
             objectValue = classObject.instantiateBare(args);
 
-            // Call the userland constructor
-            // FIXME: Handle constructors that pause
-            classObject.construct(objectValue, args);
-
-            return objectValue;
+            // Call the userland constructor. Note that the return value of .construct(...)
+            // may in fact be a FutureValue if there was a pause inside the userland __construct()or.
+            return classObject.construct(objectValue, args);
         },
 
         /**

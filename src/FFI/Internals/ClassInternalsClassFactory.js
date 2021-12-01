@@ -95,6 +95,7 @@ _.extend(ClassInternalsClassFactory.prototype, {
              *
              * @param {ObjectValue|object} instance Object instance (see below)
              * @param {Value[]|*[]} args Arguments (Value objects if non-coercing, native if coercing)
+             * @returns {FutureValue<ObjectValue>|ObjectValue}
              */
             callSuperConstructor: function (instance, args) {
                 var argValues,
@@ -129,7 +130,7 @@ _.extend(ClassInternalsClassFactory.prototype, {
                     argValues = args;
                 }
 
-                internals.superClass.construct(instanceValue, argValues);
+                return internals.superClass.construct(instanceValue, argValues);
             },
 
             /**

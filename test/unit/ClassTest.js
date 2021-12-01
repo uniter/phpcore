@@ -32,6 +32,7 @@ var _ = require('microdash'),
 describe('Class', function () {
     var callStack,
         classObject,
+        constructorMethod,
         createClass,
         exportRepository,
         ffiFactory,
@@ -63,6 +64,8 @@ describe('Class', function () {
         valueCoercer = sinon.createStubInstance(ValueCoercer);
         valueFactory = state.getValueFactory();
         InternalClass = sinon.stub();
+        constructorMethod = sinon.stub();
+        InternalClass.prototype.__construct = constructorMethod;
         interfaceObject = sinon.createStubInstance(Class);
         interfaceObject.is
             .withArgs('My\\Interface')
@@ -97,6 +100,8 @@ describe('Class', function () {
 
             return reference;
         });
+
+        superClass.construct.returns(valueFactory.createNull());
 
         userland.enterIsolated.callsFake(function (executor) {
             return valueFactory.maybeFuturise(executor);
@@ -474,15 +479,12 @@ describe('Class', function () {
     });
 
     describe('construct()', function () {
-        var constructorMethod,
-            nativeObject,
+        var nativeObject,
             objectValue;
 
         beforeEach(function () {
             objectValue = sinon.createStubInstance(ObjectValue);
-            constructorMethod = sinon.stub();
             nativeObject = new InternalClass();
-            InternalClass.prototype.__construct = constructorMethod;
             objectValue.getObject.returns(nativeObject);
         });
 

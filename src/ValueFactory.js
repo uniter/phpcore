@@ -663,6 +663,9 @@ module.exports = require('pauser')([
         /**
          * Creates a new present FutureValue with the given value
          *
+         * Note that in most cases this method should not be used, as a known "present" value
+         * should simply be returned directly and not wrapped as a FutureValue.
+         *
          * @param {Value} value
          * @returns {FutureValue}
          */
