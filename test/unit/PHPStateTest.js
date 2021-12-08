@@ -23,6 +23,7 @@ var expect = require('chai').expect,
     Loader = require('../../src/Load/Loader').sync(),
     OptionSet = require('../../src/OptionSet'),
     Output = require('../../src/Output/Output'),
+    PauseFactory = require('../../src/Control/PauseFactory'),
     PHPState = require('../../src/PHPState').sync(),
     Runtime = require('../../src/Runtime').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
@@ -113,7 +114,7 @@ describe('PHPState', function () {
                     classes: {
                         'Some\\Stuff\\AClass': function (internals) {
                             function AClass() {
-                                internals.callSuperConstructor(this, arguments);
+                                internals.callSuperConstructor(this, arguments).yieldSync();
                             }
 
                             return AClass;
@@ -127,9 +128,8 @@ describe('PHPState', function () {
             );
             AClass = await state.getGlobalNamespace().getClass('Some\\Stuff\\AClass').toPromise();
 
-            expect(function () {
-                AClass.instantiate();
-            }).to.throw(
+            return expect(AClass.instantiate().toPromise()).to.eventually.be.rejectedWith(
+                Exception,
                 'Cannot call superconstructor: no superclass is defined for class "Some\\Stuff\\AClass"'
             );
         });
@@ -830,6 +830,12 @@ describe('PHPState', function () {
 
             expect(stdout.write).to.have.been.calledOnce;
             expect(stdout.write).to.have.been.calledWith('good evening');
+        });
+    });
+
+    describe('getPauseFactory()', function () {
+        it('should return the PauseFactory service', function () {
+            expect(state.getPauseFactory()).to.be.an.instanceOf(PauseFactory);
         });
     });
 

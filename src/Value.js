@@ -308,23 +308,29 @@ module.exports = require('pauser')([
             return this.coerceToInteger();
         },
 
+        /**
+         * Coerces this value to an object as an ObjectValue.
+         *
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
+         */
         coerceToObject: function () {
-            var value = this,
-                object = value.factory.createStdClassObject();
+            var value = this;
 
-            /**
-             * Scalars are coerced to objects as follows:
-             *
-             * > var_dump((object)21);
-             *
-             * object(stdClass)#1 (1) {
-             *   ["scalar"]=>
-             *   int(21)
-             * }
-             */
-            object.getInstancePropertyByName(value.factory.createString('scalar')).setValue(value);
+            return value.factory.createStdClassObject().next(function (objectValue) {
+                /**
+                 * Scalars are coerced to objects as follows:
+                 *
+                 * > var_dump((object)21);
+                 *
+                 * object(stdClass)#1 (1) {
+                 *   ["scalar"]=>
+                 *   int(21)
+                 * }
+                 */
+                objectValue.getInstancePropertyByName(value.factory.createString('scalar')).setValue(value);
 
-            return object;
+                return objectValue;
+            });
         },
 
         coerceToString: throwUnimplemented,

@@ -143,6 +143,30 @@ var _ = require('microdash'),
         var handler,
             resultValue;
 
+        if (sequence.controlBridge.isFuture(error)) {
+            // Mark the sequence as running in case it has previously completed
+            sequence.running = true;
+            sequence.eventualError = null;
+            sequence.eventualResult = null;
+
+            return error
+                // Evaluate any futures to the eventual error before continuing
+                // (note that we call throwInto() with the resolved error, unlike the logic in resume()).
+                .next(throwInto.bind(null, sequence), throwInto.bind(null, sequence));
+        }
+
+        if (error instanceof Sequence) {
+            // Mark the sequence as running in case it has previously completed
+            sequence.running = true;
+            sequence.eventualError = null;
+            sequence.eventualResult = null;
+
+            return error
+                // Evaluate any sequences to the eventual error before continuing
+                // (note that we call throwInto() with the resolved error, unlike the logic in resume()).
+                .next(throwInto.bind(null, sequence), throwInto.bind(null, sequence));
+        }
+
         if (sequence.handlers.length === 0) {
             // No handler is available
             sequence.eventualError = error;
@@ -204,10 +228,9 @@ var _ = require('microdash'),
  * @param {ControlFactory} controlFactory
  * @param {ControlBridge} controlBridge
  * @param {ControlScope} controlScope
- * @param {Flow} flow
  * @constructor
  */
-function Sequence(controlFactory, controlBridge, controlScope, flow) {
+function Sequence(controlFactory, controlBridge, controlScope) {
     /**
      * @type {ControlBridge}
      */
@@ -234,10 +257,6 @@ function Sequence(controlFactory, controlBridge, controlScope, flow) {
      * @type {Error|null}
      */
     this.eventualResult = null;
-    /**
-     * @type {Flow}
-     */
-    this.flow = flow;
     /**
      * @type {{type: string, handler: Function}[]}
      */

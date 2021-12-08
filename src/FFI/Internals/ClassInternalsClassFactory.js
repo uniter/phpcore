@@ -103,8 +103,10 @@ _.extend(ClassInternalsClassFactory.prototype, {
                     internals = this;
 
                 if (!internals.superClass) {
-                    throw new Exception(
-                        'Cannot call superconstructor: no superclass is defined for class "' + internals.fqcn + '"'
+                    return factory.valueFactory.createRejection(
+                        new Exception(
+                            'Cannot call superconstructor: no superclass is defined for class "' + internals.fqcn + '"'
+                        )
                     );
                 }
 

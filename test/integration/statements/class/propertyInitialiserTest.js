@@ -327,4 +327,109 @@ EOS
             'PHP Fatal error: Uncaught Error: Undefined class constant \'SOME_UNDEFINED_CONST\' in /path/to/module.php on line 28'
         );
     });
+
+    it('should initialise instance properties on object instantiation', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace My\Stuff
+{
+    spl_autoload_register(function ($className) {
+        global $log;
+
+        $log[] = '[autoload] ' . $className;
+
+        // Trigger a pause, to test handling of async operations during autoloading
+        switch (get_async($className)) {
+            case 'My\Stuff\MyFirstOtherClass':
+                class MyFirstOtherClass
+                {
+                    const MY_OTHER_CONST = 'first other const';
+                }
+                break;
+            case 'My\Stuff\MySecondOtherClass':
+                class MySecondOtherClass
+                {
+                    const MY_OTHER_CONST = 'second other const';
+                }
+                break;
+            case 'My\Stuff\FirstOtherClass':
+                class FirstOtherClass
+                {
+                    const FIRST_CONST = 'first const';
+                }
+                break;
+            case 'My\Stuff\SecondOtherClass':
+                class SecondOtherClass
+                {
+                    const SECOND_CONST = 'second const';
+                }
+                break;
+            default:
+                throw new \Exception('Unexpected class name "' . $className . '"');
+        }
+    });
+}
+
+namespace
+{
+    use My\Stuff\MyFirstOtherClass;
+    use My\Stuff\MySecondOtherClass;
+    use My\Stuff\FirstOtherClass;
+    use My\Stuff\SecondOtherClass;
+
+    $log = [];
+
+    class MyClass
+    {
+        // Include a constant and a static property to check lazily loading of those too
+        const MY_CONST = MyFirstOtherClass::MY_OTHER_CONST;
+        public static $myStaticProp = MySecondOtherClass::MY_OTHER_CONST;
+
+        public $firstProp = FirstOtherClass::FIRST_CONST;
+        public $secondProp = SecondOtherClass::SECOND_CONST;
+    }
+
+    $log[] = '[before]';
+    $myObject = new MyClass;
+    $log[] = '[after new]';
+    $log[] = '[my const] ' . $myObject::MY_CONST;
+    $log[] = '[my static prop] ' . $myObject::$myStaticProp;
+    $log[] = '[first prop] ' . $myObject->firstProp;
+    $log[] = '[second prop] ' . $myObject->secondProp;
+    $log[] = '[after]';
+
+    return $log;
+}
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/module.php', php),
+            engine = module();
+        engine.defineFunction('get_async', function (internals) {
+            return function (value) {
+                return internals.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(value);
+                    });
+                });
+            };
+        });
+
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal([
+                '[before]',
+                // Note that all properties (both static and instance) and constants are initialised on "new".
+                '[autoload] My\\Stuff\\MyFirstOtherClass',
+                '[autoload] My\\Stuff\\MySecondOtherClass',
+                '[autoload] My\\Stuff\\FirstOtherClass',
+                '[autoload] My\\Stuff\\SecondOtherClass',
+                '[after new]',
+                '[my const] first other const',
+                '[my static prop] second other const',
+                '[first prop] first const',
+                '[second prop] second const',
+                '[after]'
+            ]);
+        });
+    });
 });

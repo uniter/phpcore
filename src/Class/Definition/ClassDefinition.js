@@ -23,6 +23,7 @@ var _ = require('microdash');
  * @param {Object} methodData
  * @param {Object.<string, {args: Array, isStatic: boolean, line: number, method: Function}>} methods
  * @param {Object} rootInternalPrototype
+ * @param {Object} instanceProperties
  * @param {Object} staticProperties
  * @param {ValueCoercer} valueCoercer
  * @constructor
@@ -39,6 +40,7 @@ function ClassDefinition(
     methodData,
     methods,
     rootInternalPrototype,
+    instanceProperties,
     staticProperties,
     valueCoercer
 ) {
@@ -50,6 +52,10 @@ function ClassDefinition(
      * @type {string|null}
      */
     this.constructorName = constructorName;
+    /**
+     * @type {Object}
+     */
+    this.instanceProperties = instanceProperties;
     /**
      * @type {Class[]}
      */
@@ -114,6 +120,15 @@ _.extend(ClassDefinition.prototype, {
      */
     getConstructorName: function () {
         return this.constructorName;
+    },
+
+    /**
+     * Fetches the instance properties for the class.
+     *
+     * @returns {Object}
+     */
+    getInstanceProperties: function () {
+        return this.instanceProperties;
     },
 
     /**

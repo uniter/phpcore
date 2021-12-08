@@ -108,11 +108,10 @@ describe('FFI ClassInternalsClassFactory', function () {
 
             describe('callSuperConstructor()', function () {
                 it('should throw when not extending a super class', function () {
-                    expect(function () {
-                        classInternals.callSuperConstructor({}, ['first arg', 21]);
-                    }).to.throw(
-                        'Cannot call superconstructor: no superclass is defined for class "My\\Stuff\\MyClass"'
-                    );
+                    return expect(classInternals.callSuperConstructor({}, ['first arg', 21]).toPromise())
+                        .to.eventually.be.rejectedWith(
+                            'Cannot call superconstructor: no superclass is defined for class "My\\Stuff\\MyClass"'
+                        );
                 });
 
                 describe('when extending a super class, in auto-coercing mode', function () {
@@ -125,6 +124,7 @@ describe('FFI ClassInternalsClassFactory', function () {
                         objectValue = sinon.createStubInstance(ObjectValue);
                         objectValue.getType.returns('object');
                         superClass = sinon.createStubInstance(Class);
+                        superClass.construct.returns(valueFactory.createNull());
                         globalNamespace.getClass
                             .withArgs('My\\SuperClass')
                             .returns(futureFactory.createPresent(superClass));
@@ -139,15 +139,15 @@ describe('FFI ClassInternalsClassFactory', function () {
                         classInternals.extendClass('My\\SuperClass');
                     });
 
-                    it('should call the super constructor with native instance coerced to ObjectValue', function () {
-                        classInternals.callSuperConstructor(nativeObject, ['first arg', 21]);
+                    it('should call the super constructor with native instance coerced to ObjectValue', async function () {
+                        await classInternals.callSuperConstructor(nativeObject, ['first arg', 21]).toPromise();
 
                         expect(superClass.construct).to.have.been.calledOnce;
                         expect(superClass.construct.args[0][0]).to.equal(objectValue);
                     });
 
-                    it('should call the super constructor with native arguments coerced', function () {
-                        classInternals.callSuperConstructor(nativeObject, ['first arg', 21]);
+                    it('should call the super constructor with native arguments coerced', async function () {
+                        await classInternals.callSuperConstructor(nativeObject, ['first arg', 21]).toPromise();
 
                         expect(superClass.construct).to.have.been.calledOnce;
                         expect(superClass.construct.args[0][1][0].getType()).to.equal('string');

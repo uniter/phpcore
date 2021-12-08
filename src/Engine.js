@@ -212,7 +212,6 @@ _.extend(Engine.prototype, {
             phpCommon = engine.phpCommon,
             PHPError = phpCommon.PHPError,
             PHPParseError = phpCommon.PHPParseError,
-            result,
             resultValue,
             scopeFactory,
             state,
@@ -332,23 +331,25 @@ _.extend(Engine.prototype, {
             reject(error);
         }
 
+        function topLevel() {
+            var result = wrapper(core);
+
+            return result ?
+                // Module may return a reference (eg. a variable), so always extract the value
+                result.getValue() :
+                // Program returns null rather than undefined if nothing is returned
+                valueFactory.createNull();
+        }
+
         // Asynchronous mode
         if (mode === 'async') {
             return new Promise(function (resolve, reject) {
                 userland
-                    .enterTopLevel(wrapper.bind(null, core))
-                    .then(function (result) {
-                        var resultValue;
-
+                    .enterTopLevel(topLevel)
+                    .then(function (resultValue) {
                         // Pop the top-level scope (of the include, if this module was included) off the stack
                         // regardless of whether an error occurred
                         callStack.pop();
-
-                        resultValue = result ?
-                            // Module may return a reference (eg. a variable), so always extract the value
-                            result.getValue() :
-                            // Program returns null rather than undefined if nothing is returned
-                            valueFactory.createNull();
 
                         resolve(resultValue);
                     })
@@ -372,13 +373,7 @@ _.extend(Engine.prototype, {
         // TODO: Use Userland for sync behavior too to avoid branching here?
         try {
             try {
-                result = wrapper(core);
-
-                resultValue = result ?
-                    // Module may return a reference (eg. a variable), so always extract the value
-                    result.getValue() :
-                    // Program returns null rather than undefined if nothing is returned
-                    valueFactory.createNull();
+                resultValue = userland.enterTopLevel(topLevel);
 
                 return mode === 'psync' && isMainProgram ?
                     // Promise-sync mode - return a promise resolved with the result

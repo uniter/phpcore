@@ -29,10 +29,6 @@ function ControlFactory(Sequence, Trace, controlBridge, controlScope, opcodePool
      */
     this.controlScope = controlScope;
     /**
-     * @type {Flow|null}
-     */
-    this.flow = null;
-    /**
      * @type {OpcodePool}
      */
     this.opcodePool = opcodePool;
@@ -55,7 +51,7 @@ _.extend(ControlFactory.prototype, {
     createSequence: function () {
         var factory = this;
 
-        return new factory.Sequence(factory, factory.controlBridge, factory.controlScope, factory.flow);
+        return new factory.Sequence(factory, factory.controlBridge, factory.controlScope);
     },
 
     /**
@@ -67,15 +63,6 @@ _.extend(ControlFactory.prototype, {
         var factory = this;
 
         return new factory.Trace(factory.opcodePool);
-    },
-
-    /**
-     * Injects the Flow service. Required due to a circular dependency.
-     *
-     * @param {Flow} flow
-     */
-    setFlow: function (flow) {
-        this.flow = flow;
     }
 });
 

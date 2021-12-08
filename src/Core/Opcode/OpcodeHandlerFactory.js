@@ -72,15 +72,25 @@ _.extend(OpcodeHandlerFactory.prototype, {
                 return resumeValue;
             }
 
-            // Call the actual wrapped opcode handler
-            try {
-                result = opcode.handle();
-
-                if (wrapper.controlBridge.isFuture(result)) {
-                    // Evaluate any futures, any pauses will be handled by this try..catch
-                    result = result.yield();
+            /**
+             * A pause or error occurred. Note that the error thrown could be a Future(Value),
+             * in which case we need to yield to it so that a pause occurs if required.
+             *
+             * @param {Error|Future|FutureValue|Pause} error
+             * @throws {Error|Pause}
+             */
+            function handlePauseOrError(error) {
+                if (wrapper.controlBridge.isFuture(error)) {
+                    // Special case: the thrown error is itself a Future(Value), so we need
+                    // to yield to it to either resolve it to the eventual error or pause.
+                    try {
+                        error = error.yield();
+                    } catch (furtherError) {
+                        handlePauseOrError(furtherError);
+                        return;
+                    }
                 }
-            } catch (error) {
+
                 if (error instanceof Pause) {
                     error.next(function (result) {
                         // Mark this opcode's execution in the trace data record
@@ -101,6 +111,19 @@ _.extend(OpcodeHandlerFactory.prototype, {
                 }
 
                 throw error;
+            }
+
+            // Call the actual wrapped opcode handler
+            try {
+                result = opcode.handle();
+
+                if (wrapper.controlBridge.isFuture(result)) {
+                    // Evaluate any futures, any pauses will be handled by this try..catch
+                    result = result.yield();
+                }
+            } catch (error) {
+                handlePauseOrError(error);
+                return;
             }
 
             // Mark this opcode's execution in the trace data record

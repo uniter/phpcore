@@ -83,6 +83,7 @@ _.extend(ClassFactory.prototype, {
      * @param {string} constructorName
      * @param {Function} InternalClass
      * @param {Object} rootInternalPrototype
+     * @param {Object} instanceProperties
      * @param {Object} staticProperties
      * @param {Object.<string, Function>} constants
      * @param {Class|null} superClass Parent class, if any
@@ -97,6 +98,7 @@ _.extend(ClassFactory.prototype, {
         constructorName,
         InternalClass,
         rootInternalPrototype,
+        instanceProperties,
         staticProperties,
         constants,
         superClass,
@@ -117,6 +119,7 @@ _.extend(ClassFactory.prototype, {
             constructorName,
             InternalClass,
             rootInternalPrototype,
+            instanceProperties,
             staticProperties,
             constants,
             superClass,

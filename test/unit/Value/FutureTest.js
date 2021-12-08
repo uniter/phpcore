@@ -21,6 +21,7 @@ var expect = require('chai').expect,
 
 describe('FutureValue', function () {
     var callStack,
+        controlFactory,
         createValue,
         factory,
         futureFactory,
@@ -33,6 +34,7 @@ describe('FutureValue', function () {
         state = tools.createIsolatedState('async', {
             'call_stack': callStack
         });
+        controlFactory = state.getControlFactory();
         factory = state.getValueFactory();
         futureFactory = state.getFutureFactory();
         referenceFactory = state.getReferenceFactory();
@@ -393,6 +395,20 @@ describe('FutureValue', function () {
 
             expect(result.getType()).to.equal('int');
             expect(result.getNative()).to.equal(42);
+        });
+
+        it('should not attempt to coerce a Sequence returned from the resume handler', async function () {
+            var result;
+            createValue(futureFactory.createPresent(factory.createString('initial value')));
+            value.next(function () {
+                // Return a Sequence to check that it is not coerced.
+                return controlFactory.createSequence().resume(factory.createString('new value'));
+            });
+
+            result = await value.toPromise();
+
+            expect(result.getType()).to.equal('string');
+            expect(result.getNative()).to.equal('new value');
         });
     });
 

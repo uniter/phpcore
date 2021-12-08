@@ -179,6 +179,28 @@ describe('Async control integration', function () {
         }).catch(done);
     });
 
+    it('should reject a future with the eventual error when rejected with another future', function () {
+        var future = futureFactory.createFuture(function (resolve, reject) {
+            reject(futureFactory.createRejection(new Error('My error from future')));
+        });
+
+        return expect(future.toPromise()).to.eventually.be.rejectedWith('My error from future');
+    });
+
+    it('should reject a future with the eventual error when rejected with a sequence that rejects', function () {
+        var future = futureFactory.createFuture(function (resolve, reject) {
+            var sequence = controlFactory.createSequence();
+
+            setImmediate(function () {
+                sequence.throwInto(new Error('My error from sequence'));
+            });
+
+            reject(sequence);
+        });
+
+        return expect(future.toPromise()).to.eventually.be.rejectedWith('My error from sequence');
+    });
+
     it('should return the eventual result from .yieldSync() when synchronously completed with a result', function () {
         var sequence = controlFactory.createSequence();
 

@@ -70,13 +70,6 @@ _.extend(FutureFactory.prototype, {
             resolve = function resolve(result) {
                 // factory.callStack.restore(savedCallStack);
 
-                if (factory.controlBridge.isFuture(result)) {
-                    // Future was resolved with another Future(Value), so await the new one
-                    // to mirror the behaviour of chainable Promises
-                    result.next(resolve, reject);
-                    return;
-                }
-
                 sequence.resume(result);
             };
 

@@ -28,6 +28,7 @@ module.exports = require('pauser')([
     require('./Control/Pause'),
     require('./FFI/Value/PHPObject'),
     require('./Reference/Reference'),
+    require('./Control/Sequence'),
     require('./Value/String'),
     require('./Value'),
     require('./FFI/Value/ValueStorage'),
@@ -51,6 +52,7 @@ module.exports = require('pauser')([
     Pause,
     PHPObject,
     Reference,
+    Sequence,
     StringValue,
     Value,
     ValueStorage,
@@ -167,6 +169,9 @@ module.exports = require('pauser')([
                 // have been handled by the guard above
                 return factory.deriveFuture(value);
             }
+
+            // Note that we check a Sequence is never passed in, but the check is performed
+            // from .createFromNativeObject() rather than this hotter code path.
 
             if (value instanceof FFIResult) {
                 // An FFI Result was returned, so we need to handle it as appropriate
@@ -374,7 +379,7 @@ module.exports = require('pauser')([
          * @param {string=} filePath To override the file path
          * @param {number=} lineNumber To override the line number
          * @param {boolean=} reportsOwnContext Whether the error handles reporting its own file/line context
-         * @returns {ObjectValue}
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
          */
         createErrorObject: function (
             className,
@@ -385,29 +390,35 @@ module.exports = require('pauser')([
             lineNumber,
             reportsOwnContext
         ) {
-            var factory = this,
-                errorObject = factory.globalNamespace.getClass(className).yieldSync().instantiate([
-                    factory.createString(message || ''),
-                    factory.createInteger(code || 0),
-                    previousThrowable || factory.createNull()
-                ]);
+            var factory = this;
 
-            if (reportsOwnContext) {
-                errorObject.setInternalProperty('reportsOwnContext', true);
-            }
+            return factory.globalNamespace.getClass(className)
+                .next(function (classObject) {
+                    return classObject.instantiate([
+                        factory.createString(message || ''),
+                        factory.createInteger(code || 0),
+                        previousThrowable || factory.createNull()
+                    ]);
+                })
+                .next(function (errorObject) {
+                    if (reportsOwnContext) {
+                        errorObject.setInternalProperty('reportsOwnContext', true);
+                    }
 
-            // File and line cannot be passed as constructor args,
-            // so we need to manually set them here if specified
+                    // File and line cannot be passed as constructor args,
+                    // so we need to manually set them here if specified
 
-            if (filePath !== null && filePath !== undefined) {
-                errorObject.setProperty('file', factory.createString(filePath));
-            }
+                    if (filePath !== null && filePath !== undefined) {
+                        errorObject.setProperty('file', factory.createString(filePath));
+                    }
 
-            if (lineNumber !== null && lineNumber !== undefined) {
-                errorObject.setProperty('line', factory.createInteger(lineNumber));
-            }
+                    if (lineNumber !== null && lineNumber !== undefined) {
+                        errorObject.setProperty('line', factory.createInteger(lineNumber));
+                    }
 
-            return errorObject;
+                    return errorObject;
+                })
+                .asValue();
         },
 
         /**
@@ -496,6 +507,10 @@ module.exports = require('pauser')([
             if (nativeObject instanceof PHPObject) {
                 // PHPObjects wrap instances of PHP classes when exported with .getProxy()
                 return nativeObject.getObjectValue();
+            }
+
+            if (nativeObject instanceof Sequence) {
+                throw new Exception('Sequences should not be used as values');
             }
 
             if (factory.valueStorage.hasObjectValueForExport(nativeObject)) {
@@ -690,7 +705,7 @@ module.exports = require('pauser')([
         /**
          * Creates an instance of the builtin stdClass class
          *
-         * @return {ObjectValue}
+         * @return {FutureValue<ObjectValue>|ObjectValue}
          */
         createStdClassObject: function () {
             var factory = this;
@@ -727,7 +742,7 @@ module.exports = require('pauser')([
          * @param {ObjectValue|null=} previousThrowable
          * @param {string=} filePath To override the file path
          * @param {number=} lineNumber To override the line number
-         * @returns {ObjectValue}
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
          */
         createTranslatedErrorObject: function (
             className,
@@ -759,7 +774,7 @@ module.exports = require('pauser')([
          * @param {Object.<string, string>=} placeholderVariables
          * @param {number|null=} code
          * @param {ObjectValue|null=} previousThrowable
-         * @returns {ObjectValue}
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
          */
         createTranslatedExceptionObject: function (
             className,
@@ -778,7 +793,7 @@ module.exports = require('pauser')([
                     code,
                     previousThrowable
                 ]
-            ).yieldSync();
+            );
         },
 
         /**
@@ -806,7 +821,7 @@ module.exports = require('pauser')([
          *
          * @param {string} className
          * @param {Array} constructorArgNatives
-         * @returns {Future<ObjectValue>}
+         * @returns {FutureValue<ObjectValue>}
          */
         instantiateObject: function (className, constructorArgNatives) {
             var factory = this,
@@ -817,7 +832,8 @@ module.exports = require('pauser')([
             return factory.globalNamespace.getClass(className)
                 .next(function (classObject) {
                     return classObject.instantiate(constructorArgValues);
-                });
+                })
+                .asValue();
         },
 
         /**
@@ -847,9 +863,24 @@ module.exports = require('pauser')([
                 return factory.coerce(executor());
             }
 
-            try {
-                result = executor();
-            } catch (error) {
+            /**
+             * A pause or error occurred. Note that the error thrown could be a Future(Value),
+             * in which case we need to yield to it so that a pause occurs if required.
+             *
+             * @param {Error|Future|FutureValue|Pause} error
+             * @returns {FutureValue}
+             */
+            function handlePauseOrError(error) {
+                if (factory.controlBridge.isFuture(error)) {
+                    // Special case: the thrown error is itself a Future(Value), so we need
+                    // to yield to it to either resolve it to the eventual error or pause.
+                    try {
+                        error = error.yield();
+                    } catch (furtherError) {
+                        return handlePauseOrError(furtherError);
+                    }
+                }
+
                 if (!(error instanceof Pause)) {
                     // A normal non-pause error was raised, simply rethrow
 
@@ -875,6 +906,12 @@ module.exports = require('pauser')([
                 return factory.createFuture(function (resolve, reject) {
                     error.next(resolve, reject);
                 });
+            }
+
+            try {
+                result = executor();
+            } catch (error) {
+                return handlePauseOrError(error);
             }
 
             return factory.coerce(result);

@@ -617,7 +617,7 @@ describe('CallStack', function () {
             callStack.push(sinon.createStubInstance(Call));
         });
 
-        it('should throw an ObjectValue wrapping an instance of Error when the E_ERROR level is given', function () {
+        it('should throw an ObjectValue wrapping an instance of Error when the E_ERROR level is given', async function () {
             var caughtError = null,
                 errorClassObject = sinon.createStubInstance(Class),
                 errorValue = sinon.createStubInstance(ObjectValue);
@@ -656,7 +656,7 @@ describe('CallStack', function () {
                     4321
                 );
             } catch (error) {
-                caughtError = error;
+                caughtError = await error.toPromise(); // Error will be a FutureValue.
             }
 
             expect(caughtError).to.equal(errorValue);

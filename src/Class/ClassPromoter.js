@@ -64,6 +64,7 @@ _.extend(ClassPromoter.prototype, {
                 classDefinition.getConstructorName(),
                 InternalClass,
                 classDefinition.getRootInternalPrototype(),
+                classDefinition.getInstanceProperties(),
                 classDefinition.getStaticProperties(),
                 classDefinition.getConstants(),
                 classDefinition.getSuperClass(),

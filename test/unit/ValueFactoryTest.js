@@ -29,6 +29,7 @@ var expect = require('chai').expect,
     NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPObject = require('../../src/FFI/Value/PHPObject').sync(),
+    Sequence = require('../../src/Control/Sequence'),
     Translator = phpCommon.Translator,
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync(),
@@ -272,7 +273,7 @@ describe('ValueFactory', function () {
                 });
         });
 
-        it('should return a correctly instantiated instance of the Error subclass', function () {
+        it('should return a correctly instantiated instance of the Error subclass', async function () {
             myClassObject.instantiate
                 .withArgs([
                     sinon.match(function (arg) {
@@ -287,21 +288,23 @@ describe('ValueFactory', function () {
                 ])
                 .returns(objectValue);
 
-            expect(factory.createErrorObject(
-                'My\\Stuff\\MyErrorClass',
-                'My error message',
-                21,
-                null,
-                '/path/to/my_module.php',
-                1234,
-                true
-            )).to.equal(objectValue);
+            expect(
+                await factory.createErrorObject(
+                    'My\\Stuff\\MyErrorClass',
+                    'My error message',
+                    21,
+                    null,
+                    '/path/to/my_module.php',
+                    1234,
+                    true
+                ).toPromise()
+            ).to.equal(objectValue);
         });
 
-        it('should set the reportsOwnContext internal property to true when specified', function () {
+        it('should set the reportsOwnContext internal property to true when specified', async function () {
             myClassObject.instantiate.returns(objectValue);
 
-            factory.createErrorObject(
+            await factory.createErrorObject(
                 'My\\Stuff\\MyErrorClass',
                 'My error message',
                 21,
@@ -309,15 +312,15 @@ describe('ValueFactory', function () {
                 '/path/to/my_module.php',
                 1234,
                 true
-            );
+            ).toPromise();
 
             expect(objectValue.getInternalProperty('reportsOwnContext')).to.be.true;
         });
 
-        it('should leave the reportsOwnContext internal property as false when specified', function () {
+        it('should leave the reportsOwnContext internal property as false when specified', async function () {
             myClassObject.instantiate.returns(objectValue);
 
-            factory.createErrorObject(
+            await factory.createErrorObject(
                 'My\\Stuff\\MyErrorClass',
                 'My error message',
                 21,
@@ -325,16 +328,16 @@ describe('ValueFactory', function () {
                 '/path/to/my_module.php',
                 1234,
                 false
-            );
+            ).toPromise();
 
             expect(objectValue.getInternalProperty('reportsOwnContext')).to.be.false;
         });
 
-        it('should override the "file" property if specified', function () {
+        it('should override the "file" property if specified', async function () {
             var value;
             myClassObject.instantiate.returns(objectValue);
 
-            factory.createErrorObject(
+            await factory.createErrorObject(
                 'My\\Stuff\\MyErrorClass',
                 'My error message',
                 21,
@@ -342,18 +345,18 @@ describe('ValueFactory', function () {
                 '/path/to/my_module.php',
                 1234,
                 false
-            );
+            ).toPromise();
             value = objectValue.getProperty('file');
 
             expect(value.getType()).to.equal('string');
             expect(value.getNative()).to.equal('/path/to/my_module.php');
         });
 
-        it('should override the "line" property if specified', function () {
+        it('should override the "line" property if specified', async function () {
             var value;
             myClassObject.instantiate.returns(objectValue);
 
-            factory.createErrorObject(
+            await factory.createErrorObject(
                 'My\\Stuff\\MyErrorClass',
                 'My error message',
                 21,
@@ -361,7 +364,7 @@ describe('ValueFactory', function () {
                 '/path/to/my_module.php',
                 1234,
                 false
-            );
+            ).toPromise();
             value = objectValue.getProperty('line');
 
             expect(value.getType()).to.equal('int');
@@ -511,6 +514,17 @@ describe('ValueFactory', function () {
         });
     });
 
+    describe('createFromNativeObject()', function () {
+        it('should throw when a Sequence is given', function () {
+            expect(function () {
+                factory.createFromNativeObject(sinon.createStubInstance(Sequence));
+            }).to.throw(
+                Exception,
+                'Sequences should not be used as values'
+            );
+        });
+    });
+
     describe('createInteger()', function () {
         it('should return an IntegerValue with the specified value', function () {
             var value = factory.createInteger(123);
@@ -534,6 +548,36 @@ describe('ValueFactory', function () {
 
             expect(secondNullValue.getType()).to.equal('null');
             expect(secondNullValue).to.equal(firstNullValue);
+        });
+    });
+
+    describe('createNumber()', function () {
+        it('should return an IntegerValue when given a positive native integer', function () {
+            var value = factory.createNumber(21);
+
+            expect(value.getType()).to.equal('int');
+            expect(value.getNative()).to.equal(21);
+        });
+
+        it('should return an IntegerValue when given a negative native integer', function () {
+            var value = factory.createNumber(-21);
+
+            expect(value.getType()).to.equal('int');
+            expect(value.getNative()).to.equal(-21);
+        });
+
+        it('should return a FloatValue when given a positive native float', function () {
+            var value = factory.createNumber(101.123);
+
+            expect(value.getType()).to.equal('float');
+            expect(value.getNative()).to.equal(101.123);
+        });
+
+        it('should return a FloatValue when given a negative native float', function () {
+            var value = factory.createNumber(-101.123);
+
+            expect(value.getType()).to.equal('float');
+            expect(value.getNative()).to.equal(-101.123);
         });
     });
 
@@ -603,7 +647,7 @@ describe('ValueFactory', function () {
                 });
         });
 
-        it('should return a correctly instantiated instance of the Error subclass', function () {
+        it('should return a correctly instantiated instance of the Error subclass', async function () {
             myClassObject.instantiate
                 .withArgs([
                     sinon.match(function (arg) {
@@ -618,21 +662,23 @@ describe('ValueFactory', function () {
                 ])
                 .returns(objectValue);
 
-            expect(factory.createTranslatedErrorObject(
-                'My\\Stuff\\MyErrorClass',
-                'my_translation',
-                {'my_placeholder': 'my value'},
-                21,
-                null,
-                '/path/to/my_module.php',
-                1234
-            )).to.equal(objectValue);
+            expect(
+                await factory.createTranslatedErrorObject(
+                    'My\\Stuff\\MyErrorClass',
+                    'my_translation',
+                    {'my_placeholder': 'my value'},
+                    21,
+                    null,
+                    '/path/to/my_module.php',
+                    1234
+                ).toPromise()
+            ).to.equal(objectValue);
         });
 
-        it('should set the reportsOwnContext internal property to false', function () {
+        it('should set the reportsOwnContext internal property to false', async function () {
             myClassObject.instantiate.returns(objectValue);
 
-            factory.createTranslatedErrorObject(
+            await factory.createTranslatedErrorObject(
                 'My\\Stuff\\MyErrorClass',
                 'my_translation',
                 {'my_placeholder': 'my value'},
@@ -640,16 +686,16 @@ describe('ValueFactory', function () {
                 null,
                 '/path/to/my_module.php',
                 1234
-            );
+            ).toPromise();
 
             expect(objectValue.getInternalProperty('reportsOwnContext')).to.be.false;
         });
 
-        it('should override the "file" property if specified', function () {
+        it('should override the "file" property if specified', async function () {
             var value;
             myClassObject.instantiate.returns(objectValue);
 
-            factory.createTranslatedErrorObject(
+            await factory.createTranslatedErrorObject(
                 'My\\Stuff\\MyErrorClass',
                 'my_translation',
                 {'my_placeholder': 'my value'},
@@ -657,18 +703,18 @@ describe('ValueFactory', function () {
                 null,
                 '/path/to/my_module.php',
                 1234
-            );
+            ).toPromise();
             value = objectValue.getProperty('file');
 
             expect(value.getType()).to.equal('string');
             expect(value.getNative()).to.equal('/path/to/my_module.php');
         });
 
-        it('should override the "line" property if specified', function () {
+        it('should override the "line" property if specified', async function () {
             var value;
             myClassObject.instantiate.returns(objectValue);
 
-            factory.createTranslatedErrorObject(
+            await factory.createTranslatedErrorObject(
                 'My\\Stuff\\MyErrorClass',
                 'my_translation',
                 {'my_placeholder': 'my value'},
@@ -676,7 +722,7 @@ describe('ValueFactory', function () {
                 null,
                 '/path/to/my_module.php',
                 1234
-            );
+            ).toPromise();
             value = objectValue.getProperty('line');
 
             expect(value.getType()).to.equal('int');
@@ -714,7 +760,7 @@ describe('ValueFactory', function () {
                 });
         });
 
-        it('should return a correctly instantiated instance of the Error subclass', function () {
+        it('should return a correctly instantiated instance of the Error subclass', async function () {
             myClassObject.instantiate
                 .withArgs([
                     sinon.match(function (arg) {
@@ -729,25 +775,27 @@ describe('ValueFactory', function () {
                 ])
                 .returns(objectValue);
 
-            expect(factory.createTranslatedExceptionObject(
-                'My\\Stuff\\MyErrorClass',
-                'my_translation',
-                {'my_placeholder': 'my value'},
-                21,
-                null
-            )).to.equal(objectValue);
+            expect(
+                await factory.createTranslatedExceptionObject(
+                    'My\\Stuff\\MyErrorClass',
+                    'my_translation',
+                    {'my_placeholder': 'my value'},
+                    21,
+                    null
+                ).toPromise()
+            ).to.equal(objectValue);
         });
 
-        it('should set the reportsOwnContext internal property to false', function () {
+        it('should set the reportsOwnContext internal property to false', async function () {
             myClassObject.instantiate.returns(objectValue);
 
-            factory.createTranslatedExceptionObject(
+            await factory.createTranslatedExceptionObject(
                 'My\\Stuff\\MyErrorClass',
                 'my_translation',
                 {'my_placeholder': 'my value'},
                 21,
                 null
-            );
+            ).toPromise();
 
             expect(objectValue.getInternalProperty('reportsOwnContext')).to.be.false;
         });

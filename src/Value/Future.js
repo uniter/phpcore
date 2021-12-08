@@ -12,6 +12,7 @@
 var _ = require('microdash'),
     util = require('util'),
     Promise = require('lie'),
+    Sequence = require('../Control/Sequence'),
     Value = require('../Value').sync();
 
 /**
@@ -269,7 +270,9 @@ _.extend(FutureValue.prototype, {
                     // Make sure the resolved result of a FutureValue is always a Value.
                     resultValue = resumeHandler(resultValue);
 
-                    if (!value.factory.isValue(resultValue)) {
+                    // Note that as Sequence will await a Future(Value), the result of the resume handler
+                    // may itself be a Sequence, which we don't want to try to coerce.
+                    if (!(resultValue instanceof Sequence)) {
                         resultValue = value.factory.coerce(resultValue);
                     }
 

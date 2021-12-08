@@ -236,15 +236,19 @@ module.exports = require('pauser')([
             this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
+        /**
+         * {@inheritdoc}
+         */
         coerceToObject: function () {
-            var value = this,
-                object = value.factory.createStdClassObject();
+            var value = this;
 
-            _.each(value.value, function (element) {
-                object.getInstancePropertyByName(element.getKey()).setValue(element.getValue());
+            return value.factory.createStdClassObject().next(function (objectValue) {
+                _.each(value.value, function (element) {
+                    objectValue.getInstancePropertyByName(element.getKey()).setValue(element.getValue());
+                });
+
+                return objectValue;
             });
-
-            return object;
         },
 
         coerceToString: function () {

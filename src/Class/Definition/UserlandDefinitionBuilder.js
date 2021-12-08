@@ -71,6 +71,7 @@ _.extend(UserlandDefinitionBuilder.prototype, {
         var builder = this,
             constants,
             constructorName = null,
+            instanceProperties,
             methods = {},
             rootInternalPrototype,
             staticProperties,
@@ -95,39 +96,7 @@ _.extend(UserlandDefinitionBuilder.prototype, {
             }
         });
 
-        InternalClass = function () {
-            var objectValue = this,
-                // TODO: Remove need for this lookup
-                classObject = namespaceScope.getClass(name).yieldSync(),
-                properties = {};
-
-            // Go through and declare the properties and their default values
-            // on the object from the class definition
-            _.forOwn(definition.properties, function (propertyData, name) {
-                properties[name] = objectValue.declareProperty(name, classObject, propertyData.visibility);
-            });
-
-            if (superClass) {
-                // Class has a parent, call the parent's internal constructor
-                superClass.getInternalClass().call(objectValue);
-            }
-
-            // Go through and define the properties and their default values
-            // on the object from the class definition by initialising them
-            _.forOwn(definition.properties, function (propertyData, name) {
-                var instanceProperty = properties[name],
-                    // FIXME: Handle async? eg. what if default/initial property value
-                    //        references a constant of an asynchronously autoloaded class?
-                    initialValue = propertyData.value(classObject);
-
-                if (initialValue === null) {
-                    // If a property has no initialiser then its initial value is NULL
-                    initialValue = builder.valueFactory.createNull();
-                }
-
-                instanceProperty.initialise(initialValue);
-            });
-        };
+        InternalClass = function () {};
 
         // Prevent native 'constructor' property from erroneously being detected as PHP class method
         delete InternalClass.prototype.constructor;
@@ -155,6 +124,7 @@ _.extend(UserlandDefinitionBuilder.prototype, {
             methods[methodName] = data;
         });
 
+        instanceProperties = definition.properties;
         staticProperties = definition.staticProperties;
         constants = definition.constants;
 
@@ -173,6 +143,7 @@ _.extend(UserlandDefinitionBuilder.prototype, {
             {},
             methods,
             rootInternalPrototype,
+            instanceProperties,
             staticProperties,
             valueCoercer
         );

@@ -431,6 +431,7 @@ describe('Array', function () {
         beforeEach(function () {
             nativeStdClassObject = {};
             stdClassObject = sinon.createStubInstance(ObjectValue);
+            stdClassObject.next.yields(stdClassObject);
             sinon.stub(factory, 'createStdClassObject').returns(stdClassObject);
 
             stdClassObject.getInstancePropertyByName.callsFake(function (nameValue) {

@@ -137,6 +137,12 @@ describe('PropertyReference', function () {
         });
     });
 
+    describe('getName()', function () {
+        it('should return the key of the property as a string', function () {
+            expect(property.getName()).to.equal('my_property');
+        });
+    });
+
     describe('getNative()', function () {
         it('should return the native value of the property\'s value', function () {
             property.initialise(propertyValue);

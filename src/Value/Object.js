@@ -236,12 +236,23 @@ module.exports = require('pauser')([
                 // Avoid calling the __construct() class constructor when cloning,
                 // however note that the native constructor will still be called
                 // as that is used to initialise properties for PHP-defined classes etc.
-                cloneObjectValue = value.classObject.instantiateBare(
-                    // TODO: Consider storing the arguments passed to the constructor,
-                    //       so that they may be passed here - however this may then leak memory
-                    //       as we would be holding on to references to those arguments' values
-                    []
-                );
+                cloneObjectValue,
+                nativeObject;
+
+            // TODO: Move to Class and make configurable for native definitions
+            //       via .defineCloner(...)
+            if (value.classIs('JSObject')) {
+                // Create a new native object with the same [[Prototype]] as the original.
+                nativeObject = Object.create(Object.getPrototypeOf(value.value));
+
+                // Copy enumerable own properties to the clone.
+                _.extend(nativeObject, value.value);
+
+                // Wrap the clone as an ObjectValue<JSObject>.
+                return value.factory.createBoxedJSObject(nativeObject);
+            }
+
+            cloneObjectValue = value.classObject.instantiateBare();
 
             // Clones are shallow: each property's value is simply copied over to the clone.
             // (Note that arrays will be copied as is done for assignments.)

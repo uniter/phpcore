@@ -81,11 +81,6 @@ _.extend(NativeDefinitionBuilder.prototype, {
                     valueCoercer.isAutoCoercionEnabled() ? objectValue.getObject() : objectValue
                 );
             }
-
-            if (superClass) {
-                // Class has a parent, call the parent's internal constructor
-                superClass.getInternalClass().call(objectValue);
-            }
         };
         InternalClass.prototype = Object.create(definition.prototype);
         proxyConstructor = function () {
@@ -126,6 +121,7 @@ _.extend(NativeDefinitionBuilder.prototype, {
             methodData,
             {},
             rootInternalPrototype,
+            {},
             {},
             valueCoercer
         );

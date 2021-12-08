@@ -122,6 +122,15 @@ _.extend(PropertyReference.prototype, {
     },
 
     /**
+     * Fetches the native string name of this property.
+     *
+     * @returns {string}
+     */
+    getName: function () {
+        return this.key.getNative();
+    },
+
+    /**
      * Fetches a reference to this property's value
      *
      * @returns {Reference}

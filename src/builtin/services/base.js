@@ -13,6 +13,7 @@ var phpCommon = require('phpcommon'),
     Call = require('../../Call'),
     CallFactory = require('../../CallFactory'),
     CallStack = require('../../CallStack'),
+    ControlScope = require('../../Control/ControlScope'),
     FFICall = require('../../FFI/Call'),
     Translator = phpCommon.Translator,
 
@@ -43,6 +44,10 @@ module.exports = function (internals) {
                 get(ERROR_REPORTING),
                 get(STDERR)
             );
+        },
+
+        'control_scope': function () {
+            return new ControlScope();
         },
 
         'translator': function () {

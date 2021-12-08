@@ -31,7 +31,6 @@ module.exports = require('pauser')([
     require('./Core/Opcode/Opcode/ControlExpressionOpcode'),
     require('./Core/Opcode/Fetcher/ControlExpressionOpcodeFetcher'),
     require('./Control/ControlFactory'),
-    require('./Control/ControlScope'),
     require('./Core/Opcode/Opcode/ControlStructureOpcode'),
     require('./Core/Opcode/Fetcher/ControlStructureOpcodeFetcher'),
     require('./Core/Core'),
@@ -149,7 +148,6 @@ module.exports = require('pauser')([
     ControlExpressionOpcode,
     ControlExpressionOpcodeFetcher,
     ControlFactory,
-    ControlScope,
     ControlStructureOpcode,
     ControlStructureOpcodeFetcher,
     Core,
@@ -500,7 +498,7 @@ module.exports = require('pauser')([
             errorPromoter = set('error_promoter', new ErrorPromoter(errorReporting)),
             ffiValueStorage = set('ffi_value_storage', new FFIValueStorage()),
             controlBridge = new ControlBridge(Future, FutureValue, Value),
-            controlScope = new ControlScope(),
+            controlScope = get('control_scope'),
             opcodeFactory = new OpcodeFactory(
                 CalculationOpcode,
                 ControlExpressionOpcode,
@@ -523,7 +521,7 @@ module.exports = require('pauser')([
             )),
             callStack = get('call_stack'),
             pauseFactory = new PauseFactory(Pause, callStack, controlFactory, controlScope, mode),
-            userland = new Userland(callStack, controlScope, valueFactory, opcodePool, mode),
+            userland = new Userland(callStack, controlBridge, controlScope, valueFactory, opcodePool, mode),
             futureFactory = new FutureFactory(
                 controlFactory,
                 pauseFactory,
@@ -693,7 +691,6 @@ module.exports = require('pauser')([
             coreFactory;
 
         callFactory.setControlFactory(controlFactory);
-        controlFactory.setFlow(flow);
         flow.setFutureFactory(futureFactory);
         scopeFactory.setClosureFactory(closureFactory);
         globalScope = scopeFactory.create();
@@ -1336,6 +1333,15 @@ module.exports = require('pauser')([
          */
         getOutput: function () {
             return this.output;
+        },
+
+        /**
+         * Fetches the PauseFactory service.
+         *
+         * @returns {PauseFactory}
+         */
+        getPauseFactory: function () {
+            return this.pauseFactory;
         },
 
         /**

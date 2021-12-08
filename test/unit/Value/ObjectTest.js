@@ -43,6 +43,7 @@ describe('Object', function () {
         globalNamespace,
         namespaceScope,
         nativeObject,
+        nativeObjectPrototype,
         objectID,
         prop1,
         prop2,
@@ -70,7 +71,8 @@ describe('Object', function () {
         prop1 = factory.createString('the value of firstProp');
         prop2 = factory.createString('the value of secondProp');
         namespaceScope = sinon.createStubInstance(NamespaceScope);
-        nativeObject = {};
+        nativeObjectPrototype = {};
+        nativeObject = Object.create(nativeObjectPrototype);
         objectID = 21;
 
         callStack.getCurrentClass.returns(null);
@@ -468,72 +470,112 @@ describe('Object', function () {
     });
 
     describe('clone()', function () {
-        it('should return an instance created via Class.instantiateBare(...)', function () {
-            var cloneInstance = sinon.createStubInstance(ObjectValue);
-            classObject.instantiateBare
-                .withArgs([])
-                .returns(cloneInstance);
+        describe('for a non-JSObject instance', function () {
+            it('should return an instance created via Class.instantiateBare(...)', function () {
+                var cloneInstance = sinon.createStubInstance(ObjectValue);
+                classObject.instantiateBare
+                    .returns(cloneInstance);
 
-            expect(value.clone()).to.equal(cloneInstance);
+                expect(value.clone()).to.equal(cloneInstance);
+            });
+
+            it('should copy any instance properties from the original to the clone', function () {
+                var cloneInstance = sinon.createStubInstance(ObjectValue);
+                classObject.instantiateBare
+                    .returns(cloneInstance);
+
+                value.clone();
+
+                expect(cloneInstance.setProperty).to.have.been.calledTwice;
+                expect(cloneInstance.setProperty).to.have.been.calledWith('firstProp', sinon.match.same(prop1));
+                expect(cloneInstance.setProperty).to.have.been.calledWith('secondProp', sinon.match.same(prop2));
+            });
+
+            it('should call the magic __clone() method on the clone if defined', function () {
+                var cloneInstance = sinon.createStubInstance(ObjectValue);
+                classObject.instantiateBare
+                    .returns(cloneInstance);
+                cloneInstance.callMethod.returns(factory.createNull());
+                cloneInstance.isMethodDefined
+                    .withArgs('__clone')
+                    .returns(true);
+
+                value.clone();
+
+                expect(cloneInstance.callMethod).to.have.been.calledOnce;
+                expect(cloneInstance.callMethod).to.have.been.calledWith('__clone');
+            });
+
+            it('should eventually resolve with the clone', async function () {
+                var cloneInstance = sinon.createStubInstance(ObjectValue);
+                classObject.instantiateBare
+                    .returns(cloneInstance);
+                cloneInstance.callMethod
+                    .withArgs('__clone')
+                    .returns(factory.createNull());
+                cloneInstance.isMethodDefined
+                    .withArgs('__clone')
+                    .returns(true);
+                cloneInstance.toPromise.returns(Promise.resolve(cloneInstance));
+
+                expect(await value.clone().toPromise()).to.equal(cloneInstance);
+            });
+
+            it('should not call the magic __clone() method on the original if defined', function () {
+                var cloneInstance = sinon.createStubInstance(ObjectValue);
+                classObject.instantiateBare
+                    .returns(cloneInstance);
+                cloneInstance.isMethodDefined
+                    .withArgs('__clone')
+                    .returns(false);
+
+                value.clone();
+
+                expect(cloneInstance.callMethod).not.to.have.been.called;
+            });
         });
 
-        it('should copy any instance properties from the original to the clone', function () {
-            var cloneInstance = sinon.createStubInstance(ObjectValue);
-            classObject.instantiateBare
-                .withArgs([])
-                .returns(cloneInstance);
+        describe('for a JSObject instance', function () {
+            beforeEach(function () {
+                classObject.getName.returns('JSObject');
+                classObject.is
+                    .withArgs('JSObject')
+                    .returns(true);
 
-            value.clone();
+                globalNamespace.getClass
+                    .withArgs('JSObject')
+                    .returns(futureFactory.createPresent(classObject));
+            });
 
-            expect(cloneInstance.setProperty).to.have.been.calledTwice;
-            expect(cloneInstance.setProperty).to.have.been.calledWith('firstProp', sinon.match.same(prop1));
-            expect(cloneInstance.setProperty).to.have.been.calledWith('secondProp', sinon.match.same(prop2));
-        });
+            it('should return a new ObjectValue', function () {
+                var cloneInstance = value.clone();
 
-        it('should call the magic __clone() method on the clone if defined', function () {
-            var cloneInstance = sinon.createStubInstance(ObjectValue);
-            classObject.instantiateBare
-                .withArgs([])
-                .returns(cloneInstance);
-            cloneInstance.callMethod.returns(factory.createNull());
-            cloneInstance.isMethodDefined
-                .withArgs('__clone')
-                .returns(true);
+                expect(cloneInstance.getType()).to.equal('object');
+                expect(cloneInstance).not.to.equal(value);
+            });
 
-            value.clone();
+            it('should create a new native object for the clone ObjectValue', function () {
+                var cloneInstance = value.clone();
 
-            expect(cloneInstance.callMethod).to.have.been.calledOnce;
-            expect(cloneInstance.callMethod).to.have.been.calledWith('__clone');
-        });
+                expect(cloneInstance.getObject()).not.to.equal(nativeObject);
+            });
 
-        it('should eventually resolve with the clone', async function () {
-            var cloneInstance = sinon.createStubInstance(ObjectValue);
-            classObject.instantiateBare
-                .withArgs([])
-                .returns(cloneInstance);
-            cloneInstance.callMethod
-                .withArgs('__clone')
-                .returns(factory.createNull());
-            cloneInstance.isMethodDefined
-                .withArgs('__clone')
-                .returns(true);
-            cloneInstance.toPromise.returns(Promise.resolve(cloneInstance));
+            it('should give the clone native object the same internal [[Prototype]]', function () {
+                var cloneInstance = value.clone();
 
-            expect(await value.clone().toPromise()).to.equal(cloneInstance);
-        });
+                expect(Object.getPrototypeOf(cloneInstance.getObject())).to.equal(nativeObjectPrototype);
+            });
 
-        it('should not call the magic __clone() method on the original if defined', function () {
-            var cloneInstance = sinon.createStubInstance(ObjectValue);
-            classObject.instantiateBare
-                .withArgs([])
-                .returns(cloneInstance);
-            cloneInstance.isMethodDefined
-                .withArgs('__clone')
-                .returns(false);
+            it('should copy the enumerable own properties of the native object to the clone', function () {
+                var cloneInstance;
+                nativeObject.firstProp = 'first value';
+                nativeObject.secondProp = 'second value';
 
-            value.clone();
+                cloneInstance = value.clone();
 
-            expect(cloneInstance.callMethod).not.to.have.been.called;
+                expect(cloneInstance.getObject().firstProp).to.equal('first value');
+                expect(cloneInstance.getObject().secondProp).to.equal('second value');
+            });
         });
     });
 

@@ -21,7 +21,8 @@ var expect = require('chai').expect,
     NamespaceScope = require('../../../../src/NamespaceScope').sync(),
     PHPError = phpCommon.PHPError,
     PHPFatalError = phpCommon.PHPFatalError,
-    UserlandDefinitionBuilder = require('../../../../src/Class/Definition/UserlandDefinitionBuilder');
+    UserlandDefinitionBuilder = require('../../../../src/Class/Definition/UserlandDefinitionBuilder'),
+    ValueCoercer = require('../../../../src/FFI/Value/ValueCoercer');
 
 describe('UserlandDefinitionBuilder', function () {
     var builder,
@@ -44,6 +45,10 @@ describe('UserlandDefinitionBuilder', function () {
             );
         });
 
+        ffiFactory.createValueCoercer.callsFake(function (autoCoercionEnabled) {
+            return new ValueCoercer(autoCoercionEnabled);
+        });
+
         builder = new UserlandDefinitionBuilder(
             callStack,
             valueFactory,
@@ -58,6 +63,8 @@ describe('UserlandDefinitionBuilder', function () {
             firstInterface,
             interfaces,
             myConstantFactoryFunction,
+            myInstanceProperty,
+            myStaticProperty,
             namespace,
             namespaceScope,
             secondInterface,
@@ -65,12 +72,20 @@ describe('UserlandDefinitionBuilder', function () {
 
         beforeEach(function () {
             myConstantFactoryFunction = function () {};
+            myInstanceProperty = {my: 'instance prop'};
+            myStaticProperty = {my: 'static prop'};
             definitionStructure = {
                 constants: {
                     MY_CONST: myConstantFactoryFunction
                 },
                 methods: {
                     __construct: function () {}
+                },
+                properties: {
+                    myInstanceProperty: myInstanceProperty
+                },
+                staticProperties: {
+                    myStaticProperty: myStaticProperty
                 }
             };
             firstInterface = sinon.createStubInstance(Class);
@@ -92,7 +107,7 @@ describe('UserlandDefinitionBuilder', function () {
                     namespace,
                     namespaceScope,
                     interfaces,
-                    autoCoercionEnabled || true
+                    Boolean(autoCoercionEnabled)
                 );
             };
         });
@@ -118,6 +133,32 @@ describe('UserlandDefinitionBuilder', function () {
                 callBuildDefinition();
 
                 expect(definition.getName()).to.equal('My\\Stuff\\MyClass');
+            });
+
+            it('should have the correct Namespace reference', function () {
+                callBuildDefinition();
+
+                expect(definition.getNamespace()).to.equal(namespace);
+            });
+
+            it('should have the correct NamespaceScope reference', function () {
+                callBuildDefinition();
+
+                expect(definition.getNamespaceScope()).to.equal(namespaceScope);
+            });
+
+            it('should have the correct superclass reference', function () {
+                callBuildDefinition();
+
+                expect(definition.getSuperClass()).to.equal(superClass);
+            });
+
+            it('should have the correct interfaces', function () {
+                callBuildDefinition();
+
+                expect(definition.getInterfaces()).to.have.length(2);
+                expect(definition.getInterfaces()[0]).to.equal(firstInterface);
+                expect(definition.getInterfaces()[1]).to.equal(secondInterface);
             });
 
             it('should have the constants of the class definition', function () {
@@ -161,6 +202,40 @@ describe('UserlandDefinitionBuilder', function () {
                     PHPError.E_STRICT,
                     'Redefining already defined constructor for class MyClass'
                 );
+            });
+
+            it('should have the InternalClass\' prototype as the root internal prototype', function () {
+                callBuildDefinition();
+
+                expect(definition.getRootInternalPrototype()).to.equal(definition.getInternalClass().prototype);
+            });
+
+            it('should have the instance properties of the class definition', function () {
+                callBuildDefinition();
+
+                expect(definition.getInstanceProperties()).to.deep.equal({
+                    myInstanceProperty: myInstanceProperty
+                });
+            });
+
+            it('should have the static properties of the class definition', function () {
+                callBuildDefinition();
+
+                expect(definition.getStaticProperties()).to.deep.equal({
+                    myStaticProperty: myStaticProperty
+                });
+            });
+
+            it('should have an auto-coercing ValueCoercer when auto-coercion is enabled', function () {
+                callBuildDefinition('MyClass', true);
+
+                expect(definition.getValueCoercer().isAutoCoercionEnabled()).to.be.true;
+            });
+
+            it('should have a non-coercing ValueCoercer when auto-coercion is disabled', function () {
+                callBuildDefinition('MyClass', false);
+
+                expect(definition.getValueCoercer().isAutoCoercionEnabled()).to.be.false;
             });
         });
 
