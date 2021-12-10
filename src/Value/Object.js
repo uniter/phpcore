@@ -333,12 +333,12 @@ module.exports = require('pauser')([
             // Uncaught PHP Throwables become E_FATAL errors
 
             if (!value.classIs('Throwable')) {
-                // TODO: Change for PHP 7:
-                //       "Fatal error: Uncaught Error: Can only throw objects in Command line code:1"
-                //       "Fatal error: Uncaught Error: Cannot throw objects that do not implement Throwable in Command line code:1"
-                //       These will probably need to be handled with transpiler-level changes,
-                //       so that a throw statement becomes eg. `throwError(...)` as it is too late
-                //       to make these checks at this point, due to the original stack/context being lost
+                /*
+                 * Note that this should not be possible, as the "throw_" opcode handler
+                 * should throw the specific PHP error for an instance of a non-Throwable class:
+                 *
+                 * "Cannot throw objects that do not implement Throwable".
+                 */
                 throw new Exception('Weird value class thrown: ' + value.getClassName());
             }
 

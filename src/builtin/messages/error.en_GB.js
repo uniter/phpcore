@@ -17,12 +17,14 @@ module.exports = {
         'core': {
             'break_or_continue_in_wrong_context': '\'${type}\' not in the \'loop\' or \'switch\' context',
             'call_to_undefined_function': 'Call to undefined function ${name}()',
+            'can_only_throw_objects': 'Can only throw objects',
             'cannot_access_property': 'Cannot access ${visibility} property ${className}::$${propertyName}',
             'cannot_access_when_no_active_class': 'Cannot access ${className}:: when no class scope is active',
             'cannot_declare_class_as_name_already_in_use': 'Cannot declare class ${className} because the name is already in use',
             // NB: This translation is in fact different to the above, by a comma
             'cannot_redeclare_class_as_name_already_in_use': 'Cannot declare class ${className}, because the name is already in use',
             'cannot_implement_throwable': 'Class ${className} cannot implement interface Throwable, extend Exception or Error instead',
+            'cannot_throw_non_throwable_objects': 'Cannot throw objects that do not implement Throwable',
             'cannot_unset_static_property': 'Attempt to unset static property ${className}::$${propertyName}',
             'cannot_use_as_name_already_in_use': 'Cannot use ${source} as ${alias} because the name is already in use',
             'cannot_use_wrong_type_as': 'Cannot use object of type ${actual} as ${expected}',

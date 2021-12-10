@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP "try" statement integration', function () {
-    it('should allow a thrown exception to be caught', function () {
+    it('should allow a thrown exception created inline to be caught', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -26,6 +26,35 @@ class MyException extends Exception {}
 try {
     $result[] = 1;
     throw new MyException('Oh no');
+    $result[] = 2;
+} catch (NotMyException $ex2) {
+    $result[] = 3;
+} catch (MyException $ex1) {
+    $result[] = 4;
+} finally {
+    $result[] = 5;
+}
+$result[] = 6;
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php);
+
+        expect(module().execute().getNative()).to.deep.equal([1, 4, 5, 6]);
+    });
+
+    it('should allow a thrown exception stored in variable to be caught', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+class MyException extends Exception {}
+
+try {
+    $result[] = 1;
+    $myException = new MyException('Oh no');
+    throw $myException;
     $result[] = 2;
 } catch (NotMyException $ex2) {
     $result[] = 3;

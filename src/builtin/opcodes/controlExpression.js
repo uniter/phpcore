@@ -9,6 +9,12 @@
 
 'use strict';
 
+var phpCommon = require('phpcommon'),
+    PHPError = phpCommon.PHPError,
+
+    CAN_ONLY_THROW_OBJECTS = 'core.can_only_throw_objects',
+    CANNOT_THROW_NON_THROWABLE_OBJECTS = 'core.cannot_throw_non_throwable_objects';
+
 /**
  * Provides the control flow opcodes for the runtime API that the JS output by the transpiler calls into.
  *
@@ -16,6 +22,8 @@
  * @constructor
  */
 module.exports = function (internals) {
+    var callStack = internals.callStack;
+
     internals.setOpcodeFetcher('controlExpression');
 
     return {
@@ -53,6 +61,31 @@ module.exports = function (internals) {
          */
         ternary: function (conditionReference) {
             return conditionReference.getValue().coerceToBoolean().getNative();
+        },
+
+        /**
+         * Throws the given operand.
+         *
+         * Used by "throw ...;" statements.
+         *
+         * @param {Reference|Value|Variable} operandReference
+         * @returns {Value}
+         * @throws {Value}
+         */
+        throw_: function (operandReference) {
+            return operandReference.getValue().next(function (throwableValue) {
+                if (throwableValue.getType() !== 'object') {
+                    // Fatal error: Uncaught Error: Can only throw objects.
+                    callStack.raiseTranslatedError(PHPError.E_ERROR, CAN_ONLY_THROW_OBJECTS);
+                }
+
+                if (!throwableValue.classIs('Throwable')) {
+                    // Fatal error: Uncaught Error: Cannot throw objects that do not implement Throwable.
+                    callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_THROW_NON_THROWABLE_OBJECTS);
+                }
+
+                throw throwableValue;
+            });
         }
     };
 };
