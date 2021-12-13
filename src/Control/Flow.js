@@ -18,10 +18,11 @@ var _ = require('microdash');
  * @param {ControlFactory} controlFactory
  * @param {ControlBridge} controlBridge
  * @param {ControlScope} controlScope
+ * @param {FutureFactory} futureFactory
  * @param {string} mode
  * @constructor
  */
-function Flow(controlFactory, controlBridge, controlScope, mode) {
+function Flow(controlFactory, controlBridge, controlScope, futureFactory, mode) {
     /**
      * @type {ControlBridge}
      */
@@ -35,11 +36,9 @@ function Flow(controlFactory, controlBridge, controlScope, mode) {
      */
     this.controlScope = controlScope;
     /**
-     * FutureFactory service, injected by .setFutureFactory(...)
-     *
-     * @type {FutureFactory|null}
+     * @type {FutureFactory}
      */
-    this.futureFactory = null;
+    this.futureFactory = futureFactory;
     /**
      * @type {string}
      */
@@ -153,15 +152,6 @@ _.extend(Flow.prototype, {
                 }, reject)
                 .resume();
         });
-    },
-
-    /**
-     * Injects the FutureFactory service. Required due to a circular dependency.
-     *
-     * @param {FutureFactory} futureFactory
-     */
-    setFutureFactory: function (futureFactory) {
-        this.futureFactory = futureFactory;
     }
 });
 

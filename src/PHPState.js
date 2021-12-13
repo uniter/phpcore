@@ -509,7 +509,6 @@ module.exports = require('pauser')([
             ),
             opcodePool = new OpcodePool(opcodeFactory),
             controlFactory = new ControlFactory(Sequence, Trace, controlBridge, controlScope, opcodePool),
-            flow = new Flow(controlFactory, controlBridge, controlScope, mode),
             valueFactory = set('value_factory', new ValueFactory(
                 mode,
                 translator,
@@ -529,6 +528,7 @@ module.exports = require('pauser')([
                 controlBridge,
                 Future
             ),
+            flow = new Flow(controlFactory, controlBridge, controlScope, futureFactory, mode),
             referenceFactory = new ReferenceFactory(
                 AccessorReference,
                 ElementReference,
@@ -691,7 +691,6 @@ module.exports = require('pauser')([
             coreFactory;
 
         callFactory.setControlFactory(controlFactory);
-        flow.setFutureFactory(futureFactory);
         scopeFactory.setClosureFactory(closureFactory);
         globalScope = scopeFactory.create();
         scopeFactory.setGlobalNamespace(globalNamespace);

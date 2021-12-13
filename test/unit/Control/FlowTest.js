@@ -27,9 +27,9 @@ describe('Flow', function () {
             state.getControlFactory(),
             state.getControlBridge(),
             state.getControlScope(),
+            futureFactory,
             'async'
         );
-        flow.setFutureFactory(futureFactory);
     });
 
     describe('eachAsync()', function () {
