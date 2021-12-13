@@ -1181,7 +1181,7 @@ module.exports = require('pauser')([
          * Determines whether this iterator has finished iterating or not.
          * Used by transpiled foreach loops over objects implementing Iterator.
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>|boolean}
          */
         isNotFinished: function () {
             var value = this;

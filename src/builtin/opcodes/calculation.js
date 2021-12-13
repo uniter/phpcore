@@ -215,10 +215,13 @@ module.exports = function (internals) {
          * @returns {ReferenceSlot|Value}
          */
         callVariableInstanceMethod: function (objectReference, methodNameReference, argReferences) {
-            var objectValue = objectReference.getValue(),
-                methodName = methodNameReference.getValue().getNative();
+            var objectValue = objectReference.getValue();
 
-            return objectValue.callMethod(methodName, argReferences);
+            return methodNameReference.getValue().next(function (methodNameValue) {
+                var methodName = methodNameValue.getNative(); // Now guaranteed to be present.
+
+                return objectValue.callMethod(methodName, argReferences);
+            });
         },
 
         /**
@@ -447,9 +450,14 @@ module.exports = function (internals) {
          * Writes the given value to output. Note that unlike print() there is no return value.
          *
          * @param {Reference|Value|Variable} textReference
+         * @returns {FutureValue}
          */
         echo: function (textReference) {
-            output.write(textReference.getValue().coerceToString().getNative());
+            return textReference.getValue().coerceToString().next(function (textValue) {
+                var text = textValue.getNative(); // Guaranteed to be present by this point.
+
+                output.write(text);
+            });
         },
 
         /**
@@ -459,9 +467,11 @@ module.exports = function (internals) {
          * @returns {Value}
          */
         eval: function (codeReference) {
-            var code = codeReference.getValue().getNative();
+            return codeReference.getValue().next(function (codeValue) {
+                var code = codeValue.getNative(); // Guaranteed to be present by this point.
 
-            return evaluator.eval(code, callStack.getCurrentModuleScope().getEnvironment());
+                return evaluator.eval(code, callStack.getCurrentModuleScope().getEnvironment());
+            });
         },
 
         /**
@@ -751,12 +761,14 @@ module.exports = function (internals) {
          * Used by the `$$myVarName` and `${$myVarName}` constructs
          *
          * @param {Reference|Value|Variable} nameReference
-         * @returns {Variable}
+         * @returns {Future<Variable>}
          */
         getVariableVariable: function (nameReference) {
-            return nameReference.getValue().next(function (nameValue) {
-                return callStack.getCurrentScope().getVariable(nameValue.getNative());
-            });
+            return nameReference.getValue()
+                .asFuture() // Avoid auto-boxing the Variable result as an ObjectValue.
+                .next(function (nameValue) {
+                    return callStack.getCurrentScope().getVariable(nameValue.getNative());
+                });
         },
 
         /**
@@ -803,19 +815,22 @@ module.exports = function (internals) {
          * @throws {Error} When the loader throws a generic error
          */
         include: function (includedPathReference) {
-            var includedPath = includedPathReference.getValue().getNative(),
-                enclosingScope = callStack.getCurrentScope(),
+            var enclosingScope = callStack.getCurrentScope(),
                 moduleScope = callStack.getCurrentModuleScope();
 
-            return includer.include(
-                'include',
-                PHPError.E_WARNING, // For includes, only a warning is raised on failure
-                moduleScope.getEnvironment(),
-                moduleScope.getModule(),
-                includedPath,
-                enclosingScope,
-                optionSet.getOptions()
-            );
+            return includedPathReference.getValue().next(function (includedPathValue) {
+                var includedPath = includedPathValue.getNative(); // Guaranteed to be present by this point.
+
+                return includer.include(
+                    'include',
+                    PHPError.E_WARNING, // For includes, only a warning is raised on failure
+                    moduleScope.getEnvironment(),
+                    moduleScope.getModule(),
+                    includedPath,
+                    enclosingScope,
+                    optionSet.getOptions()
+                );
+            });
         },
 
         /**
@@ -830,19 +845,22 @@ module.exports = function (internals) {
          * @throws {Error} When the loader throws a generic error
          */
         includeOnce: function (includedPathReference) {
-            var includedPath = includedPathReference.getValue().getNative(),
-                enclosingScope = callStack.getCurrentScope(),
+            var enclosingScope = callStack.getCurrentScope(),
                 moduleScope = callStack.getCurrentModuleScope();
 
-            return onceIncluder.includeOnce(
-                'include_once',
-                PHPError.E_WARNING, // For includes, only a warning is raised on failure
-                moduleScope.getEnvironment(),
-                moduleScope.getModule(),
-                includedPath,
-                enclosingScope,
-                optionSet.getOptions()
-            );
+            return includedPathReference.getValue().next(function (includedPathValue) {
+                var includedPath = includedPathValue.getNative(); // Guaranteed to be present by this point.
+
+                return onceIncluder.includeOnce(
+                    'include_once',
+                    PHPError.E_WARNING, // For includes, only a warning is raised on failure
+                    moduleScope.getEnvironment(),
+                    moduleScope.getModule(),
+                    includedPath,
+                    enclosingScope,
+                    optionSet.getOptions()
+                );
+            });
         },
 
         /**
@@ -1274,15 +1292,19 @@ module.exports = function (internals) {
         },
 
         /**
-         * Writes the given value to output
+         * Writes the given value to output.
          *
          * @param {Reference|Value|Variable} textReference
-         * @returns {IntegerValue} Print statements always return int(1)
+         * @returns {FutureValue<IntegerValue>} Print statements always return int(1)
          */
         print: function (textReference) {
-            output.write(textReference.getValue().coerceToString().getNative());
+            return textReference.getValue().coerceToString().next(function (textValue) {
+                var text = textValue.getNative();
 
-            return valueFactory.createInteger(1); // Print statements always return int(1)
+                output.write(text);
+
+                return valueFactory.createInteger(1); // Print statements always return int(1).
+            });
         },
 
         /**
@@ -1338,19 +1360,22 @@ module.exports = function (internals) {
          * @throws {Error} When the loader throws a generic error
          */
         require: function (includedPathReference) {
-            var includedPath = includedPathReference.getValue().getNative(),
-                enclosingScope = callStack.getCurrentScope(),
+            var enclosingScope = callStack.getCurrentScope(),
                 moduleScope = callStack.getCurrentModuleScope();
 
-            return includer.include(
-                'require',
-                PHPError.E_ERROR, // For requires, a fatal error is raised on failure
-                moduleScope.getEnvironment(),
-                moduleScope.getModule(),
-                includedPath,
-                enclosingScope,
-                optionSet.getOptions()
-            );
+            return includedPathReference.getValue().next(function (includedPathValue) {
+                var includedPath = includedPathValue.getNative(); // Guaranteed to be present by this point.
+
+                return includer.include(
+                    'require',
+                    PHPError.E_ERROR, // For requires, a fatal error is raised on failure
+                    moduleScope.getEnvironment(),
+                    moduleScope.getModule(),
+                    includedPath,
+                    enclosingScope,
+                    optionSet.getOptions()
+                );
+            });
         },
 
         /**
@@ -1366,19 +1391,22 @@ module.exports = function (internals) {
          * @throws {Error} When the loader throws a generic error
          */
         requireOnce: function (includedPathReference) {
-            var includedPath = includedPathReference.getValue().getNative(),
-                enclosingScope = callStack.getCurrentScope(),
+            var enclosingScope = callStack.getCurrentScope(),
                 moduleScope = callStack.getCurrentModuleScope();
 
-            return onceIncluder.includeOnce(
-                'require_once',
-                PHPError.E_ERROR, // For requires, a fatal error is raised on failure
-                moduleScope.getEnvironment(),
-                moduleScope.getModule(),
-                includedPath,
-                enclosingScope,
-                optionSet.getOptions()
-            );
+            return includedPathReference.getValue().next(function (includedPathValue) {
+                var includedPath = includedPathValue.getNative(); // Guaranteed to be present by this point.
+
+                return onceIncluder.includeOnce(
+                    'require_once',
+                    PHPError.E_ERROR, // For requires, a fatal error is raised on failure
+                    moduleScope.getEnvironment(),
+                    moduleScope.getModule(),
+                    includedPath,
+                    enclosingScope,
+                    optionSet.getOptions()
+                );
+            });
         },
 
         setReference: function (targetReference, sourceReference) {

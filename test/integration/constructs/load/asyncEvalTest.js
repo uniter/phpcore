@@ -65,6 +65,44 @@ EOS
         });
     });
 
+    it('should support fetching the operand from accessor returning future', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$myVar = 'my value';
+
+$result = [];
+
+$result['eval of accessor variable containing code'] = eval($myAccessor);
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module({
+                eval: function (evalPHP, path, promise) {
+                    // Pause before resolving, to test async behaviour
+                    setImmediate(function () {
+                        promise.resolve(tools.asyncTranspile(path, evalPHP));
+                    });
+                }
+            });
+        engine.defineGlobalAccessor(
+            'myAccessor',
+            function () {
+                return this.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve('return $myVar;');
+                    });
+                });
+            }
+        );
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'eval of accessor variable containing code': 'my value'
+        });
+    });
+
     it('should correctly trap a parse error during eval of PHP code', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

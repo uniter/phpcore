@@ -133,4 +133,36 @@ EOS
             ]);
         });
     });
+
+    it('should support fetching the condition from accessor returning future in async mode', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+// Read the value from the accessor as the condition.
+if ($myAccessor) {
+    $result['accessor in condition'] = 'yes';
+}
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineGlobalAccessor(
+            'myAccessor',
+            function () {
+                return this.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve('my value');
+                    });
+                });
+            }
+        );
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'accessor in condition': 'yes'
+        });
+    });
 });

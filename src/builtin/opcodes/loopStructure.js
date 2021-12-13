@@ -34,7 +34,7 @@ module.exports = function (internals) {
          * Note that the condition is sometimes optional, eg. for a "for" loop.
          *
          * @param {Reference|Value|Variable=} conditionReference
-         * @returns {boolean}
+         * @returns {Future<boolean>|boolean}
          */
         loop: function (conditionReference) {
             if (!conditionReference) {
@@ -42,7 +42,7 @@ module.exports = function (internals) {
                 return true;
             }
 
-            return conditionReference.getValue().coerceToBoolean().getNative();
+            return conditionReference.getValue().coerceToBoolean().asEventualNative();
         }
     };
 };

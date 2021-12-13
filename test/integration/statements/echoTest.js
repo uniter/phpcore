@@ -11,39 +11,32 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('./tools');
+    tools = require('../tools');
 
-describe('PHP "print" expression integration', function () {
-    it('should correctly handle a print of "hello" in async mode', async function () {
+describe('PHP "echo" statement integration', function () {
+    it('should be able to echo the value of a variable or immediate string literal', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
-$result = [];
+$myVar = 'hello ';
 
-$result['print of immediate string literal'] = print 'hello';
-
-return $result;
+echo $myVar;
+echo 'world';
 EOS
-*/;}),//jshint ignore:line
-            module = tools.asyncTranspile('/path/to/my_module.php', php),
-            engine = module(),
-            stdoutResult = '';
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        engine.getStdout().on('data', function (data) {
-            stdoutResult += data;
-        });
+        engine.execute();
 
-        expect((await engine.execute()).getNative()).to.deep.equal({
-            'print of immediate string literal': 1
-        });
-        expect(stdoutResult).to.equal('hello');
+        expect(engine.getStdout().readAll()).to.equal('hello world');
     });
 
     it('should support fetching the operand from accessor returning future in async mode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
-print $myAccessor;
+echo $myAccessor;
 EOS
 */;}),//jshint ignore:line
             module = tools.asyncTranspile('/path/to/my_module.php', php),
@@ -53,7 +46,7 @@ EOS
             function () {
                 return this.createFutureValue(function (resolve) {
                     setImmediate(function () {
-                        resolve('my text to print');
+                        resolve('my text to echo');
                     });
                 });
             }
@@ -61,6 +54,6 @@ EOS
 
         await engine.execute();
 
-        expect(engine.getStdout().readAll()).to.equal('my text to print');
+        expect(engine.getStdout().readAll()).to.equal('my text to echo');
     });
 });

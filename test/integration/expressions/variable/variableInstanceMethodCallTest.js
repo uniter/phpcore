@@ -13,7 +13,7 @@ var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
     tools = require('../../tools');
 
-describe('PHP synchronous variable instance method call integration', function () {
+describe('PHP variable instance method call integration', function () {
     it('should correctly handle calling an instance method dynamically', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -88,5 +88,44 @@ EOS
             101,
             'added'
         ]);
+    });
+
+    it('should support fetching the method name from accessor returning future in async mode', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+class MyClass
+{
+    public function myMethod($add)
+    {
+        return 21 + $add;
+    }
+}
+
+$myObject = new MyClass;
+$myMethodName = 'myMethod';
+
+return [
+    'with dollar only' => $myObject->$myAccessor(2),
+    'with braces' => $myObject->{$myAccessor}(4)
+];
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineGlobalAccessor(
+            'myAccessor',
+            function () {
+                return this.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve('myMethod');
+                    });
+                });
+            }
+        );
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'with dollar only': 23,
+            'with braces': 25
+        });
     });
 });

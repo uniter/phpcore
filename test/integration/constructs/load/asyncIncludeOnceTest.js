@@ -68,4 +68,45 @@ EOS
             expect(includeTransport).to.have.been.calledOnce;
         });
     });
+
+    it('should support fetching the path from accessor returning future', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+$result['include of accessor variable containing path'] = include_once $myAccessor;
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module({
+                include: function (path, promise) {
+                    var php = nowdoc(function () {/*<<<EOS
+<?php
+return 'path was: ${path}';
+EOS
+*/;}, {path: path}); //jshint ignore:line
+
+                    setImmediate(function () {
+                        promise.resolve(tools.asyncTranspile(path, php));
+                    });
+                }
+            });
+        engine.defineGlobalAccessor(
+            'myAccessor',
+            function () {
+                return this.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve('/some/path/to_include.php');
+                    });
+                });
+            }
+        );
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'include of accessor variable containing path': 'path was: /some/path/to_include.php'
+        });
+    });
 });

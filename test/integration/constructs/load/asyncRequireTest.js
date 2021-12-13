@@ -73,6 +73,47 @@ EOS
         });
     });
 
+    it('should support fetching the path from accessor returning future', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+$result['require of accessor variable containing path'] = require $myAccessor;
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module({
+                include: function (path, promise) {
+                    var php = nowdoc(function () {/*<<<EOS
+<?php
+return 'path was: ${path}';
+EOS
+*/;}, {path: path}); //jshint ignore:line
+
+                    setImmediate(function () {
+                        promise.resolve(tools.asyncTranspile(path, php));
+                    });
+                }
+            });
+        engine.defineGlobalAccessor(
+            'myAccessor',
+            function () {
+                return this.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve('/some/path/to_require.php');
+                    });
+                });
+            }
+        );
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'require of accessor variable containing path': 'path was: /some/path/to_require.php'
+        });
+    });
+
     it('should correctly handle an asynchronous rejection', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

@@ -103,10 +103,10 @@ module.exports = function (internals) {
          * Handles the condition expression of an if statement, evaluating and coercing it to a native boolean.
          *
          * @param {Reference|Value|Variable} conditionReference
-         * @returns {boolean}
+         * @returns {Future<boolean>|boolean}
          */
         if_: function (conditionReference) {
-            return conditionReference.getValue().coerceToBoolean().getNative();
+            return conditionReference.getValue().coerceToBoolean().asEventualNative();
         },
 
         /**

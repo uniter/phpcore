@@ -173,4 +173,36 @@ EOS
             expect(engine.getStderr().readAll()).to.equal('');
         });
     });
+
+    it('should support fetching the left operand from accessor returning future in async mode', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+// Read the value from the accessor as an operand.
+$result['accessor on left'] = $myAccessor ?? 'my alternate value';
+$result['accessor on right'] = null ?? $myAccessor;
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineGlobalAccessor(
+            'myAccessor',
+            function () {
+                return this.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve('my value');
+                    });
+                });
+            }
+        );
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'accessor on left': 'my value',
+            'accessor on right': 'my value'
+        });
+    });
 });
