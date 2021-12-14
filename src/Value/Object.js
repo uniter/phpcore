@@ -144,6 +144,8 @@ module.exports = require('pauser')([
         /**
          * Moves the iterator to its next position.
          * Used by transpiled foreach loops over objects implementing Iterator.
+         *
+         * @returns {FutureValue}
          */
         advance: function () {
             var value = this;
@@ -152,7 +154,8 @@ module.exports = require('pauser')([
                 throw new Exception('Object.advance() :: Object does not implement Iterator');
             }
 
-            value.callMethod('next');
+            // Note that the return value is ignored, but may be a FutureValue which we must yield to.
+            return value.callMethod('next');
         },
 
         /**

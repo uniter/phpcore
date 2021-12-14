@@ -321,6 +321,14 @@ describe('Object', function () {
                 expect(classObject.callMethod).to.have.been.calledOnce;
                 expect(classObject.callMethod).to.have.been.calledWith('next');
             });
+
+            it('should return the result from the ->next() method', async function () {
+                classObject.callMethod
+                    .withArgs('next')
+                    .returns(factory.createString('my result'));
+
+                expect((await value.advance().toPromise()).getNative()).to.equal('my result');
+            });
         });
 
         describe('when the PHP object does not implement Iterator', function () {

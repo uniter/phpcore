@@ -100,4 +100,79 @@ EOS
             'MyCustomIterator::valid'
         ]);
     });
+
+    it('should support a pause from ->next() method in async mode', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+class MyCustomIterator implements Iterator
+{
+    private $myKeys = [
+        'first',
+        'second',
+        'third'
+    ];
+    private $myValues = [
+        'first' => 'first element',
+        'second' => 'second element',
+        'third' => 'last element',
+    ];
+    private $position = 0;
+
+    public function __construct() {
+        $this->position = 0;
+    }
+
+    public function rewind() {
+        $this->position = 0;
+    }
+
+    public function current() {
+        return $this->myValues[$this->myKeys[$this->position]];
+    }
+
+    public function key() {
+        return $this->myKeys[$this->position];
+    }
+
+    public function next() {
+        $GLOBALS['result'][] = get_async(__METHOD__); // Invoke a pause from ->next(), which is called internally.
+        ++$this->position;
+    }
+
+    public function valid() {
+        return isset($this->myKeys[$this->position], $this->myValues[$this->myKeys[$this->position]]);
+    }
+}
+
+$result = [];
+$myIterator = new MyCustomIterator;
+
+foreach ($myIterator as $key => $value) {
+    $result[] = [$key, $value];
+}
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineFunction('get_async', function (internals) {
+            return function (value) {
+                return internals.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(value);
+                    });
+                });
+            };
+        });
+
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            ['first', 'first element'],
+            'MyCustomIterator::next',
+            ['second', 'second element'],
+            'MyCustomIterator::next',
+            ['third', 'last element'],
+            'MyCustomIterator::next',
+        ]);
+    });
 });

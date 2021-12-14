@@ -61,9 +61,10 @@ module.exports = function (internals) {
          * Moves the iterator to the next position
          *
          * @param {ArrayIterator|ObjectValue} iterator
+         * @returns {FutureValue|undefined}
          */
         advance: function (iterator) {
-            iterator.advance();
+            return iterator.advance();
         },
 
         /**
