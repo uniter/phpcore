@@ -331,14 +331,23 @@ _.extend(Engine.prototype, {
             reject(error);
         }
 
+        /**
+         * Top-level entrypoint passed to Userland for all synchronicity modes.
+         *
+         * @returns {Value}
+         * @throws {Pause} When the result is an unresolved FutureValue.
+         */
         function topLevel() {
-            var result = wrapper(core);
+            var result = wrapper(core),
+                // Resolve the result to a value (which may be a FutureValue, eg. if returned from an accessor).
+                resultValue = result ?
+                    // Module may return a reference (eg. a variable), so always extract the value.
+                    result.getValue() :
+                    // Program returns null rather than undefined if nothing is returned.
+                    valueFactory.createNull();
 
-            return result ?
-                // Module may return a reference (eg. a variable), so always extract the value
-                result.getValue() :
-                // Program returns null rather than undefined if nothing is returned
-                valueFactory.createNull();
+            // Yield the value, which will raise a pause if an unresolved FutureValue in async mode.
+            return resultValue.yield();
         }
 
         // Asynchronous mode
@@ -370,7 +379,7 @@ _.extend(Engine.prototype, {
         }
 
         // Otherwise load the module synchronously
-        // TODO: Use Userland for sync behavior too to avoid branching here?
+        // TODO: Improve Userland for sync behavior to avoid branching here?
         try {
             try {
                 resultValue = userland.enterTopLevel(topLevel);
