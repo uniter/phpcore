@@ -62,9 +62,11 @@ module.exports = require('pauser')([
         },
         Exception = phpCommon.Exception,
         MAGIC_CLONE = '__clone',
+        MAGIC_TO_STRING = '__toString',
         PHPError = phpCommon.PHPError,
 
         CANNOT_ACCESS_PROPERTY = 'core.cannot_access_property',
+        CANNOT_CONVERT_OBJECT = 'core.cannot_convert_object',
         CANNOT_USE_WRONG_TYPE_AS = 'core.cannot_use_wrong_type_as',
         OBJECT_FROM_GET_ITERATOR_MUST_BE_TRAVERSABLE = 'core.object_from_get_iterator_must_be_traversable',
         UNDEFINED_PROPERTY = 'core.undefined_property';
@@ -357,8 +359,27 @@ module.exports = require('pauser')([
             return this;
         },
 
+        /**
+         * {@inheritdoc}
+         *
+         * @throws {ObjectValue} Raises an error when the class does not implement ->__toString()
+         */
         coerceToString: function () {
-            return this.callMethod('__toString');
+            var value = this;
+
+            if (!value.isMethodDefined(MAGIC_TO_STRING)) {
+                // Class does not implement ->__toString() magic, so instances cannot be coerced.
+                value.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    CANNOT_CONVERT_OBJECT,
+                    {
+                        className: value.classObject.getName(),
+                        type: 'string'
+                    }
+                );
+            }
+
+            return value.callMethod(MAGIC_TO_STRING);
         },
 
         /**

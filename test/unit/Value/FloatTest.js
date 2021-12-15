@@ -231,6 +231,26 @@ describe('Float', function () {
         });
     });
 
+    describe('concat()', function () {
+        it('should be able to concatenate with a FutureValue that resolves to another FloatValue', async function () {
+            var result = await value.concat(factory.createPresent(factory.createFloat(7.2))).toPromise();
+
+            expect(result.getType()).to.equal('string');
+            expect(result.getNative()).to.equal('217.2');
+        });
+
+        it('should be able to concatenate with an ObjectValue supporting ->__toString()', async function () {
+            var rightValue = sinon.createStubInstance(ObjectValue),
+                result;
+            rightValue.coerceToString.returns(factory.createPresent(factory.createString(' and my result')));
+
+            result = await value.concat(rightValue).toPromise();
+
+            expect(result.getType()).to.equal('string');
+            expect(result.getNative()).to.equal('21 and my result');
+        });
+    });
+
     describe('divideBy()', function () {
         it('should throw an "Unsupported operand" error for an array divisor', function () {
             var divisorValue = factory.createArray([]);

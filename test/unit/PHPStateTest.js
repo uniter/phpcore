@@ -134,7 +134,7 @@ describe('PHPState', function () {
             );
         });
 
-        it('should allow function group factories to access constants early', function () {
+        it('should allow function group factories to access constants early', async function () {
             state = new PHPState(
                 runtime,
                 globalStackHooker,
@@ -163,7 +163,7 @@ describe('PHPState', function () {
                 'async'
             );
 
-            expect(state.getFunction('getMyConstant').call().getNative()).to.equal(21);
+            expect((await state.getFunction('getMyConstant').call().toPromise()).getNative()).to.equal(21);
         });
 
         it('should define functions correctly with a FunctionSpec', function () {
@@ -191,7 +191,7 @@ describe('PHPState', function () {
                 .to.equal('myFunction');
         });
 
-        it('should allow functions to be aliased', function () {
+        it('should allow functions to be aliased', async function () {
             state = new PHPState(
                 runtime,
                 globalStackHooker,
@@ -214,7 +214,7 @@ describe('PHPState', function () {
                 'async'
             );
 
-            expect(state.getFunction('myAliasForFunc').call().getNative())
+            expect((await state.getFunction('myAliasForFunc').call().toPromise()).getNative())
                 .to.equal('my result');
         });
 
@@ -470,7 +470,7 @@ describe('PHPState', function () {
     });
 
     describe('aliasFunction()', function () {
-        it('should be able to alias a function defined inside a namespace', function () {
+        it('should be able to alias a function defined inside a namespace', async function () {
             state.defineCoercingFunction('My\\Stuff\\myOriginalFunc', function (arg1, arg2) {
                 return arg1 + arg2;
             });
@@ -478,13 +478,16 @@ describe('PHPState', function () {
             state.aliasFunction('My\\Stuff\\myOriginalFunc', 'myAliasFunc');
 
             expect(
-                state.getFunction('My\\Stuff\\myAliasFunc')
-                    .call(
-                        null,
-                        valueFactory.createInteger(21),
-                        valueFactory.createInteger(4)
-                    )
-                    .getNative()
+                (
+                    await state.getFunction('My\\Stuff\\myAliasFunc')
+                        .call(
+                            null,
+                            valueFactory.createInteger(21),
+                            valueFactory.createInteger(4)
+                        )
+                        .toPromise()
+                )
+                .getNative()
             ).to.equal(25);
         });
     });
@@ -501,21 +504,21 @@ describe('PHPState', function () {
     });
 
     describe('defineCoercingFunction()', function () {
-        it('should define a function that coerces its return value and unwraps its arguments', function () {
+        it('should define a function that coerces its return value and unwraps its arguments', async function () {
             var resultValue;
             state.defineCoercingFunction('double_it', function (numberToDouble) {
                 return numberToDouble * 2;
             });
 
-            resultValue = state.getFunction('double_it')(
+            resultValue = await state.getFunction('double_it')(
                 valueFactory.createInteger(21)
-            );
+            ).toPromise();
 
             expect(resultValue.getType()).to.equal('int');
             expect(resultValue.getNative()).to.equal(42);
         });
 
-        it('should be able to define a function in a namespace', function () {
+        it('should be able to define a function in a namespace', async function () {
             var namespace = state.getGlobalNamespace().getDescendant('My\\Stuff'),
                 resultValue;
             state.defineCoercingFunction('My\\Stuff\\double_it', function (numberToDouble) {
@@ -524,9 +527,9 @@ describe('PHPState', function () {
 
             // Explicitly fetch via the namespace, to ensure we aren't just erroneously
             // allowing function names to contain backslashes
-            resultValue = namespace.getFunction('double_it')(
+            resultValue = await namespace.getFunction('double_it')(
                 valueFactory.createInteger(21)
-            );
+            ).toPromise();
 
             expect(resultValue.getType()).to.equal('int');
             expect(resultValue.getNative()).to.equal(42);
@@ -550,7 +553,7 @@ describe('PHPState', function () {
     });
 
     describe('defineFunction()', function () {
-        it('should be able to define a coercing function', function () {
+        it('should be able to define a coercing function', async function () {
             var func,
                 resultValue;
             state.defineFunction('My\\Stuff\\my_multiplier', function () {
@@ -560,13 +563,13 @@ describe('PHPState', function () {
             });
             func = state.getFunction('My\\Stuff\\my_multiplier');
 
-            resultValue = func(valueFactory.createInteger(4), valueFactory.createInteger(3));
+            resultValue = await func(valueFactory.createInteger(4), valueFactory.createInteger(3)).toPromise();
 
             expect(resultValue.getType()).to.equal('int');
             expect(resultValue.getNative()).to.equal(12);
         });
 
-        it('should be able to define a non-coercing function', function () {
+        it('should be able to define a non-coercing function', async function () {
             var func,
                 resultValue;
             state.defineFunction('My\\Stuff\\my_multiplier', function (internals) {
@@ -578,7 +581,7 @@ describe('PHPState', function () {
             });
             func = state.getFunction('My\\Stuff\\my_multiplier');
 
-            resultValue = func(valueFactory.createInteger(4), valueFactory.createInteger(3));
+            resultValue = await func(valueFactory.createInteger(4), valueFactory.createInteger(3)).toPromise();
 
             expect(resultValue.getType()).to.equal('int');
             expect(resultValue.getNative()).to.equal(12);
@@ -634,21 +637,21 @@ describe('PHPState', function () {
     });
 
     describe('defineNonCoercingFunction()', function () {
-        it('should define a function that coerces its return value but does not unwrap its arguments', function () {
+        it('should define a function that coerces its return value but does not unwrap its arguments', async function () {
             var resultValue;
             state.defineNonCoercingFunction('double_it', function (numberToDoubleReference) {
                 return numberToDoubleReference.getValue().getNative() * 2;
             });
 
-            resultValue = state.getFunction('double_it')(
+            resultValue = await state.getFunction('double_it')(
                 valueFactory.createInteger(21)
-            );
+            ).toPromise();
 
             expect(resultValue.getType()).to.equal('int');
             expect(resultValue.getNative()).to.equal(42);
         });
 
-        it('should be able to define a function in a namespace', function () {
+        it('should be able to define a function in a namespace', async function () {
             var namespace = state.getGlobalNamespace().getDescendant('My\\Stuff'),
                 resultValue;
             state.defineNonCoercingFunction('My\\Stuff\\double_it', function (numberToDoubleReference) {
@@ -657,9 +660,9 @@ describe('PHPState', function () {
 
             // Explicitly fetch via the namespace, to ensure we aren't just erroneously
             // allowing function names to contain backslashes
-            resultValue = namespace.getFunction('double_it')(
+            resultValue = await namespace.getFunction('double_it')(
                 valueFactory.createInteger(21)
-            );
+            ).toPromise();
 
             expect(resultValue.getType()).to.equal('int');
             expect(resultValue.getNative()).to.equal(42);
@@ -783,19 +786,22 @@ describe('PHPState', function () {
     });
 
     describe('getFunction()', function () {
-        it('should be able to fetch a function defined inside a namespace', function () {
+        it('should be able to fetch a function defined inside a namespace', async function () {
             state.defineCoercingFunction('My\\Stuff\\myFunc', function (arg1, arg2) {
                 return arg1 + arg2;
             });
 
             expect(
-                state.getFunction('My\\Stuff\\myFunc')
-                    .call(
-                        null,
-                        valueFactory.createInteger(10),
-                        valueFactory.createInteger(7)
-                    )
-                    .getNative()
+                (
+                    await state.getFunction('My\\Stuff\\myFunc')
+                        .call(
+                            null,
+                            valueFactory.createInteger(10),
+                            valueFactory.createInteger(7)
+                        )
+                        .toPromise()
+                )
+                .getNative()
             ).to.equal(17);
         });
     });

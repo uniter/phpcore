@@ -112,18 +112,18 @@ describe('FunctionFactory', function () {
         });
 
         describe('the wrapper function returned', function () {
-            it('should return the result from the wrapped function coerced to a Value', function () {
+            it('should return the result from the wrapped function coerced to a Value', async function () {
                 var resultValue;
                 originalFunc.returns(123);
 
-                resultValue = callCreate()();
+                resultValue = await callCreate()().toPromise();
 
                 expect(resultValue.getType()).to.equal('int');
                 expect(resultValue.getNative()).to.equal(123);
             });
 
-            it('should pass the current Class to the ScopeFactory', function () {
-                callCreate()();
+            it('should pass the current Class to the ScopeFactory', async function () {
+                await callCreate()().toPromise();
 
                 expect(scopeFactory.create).to.have.been.calledOnce;
                 expect(scopeFactory.create).to.have.been.calledWith(
@@ -131,10 +131,10 @@ describe('FunctionFactory', function () {
                 );
             });
 
-            it('should pass the wrapper function to the ScopeFactory', function () {
+            it('should pass the wrapper function to the ScopeFactory', async function () {
                 var wrapperFunction = callCreate();
 
-                wrapperFunction();
+                await wrapperFunction().toPromise();
 
                 expect(scopeFactory.create).to.have.been.calledOnce;
                 expect(scopeFactory.create).to.have.been.calledWith(
@@ -143,10 +143,10 @@ describe('FunctionFactory', function () {
                 );
             });
 
-            it('should pass the `$this` object to the ScopeFactory when provided', function () {
+            it('should pass the `$this` object to the ScopeFactory when provided', async function () {
                 var currentObject = sinon.createStubInstance(Value);
 
-                callCreate(currentObject)();
+                await callCreate(currentObject)().toPromise();
 
                 expect(scopeFactory.create).to.have.been.calledOnce;
                 expect(scopeFactory.create).to.have.been.calledWith(
@@ -156,10 +156,10 @@ describe('FunctionFactory', function () {
                 );
             });
 
-            it('should pass the Scope to the CallFactory', function () {
+            it('should pass the Scope to the CallFactory', async function () {
                 var currentObject = sinon.createStubInstance(Value);
 
-                callCreate(currentObject)();
+                await callCreate(currentObject)().toPromise();
 
                 expect(callFactory.create).to.have.been.calledOnce;
                 expect(callFactory.create).to.have.been.calledWith(
@@ -167,10 +167,10 @@ describe('FunctionFactory', function () {
                 );
             });
 
-            it('should pass the NamespaceScope to the CallFactory', function () {
+            it('should pass the NamespaceScope to the CallFactory', async function () {
                 var currentObject = sinon.createStubInstance(Value);
 
-                callCreate(currentObject)();
+                await callCreate(currentObject)().toPromise();
 
                 expect(callFactory.create).to.have.been.calledOnce;
                 expect(callFactory.create).to.have.been.calledWith(
@@ -179,10 +179,10 @@ describe('FunctionFactory', function () {
                 );
             });
 
-            it('should pass the arguments to the CallFactory', function () {
+            it('should pass the arguments to the CallFactory', async function () {
                 var currentObject = sinon.createStubInstance(Value);
 
-                callCreate(currentObject)(21, 27);
+                await callCreate(currentObject)(21, 27).toPromise();
 
                 expect(callFactory.create).to.have.been.calledOnce;
                 expect(callFactory.create).to.have.been.calledWith(
@@ -192,12 +192,12 @@ describe('FunctionFactory', function () {
                 );
             });
 
-            it('should pass any "next" static class set', function () {
+            it('should pass any "next" static class set', async function () {
                 var newStaticClass = sinon.createStubInstance(Class),
                     wrappedFunc = callCreate();
                 factory.setNewStaticClassIfWrapped(wrappedFunc, newStaticClass);
 
-                wrappedFunc();
+                await wrappedFunc().toPromise();
 
                 expect(callFactory.create).to.have.been.calledOnce;
                 expect(callFactory.create).to.have.been.calledWith(
@@ -208,10 +208,10 @@ describe('FunctionFactory', function () {
                 );
             });
 
-            it('should pass any explicit static class set', function () {
+            it('should pass any explicit static class set', async function () {
                 var explicitStaticClass = sinon.createStubInstance(Class);
 
-                callCreate(null, explicitStaticClass)();
+                await callCreate(null, explicitStaticClass)().toPromise();
 
                 expect(callFactory.create).to.have.been.calledOnce;
                 expect(callFactory.create).to.have.been.calledWith(
@@ -222,8 +222,8 @@ describe('FunctionFactory', function () {
                 );
             });
 
-            it('should pass null as the new static class when no explicit or "next" one is set', function () {
-                callCreate()();
+            it('should pass null as the new static class when no explicit or "next" one is set', async function () {
+                await callCreate()().toPromise();
 
                 expect(callFactory.create).to.have.been.calledOnce;
                 expect(callFactory.create).to.have.been.calledWith(
@@ -234,10 +234,10 @@ describe('FunctionFactory', function () {
                 );
             });
 
-            it('should pass the (JS) `this` object as the (PHP) `$this` object when not provided', function () {
+            it('should pass the (JS) `this` object as the (PHP) `$this` object when not provided', async function () {
                 var jsThisObjectValue = sinon.createStubInstance(Value);
 
-                callCreate(null).call(jsThisObjectValue);
+                await callCreate(null).call(jsThisObjectValue).toPromise();
 
                 expect(scopeFactory.create).to.have.been.calledOnce;
                 expect(scopeFactory.create).to.have.been.calledWith(
@@ -247,10 +247,10 @@ describe('FunctionFactory', function () {
                 );
             });
 
-            it('should pass null as the `$this` object when not provided and a non-Value (JS) `this` object was used', function () {
+            it('should pass null as the `$this` object when not provided and a non-Value (JS) `this` object was used', async function () {
                 var nonValueThisObject = {};
 
-                callCreate(null).call(nonValueThisObject);
+                await callCreate(null).call(nonValueThisObject).toPromise();
 
                 expect(scopeFactory.create).to.have.been.calledOnce;
                 expect(scopeFactory.create).to.have.been.calledWith(
@@ -260,7 +260,7 @@ describe('FunctionFactory', function () {
                 );
             });
 
-            it('should coerce parameter arguments as required', function () {
+            it('should coerce parameter arguments as required', async function () {
                 var argValue1 = valueFactory.createInteger(21),
                     argValue2 = valueFactory.createInteger(101),
                     coercedArgValue1 = valueFactory.createInteger(42),
@@ -270,25 +270,25 @@ describe('FunctionFactory', function () {
                     .withArgs([sinon.match.same(argValue1), sinon.match.same(argValue2)])
                     .returns([coercedArgValue1, coercedArgValue2]);
 
-                wrappedFunc(argValue1, argValue2);
+                await wrappedFunc(argValue1, argValue2).toPromise();
 
                 expect(originalFunc).to.have.been.calledOnce;
                 expect(originalFunc).to.have.been.calledWith(coercedArgValue1, coercedArgValue2);
             });
 
-            it('should push the call onto the stack', function () {
-                callCreate()();
+            it('should push the call onto the stack', async function () {
+                await callCreate()().toPromise();
 
                 expect(callStack.push).to.have.been.calledOnce;
                 expect(callStack.push).to.have.been.calledWith(sinon.match.same(call));
             });
 
-            it('should validate parameter arguments at the right point', function () {
+            it('should validate parameter arguments at the right point', async function () {
                 var argValue1 = valueFactory.createInteger(21),
                     argValue2 = valueFactory.createInteger(101),
                     wrappedFunc = callCreate();
 
-                wrappedFunc(argValue1, argValue2);
+                await wrappedFunc(argValue1, argValue2).toPromise();
 
                 expect(functionSpec.validateArguments).to.have.been.calledOnce;
                 expect(functionSpec.validateArguments).to.have.been.calledWith([
@@ -310,12 +310,12 @@ describe('FunctionFactory', function () {
                     });
             });
 
-            it('should populate default argument values at the right point', function () {
+            it('should populate default argument values at the right point', async function () {
                 var argValue1 = valueFactory.createInteger(21),
                     argValue2 = valueFactory.createInteger(101),
                     wrappedFunc = callCreate();
 
-                wrappedFunc(argValue1, argValue2);
+                await wrappedFunc(argValue1, argValue2).toPromise();
 
                 expect(functionSpec.populateDefaultArguments).to.have.been.calledOnce;
                 expect(functionSpec.populateDefaultArguments).to.have.been.calledWith([
@@ -328,8 +328,8 @@ describe('FunctionFactory', function () {
                     .to.have.been.calledBefore(callStack.pop);
             });
 
-            it('should pop the call off the stack when the wrapped function returns', function () {
-                callCreate()();
+            it('should pop the call off the stack when the wrapped function returns', async function () {
+                await callCreate()().toPromise();
 
                 expect(callStack.pop).to.have.been.calledOnce;
             });
@@ -345,18 +345,18 @@ describe('FunctionFactory', function () {
                     });
             });
 
-            it('should pass the scope as the thisObject when calling the wrapped function', function () {
-                callCreate()();
+            it('should pass the scope as the thisObject when calling the wrapped function', async function () {
+                await callCreate()().toPromise();
 
                 expect(originalFunc).to.have.been.calledOn(sinon.match.same(scope));
             });
 
-            it('should pass arguments through to the wrapped function', function () {
+            it('should pass arguments through to the wrapped function', async function () {
                 var argValue1 = valueFactory.createInteger(123),
                     argValue2 = valueFactory.createString('second'),
                     argValue3 = valueFactory.createString('another');
 
-                callCreate()(argValue1, argValue2, argValue3);
+                await callCreate()(argValue1, argValue2, argValue3).toPromise();
 
                 expect(originalFunc).to.have.been.calledOnce;
                 expect(originalFunc).to.have.been.calledWith(

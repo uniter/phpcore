@@ -72,8 +72,8 @@ describe('Loader (sync mode)', function () {
             subEngine.execute.returns(valueFactory.createString('my sync module result'));
         });
 
-        it('should return the result resolved by the load callback', function () {
-            var resultValue = loader.load(
+        it('should return the result resolved by the load callback', async function () {
+            var resultValue = await loader.load(
                 'include',
                 '/path/to/my/module.php',
                 {},
@@ -81,15 +81,15 @@ describe('Loader (sync mode)', function () {
                 module,
                 enclosingScope,
                 loadCallback
-            );
+            ).toPromise();
 
             expect(resultValue).to.be.an.instanceOf(Value);
             expect(resultValue.getType()).to.equal('string');
             expect(resultValue.getNative()).to.equal('my sync module result');
         });
 
-        it('should pass the path to the resource being loaded to the load callback', function () {
-            loader.load(
+        it('should pass the path to the resource being loaded to the load callback', async function () {
+            await loader.load(
                 'include',
                 '/path/to/my/module.php',
                 {},
@@ -97,14 +97,14 @@ describe('Loader (sync mode)', function () {
                 module,
                 enclosingScope,
                 loadCallback
-            );
+            ).toPromise();
 
             expect(loadCallback).to.have.been.calledOnce;
             expect(loadCallback).to.have.been.calledWith('/path/to/my/module.php');
         });
 
-        it('should pass the path to the current module performing the load to the load callback', function () {
-            loader.load(
+        it('should pass the path to the current module performing the load to the load callback', async function () {
+            await loader.load(
                 'include',
                 '/path/to/my/module.php',
                 {},
@@ -112,7 +112,7 @@ describe('Loader (sync mode)', function () {
                 module,
                 enclosingScope,
                 loadCallback
-            );
+            ).toPromise();
 
             expect(loadCallback).to.have.been.calledOnce;
             expect(loadCallback).to.have.been.calledWith(
@@ -122,8 +122,8 @@ describe('Loader (sync mode)', function () {
             );
         });
 
-        it('should pass the path to the ValueFactory to the load callback', function () {
-            loader.load(
+        it('should pass the path to the ValueFactory to the load callback', async function () {
+            await loader.load(
                 'include',
                 '/path/to/my/module.php',
                 {},
@@ -131,7 +131,7 @@ describe('Loader (sync mode)', function () {
                 module,
                 enclosingScope,
                 loadCallback
-            );
+            ).toPromise();
 
             expect(loadCallback).to.have.been.calledOnce;
             expect(loadCallback).to.have.been.calledWith(
@@ -142,8 +142,8 @@ describe('Loader (sync mode)', function () {
             );
         });
 
-        it('should pass the sub module options to the module factory function', function () {
-            loader.load(
+        it('should pass the sub module options to the module factory function', async function () {
+            await loader.load(
                 'include',
                 '/path/to/my/module.php',
                 {
@@ -153,7 +153,7 @@ describe('Loader (sync mode)', function () {
                 module,
                 enclosingScope,
                 loadCallback
-            );
+            ).toPromise();
 
             expect(moduleFactoryFunction).to.have.been.calledOnce;
             expect(moduleFactoryFunction).to.have.been.calledWith(sinon.match({
@@ -161,8 +161,8 @@ describe('Loader (sync mode)', function () {
             }));
         });
 
-        it('should normalise the file path passed to the module factory function', function () {
-            loader.load(
+        it('should normalise the file path passed to the module factory function', async function () {
+            await loader.load(
                 'include',
                 // Ensure the same-dir and parent-dir symbols here are normalised below
                 '/path/./to/../my/module.php',
@@ -171,7 +171,7 @@ describe('Loader (sync mode)', function () {
                 module,
                 enclosingScope,
                 loadCallback
-            );
+            ).toPromise();
 
             expect(moduleFactoryFunction).to.have.been.calledOnce;
             expect(moduleFactoryFunction).to.have.been.calledWith(sinon.match({
@@ -180,8 +180,8 @@ describe('Loader (sync mode)', function () {
             }));
         });
 
-        it('should pass the Environment to the module factory function', function () {
-            loader.load(
+        it('should pass the Environment to the module factory function', async function () {
+            await loader.load(
                 'include',
                 '/path/to/my/module.php',
                 {
@@ -191,7 +191,7 @@ describe('Loader (sync mode)', function () {
                 module,
                 enclosingScope,
                 loadCallback
-            );
+            ).toPromise();
 
             expect(moduleFactoryFunction).to.have.been.calledOnce;
             expect(moduleFactoryFunction).to.have.been.calledWith(
@@ -200,8 +200,8 @@ describe('Loader (sync mode)', function () {
             );
         });
 
-        it('should pass the enclosing Scope to the module factory function', function () {
-            loader.load(
+        it('should pass the enclosing Scope to the module factory function', async function () {
+            await loader.load(
                 'include',
                 '/path/to/my/module.php',
                 {
@@ -211,7 +211,7 @@ describe('Loader (sync mode)', function () {
                 module,
                 enclosingScope,
                 loadCallback
-            );
+            ).toPromise();
 
             expect(moduleFactoryFunction).to.have.been.calledOnce;
             expect(moduleFactoryFunction).to.have.been.calledWith(
@@ -221,8 +221,8 @@ describe('Loader (sync mode)', function () {
             );
         });
 
-        it('should use a Value returned by the load callback as the module\'s returned value', function () {
-            var resultValue = loader.load(
+        it('should use a Value returned by the load callback as the module\'s returned value', async function () {
+            var resultValue = await loader.load(
                 'include',
                 '/path/to/my/module.php',
                 {},
@@ -232,7 +232,7 @@ describe('Loader (sync mode)', function () {
                 function (path, promise) {
                     promise.resolve(valueFactory.createString('my fixed module result'));
                 }
-            );
+            ).toPromise();
 
             expect(resultValue).to.be.an.instanceOf(Value);
             expect(resultValue.getType()).to.equal('string');

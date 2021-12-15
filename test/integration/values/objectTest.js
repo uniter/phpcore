@@ -11,10 +11,12 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../tools');
+    phpCommon = require('phpcommon'),
+    tools = require('../tools'),
+    PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP object value integration', function () {
-    it('should correctly coerce instances of classes implementing __toString() in sync mode', function () {
+    it('should correctly coerce instances of classes implementing ->__toString() in sync mode', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -51,5 +53,33 @@ EOS
             'when explicitly cast to string': 'my string representation with: my value',
             'when implicitly cast to string via concatenation': 'my string representation with: my value (and then some)'
         });
+    });
+
+    it('should raise an error when attempting to coerce instances of classes not implementing ->__toString in sync mode', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass
+{
+}
+
+$myObject = new MyClass;
+
+$result = [];
+
+$result['my object as string'] = (string)$myObject; // This should raise an error.
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect(function () {
+            engine.execute();
+        }).to.throw(
+            PHPFatalError,
+            'Fatal error: Uncaught Error: Object of class MyClass could not be converted to string in /path/to/my_module.php on line 11'
+        );
     });
 });

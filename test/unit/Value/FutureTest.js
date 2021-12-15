@@ -152,12 +152,36 @@ describe('FutureValue', function () {
         });
     });
 
+    describe('coerceToInteger()', function () {
+        it('should be able to coerce a value to integer', async function () {
+            var result;
+            createValue(futureFactory.createPresent(factory.createString('21')));
+
+            result = await value.coerceToInteger().toPromise();
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(21);
+        });
+    });
+
     describe('coerceToKey()', function () {
         it('should be able to coerce a value to a valid key value', async function () {
             var result;
             createValue(futureFactory.createPresent(factory.createFloat(21.78)));
 
             result = await value.coerceToKey().toPromise();
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(21);
+        });
+    });
+
+    describe('coerceToNumber()', function () {
+        it('should be able to coerce a value to a number', async function () {
+            var result;
+            createValue(futureFactory.createPresent(factory.createString('21')));
+
+            result = await value.coerceToNumber().toPromise();
 
             expect(result.getType()).to.equal('int');
             expect(result.getNative()).to.equal(21);
@@ -177,7 +201,7 @@ describe('FutureValue', function () {
     });
 
     describe('concat()', function () {
-        it('should be able to add to an IntegerValue', async function () {
+        it('should be able to concatenate with a FloatValue', async function () {
             var result;
             createValue(futureFactory.createPresent(factory.createFloat(1.2)));
 
@@ -266,10 +290,15 @@ describe('FutureValue', function () {
     });
 
     describe('getNative()', function () {
-        it('should return the native value when the future is already resolved', function () {
+        it('should throw even when the future is already resolved', function () {
             createValue(futureFactory.createPresent(factory.createString('my result')));
 
-            expect(value.getNative()).to.equal('my result');
+            expect(function () {
+                value.getNative();
+            }).to.throw(
+                Exception,
+                'Unable to call .getNative() on a FutureValue - did you mean to call .yieldSync()?'
+            );
         });
 
         it('should throw when the future is still pending', function () {
@@ -277,23 +306,36 @@ describe('FutureValue', function () {
 
             expect(function () {
                 value.getNative();
-            }).to.throw(Exception, 'Cannot synchronously yield a pending Future');
+            }).to.throw(
+                Exception,
+                'Unable to call .getNative() on a FutureValue - did you mean to call .yieldSync()?'
+            );
         });
     });
 
     describe('getType()', function () {
-        it('should return the type when the future is already resolved', function () {
+        it('should return "future" even when the future is already resolved', function () {
             createValue(futureFactory.createPresent(factory.createString('my result')));
 
-            expect(value.getType()).to.equal('string');
+            expect(value.getType()).to.equal('future');
         });
 
-        it('should throw when the future is still pending', function () {
+        it('should return "future" when the future is still pending', function () {
             createValue(futureFactory.createFuture(function () {/* Never resolved */}));
 
-            expect(function () {
-                value.getType();
-            }).to.throw(Exception, 'Cannot synchronously yield a pending Future');
+            expect(value.getType()).to.equal('future');
+        });
+    });
+
+    describe('increment()', function () {
+        it('should be able to increment', async function () {
+            var result;
+            createValue(futureFactory.createPresent(factory.createInteger(21)));
+
+            result = await value.increment().toPromise();
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(22);
         });
     });
 

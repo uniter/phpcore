@@ -726,6 +726,46 @@ describe('Object', function () {
         });
     });
 
+    describe('concat()', function () {
+        it('should raise an error when the class does not implement ->__toString()', function () {
+            expect(function () {
+                value.concat(factory.createString('hello'));
+            }).to.throw(
+                'Fake PHP Fatal error for #core.cannot_convert_object with {"className":"My\\\\Space\\\\AwesomeClass","type":"string"}'
+            );
+        });
+
+        it('should be able to concatenate with a FutureValue that resolves to a FloatValue', async function () {
+            var result;
+            classObject.callMethod
+                .withArgs('__toString')
+                .returns(factory.createString('hello '));
+            classObject.getMethodSpec
+                .withArgs('__toString')
+                .returns(sinon.createStubInstance(MethodSpec));
+
+            result = await value.concat(factory.createPresent(factory.createFloat(7.2))).toPromise();
+
+            expect(result.getType()).to.equal('string');
+            expect(result.getNative()).to.equal('hello 7.2');
+        });
+
+        it('should be able to concatenate when this ->__toString() returns a FutureValue', async function () {
+            var result;
+            classObject.callMethod
+                .withArgs('__toString')
+                .returns(factory.createPresent(factory.createString('hello ')));
+            classObject.getMethodSpec
+                .withArgs('__toString')
+                .returns(sinon.createStubInstance(MethodSpec));
+
+            result = await value.concat(factory.createFloat(123.4)).toPromise();
+
+            expect(result.getType()).to.equal('string');
+            expect(result.getNative()).to.equal('hello 123.4');
+        });
+    });
+
     describe('declareProperty()', function () {
         it('should leave the property undefined', function () {
             value.declareProperty('myUndefinedProp');

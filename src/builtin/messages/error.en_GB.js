@@ -20,6 +20,7 @@ module.exports = {
             'can_only_throw_objects': 'Can only throw objects',
             'cannot_access_property': 'Cannot access ${visibility} property ${className}::$${propertyName}',
             'cannot_access_when_no_active_class': 'Cannot access ${className}:: when no class scope is active',
+            'cannot_convert_object': 'Object of class ${className} could not be converted to ${type}',
             'cannot_declare_class_as_name_already_in_use': 'Cannot declare class ${className} because the name is already in use',
             // NB: This translation is in fact different to the above, by a comma
             'cannot_redeclare_class_as_name_already_in_use': 'Cannot declare class ${className}, because the name is already in use',

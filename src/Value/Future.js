@@ -10,7 +10,9 @@
 'use strict';
 
 var _ = require('microdash'),
+    phpCommon = require('phpcommon'),
     util = require('util'),
+    Exception = phpCommon.Exception,
     Promise = require('lie'),
     Sequence = require('../Control/Sequence'),
     Value = require('../Value').sync();
@@ -121,6 +123,15 @@ _.extend(FutureValue.prototype, {
     /**
      * {@inheritdoc}
      */
+    coerceToInteger: function () {
+        return this.derive().next(function (presentValue) {
+            return presentValue.coerceToInteger();
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     coerceToKey: function () {
         return this.derive().next(function (presentValue) {
             return presentValue.coerceToKey();
@@ -188,16 +199,16 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     getNative: function () {
-        // Note that .yieldSync() will error if the future is still pending
-        return this.future.yieldSync().getNative();
+        throw new Exception('Unable to call .getNative() on a FutureValue - did you mean to call .yieldSync()?');
     },
 
     /**
      * {@inheritdoc}
      */
-    getType: function () {
-        // Note that .yieldSync() will error if the future is still pending
-        return this.future.yieldSync().getType();
+    increment: function () {
+        return this.derive().next(function (presentValue) {
+            return presentValue.increment();
+        });
     },
 
     /**

@@ -342,16 +342,25 @@ module.exports = require('pauser')([
          * @returns {StringValue}
          */
         concat: function (rightValue) {
-            var leftValue = this;
+            var leftValue = this,
+                coercedLeftValue = leftValue.coerceToString(),
+                coercedRightValue = rightValue.coerceToString();
 
-            if (rightValue.isFuture()) {
-                return rightValue.derive().next(function (rightValue) {
+            // This value could coerce to a future, eg. if an ObjectValue implementing ->__toString().
+            if (coercedLeftValue.isFuture()) {
+                return coercedLeftValue.derive().next(function (leftValue) {
+                    return leftValue.concat(rightValue);
+                });
+            }
+
+            if (coercedRightValue.isFuture()) {
+                return coercedRightValue.derive().next(function (rightValue) {
                     return leftValue.concat(rightValue);
                 });
             }
 
             return leftValue.factory.createString(
-                leftValue.coerceToString().getNative() + rightValue.coerceToString().getNative()
+                coercedLeftValue.getNative() + coercedRightValue.getNative()
             );
         },
 
