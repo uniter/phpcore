@@ -126,6 +126,23 @@ describe('Boolean', function () {
         });
     });
 
+    describe('decrement()', function () {
+        // NB: Yes, this is actually the correct behaviour, vs. subtracting one from a boolean explicitly.
+        it('should return the boolean unchanged when true', function () {
+            var resultValue = value.decrement();
+
+            expect(resultValue.getNative()).to.be.true;
+        });
+
+        it('should return the boolean unchanged when false', function () {
+            var resultValue;
+            createValue(false);
+            resultValue = value.decrement();
+
+            expect(resultValue.getNative()).to.be.false;
+        });
+    });
+
     describe('divideBy()', function () {
         it('should throw an "Unsupported operand" error for an array divisor', function () {
             var divisorValue = factory.createArray([]);
@@ -435,6 +452,23 @@ describe('Boolean', function () {
     describe('getValueOrNull()', function () {
         it('should just return this value, as values are always classed as "defined"', function () {
             expect(value.getValueOrNull()).to.equal(value);
+        });
+    });
+
+    describe('increment()', function () {
+        // NB: Yes, this is actually the correct behaviour, vs. adding one to a boolean explicitly.
+        it('should return the boolean unchanged when true', function () {
+            var resultValue = value.increment();
+
+            expect(resultValue.getNative()).to.be.true;
+        });
+
+        it('should return the boolean unchanged when false', function () {
+            var resultValue;
+            createValue(false);
+            resultValue = value.increment();
+
+            expect(resultValue.getNative()).to.be.false;
         });
     });
 

@@ -231,6 +231,15 @@ describe('Null', function () {
         });
     });
 
+    describe('decrement()', function () {
+        // NB: Yes, this is actually the correct behaviour, vs. subtracting one from null explicitly.
+        it('should just return null', function () {
+            var resultValue = value.decrement();
+
+            expect(resultValue.getNative()).to.be.null;
+        });
+    });
+
     describe('divideBy()', function () {
         it('should throw an "Unsupported operand" error for an array divisor', function () {
             var divisorValue = factory.createArray([]);
@@ -459,6 +468,15 @@ describe('Null', function () {
     describe('getValueOrNull()', function () {
         it('should just return this value, as values are always classed as "defined"', function () {
             expect(value.getValueOrNull()).to.equal(value);
+        });
+    });
+
+    describe('increment()', function () {
+        it('should return int(1)', function () {
+            var resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(1);
         });
     });
 

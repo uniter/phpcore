@@ -33,8 +33,17 @@ module.exports = require('pauser')([
                 }
             });
         },
-        throwUnimplemented = function () {
-            throw new Error('Unimplemented');
+
+        /**
+         * Generates a function that will throw to indicate an unimplemented method when called.
+         *
+         * @param {string} functionName
+         * @returns {Function}
+         */
+        throwUnimplemented = function (functionName) {
+            return function () {
+                throw new Error(functionName + '() :: Not implemented');
+            };
         };
 
     /**
@@ -210,7 +219,7 @@ module.exports = require('pauser')([
          * @param {Reference[]|Value[]|Variable[]} args
          * @returns {Reference|Value}
          */
-        call: throwUnimplemented,
+        call: throwUnimplemented('call'),
 
         /**
          * Calls a method on an object
@@ -333,7 +342,12 @@ module.exports = require('pauser')([
             });
         },
 
-        coerceToString: throwUnimplemented,
+        /**
+         * Coerces this value to a string, if possible.
+         *
+         * @returns {FutureValue<StringValue>|StringValue}
+         */
+        coerceToString: throwUnimplemented('coerceToString'),
 
         /**
          * Concatenates this value's string representation with the provided other value's
@@ -364,7 +378,16 @@ module.exports = require('pauser')([
             );
         },
 
-        decrement: throwUnimplemented,
+        /**
+         * Coerces this value to a number and subtracts one from it.
+         *
+         * @returns {Value}
+         */
+        decrement: function () {
+            var value = this;
+
+            return value.factory.createInteger(value.getNative() - 1);
+        },
 
         /**
          * Derives a new value from this one that will be resumed/thrown-into
@@ -433,9 +456,14 @@ module.exports = require('pauser')([
          *
          * @returns {string}
          */
-        formatAsString: throwUnimplemented,
+        formatAsString: throwUnimplemented('formatAsString'),
 
-        getCallableName: throwUnimplemented,
+        /**
+         * Generates a string representing how this value could be called.
+         *
+         * @returns {string}
+         */
+        getCallableName: throwUnimplemented('getCallableName'),
 
         /**
          * Fetches a constant of a class by its name
@@ -461,7 +489,13 @@ module.exports = require('pauser')([
             return this;
         },
 
-        getInstancePropertyByName: throwUnimplemented,
+        /**
+         * Fetches an instance property of this object by its name.
+         *
+         * @param {Reference|Value|Variable} nameReference
+         * @returns {PropertyReference}
+         */
+        getInstancePropertyByName: throwUnimplemented('getInstancePropertyByName'),
 
         getLength: function () {
             return this.coerceToString().getLength();
@@ -551,7 +585,13 @@ module.exports = require('pauser')([
             this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
         },
 
-        isAnInstanceOf: throwUnimplemented,
+        /**
+         * Determines whether this value is an instance of the given class or interface.
+         *
+         * @param {Reference|Value|Variable} classNameReference
+         * @returns {BooleanValue}
+         */
+        isAnInstanceOf: throwUnimplemented('isAnInstanceOf'),
 
         /**
          * Determines whether this value is callable
@@ -559,7 +599,7 @@ module.exports = require('pauser')([
          * @param {Namespace} globalNamespace
          * @returns {Future<boolean>}
          */
-        isCallable: throwUnimplemented,
+        isCallable: throwUnimplemented('isCallable'),
 
         /**
          * Determines whether this reference or value is defined
@@ -585,7 +625,7 @@ module.exports = require('pauser')([
          *
          * @returns {boolean}
          */
-        isIterable: throwUnimplemented,
+        isIterable: throwUnimplemented('isIterable'),
 
         /**
          * Determines whether this value is the class of another value
@@ -641,7 +681,7 @@ module.exports = require('pauser')([
          *
          * @returns {Future<boolean>}
          */
-        isEmpty: throwUnimplemented,
+        isEmpty: throwUnimplemented('isEmpty'),
 
         /**
          * Determines whether this value is loosely equal to the provided other value
@@ -868,7 +908,7 @@ module.exports = require('pauser')([
          *
          * @returns {boolean}
          */
-        isNumeric: throwUnimplemented,
+        isNumeric: throwUnimplemented('isNumeric'),
 
         /**
          * Determines whether this value is classed as "set" or not

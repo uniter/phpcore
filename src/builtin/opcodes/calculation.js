@@ -169,6 +169,15 @@ module.exports = function (internals) {
             return barewordString.call(argReferences);
         },
 
+        /**
+         * Calls a PHP instance method where the name is known statically, returning its result
+         * as a Value if it returns by-value or as a ReferenceSlot if it returns by-reference.
+         *
+         * @param {Reference|Value|Variable} objectReference
+         * @param {string} methodName
+         * @param {Reference[]|Value[]|Variable[]} argReferences
+         * @returns {ReferenceSlot|Value}
+         */
         callInstanceMethod: function (objectReference, methodName, argReferences) {
             var objectValue = objectReference.getValue();
 

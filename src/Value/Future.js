@@ -98,6 +98,15 @@ _.extend(FutureValue.prototype, {
     },
 
     /**
+     * {@inheritdoc}
+     */
+    call: function (argReferences) {
+        return this.derive().next(function (leftValue) {
+            return leftValue.call(argReferences);
+        });
+    },
+
+    /**
      * Attaches a callback to be called when the value evaluation resulted in an error.
      *
      * @param {Function} rejectHandler
@@ -153,6 +162,15 @@ _.extend(FutureValue.prototype, {
     concat: function (rightValue) {
         return this.derive().next(function (leftValue) {
             return leftValue.concat(rightValue);
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    decrement: function () {
+        return this.derive().next(function (presentValue) {
+            return presentValue.decrement();
         });
     },
 

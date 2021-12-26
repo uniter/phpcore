@@ -124,6 +124,21 @@ describe('FutureValue', function () {
         });
     });
 
+    describe('call()', function () {
+        it('should be able to call the eventual resolved value', async function () {
+            var arg1 = factory.createString('first arg'),
+                arg2 = factory.createString('second arg'),
+                resolvedValue = sinon.createStubInstance(Value),
+                resultValue = factory.createString('my result');
+            resolvedValue.call
+                .withArgs([arg1, arg2])
+                .returns(resultValue);
+            createValue(futureFactory.createPresent(resolvedValue));
+
+            expect(await value.call([arg1, arg2]).toPromise()).to.equal(resultValue);
+        });
+    });
+
     describe('catch()', function () {
         it('should be able to attach a rejection handler', async function () {
             var result;
@@ -209,6 +224,18 @@ describe('FutureValue', function () {
 
             expect(result.getType()).to.equal('string');
             expect(result.getNative()).to.equal('1.23.4');
+        });
+    });
+
+    describe('decrement()', function () {
+        it('should be able to decrement', async function () {
+            var result;
+            createValue(futureFactory.createPresent(factory.createInteger(21)));
+
+            result = await value.decrement().toPromise();
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(20);
         });
     });
 

@@ -604,6 +604,48 @@ describe('String', function () {
         });
     });
 
+    describe('decrement()', function () {
+        it('should return one less when the string contains a positive float', function () {
+            var resultValue;
+            createValue('21.52');
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(20.52);
+        });
+
+        it('should return -1 when the string contains float zero', function () {
+            var resultValue;
+            createValue('0.0');
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(-1);
+        });
+
+        it('should return -1 when the string contains integer zero', function () {
+            var resultValue;
+            createValue('0');
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(-1);
+        });
+
+        it('should return one less when the string contains a negative float', function () {
+            var resultValue;
+            createValue('-41.7');
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(-42.7);
+        });
+    });
+
     describe('divideBy()', function () {
         beforeEach(function () {
             createValue('21');
@@ -902,6 +944,48 @@ describe('String', function () {
             createValue('my string');
 
             expect(value.getValueOrNull()).to.equal(value);
+        });
+    });
+
+    describe('increment()', function () {
+        it('should return one more when the string contains a positive float', function () {
+            var resultValue;
+            createValue('21.52');
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(22.52);
+        });
+
+        it('should return 1 when the string contains float zero', function () {
+            var resultValue;
+            createValue('0.0');
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(1);
+        });
+
+        it('should return 1 when the string contains integer zero', function () {
+            var resultValue;
+            createValue('0');
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(1);
+        });
+
+        it('should return one more when the string contains a negative float', function () {
+            var resultValue;
+            createValue('-41.7');
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(-40.7);
         });
     });
 

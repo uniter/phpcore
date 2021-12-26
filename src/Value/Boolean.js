@@ -66,6 +66,14 @@ module.exports = require('pauser')([
             return value.factory.createString(value.value ? '1' : '');
         },
 
+        /**
+         * {@inheritdoc}
+         */
+        decrement: function () {
+            // NB: This is the expected behaviour, vs. subtracting one from a boolean explicitly.
+            return this;
+        },
+
         formatAsString: function () {
             return this.value ? 'true' : 'false';
         },
@@ -73,6 +81,14 @@ module.exports = require('pauser')([
         getElement: function () {
             // Array access on booleans always returns null, no notice or warning is raised
             return this.factory.createNull();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        increment: function () {
+            // NB: This is the expected behaviour, vs. adding one to a boolean explicitly.
+            return this;
         },
 
         isAnInstanceOf: function (classNameValue) {

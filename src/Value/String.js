@@ -145,6 +145,15 @@ module.exports = require('pauser')([
         },
 
         /**
+         * {@inheritdoc}
+         */
+        decrement: function () {
+            var value = this;
+
+            return value.coerceToNumber().subtract(value.factory.createInteger(1));
+        },
+
+        /**
          * Formats the string for display in stack traces etc.
          *
          * @returns {string}
@@ -219,6 +228,15 @@ module.exports = require('pauser')([
                 .next(function (classObject) {
                     return classObject.getStaticPropertyByName(nameValue.getNative());
                 });
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        increment: function () {
+            var value = this;
+
+            return value.coerceToNumber().add(value.factory.createInteger(1));
         },
 
         /**

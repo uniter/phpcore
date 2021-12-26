@@ -251,6 +251,38 @@ describe('Float', function () {
         });
     });
 
+    describe('decrement()', function () {
+        it('should return one less when the float is positive', function () {
+            var resultValue;
+            createValue(21.52);
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(20.52);
+        });
+
+        it('should return -1 when the float is zero', function () {
+            var resultValue;
+            createValue(0);
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(-1);
+        });
+
+        it('should return one less when the float is negative', function () {
+            var resultValue;
+            createValue(-41.7);
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(-42.7);
+        });
+    });
+
     describe('divideBy()', function () {
         it('should throw an "Unsupported operand" error for an array divisor', function () {
             var divisorValue = factory.createArray([]);
@@ -498,6 +530,38 @@ describe('Float', function () {
     describe('getValueOrNull()', function () {
         it('should just return this value, as values are always classed as "defined"', function () {
             expect(value.getValueOrNull()).to.equal(value);
+        });
+    });
+
+    describe('increment()', function () {
+        it('should return one more when the float is positive', function () {
+            var resultValue;
+            createValue(21.52);
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(22.52);
+        });
+
+        it('should return 1 when the float is zero', function () {
+            var resultValue;
+            createValue(0);
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(1);
+        });
+
+        it('should return one more when the float is negative', function () {
+            var resultValue;
+            createValue(-43.7);
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(-42.7);
         });
     });
 

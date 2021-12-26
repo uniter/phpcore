@@ -233,6 +233,38 @@ describe('Integer', function () {
         });
     });
 
+    describe('decrement()', function () {
+        it('should return one less when the integer is positive', function () {
+            var resultValue;
+            createValue(21);
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(20);
+        });
+
+        it('should return -1 when the integer is zero', function () {
+            var resultValue;
+            createValue(0);
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(-1);
+        });
+
+        it('should return one less when the integer is negative', function () {
+            var resultValue;
+            createValue(-41);
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(-42);
+        });
+    });
+
     describe('divideBy()', function () {
         it('should throw an "Unsupported operand" error for an array divisor', function () {
             var divisorValue = factory.createArray([]);
@@ -488,6 +520,38 @@ describe('Integer', function () {
     describe('getValueOrNull()', function () {
         it('should just return this value, as values are always classed as "defined"', function () {
             expect(value.getValueOrNull()).to.equal(value);
+        });
+    });
+
+    describe('increment()', function () {
+        it('should return one more when the integer is positive', function () {
+            var resultValue;
+            createValue(21);
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(22);
+        });
+
+        it('should return 1 when the integer is zero', function () {
+            var resultValue;
+            createValue(0);
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(1);
+        });
+
+        it('should return one more when the integer is negative', function () {
+            var resultValue;
+            createValue(-43);
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(-42);
         });
     });
 

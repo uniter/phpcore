@@ -173,12 +173,11 @@ module.exports = require('pauser')([
         /**
          * Calls a static or instance method, referenced by the first two elements of this array
          *
-         * @param {Value[]} args
-         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
+         * @param {Reference[]|Value[]|Variable[]} args
          * @returns {Value}
          * @throws {PHPFatalError} Throws when the given function name is not a string
          */
-        call: function (args, namespaceOrNamespaceScope) {
+        call: function (args) {
             var methodNameValue,
                 objectOrClassValue,
                 arrayValue = this,
@@ -192,18 +191,10 @@ module.exports = require('pauser')([
             methodNameValue = value[1].getValue();
 
             if (objectOrClassValue.getType() === 'string') {
-                return objectOrClassValue.callStaticMethod(
-                    methodNameValue,
-                    args,
-                    namespaceOrNamespaceScope
-                );
+                return objectOrClassValue.callStaticMethod(methodNameValue, args);
             }
 
-            return objectOrClassValue.callMethod(
-                methodNameValue.getNative(),
-                args,
-                namespaceOrNamespaceScope
-            );
+            return objectOrClassValue.callMethod(methodNameValue.getNative(), args);
         },
 
         /**
@@ -253,6 +244,14 @@ module.exports = require('pauser')([
 
         coerceToString: function () {
             return this.factory.createString('Array');
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        decrement: function () {
+            // NB: This is the expected behaviour, vs. attempting to subtract one from an array explicitly.
+            return this.getForAssignment();
         },
 
         defineElement: function (elementReference) {
@@ -441,6 +440,14 @@ module.exports = require('pauser')([
             });
 
             return values;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        increment: function () {
+            // NB: This is the expected behaviour, vs. attempting to add one to an array explicitly.
+            return this.getForAssignment();
         },
 
         isAnInstanceOf: function (classNameValue) {

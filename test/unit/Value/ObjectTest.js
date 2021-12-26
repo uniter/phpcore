@@ -789,6 +789,15 @@ describe('Object', function () {
         });
     });
 
+    describe('decrement()', function () {
+        // NB: Yes, this is actually the correct behaviour, vs. subtracting one from an object explicitly.
+        it('should just return the object', function () {
+            var resultValue = value.decrement();
+
+            expect(resultValue).to.equal(value);
+        });
+    });
+
     describe('divideBy()', function () {
         describe('for an array divisor', function () {
             it('should throw an "Unsupported operand" error', function () {
@@ -1867,6 +1876,15 @@ describe('Object', function () {
     describe('getValueOrNull()', function () {
         it('should just return this value, as values are always classed as "defined"', function () {
             expect(value.getValueOrNull()).to.equal(value);
+        });
+    });
+
+    describe('increment()', function () {
+        // NB: Yes, this is actually the correct behaviour, vs. adding one to an object explicitly.
+        it('should just return the object', function () {
+            var resultValue = value.increment();
+
+            expect(resultValue).to.equal(value);
         });
     });
 

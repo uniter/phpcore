@@ -58,6 +58,13 @@ module.exports = require('pauser')([
             return this.factory.createString('');
         },
 
+        /**
+         * {@inheritdoc}
+         */
+        decrement: function () {
+            return this.factory.createNull();
+        },
+
         formatAsString: function () {
             return 'NULL';
         },

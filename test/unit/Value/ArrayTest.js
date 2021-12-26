@@ -308,23 +308,6 @@ describe('Array', function () {
                 expect(classNameValue.callStaticMethod.args[0][1][1]).to.be.an.instanceOf(StringValue);
                 expect(classNameValue.callStaticMethod.args[0][1][1].getNative()).to.equal('second arg');
             });
-
-            it('should pass the NamespaceScope along', function () {
-                value.call(
-                    [
-                        factory.createString('first arg'),
-                        factory.createString('second arg')
-                    ],
-                    namespaceScope
-                );
-
-                expect(classNameValue.callStaticMethod).to.have.been.calledOnce;
-                expect(classNameValue.callStaticMethod).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.same(namespaceScope)
-                );
-            });
         });
 
         describe('for an instance method call', function () {
@@ -360,23 +343,6 @@ describe('Array', function () {
                 expect(objectValue.callMethod.args[0][1][0].getNative()).to.equal('first arg');
                 expect(objectValue.callMethod.args[0][1][1]).to.be.an.instanceOf(StringValue);
                 expect(objectValue.callMethod.args[0][1][1].getNative()).to.equal('second arg');
-            });
-
-            it('should pass the NamespaceScope along', function () {
-                value.call(
-                    [
-                        factory.createString('first arg'),
-                        factory.createString('second arg')
-                    ],
-                    namespaceScope
-                );
-
-                expect(objectValue.callMethod).to.have.been.calledOnce;
-                expect(objectValue.callMethod).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.same(namespaceScope)
-                );
             });
         });
     });
@@ -456,6 +422,16 @@ describe('Array', function () {
 
             expect(nativeStdClassObject.firstEl).to.equal('value of first el');
             expect(nativeStdClassObject.secondEl).to.equal('value of second el');
+        });
+    });
+
+    describe('decrement()', function () {
+        // NB: Yes, this is actually the correct behaviour, vs. subtracting one from an array explicitly.
+        it('should return a copy of the array', function () {
+            var resultValue = value.decrement();
+
+            expect(resultValue.getNative()).to.deep.equal(value.getNative());
+            expect(resultValue).not.to.equal(value);
         });
     });
 
@@ -772,6 +748,16 @@ describe('Array', function () {
     describe('getValueOrNull()', function () {
         it('should just return this value, as values are always classed as "defined"', function () {
             expect(value.getValueOrNull()).to.equal(value);
+        });
+    });
+
+    describe('increment()', function () {
+        // NB: Yes, this is actually the correct behaviour, vs. adding one to an array explicitly.
+        it('should return a copy of the array', function () {
+            var resultValue = value.increment();
+
+            expect(resultValue.getNative()).to.deep.equal(value.getNative());
+            expect(resultValue).not.to.equal(value);
         });
     });
 

@@ -73,6 +73,15 @@ module.exports = require('pauser')([
             return value.factory.createString(value.value + '');
         },
 
+        /**
+         * {@inheritdoc}
+         */
+        decrement: function () {
+            var value = this;
+
+            return value.factory.createFloat(value.getNative() - 1);
+        },
+
         formatAsString: function () {
             return this.value + '';
         },
@@ -80,6 +89,15 @@ module.exports = require('pauser')([
         getElement: function () {
             // Array access on floats always returns null, no notice or warning is raised
             return this.factory.createNull();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        increment: function () {
+            var value = this;
+
+            return value.factory.createFloat(value.getNative() + 1);
         },
 
         isAnInstanceOf: function (classNameValue) {

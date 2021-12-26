@@ -430,6 +430,14 @@ module.exports = require('pauser')([
         },
 
         /**
+         * {@inheritdoc}
+         */
+        decrement: function () {
+            // NB: This is the expected behaviour, vs. subtracting one from an object explicitly.
+            return this;
+        },
+
+        /**
          * Builds a string representation of this value
          *
          * @returns {string}
@@ -1000,6 +1008,14 @@ module.exports = require('pauser')([
             var value = this;
 
             return value.classObject.getThisObjectForInstance(value);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        increment: function () {
+            // NB: This is the expected behaviour, vs. adding one to an object explicitly.
+            return this;
         },
 
         /**

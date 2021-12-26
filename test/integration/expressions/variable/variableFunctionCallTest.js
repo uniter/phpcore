@@ -13,7 +13,7 @@ var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
     tools = require('../../tools');
 
-describe('PHP synchronous variable function call integration', function () {
+describe('PHP variable function call integration', function () {
     it('should correctly handle calling a function dynamically', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -79,5 +79,40 @@ EOS
             101,
             'added'
         ]);
+    });
+
+    it('should support fetching the function name from accessor returning future in async mode', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+function myFunction($arg)
+{
+    return $arg + 2;
+}
+
+$myFunctionNameVar = 'myAccessor';
+
+return [
+    'with variable containing name' => $myAccessor(20),
+    'with indirect variable name' => ${$myFunctionNameVar}(30)
+];
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineGlobalAccessor(
+            'myAccessor',
+            function () {
+                return this.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve('myFunction');
+                    });
+                });
+            }
+        );
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'with variable containing name': 22,
+            'with indirect variable name': 32
+        });
     });
 });
