@@ -16,6 +16,24 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP "throw" statement integration (async mode)', function () {
+    it('should support throwing an Exception contained in a variable', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$myException = new Exception('Bang!');
+
+throw $myException;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        return expect(engine.execute()).to.eventually.be.rejectedWith(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Exception: Bang! in /path/to/my_module.php on line 3'
+        );
+    });
+
     it('should support throwing an Exception fetched directly from accessor returning future', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
