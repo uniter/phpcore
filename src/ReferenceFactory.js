@@ -144,7 +144,7 @@ module.exports = require('pauser')([
         createNull: function (options) {
             var factory = this;
 
-            return new factory.NullReference(factory.valueFactory, options);
+            return new factory.NullReference(factory.valueFactory, factory.futureFactory, options);
         },
 
         /**

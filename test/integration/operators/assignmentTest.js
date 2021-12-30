@@ -119,4 +119,31 @@ EOS
             thirdArray: [[21, 'I should not affect $secondArray']]
         });
     });
+
+    it('should raise a warning on assignment of integer value to index of non-array element', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+$notAnArray = 2;
+$notAnArray[0] = 3;
+
+$result['notAnArray'] = $notAnArray;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal({
+            'notAnArray': 2 // Non-array should be left unchanged.
+        });
+        expect(engine.getStderr().readAll()).to.equal(nowdoc(function () {/*<<<EOS
+PHP Warning:  Cannot use a scalar value as an array in /path/to/my_module.php on line 6
+
+EOS
+*/;})); //jshint ignore:line
+    });
 });
