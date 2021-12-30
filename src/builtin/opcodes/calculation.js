@@ -546,6 +546,16 @@ module.exports = function (internals) {
         },
 
         /**
+         * Fetches the reference of the element this iterator is currently pointing at.
+         *
+         * @param {ArrayIterator|ObjectValue} iterator
+         * @returns {Reference}
+         */
+        getCurrentElementReference: function (iterator) {
+            return iterator.getCurrentElementReference();
+        },
+
+        /**
          * Fetches the value of the element this iterator is currently pointing at
          *
          * @param {ArrayIterator|ObjectValue} iterator

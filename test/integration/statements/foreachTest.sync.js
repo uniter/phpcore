@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP "foreach" loop statement integration (sync mode)', function () {
-    it('should be able to loop over a simple indexed array', function () {
+    it('should be able to loop over a simple indexed array by value', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -33,6 +33,41 @@ EOS
             'value for 1 is: second',
             'value for 2 is: third'
         ]);
+    });
+
+    it('should be able to loop over a simple indexed array by reference', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+$myArray = ['first', 'second', 'third'];
+
+foreach ($myArray as $key => &$value) {
+    $result['log'][] = 'value for ' . $key . ' is: ' . $value;
+
+    if ($key === 1) {
+        $value = 'my new value'; // Checked below.
+    }
+}
+
+$result['result'] = $myArray;
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php);
+
+        expect(module().execute().getNative()).to.deep.equal({
+            log: [
+                'value for 0 is: first',
+                'value for 1 is: second',
+                'value for 2 is: third'
+            ],
+            result: [
+                'first',
+                'my new value', // Changed by assignment to reference.
+                'third'
+            ]
+        });
     });
 
     it('should be able to loop over a simple associative array', function () {
