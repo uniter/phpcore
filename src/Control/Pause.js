@@ -10,6 +10,12 @@
 'use strict';
 
 var _ = require('microdash'),
+    /*
+     * Prevent hooking by Sinon.useFakeTimers() etc.
+     * This is so that clock.tick(1) is not required to trigger the actual resume logic
+     * which is wrapped in a setImmediate() call, etc.
+     */
+    defer = setImmediate,
     phpCommon = require('phpcommon'),
     util = require('util'),
     Exception = phpCommon.Exception;
@@ -40,7 +46,7 @@ function Pause(callStack, controlScope, sequence, executor) {
             throw new Exception('Pause has not yet been enacted');
         }
 
-        setImmediate(function () {
+        defer(function () {
             restoreCallStack();
 
             try {
@@ -59,7 +65,7 @@ function Pause(callStack, controlScope, sequence, executor) {
             throw new Exception('Pause has not yet been enacted');
         }
 
-        setImmediate(function () {
+        defer(function () {
             restoreCallStack();
 
             try {

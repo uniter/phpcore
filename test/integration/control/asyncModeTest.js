@@ -12,7 +12,8 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('../tools'),
-    Call = require('../../../src/Call');
+    Call = require('../../../src/Call'),
+    Pause = require('../../../src/Control/Pause');
 
 describe('Async control integration', function () {
     var call,
@@ -316,5 +317,41 @@ describe('Async control integration', function () {
             expect(result).to.equal('start, completed, reopened, last');
             done();
         }).catch(done);
+    });
+
+    describe('when timers are hooked', function () {
+        var clock;
+
+        beforeEach(function () {
+            // Note that we deliberately don't call clock.tick() here,
+            // as all we're after is to hook the timer functions.
+            clock = sinon.useFakeTimers();
+        });
+
+        afterEach(function () {
+            clock.restore();
+        });
+
+        // Ensure that Pause's use of setImmediate() cannot be hooked
+        // after load, to avoid hangs during integration tests.
+        it('should not affect resumption', function (done) {
+            var doResolve,
+                future = futureFactory.createFuture(function (resolve) {
+                    doResolve = resolve;
+                });
+            try {
+                future.yield();
+            } catch (error) {
+                if (!(error instanceof Pause)) {
+                    throw new Error('Unexpected error: ' + error);
+                }
+
+                error.next(function () {
+                    done();
+                });
+            }
+
+            doResolve(21);
+        });
     });
 });
