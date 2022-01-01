@@ -114,6 +114,34 @@ EOS
         });
     });
 
+    // TODO: Note that hoisting is incomplete, as namespaces are not taken into account.
+    //       Fixing will require the planned refactor to remove NamespaceScope.
+    it('should allow a class to extend another class defined after it', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyChildClass extends MyParentClass {
+    public function getIt() {
+        return parent::getIt() + 100;
+    }
+}
+
+class MyParentClass {
+    public function getIt() {
+        return 21;
+    }
+}
+
+$object = new MyChildClass;
+
+return $object->getIt();
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php);
+
+        expect(module().execute().getNative()).to.equal(121);
+    });
+
     it('should allow a JS class to call its superconstructor', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
