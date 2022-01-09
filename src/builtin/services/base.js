@@ -15,6 +15,7 @@ var phpCommon = require('phpcommon'),
     CallStack = require('../../CallStack'),
     ControlScope = require('../../Control/ControlScope'),
     FFICall = require('../../FFI/Call'),
+    SignatureParser = require('../../Function/Signature/SignatureParser'),
     Translator = phpCommon.Translator,
 
     ERROR_REPORTING = 'error_reporting',
@@ -48,6 +49,10 @@ module.exports = function (internals) {
 
         'control_scope': function () {
             return new ControlScope();
+        },
+
+        'function_signature_parser': function () {
+            return new SignatureParser(get(VALUE_FACTORY));
         },
 
         'translator': function () {

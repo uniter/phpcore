@@ -173,6 +173,15 @@ _.extend(FunctionSpec.prototype, {
     },
 
     /**
+     * Fetches the parameters of this function.
+     *
+     * @returns {Parameter[]}
+     */
+    getParameters: function () {
+        return this.parameterList;
+    },
+
+    /**
      * Fetches the name of this function, without any qualifying namespace and/or class prefix
      *
      * @returns {string}

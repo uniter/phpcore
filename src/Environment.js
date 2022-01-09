@@ -64,9 +64,10 @@ _.extend(Environment.prototype, {
      *
      * @param {string} name
      * @param {Function} fn
+     * @param {string=} signature Function signature (parameter and return type definitions)
      */
-    defineCoercingFunction: function (name, fn) {
-        this.state.defineCoercingFunction(name, fn);
+    defineCoercingFunction: function (name, fn, signature) {
+        this.state.defineCoercingFunction(name, fn, signature);
     },
 
     /**
@@ -118,9 +119,10 @@ _.extend(Environment.prototype, {
      *
      * @param {string} name
      * @param {Function} fn
+     * @param {string=} signature Function signature (parameter and return type definitions)
      */
-    defineNonCoercingFunction: function (name, fn) {
-        this.state.defineNonCoercingFunction(name, fn);
+    defineNonCoercingFunction: function (name, fn, signature) {
+        this.state.defineNonCoercingFunction(name, fn, signature);
     },
 
     /**

@@ -215,6 +215,8 @@ module.exports = require('pauser')([
                             return functionSpec.populateDefaultArguments(args);
                         })
                         .next(function (populatedArguments) {
+                            // Note that by this point all arguments will have been resolved to present values
+                            // (ie. any FutureValues will have been awaited and resolved).
                             args = populatedArguments;
 
                             return doCall();

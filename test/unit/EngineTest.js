@@ -104,12 +104,13 @@ describe('Engine', function () {
             var myFunction = sinon.stub();
             createEngine();
 
-            engine.defineCoercingFunction('my_func', myFunction);
+            engine.defineCoercingFunction('my_func', myFunction, 'mixed $myParam = 21');
 
             expect(environment.defineCoercingFunction).to.have.been.calledOnce;
             expect(environment.defineCoercingFunction).to.have.been.calledWith(
                 'my_func',
-                sinon.match.same(myFunction)
+                sinon.match.same(myFunction),
+                'mixed $myParam = 21'
             );
         });
     });
@@ -191,12 +192,13 @@ describe('Engine', function () {
             var myFunction = sinon.stub();
             createEngine();
 
-            engine.defineNonCoercingFunction('my_func', myFunction);
+            engine.defineNonCoercingFunction('my_func', myFunction, 'mixed $myParam = 21');
 
             expect(environment.defineNonCoercingFunction).to.have.been.calledOnce;
             expect(environment.defineNonCoercingFunction).to.have.been.calledWith(
                 'my_func',
-                sinon.match.same(myFunction)
+                sinon.match.same(myFunction),
+                'mixed $myParam = 21'
             );
         });
     });

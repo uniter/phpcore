@@ -39,6 +39,7 @@ var expect = require('chai').expect,
     Stream = require('../../../../src/Stream'),
     TraceFormatter = require('../../../../src/Error/TraceFormatter'),
     Translator = phpCommon.Translator,
+    TypedFunction = require('../../../../src/Function/TypedFunction'),
     Userland = require('../../../../src/Control/Userland'),
     ValueFactory = require('../../../../src/ValueFactory').sync(),
     ValueHelper = require('../../../../src/FFI/Value/ValueHelper');
@@ -369,6 +370,17 @@ describe('FFI Internals', function () {
                 'myGlobal',
                 sinon.match.same(value)
             );
+        });
+    });
+
+    describe('typeFunction()', function () {
+        it('should return a TypedFunction with the given signature and inner function', function () {
+            var innerFunction = sinon.stub(),
+                typedFunction = internals.typeFunction('iterable $myIterable = null', innerFunction);
+
+            expect(typedFunction).to.be.an.instanceOf(TypedFunction);
+            expect(typedFunction.getSignature()).to.equal('iterable $myIterable = null');
+            expect(typedFunction.getFunction()).to.equal(innerFunction);
         });
     });
 });

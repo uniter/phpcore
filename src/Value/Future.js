@@ -209,7 +209,7 @@ _.extend(FutureValue.prototype, {
     formatAsString: function () {
         // TODO: Note that returning this placeholder string may not be very useful, as any context
         //       where this value should be formatted as string should probably have waited for it to be complete.
-        //       Consider throwing an exception or calling .yieldSync() as for .getNative() and .getType()
+        //       Consider throwing an exception as for .getNative().
         return '(Future)';
     },
 

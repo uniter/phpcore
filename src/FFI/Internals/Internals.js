@@ -9,7 +9,8 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    TypedFunction = require('../../Function/TypedFunction');
 
 /**
  * @param {string} mode Synchronicity mode: "async", "psync" or "sync"
@@ -331,6 +332,17 @@ _.extend(Internals.prototype, {
      */
     setGlobal: function (name, value) {
         this.state.setGlobal(name, value);
+    },
+
+    /**
+     * Creates a native function definition with type information.
+     *
+     * @param {string} signature
+     * @param {Function} func
+     * @returns {TypedFunction}
+     */
+    typeFunction: function (signature, func) {
+        return new TypedFunction(signature, func);
     }
 });
 

@@ -142,6 +142,33 @@ _.extend(Parameter.prototype, {
     },
 
     /**
+     * Fetches the name of this parameter, if known.
+     *
+     * @returns {string|null}
+     */
+    getName: function () {
+        return this.name;
+    },
+
+    /**
+     * Fetches this parameter's type.
+     *
+     * @returns {TypeInterface}
+     */
+    getType: function () {
+        return this.typeObject;
+    },
+
+    /**
+     * Determines whether this parameter is passed by reference.
+     *
+     * @returns {boolean}
+     */
+    isPassedByReference: function () {
+        return this.passedByReference;
+    },
+
+    /**
      * Determines whether this parameter must have an argument provided.
      * Arguments are required for PHP function parameters unless that parameter defines a default value
      *

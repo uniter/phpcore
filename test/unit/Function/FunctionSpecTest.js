@@ -295,6 +295,16 @@ describe('FunctionSpec', function () {
         });
     });
 
+    describe('getParameters()', function () {
+        it('should return all parameters', function () {
+            var parameters = spec.getParameters();
+
+            expect(parameters).to.have.length(2);
+            expect(parameters[0]).to.equal(parameter1);
+            expect(parameters[1]).to.equal(parameter2);
+        });
+    });
+
     describe('getUnprefixedFunctionName()', function () {
         it('should correctly fetch the name from the context', function () {
             context.getUnprefixedName

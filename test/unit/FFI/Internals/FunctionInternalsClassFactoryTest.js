@@ -16,6 +16,8 @@ var expect = require('chai').expect,
     Internals = require('../../../../src/FFI/Internals/Internals'),
     Namespace = require('../../../../src/Namespace').sync(),
     NamespaceScope = require('../../../../src/NamespaceScope').sync(),
+    Signature = require('../../../../src/Function/Signature/Signature'),
+    SignatureParser = require('../../../../src/Function/Signature/SignatureParser'),
     ValueCoercer = require('../../../../src/FFI/Value/ValueCoercer'),
     ValueFactory = require('../../../../src/ValueFactory').sync(),
     ValueStorage = require('../../../../src/FFI/Value/ValueStorage');
@@ -26,6 +28,7 @@ describe('FFI FunctionInternalsClassFactory', function () {
         ffiFactory,
         globalNamespace,
         globalNamespaceScope,
+        signatureParser,
         valueCoercer,
         valueFactory,
         valueStorage;
@@ -35,6 +38,7 @@ describe('FFI FunctionInternalsClassFactory', function () {
         ffiFactory = sinon.createStubInstance(FFIFactory);
         globalNamespace = sinon.createStubInstance(Namespace);
         globalNamespaceScope = sinon.createStubInstance(NamespaceScope);
+        signatureParser = sinon.createStubInstance(SignatureParser);
         valueCoercer = null; // Created by the .createValueCoercer() stub below
         valueStorage = sinon.createStubInstance(ValueStorage);
         valueFactory = new ValueFactory(null, null, null, null, null, null, valueStorage);
@@ -50,7 +54,8 @@ describe('FFI FunctionInternalsClassFactory', function () {
             valueFactory,
             ffiFactory,
             globalNamespace,
-            globalNamespaceScope
+            globalNamespaceScope,
+            signatureParser
         );
     });
 
@@ -106,14 +111,36 @@ describe('FFI FunctionInternalsClassFactory', function () {
                     expect(ffiFactory.createValueCoercer).to.have.been.calledWith(false);
                 });
 
-                it('should define the function in the Namespace', function () {
+                it('should define an untyped function in the Namespace', function () {
                     functionInternals.defineFunction(definitionFactory);
 
                     expect(myStuffNamespace.defineFunction).to.have.been.calledOnce;
                     expect(myStuffNamespace.defineFunction).to.have.been.calledWith(
                         'myFunc',
                         sinon.match.func, // A further wrapper: __uniterOutboundStackMarker__
-                        sinon.match.same(globalNamespaceScope)
+                        sinon.match.same(globalNamespaceScope),
+                        null
+                    );
+                });
+
+                it('should define a typed function in the Namespace', function () {
+                    var parametersSpecData = [{name: 'param1'}, {name: 'param2'}],
+                        signature = sinon.createStubInstance(Signature);
+                    signature.getParametersSpecData.returns(parametersSpecData);
+                    signatureParser.parseSignature
+                        .withArgs('mixed $param1, mixed $param2')
+                        .returns(signature);
+                    // Defining a signature will make it a typed function.
+                    functionInternals.defineSignature('mixed $param1, mixed $param2');
+
+                    functionInternals.defineFunction(definitionFactory);
+
+                    expect(myStuffNamespace.defineFunction).to.have.been.calledOnce;
+                    expect(myStuffNamespace.defineFunction).to.have.been.calledWith(
+                        'myFunc',
+                        sinon.match.func, // A further wrapper: __uniterOutboundStackMarker__
+                        sinon.match.same(globalNamespaceScope),
+                        sinon.match.same(parametersSpecData)
                     );
                 });
 

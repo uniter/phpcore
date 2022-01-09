@@ -17,6 +17,7 @@ var _ = require('microdash');
  * @param {FFIFactory} ffiFactory
  * @param {Namespace} globalNamespace
  * @param {NamespaceScope} globalNamespaceScope
+ * @param {SignatureParser} signatureParser
  * @constructor
  */
 function FunctionInternalsClassFactory(
@@ -24,7 +25,8 @@ function FunctionInternalsClassFactory(
     valueFactory,
     ffiFactory,
     globalNamespace,
-    globalNamespaceScope
+    globalNamespaceScope,
+    signatureParser
 ) {
     /**
      * @type {Internals}
@@ -42,6 +44,10 @@ function FunctionInternalsClassFactory(
      * @type {NamespaceScope}
      */
     this.globalNamespaceScope = globalNamespaceScope;
+    /**
+     * @type {SignatureParser}
+     */
+    this.signatureParser = signatureParser;
     /**
      * @type {ValueFactory}
      */
@@ -70,6 +76,12 @@ _.extend(FunctionInternalsClassFactory.prototype, {
              * @type {string}
              */
             this.fqfn = fqfn;
+            /**
+             * Signature for the function; optionally set by .defineSignature().
+             *
+             * @type {string|null}
+             */
+            this.signature = null;
         }
 
         // Extend the base Internals object so we inherit all the public service properties etc.
@@ -86,11 +98,18 @@ _.extend(FunctionInternalsClassFactory.prototype, {
                     name,
                     func = definitionFactory(internals),
                     namespace,
+                    parametersSpecData = null,
                     parsed = factory.globalNamespace.parseName(internals.fqfn),
+                    signature,
                     valueCoercer = factory.ffiFactory.createValueCoercer(internals.enableAutoCoercion);
 
                 namespace = parsed.namespace;
                 name = parsed.name;
+
+                if (internals.signature) {
+                    signature = factory.signatureParser.parseSignature(internals.signature);
+                    parametersSpecData = signature.getParametersSpecData();
+                }
 
                 namespace.defineFunction(
                     name,
@@ -100,12 +119,22 @@ _.extend(FunctionInternalsClassFactory.prototype, {
 
                         return func.apply(internals, effectiveArguments);
                     },
-                    factory.globalNamespaceScope
+                    factory.globalNamespaceScope,
+                    parametersSpecData
                 );
             },
 
             /**
-             * Disables auto-coercion for the class
+             * Specifies a signature to use for the function.
+             *
+             * @param {string} signature
+             */
+            defineSignature: function (signature) {
+                this.signature = signature;
+            },
+
+            /**
+             * Disables auto-coercion for the function.
              */
             disableAutoCoercion: function () {
                 this.enableAutoCoercion = false;

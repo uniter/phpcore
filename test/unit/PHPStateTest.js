@@ -166,7 +166,7 @@ describe('PHPState', function () {
             expect((await state.getFunction('getMyConstant').call().toPromise()).getNative()).to.equal(21);
         });
 
-        it('should define functions correctly with a FunctionSpec', function () {
+        it('should define untyped functions correctly with a FunctionSpec', function () {
             state = new PHPState(
                 runtime,
                 globalStackHooker,
@@ -189,6 +189,40 @@ describe('PHPState', function () {
 
             expect(state.getFunction('myFunction').functionSpec.getFunctionName())
                 .to.equal('myFunction');
+        });
+
+        it('should define typed functions correctly with a FunctionSpec', function () {
+            var functionSpec,
+                parameters;
+            state = new PHPState(
+                runtime,
+                globalStackHooker,
+                {
+                    functionGroups: [
+                        function (internals) {
+                            return {
+                                myFunction: internals.typeFunction('iterable &$myIterable', function () {
+                                    return internals.valueFactory.createInteger(21);
+                                })
+                            };
+                        }
+                    ]
+                },
+                stdin,
+                stdout,
+                stderr,
+                'async'
+            );
+
+            functionSpec = state.getFunction('myFunction').functionSpec;
+            expect(functionSpec.getFunctionName()).to.equal('myFunction');
+            parameters = functionSpec.getParameters();
+            expect(parameters).to.have.length(1);
+            expect(parameters[0].getLineNumber()).to.be.null;
+            expect(parameters[0].getName()).to.equal('myIterable');
+            expect(parameters[0].getType().getDisplayName()).to.equal('iterable');
+            expect(parameters[0].isPassedByReference()).to.be.true;
+            expect(parameters[0].isRequired()).to.be.true;
         });
 
         it('should allow functions to be aliased', async function () {
@@ -535,11 +569,28 @@ describe('PHPState', function () {
             expect(resultValue.getNative()).to.equal(42);
         });
 
-        it('should define a function correctly with a FunctionSpec', function () {
+        it('should define an untyped function correctly with a FunctionSpec', function () {
             state.defineCoercingFunction('my_function', function () {});
 
             expect(state.getFunction('my_function').functionSpec.getFunctionName())
                 .to.equal('my_function');
+        });
+
+        it('should define a typed function correctly with a FunctionSpec', function () {
+            var functionSpec,
+                parameters;
+
+            state.defineCoercingFunction('my_function', function () {}, 'iterable $myParam');
+
+            functionSpec = state.getFunction('my_function').functionSpec;
+            expect(functionSpec.getFunctionName()).to.equal('my_function');
+            parameters = functionSpec.getParameters();
+            expect(parameters).to.have.length(1);
+            expect(parameters[0].getLineNumber()).to.be.null;
+            expect(parameters[0].getName()).to.equal('myParam');
+            expect(parameters[0].getType().getDisplayName()).to.equal('iterable');
+            expect(parameters[0].isPassedByReference()).to.be.false;
+            expect(parameters[0].isRequired()).to.be.true;
         });
     });
 
@@ -668,11 +719,28 @@ describe('PHPState', function () {
             expect(resultValue.getNative()).to.equal(42);
         });
 
-        it('should define a function correctly with a FunctionSpec', function () {
+        it('should define an untyped function correctly with a FunctionSpec', function () {
             state.defineNonCoercingFunction('my_function', function () {});
 
             expect(state.getFunction('my_function').functionSpec.getFunctionName())
                 .to.equal('my_function');
+        });
+
+        it('should define a typed function correctly with a FunctionSpec', function () {
+            var functionSpec,
+                parameters;
+
+            state.defineNonCoercingFunction('my_function', function () {}, 'iterable &$myParam');
+
+            functionSpec = state.getFunction('my_function').functionSpec;
+            expect(functionSpec.getFunctionName()).to.equal('my_function');
+            parameters = functionSpec.getParameters();
+            expect(parameters).to.have.length(1);
+            expect(parameters[0].getLineNumber()).to.be.null;
+            expect(parameters[0].getName()).to.equal('myParam');
+            expect(parameters[0].getType().getDisplayName()).to.equal('iterable');
+            expect(parameters[0].isPassedByReference()).to.be.true;
+            expect(parameters[0].isRequired()).to.be.true;
         });
     });
 

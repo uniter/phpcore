@@ -26,6 +26,7 @@ var expect = require('chai').expect,
 describe('Parameter', function () {
     var callStack,
         context,
+        createParameter,
         defaultValueProvider,
         flow,
         futureFactory,
@@ -64,22 +65,25 @@ describe('Parameter', function () {
             return valueFactory.maybeFuturise(executor);
         });
 
-        parameter = new Parameter(
-            callStack,
-            translator,
-            futureFactory,
-            flow,
-            userland,
-            'myParam',
-            6,
-            typeObject,
-            context,
-            namespaceScope,
-            true,
-            defaultValueProvider,
-            '/path/to/my/module.php',
-            101
-        );
+        createParameter = function (passedByReference) {
+            parameter = new Parameter(
+                callStack,
+                translator,
+                futureFactory,
+                flow,
+                userland,
+                'myParam',
+                6,
+                typeObject,
+                context,
+                namespaceScope,
+                Boolean(passedByReference),
+                defaultValueProvider,
+                '/path/to/my/module.php',
+                101
+            );
+        };
+        createParameter(true);
     });
 
     describe('coerceArgument()', function () {
@@ -117,6 +121,30 @@ describe('Parameter', function () {
     describe('getLineNumber()', function () {
         it('should return the line number', function () {
             expect(parameter.getLineNumber()).to.equal(101);
+        });
+    });
+
+    describe('getName()', function () {
+        it('should return the name of the parameter', function () {
+            expect(parameter.getName()).to.equal('myParam');
+        });
+    });
+
+    describe('getType()', function () {
+        it('should return the type of the parameter', function () {
+            expect(parameter.getType()).to.equal(typeObject);
+        });
+    });
+
+    describe('isPassedByReference()', function () {
+        it('should return true for a by-reference parameter', function () {
+            expect(parameter.isPassedByReference()).to.be.true;
+        });
+
+        it('should return false for a by-value parameter', function () {
+            createParameter(false);
+
+            expect(parameter.isPassedByReference()).to.be.false;
         });
     });
 

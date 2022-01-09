@@ -237,7 +237,6 @@ module.exports = require('pauser')([
          * @param {string} name
          * @param {Function} func
          * @param {NamespaceScope} namespaceScope
-         * @param {boolean} isUserland
          * @param {Array=} parametersSpecData
          * @param {number=} lineNumber
          */

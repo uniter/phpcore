@@ -11,7 +11,9 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../../../../../tools');
+    phpCommon = require('phpcommon'),
+    tools = require('../../../../../tools'),
+    PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP builtin FFI function synchronous mode auto-coercion integration', function () {
     it('should support installing a custom function that returns a number', function () {
@@ -26,6 +28,22 @@ EOS
         engine.defineCoercingFunction('add_one_to', function (number) {
             return number + 1;
         });
+
+        expect(engine.execute().getNative()).to.equal(22);
+    });
+
+    it('should support installing a custom function with default parameter argument used', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return add_one_to();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        engine.defineCoercingFunction('add_one_to', function (number) {
+            return number + 1;
+        }, 'mixed $number = 21');
 
         expect(engine.execute().getNative()).to.equal(22);
     });
@@ -76,5 +94,46 @@ EOS
         });
 
         expect(engine.execute().getNative()).to.equal(27);
+    });
+
+    it('should raise a fatal error when a class-typed parameter is given integer argument', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+i_want_an_object(21); // Not an object!
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        engine.defineCoercingFunction('i_want_an_object', function () {}, 'My\\Stuff\\MyClass $myObject');
+
+        expect(function () {
+            engine.execute();
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught TypeError: Argument 1 passed to i_want_an_object() ' +
+            'must be an instance of My\\Stuff\\MyClass, int given, ' +
+            'called in /path/to/my_module.php on line 2 and defined in unknown:unknown in unknown on line unknown'
+        );
+    });
+
+    it('should raise a fatal error when required parameters are missing', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+i_want_two_args(21);
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        engine.defineCoercingFunction('i_want_two_args', function () {}, 'mixed $myScalar, My\\MyClass $myObject');
+
+        expect(function () {
+            engine.execute();
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught ArgumentCountError: Too few arguments to function i_want_two_args(), ' +
+            '1 passed in /path/to/my_module.php on line 2 and exactly 2 expected in /path/to/my_module.php on line 2'
+        );
     });
 });

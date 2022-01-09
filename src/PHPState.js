@@ -116,6 +116,7 @@ module.exports = require('pauser')([
     require('./SuperGlobalScope'),
     require('./Control/Trace'),
     require('./Error/TraceFormatter'),
+    require('./Function/TypedFunction'),
     require('./Type/TypeFactory'),
     require('./Reference/UndeclaredStaticProperty'),
     require('./Core/Opcode/Opcode/UntracedOpcode'),
@@ -232,6 +233,7 @@ module.exports = require('pauser')([
     SuperGlobalScope,
     Trace,
     TraceFormatter,
+    TypedFunction,
     TypeFactory,
     UndeclaredStaticPropertyReference,
     UntracedOpcode,
@@ -274,6 +276,9 @@ module.exports = require('pauser')([
                 _.each(groupBuiltins, function (fn, name) {
                     if (typeof fn === 'function') {
                         state.defineNonCoercingFunction(name, fn);
+                    } else if (fn instanceof TypedFunction) {
+                        // Function was defined with a signature in order to specify parameters.
+                        state.defineNonCoercingFunction(name, fn.getFunction(), fn.getSignature());
                     } else {
                         // Gather function aliases (strings) and install the aliases at the end
                         // (see below), to ensure that the original functions exist first
@@ -771,7 +776,8 @@ module.exports = require('pauser')([
             valueFactory,
             ffiFactory,
             globalNamespace,
-            globalNamespaceScope
+            globalNamespaceScope,
+            get('function_signature_parser')
         );
         opcodeInternalsClassFactory = new OpcodeInternalsClassFactory(
             ffiInternals,
@@ -961,11 +967,16 @@ module.exports = require('pauser')([
          *
          * @param {string} name
          * @param {Function} fn
+         * @param {string=} signature Function signature (parameter and return type definitions)
          */
-        defineCoercingFunction: function (name, fn) {
+        defineCoercingFunction: function (name, fn, signature) {
             var state = this;
 
-            state.defineFunction(name, function () {
+            state.defineFunction(name, function (internals) {
+                if (signature) {
+                    internals.defineSignature(signature);
+                }
+
                 return fn;
             });
         },
@@ -1043,11 +1054,16 @@ module.exports = require('pauser')([
          *
          * @param {string} name
          * @param {Function} fn
+         * @param {string=} signature Function signature (parameter and return type definitions)
          */
-        defineNonCoercingFunction: function (name, fn) {
+        defineNonCoercingFunction: function (name, fn, signature) {
             var state = this;
 
             state.defineFunction(name, function (internals) {
+                if (signature) {
+                    internals.defineSignature(signature);
+                }
+
                 internals.disableAutoCoercion();
 
                 return fn;
