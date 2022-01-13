@@ -117,6 +117,15 @@ module.exports = function (internals) {
          * @returns {boolean|Future<boolean>}
          */
         switchCase: function (switchReference, caseReference) {
+            if (switchReference === null) {
+                /*
+                 * Special scenario where no non-default case has matched, so we have jumped
+                 * back to the top of the switch and are now going back down to the default case
+                 * (which may not be the final one).
+                 */
+                return false;
+            }
+
             return switchReference.getValue().isEqualTo(caseReference.getValue())
                 .asEventualNative();
         },
