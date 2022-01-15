@@ -117,8 +117,37 @@ module.exports = function (internals) {
          * @returns {boolean|Future<boolean>}
          */
         switchCase: function (switchReference, caseReference) {
+            if (switchReference === null) {
+                /*
+                 * Special scenario where no non-default case has matched, so we have jumped
+                 * back to the top of the switch and are now going back down to the default case
+                 * (which may not be the final one).
+                 */
+                return false;
+            }
+
             return switchReference.getValue().isEqualTo(caseReference.getValue())
                 .asEventualNative();
+        },
+
+        /**
+         * Handles a default case of a switch statement. If a default case is not the final one
+         * in a switch, execution will jump back up to it from the bottom of the transpiled switch
+         * once all non-default cases have been evaluated. In that scenario, the switch expression
+         * variable will have been assigned the special value native null (rather than a Value)
+         * indicating that we need to reach the default case.
+         *
+         * Note that the presence of this opcode also allows:
+         * - Resuming a pause inside a non-final default case to be optimised (as resume-execution
+         *   would otherwise need to reach the bottom of the switch before jumping back up to the default);
+         * - Meta-programming hooks to be installed for when a switch has a default case;
+         * - IR inference, e.g. for a JIT.
+         *
+         * @param {null|Reference|Value|Variable} switchReference
+         * @returns {boolean}
+         */
+        switchDefault: function (switchReference) {
+            return switchReference === null;
         },
 
         /**
