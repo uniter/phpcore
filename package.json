@@ -39,7 +39,7 @@
     "mocha-bootstrap": "^1.0.1",
     "nowdoc": "^1.0.1",
     "phptoast": "git+https://git@github.com/uniter/phptoast.git#async-refactor",
-    "phptojs": "git+https://git@github.com/uniter/phptojs.git#switch-default-case-fix",
+    "phptojs": "git+https://git@github.com/uniter/phptojs.git#async-refactor",
     "regexp.escape": "^1.1.0",
     "sinon": "^9.2.4",
     "sinon-chai": "^3.3.0",
