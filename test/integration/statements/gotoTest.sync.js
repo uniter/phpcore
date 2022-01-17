@@ -769,6 +769,46 @@ EOS
 */;}), // jshint ignore:line
             expectedStderr: '',
             expectedStdout: 'firstsecondseventheighthfourth'
+        },
+        'jumping from one switch case to another': {
+            code: nowdoc(function () {/*<<<EOS
+<?php
+    echo 'first';
+    $i = 21; // Does not match any case, so will fall back to the default one.
+
+    echo 'second';
+    switch ($i) {
+    case 0:
+        echo 'third';
+        break;
+    case 5:
+        echo 'fourth';
+inside_case_5:
+        echo 'fifth';
+    default:
+        echo 'sixth';
+        // Avoid infinite goto if we were to fall-through just below, and test forward goto.
+        goto inside_case_10;
+    case 21:
+        echo 'seventh';
+        goto inside_case_5;
+        echo 'eighth';
+        break;
+    case 10:
+        echo 'ninth';
+inside_case_10:
+        echo 'tenth';
+        break;
+    case 200:
+        echo 'eleventh';
+        break;
+    }
+
+    echo 'twelfth';
+EOS
+*/;}), // jshint ignore:line
+            expectedStderr: '',
+            expectedStdout: 'firstsecondseventhfifthsixthtenthtwelfth'
         }
     }, function (scenario, description) {
         it(description, function () {
