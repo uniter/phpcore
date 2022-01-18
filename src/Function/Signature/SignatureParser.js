@@ -45,36 +45,40 @@ _.extend(SignatureParser.prototype, {
          * @returns {{name: string, ref: boolean, type: string|undefined, value: Function|null}}
          */
         function buildParameterSpecData(match) {
-            var name = match[3],
-                passedByReference = Boolean(match[2]),
+            var name = match[4],
+                passedByReference = Boolean(match[3]),
                 spec,
                 string,
-                type = match[1],
+                type = match[2],
+                nullable = match[1] === '?',
                 valueProvider = null;
 
-            if (typeof match[4] !== 'undefined') {
+            if (typeof match[5] !== 'undefined') {
                 // Default value is an float literal.
                 valueProvider = function () {
-                    return parser.valueFactory.createFloat(Number(match[4]));
-                };
-            } else if (typeof match[5] !== 'undefined') {
-                // Default value is an integer literal.
-                valueProvider = function () {
-                    return parser.valueFactory.createInteger(Number(match[5]));
+                    return parser.valueFactory.createFloat(Number(match[5]));
                 };
             } else if (typeof match[6] !== 'undefined') {
-                // Default value is a boolean literal.
+                // Default value is an integer literal.
                 valueProvider = function () {
-                    return parser.valueFactory.createBoolean(match[6].toLowerCase() === 'true');
+                    return parser.valueFactory.createInteger(Number(match[6]));
                 };
             } else if (typeof match[7] !== 'undefined') {
+                // Default value is a boolean literal.
+                valueProvider = function () {
+                    return parser.valueFactory.createBoolean(match[7].toLowerCase() === 'true');
+                };
+            } else if (typeof match[8] !== 'undefined') {
                 // Default value is null.
                 valueProvider = function () {
                     return parser.valueFactory.createNull();
                 };
-            } else if (typeof match[8] !== 'undefined') {
+
+                // A default value of null implicitly allows null as an argument.
+                nullable = true;
+            } else if (typeof match[9] !== 'undefined') {
                 // Default value is a string literal.
-                string = match[8];
+                string = match[9];
 
                 try {
                     string = JSON.parse('"' + string + '"');
@@ -88,7 +92,7 @@ _.extend(SignatureParser.prototype, {
                 valueProvider = function () {
                     return parser.valueFactory.createString(string);
                 };
-            } else if (typeof match[9] !== 'undefined') {
+            } else if (typeof match[10] !== 'undefined') {
                 // Default value is an empty array literal.
                 valueProvider = function () {
                     // TODO: Support non-empty arrays.
@@ -106,6 +110,8 @@ _.extend(SignatureParser.prototype, {
             if (type === 'mixed') {
                 // "mixed" type is represented by undefined in the parameter spec data format.
                 type = undefined;
+                // "mixed" type always accepts null.
+                nullable = true;
             } else if (type !== 'array' && type !== 'callable' && type !== 'iterable') {
                 // Any non-builtin type must represent a class (or interface).
                 spec.className = type;
@@ -113,6 +119,7 @@ _.extend(SignatureParser.prototype, {
             }
 
             spec.type = type;
+            spec.nullable = nullable;
 
             return spec;
         }
@@ -120,7 +127,7 @@ _.extend(SignatureParser.prototype, {
         while (remainingSignature.length > 0) {
             // TODO: Support non-empty array literals as default values.
             match = remainingSignature.match(
-                /^([\w\\]+)\s*(?:(&)\s*)?\$(\w+)(?:\s*=\s*(?:(\d*\.\d+)|(\d+)|(true|false)|(null)|"((?:[^\\"]|\\[\s\S])*)"|\[()]))?\s*(?:,\s*)?/i
+                /^(\?\s*)?([\w\\]+)\s*(?:(&)\s*)?\$(\w+)(?:\s*=\s*(?:(\d*\.\d+)|(\d+)|(true|false)|(null)|"((?:[^\\"]|\\[\s\S])*)"|\[()]))?\s*(?:,\s*)?/i
             );
 
             if (!match) {

@@ -37,6 +37,7 @@ describe('SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(1);
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
+            expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             expect(parameterSpecData.value).to.be.null;
@@ -50,6 +51,7 @@ describe('SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(1);
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
+            expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.true; // Parameter argument is passed by-reference.
             expect(parameterSpecData.value).to.be.null;
@@ -64,6 +66,7 @@ describe('SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(1);
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
+            expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             defaultValue = parameterSpecData.value();
@@ -80,6 +83,7 @@ describe('SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(1);
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.equal('array');
+            expect(parameterSpecData.nullable).to.be.false;
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             defaultValue = parameterSpecData.value();
@@ -96,6 +100,7 @@ describe('SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(1);
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
+            expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             defaultValue = parameterSpecData.value();
@@ -111,6 +116,21 @@ describe('SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(1);
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.equal('callable');
+            expect(parameterSpecData.nullable).to.be.false;
+            expect(parameterSpecData.name).to.equal('myParam');
+            expect(parameterSpecData.ref).to.be.false;
+            expect(parameterSpecData.value).to.be.null;
+        });
+
+        it('should be able to parse a single nullable required callable parameter', function () {
+            var parameterSpecData,
+                signature = parser.parseSignature('?callable $myParam');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(1);
+            parameterSpecData = signature.getParametersSpecData()[0];
+            expect(parameterSpecData.type).to.equal('callable');
+            expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             expect(parameterSpecData.value).to.be.null;
@@ -125,6 +145,7 @@ describe('SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(1);
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
+            expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             defaultValue = parameterSpecData.value();
@@ -141,6 +162,7 @@ describe('SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(1);
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
+            expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             defaultValue = parameterSpecData.value();
@@ -156,6 +178,7 @@ describe('SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(1);
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.equal('iterable');
+            expect(parameterSpecData.nullable).to.be.false;
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             expect(parameterSpecData.value).to.be.null;
@@ -170,6 +193,7 @@ describe('SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(1);
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
+            expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             defaultValue = parameterSpecData.value();
@@ -185,6 +209,7 @@ describe('SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(1);
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
+            expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             defaultValue = parameterSpecData.value();
@@ -206,6 +231,7 @@ describe('SignatureParser', function () {
 
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.equal('array');
+            expect(parameterSpecData.nullable).to.be.false;
             expect(parameterSpecData.name).to.equal('arrayParam');
             expect(parameterSpecData.ref).to.be.false;
             defaultValue = parameterSpecData.value();
@@ -214,6 +240,7 @@ describe('SignatureParser', function () {
 
             parameterSpecData = signature.getParametersSpecData()[1];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
+            expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.name).to.equal('boolParam');
             expect(parameterSpecData.ref).to.be.true; // This parameter is passed by-reference.
             defaultValue = parameterSpecData.value();
@@ -222,6 +249,7 @@ describe('SignatureParser', function () {
 
             parameterSpecData = signature.getParametersSpecData()[2];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
+            expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.name).to.equal('floatParam');
             expect(parameterSpecData.ref).to.be.false;
             defaultValue = parameterSpecData.value();
@@ -230,6 +258,7 @@ describe('SignatureParser', function () {
 
             parameterSpecData = signature.getParametersSpecData()[3];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
+            expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.name).to.equal('intParam');
             expect(parameterSpecData.ref).to.be.false;
             defaultValue = parameterSpecData.value();
@@ -238,6 +267,7 @@ describe('SignatureParser', function () {
 
             parameterSpecData = signature.getParametersSpecData()[4];
             expect(parameterSpecData.type).to.equal('class');
+            expect(parameterSpecData.nullable).to.be.false;
             expect(parameterSpecData.className).to.equal('MyClass');
             expect(parameterSpecData.name).to.equal('requiredObjectParam');
             expect(parameterSpecData.ref).to.be.false;
@@ -245,6 +275,7 @@ describe('SignatureParser', function () {
 
             parameterSpecData = signature.getParametersSpecData()[5];
             expect(parameterSpecData.type).to.equal('class');
+            expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.className).to.equal('YourLib\\Stuff\\YourClass');
             expect(parameterSpecData.name).to.equal('optionalObjectParam');
             expect(parameterSpecData.ref).to.be.false;
@@ -253,6 +284,7 @@ describe('SignatureParser', function () {
 
             parameterSpecData = signature.getParametersSpecData()[6];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
+            expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.name).to.equal('stringParam');
             expect(parameterSpecData.ref).to.be.false;
             defaultValue = parameterSpecData.value();
