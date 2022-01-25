@@ -19,6 +19,7 @@ var expect = require('chai').expect,
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ParameterTypeFactory = require('../../../src/Function/ParameterTypeFactory'),
+    ScalarType = require('../../../src/Type/ScalarType'),
     TypeFactory = require('../../../src/Type/TypeFactory');
 
 describe('ParameterTypeFactory', function () {
@@ -171,6 +172,38 @@ describe('ParameterTypeFactory', function () {
                     namespaceScope
                 );
             }).to.throw('Unsupported parameter type "my_unsupported_type"');
+        });
+
+        it('should be able to create a nullable "scalar" type', function () {
+            var scalarType = sinon.createStubInstance(ScalarType);
+            typeFactory.createScalarType
+                .withArgs('float', true)
+                .returns(scalarType);
+
+            expect(
+                factory.createParameterType({
+                    type: 'scalar',
+                    nullable: true,
+                    scalarType: 'float',
+                    name: 'myParam'
+                }, namespaceScope)
+            ).to.equal(scalarType);
+        });
+
+        it('should be able to create a non-nullable "scalar" type', function () {
+            var scalarType = sinon.createStubInstance(ScalarType);
+            typeFactory.createScalarType
+                .withArgs('float', false)
+                .returns(scalarType);
+
+            expect(
+                factory.createParameterType({
+                    type: 'scalar',
+                    nullable: false,
+                    scalarType: 'float',
+                    name: 'myParam'
+                }, namespaceScope)
+            ).to.equal(scalarType);
         });
     });
 });

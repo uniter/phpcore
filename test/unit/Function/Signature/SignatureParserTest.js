@@ -136,6 +136,20 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.value).to.be.null;
         });
 
+        it('should be able to parse a single nullable required callable parameter with erratic whitespace', function () {
+            var parameterSpecData,
+                signature = parser.parseSignature('  ? callable    $myParam ');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(1);
+            parameterSpecData = signature.getParametersSpecData()[0];
+            expect(parameterSpecData.type).to.equal('callable');
+            expect(parameterSpecData.nullable).to.be.true;
+            expect(parameterSpecData.name).to.equal('myParam');
+            expect(parameterSpecData.ref).to.be.false;
+            expect(parameterSpecData.value).to.be.null;
+        });
+
         it('should be able to parse a single by-value optional default-float parameter', function () {
             var defaultValue,
                 parameterSpecData,
@@ -153,7 +167,7 @@ describe('SignatureParser', function () {
             expect(defaultValue.getNative()).to.equal(123.456);
         });
 
-        it('should be able to parse a single by-value optional default-integer parameter', function () {
+        it('should be able to parse a single by-value optional default-integer mixed parameter', function () {
             var defaultValue,
                 parameterSpecData,
                 signature = parser.parseSignature('mixed $myParam = 5678');
@@ -163,6 +177,24 @@ describe('SignatureParser', function () {
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
             expect(parameterSpecData.nullable).to.be.true;
+            expect(parameterSpecData.name).to.equal('myParam');
+            expect(parameterSpecData.ref).to.be.false;
+            defaultValue = parameterSpecData.value();
+            expect(defaultValue.getType()).to.equal('int');
+            expect(defaultValue.getNative()).to.equal(5678);
+        });
+
+        it('should be able to parse a single by-value optional nullable integer scalar parameter', function () {
+            var defaultValue,
+                parameterSpecData,
+                signature = parser.parseSignature('?int $myParam = 5678');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(1);
+            parameterSpecData = signature.getParametersSpecData()[0];
+            expect(parameterSpecData.type).to.equal('scalar');
+            expect(parameterSpecData.nullable).to.be.true;
+            expect(parameterSpecData.scalarType).to.equal('int');
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             defaultValue = parameterSpecData.value();

@@ -67,6 +67,13 @@ _.extend(ClassType.prototype, {
     /**
      * {@inheritdoc}
      */
+    coerceValue: function (value) {
+        return value; // No special coercion to perform.
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     getDisplayName: function () {
         return this.className;
     },

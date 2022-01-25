@@ -122,14 +122,27 @@ _.extend(Parameter.prototype, {
      * @returns {Reference|Value|Variable}
      */
     coerceArgument: function (argumentReference) {
-        var parameter = this;
+        var parameter = this,
+            value;
 
         if (parameter.passedByReference) {
             // It is valid to pass an undefined variable/reference to a by-ref parameter
             return argumentReference;
         }
 
-        return argumentReference.getValue();
+        value = argumentReference.getValue();
+
+        // TODO: Don't perform this coercion in strict types mode when that is supported.
+        value = value.next(function (presentValue) {
+            /*
+             * Coerce the argument to match the parameter's type: for example, when the parameter
+             * is of type "float" but the argument is a string containing a float, a FloatValue
+             * will be returned with the value parsed from the string.
+             */
+            return parameter.typeObject.coerceValue(presentValue);
+        });
+
+        return value;
     },
 
     /**

@@ -69,6 +69,14 @@ describe('IterableType', function () {
         });
     });
 
+    describe('coerceValue()', function () {
+        it('should return the value unchanged', function () {
+            var value = valueFactory.createArray([21]);
+
+            expect(type.coerceValue(value)).to.equal(value);
+        });
+    });
+
     describe('getDisplayName()', function () {
         it('should return "iterable"', function () {
             expect(type.getDisplayName()).to.equal('iterable');

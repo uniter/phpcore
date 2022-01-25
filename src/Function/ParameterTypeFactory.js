@@ -53,6 +53,8 @@ _.extend(ParameterTypeFactory.prototype, {
                 );
             case 'iterable':
                 return factory.typeFactory.createIterableType(nullable);
+            case 'scalar':
+                return factory.typeFactory.createScalarType(parameterSpecData.scalarType, nullable);
             case undefined:
                 return factory.typeFactory.createMixedType();
             default:

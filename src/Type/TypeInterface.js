@@ -42,6 +42,19 @@ _.extend(TypeInterface.prototype, {
     allowsValue: throwUnimplemented('allowsValue'),
 
     /**
+     * Coerces an argument for a parameter defined with this type (for example) to a value of this type.
+     * Note that a FutureValue may be returned, eg. when an ObjectValue is coerced to string,
+     * and its __toString() magic method performs an async pause (eg. a usleep(...) or async I/O operation).
+     *
+     * Note that if coercion fails, the value provided will be returned unchanged: it is expected
+     * that the value will also be tested with .allowsValue(...) during a validation stage.
+     *
+     * @param {Value} value
+     * @returns {Value}
+     */
+    coerceValue: throwUnimplemented('coerceValue'),
+
+    /**
      * Fetches the display name for this type (eg. "string" or "My\Lib\MyClass")
      *
      * @returns {string}

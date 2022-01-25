@@ -14,7 +14,8 @@ var _ = require('microdash'),
     CallableType = require('./CallableType'),
     ClassType = require('./ClassType'),
     IterableType = require('./IterableType'),
-    MixedType = require('./MixedType');
+    MixedType = require('./MixedType'),
+    ScalarType = require('./ScalarType');
 
 /**
  * Creates objects related to Types
@@ -79,6 +80,17 @@ _.extend(TypeFactory.prototype, {
      */
     createMixedType: function () {
         return new MixedType(this.futureFactory);
+    },
+
+    /**
+     * Creates a new ScalarType.
+     *
+     * @param {string} scalarType
+     * @param {boolean=} nullIsAllowed
+     * @returns {ScalarType}
+     */
+    createScalarType: function (scalarType, nullIsAllowed) {
+        return new ScalarType(this.futureFactory, scalarType, Boolean(nullIsAllowed));
     }
 });
 

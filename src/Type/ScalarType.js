@@ -10,18 +10,22 @@
 'use strict';
 
 var _ = require('microdash'),
+    phpCommon = require('phpcommon'),
     util = require('util'),
     OF_GENERIC_TYPE_EXPECTED = 'core.of_generic_type_expected',
+    Exception = phpCommon.Exception,
     TypeInterface = require('./TypeInterface');
 
 /**
- * Represents a type that can only accept an array value
+ * Represents a type that accepts a value of the given type. If the calling scope is in strict-types mode,
+ * then the value's type must match exactly. However, in loose-types mode, the type may be coerced.
  *
  * @param {FutureFactory} futureFactory
+ * @param {string} scalarType Type name: "int", "string" etc.
  * @param {boolean} nullIsAllowed
  * @constructor
  */
-function ArrayType(futureFactory, nullIsAllowed) {
+function ScalarType(futureFactory, scalarType, nullIsAllowed) {
     /**
      * @type {FutureFactory}
      */
@@ -33,11 +37,15 @@ function ArrayType(futureFactory, nullIsAllowed) {
      * @type {boolean}
      */
     this.nullIsAllowed = nullIsAllowed;
+    /**
+     * @type {string}
+     */
+    this.scalarType = scalarType;
 }
 
-util.inherits(ArrayType, TypeInterface);
+util.inherits(ScalarType, TypeInterface);
 
-_.extend(ArrayType.prototype, {
+_.extend(ScalarType.prototype, {
     /**
      * {@inheritdoc}
      */
@@ -54,7 +62,7 @@ _.extend(ArrayType.prototype, {
         var typeObject = this;
 
         return typeObject.futureFactory.createPresent(
-            value.getType() === 'array' ||
+            (value.getType() === typeObject.scalarType) ||
             (typeObject.allowsNull() && value.getType() === 'null')
         );
     },
@@ -63,14 +71,40 @@ _.extend(ArrayType.prototype, {
      * {@inheritdoc}
      */
     coerceValue: function (value) {
-        return value; // No special coercion to perform.
+        var typeObject = this,
+            targetType = typeObject.scalarType,
+            actualType = value.getType();
+
+        if (actualType === 'array') {
+            // Don't attempt to coerce arrays, which in other places (like casting) is more lax.
+            return value;
+        }
+
+        try {
+            switch (targetType) {
+                case 'boolean':
+                    return value.coerceToBoolean();
+                case 'float':
+                    return value.coerceToFloat();
+                case 'int':
+                    return value.coerceToInteger();
+                case 'string':
+                    return value.coerceToString();
+            }
+        } catch (error) {
+            // Coercion failed; just return the value unchanged. If this was a parameter argument,
+            // the validation stage will then fail with the correct error.
+            return value;
+        }
+
+        throw new Exception('Unknown scalar type "' + typeObject.scalarType + '"');
     },
 
     /**
      * {@inheritdoc}
      */
     getDisplayName: function () {
-        return 'array';
+        return this.scalarType;
     },
 
     /**
@@ -86,8 +120,8 @@ _.extend(ArrayType.prototype, {
      * {@inheritdoc}
      */
     isScalar: function () {
-        return false; // This is not a scalar type hint
+        return true;
     }
 });
 
-module.exports = ArrayType;
+module.exports = ScalarType;

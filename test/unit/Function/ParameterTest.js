@@ -96,6 +96,7 @@ describe('Parameter', function () {
         it('should return the argument\'s value when the parameter is passed by value', function () {
             var value = valueFactory.createString('my value'),
                 variable = sinon.createStubInstance(Variable);
+            typeObject.coerceValue.returnsArg(0);
             variable.getValue.returns(value);
             parameter = new Parameter(
                 callStack,

@@ -10,7 +10,14 @@
 'use strict';
 
 var _ = require('microdash'),
+    hasOwn = {}.hasOwnProperty,
     phpCommon = require('phpcommon'),
+    scalarTypes = {
+        'boolean': true,
+        'float': true,
+        'int': true,
+        'string': true
+    },
     Exception = phpCommon.Exception,
     Signature = require('./Signature');
 
@@ -112,6 +119,10 @@ _.extend(SignatureParser.prototype, {
                 type = undefined;
                 // "mixed" type always accepts null.
                 nullable = true;
+            } else if (hasOwn.call(scalarTypes, type)) {
+                // Type is a scalar type (int, string etc.)
+                spec.scalarType = type;
+                type = 'scalar';
             } else if (type !== 'array' && type !== 'callable' && type !== 'iterable') {
                 // Any non-builtin type must represent a class (or interface).
                 spec.className = type;
@@ -127,7 +138,7 @@ _.extend(SignatureParser.prototype, {
         while (remainingSignature.length > 0) {
             // TODO: Support non-empty array literals as default values.
             match = remainingSignature.match(
-                /^(\?\s*)?([\w\\]+)\s*(?:(&)\s*)?\$(\w+)(?:\s*=\s*(?:(\d*\.\d+)|(\d+)|(true|false)|(null)|"((?:[^\\"]|\\[\s\S])*)"|\[()]))?\s*(?:,\s*)?/i
+                /^\s*(?:(\?)\s*)?([\w\\]+)\s*(?:(&)\s*)?\$(\w+)(?:\s*=\s*(?:(\d*\.\d+)|(\d+)|(true|false)|(null)|"((?:[^\\"]|\\[\s\S])*)"|\[()]))?\s*(?:,\s*)?/i
             );
 
             if (!match) {

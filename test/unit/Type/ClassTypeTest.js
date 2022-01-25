@@ -111,6 +111,14 @@ describe('ClassType', function () {
         });
     });
 
+    describe('coerceValue()', function () {
+        it('should return the value unchanged', function () {
+            var value = sinon.createStubInstance(ObjectValue);
+
+            expect(type.coerceValue(value)).to.equal(value);
+        });
+    });
+
     describe('getDisplayName()', function () {
         it('should return the FQCN', function () {
             expect(type.getDisplayName()).to.equal('My\\Fqcn\\ToMyClass');

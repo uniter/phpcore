@@ -80,6 +80,14 @@ describe('CallableType', function () {
         });
     });
 
+    describe('coerceValue()', function () {
+        it('should return the value unchanged', function () {
+            var value = valueFactory.createString('MyClass::myStaticMethod()');
+
+            expect(type.coerceValue(value)).to.equal(value);
+        });
+    });
+
     describe('getDisplayName()', function () {
         it('should return "callable"', function () {
             expect(type.getDisplayName()).to.equal('callable');

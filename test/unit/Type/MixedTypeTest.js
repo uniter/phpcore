@@ -82,6 +82,14 @@ describe('MixedType', function () {
         });
     });
 
+    describe('coerceValue()', function () {
+        it('should return the value unchanged', function () {
+            var value = valueFactory.createString('my value');
+
+            expect(type.coerceValue(value)).to.equal(value);
+        });
+    });
+
     describe('getDisplayName()', function () {
         it('should return "mixed"', function () {
             expect(type.getDisplayName()).to.equal('mixed');
