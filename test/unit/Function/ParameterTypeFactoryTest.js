@@ -34,27 +34,51 @@ describe('ParameterTypeFactory', function () {
     });
 
     describe('createParameterType()', function () {
-        it('should be able to create an "array" type', function () {
+        it('should be able to create a nullable "array" type', function () {
             var arrayType = sinon.createStubInstance(ArrayType);
-            typeFactory.createArrayType.returns(arrayType);
+            typeFactory.createArrayType
+                .withArgs(true)
+                .returns(arrayType);
 
             expect(
-                factory.createParameterType({type: 'array', name: 'myParam'}, namespaceScope)
+                factory.createParameterType({type: 'array', nullable: true, name: 'myParam'}, namespaceScope)
             ).to.equal(arrayType);
         });
 
-        it('should be able to create a "callable" type', function () {
+        it('should be able to create a non-nullable "array" type', function () {
+            var arrayType = sinon.createStubInstance(ArrayType);
+            typeFactory.createArrayType
+                .withArgs(false)
+                .returns(arrayType);
+
+            expect(
+                factory.createParameterType({type: 'array', nullable: false, name: 'myParam'}, namespaceScope)
+            ).to.equal(arrayType);
+        });
+
+        it('should be able to create a nullable "callable" type', function () {
             var callableType = sinon.createStubInstance(CallableType);
             typeFactory.createCallableType
-                .withArgs(sinon.match.same(namespaceScope))
+                .withArgs(sinon.match.same(namespaceScope), true)
                 .returns(callableType);
 
             expect(
-                factory.createParameterType({type: 'callable', name: 'myParam'}, namespaceScope)
+                factory.createParameterType({type: 'callable', nullable: true, name: 'myParam'}, namespaceScope)
             ).to.equal(callableType);
         });
 
-        it('should be able to create a "class" type', function () {
+        it('should be able to create a non-nullable "callable" type', function () {
+            var callableType = sinon.createStubInstance(CallableType);
+            typeFactory.createCallableType
+                .withArgs(sinon.match.same(namespaceScope), false)
+                .returns(callableType);
+
+            expect(
+                factory.createParameterType({type: 'callable', nullable: false, name: 'myParam'}, namespaceScope)
+            ).to.equal(callableType);
+        });
+
+        it('should be able to create a nullable "class" type', function () {
             var classType = sinon.createStubInstance(ClassType),
                 namespace = sinon.createStubInstance(Namespace);
             // Ensure we resolve the class path relative to the current namespace scope,
@@ -62,7 +86,7 @@ describe('ParameterTypeFactory', function () {
             // in the current module
             namespace.getPrefix.returns('My\\Absolute\\NamespacePathFor\\');
             typeFactory.createClassType
-                .withArgs('My\\Absolute\\NamespacePathFor\\MyClass')
+                .withArgs('My\\Absolute\\NamespacePathFor\\MyClass', true)
                 .returns(classType);
             namespaceScope.resolveClass
                 .withArgs('Relative\\NamespacePathFor\\MyClass')
@@ -74,18 +98,59 @@ describe('ParameterTypeFactory', function () {
             expect(
                 factory.createParameterType({
                     type: 'class',
+                    nullable: true,
                     className: 'Relative\\NamespacePathFor\\MyClass',
                     name: 'myParam'
                 }, namespaceScope)
             ).to.equal(classType);
         });
 
-        it('should be able to create a "iterable" type', function () {
-            var iterableType = sinon.createStubInstance(IterableType);
-            typeFactory.createIterableType.returns(iterableType);
+        it('should be able to create a non-nullable "class" type', function () {
+            var classType = sinon.createStubInstance(ClassType),
+                namespace = sinon.createStubInstance(Namespace);
+            // Ensure we resolve the class path relative to the current namespace scope,
+            // to account for relative class paths and/or those that depend on `use` imports
+            // in the current module
+            namespace.getPrefix.returns('My\\Absolute\\NamespacePathFor\\');
+            typeFactory.createClassType
+                .withArgs('My\\Absolute\\NamespacePathFor\\MyClass', false)
+                .returns(classType);
+            namespaceScope.resolveClass
+                .withArgs('Relative\\NamespacePathFor\\MyClass')
+                .returns({
+                    namespace: namespace,
+                    name: 'MyClass'
+                });
 
             expect(
-                factory.createParameterType({type: 'iterable', name: 'myParam'}, namespaceScope)
+                factory.createParameterType({
+                    type: 'class',
+                    nullable: false,
+                    className: 'Relative\\NamespacePathFor\\MyClass',
+                    name: 'myParam'
+                }, namespaceScope)
+            ).to.equal(classType);
+        });
+
+        it('should be able to create a nullable "iterable" type', function () {
+            var iterableType = sinon.createStubInstance(IterableType);
+            typeFactory.createIterableType
+                .withArgs(true)
+                .returns(iterableType);
+
+            expect(
+                factory.createParameterType({type: 'iterable', nullable: true, name: 'myParam'}, namespaceScope)
+            ).to.equal(iterableType);
+        });
+
+        it('should be able to create a non-nullable "iterable" type', function () {
+            var iterableType = sinon.createStubInstance(IterableType);
+            typeFactory.createIterableType
+                .withArgs(false)
+                .returns(iterableType);
+
+            expect(
+                factory.createParameterType({type: 'iterable', nullable: false, name: 'myParam'}, namespaceScope)
             ).to.equal(iterableType);
         });
 

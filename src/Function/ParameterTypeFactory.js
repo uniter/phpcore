@@ -34,21 +34,25 @@ _.extend(ParameterTypeFactory.prototype, {
      */
     createParameterType: function (parameterSpecData, namespaceScope) {
         var factory = this,
+            nullable = parameterSpecData.nullable,
             resolvedClass;
 
         switch (parameterSpecData.type) {
             case 'array':
-                return factory.typeFactory.createArrayType();
+                return factory.typeFactory.createArrayType(nullable);
             case 'callable':
-                return factory.typeFactory.createCallableType(namespaceScope);
+                return factory.typeFactory.createCallableType(namespaceScope, nullable);
             case 'class':
                 // We must now resolve the class name given relative to the current namespace scope,
                 // as it may be a relative class name that relies on the current namespace or a `use` import
                 resolvedClass = namespaceScope.resolveClass(parameterSpecData.className);
 
-                return factory.typeFactory.createClassType(resolvedClass.namespace.getPrefix() + resolvedClass.name);
+                return factory.typeFactory.createClassType(
+                    resolvedClass.namespace.getPrefix() + resolvedClass.name,
+                    nullable
+                );
             case 'iterable':
-                return factory.typeFactory.createIterableType();
+                return factory.typeFactory.createIterableType(nullable);
             case undefined:
                 return factory.typeFactory.createMixedType();
             default:

@@ -27,6 +27,9 @@ function ArrayType(futureFactory, nullIsAllowed) {
      */
     this.futureFactory = futureFactory;
     /**
+     * Note that whether a type is nullable is not directly to whether a parameter using that type is nullable -
+     * if the default value is null then it will allow null, which is checked in the Parameter class.
+     *
      * @type {boolean}
      */
     this.nullIsAllowed = nullIsAllowed;

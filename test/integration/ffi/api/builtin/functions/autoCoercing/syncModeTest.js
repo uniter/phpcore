@@ -48,6 +48,30 @@ EOS
         expect(engine.execute().getNative()).to.equal(22);
     });
 
+    it('should support installing a custom function with nullable parameter used', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+$result['number array given'] = add_together([10, 12]);
+$result['null given'] = add_together(null);
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        engine.defineCoercingFunction('add_together', function (numbers) {
+            return numbers === null ? -1 : numbers[0] + numbers[1];
+        }, '?array $myArray');
+
+        expect(engine.execute().getNative()).to.deep.equal({
+            'number array given': 22,
+            'null given': -1
+        });
+    });
+
     it('should support installing a custom function that returns an FFIResult that resolves to a number', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -113,6 +137,27 @@ EOS
             PHPFatalError,
             'PHP Fatal error: Uncaught TypeError: Argument 1 passed to i_want_an_object() ' +
             'must be an instance of My\\Stuff\\MyClass, int given, ' +
+            'called in /path/to/my_module.php on line 2 and defined in unknown:unknown in unknown on line unknown'
+        );
+    });
+
+    it('should raise a fatal error when a non-nullable class-typed parameter is given null argument', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+i_want_an_object(null); // Not a valid instance!
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        engine.defineCoercingFunction('i_want_an_object', function () {}, 'My\\Stuff\\MyClass $myObject');
+
+        expect(function () {
+            engine.execute();
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught TypeError: Argument 1 passed to i_want_an_object() ' +
+            'must be an instance of My\\Stuff\\MyClass, null given, ' +
             'called in /path/to/my_module.php on line 2 and defined in unknown:unknown in unknown on line unknown'
         );
     });
