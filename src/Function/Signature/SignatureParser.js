@@ -43,7 +43,39 @@ _.extend(SignatureParser.prototype, {
         var match,
             parametersSpecData = [],
             parser = this,
-            remainingSignature = signature;
+            remainingSignature = signature,
+            returnTypeSpecData = null;
+
+        /**
+         * Builds a type's spec from the given attributes.
+         *
+         * @param {string} type Raw type string, eg. "string" or "My\Stuff"
+         * @param {boolean} nullable
+         * @returns {type: string, nullable: boolean, className: string, scalarType: string}
+         */
+        function buildTypeSpecData(type, nullable) {
+            var spec = {};
+
+            if (type === 'mixed') {
+                // "mixed" type is represented by undefined in the parameter spec data format.
+                type = undefined;
+                // "mixed" type always accepts null.
+                nullable = true;
+            } else if (hasOwn.call(scalarTypes, type)) {
+                // Type is a scalar type (int, string etc.)
+                spec.scalarType = type;
+                type = 'scalar';
+            } else if (type !== 'array' && type !== 'callable' && type !== 'iterable') {
+                // Any non-builtin type must represent a class (or interface).
+                spec.className = type;
+                type = 'class';
+            }
+
+            spec.type = type;
+            spec.nullable = nullable;
+
+            return spec;
+        }
 
         /**
          * Builds a parameter's spec from the given parameter regex match.
@@ -107,42 +139,26 @@ _.extend(SignatureParser.prototype, {
                 };
             }
 
-            spec = {
-                name: name,
-                ref: passedByReference,
-                // (Note that .type is added below.)
-                value: valueProvider
-            };
+            spec = buildTypeSpecData(type, nullable);
 
-            if (type === 'mixed') {
-                // "mixed" type is represented by undefined in the parameter spec data format.
-                type = undefined;
-                // "mixed" type always accepts null.
-                nullable = true;
-            } else if (hasOwn.call(scalarTypes, type)) {
-                // Type is a scalar type (int, string etc.)
-                spec.scalarType = type;
-                type = 'scalar';
-            } else if (type !== 'array' && type !== 'callable' && type !== 'iterable') {
-                // Any non-builtin type must represent a class (or interface).
-                spec.className = type;
-                type = 'class';
-            }
-
-            spec.type = type;
-            spec.nullable = nullable;
+            spec.name = name;
+            spec.ref = passedByReference;
+            spec.value = valueProvider;
 
             return spec;
         }
 
-        while (remainingSignature.length > 0) {
+        while (remainingSignature.length > 0 && !/^\s*:/.test(remainingSignature)) {
             // TODO: Support non-empty array literals as default values.
             match = remainingSignature.match(
                 /^\s*(?:(\?)\s*)?([\w\\]+)\s*(?:(&)\s*)?\$(\w+)(?:\s*=\s*(?:(\d*\.\d+)|(\d+)|(true|false)|(null)|"((?:[^\\"]|\\[\s\S])*)"|\[()]))?\s*(?:,\s*)?/i
             );
 
             if (!match) {
-                throw new Exception('SignatureParser.parseSignature() :: Invalid function signature: "' + signature + '"');
+                throw new Exception(
+                    'SignatureParser.parseSignature() :: Invalid function signature "' + signature +
+                    '" near "' + remainingSignature.substr(0, 20) + '..."'
+                );
             }
 
             parametersSpecData.push(buildParameterSpecData(match));
@@ -150,7 +166,24 @@ _.extend(SignatureParser.prototype, {
             remainingSignature = remainingSignature.substr(match[0].length);
         }
 
-        return new Signature(parametersSpecData);
+        if (remainingSignature.length > 0) {
+            // Signature declares a return type.
+
+            match = remainingSignature.match(
+                /^\s*:\s*(?:(\?)\s*)?([\w\\]+)\s*$/i
+            );
+
+            if (!match) {
+                throw new Exception(
+                    'SignatureParser.parseSignature() :: Invalid function signature "' + signature +
+                    '" near "' + remainingSignature.substr(0, 20) + '..."'
+                );
+            }
+
+            returnTypeSpecData = buildTypeSpecData(match[2], match[1] === '?');
+        }
+
+        return new Signature(parametersSpecData, returnTypeSpecData);
     }
 });
 

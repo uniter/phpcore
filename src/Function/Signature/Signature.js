@@ -15,13 +15,18 @@ var _ = require('microdash');
  * Represents a parsed signature of a native function or method.
  *
  * @param {Array} parametersSpecData
+ * @param {Object|null} returnTypeSpecData
  * @constructor
  */
-function Signature(parametersSpecData) {
+function Signature(parametersSpecData, returnTypeSpecData) {
     /**
      * @type {Array}
      */
     this.parametersSpecData = parametersSpecData;
+    /**
+     * @type {Object|null}
+     */
+    this.returnTypeSpecData = returnTypeSpecData;
 }
 
 _.extend(Signature.prototype, {
@@ -41,6 +46,15 @@ _.extend(Signature.prototype, {
      */
     getParametersSpecData: function () {
         return this.parametersSpecData;
+    },
+
+    /**
+     * Fetches the return type's spec data for the function signature, if any.
+     *
+     * @returns {Object|null}
+     */
+    getReturnTypeSpecData: function () {
+        return this.returnTypeSpecData;
     }
 });
 

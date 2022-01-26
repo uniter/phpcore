@@ -249,17 +249,36 @@ describe('SignatureParser', function () {
             expect(defaultValue.getNative()).to.equal('my default string value');
         });
 
+        it('should be able to parse a signature with nullable class return type but no parameters', function () {
+            var signature = parser.parseSignature(' : ?My\\Stuff\\MyClass');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(0);
+            expect(signature.getReturnTypeSpecData()).to.deep.equal({
+                type: 'class',
+                className: 'My\\Stuff\\MyClass',
+                nullable: true
+            });
+        });
+
         it('should be able to parse multiple parameters of different kinds', function () {
             var defaultValue,
                 parameterSpecData,
                 signature = parser.parseSignature(
                     'array $arrayParam = [], mixed &$boolParam = true, mixed $floatParam = 123.45, ' +
                     'mixed $intParam = 1001, MyClass $requiredObjectParam, YourLib\\Stuff\\YourClass $optionalObjectParam = null, ' +
-                    'mixed $stringParam = "my default string value \\\\ with \\" \\n escaped chars"'
+                    'mixed $stringParam = "my default string value \\\\ with \\" \\n escaped chars"' +
+                    ' : ?string'
                 );
 
             expect(signature).to.be.an.instanceOf(Signature);
             expect(signature.getParameterCount()).to.equal(7);
+
+            expect(signature.getReturnTypeSpecData()).to.deep.equal({
+                type: 'scalar',
+                scalarType: 'string',
+                nullable: true
+            });
 
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.equal('array');
@@ -334,12 +353,23 @@ describe('SignatureParser', function () {
             );
         });
 
-        it('should throw an error when the signature is malformed', function () {
+        it('should throw an error when the signature is completely malformed', function () {
             expect(function () {
                 parser.parseSignature('I am not a valid signature');
             }).to.throw(
                 Exception,
-                'SignatureParser.parseSignature() :: Invalid function signature: "I am not a valid signature"'
+                'SignatureParser.parseSignature() :: Invalid function signature "I am not a valid signature" ' +
+                'near "I am not a valid sig..."'
+            );
+        });
+
+        it('should throw an error when the signature has a malformed return type', function () {
+            expect(function () {
+                parser.parseSignature('?int $myParam : ?not_a_valid@ return type');
+            }).to.throw(
+                Exception,
+                'SignatureParser.parseSignature() :: Invalid function signature "?int $myParam : ?not_a_valid@ return type" ' +
+                'near ": ?not_a_valid@ retu..."'
             );
         });
     });
