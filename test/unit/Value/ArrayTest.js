@@ -425,6 +425,30 @@ describe('Array', function () {
         });
     });
 
+    describe('convertForBooleanType()', function () {
+        it('should just return this value as no conversion is possible', function () {
+            expect(value.convertForBooleanType()).to.equal(value);
+        });
+    });
+
+    describe('convertForFloatType()', function () {
+        it('should just return this value as no conversion is possible', function () {
+            expect(value.convertForFloatType()).to.equal(value);
+        });
+    });
+
+    describe('convertForIntegerType()', function () {
+        it('should just return this value as no conversion is possible', function () {
+            expect(value.convertForIntegerType()).to.equal(value);
+        });
+    });
+
+    describe('convertForStringType()', function () {
+        it('should just return this value as no conversion is possible', function () {
+            expect(value.convertForStringType()).to.equal(value);
+        });
+    });
+
     describe('decrement()', function () {
         // NB: Yes, this is actually the correct behaviour, vs. subtracting one from an array explicitly.
         it('should return a copy of the array', function () {
@@ -950,6 +974,12 @@ describe('Array', function () {
     describe('isNumeric()', function () {
         it('should return false', function () {
             expect(value.isNumeric()).to.be.false;
+        });
+    });
+
+    describe('isReferenceable()', function () {
+        it('should return false', function () {
+            expect(value.isReferenceable()).to.be.false;
         });
     });
 

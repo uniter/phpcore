@@ -18,7 +18,7 @@ var _ = require('microdash'),
 
 /**
  * Represents a type that accepts a value of the given type. If the calling scope is in strict-types mode,
- * then the value's type must match exactly. However, in loose-types mode, the type may be coerced.
+ * then the value's type must match exactly. However, in weak type-checking mode, the type may be coerced.
  *
  * @param {FutureFactory} futureFactory
  * @param {string} scalarType Type name: "int", "string" etc.
@@ -72,32 +72,23 @@ _.extend(ScalarType.prototype, {
      */
     coerceValue: function (value) {
         var typeObject = this,
-            targetType = typeObject.scalarType,
-            actualType = value.getType();
+            targetType = typeObject.scalarType;
 
-        if (actualType === 'array') {
-            // Don't attempt to coerce arrays, which in other places (like casting) is more lax.
-            return value;
+        // Note that arrays will never be accepted by a scalar type,
+        // and null is only allowed if the type is nullable.
+
+        switch (targetType) {
+            case 'bool':
+                return value.convertForBooleanType();
+            case 'float':
+                return value.convertForFloatType();
+            case 'int':
+                return value.convertForIntegerType();
+            case 'string':
+                return value.convertForStringType();
+            default:
+                throw new Exception('Unknown scalar type "' + targetType + '"');
         }
-
-        try {
-            switch (targetType) {
-                case 'boolean':
-                    return value.coerceToBoolean();
-                case 'float':
-                    return value.coerceToFloat();
-                case 'int':
-                    return value.coerceToInteger();
-                case 'string':
-                    return value.coerceToString();
-            }
-        } catch (error) {
-            // Coercion failed; just return the value unchanged. If this was a parameter argument,
-            // the validation stage will then fail with the correct error.
-            return value;
-        }
-
-        throw new Exception('Unknown scalar type "' + typeObject.scalarType + '"');
     },
 
     /**

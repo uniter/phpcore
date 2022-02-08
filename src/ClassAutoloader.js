@@ -99,7 +99,7 @@ module.exports = require('pauser')([
 
             if (magicAutoloadFunction) {
                 return magicAutoloadFunction(autoloader.valueFactory.createString(name))
-                    .getValue();
+                    .asValue();
             }
 
             // No autoloader is registered

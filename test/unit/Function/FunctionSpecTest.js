@@ -24,17 +24,23 @@ var expect = require('chai').expect,
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     Parameter = require('../../../src/Function/Parameter'),
-    Translator = phpCommon.Translator;
+    PHPError = phpCommon.PHPError,
+    TypeInterface = require('../../../src/Type/TypeInterface'),
+    Translator = phpCommon.Translator,
+    Variable = require('../../../src/Variable').sync();
 
 describe('FunctionSpec', function () {
     var callStack,
         context,
+        createSpec,
         flow,
         futureFactory,
         globalNamespace,
         namespaceScope,
         parameter1,
         parameter2,
+        parameterList,
+        returnType,
         spec,
         state,
         translator,
@@ -54,33 +60,48 @@ describe('FunctionSpec', function () {
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         parameter1 = sinon.createStubInstance(Parameter);
         parameter2 = sinon.createStubInstance(Parameter);
+        parameterList = [parameter1, parameter2];
+        returnType = sinon.createStubInstance(TypeInterface);
         valueFactory = state.getValueFactory();
 
         callStack.getCurrent.returns(sinon.createStubInstance(Call));
         callStack.getLastFilePath.returns('/path/to/my/module.php');
         callStack.getLastLine.returns(123);
+        callStack.raiseTranslatedError
+            .withArgs(PHPError.E_ERROR)
+            .callsFake(function (level, translationKey, placeholderVariables) {
+                throw new Error(
+                    'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+                );
+            });
         context.getName.returns('myFunction');
+        parameter1.isPassedByReference.returns(false);
         parameter1.isRequired.returns(true);
+        parameter2.isPassedByReference.returns(false);
         parameter2.isRequired.returns(false);
+        returnType.getDisplayName.returns('float');
         translator.translate
             .callsFake(function (translationKey, placeholderVariables) {
                 return '[Translated] ' + translationKey + ' ' + JSON.stringify(placeholderVariables || {});
             });
         valueFactory.setGlobalNamespace(globalNamespace);
 
-        spec = new FunctionSpec(
-            callStack,
-            valueFactory,
-            flow,
-            context,
-            namespaceScope,
-            [
-                parameter1,
-                parameter2
-            ],
-            '/path/to/my/module.php',
-            1234
-        );
+        createSpec = function (returnByReference) {
+            spec = new FunctionSpec(
+                callStack,
+                valueFactory,
+                futureFactory,
+                flow,
+                context,
+                namespaceScope,
+                parameterList,
+                returnType,
+                returnByReference,
+                '/path/to/my/module.php',
+                1234
+            );
+        };
+        createSpec(false);
     });
 
     describe('coerceArguments()', function () {
@@ -109,19 +130,8 @@ describe('FunctionSpec', function () {
 
         it('should skip any parameters whose specs are missing', function () {
             var result;
-            spec = new FunctionSpec(
-                callStack,
-                valueFactory,
-                flow,
-                context,
-                namespaceScope,
-                [
-                    null, // Missing parameter spec, eg. due to bundle size optimisations
-                    parameter2
-                ],
-                '/path/to/my/module.php',
-                1234
-            );
+            parameterList[0] = null; // Missing parameter spec, eg. due to bundle size optimisations.
+            createSpec(false);
 
             result = spec.coerceArguments([argument1, argument2]);
 
@@ -140,6 +150,63 @@ describe('FunctionSpec', function () {
 
             expect(result).to.have.length(1);
             expect(result[0].getNative()).to.equal('first coerced');
+        });
+
+        it('should not overwrite by-reference arguments in the reference list with their resolved values', function () {
+            var argumentReferences,
+                result;
+            argumentReferences = [argument1, argument2];
+            parameter1.isPassedByReference.returns(true);
+
+            result = spec.coerceArguments(argumentReferences);
+
+            expect(result).to.have.length(2);
+            expect(result[0].getNative()).to.equal('first coerced');
+            expect(result[1].getNative()).to.equal('second coerced');
+            expect(argumentReferences).to.have.length(2);
+            // Not overwritten, as we need to preserve the reference to pass through.
+            expect(argumentReferences[0].getNative()).to.equal('first uncoerced');
+            expect(argumentReferences[1].getNative()).to.equal('second coerced');
+        });
+    });
+
+    describe('coerceReturnReference()', function () {
+        it('should return the coerced result when the function is return-by-reference', async function () {
+            var originalValue = valueFactory.createString('original value'),
+                coercedValue = valueFactory.createString('coerced value'),
+                variable = sinon.createStubInstance(Variable);
+            createSpec(true);
+            returnType.coerceValue
+                .withArgs(sinon.match.same(originalValue))
+                .returns(coercedValue);
+            variable.getValueOrNull.returns(originalValue);
+
+            expect(await spec.coerceReturnReference(variable).toPromise()).to.equal(coercedValue);
+        });
+
+        it('should write the coerced result back to the reference when the function is return-by-reference', async function () {
+            var originalValue = valueFactory.createString('original value'),
+                coercedValue = valueFactory.createString('coerced value'),
+                variable = sinon.createStubInstance(Variable);
+            createSpec(true);
+            returnType.coerceValue
+                .withArgs(sinon.match.same(originalValue))
+                .returns(coercedValue);
+            variable.getValueOrNull.returns(originalValue);
+
+            await spec.coerceReturnReference(variable).toPromise();
+
+            expect(variable.setValue).to.have.been.calledOnce;
+            expect(variable.setValue).to.have.been.calledWith(sinon.match.same(coercedValue));
+        });
+
+        it('should return the result value when the function is return-by-value', function () {
+            var value = valueFactory.createString('my value'),
+                variable = sinon.createStubInstance(Variable);
+            returnType.coerceValue.returnsArg(0);
+            variable.getValue.returns(value);
+
+            expect(spec.coerceReturnReference(variable)).to.equal(value);
         });
     });
 
@@ -174,6 +241,8 @@ describe('FunctionSpec', function () {
                     sinon.match.same(namespaceScope),
                     'myAliasFunc',
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    sinon.match.same(returnType),
+                    false, // Return by value.
                     '/path/to/my/module.php',
                     1234
                 )
@@ -315,12 +384,33 @@ describe('FunctionSpec', function () {
     });
 
     describe('validateArguments()', function () {
-        var argument1,
-            argument2;
+        var argumentReference1,
+            argumentReference2,
+            argumentValue1,
+            argumentValue2;
 
         beforeEach(function () {
-            argument1 = valueFactory.createString('first uncoerced');
-            argument2 = valueFactory.createString('second uncoerced');
+            argumentReference1 = sinon.createStubInstance(Variable);
+            argumentReference2 = sinon.createStubInstance(Variable);
+
+            argumentValue1 = valueFactory.createString('first uncoerced');
+            argumentValue2 = valueFactory.createString('second uncoerced');
+        });
+
+        it('should validate the arguments', function () {
+            spec.validateArguments([argumentReference1, argumentReference2], [argumentValue1, argumentValue2])
+                .yieldSync();
+
+            expect(parameter1.validateArgument).to.have.been.calledOnce;
+            expect(parameter1.validateArgument).to.have.been.calledWith(
+                sinon.match.same(argumentReference1),
+                sinon.match.same(argumentValue1)
+            );
+            expect(parameter2.validateArgument).to.have.been.calledOnce;
+            expect(parameter2.validateArgument).to.have.been.calledWith(
+                sinon.match.same(argumentReference2),
+                sinon.match.same(argumentValue2)
+            );
         });
 
         it('should throw the correct error when a required parameter is missing an argument', function () {
@@ -346,12 +436,201 @@ describe('FunctionSpec', function () {
             parameter2.isRequired.returns(true);
 
             try {
-                spec.validateArguments([argument1]).yieldSync();
+                spec.validateArguments([argumentReference1], [argumentValue1]).yieldSync();
             } catch (error) {
                 caughtError = error;
             }
 
             expect(caughtError).to.equal(errorValue);
+        });
+    });
+
+    describe('validateReturnReference()', function () {
+        var returnReference,
+            returnValue;
+
+        beforeEach(function () {
+            returnReference = sinon.createStubInstance(Variable);
+            returnValue = valueFactory.createString('my return value');
+        });
+
+        describe('when the spec has a return type, is return-by-value and the return value is allowed', function () {
+            beforeEach(function () {
+                returnReference.isReferenceable.returns(false);
+                returnType.allowsValue
+                    .withArgs(sinon.match.same(returnValue))
+                    .returns(futureFactory.createPresent(true));
+            });
+
+            it('should return the return value', async function () {
+                expect(await spec.validateReturnReference(returnReference, returnValue).toPromise())
+                    .to.equal(returnValue);
+            });
+
+            it('should not raise an error', async function () {
+                await spec.validateReturnReference(returnReference, returnValue).toPromise();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+
+        describe('when the spec has a return type, is return-by-reference and the return value is allowed', function () {
+            beforeEach(function () {
+                createSpec(true);
+                returnReference.isReferenceable.returns(true);
+                returnType.allowsValue
+                    .withArgs(sinon.match.same(returnValue))
+                    .returns(futureFactory.createPresent(true));
+            });
+
+            it('should return the return reference', async function () {
+                expect(await spec.validateReturnReference(returnReference, returnValue).toPromise())
+                    .to.equal(returnReference);
+            });
+
+            it('should not raise an error', async function () {
+                await spec.validateReturnReference(returnReference, returnValue).toPromise();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+
+        describe('when the spec has a return type, is return-by-value but the return value is not allowed', function () {
+            beforeEach(function () {
+                returnReference.isReferenceable.returns(false);
+                returnType.allowsValue
+                    .withArgs(sinon.match.same(returnValue))
+                    .returns(futureFactory.createPresent(false));
+            });
+
+            it('should reject the future with an error', function () {
+                return expect(spec.validateReturnReference(returnReference, returnValue).toPromise())
+                    .to.eventually.be.rejectedWith(
+                        'Fake PHP Fatal error for #core.invalid_return_value_type ' +
+                        'with {"func":"myFunction","expectedType":"float","actualType":"string"}'
+                    );
+            });
+
+            it('should raise an error', async function () {
+                try {
+                    await spec.validateReturnReference(returnReference, returnValue).toPromise();
+                } catch (error) {}
+
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_ERROR,
+                    'core.invalid_return_value_type',
+                    {
+                        func: 'myFunction',
+                        expectedType: 'float',
+                        actualType: 'string'
+                    },
+                    'TypeError',
+                    false,
+                    '/path/to/my/module.php',
+                    1234
+                );
+            });
+        });
+
+        describe('when the spec has a return type, is return-by-reference but the return value is not allowed', function () {
+            beforeEach(function () {
+                createSpec(true);
+                returnReference.isReferenceable.returns(true);
+                returnType.allowsValue
+                    .withArgs(sinon.match.same(returnValue))
+                    .returns(futureFactory.createPresent(false));
+            });
+
+            it('should reject the future with an error', function () {
+                return expect(spec.validateReturnReference(returnReference, returnValue).toPromise())
+                    .to.eventually.be.rejectedWith(
+                        'Fake PHP Fatal error for #core.invalid_return_value_type ' +
+                        'with {"func":"myFunction","expectedType":"float","actualType":"string"}'
+                    );
+            });
+
+            it('should raise an error', async function () {
+                try {
+                    await spec.validateReturnReference(returnReference, returnValue).toPromise();
+                } catch (error) {}
+
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_ERROR,
+                    'core.invalid_return_value_type',
+                    {
+                        func: 'myFunction',
+                        expectedType: 'float',
+                        actualType: 'string'
+                    },
+                    'TypeError',
+                    false,
+                    '/path/to/my/module.php',
+                    1234
+                );
+            });
+        });
+
+        describe('when the spec is return-by-reference but a non-reference is returned', function () {
+            beforeEach(function () {
+                createSpec(true);
+                returnReference.isReferenceable.returns(false);
+                returnType.allowsValue
+                    .withArgs(sinon.match.same(returnValue))
+                    .returns(futureFactory.createPresent(true));
+            });
+
+            it('should return the return reference', async function () {
+                expect(await spec.validateReturnReference(returnReference, returnValue).toPromise())
+                    .to.equal(returnReference);
+            });
+
+            it('should raise a notice', async function () {
+                await spec.validateReturnReference(returnReference, returnValue).toPromise();
+
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'core.only_references_returned_by_reference'
+                );
+            });
+        });
+
+        describe('when the spec is return-by-value and has no return type', function () {
+            beforeEach(function () {
+                returnType = null;
+                createSpec(false);
+            });
+
+            it('should return the return value unchanged', async function () {
+                expect(await spec.validateReturnReference(returnReference, returnValue).toPromise())
+                    .to.equal(returnValue);
+            });
+
+            it('should not raise an error', async function () {
+                await spec.validateReturnReference(returnReference, returnValue).toPromise();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+
+        describe('when the spec is return-by-reference and has no return type', function () {
+            beforeEach(function () {
+                returnType = null;
+                createSpec(true);
+            });
+
+            it('should return the return reference unchanged', async function () {
+                expect(await spec.validateReturnReference(returnReference, returnValue).toPromise())
+                    .to.equal(returnReference);
+            });
+
+            it('should not raise an error', async function () {
+                await spec.validateReturnReference(returnReference, returnValue).toPromise();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
         });
     });
 });

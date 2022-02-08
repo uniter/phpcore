@@ -110,6 +110,8 @@ module.exports = require('pauser')([
                 namespaceScope,
                 scope.currentClass,
                 parametersSpecData || [],
+                null, // TODO: Implement userland return types.
+                false, // TODO: Implement userland return-by-reference.
                 namespaceScope.getFilePath(),
                 lineNumber
             );

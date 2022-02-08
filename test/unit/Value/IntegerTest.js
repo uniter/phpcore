@@ -233,6 +233,65 @@ describe('Integer', function () {
         });
     });
 
+    describe('convertForBooleanType()', function () {
+        it('should return bool(true) when positive', function () {
+            var resultValue = value.convertForBooleanType();
+
+            expect(resultValue.getType()).to.equal('boolean');
+            expect(resultValue.getNative()).to.be.true;
+        });
+
+        it('should return bool(false) when zero', function () {
+            var resultValue;
+            createValue(0);
+
+            resultValue = value.convertForBooleanType();
+
+            expect(resultValue.getType()).to.equal('boolean');
+            expect(resultValue.getNative()).to.be.false;
+        });
+
+        it('should return bool(true) when negative', function () {
+            var resultValue;
+            createValue(-10);
+
+            resultValue = value.convertForBooleanType();
+
+            expect(resultValue.getType()).to.equal('boolean');
+            expect(resultValue.getNative()).to.be.true;
+        });
+    });
+
+    describe('convertForFloatType()', function () {
+        it('should return a float containing the current integer', function () {
+            var resultValue;
+            createValue(123);
+
+            resultValue = value.convertForFloatType();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(123);
+        });
+    });
+
+    describe('convertForIntegerType()', function () {
+        it('should just return this value as it is already the correct type', function () {
+            expect(value.convertForIntegerType()).to.equal(value);
+        });
+    });
+
+    describe('convertForStringType()', function () {
+        it('should return the integer as a string', function () {
+            var resultValue;
+            createValue(1234);
+
+            resultValue = value.convertForStringType();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('1234');
+        });
+    });
+
     describe('decrement()', function () {
         it('should return one less when the integer is positive', function () {
             var resultValue;
@@ -726,6 +785,12 @@ describe('Integer', function () {
     describe('isNumeric()', function () {
         it('should return true', function () {
             expect(value.isNumeric()).to.be.true;
+        });
+    });
+
+    describe('isReferenceable()', function () {
+        it('should return false', function () {
+            expect(value.isReferenceable()).to.be.false;
         });
     });
 

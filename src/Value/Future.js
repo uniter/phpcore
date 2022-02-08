@@ -168,6 +168,42 @@ _.extend(FutureValue.prototype, {
     /**
      * {@inheritdoc}
      */
+    convertForBooleanType: function () {
+        return this.derive().next(function (presentValue) {
+            return presentValue.convertForBooleanType();
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    convertForFloatType: function () {
+        return this.derive().next(function (presentValue) {
+            return presentValue.convertForFloatType();
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    convertForIntegerType: function () {
+        return this.derive().next(function (presentValue) {
+            return presentValue.convertForIntegerType();
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    convertForStringType: function () {
+        return this.derive().next(function (presentValue) {
+            return presentValue.convertForStringType();
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     decrement: function () {
         return this.derive().next(function (presentValue) {
             return presentValue.decrement();

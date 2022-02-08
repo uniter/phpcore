@@ -125,11 +125,13 @@ module.exports = require('pauser')([
         ) {
             var namespaceScope = this;
 
-            return namespaceScope.namespace.defineFunction(
+            namespaceScope.namespace.defineFunction(
                 name,
                 func,
                 namespaceScope,
                 parametersSpecData,
+                null, // TODO: Implement userland return types.
+                false, // TODO: Implement userland return-by-reference.
                 lineNumber
             );
         },

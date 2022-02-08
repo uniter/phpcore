@@ -76,6 +76,27 @@ module.exports = require('pauser')([
         /**
          * {@inheritdoc}
          */
+        convertForBooleanType: function () {
+            return this.coerceToBoolean();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        convertForIntegerType: function () {
+            return this.coerceToInteger();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        convertForStringType: function () {
+            return this.coerceToString();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
         decrement: function () {
             var value = this;
 

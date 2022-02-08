@@ -203,6 +203,15 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Determines whether this variable may be referenced (shared interface with Reference and Value).
+         *
+         * @returns {boolean}
+         */
+        isReferenceable: function () {
+            return true;
+        },
+
+        /**
          * Determines whether this variable is classed as "set" or not
          *
          * @returns {Future<boolean>}

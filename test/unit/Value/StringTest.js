@@ -56,6 +56,10 @@ describe('String', function () {
         factory.setGlobalNamespace(globalNamespace);
 
         callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+            if (level !== PHPError.E_ERROR) {
+                return;
+            }
+
             throw new Error(
                 'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
             );
@@ -400,6 +404,14 @@ describe('String', function () {
             'coercing an uppercase exponent with float result': {
                 string: '1E-3',
                 expectedResult: 0.001
+            },
+            'coercing a float with leading whitespace': {
+                string: '   123.456',
+                expectedResult: 123.456
+            },
+            'coercing an integer with trailing whitespace': {
+                string: '456.789  ',
+                expectedResult: 456.789
             }
         }, function (scenario, description) {
             describe(description, function () {
@@ -468,6 +480,14 @@ describe('String', function () {
             'coercing an uppercase exponent with float result': {
                 string: '1E-3',
                 expectedResult: 1
+            },
+            'coercing an integer with leading whitespace': {
+                string: '   123',
+                expectedResult: 123
+            },
+            'coercing an integer with trailing whitespace': {
+                string: '456  ',
+                expectedResult: 456
             }
         }, function (scenario, description) {
             describe(description, function () {
@@ -601,6 +621,208 @@ describe('String', function () {
 
             expect(resultValue.getType()).to.equal('string');
             expect(resultValue.getNative()).to.equal('hello world');
+        });
+    });
+
+    describe('convertForBooleanType()', function () {
+        it('should return bool(true) when not "0" or the empty string', function () {
+            var resultValue;
+            createValue('my string');
+
+            resultValue = value.convertForBooleanType();
+
+            expect(resultValue.getType()).to.equal('boolean');
+            expect(resultValue.getNative()).to.be.true;
+        });
+
+        it('should return bool(false) when "0"', function () {
+            var resultValue;
+            createValue('0');
+
+            resultValue = value.convertForBooleanType();
+
+            expect(resultValue.getType()).to.equal('boolean');
+            expect(resultValue.getNative()).to.be.false;
+        });
+
+        it('should return bool(false) when ""', function () {
+            var resultValue;
+            createValue('');
+
+            resultValue = value.convertForBooleanType();
+
+            expect(resultValue.getType()).to.equal('boolean');
+            expect(resultValue.getNative()).to.be.false;
+        });
+    });
+
+    describe('convertForFloatType()', function () {
+        describe('when valid with no whitespace', function () {
+            it('should return a float containing the parsed number', function () {
+                var resultValue;
+                createValue('456.789');
+
+                resultValue = value.convertForFloatType();
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(456.789);
+            });
+
+            it('should not raise a notice', function () {
+                createValue('456.789');
+
+                value.convertForFloatType();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+
+        describe('when valid with leading and trailing whitespace', function () {
+            it('should return a float containing the parsed number', function () {
+                var resultValue;
+                createValue('   456.789  ');
+
+                resultValue = value.convertForFloatType();
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(456.789);
+            });
+
+            it('should not raise a notice', function () {
+                createValue('   456.789  ');
+
+                value.convertForFloatType();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+
+        describe('when semi-invalid with trailing non-numeric characters', function () {
+            it('should return a float containing the parsed number', function () {
+                var resultValue;
+                createValue('   456.789abc');
+
+                resultValue = value.convertForFloatType();
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(456.789);
+            });
+
+            it('should raise a notice', function () {
+                createValue('   456.789abc');
+
+                value.convertForFloatType();
+
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'core.non_well_formed_numeric_value'
+                );
+            });
+        });
+
+        describe('when fully invalid with leading non-numeric characters', function () {
+            it('should just return this value as no conversion is possible', function () {
+                createValue('I am not numeric');
+
+                expect(value.convertForFloatType()).to.equal(value);
+            });
+
+            it('should not raise a notice', function () {
+                createValue('I am not numeric');
+
+                value.convertForFloatType();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+    });
+
+    describe('convertForIntegerType()', function () {
+        describe('when valid with no whitespace', function () {
+            it('should return an integer containing the parsed number', function () {
+                var resultValue;
+                createValue('456.789'); // Decimal places ignored.
+
+                resultValue = value.convertForIntegerType();
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(456);
+            });
+
+            it('should not raise a notice', function () {
+                createValue('456');
+
+                value.convertForIntegerType();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+
+        describe('when valid with leading and trailing whitespace', function () {
+            it('should return an integer containing the parsed number', function () {
+                var resultValue;
+                createValue('   456  ');
+
+                resultValue = value.convertForIntegerType();
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(456);
+            });
+
+            it('should not raise a notice', function () {
+                createValue('   456  ');
+
+                value.convertForIntegerType();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+
+        describe('when semi-invalid with trailing non-numeric characters', function () {
+            it('should return an integer containing the parsed number', function () {
+                var resultValue;
+                createValue('   456abc');
+
+                resultValue = value.convertForIntegerType();
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(456);
+            });
+
+            it('should raise a notice', function () {
+                createValue('   456abc');
+
+                value.convertForIntegerType();
+
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'core.non_well_formed_numeric_value'
+                );
+            });
+        });
+
+        describe('when fully invalid with leading non-numeric characters', function () {
+            it('should just return this value as no conversion is possible', function () {
+                createValue('I am not numeric');
+
+                expect(value.convertForIntegerType()).to.equal(value);
+            });
+
+            it('should not raise a notice', function () {
+                createValue('I am not numeric');
+
+                value.convertForIntegerType();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+    });
+
+    describe('convertForStringType()', function () {
+        it('should just return this value as it is already the correct type', function () {
+            expect(value.convertForStringType()).to.equal(value);
         });
     });
 
@@ -1150,6 +1372,14 @@ describe('String', function () {
             createValue('hello');
 
             expect(value.isNumeric()).to.be.false;
+        });
+    });
+
+    describe('isReferenceable()', function () {
+        it('should return false', function () {
+            createValue('my string');
+
+            expect(value.isReferenceable()).to.be.false;
         });
     });
 

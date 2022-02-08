@@ -114,23 +114,21 @@ function Parameter(
 
 _.extend(Parameter.prototype, {
     /**
-     * Coerces the given argument for this parameter to a suitable value or reference,
+     * Coerces the given argument for this parameter to a suitable value,
      * causing the correct notice to be raised if an undefined variable or reference
-     * is given where a value was expected
+     * is given where a value was expected.
      *
      * @param {Reference|Value|Variable} argumentReference
-     * @returns {Reference|Value|Variable}
+     * @returns {Value}
      */
     coerceArgument: function (argumentReference) {
         var parameter = this,
-            value;
-
-        if (parameter.passedByReference) {
-            // It is valid to pass an undefined variable/reference to a by-ref parameter
-            return argumentReference;
-        }
-
-        value = argumentReference.getValue();
+            value = parameter.passedByReference ?
+                // It is valid to pass an undefined variable/reference to a by-ref parameter:
+                // .getValueOrNull() will return a NullValue (with no notice raised) in that scenario.
+                argumentReference.getValueOrNull() :
+                // Otherwise use .getValue() to ensure a notice is raised on undefined variable or reference.
+                argumentReference.getValue();
 
         // TODO: Don't perform this coercion in strict types mode when that is supported.
         value = value.next(function (presentValue) {
@@ -139,7 +137,18 @@ _.extend(Parameter.prototype, {
              * is of type "float" but the argument is a string containing a float, a FloatValue
              * will be returned with the value parsed from the string.
              */
-            return parameter.typeObject.coerceValue(presentValue);
+            var coercedValue = parameter.typeObject.coerceValue(presentValue);
+
+            // Write the coerced argument value back to the reference if needed.
+            if (
+                parameter.passedByReference &&
+                coercedValue !== presentValue &&
+                !(argumentReference instanceof Value)
+            ) {
+                argumentReference.setValue(coercedValue);
+            }
+
+            return coercedValue;
         });
 
         return value;
@@ -219,14 +228,14 @@ _.extend(Parameter.prototype, {
     },
 
     /**
-     * Validates whether the given argument is valid for this parameter
+     * Validates whether the given argument is valid for this parameter.
      *
-     * @param {Reference|Value|Variable|null=} argumentReference
+     * @param {Reference|Value|Variable|null} argumentReference Raw reference or value of the argument
+     * @param {Value|null} argumentValue Resolved value of the argument
      * @returns {Future<void>} Resolved if the argument is valid or rejected with an Error otherwise
      */
-    validateArgument: function (argumentReference) {
-        var argumentValue,
-            parameter = this;
+    validateArgument: function (argumentReference, argumentValue) {
+        var parameter = this;
 
         return parameter.futureFactory.createFuture(function (resolve, reject) {
             if (parameter.passedByReference && argumentReference instanceof Value) {
@@ -253,8 +262,6 @@ _.extend(Parameter.prototype, {
                 resolve();
                 return;
             }
-
-            argumentValue = argumentReference.getValueOrNull();
 
             // Check whether the type allows the given argument (including null,
             // if it is a nullable type) or ...
@@ -299,8 +306,8 @@ _.extend(Parameter.prototype, {
                         });
                     }
 
-                    // Parameter is typehinted as expecting instances of a class or interface,
-                    // but the given argument does not match
+                    // Parameter is typehinted as expecting values of a certain type,
+                    // but the given argument does not match.
                     parameter.callStack.raiseTranslatedError(
                         PHPError.E_ERROR,
                         INVALID_VALUE_FOR_TYPE,

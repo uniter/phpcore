@@ -115,6 +115,15 @@ _.extend(Reference.prototype, {
     isEmpty: throwUnimplemented('isEmpty'),
 
     /**
+     * Determines whether this reference may be referenced (shared interface with Value and Variable).
+     *
+     * @returns {boolean}
+     */
+    isReferenceable: function () {
+        return true;
+    },
+
+    /**
      * Determines whether the reference is classed as "set" or not
      *
      * @returns {Future<boolean>}

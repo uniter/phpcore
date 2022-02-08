@@ -69,6 +69,27 @@ module.exports = require('pauser')([
         /**
          * {@inheritdoc}
          */
+        convertForFloatType: function () {
+            return this.coerceToFloat();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        convertForIntegerType: function () {
+            return this.coerceToInteger();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        convertForStringType: function () {
+            return this.coerceToString();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
         decrement: function () {
             // NB: This is the expected behaviour, vs. subtracting one from a boolean explicitly.
             return this;

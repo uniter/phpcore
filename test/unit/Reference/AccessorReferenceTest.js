@@ -100,6 +100,12 @@ describe('AccessorReference', function () {
         });
     });
 
+    describe('isReferenceable()', function () {
+        it('should return true', function () {
+            expect(reference.isReferenceable()).to.be.true;
+        });
+    });
+
     describe('isSet()', function () {
         it('should return true when the getter\'s result resolves to a set value', async function () {
             valueGetter.returns(valueFactory.createPresent(true));

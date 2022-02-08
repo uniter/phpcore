@@ -766,6 +766,45 @@ describe('Object', function () {
         });
     });
 
+    describe('convertForBooleanType()', function () {
+        it('should just return this value as no conversion is possible', function () {
+            expect(value.convertForBooleanType()).to.equal(value);
+        });
+    });
+
+    describe('convertForFloatType()', function () {
+        it('should just return this value as no conversion is possible', function () {
+            expect(value.convertForFloatType()).to.equal(value);
+        });
+    });
+
+    describe('convertForIntegerType()', function () {
+        it('should just return this value as no conversion is possible', function () {
+            expect(value.convertForIntegerType()).to.equal(value);
+        });
+    });
+
+    describe('convertForStringType()', function () {
+        it('should return the result of calling ->__toString() when supported', async function () {
+            var result;
+            classObject.callMethod
+                .withArgs('__toString')
+                .returns(factory.createString('hello from my object'));
+            classObject.getMethodSpec
+                .withArgs('__toString')
+                .returns(sinon.createStubInstance(MethodSpec));
+
+            result = await value.convertForStringType().toPromise();
+
+            expect(result.getType()).to.equal('string');
+            expect(result.getNative()).to.equal('hello from my object');
+        });
+
+        it('should just return this value when ->__toString() not supported as no conversion is possible', function () {
+            expect(value.convertForStringType()).to.equal(value);
+        });
+    });
+
     describe('declareProperty()', function () {
         it('should leave the property undefined', function () {
             value.declareProperty('myUndefinedProp');
@@ -2237,6 +2276,12 @@ describe('Object', function () {
     describe('isNumeric()', function () {
         it('should return false', function () {
             expect(value.isNumeric()).to.be.false;
+        });
+    });
+
+    describe('isReferenceable()', function () {
+        it('should return false', function () {
+            expect(value.isReferenceable()).to.be.false;
         });
     });
 

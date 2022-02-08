@@ -159,6 +159,12 @@ describe('StaticPropertyReference', function () {
         });
     });
 
+    describe('isReferenceable()', function () {
+        it('should return true', function () {
+            expect(property.isReferenceable()).to.be.true;
+        });
+    });
+
     describe('isSet()', function () {
         it('should return true when the property is set to a non-null value', function () {
             propertyValue.isSet.returns(true);

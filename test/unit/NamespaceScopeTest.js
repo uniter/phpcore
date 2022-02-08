@@ -54,6 +54,31 @@ describe('NamespaceScope', function () {
         );
     });
 
+    describe('defineFunction()', function () {
+        it('should define the function on the Namespace', function () {
+            var myFunc = sinon.stub(),
+                parametersSpecData = [{name: 'param1'}, {name: 'param2'}];
+
+            scope.defineFunction(
+                'myFunc',
+                myFunc,
+                parametersSpecData,
+                1234
+            );
+
+            expect(namespace.defineFunction).to.have.been.calledOnce;
+            expect(namespace.defineFunction).to.have.been.calledWith(
+                'myFunc',
+                sinon.match.same(myFunc),
+                sinon.match.same(scope),
+                parametersSpecData,
+                null, // TODO: Implement userland return types.
+                false, // TODO: Implement userland return-by-reference.
+                1234
+            );
+        });
+    });
+
     describe('getClass()', function () {
         it('should support fetching a class with no imports involved', async function () {
             var myClass = sinon.createStubInstance(Class);

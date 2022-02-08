@@ -376,8 +376,8 @@ module.exports = require('pauser')([
          * @param {string|null=} message
          * @param {number|null=} code
          * @param {ObjectValue|null=} previousThrowable
-         * @param {string=} filePath To override the file path
-         * @param {number=} lineNumber To override the line number
+         * @param {string|null=} filePath To override the file path - null explicitly overrides with "unknown"
+         * @param {number|null=} lineNumber To override the line number - null explicitly overrides with "unknown"
          * @param {boolean=} reportsOwnContext Whether the error handles reporting its own file/line context
          * @returns {FutureValue<ObjectValue>|ObjectValue}
          */
@@ -408,12 +408,18 @@ module.exports = require('pauser')([
                     // File and line cannot be passed as constructor args,
                     // so we need to manually set them here if specified
 
-                    if (filePath !== null && filePath !== undefined) {
-                        errorObject.setProperty('file', factory.createString(filePath));
+                    if (filePath !== undefined) {
+                        errorObject.setProperty(
+                            'file',
+                            filePath !== null ? factory.createString(filePath) : factory.createNull()
+                        );
                     }
 
-                    if (lineNumber !== null && lineNumber !== undefined) {
-                        errorObject.setProperty('line', factory.createInteger(lineNumber));
+                    if (lineNumber !== undefined) {
+                        errorObject.setProperty(
+                            'line',
+                            lineNumber !== null ? factory.createInteger(lineNumber) : factory.createNull()
+                        );
                     }
 
                     return errorObject;

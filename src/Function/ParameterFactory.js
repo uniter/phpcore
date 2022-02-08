@@ -60,7 +60,7 @@ _.extend(ParameterFactory.prototype, {
      *
      * @param {string|null} name
      * @param {number} index
-     * @param {Type} typeObject
+     * @param {TypeInterface} typeObject
      * @param {FunctionContextInterface} context
      * @param {NamespaceScope} namespaceScope
      * @param {boolean} passedByReference

@@ -331,6 +331,12 @@ describe('ElementReference', function () {
         });
     });
 
+    describe('isReferenceable()', function () {
+        it('should return true', function () {
+            expect(element.isReferenceable()).to.be.true;
+        });
+    });
+
     describe('isSet()', function () {
         it('should return true if the element\'s value is set', async function () {
             value.isSet.returns(futureFactory.createPresent(true));

@@ -16,13 +16,18 @@ var _ = require('microdash');
  *
  * @param {Array} parametersSpecData
  * @param {Object|null} returnTypeSpecData
+ * @param {boolean} returnByReference
  * @constructor
  */
-function Signature(parametersSpecData, returnTypeSpecData) {
+function Signature(parametersSpecData, returnTypeSpecData, returnByReference) {
     /**
      * @type {Array}
      */
     this.parametersSpecData = parametersSpecData;
+    /**
+     * @type {boolean}
+     */
+    this.returnByReference = returnByReference;
     /**
      * @type {Object|null}
      */
@@ -55,6 +60,15 @@ _.extend(Signature.prototype, {
      */
     getReturnTypeSpecData: function () {
         return this.returnTypeSpecData;
+    },
+
+    /**
+     * Fetches whether the function returns by reference (true) or by value (false).
+     *
+     * @returns {boolean}
+     */
+    isReturnByReference: function () {
+        return this.returnByReference;
     }
 });
 

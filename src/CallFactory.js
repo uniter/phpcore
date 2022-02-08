@@ -39,7 +39,7 @@ _.extend(CallFactory.prototype, {
      *
      * @param {Scope} scope
      * @param {NamespaceScope} namespaceScope
-     * @param {Reference[]|Value[]|Variable[]|=} args
+     * @param {Value[]=} args
      * @param {Class|null} newStaticClass
      * @returns {Call}
      */
@@ -53,7 +53,7 @@ _.extend(CallFactory.prototype, {
     /**
      * Creates a new FFI Call
      *
-     * @param {Reference[]|Value[]|Variable[]|=} args
+     * @param {Value[]=} args
      */
     createFFICall: function (args) {
         var factory = this;

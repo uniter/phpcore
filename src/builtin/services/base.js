@@ -15,12 +15,18 @@ var phpCommon = require('phpcommon'),
     CallStack = require('../../CallStack'),
     ControlScope = require('../../Control/ControlScope'),
     FFICall = require('../../FFI/Call'),
+    ReturnTypeProvider = require('../../Function/ReturnTypeProvider'),
     SignatureParser = require('../../Function/Signature/SignatureParser'),
+    SpecTypeProvider = require('../../Type/SpecTypeProvider'),
     Translator = phpCommon.Translator,
+    TypeFactory = require('../../Type/TypeFactory'),
 
     ERROR_REPORTING = 'error_reporting',
+    FUTURE_FACTORY = 'future_factory',
+    SPEC_TYPE_PROVIDER = 'spec_type_provider',
     STDERR = 'stderr',
     TRANSLATOR = 'translator',
+    TYPE_FACTORY = 'type_factory',
     VALUE_FACTORY = 'value_factory';
 
 /**
@@ -55,8 +61,20 @@ module.exports = function (internals) {
             return new SignatureParser(get(VALUE_FACTORY));
         },
 
+        'return_type_provider': function () {
+            return new ReturnTypeProvider(get(SPEC_TYPE_PROVIDER));
+        },
+
+        'spec_type_provider': function () {
+            return new SpecTypeProvider(get(TYPE_FACTORY));
+        },
+
         'translator': function () {
             return new Translator();
+        },
+
+        'type_factory': function () {
+            return new TypeFactory(get(FUTURE_FACTORY));
         }
     };
 };

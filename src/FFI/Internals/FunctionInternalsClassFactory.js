@@ -100,6 +100,8 @@ _.extend(FunctionInternalsClassFactory.prototype, {
                     namespace,
                     parametersSpecData = null,
                     parsed = factory.globalNamespace.parseName(internals.fqfn),
+                    returnByReference = false,
+                    returnTypeSpecData = null,
                     signature,
                     valueCoercer = factory.ffiFactory.createValueCoercer(internals.enableAutoCoercion);
 
@@ -109,6 +111,8 @@ _.extend(FunctionInternalsClassFactory.prototype, {
                 if (internals.signature) {
                     signature = factory.signatureParser.parseSignature(internals.signature);
                     parametersSpecData = signature.getParametersSpecData();
+                    returnTypeSpecData = signature.getReturnTypeSpecData();
+                    returnByReference = signature.isReturnByReference();
                 }
 
                 namespace.defineFunction(
@@ -120,7 +124,9 @@ _.extend(FunctionInternalsClassFactory.prototype, {
                         return func.apply(internals, effectiveArguments);
                     },
                     factory.globalNamespaceScope,
-                    parametersSpecData
+                    parametersSpecData,
+                    returnTypeSpecData,
+                    returnByReference
                 );
             },
 

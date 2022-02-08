@@ -126,6 +126,69 @@ describe('Boolean', function () {
         });
     });
 
+    describe('convertForBooleanType()', function () {
+        it('should just return this value as it is already the correct type', function () {
+            expect(value.convertForBooleanType()).to.equal(value);
+        });
+    });
+
+    describe('convertForFloatType()', function () {
+        it('should return float(1) when true', function () {
+            var resultValue = value.convertForFloatType();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(1);
+        });
+
+        it('should return float(0) when false', function () {
+            var resultValue;
+            createValue(false);
+
+            resultValue = value.convertForFloatType();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(0);
+        });
+    });
+
+    describe('convertForIntegerType()', function () {
+        it('should return int(1) when true', function () {
+            var resultValue = value.convertForIntegerType();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(1);
+        });
+
+        it('should return int(0) when false', function () {
+            var resultValue;
+            createValue(false);
+
+            resultValue = value.convertForIntegerType();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(0);
+        });
+    });
+
+    describe('convertForStringType()', function () {
+        it('should return "1" when true', function () {
+            var resultValue = value.convertForStringType();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('1');
+        });
+
+        it('should return the empty string when false', function () {
+            var resultValue;
+            createValue(false);
+
+            resultValue = value.convertForStringType();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('');
+        });
+    });
+
     describe('decrement()', function () {
         // NB: Yes, this is actually the correct behaviour, vs. subtracting one from a boolean explicitly.
         it('should return the boolean unchanged when true', function () {
@@ -521,6 +584,12 @@ describe('Boolean', function () {
     describe('isNumeric()', function () {
         it('should return false', function () {
             expect(value.isNumeric()).to.be.false;
+        });
+    });
+
+    describe('isReferenceable()', function () {
+        it('should return false', function () {
+            expect(value.isReferenceable()).to.be.false;
         });
     });
 

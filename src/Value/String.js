@@ -11,15 +11,20 @@
 
 module.exports = require('pauser')([
     require('microdash'),
+    require('phpcommon'),
     require('util'),
     require('../Reference/Null'),
     require('../Value')
 ], function (
     _,
+    phpCommon,
     util,
     NullReference,
     Value
 ) {
+    var PHPError = phpCommon.PHPError,
+        NON_WELL_FORMED_NUMERIC_VALUE = 'core.non_well_formed_numeric_value';
+
     /**
      * @param {ValueFactory} factory
      * @param {ReferenceFactory} referenceFactory
@@ -106,7 +111,8 @@ module.exports = require('pauser')([
         coerceToFloat: function () {
             var value = this;
 
-            return value.factory.createFloat(/^(\d|-[\d.])/.test(value.value) ? parseFloat(value.value) : 0);
+            // Note that both leading and trailing whitespace is allowed.
+            return value.factory.createFloat(/^\s*(\d|-[\d.])/.test(value.value) ? parseFloat(value.value) : 0);
         },
 
         /**
@@ -117,7 +123,8 @@ module.exports = require('pauser')([
         coerceToInteger: function () {
             var value = this;
 
-            return value.factory.createInteger(/^(\d|-[\d.])/.test(value.value) ? parseInt(value.value, 10) : 0);
+            // Note that both leading and trailing whitespace is allowed.
+            return value.factory.createInteger(/^\s*(\d|-[\d.])/.test(value.value) ? parseInt(value.value, 10) : 0);
         },
 
         coerceToKey: function () {
@@ -142,6 +149,51 @@ module.exports = require('pauser')([
 
         coerceToString: function () {
             return this;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        convertForBooleanType: function () {
+            return this.coerceToBoolean();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        convertForFloatType: function () {
+            var value = this;
+
+            // Ensure only leading and/or trailing whitespace is present if any.
+            if (!/^\s*-?(?:\d\.\d+e\d+|\d*\.\d+|\d+e[+-]?\d+)\s*$/i.test(value.value)) {
+                if (!/^\s*[.-]?\d/.test(value.value)) {
+                    // String is completely non-numeric, no conversion is possible.
+                    return value;
+                }
+
+                value.callStack.raiseTranslatedError(PHPError.E_NOTICE, NON_WELL_FORMED_NUMERIC_VALUE);
+            }
+
+            return this.coerceToFloat();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        convertForIntegerType: function () {
+            var value = this;
+
+            // Ensure only leading and/or trailing whitespace is present if any.
+            if (!/^\s*-?(?:0x[0-9a-f]+|\d+)\s*$/.test(value.value)) {
+                if (!/^\s*[.-]?\d/.test(value.value)) {
+                    // String is completely non-numeric, no conversion is possible.
+                    return value;
+                }
+
+                value.callStack.raiseTranslatedError(PHPError.E_NOTICE, NON_WELL_FORMED_NUMERIC_VALUE);
+            }
+
+            return this.coerceToInteger();
         },
 
         /**

@@ -13,7 +13,7 @@ var _ = require('microdash'),
     hasOwn = {}.hasOwnProperty,
     phpCommon = require('phpcommon'),
     scalarTypes = {
-        'boolean': true,
+        'bool': true,
         'float': true,
         'int': true,
         'string': true
@@ -44,6 +44,7 @@ _.extend(SignatureParser.prototype, {
             parametersSpecData = [],
             parser = this,
             remainingSignature = signature,
+            returnByReference = false,
             returnTypeSpecData = null;
 
         /**
@@ -170,7 +171,7 @@ _.extend(SignatureParser.prototype, {
             // Signature declares a return type.
 
             match = remainingSignature.match(
-                /^\s*:\s*(?:(\?)\s*)?([\w\\]+)\s*$/i
+                /^\s*:\s*(?:(&)\s*)?(?:(\?)\s*)?([\w\\]+)\s*$/i
             );
 
             if (!match) {
@@ -180,10 +181,12 @@ _.extend(SignatureParser.prototype, {
                 );
             }
 
-            returnTypeSpecData = buildTypeSpecData(match[2], match[1] === '?');
+            returnTypeSpecData = buildTypeSpecData(match[3], match[2] === '?');
+
+            returnByReference = match[1] === '&';
         }
 
-        return new Signature(parametersSpecData, returnTypeSpecData);
+        return new Signature(parametersSpecData, returnTypeSpecData, returnByReference);
     }
 });
 

@@ -12,30 +12,30 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
-    ParameterTypeFactory = require('../../../src/Function/ParameterTypeFactory'),
+    ReturnTypeProvider = require('../../../src/Function/ReturnTypeProvider'),
     SpecTypeProvider = require('../../../src/Type/SpecTypeProvider'),
     TypeInterface = require('../../../src/Type/TypeInterface');
 
-describe('ParameterTypeFactory', function () {
-    var factory,
-        namespaceScope,
+describe('ReturnTypeProvider', function () {
+    var namespaceScope,
+        provider,
         specTypeProvider;
 
     beforeEach(function () {
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         specTypeProvider = sinon.createStubInstance(SpecTypeProvider);
 
-        factory = new ParameterTypeFactory(specTypeProvider);
+        provider = new ReturnTypeProvider(specTypeProvider);
     });
 
-    describe('createParameterType()', function () {
+    describe('createReturnType()', function () {
         it('should create the type via the SpecTypeProvider', function () {
             var type = sinon.createStubInstance(TypeInterface);
             specTypeProvider.createType
-                .withArgs({my: 'param spec'}, sinon.match.same(namespaceScope))
+                .withArgs({my: 'return spec'}, sinon.match.same(namespaceScope))
                 .returns(type);
 
-            expect(factory.createParameterType({my: 'param spec'}, namespaceScope))
+            expect(provider.createReturnType({my: 'return spec'}, namespaceScope))
                 .to.equal(type);
         });
     });

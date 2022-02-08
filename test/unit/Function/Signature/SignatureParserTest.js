@@ -184,6 +184,24 @@ describe('SignatureParser', function () {
             expect(defaultValue.getNative()).to.equal(5678);
         });
 
+        it('should be able to parse a single by-value optional nullable boolean scalar parameter', function () {
+            var defaultValue,
+                parameterSpecData,
+                signature = parser.parseSignature('?bool $myParam = true');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(1);
+            parameterSpecData = signature.getParametersSpecData()[0];
+            expect(parameterSpecData.type).to.equal('scalar');
+            expect(parameterSpecData.nullable).to.be.true;
+            expect(parameterSpecData.scalarType).to.equal('bool');
+            expect(parameterSpecData.name).to.equal('myParam');
+            expect(parameterSpecData.ref).to.be.false;
+            defaultValue = parameterSpecData.value();
+            expect(defaultValue.getType()).to.equal('boolean');
+            expect(defaultValue.getNative()).to.be.true;
+        });
+
         it('should be able to parse a single by-value optional nullable integer scalar parameter', function () {
             var defaultValue,
                 parameterSpecData,
@@ -257,8 +275,22 @@ describe('SignatureParser', function () {
             expect(signature.getReturnTypeSpecData()).to.deep.equal({
                 type: 'class',
                 className: 'My\\Stuff\\MyClass',
+                nullable: true,
+            });
+            expect(signature.isReturnByReference()).to.be.false;
+        });
+
+        it('should be able to parse a signature with nullable by-reference float return type but no parameters', function () {
+            var signature = parser.parseSignature(' : & ? float');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(0);
+            expect(signature.getReturnTypeSpecData()).to.deep.equal({
+                type: 'scalar',
+                scalarType: 'float',
                 nullable: true
             });
+            expect(signature.isReturnByReference()).to.be.true;
         });
 
         it('should be able to parse multiple parameters of different kinds', function () {
@@ -279,6 +311,7 @@ describe('SignatureParser', function () {
                 scalarType: 'string',
                 nullable: true
             });
+            expect(signature.isReturnByReference()).to.be.false;
 
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.equal('array');

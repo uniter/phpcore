@@ -214,6 +214,8 @@ describe('Scope', function () {
                     sinon.match.same(namespaceScope),
                     sinon.match.same(currentClass),
                     [],
+                    null, // TODO: Implement userland return types.
+                    false, // TODO: Implement userland return-by-reference.
                     '/path/to/my_module.php',
                     1234
                 )

@@ -68,6 +68,12 @@ describe('ReferenceSlot', function () {
         });
     });
 
+    describe('isReferenceable()', function () {
+        it('should return true', function () {
+            expect(reference.isReferenceable()).to.be.true;
+        });
+    });
+
     describe('setValue()', function () {
         it('should set the value of the variable to the new value', function () {
             var newValue = sinon.createStubInstance(Value);

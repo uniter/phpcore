@@ -32,6 +32,7 @@ module.exports = {
             'class_name_not_valid': 'Class name must be a valid object or a string',
             'class_not_found': 'Class \'${name}\' not found',
             'function_name_must_be_string': 'Function name must be a string',
+            'invalid_return_value_type': '${func}(): Return value must be of type ${expectedType}, ${actualType} returned',
             'invalid_value_for_type': 'Argument ${index} passed to ${func}() must be ${expectedType}, ${actualType} given, called in ${callerFile} on line ${callerLine} and defined in ${definitionFile}:${definitionLine}',
             'method_called_on_non_object': '${method} method called on non-object',
             'no_parent_class': 'Cannot access parent:: when current class scope has no parent',

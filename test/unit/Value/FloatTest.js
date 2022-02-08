@@ -251,6 +251,75 @@ describe('Float', function () {
         });
     });
 
+    describe('convertForBooleanType()', function () {
+        it('should return bool(true) when positive', function () {
+            var resultValue = value.convertForBooleanType();
+
+            expect(resultValue.getType()).to.equal('boolean');
+            expect(resultValue.getNative()).to.be.true;
+        });
+
+        it('should return bool(false) when zero', function () {
+            var resultValue;
+            createValue(0);
+
+            resultValue = value.convertForBooleanType();
+
+            expect(resultValue.getType()).to.equal('boolean');
+            expect(resultValue.getNative()).to.be.false;
+        });
+
+        it('should return bool(true) when negative', function () {
+            var resultValue;
+            createValue(-10);
+
+            resultValue = value.convertForBooleanType();
+
+            expect(resultValue.getType()).to.equal('boolean');
+            expect(resultValue.getNative()).to.be.true;
+        });
+    });
+
+    describe('convertForFloatType()', function () {
+        it('should just return this value as it is already the correct type', function () {
+            expect(value.convertForFloatType()).to.equal(value);
+        });
+    });
+
+    describe('convertForIntegerType()', function () {
+        it('should truncate the float, rounding down', function () {
+            var resultValue;
+            createValue(123.78);
+
+            resultValue = value.convertForIntegerType();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(123);
+        });
+    });
+
+    describe('convertForStringType()', function () {
+        it('should return the string with decimal places when applicable', function () {
+            var resultValue;
+            createValue(123.456);
+
+            resultValue = value.convertForStringType();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('123.456');
+        });
+
+        it('should not include decimal places when containing an integer', function () {
+            var resultValue;
+            createValue(100);
+
+            resultValue = value.convertForStringType();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('100');
+        });
+    });
+
     describe('decrement()', function () {
         it('should return one less when the float is positive', function () {
             var resultValue;
@@ -620,6 +689,12 @@ describe('Float', function () {
     describe('isNumeric()', function () {
         it('should return true', function () {
             expect(value.isNumeric()).to.be.true;
+        });
+    });
+
+    describe('isReferenceable()', function () {
+        it('should return false', function () {
+            expect(value.isReferenceable()).to.be.false;
         });
     });
 

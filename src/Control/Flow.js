@@ -9,7 +9,8 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    Pause = require('./Pause');
 
 /**
  * Abstraction for flow control within the runtime, allowing for simpler syntax
@@ -152,6 +153,79 @@ _.extend(Flow.prototype, {
                 }, reject)
                 .resume();
         });
+    },
+
+    /**
+     * Executes the given callback, which is expected to make a tail-call that may pause
+     * in async mode. If it pauses then the pause will be intercepted and turned into a pending Future,
+     * otherwise a resolved or rejected Future as appropriate.
+     *
+     * @param {Function} executor
+     * @param {Function=} pauser Called if a pause is intercepted
+     * @returns {Future|Value}
+     */
+    maybeFuturise: function (executor, pauser) {
+        var flow = this,
+            result;
+
+        if (flow.mode !== 'async') {
+            try {
+                return flow.chainify(executor());
+            } catch (error) {
+                return flow.futureFactory.createRejection(error);
+            }
+        }
+
+        /**
+         * A pause or error occurred. Note that the error thrown could be a Future(Value),
+         * in which case we need to yield to it so that a pause occurs if required.
+         *
+         * @param {Error|Future|FutureValue|Pause} error
+         * @returns {Future}
+         */
+        function handlePauseOrError(error) {
+            if (flow.controlBridge.isFuture(error)) {
+                // Special case: the thrown error is itself a Future(Value), so we need
+                // to yield to it to either resolve it to the eventual error or pause.
+                try {
+                    error = error.yield();
+                } catch (furtherError) {
+                    return handlePauseOrError(furtherError);
+                }
+            }
+
+            if (!(error instanceof Pause)) {
+                // A normal non-pause error was raised, simply rethrow.
+
+                if (flow.mode !== 'async') {
+                    // For synchronous modes, rethrow synchronously.
+                    throw error;
+                }
+
+                // For async mode, return a rejected FutureValue.
+                return flow.futureFactory.createRejection(error);
+            }
+
+            if (pauser) {
+                pauser(error);
+            }
+
+            // We have intercepted a pause - it must be marked as complete so that the future
+            // we will create is able to raise its own pause.
+            flow.controlScope.markPaused(error);
+
+            return flow.futureFactory.createFuture(function (resolve, reject) {
+                error.next(resolve, reject);
+            });
+        }
+
+        try {
+            result = executor();
+        } catch (error) {
+            return handlePauseOrError(error);
+        }
+
+        return flow.chainify(result);
     }
 });
 

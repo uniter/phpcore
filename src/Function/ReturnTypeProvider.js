@@ -12,29 +12,30 @@
 var _ = require('microdash');
 
 /**
- * Creates the correct Type from a function, closure or method parameter spec.
+ * Creates the correct Type from a function, closure or method return type spec.
  *
  * @param {SpecTypeProvider} specTypeProvider
  * @constructor
  */
-function ParameterTypeFactory(specTypeProvider) {
+function ReturnTypeProvider(specTypeProvider) {
     /**
      * @type {SpecTypeProvider}
      */
     this.specTypeProvider = specTypeProvider;
 }
 
-_.extend(ParameterTypeFactory.prototype, {
+_.extend(ReturnTypeProvider.prototype, {
     /**
-     * Creates the correct Type from a function, closure or method parameter spec.
+     * Creates the correct Type from a function, closure or method return type spec.
      *
-     * @param {Object} parameterSpecData
+     * @param {Object} returnTypeSpecData
      * @param {NamespaceScope} namespaceScope
      * @returns {TypeInterface}
      */
-    createParameterType: function (parameterSpecData, namespaceScope) {
-        return this.specTypeProvider.createType(parameterSpecData, namespaceScope);
+    createReturnType: function (returnTypeSpecData, namespaceScope) {
+        // TODO: Implement "void" and "never" types.
+        return this.specTypeProvider.createType(returnTypeSpecData, namespaceScope);
     }
 });
 
-module.exports = ParameterTypeFactory;
+module.exports = ReturnTypeProvider;

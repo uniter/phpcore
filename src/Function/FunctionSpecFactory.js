@@ -20,7 +20,9 @@ var _ = require('microdash');
  * @param {class} ClosureContext
  * @param {CallStack} callStack
  * @param {ParameterListFactory} parameterListFactory
+ * @param {ReturnTypeProvider} returnTypeProvider
  * @param {ValueFactory} valueFactory
+ * @param {FutureFactory} futureFactory
  * @param {Flow} flow
  * @constructor
  */
@@ -31,7 +33,9 @@ function FunctionSpecFactory(
     ClosureContext,
     callStack,
     parameterListFactory,
+    returnTypeProvider,
     valueFactory,
+    futureFactory,
     flow
 ) {
     /**
@@ -55,6 +59,10 @@ function FunctionSpecFactory(
      */
     this.FunctionSpec = FunctionSpec;
     /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
+    /**
      * @type {class}
      */
     this.MethodContext = MethodContext;
@@ -62,6 +70,10 @@ function FunctionSpecFactory(
      * @type {ParameterListFactory}
      */
     this.parameterListFactory = parameterListFactory;
+    /**
+     * @type {ReturnTypeProvider}
+     */
+    this.returnTypeProvider = returnTypeProvider;
     /**
      * @type {ValueFactory}
      */
@@ -75,21 +87,34 @@ _.extend(FunctionSpecFactory.prototype, {
      * @param {NamespaceScope} namespaceScope
      * @param {string} functionName
      * @param {Parameter[]} parameters
+     * @param {TypeInterface|null} returnType
+     * @param {boolean} returnByReference
      * @param {string|null} filePath
      * @param {number|null} lineNumber
      * @returns {FunctionSpec}
      */
-    createAliasFunctionSpec: function (namespaceScope, functionName, parameters, filePath, lineNumber) {
+    createAliasFunctionSpec: function (
+        namespaceScope,
+        functionName,
+        parameters,
+        returnType,
+        returnByReference,
+        filePath,
+        lineNumber
+    ) {
         var factory = this,
             context = new factory.FunctionContext(namespaceScope, functionName);
 
         return new factory.FunctionSpec(
             factory.callStack,
             factory.valueFactory,
+            factory.futureFactory,
             factory.flow,
             context,
             namespaceScope,
             parameters,
+            returnType,
+            returnByReference,
             filePath,
             lineNumber
         );
@@ -101,11 +126,21 @@ _.extend(FunctionSpecFactory.prototype, {
      * @param {NamespaceScope} namespaceScope
      * @param {Class|null} classObject
      * @param {Array} parametersSpecData
+     * @param {Object|null} returnTypeSpecData
+     * @param {boolean} returnByReference
      * @param {string|null} filePath
      * @param {number|null} lineNumber
      * @returns {FunctionSpec}
      */
-    createClosureSpec: function (namespaceScope, classObject, parametersSpecData, filePath, lineNumber) {
+    createClosureSpec: function (
+        namespaceScope,
+        classObject,
+        parametersSpecData,
+        returnTypeSpecData,
+        returnByReference,
+        filePath,
+        lineNumber
+    ) {
         var factory = this,
             context = new factory.ClosureContext(namespaceScope, classObject),
             parameters = factory.parameterListFactory.createParameterList(
@@ -114,15 +149,21 @@ _.extend(FunctionSpecFactory.prototype, {
                 namespaceScope,
                 filePath,
                 lineNumber
-            );
+            ),
+            returnType = returnTypeSpecData ?
+                factory.returnTypeProvider.createReturnType(returnTypeSpecData, namespaceScope) :
+                null;
 
         return new factory.FunctionSpec(
             factory.callStack,
             factory.valueFactory,
+            factory.futureFactory,
             factory.flow,
             context,
             namespaceScope,
             parameters,
+            returnType,
+            returnByReference,
             filePath,
             lineNumber
         );
@@ -134,6 +175,8 @@ _.extend(FunctionSpecFactory.prototype, {
      * @param {NamespaceScope} namespaceScope
      * @param {string} functionName
      * @param {Array} parametersSpecData
+     * @param {Object|null} returnTypeSpecData
+     * @param {boolean} returnByReference
      * @param {string|null} filePath
      * @param {number|null} lineNumber
      * @returns {FunctionSpec}
@@ -142,6 +185,8 @@ _.extend(FunctionSpecFactory.prototype, {
         namespaceScope,
         functionName,
         parametersSpecData,
+        returnTypeSpecData,
+        returnByReference,
         filePath,
         lineNumber
     ) {
@@ -153,15 +198,21 @@ _.extend(FunctionSpecFactory.prototype, {
                 namespaceScope,
                 filePath,
                 lineNumber
-            );
+            ),
+            returnType = returnTypeSpecData ?
+                factory.returnTypeProvider.createReturnType(returnTypeSpecData, namespaceScope) :
+                null;
 
         return new factory.FunctionSpec(
             factory.callStack,
             factory.valueFactory,
+            factory.futureFactory,
             factory.flow,
             context,
             namespaceScope,
             parameters,
+            returnType,
+            returnByReference,
             filePath,
             lineNumber
         );
@@ -174,11 +225,22 @@ _.extend(FunctionSpecFactory.prototype, {
      * @param {Class} classObject
      * @param {string} methodName
      * @param {Array} parametersSpecData
+     * @param {Object|null} returnTypeSpecData
+     * @param {boolean} returnByReference
      * @param {string|null} filePath
      * @param {number|null} lineNumber
      * @returns {FunctionSpec}
      */
-    createMethodSpec: function (namespaceScope, classObject, methodName, parametersSpecData, filePath, lineNumber) {
+    createMethodSpec: function (
+        namespaceScope,
+        classObject,
+        methodName,
+        parametersSpecData,
+        returnTypeSpecData,
+        returnByReference,
+        filePath,
+        lineNumber
+    ) {
         var factory = this,
             context = new factory.MethodContext(classObject, methodName),
             parameters = factory.parameterListFactory.createParameterList(
@@ -187,15 +249,21 @@ _.extend(FunctionSpecFactory.prototype, {
                 namespaceScope,
                 filePath,
                 lineNumber
-            );
+            ),
+            returnType = returnTypeSpecData ?
+                factory.returnTypeProvider.createReturnType(returnTypeSpecData, namespaceScope) :
+                null;
 
         return new factory.FunctionSpec(
             factory.callStack,
             factory.valueFactory,
+            factory.futureFactory,
             factory.flow,
             context,
             namespaceScope,
             parameters,
+            returnType,
+            returnByReference,
             filePath,
             lineNumber
         );

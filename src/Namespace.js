@@ -238,6 +238,8 @@ module.exports = require('pauser')([
          * @param {Function} func
          * @param {NamespaceScope} namespaceScope
          * @param {Array=} parametersSpecData
+         * @param {Object|null} returnTypeSpecData
+         * @param {boolean=} returnByReference
          * @param {number=} lineNumber
          */
         defineFunction: function (
@@ -245,16 +247,19 @@ module.exports = require('pauser')([
             func,
             namespaceScope,
             parametersSpecData,
+            returnTypeSpecData,
+            returnByReference,
             lineNumber
         ) {
             var functionSpec,
                 namespace = this;
 
-            // Parameter spec data may only be provided for PHP-transpiled functions for now
             functionSpec = namespace.functionSpecFactory.createFunctionSpec(
                 namespaceScope,
                 name,
                 parametersSpecData || [],
+                returnTypeSpecData,
+                returnByReference,
                 namespace.callStack.getLastFilePath(),
                 lineNumber || null
             );

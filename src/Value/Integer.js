@@ -59,6 +59,27 @@ module.exports = require('pauser')([
             return value.factory.createString(value.value.toString());
         },
 
+        /**
+         * {@inheritdoc}
+         */
+        convertForBooleanType: function () {
+            return this.coerceToBoolean();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        convertForFloatType: function () {
+            return this.coerceToFloat();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        convertForStringType: function () {
+            return this.coerceToString();
+        },
+
         decrement: function () {
             var value = this;
 

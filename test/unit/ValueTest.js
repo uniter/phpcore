@@ -135,4 +135,10 @@ describe('Value', function () {
             expect(value.getPushElement()).to.equal(nullReference);
         });
     });
+
+    describe('isReferenceable()', function () {
+        it('should return false', function () {
+            expect(value.isReferenceable()).to.be.false;
+        });
+    });
 });

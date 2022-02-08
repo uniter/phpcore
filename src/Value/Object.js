@@ -383,6 +383,19 @@ module.exports = require('pauser')([
         },
 
         /**
+         * {@inheritdoc}
+         */
+        convertForStringType: function () {
+            var value = this;
+
+            return value.isMethodDefined(MAGIC_TO_STRING) ?
+                value.callMethod(MAGIC_TO_STRING) :
+                // Return the object value unchanged if ->__toString() not defined.
+                // Note that this behaviour differs from .coerceToString().
+                value;
+        },
+
+        /**
          * Declares an instance property for this object, with the specified visibility
          *
          * @param {string} name

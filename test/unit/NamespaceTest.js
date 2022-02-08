@@ -137,6 +137,8 @@ describe('Namespace', function () {
                     sinon.match.same(namespaceScope),
                     'myOriginalFunc',
                     parametersSpecData,
+                    {my: 'return type'},
+                    true,
                     '/path/to/my_module.php',
                     123
                 )
@@ -157,6 +159,8 @@ describe('Namespace', function () {
                 originalFunction,
                 namespaceScope,
                 parametersSpecData,
+                {my: 'return type'},
+                true,
                 123
             );
             wrappedFunction.functionSpec = functionSpec;
@@ -308,6 +312,8 @@ describe('Namespace', function () {
                     sinon.match.same(namespaceScope),
                     'myFunction',
                     parametersSpecData,
+                    {my: 'return type'},
+                    false,
                     '/path/to/my_module.php',
                     123
                 )
@@ -329,6 +335,8 @@ describe('Namespace', function () {
                 originalFunction,
                 namespaceScope,
                 parametersSpecData,
+                {my: 'return type'},
+                false,
                 123
             );
 

@@ -88,6 +88,8 @@ _.extend(ClassPromoter.prototype, {
                 classObject,
                 methodName,
                 parametersSpecData || [],
+                null, // TODO: Implement userland and built-in class method return types.
+                null, // TODO: Implement userland and built-in class method return-by-reference.
                 promoter.callStack.getLastFilePath(),
                 lineNumber || null
             );

@@ -131,6 +131,12 @@ describe('ObjectElementReference', function () {
         });
     });
 
+    describe('isReferenceable()', function () {
+        it('should return true', function () {
+            expect(element.isReferenceable()).to.be.true;
+        });
+    });
+
     describe('isSet()', function () {
         it('should return false when ArrayAccess::offsetExists(...) returns false', async function () {
             objectValue.callMethod.withArgs(

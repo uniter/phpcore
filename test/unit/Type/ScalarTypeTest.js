@@ -13,9 +13,9 @@ var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('../tools'),
-    ObjectValue = require('../../../src/Value/Object').sync(),
     ScalarType = require('../../../src/Type/ScalarType'),
-    Translator = phpCommon.Translator;
+    Translator = phpCommon.Translator,
+    Value = require('../../../src/Value').sync();
 
 describe('ScalarType', function () {
     var createType,
@@ -98,111 +98,52 @@ describe('ScalarType', function () {
     });
 
     describe('coerceValue()', function () {
-        describe('for a boolean type', function () {
-            beforeEach(function () {
-                createType('boolean');
-            });
+        var convertedValue,
+            originalValue;
 
-            it('should return an array value unchanged', function () {
-                var arrayValue = valueFactory.createArray([21]);
-
-                expect(type.coerceValue(arrayValue)).to.equal(arrayValue);
-            });
-
-            it('should coerce a truthy value to boolean', function () {
-                var truthyValue = valueFactory.createString('1'),
-                    coercedValue = type.coerceValue(truthyValue);
-
-                expect(coercedValue.getType()).to.equal('boolean');
-                expect(coercedValue.getNative()).to.be.true;
-            });
-
-            it('should coerce a falsy value to boolean', function () {
-                var falsyValue = valueFactory.createString('0'),
-                    coercedValue = type.coerceValue(falsyValue);
-
-                expect(coercedValue.getType()).to.equal('boolean');
-                expect(coercedValue.getNative()).to.be.false;
-            });
+        beforeEach(function () {
+            convertedValue = sinon.createStubInstance(Value);
+            originalValue = sinon.createStubInstance(Value);
         });
 
-        describe('for a float type', function () {
-            beforeEach(function () {
-                createType('float');
-            });
+        it('should convert the value to boolean when the scalar type is boolean', function () {
+            originalValue.convertForBooleanType
+                .returns(convertedValue);
+            createType('bool');
 
-            it('should return an array value unchanged', function () {
-                var arrayValue = valueFactory.createArray([21]);
-
-                expect(type.coerceValue(arrayValue)).to.equal(arrayValue);
-            });
-
-            it('should coerce a numeric string', function () {
-                var stringValue = valueFactory.createString('1234.56 blah blah'),
-                    coercedValue = type.coerceValue(stringValue);
-
-                expect(coercedValue.getType()).to.equal('float');
-                expect(coercedValue.getNative()).to.be.equal(1234.56);
-            });
+            expect(type.coerceValue(originalValue)).to.equal(convertedValue);
         });
 
-        describe('for an integer type', function () {
-            beforeEach(function () {
-                createType('int');
-            });
+        it('should convert the value to float when the type scalar is float', function () {
+            originalValue.convertForFloatType
+                .returns(convertedValue);
+            createType('float');
 
-            it('should return an array value unchanged', function () {
-                var arrayValue = valueFactory.createArray([21]);
-
-                expect(type.coerceValue(arrayValue)).to.equal(arrayValue);
-            });
-
-            it('should coerce a numeric string', function () {
-                var stringValue = valueFactory.createString('1234.56 blah blah'),
-                    coercedValue = type.coerceValue(stringValue);
-
-                expect(coercedValue.getType()).to.equal('int');
-                expect(coercedValue.getNative()).to.be.equal(1234);
-            });
+            expect(type.coerceValue(originalValue)).to.equal(convertedValue);
         });
 
-        describe('for a string type', function () {
-            beforeEach(function () {
-                createType('string');
-            });
+        it('should convert the value to integer when the scalar type is integer', function () {
+            originalValue.convertForIntegerType
+                .returns(convertedValue);
+            createType('int');
 
-            it('should return an array value unchanged', function () {
-                var arrayValue = valueFactory.createArray([21]);
-
-                expect(type.coerceValue(arrayValue)).to.equal(arrayValue);
-            });
-
-            it('should coerce a float to string', function () {
-                var floatValue = valueFactory.createFloat(456.78),
-                    coercedValue = type.coerceValue(floatValue);
-
-                expect(coercedValue.getType()).to.equal('string');
-                expect(coercedValue.getNative()).to.be.equal('456.78');
-            });
+            expect(type.coerceValue(originalValue)).to.equal(convertedValue);
         });
 
-        describe('when coercion fails', function () {
-            it('should return the value unchanged', function () {
-                var objectValue = sinon.createStubInstance(ObjectValue);
-                objectValue.coerceToInteger.throws(new Error('Coercion failed'));
+        it('should convert the value to string when the scalar type is string', function () {
+            originalValue.convertForStringType
+                .returns(convertedValue);
+            createType('string');
 
-                expect(type.coerceValue(objectValue)).to.equal(objectValue);
-            });
+            expect(type.coerceValue(originalValue)).to.equal(convertedValue);
         });
 
-        describe('for an invalid scalar type', function () {
-            it('should raise an exception', function () {
-                createType('invalidtype');
+        it('should raise an exception for an invalid scalar type', function () {
+            createType('invalidtype');
 
-                expect(function () {
-                    type.coerceValue(valueFactory.createString('my value'));
-                }).to.throw('Unknown scalar type "invalidtype"');
-            });
+            expect(function () {
+                type.coerceValue(originalValue);
+            }).to.throw('Unknown scalar type "invalidtype"');
         });
     });
 

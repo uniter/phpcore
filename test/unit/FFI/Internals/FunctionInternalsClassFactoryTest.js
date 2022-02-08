@@ -119,14 +119,19 @@ describe('FFI FunctionInternalsClassFactory', function () {
                         'myFunc',
                         sinon.match.func, // A further wrapper: __uniterOutboundStackMarker__
                         sinon.match.same(globalNamespaceScope),
-                        null
+                        null,
+                        null,
+                        false
                     );
                 });
 
                 it('should define a typed function in the Namespace', function () {
                     var parametersSpecData = [{name: 'param1'}, {name: 'param2'}],
+                        returnTypeSpecData = {type: 'array'},
                         signature = sinon.createStubInstance(Signature);
                     signature.getParametersSpecData.returns(parametersSpecData);
+                    signature.getReturnTypeSpecData.returns(returnTypeSpecData);
+                    signature.isReturnByReference.returns(false);
                     signatureParser.parseSignature
                         .withArgs('mixed $param1, mixed $param2')
                         .returns(signature);
@@ -140,7 +145,9 @@ describe('FFI FunctionInternalsClassFactory', function () {
                         'myFunc',
                         sinon.match.func, // A further wrapper: __uniterOutboundStackMarker__
                         sinon.match.same(globalNamespaceScope),
-                        sinon.match.same(parametersSpecData)
+                        sinon.match.same(parametersSpecData),
+                        sinon.match.same(returnTypeSpecData),
+                        false
                     );
                 });
 

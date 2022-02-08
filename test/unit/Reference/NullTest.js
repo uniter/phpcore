@@ -69,6 +69,12 @@ describe('NullReference', function () {
         });
     });
 
+    describe('isReferenceable()', function () {
+        it('should return true', function () {
+            expect(reference.isReferenceable()).to.be.true;
+        });
+    });
+
     describe('isSet()', function () {
         it('should return false', async function () {
             expect(await reference.isSet().toPromise()).to.be.false;

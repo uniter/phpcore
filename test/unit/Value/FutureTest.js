@@ -227,6 +227,64 @@ describe('FutureValue', function () {
         });
     });
 
+    describe('convertForBooleanType()', function () {
+        it('should convert the resolved value to boolean when truthy', async function () {
+            var result;
+            createValue(futureFactory.createPresent(factory.createFloat(123.456)));
+
+            result = await value.convertForBooleanType().toPromise();
+
+            expect(result.getType()).to.equal('boolean');
+            expect(result.getNative()).to.be.true;
+        });
+
+        it('should convert the resolved value to boolean when falsy', async function () {
+            var result;
+            createValue(futureFactory.createPresent(factory.createFloat(0)));
+
+            result = await value.convertForBooleanType().toPromise();
+
+            expect(result.getType()).to.equal('boolean');
+            expect(result.getNative()).to.be.false;
+        });
+    });
+
+    describe('convertForFloatType()', function () {
+        it('should convert the resolved value to float', async function () {
+            var result;
+            createValue(futureFactory.createPresent(factory.createInteger(21)));
+
+            result = await value.convertForFloatType().toPromise();
+
+            expect(result.getType()).to.equal('float');
+            expect(result.getNative()).to.equal(21);
+        });
+    });
+
+    describe('convertForIntegerType()', function () {
+        it('should convert the resolved value to integer', async function () {
+            var result;
+            createValue(futureFactory.createPresent(factory.createFloat(123.456)));
+
+            result = await value.convertForIntegerType().toPromise();
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(123);
+        });
+    });
+
+    describe('convertForStringType()', function () {
+        it('should convert the resolved value to string', async function () {
+            var result;
+            createValue(futureFactory.createPresent(factory.createFloat(123.456)));
+
+            result = await value.convertForStringType().toPromise();
+
+            expect(result.getType()).to.equal('string');
+            expect(result.getNative()).to.equal('123.456');
+        });
+    });
+
     describe('decrement()', function () {
         it('should be able to decrement', async function () {
             var result;
@@ -419,6 +477,14 @@ describe('FutureValue', function () {
             createValue(futureFactory.createPresent(factory.createString('my value')));
 
             expect(value.isFuture()).to.be.true;
+        });
+    });
+
+    describe('isReferenceable()', function () {
+        it('should return false', function () {
+            createValue(futureFactory.createPresent(factory.createString('my value')));
+
+            expect(value.isReferenceable()).to.be.false;
         });
     });
 

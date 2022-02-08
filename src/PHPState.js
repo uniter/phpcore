@@ -117,7 +117,6 @@ module.exports = require('pauser')([
     require('./Control/Trace'),
     require('./Error/TraceFormatter'),
     require('./Function/TypedFunction'),
-    require('./Type/TypeFactory'),
     require('./Reference/UndeclaredStaticProperty'),
     require('./Core/Opcode/Opcode/UntracedOpcode'),
     require('./Control/Userland'),
@@ -234,7 +233,6 @@ module.exports = require('pauser')([
     Trace,
     TraceFormatter,
     TypedFunction,
-    TypeFactory,
     UndeclaredStaticPropertyReference,
     UntracedOpcode,
     Userland,
@@ -524,13 +522,13 @@ module.exports = require('pauser')([
             callStack = get('call_stack'),
             pauseFactory = new PauseFactory(Pause, callStack, controlFactory, controlScope, mode),
             userland = new Userland(callStack, controlBridge, controlScope, valueFactory, opcodePool, mode),
-            futureFactory = new FutureFactory(
+            futureFactory = set('future_factory', new FutureFactory(
                 controlFactory,
                 pauseFactory,
                 valueFactory,
                 controlBridge,
                 Future
-            ),
+            )),
             flow = new Flow(controlFactory, controlBridge, controlScope, futureFactory, mode),
             referenceFactory = new ReferenceFactory(
                 AccessorReference,
@@ -582,9 +580,8 @@ module.exports = require('pauser')([
             ffiExportRepository = new FFIExportRepository(ffiExportFactory, ffiValueStorage),
             ffiValueHelper = new FFIValueHelper(ffiProxyFactory, ffiFactory, ffiValueStorage, mode),
 
-            typeFactory = new TypeFactory(futureFactory),
             parameterFactory = new ParameterFactory(Parameter, callStack, translator, futureFactory, flow, userland),
-            parameterTypeFactory = new ParameterTypeFactory(typeFactory),
+            parameterTypeFactory = new ParameterTypeFactory(get('spec_type_provider')),
             parameterListFactory = new ParameterListFactory(parameterFactory, parameterTypeFactory),
             functionSpecFactory = new FunctionSpecFactory(
                 FunctionSpec,
@@ -593,7 +590,9 @@ module.exports = require('pauser')([
                 ClosureContext,
                 callStack,
                 parameterListFactory,
+                get('return_type_provider'),
                 valueFactory,
+                futureFactory,
                 flow
             ),
             variableFactory = new VariableFactory(Variable, callStack, valueFactory, referenceFactory, futureFactory),

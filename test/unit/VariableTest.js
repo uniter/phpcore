@@ -240,6 +240,12 @@ describe('Variable', function () {
         });
     });
 
+    describe('isReferenceable()', function () {
+        it('should return true', function () {
+            expect(variable.isReferenceable()).to.be.true;
+        });
+    });
+
     describe('setReference()', function () {
         it('should return the variable', function () {
             var reference = sinon.createStubInstance(Reference);

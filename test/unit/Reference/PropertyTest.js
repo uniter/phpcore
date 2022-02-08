@@ -340,6 +340,12 @@ describe('PropertyReference', function () {
         });
     });
 
+    describe('isReferenceable()', function () {
+        it('should return true', function () {
+            expect(property.isReferenceable()).to.be.true;
+        });
+    });
+
     describe('isSet()', function () {
         it('should return true when the property is set', async function () {
             property.initialise(propertyValue);

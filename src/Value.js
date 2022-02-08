@@ -379,6 +379,46 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Converts this value for a boolean type hint. If it cannot be successfully converted,
+         * the value is returned unchanged. Used by scalar type hinting.
+         *
+         * @returns {Value}
+         */
+        convertForBooleanType: function () {
+            return this;
+        },
+
+        /**
+         * Converts this value for a float type hint. If it cannot be successfully converted,
+         * the value is returned unchanged. Used by scalar type hinting.
+         *
+         * @returns {Value}
+         */
+        convertForFloatType: function () {
+            return this;
+        },
+
+        /**
+         * Converts this value for an integer type hint. If it cannot be successfully converted,
+         * the value is returned unchanged. Used by scalar type hinting.
+         *
+         * @returns {Value}
+         */
+        convertForIntegerType: function () {
+            return this;
+        },
+
+        /**
+         * Converts this value for a string type hint. If it cannot be successfully converted,
+         * the value is returned unchanged. Used by scalar type hinting.
+         *
+         * @returns {Value}
+         */
+        convertForStringType: function () {
+            return this;
+        },
+
+        /**
          * Coerces this value to a number and subtracts one from it.
          *
          * @returns {Value}
@@ -626,6 +666,17 @@ module.exports = require('pauser')([
          * @returns {boolean}
          */
         isIterable: throwUnimplemented('isIterable'),
+
+        /**
+         * Determines whether this value may be referenced (shared interface with Reference and Variable).
+         *
+         * Values are never referenceable as they are the result of a dereference.
+         *
+         * @returns {boolean}
+         */
+        isReferenceable: function () {
+            return false;
+        },
 
         /**
          * Determines whether this value is the class of another value

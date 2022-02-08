@@ -18,7 +18,6 @@ var expect = require('chai').expect,
     Class = require('../../src/Class').sync(),
     ControlBridge = require('../../src/Control/ControlBridge'),
     ControlScope = require('../../src/Control/ControlScope'),
-    Flow = require('../../src/Control/Flow'),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     FunctionSpec = require('../../src/Function/FunctionSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
@@ -53,7 +52,7 @@ describe('FunctionFactory', function () {
         controlBridge = sinon.createStubInstance(ControlBridge);
         controlScope = sinon.createStubInstance(ControlScope);
         currentClass = sinon.createStubInstance(Class);
-        flow = sinon.createStubInstance(Flow);
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         originalFunc = sinon.stub();
         MethodSpec = sinon.stub();
@@ -85,16 +84,30 @@ describe('FunctionFactory', function () {
         beforeEach(function () {
             functionSpec = sinon.createStubInstance(FunctionSpec);
 
+            functionSpec.coerceArguments
+                .callsFake(function (argumentReferences) {
+                    return argumentReferences.map(function (argumentReference, index) {
+                        var argumentValue = valueFactory.coerce(argumentReference);
+
+                        argumentReferences[index] = argumentValue;
+
+                        return argumentValue;
+                    });
+                });
+            functionSpec.coerceReturnReference.returnsArg(0);
+            functionSpec.populateDefaultArguments.returnsArg(0);
+            functionSpec.getFunctionName.returns(name);
+
             functionSpec.validateArguments
                 .callsFake(function () {
                     return futureFactory.createPresent();
                 });
+            functionSpec.validateReturnReference
+                .callsFake(function (returnReference, returnValue) {
+                    return futureFactory.createPresent(returnValue);
+                });
 
             callCreate = function (currentObject, staticClass) {
-                functionSpec.coerceArguments.returnsArg(0);
-                functionSpec.populateDefaultArguments.returnsArg(0);
-                functionSpec.getFunctionName.returns(name);
-
                 return factory.create(
                     namespaceScope,
                     currentClass,
@@ -180,16 +193,18 @@ describe('FunctionFactory', function () {
             });
 
             it('should pass the arguments to the CallFactory', async function () {
-                var currentObject = sinon.createStubInstance(Value);
+                var callArgs,
+                    currentObject = sinon.createStubInstance(Value);
 
                 await callCreate(currentObject)(21, 27).toPromise();
 
                 expect(callFactory.create).to.have.been.calledOnce;
-                expect(callFactory.create).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.any,
-                    [21, 27]
-                );
+                callArgs = callFactory.create.args[0][2];
+                expect(callArgs).to.have.length(2);
+                expect(callArgs[0].getType()).to.equal('int');
+                expect(callArgs[0].getNative()).to.equal(21);
+                expect(callArgs[1].getType()).to.equal('int');
+                expect(callArgs[1].getNative()).to.equal(27);
             });
 
             it('should pass any "next" static class set', async function () {
@@ -263,17 +278,15 @@ describe('FunctionFactory', function () {
             it('should coerce parameter arguments as required', async function () {
                 var argValue1 = valueFactory.createInteger(21),
                     argValue2 = valueFactory.createInteger(101),
-                    coercedArgValue1 = valueFactory.createInteger(42),
-                    coercedArgValue2 = valueFactory.createInteger(202),
                     wrappedFunc = callCreate();
-                functionSpec.coerceArguments
-                    .withArgs([sinon.match.same(argValue1), sinon.match.same(argValue2)])
-                    .returns([coercedArgValue1, coercedArgValue2]);
 
                 await wrappedFunc(argValue1, argValue2).toPromise();
 
                 expect(originalFunc).to.have.been.calledOnce;
-                expect(originalFunc).to.have.been.calledWith(coercedArgValue1, coercedArgValue2);
+                expect(originalFunc.args[0][0].getType()).to.equal('int');
+                expect(originalFunc.args[0][0].getNative()).to.equal(21);
+                expect(originalFunc.args[0][1].getType()).to.equal('int');
+                expect(originalFunc.args[0][1].getNative()).to.equal(101);
             });
 
             it('should push the call onto the stack', async function () {

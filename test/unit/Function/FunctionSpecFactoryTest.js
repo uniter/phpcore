@@ -15,18 +15,23 @@ var expect = require('chai').expect,
     Class = require('../../../src/Class').sync(),
     Flow = require('../../../src/Control/Flow'),
     FunctionSpecFactory = require('../../../src/Function/FunctionSpecFactory'),
+    FutureFactory = require('../../../src/Control/FutureFactory'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     Parameter = require('../../../src/Function/Parameter'),
     ParameterListFactory = require('../../../src/Function/ParameterListFactory'),
+    ReturnTypeProvider = require('../../../src/Function/ReturnTypeProvider'),
     TypeFactory = require('../../../src/Type/TypeFactory'),
+    TypeInterface = require('../../../src/Type/TypeInterface'),
     ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('FunctionSpecFactory', function () {
     var callStack,
         factory,
         flow,
+        futureFactory,
         namespaceScope,
         parameterListFactory,
+        returnTypeProvider,
         typeFactory,
         valueFactory,
         ClosureContext,
@@ -37,8 +42,10 @@ describe('FunctionSpecFactory', function () {
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
         flow = sinon.createStubInstance(Flow);
+        futureFactory = sinon.createStubInstance(FutureFactory);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         parameterListFactory = sinon.createStubInstance(ParameterListFactory);
+        returnTypeProvider = sinon.createStubInstance(ReturnTypeProvider);
         typeFactory = sinon.createStubInstance(TypeFactory);
         valueFactory = new ValueFactory();
         ClosureContext = sinon.stub();
@@ -53,7 +60,9 @@ describe('FunctionSpecFactory', function () {
             ClosureContext,
             callStack,
             parameterListFactory,
+            returnTypeProvider,
             valueFactory,
+            futureFactory,
             flow
         );
     });
@@ -62,13 +71,15 @@ describe('FunctionSpecFactory', function () {
         var functionContext,
             functionSpec,
             parameter1,
-            parameter2;
+            parameter2,
+            returnType;
 
         beforeEach(function () {
             functionContext = sinon.createStubInstance(FunctionContext);
             functionSpec = sinon.createStubInstance(FunctionSpec);
             parameter1 = sinon.createStubInstance(Parameter);
             parameter2 = sinon.createStubInstance(Parameter);
+            returnType = sinon.createStubInstance(TypeInterface);
 
             FunctionContext
                 .withArgs(sinon.match.same(namespaceScope), 'myFunction')
@@ -77,10 +88,13 @@ describe('FunctionSpecFactory', function () {
                 .withArgs(
                     sinon.match.same(callStack),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(futureFactory),
                     sinon.match.same(flow),
                     sinon.match.same(functionContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    sinon.match.same(returnType),
+                    true,
                     '/path/to/my/module.php',
                     123
                 )
@@ -92,6 +106,8 @@ describe('FunctionSpecFactory', function () {
                 namespaceScope,
                 'myFunction',
                 [parameter1, parameter2],
+                returnType,
+                true,
                 '/path/to/my/module.php',
                 123
             )).to.equal(functionSpec);
@@ -103,13 +119,21 @@ describe('FunctionSpecFactory', function () {
             functionSpec,
             parameter1,
             parameter2,
-            parametersSpecData;
+            parametersSpecData,
+            returnType,
+            returnTypeSpecData;
 
         beforeEach(function () {
             closureContext = sinon.createStubInstance(ClosureContext);
             functionSpec = sinon.createStubInstance(FunctionSpec);
             parameter1 = sinon.createStubInstance(Parameter);
             parameter2 = sinon.createStubInstance(Parameter);
+            returnType = sinon.createStubInstance(TypeInterface);
+            returnTypeSpecData = {type: 'array'};
+
+            returnTypeProvider.createReturnType
+                .withArgs(returnTypeSpecData, sinon.match.same(namespaceScope))
+                .returns(returnType);
 
             parametersSpecData = [
                 {
@@ -142,10 +166,13 @@ describe('FunctionSpecFactory', function () {
                 .withArgs(
                     sinon.match.same(callStack),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(futureFactory),
                     sinon.match.same(flow),
                     sinon.match.same(closureContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    sinon.match.same(returnType),
+                    false,
                     '/path/to/my/module.php',
                     123
                 )
@@ -155,6 +182,8 @@ describe('FunctionSpecFactory', function () {
                 namespaceScope,
                 classObject,
                 parametersSpecData,
+                returnTypeSpecData,
+                false,
                 '/path/to/my/module.php',
                 123
             )).to.equal(functionSpec);
@@ -168,10 +197,13 @@ describe('FunctionSpecFactory', function () {
                 .withArgs(
                     sinon.match.same(callStack),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(futureFactory),
                     sinon.match.same(flow),
                     sinon.match.same(closureContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    sinon.match.same(returnType),
+                    true,
                     '/path/to/my/module.php',
                     123
                 )
@@ -181,24 +213,34 @@ describe('FunctionSpecFactory', function () {
                 namespaceScope,
                 null,
                 parametersSpecData,
+                returnTypeSpecData,
+                true,
                 '/path/to/my/module.php',
                 123
             )).to.equal(functionSpec);
         });
     });
-    
+
     describe('createFunctionSpec()', function () {
         var functionContext,
             functionSpec,
             parameter1,
             parameter2,
-            parametersSpecData;
+            parametersSpecData,
+            returnType,
+            returnTypeSpecData;
 
         beforeEach(function () {
             functionContext = sinon.createStubInstance(FunctionContext);
             functionSpec = sinon.createStubInstance(FunctionSpec);
             parameter1 = sinon.createStubInstance(Parameter);
             parameter2 = sinon.createStubInstance(Parameter);
+            returnType = sinon.createStubInstance(TypeInterface);
+            returnTypeSpecData = {type: 'array'};
+
+            returnTypeProvider.createReturnType
+                .withArgs(returnTypeSpecData, sinon.match.same(namespaceScope))
+                .returns(returnType);
 
             parametersSpecData = [
                 {
@@ -228,10 +270,13 @@ describe('FunctionSpecFactory', function () {
                 .withArgs(
                     sinon.match.same(callStack),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(futureFactory),
                     sinon.match.same(flow),
                     sinon.match.same(functionContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    sinon.match.same(returnType),
+                    false,
                     '/path/to/my/module.php',
                     123
                 )
@@ -243,6 +288,8 @@ describe('FunctionSpecFactory', function () {
                 namespaceScope,
                 'myFunction',
                 parametersSpecData,
+                returnTypeSpecData,
+                false,
                 '/path/to/my/module.php',
                 123
             )).to.equal(functionSpec);
@@ -255,7 +302,9 @@ describe('FunctionSpecFactory', function () {
             methodContext,
             parameter1,
             parameter2,
-            parametersSpecData;
+            parametersSpecData,
+            returnType,
+            returnTypeSpecData;
 
         beforeEach(function () {
             classObject = sinon.createStubInstance(Class);
@@ -263,6 +312,12 @@ describe('FunctionSpecFactory', function () {
             functionSpec = sinon.createStubInstance(FunctionSpec);
             parameter1 = sinon.createStubInstance(Parameter);
             parameter2 = sinon.createStubInstance(Parameter);
+            returnType = sinon.createStubInstance(TypeInterface);
+            returnTypeSpecData = {type: 'array'};
+
+            returnTypeProvider.createReturnType
+                .withArgs(returnTypeSpecData, sinon.match.same(namespaceScope))
+                .returns(returnType);
 
             parametersSpecData = [
                 {
@@ -292,10 +347,13 @@ describe('FunctionSpecFactory', function () {
                 .withArgs(
                     sinon.match.same(callStack),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(futureFactory),
                     sinon.match.same(flow),
                     sinon.match.same(methodContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    sinon.match.same(returnType),
+                    true,
                     '/path/to/my/module.php',
                     123
                 )
@@ -308,6 +366,8 @@ describe('FunctionSpecFactory', function () {
                 classObject,
                 'myMethod',
                 parametersSpecData,
+                returnTypeSpecData,
+                true,
                 '/path/to/my/module.php',
                 123
             )).to.equal(functionSpec);

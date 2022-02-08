@@ -315,6 +315,12 @@ describe('BarewordString', function () {
         });
     });
 
+    describe('isReferenceable()', function () {
+        it('should return false', function () {
+            expect(value.isReferenceable()).to.be.false;
+        });
+    });
+
     describe('isTheClassOfObject()', function () {
         var namespace;
 

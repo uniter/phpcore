@@ -87,10 +87,31 @@ describe('Parameter', function () {
     });
 
     describe('coerceArgument()', function () {
-        it('should return the argument unchanged when the parameter is passed by reference', function () {
-            var variable = sinon.createStubInstance(Variable);
+        it('should return the coerced argument when the parameter is passed by reference', async function () {
+            var originalValue = valueFactory.createString('original value'),
+                coercedValue = valueFactory.createString('coerced value'),
+                variable = sinon.createStubInstance(Variable);
+            typeObject.coerceValue
+                .withArgs(sinon.match.same(originalValue))
+                .returns(coercedValue);
+            variable.getValueOrNull.returns(originalValue);
 
-            expect(parameter.coerceArgument(variable)).to.equal(variable);
+            expect(await parameter.coerceArgument(variable).toPromise()).to.equal(coercedValue);
+        });
+
+        it('should write the coerced argument back to the reference when the parameter is passed by reference', async function () {
+            var originalValue = valueFactory.createString('original value'),
+                coercedValue = valueFactory.createString('coerced value'),
+                variable = sinon.createStubInstance(Variable);
+            typeObject.coerceValue
+                .withArgs(sinon.match.same(originalValue))
+                .returns(coercedValue);
+            variable.getValueOrNull.returns(originalValue);
+
+            await parameter.coerceArgument(variable).toPromise();
+
+            expect(variable.setValue).to.have.been.calledOnce;
+            expect(variable.setValue).to.have.been.calledWith(sinon.match.same(coercedValue));
         });
 
         it('should return the argument\'s value when the parameter is passed by value', function () {
@@ -214,7 +235,9 @@ describe('Parameter', function () {
 
     describe('validateArgument()', function () {
         it('should raise an error when parameter expects a reference but a value was given as argument', function () {
-            return expect(parameter.validateArgument(valueFactory.createString('my arg')).toPromise())
+            var argumentValue = valueFactory.createString('my arg');
+
+            return expect(parameter.validateArgument(argumentValue).toPromise())
                 .to.eventually.be.rejectedWith(
                     'Fake PHP Fatal error for #core.only_variables_by_reference with {}'
                 );
@@ -224,7 +247,6 @@ describe('Parameter', function () {
             var argumentReference = sinon.createStubInstance(Variable),
                 argumentValue = valueFactory.createString('my invalid argument'),
                 defaultValue = valueFactory.createNull();
-            argumentReference.getValueOrNull.returns(argumentValue);
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
                 .returns(futureFactory.createPresent(false)); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
@@ -233,7 +255,7 @@ describe('Parameter', function () {
             callStack.getCallerFilePath.returns('/my/caller/module.php');
             callStack.getCallerLastLine.returns(12345);
 
-            return expect(parameter.validateArgument(argumentReference).toPromise())
+            return expect(parameter.validateArgument(argumentReference, argumentValue).toPromise())
                 .to.eventually.be.rejectedWith(
                     'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
                     '"index":7,' +
@@ -266,7 +288,6 @@ describe('Parameter', function () {
                 null,
                 null
             );
-            argumentReference.getValueOrNull.returns(argumentValue);
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
                 .returns(futureFactory.createPresent(false)); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
@@ -275,7 +296,7 @@ describe('Parameter', function () {
             callStack.getCallerFilePath.returns(null);
             callStack.getCallerLastLine.returns(null);
 
-            return expect(parameter.validateArgument(argumentReference).toPromise())
+            return expect(parameter.validateArgument(argumentReference, argumentValue).toPromise())
                 .to.eventually.be.rejectedWith(
                     'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
                     '"index":7,' +
@@ -291,7 +312,6 @@ describe('Parameter', function () {
         it('should raise an error when argument is null but type does not allow null and there is no default', function () {
             var argumentReference = sinon.createStubInstance(Variable),
                 argumentValue = valueFactory.createNull();
-            argumentReference.getValueOrNull.returns(argumentValue);
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
                 .returns(futureFactory.createPresent(false)); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
@@ -315,7 +335,7 @@ describe('Parameter', function () {
                 101
             );
 
-            return expect(parameter.validateArgument(argumentReference).toPromise())
+            return expect(parameter.validateArgument(argumentReference, argumentValue).toPromise())
                 .to.eventually.be.rejectedWith(
                     'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
                     '"index":7,' +
@@ -332,7 +352,6 @@ describe('Parameter', function () {
         it('should raise an error when argument is null but type does not allow null and default is not null', function () {
             var argumentReference = sinon.createStubInstance(Variable),
                 argumentValue = valueFactory.createNull();
-            argumentReference.getValueOrNull.returns(argumentValue);
             defaultValueProvider.returns(valueFactory.createArray(['some value']));
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
@@ -341,7 +360,7 @@ describe('Parameter', function () {
             callStack.getCallerFilePath.returns('/my/caller/module.php');
             callStack.getCallerLastLine.returns(12345);
 
-            return expect(parameter.validateArgument(argumentReference).toPromise())
+            return expect(parameter.validateArgument(argumentReference, argumentValue).toPromise())
                 .to.eventually.be.rejectedWith(
                     'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
                     '"index":7,' +

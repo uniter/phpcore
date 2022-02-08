@@ -99,19 +99,29 @@ module.exports = require('pauser')([
         create: function (namespaceScope, currentClass, func, name, currentObject, staticClass, functionSpec) {
             var factory = this,
                 /**
-                 * Wraps a function exposed to PHP-land
+                 * Wraps a function exposed to PHP-land.
                  *
-                 * @returns {FutureValue}
+                 * @returns {Future|Value}
                  */
                 wrapperFunc = function () {
-                    var args = slice.call(arguments),
+                    var argReferences = slice.call(arguments),
+                        argValues, // Populated by coercion stage.
                         thisObject = currentObject || this,
                         scope,
                         call,
                         newStaticClass = null;
 
+                    /**
+                     * Handles coercion and validation of the result of the function call.
+                     *
+                     * @param {Reference|Value|Variable|*} result
+                     * @returns {Future<Reference|Value|Variable>}
+                     */
                     function finishCall(result) {
-                        var resultReference;
+                        /** @var {Reference|Value|Variable} */
+                        var resultReference,
+                            /** @var {Value} */
+                            resultValue;
 
                         if ((result instanceof Reference) || (result instanceof Variable)) {
                             // Result is a Reference, resolve to a value if needed
@@ -129,14 +139,26 @@ module.exports = require('pauser')([
                             resultReference = result.resolve();
                         }
 
-                        return resultReference;
+                        // Coerce return value or reference as required, capturing the value for later validation.
+                        // Note that the coerced result for by-value functions will be written back to resultReference.
+                        resultValue = functionSpec.coerceReturnReference(resultReference);
+
+                        // Check the return value against the return type (if any). If the caller
+                        // is in weak type-checking mode, the value will have been coerced if possible above.
+                        return functionSpec.validateReturnReference(resultReference, resultValue);
                     }
 
+                    /**
+                     * Performs the actual call, returning a Value or Future
+                     * to be resolved on success or rejected on error.
+                     *
+                     * @returns {Future|Value}
+                     */
                     function doCall() {
-                        return factory.valueFactory
+                        return factory.flow
                             .maybeFuturise(
                                 function () {
-                                    return func.apply(scope, args);
+                                    return func.apply(scope, argReferences);
                                 },
                                 function (pause) {
                                     pause.next(
@@ -189,11 +211,19 @@ module.exports = require('pauser')([
                         thisObject = null;
                     }
 
-                    // Coerce parameter arguments as required
-                    args = functionSpec.coerceArguments(args);
+                    // Coerce parameter arguments as required, capturing all values for later validation.
+                    // Note that coerced arguments for by-value parameters will be written back to argReferences.
+                    argValues = functionSpec.coerceArguments(argReferences);
 
                     scope = factory.scopeFactory.create(currentClass, wrapperFunc, thisObject);
-                    call = factory.callFactory.create(scope, namespaceScope, args, newStaticClass);
+                    call = factory.callFactory.create(
+                        scope,
+                        namespaceScope,
+                        // Note that the resolved argument values are stored against the call and not
+                        // any references passed in, so we have the actual argument used at the time.
+                        argValues,
+                        newStaticClass
+                    );
 
                     // TODO: Remove NamespaceScope concept, instead handling at compile time.
                     namespaceScope.enter();
@@ -204,7 +234,7 @@ module.exports = require('pauser')([
                     // Now validate the arguments at this point (coercion was done earlier)
                     // - if any error is raised then the call will still be popped off
                     //   by the finally clause below
-                    return functionSpec.validateArguments(args)
+                    return functionSpec.validateArguments(argReferences, argValues)
                         .next(function () {
                             /*
                              * Now populate any optional arguments that were omitted with their default values.
@@ -212,12 +242,12 @@ module.exports = require('pauser')([
                              * Note that default args could be async and cause a pause,
                              *     eg. if a default value is a constant of an asynchronously autoloaded class
                              */
-                            return functionSpec.populateDefaultArguments(args);
+                            return functionSpec.populateDefaultArguments(argReferences);
                         })
                         .next(function (populatedArguments) {
                             // Note that by this point all arguments will have been resolved to present values
                             // (ie. any FutureValues will have been awaited and resolved).
-                            args = populatedArguments;
+                            argReferences = populatedArguments;
 
                             return doCall();
                         })
@@ -230,8 +260,7 @@ module.exports = require('pauser')([
 
                             // TODO: Remove NamespaceScope...
                             namespaceScope.leave();
-                        })
-                        .asValue();
+                        });
                 };
 
             wrapperFunc.functionSpec = functionSpec;

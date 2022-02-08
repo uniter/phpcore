@@ -271,6 +271,10 @@ describe('ValueFactory', function () {
                         .withArgs(name)
                         .returns(value);
                 });
+
+            // Simulate the initial file and line as fetched from the call stack by Error & Exception.
+            objectValue.setProperty('file', '/my/current/file_path.php');
+            objectValue.setProperty('line', 789);
         });
 
         it('should return a correctly instantiated instance of the Error subclass', async function () {
@@ -333,7 +337,7 @@ describe('ValueFactory', function () {
             expect(objectValue.getInternalProperty('reportsOwnContext')).to.be.false;
         });
 
-        it('should override the "file" property if specified', async function () {
+        it('should override the "file" property with the given string if specified', async function () {
             var value;
             myClassObject.instantiate.returns(objectValue);
 
@@ -352,7 +356,25 @@ describe('ValueFactory', function () {
             expect(value.getNative()).to.equal('/path/to/my_module.php');
         });
 
-        it('should override the "line" property if specified', async function () {
+        it('should override the "file" property with null if specified', async function () {
+            var value;
+            myClassObject.instantiate.returns(objectValue);
+
+            await factory.createErrorObject(
+                'My\\Stuff\\MyErrorClass',
+                'My error message',
+                21,
+                null,
+                null, // Specify that file path should be treated as unknown.
+                1234,
+                false
+            ).toPromise();
+            value = objectValue.getProperty('file');
+
+            expect(value.getType()).to.equal('null');
+        });
+
+        it('should override the "line" property with the given integer if specified', async function () {
             var value;
             myClassObject.instantiate.returns(objectValue);
 
@@ -369,6 +391,24 @@ describe('ValueFactory', function () {
 
             expect(value.getType()).to.equal('int');
             expect(value.getNative()).to.equal(1234);
+        });
+
+        it('should override the "line" property with null if specified', async function () {
+            var value;
+            myClassObject.instantiate.returns(objectValue);
+
+            await factory.createErrorObject(
+                'My\\Stuff\\MyErrorClass',
+                'My error message',
+                21,
+                null,
+                '/path/to/my_module.php',
+                null, // Specify that line number should be treated as unknown.
+                false
+            ).toPromise();
+            value = objectValue.getProperty('line');
+
+            expect(value.getType()).to.equal('null');
         });
     });
 
