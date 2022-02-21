@@ -98,6 +98,58 @@ EOS
         expect(engine.execute().getNative()).to.equal(21);
     });
 
+    it('should allow a closure to be called both directly and via ->__invoke(...)', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass
+{
+    private $myProp = 21;
+
+    public function myMethod()
+    {
+        return function ($myNumber) {
+            return [
+                'result' => $this->myProp + $myNumber,
+                'trace' => (new \Exception)->getTraceAsString()
+            ];
+        };
+    }
+}
+
+$myObject = new MyClass();
+$myClosure = $myObject->myMethod();
+
+return [
+    'called directly' => $myClosure(10),
+    'called via __invoke(...)' => $myClosure->__invoke(20)
+];
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/some/module/path.php', php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal({
+            'called directly': {
+                'result': 31,
+                'trace': nowdoc(function () {/*<<<EOS
+#0 /some/module/path.php(22): MyClass->{closure}(10)
+#1 {main}
+EOS
+*/;}) //jshint ignore:line
+            },
+            'called via __invoke(...)': {
+                'result': 41,
+                'trace': nowdoc(function () {/*<<<EOS
+#0 /some/module/path.php(23): MyClass->{closure}(20)
+#1 /some/module/path.php(23): Closure->__invoke(20)
+#2 {main}
+EOS
+*/;}) //jshint ignore:line
+            }
+        });
+    });
+
     it('should not allow a static closure to access $this', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

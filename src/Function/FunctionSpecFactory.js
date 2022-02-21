@@ -125,6 +125,7 @@ _.extend(FunctionSpecFactory.prototype, {
      *
      * @param {NamespaceScope} namespaceScope
      * @param {Class|null} classObject
+     * @param {ObjectValue|null} enclosingObject
      * @param {Array} parametersSpecData
      * @param {Object|null} returnTypeSpecData
      * @param {boolean} returnByReference
@@ -135,6 +136,7 @@ _.extend(FunctionSpecFactory.prototype, {
     createClosureSpec: function (
         namespaceScope,
         classObject,
+        enclosingObject,
         parametersSpecData,
         returnTypeSpecData,
         returnByReference,
@@ -142,7 +144,7 @@ _.extend(FunctionSpecFactory.prototype, {
         lineNumber
     ) {
         var factory = this,
-            context = new factory.ClosureContext(namespaceScope, classObject),
+            context = new factory.ClosureContext(namespaceScope, classObject, enclosingObject),
             parameters = factory.parameterListFactory.createParameterList(
                 context,
                 parametersSpecData,

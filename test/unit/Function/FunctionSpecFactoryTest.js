@@ -17,6 +17,7 @@ var expect = require('chai').expect,
     FunctionSpecFactory = require('../../../src/Function/FunctionSpecFactory'),
     FutureFactory = require('../../../src/Control/FutureFactory'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
+    ObjectValue = require('../../../src/Value/Object').sync(),
     Parameter = require('../../../src/Function/Parameter'),
     ParameterListFactory = require('../../../src/Function/ParameterListFactory'),
     ReturnTypeProvider = require('../../../src/Function/ReturnTypeProvider'),
@@ -157,10 +158,11 @@ describe('FunctionSpecFactory', function () {
                 .returns([parameter1, parameter2]);
         });
 
-        it('should return a correctly constructed FunctionSpec when there is a current class', function () {
-            var classObject = sinon.createStubInstance(Class);
+        it('should return a correctly constructed FunctionSpec when there is a current class and object', function () {
+            var classObject = sinon.createStubInstance(Class),
+                enclosingObject = sinon.createStubInstance(ObjectValue);
             ClosureContext
-                .withArgs(sinon.match.same(namespaceScope), sinon.match.same(classObject))
+                .withArgs(sinon.match.same(namespaceScope), sinon.match.same(classObject), sinon.match.same(enclosingObject))
                 .returns(closureContext);
             FunctionSpec
                 .withArgs(
@@ -181,6 +183,7 @@ describe('FunctionSpecFactory', function () {
             expect(factory.createClosureSpec(
                 namespaceScope,
                 classObject,
+                enclosingObject,
                 parametersSpecData,
                 returnTypeSpecData,
                 false,
@@ -189,9 +192,42 @@ describe('FunctionSpecFactory', function () {
             )).to.equal(functionSpec);
         });
 
-        it('should return a correctly constructed FunctionSpec when there is no current class', function () {
+        it('should return a correctly constructed FunctionSpec when there is a current class but no object', function () {
+            var classObject = sinon.createStubInstance(Class);
             ClosureContext
-                .withArgs(sinon.match.same(namespaceScope), null)
+                .withArgs(sinon.match.same(namespaceScope), sinon.match.same(classObject), null)
+                .returns(closureContext);
+            FunctionSpec
+                .withArgs(
+                    sinon.match.same(callStack),
+                    sinon.match.same(valueFactory),
+                    sinon.match.same(futureFactory),
+                    sinon.match.same(flow),
+                    sinon.match.same(closureContext),
+                    sinon.match.same(namespaceScope),
+                    [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    sinon.match.same(returnType),
+                    false,
+                    '/path/to/my/module.php',
+                    123
+                )
+                .returns(functionSpec);
+
+            expect(factory.createClosureSpec(
+                namespaceScope,
+                classObject,
+                null,
+                parametersSpecData,
+                returnTypeSpecData,
+                false,
+                '/path/to/my/module.php',
+                123
+            )).to.equal(functionSpec);
+        });
+
+        it('should return a correctly constructed FunctionSpec when there is no current class or object', function () {
+            ClosureContext
+                .withArgs(sinon.match.same(namespaceScope), null, null)
                 .returns(closureContext);
             FunctionSpec
                 .withArgs(
@@ -211,6 +247,7 @@ describe('FunctionSpecFactory', function () {
 
             expect(factory.createClosureSpec(
                 namespaceScope,
+                null,
                 null,
                 parametersSpecData,
                 returnTypeSpecData,

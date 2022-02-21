@@ -188,7 +188,15 @@ module.exports = require('pauser')([
          * @returns {Reference|Value}
          */
         call: function (args) {
-            return this.callMethod('__invoke', args);
+            var value = this;
+
+            return value.classIs('Closure') ?
+                // For a closure, invoke it directly rather than via the wrapped __invoke() method
+                // of the builtin Closure class, both for performance and to avoid adding a stack frame
+                // for the __invoke() call, which is not present in the reference implementation.
+                value.invokeClosure(args) :
+                // For all other types of object there is no such shortcut.
+                value.callMethod('__invoke', args);
         },
 
         /**

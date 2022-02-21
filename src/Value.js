@@ -564,7 +564,7 @@ module.exports = require('pauser')([
         /**
          * Fetches a special element that will append to the array
          *
-         * @returns {ElementReference|NullReference}
+         * @returns {ElementReference|NullReference|ObjectElement}
          */
         getPushElement: function () {
             return createNullReference(this);

@@ -74,7 +74,7 @@ namespace Your\Space
 
             $parentObject = new \My\Space\MyClass;
             $parentClosureFromInstance = $parentObject->third();
-            $parentClosureFromStatic = $parentObject->fourth();
+            $parentClosureFromStatic = $parentObject::fourth();
 
             $result[] = $parentObject->first();
             $result[] = \My\Space\MyClass::second();
@@ -83,7 +83,7 @@ namespace Your\Space
 
             $derivedObject = new \My\Space\MyDerivedClass;
             $derivedClosureFromInstance = $derivedObject->third();
-            $derivedClosureFromStatic = $derivedObject->fourth();
+            $derivedClosureFromStatic = $derivedObject::fourth();
 
             $result[] = $derivedObject->first();
             $result[] = \My\Space\MyDerivedClass::second();

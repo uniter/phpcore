@@ -15,14 +15,23 @@ var phpCommon = require('phpcommon'),
     CallStack = require('../../CallStack'),
     ControlScope = require('../../Control/ControlScope'),
     FFICall = require('../../FFI/Call'),
+    MethodPromoter = require('../../Class/MethodPromoter'),
+    NativeDefinitionBuilder = require('../../Class/Definition/NativeDefinitionBuilder'),
+    NativeMethodDefinitionBuilder = require('../../Class/Definition/NativeMethodDefinitionBuilder'),
     ReturnTypeProvider = require('../../Function/ReturnTypeProvider'),
     SignatureParser = require('../../Function/Signature/SignatureParser'),
     SpecTypeProvider = require('../../Type/SpecTypeProvider'),
     Translator = phpCommon.Translator,
     TypeFactory = require('../../Type/TypeFactory'),
 
+    CALL_STACK = 'call_stack',
     ERROR_REPORTING = 'error_reporting',
+    FFI_FACTORY = 'ffi_factory',
+    FUNCTION_FACTORY = 'function_factory',
+    FUNCTION_SIGNATURE_PARSER = 'function_signature_parser',
+    FUNCTION_SPEC_FACTORY = 'function_spec_factory',
     FUTURE_FACTORY = 'future_factory',
+    NATIVE_METHOD_DEFINITION_BUILDER = 'native_method_definition_builder',
     SPEC_TYPE_PROVIDER = 'spec_type_provider',
     STDERR = 'stderr',
     TRANSLATOR = 'translator',
@@ -59,6 +68,22 @@ module.exports = function (internals) {
 
         'function_signature_parser': function () {
             return new SignatureParser(get(VALUE_FACTORY));
+        },
+
+        'method_promoter': function () {
+            return new MethodPromoter(get(CALL_STACK), get(FUNCTION_FACTORY), get(FUNCTION_SPEC_FACTORY));
+        },
+
+        'native_class_definition_builder': function () {
+            return new NativeDefinitionBuilder(
+                get(VALUE_FACTORY),
+                get(FFI_FACTORY),
+                get(NATIVE_METHOD_DEFINITION_BUILDER)
+            );
+        },
+
+        'native_method_definition_builder': function () {
+            return new NativeMethodDefinitionBuilder(get(FUNCTION_SIGNATURE_PARSER));
         },
 
         'return_type_provider': function () {

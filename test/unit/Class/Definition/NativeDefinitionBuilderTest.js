@@ -18,25 +18,31 @@ var expect = require('chai').expect,
     Namespace = require('../../../../src/Namespace').sync(),
     NamespaceScope = require('../../../../src/NamespaceScope').sync(),
     NativeDefinitionBuilder = require('../../../../src/Class/Definition/NativeDefinitionBuilder'),
+    NativeMethodDefinitionBuilder = require('../../../../src/Class/Definition/NativeMethodDefinitionBuilder'),
     ObjectValue = require('../../../../src/Value/Object').sync(),
     ValueCoercer = require('../../../../src/FFI/Value/ValueCoercer');
 
 describe('NativeDefinitionBuilder', function () {
     var builder,
         ffiFactory,
+        nativeMethodDefinitionBuilder,
         state,
         valueFactory;
 
     beforeEach(function () {
         state = tools.createIsolatedState();
         ffiFactory = sinon.createStubInstance(FFIFactory);
+        nativeMethodDefinitionBuilder = sinon.createStubInstance(NativeMethodDefinitionBuilder);
         valueFactory = state.getValueFactory();
 
         ffiFactory.createValueCoercer.callsFake(function (autoCoercionEnabled) {
             return new ValueCoercer(autoCoercionEnabled);
         });
 
-        builder = new NativeDefinitionBuilder(ffiFactory);
+        nativeMethodDefinitionBuilder.buildMethod
+            .returnsArg(0);
+
+        builder = new NativeDefinitionBuilder(valueFactory, ffiFactory, nativeMethodDefinitionBuilder);
     });
 
     describe('buildDefinition()', function () {
@@ -148,12 +154,15 @@ describe('NativeDefinitionBuilder', function () {
                 beforeEach(function () {
                     objectValue = sinon.createStubInstance(ObjectValue);
                     nativeObject = {my: 'native object'};
+                    objectValue.callMethod.callsFake(function (name, argReferences) {
+                        return definition.getMethods()[name].apply(null, argReferences);
+                    });
                     objectValue.getObject.returns(nativeObject);
 
                     callInternalConstructor = function (name, autoCoercionEnabled) {
                         callBuildDefinition(name, autoCoercionEnabled);
 
-                        definition.InternalClass.call(objectValue);
+                        definition.getInternalClass().call(objectValue);
                     };
                 });
 
@@ -196,7 +205,7 @@ describe('NativeDefinitionBuilder', function () {
                             arg1 = valueFactory.createString('arg 1');
                             arg2 = valueFactory.createString('arg 2');
 
-                            definition.InternalClass.prototype.__construct.apply(objectValue, [arg1, arg2]);
+                            definition.getInternalClass().prototype.__construct.apply(objectValue, [arg1, arg2]);
                         };
                     });
 
@@ -208,15 +217,15 @@ describe('NativeDefinitionBuilder', function () {
                         expect(definitionFunction).to.have.been.calledWith('arg 1', 'arg 2');
                     });
 
-                    it('should a __construct() method on the definition function correctly when auto-coercing', function () {
+                    it('should call a __construct() method on the definition function correctly when auto-coercing', function () {
                         var originalConstructor = sinon.stub();
                         definitionFunction.prototype.__construct = originalConstructor;
 
                         callProxyConstructor('MyClass', true);
 
                         expect(originalConstructor).to.have.been.calledOnce;
-                        expect(originalConstructor).to.have.been.calledOn(sinon.match.same(nativeObject));
-                        expect(originalConstructor).to.have.been.calledWith('arg 1', 'arg 2');
+                        expect(originalConstructor.args[0][0]).to.equal(arg1);
+                        expect(originalConstructor.args[0][1]).to.equal(arg2);
                     });
 
                     it('should call the original native constructor correctly when non-coercing', function () {
@@ -227,15 +236,15 @@ describe('NativeDefinitionBuilder', function () {
                         expect(definitionFunction).to.have.been.calledWith(sinon.match.same(arg1), sinon.match.same(arg2));
                     });
 
-                    it('should a __construct() method on the definition function correctly when non-coercing', function () {
+                    it('should call a __construct() method on the definition function correctly when non-coercing', function () {
                         var originalConstructor = sinon.stub();
                         definitionFunction.prototype.__construct = originalConstructor;
 
                         callProxyConstructor('MyClass', false);
 
                         expect(originalConstructor).to.have.been.calledOnce;
-                        expect(originalConstructor).to.have.been.calledOn(sinon.match.same(objectValue));
-                        expect(originalConstructor).to.have.been.calledWith(sinon.match.same(arg1), sinon.match.same(arg2));
+                        expect(originalConstructor.args[0][0]).to.equal(arg1);
+                        expect(originalConstructor.args[0][1]).to.equal(arg2);
                     });
                 });
             });

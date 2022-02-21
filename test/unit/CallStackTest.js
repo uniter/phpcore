@@ -250,7 +250,7 @@ describe('CallStack', function () {
             expect(callStack.getTrace()).to.deep.equal([]);
         });
 
-        describe('with three calls', function () {
+        describe('with three userland calls', function () {
             var entryCall,
                 firstCall,
                 firstCallArgs,
@@ -331,6 +331,138 @@ describe('CallStack', function () {
                 expect(trace[0].args).to.equal(thirdCallArgs);
                 expect(trace[1].args).to.equal(secondCallArgs);
                 expect(trace[2].args).to.equal(firstCallArgs);
+            });
+        });
+
+        describe('with two native calls followed by a userland one', function () {
+            var entryCall,
+                firstCall,
+                firstCallArgs,
+                secondCall,
+                secondCallArgs,
+                thirdCall,
+                thirdCallArgs;
+
+            beforeEach(function () {
+                entryCall = sinon.createStubInstance(Call);
+                entryCall.getTraceFilePath.returns('(Entry file)');
+                entryCall.getLastLine.returns(4);
+                entryCall.isUserland.returns(true);
+                firstCall = sinon.createStubInstance(Call);
+                firstCall.getTraceFilePath.returns(null);
+                firstCallArgs = [sinon.createStubInstance(Value)];
+                firstCall.getFunctionArgs.returns(firstCallArgs);
+                firstCall.getFunctionName.returns('myOldestCalledFunc');
+                firstCall.getLastLine.returns(null);
+                firstCall.isUserland.returns(false);
+                secondCall = sinon.createStubInstance(Call);
+                secondCall.getTraceFilePath.returns(null);
+                secondCallArgs = [sinon.createStubInstance(Value)];
+                secondCall.getFunctionArgs.returns(secondCallArgs);
+                secondCall.getFunctionName.returns('mySecondCalledFunc');
+                secondCall.getLastLine.returns(null);
+                secondCall.isUserland.returns(false);
+                thirdCall = sinon.createStubInstance(Call);
+                thirdCall.getTraceFilePath.returns('/path/to/newest/call.php');
+                thirdCallArgs = [sinon.createStubInstance(Value)];
+                thirdCall.getFunctionArgs.returns(thirdCallArgs);
+                thirdCall.getFunctionName.returns('myMostRecentlyCalledFunc');
+                thirdCall.getLastLine.returns(27);
+                thirdCall.isUserland.returns(false);
+                callStack.push(entryCall); // Entry call gets ignored
+                callStack.push(firstCall);
+                callStack.push(secondCall);
+                callStack.push(thirdCall);
+            });
+
+            it('should return a trace with three entries', function () {
+                expect(callStack.getTrace()).to.have.length(3);
+            });
+
+            it('should give each entry the correct file path', function () {
+                var trace = callStack.getTrace();
+
+                // Note that the unknown (null) file paths are populated
+                // with the path of the nearest ancestor instead.
+                expect(trace[0].file).to.equal('(Entry file)');
+                expect(trace[1].file).to.equal('(Entry file)');
+                expect(trace[2].file).to.equal('(Entry file)');
+            });
+
+            it('should give each entry the correct line (from the previous call)', function () {
+                var trace = callStack.getTrace();
+
+                // We return the previous call's line number, as that is the line
+                // the call was made from in the calling file
+                expect(trace[0].line).to.equal(4);
+                expect(trace[1].line).to.equal(4);
+                expect(trace[2].line).to.equal(4);
+            });
+        });
+
+        describe('with a userland call that has a path but no line number', function () {
+            var entryCall,
+                firstCall,
+                firstCallArgs,
+                secondCall,
+                secondCallArgs,
+                thirdCall,
+                thirdCallArgs;
+
+            beforeEach(function () {
+                entryCall = sinon.createStubInstance(Call);
+                entryCall.getTraceFilePath.returns('(Entry file)');
+                entryCall.getLastLine.returns(4);
+                entryCall.isUserland.returns(true);
+                firstCall = sinon.createStubInstance(Call);
+                firstCall.getTraceFilePath.returns('/path/to/oldest/call.php');
+                firstCallArgs = [sinon.createStubInstance(Value)];
+                firstCall.getFunctionArgs.returns(firstCallArgs);
+                firstCall.getFunctionName.returns('myOldestCalledFunc');
+                firstCall.getLastLine.returns(null);
+                firstCall.isUserland.returns(false);
+                secondCall = sinon.createStubInstance(Call);
+                secondCall.getTraceFilePath.returns('/path/to/second/call.php');
+                secondCallArgs = [sinon.createStubInstance(Value)];
+                secondCall.getFunctionArgs.returns(secondCallArgs);
+                secondCall.getFunctionName.returns('mySecondCalledFunc');
+                secondCall.getLastLine.returns(null);
+                secondCall.isUserland.returns(false);
+                thirdCall = sinon.createStubInstance(Call);
+                thirdCall.getTraceFilePath.returns('/path/to/newest/call.php');
+                thirdCallArgs = [sinon.createStubInstance(Value)];
+                thirdCall.getFunctionArgs.returns(thirdCallArgs);
+                thirdCall.getFunctionName.returns('myMostRecentlyCalledFunc');
+                thirdCall.getLastLine.returns(27);
+                thirdCall.isUserland.returns(false);
+                callStack.push(entryCall); // Entry call gets ignored
+                callStack.push(firstCall);
+                callStack.push(secondCall);
+                callStack.push(thirdCall);
+            });
+
+            it('should return a trace with three entries', function () {
+                expect(callStack.getTrace()).to.have.length(3);
+            });
+
+            it('should give each entry the correct file path', function () {
+                var trace = callStack.getTrace();
+
+                expect(trace[0].file).to.equal('/path/to/second/call.php');
+                expect(trace[1].file).to.equal('/path/to/oldest/call.php');
+                expect(trace[2].file).to.equal('(Entry file)');
+            });
+
+            it('should give each entry the correct line (from the previous call)', function () {
+                var trace = callStack.getTrace();
+
+                // We return the previous call's line number, as that is the line
+                // the call was made from in the calling file.
+                // However these should be left null as there is a path given,
+                // therefore fetching a line number from an ancestor call may be invalid.
+                expect(trace[0].line).to.be.null;
+                expect(trace[1].line).to.be.null;
+                expect(trace[2].line).to.equal(4);
             });
         });
     });

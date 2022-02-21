@@ -23,7 +23,8 @@ var expect = require('chai').expect,
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     Scope = require('../../src/Scope').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
-    Value = require('../../src/Value').sync();
+    Value = require('../../src/Value').sync(),
+    Variable = require('../../src/Variable').sync();
 
 describe('FunctionFactory', function () {
     var call,
@@ -97,6 +98,7 @@ describe('FunctionFactory', function () {
             functionSpec.coerceReturnReference.returnsArg(0);
             functionSpec.populateDefaultArguments.returnsArg(0);
             functionSpec.getFunctionName.returns(name);
+            functionSpec.isReturnByReference.returns(false);
 
             functionSpec.validateArguments
                 .callsFake(function () {
@@ -125,14 +127,25 @@ describe('FunctionFactory', function () {
         });
 
         describe('the wrapper function returned', function () {
-            it('should return the result from the wrapped function coerced to a Value', async function () {
-                var resultValue;
+            it('should return the eventual result from the wrapped function coerced to a Value when return-by-value', async function () {
+                var result,
+                    resultValue;
                 originalFunc.returns(123);
 
-                resultValue = await callCreate()().toPromise();
+                result = callCreate()();
+                resultValue = await result.toPromise();
 
+                expect(result).to.be.an.instanceOf(Value);
                 expect(resultValue.getType()).to.equal('int');
                 expect(resultValue.getNative()).to.equal(123);
+            });
+
+            it('should return the eventual result from the wrapped function when return-by-reference', async function () {
+                var resultVariable = sinon.createStubInstance(Variable);
+                functionSpec.isReturnByReference.returns(true);
+                originalFunc.returns(resultVariable);
+
+                expect(await callCreate()().toPromise()).to.equal(resultVariable);
             });
 
             it('should pass the current Class to the ScopeFactory', async function () {

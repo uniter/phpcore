@@ -109,7 +109,8 @@ module.exports = require('pauser')([
                         thisObject = currentObject || this,
                         scope,
                         call,
-                        newStaticClass = null;
+                        newStaticClass = null,
+                        result;
 
                     /**
                      * Handles coercion and validation of the result of the function call.
@@ -234,7 +235,7 @@ module.exports = require('pauser')([
                     // Now validate the arguments at this point (coercion was done earlier)
                     // - if any error is raised then the call will still be popped off
                     //   by the finally clause below
-                    return functionSpec.validateArguments(argReferences, argValues)
+                    result = functionSpec.validateArguments(argReferences, argValues)
                         .next(function () {
                             /*
                              * Now populate any optional arguments that were omitted with their default values.
@@ -261,6 +262,13 @@ module.exports = require('pauser')([
                             // TODO: Remove NamespaceScope...
                             namespaceScope.leave();
                         });
+
+                    if (!functionSpec.isReturnByReference()) {
+                        // Function is return-by-value, so ensure we have a value as the result.
+                        result = result.asValue();
+                    }
+
+                    return result;
                 };
 
             wrapperFunc.functionSpec = functionSpec;

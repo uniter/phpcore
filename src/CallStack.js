@@ -265,16 +265,87 @@ _.extend(CallStack.prototype, {
             trace = [],
             chronoIndex = callStack.calls.length - 2;
 
+        /**
+         * Fetches the path to the file the call was made from.
+         *
+         * @param {number} index
+         * @returns {string|null}
+         */
+        function getFilePath(index) {
+            var caller = callStack.calls[index - 1],
+                filePath = caller.getTraceFilePath(),
+                ancestorCaller,
+                ancestorIndex;
+
+            if (filePath !== null) {
+                return filePath;
+            }
+
+            for (ancestorIndex = index - 2; ancestorIndex >= 0; ancestorIndex--) {
+                ancestorCaller = callStack.calls[ancestorIndex];
+
+                if (!ancestorCaller.isUserland()) {
+                    continue;
+                }
+
+                filePath = ancestorCaller.getTraceFilePath();
+
+                if (filePath !== null) {
+                    return filePath;
+                }
+            }
+
+            return null;
+        }
+
+        /**
+         * Fetches the line number the call _occurred on_, rather than the line
+         * last executed inside the called function.
+         *
+         * @param {number} index
+         * @returns {number|null}
+         */
+        function getLineNumber(index) {
+            var caller = callStack.calls[index - 1],
+                lineNumber = caller.getLastLine(),
+                ancestorCaller,
+                ancestorIndex;
+
+            if (lineNumber !== null) {
+                return lineNumber;
+            }
+
+            if (caller.getTraceFilePath() !== null) {
+                // Leave line number unknown if we do have a file path,
+                // otherwise the line number fetched may be unrelated.
+                return null;
+            }
+
+            for (ancestorIndex = index - 2; ancestorIndex >= 0; ancestorIndex--) {
+                ancestorCaller = callStack.calls[ancestorIndex];
+
+                if (!ancestorCaller.isUserland()) {
+                    continue;
+                }
+
+                lineNumber = ancestorCaller.getLastLine();
+
+                if (lineNumber !== null) {
+                    return lineNumber;
+                }
+            }
+
+            return null;
+        }
+
         for (index = 1; index < callStack.calls.length; index++) {
             call = callStack.calls[index];
 
             trace.unshift({
                 // Most recent call should have index 0
                 index: chronoIndex--,
-                file: callStack.calls[index - 1].getTraceFilePath(),
-                // Fetch the line number the call _occurred on_, rather than the line
-                // last executed inside the called function
-                line: callStack.calls[index - 1].getLastLine(),
+                file: getFilePath(index),
+                line: getLineNumber(index),
                 func: call.getFunctionName(),
                 args: call.getFunctionArgs()
             });

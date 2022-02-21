@@ -101,9 +101,11 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     call: function (argReferences) {
-        return this.derive().next(function (leftValue) {
-            return leftValue.call(argReferences);
-        });
+        return this.derive()
+            .asFuture() // Do not wrap result as a value, we expect to resolve with a property reference.
+            .next(function (leftValue) {
+                return leftValue.call(argReferences);
+            });
     },
 
     /**
@@ -252,8 +254,41 @@ _.extend(FutureValue.prototype, {
     /**
      * {@inheritdoc}
      */
+    getInstancePropertyByName: function (nameReference) {
+        return this.derive()
+            .asFuture() // Do not wrap result as a value, we expect to resolve with a property reference.
+            .next(function (leftValue) {
+                return leftValue.getInstancePropertyByName(nameReference);
+            });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     getNative: function () {
         throw new Exception('Unable to call .getNative() on a FutureValue - did you mean to call .yieldSync()?');
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    getPushElement: function () {
+        return this.derive()
+            .asFuture() // Do not wrap result as a value, we expect to resolve with an (object)element reference.
+            .next(function (presentValue) {
+                return presentValue.getPushElement();
+            });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    getStaticPropertyByName: function (nameValue) {
+        return this.derive()
+            .asFuture() // Do not wrap result as a value, we expect to resolve with a property reference.
+            .next(function (leftValue) {
+                return leftValue.getStaticPropertyByName(nameValue);
+            });
     },
 
     /**
@@ -262,6 +297,15 @@ _.extend(FutureValue.prototype, {
     increment: function () {
         return this.derive().next(function (presentValue) {
             return presentValue.increment();
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    instantiate: function (argReferences) {
+        return this.derive().next(function (presentValue) {
+            return presentValue.instantiate(argReferences);
         });
     },
 

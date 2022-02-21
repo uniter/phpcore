@@ -65,7 +65,7 @@ describe('Class', function () {
         valueCoercer = sinon.createStubInstance(ValueCoercer);
         valueFactory = state.getValueFactory();
         InternalClass = sinon.stub();
-        constructorMethod = sinon.stub();
+        constructorMethod = sinon.stub().returns(valueFactory.createNull());
         InternalClass.prototype.__construct = constructorMethod;
         interfaceObject = sinon.createStubInstance(Class);
         interfaceObject.is
@@ -219,7 +219,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    methodFunction.returns('the result');
+                    methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethod', [argValue]);
@@ -227,7 +227,7 @@ describe('Class', function () {
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
                     expect(methodFunction).to.have.been.calledOnce;
-                    expect(methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction.args[0][0].getNative()).to.equal('the arg');
                 });
 
                 describe('for a forwarding static call', function () {
@@ -283,7 +283,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    methodFunction.returns('the result');
+                    methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethodWithWrongCase', [argValue]);
@@ -291,7 +291,7 @@ describe('Class', function () {
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
                     expect(methodFunction).to.have.been.calledOnce;
-                    expect(methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction.args[0][0].getNative()).to.equal('the arg');
                 });
             });
 
@@ -320,7 +320,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    methodFunction.returns('the result');
+                    methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethod', [argValue]);
@@ -328,7 +328,7 @@ describe('Class', function () {
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
                     expect(methodFunction).to.have.been.calledOnce;
-                    expect(methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction.args[0][0].getNative()).equal('the arg');
                 });
             });
 
@@ -388,7 +388,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    methodFunction.returns('the result');
+                    methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethod', [argValue]);
@@ -396,7 +396,7 @@ describe('Class', function () {
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
                     expect(methodFunction).to.have.been.calledOnce;
-                    expect(methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction.args[0][0].getNative()).equal('the arg');
                 });
             });
 
@@ -424,7 +424,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    methodFunction.returns('the result');
+                    methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethodWithWrongCase', [argValue]);
@@ -432,7 +432,7 @@ describe('Class', function () {
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
                     expect(methodFunction).to.have.been.calledOnce;
-                    expect(methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction.args[0][0].getNative()).to.equal('the arg');
                 });
             });
 
@@ -461,7 +461,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    methodFunction.returns('the result');
+                    methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethod', [argValue]);
@@ -469,7 +469,7 @@ describe('Class', function () {
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
                     expect(methodFunction).to.have.been.calledOnce;
-                    expect(methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction.args[0][0].getNative()).to.equal('the arg');
                 });
             });
 
@@ -1086,7 +1086,7 @@ describe('Class', function () {
         it('should call the userland constructor for the current class', async function () {
             var arg1 = sinon.createStubInstance(Value),
                 arg2 = sinon.createStubInstance(Value),
-                constructor = sinon.stub();
+                constructor = sinon.stub().returns(valueFactory.createNull());
             arg1.getNative.returns(21);
             arg2.getNative.returns('second');
             InternalClass.prototype.__construct = constructor;

@@ -213,6 +213,7 @@ describe('Scope', function () {
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     sinon.match.same(currentClass),
+                    sinon.match.same(thisObject),
                     [],
                     null, // TODO: Implement userland return types.
                     false, // TODO: Implement userland return-by-reference.

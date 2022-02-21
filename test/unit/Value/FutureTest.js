@@ -14,10 +14,16 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('../tools'),
     CallStack = require('../../../src/CallStack'),
+    ElementReference = require('../../../src/Reference/Element'),
     FutureValue = require('../../../src/Value/Future'),
     Exception = phpCommon.Exception,
+    ObjectValue = require('../../../src/Value/Object').sync(),
     Pause = require('../../../src/Control/Pause'),
-    Value = require('../../../src/Value').sync();
+    PropertyReference = require('../../../src/Reference/Property'),
+    Reference = require('../../../src/Reference/Reference'),
+    StaticPropertyReference = require('../../../src/Reference/StaticProperty'),
+    Value = require('../../../src/Value').sync(),
+    Variable = require('../../../src/Variable').sync();
 
 describe('FutureValue', function () {
     var callStack,
@@ -125,7 +131,7 @@ describe('FutureValue', function () {
     });
 
     describe('call()', function () {
-        it('should be able to call the eventual resolved value', async function () {
+        it('should be able to call the eventual resolved value, which can then return a value', async function () {
             var arg1 = factory.createString('first arg'),
                 arg2 = factory.createString('second arg'),
                 resolvedValue = sinon.createStubInstance(Value),
@@ -136,6 +142,19 @@ describe('FutureValue', function () {
             createValue(futureFactory.createPresent(resolvedValue));
 
             expect(await value.call([arg1, arg2]).toPromise()).to.equal(resultValue);
+        });
+
+        it('should be able to call the eventual resolved value, which can then return a variable', async function () {
+            var arg1 = factory.createString('first arg'),
+                arg2 = factory.createString('second arg'),
+                resolvedValue = sinon.createStubInstance(Value),
+                resultVariable = sinon.createStubInstance(Variable);
+            resolvedValue.call
+                .withArgs([arg1, arg2])
+                .returns(futureFactory.createPresent(resultVariable));
+            createValue(futureFactory.createPresent(resolvedValue));
+
+            expect(await value.call([arg1, arg2]).toPromise()).to.equal(resultVariable);
         });
     });
 
@@ -374,6 +393,20 @@ describe('FutureValue', function () {
         });
     });
 
+    describe('getInstancePropertyByName()', function () {
+        it('should be able to fetch a property of the eventual resolved value', async function () {
+            var propertyNameValue = factory.createString('myProp'),
+                propertyReference = sinon.createStubInstance(PropertyReference),
+                resolvedValue = sinon.createStubInstance(ObjectValue);
+            resolvedValue.getInstancePropertyByName
+                .withArgs(sinon.match.same(propertyNameValue))
+                .returns(propertyReference);
+            createValue(futureFactory.createPresent(resolvedValue));
+
+            expect(await value.getInstancePropertyByName(propertyNameValue).toPromise()).to.equal(propertyReference);
+        });
+    });
+
     describe('getNative()', function () {
         it('should throw even when the future is already resolved', function () {
             createValue(futureFactory.createPresent(factory.createString('my result')));
@@ -395,6 +428,32 @@ describe('FutureValue', function () {
                 Exception,
                 'Unable to call .getNative() on a FutureValue - did you mean to call .yieldSync()?'
             );
+        });
+    });
+
+    describe('getPushElement()', function () {
+        it('should be able to fetch a push element of the eventual resolved value', async function () {
+            var pushElement = sinon.createStubInstance(ElementReference),
+                resolvedValue = sinon.createStubInstance(ObjectValue);
+            resolvedValue.getPushElement
+                .returns(pushElement);
+            createValue(futureFactory.createPresent(resolvedValue));
+
+            expect(await value.getPushElement().toPromise()).to.equal(pushElement);
+        });
+    });
+
+    describe('getStaticPropertyByName()', function () {
+        it('should be able to fetch a property of the eventual resolved value', async function () {
+            var propertyNameValue = factory.createString('myStaticProp'),
+                propertyReference = sinon.createStubInstance(StaticPropertyReference),
+                resolvedValue = sinon.createStubInstance(ObjectValue);
+            resolvedValue.getStaticPropertyByName
+                .withArgs(sinon.match.same(propertyNameValue))
+                .returns(propertyReference);
+            createValue(futureFactory.createPresent(resolvedValue));
+
+            expect(await value.getStaticPropertyByName(propertyNameValue).toPromise()).to.equal(propertyReference);
         });
     });
 
@@ -421,6 +480,22 @@ describe('FutureValue', function () {
 
             expect(result.getType()).to.equal('int');
             expect(result.getNative()).to.equal(22);
+        });
+    });
+
+    describe('instantiate()', function () {
+        it('should be able to instantiate the eventual resolved value', async function () {
+            var argReference1 = sinon.createStubInstance(Reference),
+                argReference2 = sinon.createStubInstance(Reference),
+                instantiatedInstance = sinon.createStubInstance(ObjectValue),
+                resolvedValue = sinon.createStubInstance(Value);
+            resolvedValue.instantiate
+                .withArgs([sinon.match.same(argReference1), sinon.match.same(argReference2)])
+                .returns(instantiatedInstance);
+            createValue(futureFactory.createPresent(resolvedValue));
+
+            expect(await value.instantiate([argReference1, argReference2]).toPromise())
+                .to.equal(instantiatedInstance);
         });
     });
 

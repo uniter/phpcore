@@ -13,7 +13,6 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
-    Closure = require('../../src/Closure').sync(),
     ClosureFactory = require('../../src/ClosureFactory').sync(),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     FunctionSpec = require('../../src/Function/FunctionSpec'),
@@ -23,124 +22,140 @@ var expect = require('chai').expect,
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('ClosureFactory', function () {
-    beforeEach(function () {
-        this.callStack = sinon.createStubInstance(CallStack);
-        this.Closure = sinon.stub();
-        this.functionFactory = sinon.createStubInstance(FunctionFactory);
-        this.valueFactory = new ValueFactory();
+    var callStack,
+        Closure,
+        factory,
+        functionFactory,
+        valueFactory;
 
-        this.factory = new ClosureFactory(this.functionFactory, this.valueFactory, this.callStack, this.Closure);
+    beforeEach(function () {
+        callStack = sinon.createStubInstance(CallStack);
+        Closure = sinon.stub();
+        functionFactory = sinon.createStubInstance(FunctionFactory);
+        valueFactory = new ValueFactory();
+
+        factory = new ClosureFactory(functionFactory, valueFactory, callStack, Closure);
     });
 
     describe('create()', function () {
+        var callCreate,
+            enclosingScope,
+            functionSpec,
+            namespaceScope,
+            scopeClass,
+            thisObject,
+            thisObjectClass,
+            unwrappedFunction,
+            wrappedFunction;
+
         beforeEach(function () {
-            this.enclosingScope = sinon.createStubInstance(Scope);
-            this.functionSpec = sinon.createStubInstance(FunctionSpec);
-            this.namespaceScope = sinon.createStubInstance(NamespaceScope);
-            this.scopeClass = sinon.createStubInstance(Class);
-            this.thisObject = sinon.createStubInstance(ObjectValue);
-            this.thisObjectClass = sinon.createStubInstance(Class);
-            this.unwrappedFunction = sinon.stub();
-            this.wrappedFunction = sinon.stub();
+            enclosingScope = sinon.createStubInstance(Scope);
+            functionSpec = sinon.createStubInstance(FunctionSpec);
+            namespaceScope = sinon.createStubInstance(NamespaceScope);
+            scopeClass = sinon.createStubInstance(Class);
+            thisObject = sinon.createStubInstance(ObjectValue);
+            thisObjectClass = sinon.createStubInstance(Class);
+            unwrappedFunction = sinon.stub();
+            wrappedFunction = sinon.stub();
 
-            this.functionFactory.create.returns(this.wrappedFunction);
-            this.thisObject.getClass.returns(this.thisObjectClass);
+            functionFactory.create.returns(wrappedFunction);
+            thisObject.getClass.returns(thisObjectClass);
 
-            this.callCreate = function (dontUseScopeClass, dontUseThisObject) {
-                return this.factory.create(
-                    this.enclosingScope,
-                    this.unwrappedFunction,
-                    this.namespaceScope,
-                    dontUseScopeClass ? null : this.scopeClass,
-                    dontUseThisObject ? null : this.thisObject,
-                    this.functionSpec
+            callCreate = function (dontUseScopeClass, dontUseThisObject) {
+                return factory.create(
+                    enclosingScope,
+                    unwrappedFunction,
+                    namespaceScope,
+                    dontUseScopeClass ? null : scopeClass,
+                    dontUseThisObject ? null : thisObject,
+                    functionSpec
                 );
             }.bind(this);
         });
 
         it('should pass the NamespaceScope to the FunctionFactory', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.functionFactory.create).to.have.been.calledOnce;
-            expect(this.functionFactory.create).to.have.been.calledWith(
-                sinon.match.same(this.namespaceScope)
+            expect(functionFactory.create).to.have.been.calledOnce;
+            expect(functionFactory.create).to.have.been.calledWith(
+                sinon.match.same(namespaceScope)
             );
         });
 
         it('should pass the scope Class to the FunctionFactory when provided', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.functionFactory.create).to.have.been.calledOnce;
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.create).to.have.been.calledOnce;
+            expect(functionFactory.create).to.have.been.calledWith(
                 sinon.match.any,
-                sinon.match.same(this.scopeClass)
+                sinon.match.same(scopeClass)
             );
         });
 
         it('should pass the Class of `$this` object to the FunctionFactory when not provided', function () {
-            this.factory.create(
-                this.enclosingScope,
-                this.unwrappedFunction,
-                this.namespaceScope,
+            factory.create(
+                enclosingScope,
+                unwrappedFunction,
+                namespaceScope,
                 null,
-                this.thisObject
+                thisObject
             );
 
-            expect(this.functionFactory.create).to.have.been.calledOnce;
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.create).to.have.been.calledOnce;
+            expect(functionFactory.create).to.have.been.calledWith(
                 sinon.match.any,
-                sinon.match.same(this.thisObjectClass)
+                sinon.match.same(thisObjectClass)
             );
         });
 
         it('should pass null as scope Class to the FunctionFactory when not provided and no `$this`', function () {
-            this.factory.create(
-                this.enclosingScope,
-                this.unwrappedFunction,
-                this.namespaceScope,
+            factory.create(
+                enclosingScope,
+                unwrappedFunction,
+                namespaceScope,
                 null,
                 null
             );
 
-            expect(this.functionFactory.create).to.have.been.calledOnce;
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.create).to.have.been.calledOnce;
+            expect(functionFactory.create).to.have.been.calledWith(
                 sinon.match.any,
                 null
             );
         });
 
         it('should pass null as scope Class to the FunctionFactory when NullValue provided and no `$this`', function () {
-            this.factory.create(
-                this.enclosingScope,
-                this.unwrappedFunction,
-                this.namespaceScope,
+            factory.create(
+                enclosingScope,
+                unwrappedFunction,
+                namespaceScope,
                 null,
-                this.valueFactory.createNull()
+                valueFactory.createNull()
             );
 
-            expect(this.functionFactory.create).to.have.been.calledOnce;
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.create).to.have.been.calledOnce;
+            expect(functionFactory.create).to.have.been.calledWith(
                 sinon.match.any,
                 null
             );
         });
 
         it('should pass the unwrapped function to the FunctionFactory', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.functionFactory.create).to.have.been.calledOnce;
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.create).to.have.been.calledOnce;
+            expect(functionFactory.create).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.unwrappedFunction)
+                sinon.match.same(unwrappedFunction)
             );
         });
 
         it('should pass null as the function name to the FunctionFactory, as closures have no name', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.functionFactory.create).to.have.been.calledOnce;
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.create).to.have.been.calledOnce;
+            expect(functionFactory.create).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -149,10 +164,10 @@ describe('ClosureFactory', function () {
         });
 
         it('should pass null as the $this object to FunctionFactory - will be specified on invocation', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.functionFactory.create).to.have.been.calledOnce;
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.create).to.have.been.calledOnce;
+            expect(functionFactory.create).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -161,14 +176,15 @@ describe('ClosureFactory', function () {
             );
         });
 
-        it('should pass the static class from the call stack to the FunctionFactory, if specified', function () {
+        it('should pass the static class from the call stack to the FunctionFactory, if specified and not Closure', function () {
             var staticClass = sinon.createStubInstance(Class);
-            this.callStack.getStaticClass.returns(staticClass);
+            staticClass.is.withArgs('Closure').returns(false);
+            callStack.getStaticClass.returns(staticClass);
 
-            this.callCreate();
+            callCreate();
 
-            expect(this.functionFactory.create).to.have.been.calledOnce;
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.create).to.have.been.calledOnce;
+            expect(functionFactory.create).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -178,39 +194,57 @@ describe('ClosureFactory', function () {
             );
         });
 
-        it('should pass the scope class as the static class to the FunctionFactory, if set', function () {
-            this.callCreate();
+        it('should pass the scope class from the call stack to the FunctionFactory, if static class is specified but is Closure', function () {
+            var staticClass = sinon.createStubInstance(Class);
+            staticClass.is.withArgs('Closure').returns(true);
+            callStack.getStaticClass.returns(staticClass);
 
-            expect(this.functionFactory.create).to.have.been.calledOnce;
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            callCreate();
+
+            expect(functionFactory.create).to.have.been.calledOnce;
+            expect(functionFactory.create).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.scopeClass)
+                sinon.match.same(scopeClass)
+            );
+        });
+
+        it('should pass the scope class as the static class to the FunctionFactory, if set', function () {
+            callCreate();
+
+            expect(functionFactory.create).to.have.been.calledOnce;
+            expect(functionFactory.create).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(scopeClass)
             );
         });
 
         it('should pass the $this object\'s class as the scope class if none explicitly provided', function () {
-            this.callCreate(true);
+            callCreate(true);
 
-            expect(this.functionFactory.create).to.have.been.calledOnce;
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.create).to.have.been.calledOnce;
+            expect(functionFactory.create).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.thisObjectClass)
+                sinon.match.same(thisObjectClass)
             );
         });
 
         it('should pass null as the static class to the FunctionFactory if there is not one nor a $this', function () {
-            this.callCreate(true, true);
+            callCreate(true, true);
 
-            expect(this.functionFactory.create).to.have.been.calledOnce;
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.create).to.have.been.calledOnce;
+            expect(functionFactory.create).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -221,109 +255,109 @@ describe('ClosureFactory', function () {
         });
 
         it('should pass the FunctionSpec to the FunctionFactory', function () {
-            this.callCreate(true, true);
+            callCreate(true, true);
 
-            expect(this.functionFactory.create).to.have.been.calledOnce;
-            expect(this.functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.create).to.have.been.calledOnce;
+            expect(functionFactory.create).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.functionSpec)
+                sinon.match.same(functionSpec)
             );
         });
 
         it('should pass the factory to the Closure', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Closure).to.have.been.calledOnce;
-            expect(this.Closure).to.have.been.calledWith(
-                sinon.match.same(this.factory)
+            expect(Closure).to.have.been.calledOnce;
+            expect(Closure).to.have.been.calledWith(
+                sinon.match.same(factory)
             );
         });
 
         it('should pass the ValueFactory to the Closure', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Closure).to.have.been.calledOnce;
-            expect(this.Closure).to.have.been.calledWith(
+            expect(Closure).to.have.been.calledOnce;
+            expect(Closure).to.have.been.calledWith(
                 sinon.match.any,
-                sinon.match.same(this.valueFactory)
+                sinon.match.same(valueFactory)
             );
         });
 
         it('should pass the NamespaceScope to the Closure', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Closure).to.have.been.calledOnce;
-            expect(this.Closure).to.have.been.calledWith(
+            expect(Closure).to.have.been.calledOnce;
+            expect(Closure).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.namespaceScope)
+                sinon.match.same(namespaceScope)
             );
         });
 
         it('should pass the enclosing Scope to the Closure', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Closure).to.have.been.calledOnce;
-            expect(this.Closure).to.have.been.calledWith(
+            expect(Closure).to.have.been.calledOnce;
+            expect(Closure).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.enclosingScope)
+                sinon.match.same(enclosingScope)
             );
         });
 
         it('should pass the unwrapped function to the Closure', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Closure).to.have.been.calledOnce;
-            expect(this.Closure).to.have.been.calledWith(
+            expect(Closure).to.have.been.calledOnce;
+            expect(Closure).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.unwrappedFunction)
+                sinon.match.same(unwrappedFunction)
             );
         });
 
         it('should pass the created wrapped function to the Closure', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Closure).to.have.been.calledOnce;
-            expect(this.Closure).to.have.been.calledWith(
+            expect(Closure).to.have.been.calledOnce;
+            expect(Closure).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.wrappedFunction)
+                sinon.match.same(wrappedFunction)
             );
         });
 
         it('should pass the `$this` object to the Closure', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Closure).to.have.been.calledOnce;
-            expect(this.Closure).to.have.been.calledWith(
+            expect(Closure).to.have.been.calledOnce;
+            expect(Closure).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.thisObject)
+                sinon.match.same(thisObject)
             );
         });
 
         it('should pass the FunctionSpec to the Closure', function () {
-            this.callCreate();
+            callCreate();
 
-            expect(this.Closure).to.have.been.calledOnce;
-            expect(this.Closure).to.have.been.calledWith(
+            expect(Closure).to.have.been.calledOnce;
+            expect(Closure).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -331,15 +365,15 @@ describe('ClosureFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(this.functionSpec)
+                sinon.match.same(functionSpec)
             );
         });
 
         it('should return the created Closure', function () {
             var closure = sinon.createStubInstance(Closure);
-            this.Closure.returns(closure);
+            Closure.returns(closure);
 
-            expect(this.callCreate()).to.equal(closure);
+            expect(callCreate()).to.equal(closure);
         });
     });
 });

@@ -409,6 +409,58 @@ describe('Object', function () {
         });
     });
 
+    describe('call()', function () {
+        describe('when an instance of Closure', function () {
+            var closure;
+
+            beforeEach(function () {
+                closure = sinon.createStubInstance(Closure);
+
+                classObject.is.withArgs('Closure').returns(true);
+                value.setInternalProperty('closure', closure);
+            });
+
+            it('should pass the provided arguments to Closure.invoke(...)', function () {
+                var arg1 = sinon.createStubInstance(Value),
+                    arg2 = sinon.createStubInstance(Value);
+
+                value.call([arg1, arg2]);
+
+                expect(closure.invoke).to.have.been.calledOnce;
+                expect(closure.invoke).to.have.been.calledWith(
+                    [sinon.match.same(arg1), sinon.match.same(arg2)]
+                );
+            });
+
+            it('should return the result from Closure.invoke(...)', function () {
+                var resultValue = sinon.createStubInstance(Value);
+                closure.invoke.returns(resultValue);
+
+                expect(value.call([])).to.equal(resultValue);
+            });
+        });
+
+        describe('when not an instance of Closure', function () {
+            beforeEach(function () {
+                classObject.is.withArgs('Closure').returns(false);
+            });
+
+            it('should ask the class to call the magic __invoke(...) method and return its result', function () {
+                var argValue = sinon.createStubInstance(Value),
+                    resultValue = sinon.createStubInstance(Value);
+                classObject.callMethod.returns(resultValue);
+
+                expect(value.call([argValue])).to.equal(resultValue);
+                expect(classObject.callMethod).to.have.been.calledOnce;
+                expect(classObject.callMethod).to.have.been.calledWith(
+                    '__invoke',
+                    [sinon.match.same(argValue)],
+                    sinon.match.same(value)
+                );
+            });
+        });
+    });
+
     describe('callMethod()', function () {
         it('should ask the class to call the method and return its result', function () {
             var argValue = sinon.createStubInstance(Value),
@@ -2043,17 +2095,6 @@ describe('Object', function () {
             closure = sinon.createStubInstance(Closure);
 
             classObject.is.withArgs('Closure').returns(true);
-
-            value = new ObjectValue(
-                factory,
-                referenceFactory,
-                futureFactory,
-                callStack,
-                translator,
-                closure,
-                classObject,
-                objectID
-            );
             value.setInternalProperty('closure', closure);
         });
 

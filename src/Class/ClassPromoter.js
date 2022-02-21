@@ -9,40 +9,27 @@
 
 'use strict';
 
-var _ = require('microdash'),
-    IS_STATIC = 'isStatic';
+var _ = require('microdash');
 
 /**
  * Creates a class from its definition
  *
- * @param {CallStack} callStack
  * @param {ClassFactory} classFactory
- * @param {FunctionFactory} functionFactory
- * @param {FunctionSpecFactory} functionSpecFactory
+ * @param {MethodPromoter} methodPromoter
  * @constructor
  */
 function ClassPromoter(
-    callStack,
     classFactory,
-    functionFactory,
-    functionSpecFactory
+    methodPromoter
 ) {
-    /**
-     * @type {CallStack}
-     */
-    this.callStack = callStack;
     /**
      * @type {ClassFactory}
      */
     this.classFactory = classFactory;
     /**
-     * @type {FunctionFactory}
+     * @type {MethodPromoter}
      */
-    this.functionFactory = functionFactory;
-    /**
-     * @type {FunctionSpecFactory}
-     */
-    this.functionSpecFactory = functionSpecFactory;
+    this.methodPromoter = methodPromoter;
 }
 
 _.extend(ClassPromoter.prototype, {
@@ -55,7 +42,7 @@ _.extend(ClassPromoter.prototype, {
     promoteDefinition: function (classDefinition) {
         var promoter = this,
             InternalClass = classDefinition.getInternalClass(),
-            methodData = classDefinition.getMethodData(),
+            sharedMethodData = classDefinition.getMethodData(),
             namespaceScope = classDefinition.getNamespaceScope(),
             classObject = promoter.classFactory.createClass(
                 classDefinition.getName(),
@@ -72,45 +59,19 @@ _.extend(ClassPromoter.prototype, {
                 classDefinition.getValueCoercer()
             );
 
-        _.forOwn(classDefinition.getMethods(), function (data, methodName) {
-            // TODO: For JS-defined functions, `methods` is always empty - see above.
-            //       Consider building it up with processed methods/specs etc., indexed by lowercased name,
-            //       to also solve the performance issue with the current method lookup logic.
-            var functionSpec,
-                lineNumber = data.line,
-                method,
-                methodIsStatic = data[IS_STATIC],
-                // Parameter spec data may only be provided for PHP-transpiled functions
-                parametersSpecData = data.args;
-
-            functionSpec = promoter.functionSpecFactory.createMethodSpec(
-                namespaceScope,
-                classObject,
+        _.forOwn(classDefinition.getMethods(), function (methodDefinition, methodName) {
+            InternalClass.prototype[methodName] = promoter.methodPromoter.promote(
                 methodName,
-                parametersSpecData || [],
-                null, // TODO: Implement userland and built-in class method return types.
-                null, // TODO: Implement userland and built-in class method return-by-reference.
-                promoter.callStack.getLastFilePath(),
-                lineNumber || null
-            );
-
-            method = promoter.functionFactory.create(
-                namespaceScope,
+                methodDefinition,
                 classObject,
-                data.method,
-                methodName,
-                null,
-                null, // NB: No need to override the class for a method
-                functionSpec
+                namespaceScope,
+                sharedMethodData
             );
-
-            method[IS_STATIC] = methodIsStatic;
-            method.data = methodData;
-
-            InternalClass.prototype[methodName] = method;
         });
 
-        methodData.classObject = classObject;
+        // Enable fetching the original class object (which may be different from the current class,
+        // if the method was inherited) via methods.
+        sharedMethodData.classObject = classObject;
 
         return classObject;
     }

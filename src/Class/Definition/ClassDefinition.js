@@ -152,7 +152,7 @@ _.extend(ClassDefinition.prototype, {
     /**
      * Fetches the shared method data
      *
-     * @todo Investigate whether this can be removed?
+     * @todo Remove this - see note in MethodPromoter.
      *
      * @returns {Object}
      */

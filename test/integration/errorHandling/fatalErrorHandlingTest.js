@@ -104,7 +104,7 @@ EOS
 [stderr]PHP Fatal error:  Uncaught Error: Call to undefined function myFunc() in /my/php_module.php:6
 Stack trace:
 #0 (JavaScript code)(unknown): {closure}()
-#1 null(unknown): (JavaScript function)()
+#1 /my/php_module.php(5): (JavaScript function)()
 #2 /my/php_module.php(5): call_async(Object(Closure))
 #3 {main}
   thrown in /my/php_module.php on line 6
@@ -116,7 +116,7 @@ EOS
 Fatal error: Uncaught Error: Call to undefined function myFunc() in /my/php_module.php:6
 Stack trace:
 #0 (JavaScript code)(unknown): {closure}()
-#1 null(unknown): (JavaScript function)()
+#1 /my/php_module.php(5): (JavaScript function)()
 #2 /my/php_module.php(5): call_async(Object(Closure))
 #3 {main}
   thrown in /my/php_module.php on line 6

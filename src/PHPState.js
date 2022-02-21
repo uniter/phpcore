@@ -86,7 +86,6 @@ module.exports = require('pauser')([
     require('./Namespace'),
     require('./NamespaceFactory'),
     require('./NamespaceScope'),
-    require('./Class/Definition/NativeDefinitionBuilder'),
     require('./Reference/Null'),
     require('./Reference/ObjectElement'),
     require('./Load/OnceIncluder'),
@@ -202,7 +201,6 @@ module.exports = require('pauser')([
     Namespace,
     NamespaceFactory,
     NamespaceScope,
-    NativeDefinitionBuilder,
     NullReference,
     ObjectElement,
     OnceIncluder,
@@ -498,7 +496,7 @@ module.exports = require('pauser')([
             )),
             errorPromoter = set('error_promoter', new ErrorPromoter(errorReporting)),
             ffiValueStorage = set('ffi_value_storage', new FFIValueStorage()),
-            controlBridge = new ControlBridge(Future, FutureValue, Value),
+            controlBridge = set('control_bridge', new ControlBridge(Future, FutureValue, Value)),
             controlScope = get('control_scope'),
             opcodeFactory = new OpcodeFactory(
                 CalculationOpcode,
@@ -556,7 +554,7 @@ module.exports = require('pauser')([
             ),
             ffiNativeCaller = new FFINativeCaller(ffiCaller, mode),
             ffiValueCaller = new FFIValueCaller(ffiCaller, mode),
-            ffiFactory = new FFIFactory(
+            ffiFactory = set('ffi_factory', new FFIFactory(
                 FFIAsyncObjectValue,
                 FFIPHPObject,
                 FFIValueCoercer,
@@ -566,7 +564,7 @@ module.exports = require('pauser')([
                 callStack,
                 ffiNativeCaller,
                 ffiValueCaller
-            ),
+            )),
             ffiProxyMemberFactory = new FFIProxyMemberFactory(
                 valueFactory,
                 ffiValueStorage,
@@ -583,7 +581,7 @@ module.exports = require('pauser')([
             parameterFactory = new ParameterFactory(Parameter, callStack, translator, futureFactory, flow, userland),
             parameterTypeFactory = new ParameterTypeFactory(get('spec_type_provider')),
             parameterListFactory = new ParameterListFactory(parameterFactory, parameterTypeFactory),
-            functionSpecFactory = new FunctionSpecFactory(
+            functionSpecFactory = set('function_spec_factory', new FunctionSpecFactory(
                 FunctionSpec,
                 FunctionContext,
                 MethodContext,
@@ -594,7 +592,7 @@ module.exports = require('pauser')([
                 valueFactory,
                 futureFactory,
                 flow
-            ),
+            )),
             variableFactory = new VariableFactory(Variable, callStack, valueFactory, referenceFactory, futureFactory),
             superGlobalScope = new SuperGlobalScope(variableFactory),
             scopeFactory = new ScopeFactory(
@@ -610,7 +608,7 @@ module.exports = require('pauser')([
                 variableFactory,
                 referenceFactory
             ),
-            functionFactory = new FunctionFactory(
+            functionFactory = set('function_factory', new FunctionFactory(
                 MethodSpec,
                 scopeFactory,
                 callFactory,
@@ -619,9 +617,8 @@ module.exports = require('pauser')([
                 flow,
                 controlBridge,
                 controlScope
-            ),
+            )),
             closureFactory = new ClosureFactory(functionFactory, valueFactory, callStack, Closure),
-            nativeDefinitionBuilder = new NativeDefinitionBuilder(ffiFactory),
             userlandDefinitionBuilder = new UserlandDefinitionBuilder(
                 callStack,
                 valueFactory,
@@ -638,11 +635,11 @@ module.exports = require('pauser')([
                 ffiExportRepository,
                 ffiFactory
             ),
-            classPromoter = new ClassPromoter(callStack, classFactory, functionFactory, functionSpecFactory),
+            classPromoter = new ClassPromoter(classFactory, get('method_promoter')),
             classDefiner = new ClassDefiner(
                 flow,
                 futureFactory,
-                nativeDefinitionBuilder,
+                get('native_class_definition_builder'),
                 userlandDefinitionBuilder,
                 classPromoter
             ),

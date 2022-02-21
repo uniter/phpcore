@@ -254,7 +254,7 @@ module.exports = require('pauser')([
          * @param {object|null} currentNativeObject The current native JS object on the prototype chain to search for the method
          * @param {Class|null} currentClass The original called class (this function is called recursively for inherited methods)
          * @param {bool} isForwardingStaticCall eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
-         * @returns {Value} Returns the result of the method if it is defined
+         * @returns {Future<Reference|Value|Variable>|Value} Returns the result of the method if it is defined
          * @throws {PHPFatalError} Throws when the method is not defined
          */
         callMethod: function (methodName, args, objectValue, currentNativeObject, currentClass, isForwardingStaticCall) {
@@ -295,17 +295,12 @@ module.exports = require('pauser')([
                         classObject.functionFactory.setNewStaticClassIfWrapped(method, currentClass);
                     }
 
-                    // Method may return a Future
-                    return classObject.valueFactory.coerce(
-                        method.apply(
-                            // Some methods should never have their `this` object and args auto-coerced,
-                            // eg the magic `__construct` method as it is proxied in NativeDefinitionBuilder.js
-                            classObject.valueCoercer.isAutoCoercionEnabled() && !method.neverCoerce ?
-                                objectValue.getObject() :
-                                objectValue,
-                            method.neverCoerce ? args : classObject.valueCoercer.coerceArguments(args)
-                        )
-                    );
+                    /*
+                     * Method may return a Value, Future-wrapped Reference or Variable etc.
+                     * If the method returns undefined (eg. userland and there was no return statement)
+                     * then the wrapper from FunctionFactory will ensure it is coerced to a NullValue for example.
+                     */
+                    return method.apply(objectValue, args);
                 }
 
                 if (
