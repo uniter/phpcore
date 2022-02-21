@@ -588,6 +588,50 @@ describe('CallStack', function () {
         });
     });
 
+    describe('isUserland()', function () {
+        it('should return true when the current call is userland', function () {
+            var initialCall = sinon.createStubInstance(Call),
+                intermediateCall = sinon.createStubInstance(Call),
+                userlandCall = sinon.createStubInstance(Call);
+            initialCall.isUserland.returns(false);
+            intermediateCall.isUserland.returns(false);
+            userlandCall.isUserland.returns(true);
+            callStack.push(initialCall);
+            callStack.push(intermediateCall);
+            callStack.push(userlandCall);
+
+            expect(callStack.isUserland()).to.be.true;
+        });
+
+        it('should return false when none on the stack are userland', function () {
+            var initialCall = sinon.createStubInstance(Call),
+                intermediateCall = sinon.createStubInstance(Call),
+                builtinCall = sinon.createStubInstance(Call);
+            initialCall.isUserland.returns(false);
+            intermediateCall.isUserland.returns(false);
+            builtinCall.isUserland.returns(false);
+            callStack.push(initialCall);
+            callStack.push(intermediateCall);
+            callStack.push(builtinCall);
+
+            expect(callStack.isUserland()).to.be.false;
+        });
+
+        it('should return false when only the caller was userland', function () {
+            var initialCall = sinon.createStubInstance(Call),
+                intermediateCall = sinon.createStubInstance(Call),
+                builtinCall = sinon.createStubInstance(Call);
+            initialCall.isUserland.returns(false);
+            intermediateCall.isUserland.returns(true);
+            builtinCall.isUserland.returns(false);
+            callStack.push(initialCall);
+            callStack.push(intermediateCall);
+            callStack.push(builtinCall);
+
+            expect(callStack.isUserland()).to.be.false;
+        });
+    });
+
     describe('pop()', function () {
         it('should revert to the previous call', function () {
             var firstCall = sinon.createStubInstance(Call),

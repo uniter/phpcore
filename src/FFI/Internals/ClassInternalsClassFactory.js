@@ -11,7 +11,9 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
-    Exception = phpCommon.Exception;
+    Exception = phpCommon.Exception,
+    IS_STATIC = 'isStatic',
+    TypedFunction = require('../../Function/TypedFunction');
 
 /**
  * @param {Internals} baseInternals
@@ -215,6 +217,19 @@ _.extend(ClassInternalsClassFactory.prototype, {
              */
             implement: function (interfaceName) {
                 this.definedInterfaceNames.push(interfaceName);
+            },
+
+            /**
+             * Creates a native static method definition with type information.
+             *
+             * @param {string} signature
+             * @param {Function} func
+             * @returns {TypedFunction}
+             */
+            typeStaticMethod: function (signature, func) {
+                func[IS_STATIC] = true;
+
+                return new TypedFunction(signature, func);
             }
         });
 

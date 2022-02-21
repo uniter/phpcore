@@ -13,9 +13,11 @@ var _ = require('microdash'),
     phpCommon = require('phpcommon'),
     INVALID_RETURN_VALUE_TYPE = 'core.invalid_return_value_type',
     ONLY_REFERENCES_RETURNED_BY_REFERENCE = 'core.only_references_returned_by_reference',
-    TOO_FEW_ARGS_FOR_EXACT_COUNT = 'core.too_few_args_for_exact_count',
+    TOO_FEW_ARGS_FOR_EXACT_COUNT_USERLAND = 'core.too_few_args_for_exact_count_userland',
+    TOO_FEW_ARGS_FOR_MINIMUM_COUNT_BUILTIN = 'core.too_few_args_for_minimum_count_builtin',
     PHPError = phpCommon.PHPError,
-    Value = require('../Value').sync();
+    Value = require('../Value').sync(),
+    WeakBuiltinAbort = require('../Function/WeakBuiltinAbort');
 
 /**
  * Represents the parameters, return type and location of a PHP function.
@@ -365,12 +367,31 @@ _.extend(FunctionSpec.prototype, {
                     lineNumber = spec.callStack.getCallerLastLine();
                 }
 
+                if (!spec.callStack.isUserland()) {
+                    // For a built-in, in weak type-checking mode we only want to raise a warning
+                    // if there are required parameter arguments missing.
+                    // TODO: Raise an error rather than warning in strict types mode when that is supported.
+                    spec.callStack.raiseTranslatedError(
+                        PHPError.E_WARNING,
+                        TOO_FEW_ARGS_FOR_MINIMUM_COUNT_BUILTIN,
+                        {
+                            func: spec.context.getName(),
+                            expectedCount: spec.parameterList.length,
+                            actualCount: argumentReferenceList.length
+                        }
+                    );
+
+                    // Indicate that function execution should be aborted and null returned,
+                    // but we do not want to actually raise an error.
+                    throw new WeakBuiltinAbort();
+                }
+
                 // No argument is given for this required parameter - error
                 // TODO: Consider using callStack.raiseTranslatedError(...) instead, as we do in Parameter -
                 //       then remove this .createTranslatedErrorObject() method?
                 throw spec.valueFactory.createTranslatedErrorObject(
                     'ArgumentCountError',
-                    TOO_FEW_ARGS_FOR_EXACT_COUNT,
+                    TOO_FEW_ARGS_FOR_EXACT_COUNT_USERLAND,
                     {
                         func: spec.context.getName(),
                         expectedCount: spec.parameterList.length,

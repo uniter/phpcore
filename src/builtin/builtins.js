@@ -25,6 +25,7 @@ module.exports = require('pauser')([
     require('./constants/reserved'),
     require('./functions/spl'),
     require('./classes/stdClass'),
+    require('./messages/warning.en_GB'),
     require('./classes/Error/ArgumentCountError'),
     require('./interfaces/ArrayAccess'),
     require('./classes/Closure'),
@@ -55,6 +56,7 @@ module.exports = require('pauser')([
     reservedConstants,
     splFunctions,
     stdClass,
+    warningMessages,
     ArgumentCountError,
     ArrayAccess,
     Closure,
@@ -112,7 +114,8 @@ module.exports = require('pauser')([
         translationCatalogues: [
             errorMessages,
             noticeMessages,
-            miscellaneousMessages
+            miscellaneousMessages,
+            warningMessages
         ]
     };
 }, {strict: true});

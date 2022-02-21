@@ -18,6 +18,7 @@ var expect = require('chai').expect,
     Namespace = require('../../../../src/Namespace').sync(),
     NamespaceScope = require('../../../../src/NamespaceScope').sync(),
     ObjectValue = require('../../../../src/Value/Object').sync(),
+    TypedFunction = require('../../../../src/Function/TypedFunction'),
     UnwrapperRepository = require('../../../../src/FFI/Export/UnwrapperRepository'),
     ValueStorage = require('../../../../src/FFI/Value/ValueStorage');
 
@@ -270,6 +271,18 @@ describe('FFI ClassInternalsClassFactory', function () {
 
                 it('should return the Class instance from the Namespace', async function () {
                     expect(await classInternals.defineClass(definitionFactory).toPromise()).to.equal(classObject);
+                });
+            });
+
+            describe('typeStaticMethod()', function () {
+                it('should return a correct TypedFunction', function () {
+                    var func = sinon.stub(),
+                        typedMethodFunction = classInternals.typeStaticMethod('my signature', func);
+
+                    expect(typedMethodFunction).to.be.an.instanceOf(TypedFunction);
+                    expect(typedMethodFunction.getFunction()).to.equal(func);
+                    expect(typedMethodFunction.getSignature()).to.equal('my signature');
+                    expect(func.isStatic).to.be.true;
                 });
             });
         });

@@ -58,11 +58,23 @@ describe('NativeMethodDefinitionBuilder', function () {
                 signature.isReturnByReference.returns(true);
             });
 
-            it('should return a definition with the correct non-"method" properties', function () {
+            it('should return a definition with the correct non-"method" properties when instance', function () {
                 var definition = builder.buildMethod(method, valueCoercer);
 
                 expect(definition.line).to.be.null;
                 expect(definition.isStatic).to.be.false;
+                expect(definition.ref).to.be.true;
+                expect(definition.ret).to.deep.equal({my: 'return type'});
+            });
+
+            it('should return a definition with the correct non-"method" properties when static', function () {
+                var definition;
+                func.isStatic = this;
+
+                definition = builder.buildMethod(method, valueCoercer);
+
+                expect(definition.line).to.be.null;
+                expect(definition.isStatic).to.be.true;
                 expect(definition.ref).to.be.true;
                 expect(definition.ret).to.deep.equal({my: 'return type'});
             });
@@ -140,11 +152,23 @@ describe('NativeMethodDefinitionBuilder', function () {
                 func = sinon.stub();
             });
 
-            it('should return a definition with the correct non-"method" properties', function () {
+            it('should return a definition with the correct non-"method" properties when instance', function () {
                 var definition = builder.buildMethod(func, valueCoercer);
 
                 expect(definition.line).to.be.null;
                 expect(definition.isStatic).to.be.false;
+                expect(definition.ref).to.be.false;
+                expect(definition.ret).to.be.null;
+            });
+
+            it('should return a definition with the correct non-"method" properties when static', function () {
+                var definition;
+                func.isStatic = true;
+
+                definition = builder.buildMethod(func, valueCoercer);
+
+                expect(definition.line).to.be.null;
+                expect(definition.isStatic).to.be.true;
                 expect(definition.ref).to.be.false;
                 expect(definition.ret).to.be.null;
             });

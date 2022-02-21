@@ -18,6 +18,8 @@ describe('PHP builtin Closure class integration', function () {
         it('should support duplicating with a specific bound object', function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
+ini_set('error_reporting', E_ALL);
+
 class MyClass
 {
     private $myProp = 21;
@@ -52,6 +54,10 @@ EOS
         it('should support duplicating with a specific bound class but no object', function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
+namespace {
+    ini_set('error_reporting', E_ALL);
+}
+
 namespace My\Space
 {
     class FirstClass
@@ -99,6 +105,8 @@ EOS
         it('should support duplicating with a specific bound object', function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
+ini_set('error_reporting', E_ALL);
+
 class MyClass
 {
     private $myProp = 21;
@@ -133,6 +141,10 @@ EOS
         it('should support duplicating with a specific bound class but no object', function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
+namespace {
+    ini_set('error_reporting', E_ALL);
+}
+
 namespace My\Space
 {
     class FirstClass

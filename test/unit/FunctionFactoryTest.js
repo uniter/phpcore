@@ -24,7 +24,8 @@ var expect = require('chai').expect,
     Scope = require('../../src/Scope').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
     Value = require('../../src/Value').sync(),
-    Variable = require('../../src/Variable').sync();
+    Variable = require('../../src/Variable').sync(),
+    WeakBuiltinAbort = require('../../src/Function/WeakBuiltinAbort');
 
 describe('FunctionFactory', function () {
     var call,
@@ -146,6 +147,15 @@ describe('FunctionFactory', function () {
                 originalFunc.returns(resultVariable);
 
                 expect(await callCreate()().toPromise()).to.equal(resultVariable);
+            });
+
+            it('should return a NullValue when a WeakBuiltinAbort was thrown', async function () {
+                var resultValue;
+                functionSpec.validateArguments.returns(futureFactory.createRejection(new WeakBuiltinAbort()));
+
+                resultValue = await callCreate()().toPromise();
+
+                expect(resultValue.getType()).to.equal('null');
             });
 
             it('should pass the current Class to the ScopeFactory', async function () {

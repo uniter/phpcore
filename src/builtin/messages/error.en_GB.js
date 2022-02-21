@@ -39,7 +39,7 @@ module.exports = {
             'non_object_method_call': 'Call to a member function ${name}() on ${type}',
             'object_from_get_iterator_must_be_traversable': 'Objects returned by ${className}::getIterator() must be traversable or implement interface Iterator',
             'only_variables_by_reference': 'Only variables can be passed by reference',
-            'too_few_args_for_exact_count': 'Too few arguments to function ${func}(), ${actualCount} passed in ${callerFile} on line ${callerLine} and exactly ${expectedCount} expected',
+            'too_few_args_for_exact_count_userland': 'Too few arguments to function ${func}(), ${actualCount} passed in ${callerFile} on line ${callerLine} and exactly ${expectedCount} expected',
             'uncaught_throwable': 'Uncaught ${name}: ${message}',
             'uncaught_empty_throwable': 'Uncaught ${name}',
             'undeclared_static_property': 'Access to undeclared static property: ${className}::$${propertyName}',

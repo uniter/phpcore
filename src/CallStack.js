@@ -424,6 +424,17 @@ _.extend(CallStack.prototype, {
     },
 
     /**
+     * Determines whether or not the current stack frame is a userland PHP function.
+     *
+     * @returns {boolean}
+     */
+    isUserland: function () {
+        var callStack = this;
+
+        return callStack.calls[callStack.calls.length - 1].isUserland();
+    },
+
+    /**
      * Removes the current call from the stack
      */
     pop: function () {

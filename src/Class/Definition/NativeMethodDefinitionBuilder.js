@@ -11,6 +11,7 @@
 
 var _ = require('microdash'),
     slice = [].slice,
+    IS_STATIC = 'isStatic',
     TypedFunction = require('../../Function/TypedFunction');
 
 /**
@@ -37,6 +38,7 @@ _.extend(NativeMethodDefinitionBuilder.prototype, {
     buildMethod: function (method, valueCoercer) {
         var builder = this,
             autoCoercionEnabled = valueCoercer.isAutoCoercionEnabled(),
+            isStatic,
             parametersSpecData,
             returnByReference = false,
             returnTypeSpecData = null,
@@ -58,10 +60,13 @@ _.extend(NativeMethodDefinitionBuilder.prototype, {
             return null;
         }
 
+        // Only check this property on the actual function, not any TypedFunction wrapper.
+        isStatic = Boolean(method[IS_STATIC]);
+
         return {
             line: null,
             args: parametersSpecData,
-            isStatic: false,
+            isStatic: isStatic,
             method: function () {
                 var args = slice.call(arguments),
                     scope = this,

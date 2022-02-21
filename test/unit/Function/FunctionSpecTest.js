@@ -27,7 +27,8 @@ var expect = require('chai').expect,
     PHPError = phpCommon.PHPError,
     TypeInterface = require('../../../src/Type/TypeInterface'),
     Translator = phpCommon.Translator,
-    Variable = require('../../../src/Variable').sync();
+    Variable = require('../../../src/Variable').sync(),
+    WeakBuiltinAbort = require('../../../src/Function/WeakBuiltinAbort');
 
 describe('FunctionSpec', function () {
     var callStack,
@@ -413,17 +414,60 @@ describe('FunctionSpec', function () {
             );
         });
 
-        it('should throw the correct error when a required parameter is missing an argument', function () {
+        it('should raise the correct warning when a required parameter is missing an argument in for a builtin in weak type-checking mode', function () {
             var caughtError = null,
                 errorClassObject = sinon.createStubInstance(Class),
                 errorValue = sinon.createStubInstance(ObjectValue);
+            callStack.isUserland.returns(false);
             globalNamespace.getClass
                 .withArgs('ArgumentCountError')
                 .returns(futureFactory.createPresent(errorClassObject));
             errorClassObject.instantiate
                 .withArgs([
                     sinon.match(function (arg) {
-                        return arg.getNative() === '[Translated] core.too_few_args_for_exact_count {"func":"myFunction","expectedCount":2,"actualCount":1}';
+                        return arg.getNative() === '[Translated] core.too_few_args_for_minimum_count_builtin {"func":"myFunction","expectedCount":2,"actualCount":1}';
+                    }),
+                    sinon.match(function (arg) {
+                        return arg.getNative() === 0;
+                    }),
+                    sinon.match(function (arg) {
+                        return arg.getNative() === null;
+                    })
+                ])
+                .returns(errorValue);
+            parameter2.isRequired.returns(true);
+
+            try {
+                spec.validateArguments([argumentReference1], [argumentValue1]).yieldSync();
+            } catch (error) {
+                caughtError = error;
+            }
+
+            expect(caughtError).to.be.an.instanceOf(WeakBuiltinAbort);
+            expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+            expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                PHPError.E_WARNING,
+                'core.too_few_args_for_minimum_count_builtin',
+                {
+                    func: 'myFunction',
+                    expectedCount: 2,
+                    actualCount: 1
+                }
+            );
+        });
+
+        it('should throw the correct error when a required parameter is missing an argument in userland', function () {
+            var caughtError = null,
+                errorClassObject = sinon.createStubInstance(Class),
+                errorValue = sinon.createStubInstance(ObjectValue);
+            callStack.isUserland.returns(true);
+            globalNamespace.getClass
+                .withArgs('ArgumentCountError')
+                .returns(futureFactory.createPresent(errorClassObject));
+            errorClassObject.instantiate
+                .withArgs([
+                    sinon.match(function (arg) {
+                        return arg.getNative() === '[Translated] core.too_few_args_for_exact_count_userland {"func":"myFunction","expectedCount":2,"actualCount":1}';
                     }),
                     sinon.match(function (arg) {
                         return arg.getNative() === 0;

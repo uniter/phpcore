@@ -162,7 +162,7 @@ EOS
         );
     });
 
-    it('should raise a fatal error when required parameters are missing', function () {
+    it('should raise a warning when required parameters are missing in weak type-checking mode', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 i_want_two_args(21);
@@ -170,15 +170,16 @@ EOS
 */;}), //jshint ignore:line
             module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
-
         engine.defineCoercingFunction('i_want_two_args', function () {}, 'mixed $myMixed, My\\MyClass $myObject');
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
-            PHPFatalError,
-            'PHP Fatal error: Uncaught ArgumentCountError: Too few arguments to function i_want_two_args(), ' +
-            '1 passed in /path/to/my_module.php on line 2 and exactly 2 expected in /path/to/my_module.php on line 2'
+        engine.execute();
+
+        expect(engine.getStderr().readAll()).to.equal(
+            nowdoc(function () {/*<<<EOS
+PHP Warning:  i_want_two_args() expects at least 2 parameters, 1 given in /path/to/my_module.php on line 2
+
+EOS
+*/;}) //jshint ignore:line
         );
     });
 });
