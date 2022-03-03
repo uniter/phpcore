@@ -17,6 +17,7 @@ var expect = require('chai').expect,
     IterableType = require('../../../src/Type/IterableType'),
     MixedType = require('../../../src/Type/MixedType'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
+    ObjectType = require('../../../src/Type/ObjectType'),
     ScalarType = require('../../../src/Type/ScalarType'),
     TypeFactory = require('../../../src/Type/TypeFactory');
 
@@ -121,6 +122,22 @@ describe('TypeFactory', function () {
 
             expect(type).to.be.an.instanceOf(MixedType);
             expect(type.allowsNull()).to.be.true;
+        });
+    });
+
+    describe('createObjectType()', function () {
+        it('should return an ObjectType that allows null when specified', function () {
+            var type = factory.createObjectType(true);
+
+            expect(type).to.be.an.instanceOf(ObjectType);
+            expect(type.allowsNull()).to.be.true;
+        });
+
+        it('should return an ObjectType that disallows null when specified', function () {
+            var type = factory.createObjectType(false);
+
+            expect(type).to.be.an.instanceOf(ObjectType);
+            expect(type.allowsNull()).to.be.false;
         });
     });
 

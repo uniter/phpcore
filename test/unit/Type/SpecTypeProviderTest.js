@@ -20,6 +20,7 @@ var expect = require('chai').expect,
     MixedType = require('../../../src/Type/MixedType'),
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
+    ObjectType = require('../../../src/Type/ObjectType'),
     SpecTypeProvider = require('../../../src/Type/SpecTypeProvider'),
     ScalarType = require('../../../src/Type/ScalarType'),
     TypeFactory = require('../../../src/Type/TypeFactory');
@@ -165,6 +166,28 @@ describe('SpecTypeProvider', function () {
                 // NB: Type is omitted for a mixed type
                 factory.createType({name: 'myParam'}, namespaceScope)
             ).to.equal(mixedType);
+        });
+
+        it('should be able to create a nullable "object" type', function () {
+            var objectType = sinon.createStubInstance(ObjectType);
+            typeFactory.createObjectType
+                .withArgs(true)
+                .returns(objectType);
+
+            expect(
+                factory.createType({type: 'object', nullable: true, name: 'myParam'}, namespaceScope)
+            ).to.equal(objectType);
+        });
+
+        it('should be able to create a non-nullable "object" type', function () {
+            var objectType = sinon.createStubInstance(ObjectType);
+            typeFactory.createObjectType
+                .withArgs(false)
+                .returns(objectType);
+
+            expect(
+                factory.createType({type: 'object', nullable: false, name: 'myParam'}, namespaceScope)
+            ).to.equal(objectType);
         });
 
         it('should throw when given an unsupported type name', function () {

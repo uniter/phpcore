@@ -55,6 +55,9 @@ _.extend(SpecTypeProvider.prototype, {
                 );
             case 'iterable':
                 return factory.typeFactory.createIterableType(nullable);
+            case 'object':
+                // Note that unlike ClassTypes, ObjectTypes accept any class of object.
+                return factory.typeFactory.createObjectType(nullable);
             case 'scalar':
                 return factory.typeFactory.createScalarType(typeSpecData.scalarType, nullable);
             case undefined:
