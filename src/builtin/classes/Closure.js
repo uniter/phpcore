@@ -16,11 +16,6 @@ var _ = require('microdash'),
 module.exports = function (internals) {
     var callFactory = internals.callFactory,
         callStack = internals.callStack,
-        createStaticMethod = function (method) {
-            method.isStatic = true;
-
-            return method;
-        },
         errorPromoter = internals.errorPromoter,
         globalNamespace = internals.globalNamespace,
         valueFactory = internals.valueFactory;
@@ -39,60 +34,20 @@ module.exports = function (internals) {
 
     _.extend(Closure.prototype, {
         /**
-         * Duplicates a closure with a specific bound object and class scope
+         * Duplicates a closure with a specific bound object and class scope.
          *
          * @see {@link https://secure.php.net/manual/en/closure.bind.php}
          *
-         * @param {ObjectValue|Variable} closureReference
-         * @param {ObjectValue|Variable|undefined} newThisReference
-         * @param {StringValue|Variable|undefined} newScopeReference
+         * @param {ObjectValue} closureValue
+         * @param {ObjectValue} newThisValue
+         * @param {Value} newScopeValue
          */
-        'bind': createStaticMethod(function (closureReference, newThisReference, newScopeReference) {
-            var closureValue,
-                newScopeValue,
-                newThisValue,
-                scopeClass,
+        'bind': internals.typeStaticMethod('Closure $closure, ?object $newThis, mixed $newScope = null', function (closureValue, newThisValue, newScopeValue) {
+            // TODO: $newScope should be typed as object|string|null above once we support union types.
+            var scopeClass,
                 scopeClassName;
 
-            if (!closureReference) {
-                callStack.raiseError(
-                    PHPError.E_WARNING,
-                    'Closure::bind() expects at least 2 parameters, 0 given'
-                );
-                return valueFactory.createNull();
-            }
-
-            if (!newThisReference) {
-                callStack.raiseError(
-                    PHPError.E_WARNING,
-                    'Closure::bind() expects at least 2 parameters, 1 given'
-                );
-                return valueFactory.createNull();
-            }
-
-            closureValue = closureReference.getValue();
-
-            if (closureValue.getType() !== 'object' || !closureValue.classIs('Closure')) {
-                callStack.raiseError(
-                    PHPError.E_WARNING,
-                    'Closure::bind() expects parameter 1 to be Closure, ' + closureValue.getType() + ' given'
-                );
-                return valueFactory.createNull();
-            }
-
-            newThisValue = newThisReference.getValue();
-
-            if (newThisValue.getType() !== 'object' && newThisValue.getType() !== 'null') {
-                callStack.raiseError(
-                    PHPError.E_WARNING,
-                    'Closure::bind() expects parameter 2 to be object, ' + newThisValue.getType() + ' given'
-                );
-                return valueFactory.createNull();
-            }
-
-            newScopeValue = newScopeReference ? newScopeReference.getValue() : null;
-
-            if (newScopeValue) {
+            if (newScopeValue.getType() !== 'null') {
                 if (newScopeValue.getType() === 'object') {
                     // Use object's class as the scope class
                     scopeClassName = newScopeValue.getClassName();

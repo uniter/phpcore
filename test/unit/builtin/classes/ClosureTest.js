@@ -65,6 +65,11 @@ describe('PHP builtin Closure class', function () {
             errorPromoter: errorPromoter,
             globalNamespace: globalNamespace,
             mode: 'sync',
+            typeStaticMethod: sinon.stub().callsFake(function (signature, func) {
+                func.isStatic = true;
+
+                return func;
+            }),
             valueFactory: valueFactory
         };
         InternalClosureClass = closureClassFactory(internals);
@@ -93,25 +98,21 @@ describe('PHP builtin Closure class', function () {
             boundClosure,
             callBind,
             closure,
-            closureReference,
             closureValue,
-            newThisReference,
-            newThisValue;
+            newThisValue,
+            scopeClassValue;
 
         beforeEach(function () {
             closure = sinon.createStubInstance(Closure);
             boundClosure = sinon.createStubInstance(Closure);
-            closureReference = sinon.createStubInstance(Variable);
             closureValue = sinon.createStubInstance(ObjectValue);
             closureValue.bindClosure.returns(boundClosure);
             closureValue.classIs.withArgs('Closure').returns(true);
             closureValue.getClassName.returns('Closure');
             closureValue.getType.returns('object');
-            closureReference.getValue.returns(closureValue);
-            newThisReference = sinon.createStubInstance(Variable);
             newThisValue = valueFactory.createObject({}, stdClassClass);
-            newThisReference.getValue.returns(newThisValue);
-            args = [closureReference, newThisReference];
+            scopeClassValue = valueFactory.createNull();
+            args = [closureValue, newThisValue, scopeClassValue];
 
             callBind = function () {
                 return InternalClosureClass.prototype.bind.apply(null, args);
@@ -126,68 +127,14 @@ describe('PHP builtin Closure class', function () {
             expect(result.getClass()).to.equal(closureClass);
         });
 
-        it('should raise an error and return null when no arguments are given', function () {
-            args.length = 0;
-
-            expect(callBind()).to.be.an.instanceOf(NullValue);
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_WARNING,
-                'Closure::bind() expects at least 2 parameters, 0 given'
-            );
-        });
-
-        it('should raise an error and return null when no `$this` object is given', function () {
-            args.length = 1;
-
-            expect(callBind()).to.be.an.instanceOf(NullValue);
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_WARNING,
-                'Closure::bind() expects at least 2 parameters, 1 given'
-            );
-        });
-
-        it('should raise an error and return null when `$this` object arg is not an object', function () {
-            newThisReference.getValue.returns(valueFactory.createInteger(1002));
-
-            expect(callBind()).to.be.an.instanceOf(NullValue);
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_WARNING,
-                'Closure::bind() expects parameter 2 to be object, int given'
-            );
-        });
-
         it('should allow `null` as `$this` object, for creating an unbound closure', function () {
-            newThisReference.getValue.returns(valueFactory.createNull());
+            newThisValue = valueFactory.createNull();
+            args[1] = newThisValue;
 
             callBind();
 
             expect(closureValue.bindClosure).to.have.been.calledOnce;
             expect(closureValue.bindClosure.args[0][0]).to.be.an.instanceOf(NullValue);
-        });
-
-        it('should raise an error and return null when `closure` arg is not an object', function () {
-            closureReference.getValue.returns(valueFactory.createInteger(1002));
-
-            expect(callBind()).to.be.an.instanceOf(NullValue);
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_WARNING,
-                'Closure::bind() expects parameter 1 to be Closure, int given'
-            );
-        });
-
-        it('should raise an error and return null when `closure` arg is not a Closure instance', function () {
-            closureReference.getValue.returns(valueFactory.createObject({}, stdClassClass));
-
-            expect(callBind()).to.be.an.instanceOf(NullValue);
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_WARNING,
-                'Closure::bind() expects parameter 1 to be Closure, object given'
-            );
         });
 
         it('should use the class of the `$this` object as scope class if not specified', function () {
@@ -201,10 +148,8 @@ describe('PHP builtin Closure class', function () {
         });
 
         it('should use the class of the `$this` object as scope class if "static" is specified', function () {
-            var scopeClassReference = sinon.createStubInstance(Variable),
-                scopeClassValue = valueFactory.createString('static');
-            scopeClassReference.getValue.returns(scopeClassValue);
-            args[2] = scopeClassReference;
+            scopeClassValue = valueFactory.createString('static');
+            args[2] = scopeClassValue;
 
             callBind();
 
@@ -216,10 +161,8 @@ describe('PHP builtin Closure class', function () {
         });
 
         it('should use the class of the scope class object as scope class if an object is specified', function () {
-            var scopeClassReference = sinon.createStubInstance(Variable),
-                scopeClassValue = valueFactory.createObject({}, stdClassClass);
-            scopeClassReference.getValue.returns(scopeClassValue);
-            args[2] = scopeClassReference;
+            scopeClassValue = valueFactory.createObject({}, stdClassClass);
+            args[2] = scopeClassValue;
 
             callBind();
 
