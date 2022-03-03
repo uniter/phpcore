@@ -53,9 +53,24 @@ describe('Parameter', function () {
         userland = sinon.createStubInstance(Userland);
         valueFactory = state.getValueFactory();
 
-        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+        callStack.getCallerFilePath.returns(null);
+        callStack.getCallerLastLine.returns(null);
+        callStack.isUserland.returns(false);
+        callStack.raiseTranslatedError.callsFake(function (
+            level,
+            translationKey,
+            placeholderVariables,
+            errorClass,
+            reportsOwnContext,
+            filePath,
+            lineNumber
+        ) {
             throw new Error(
-                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+                'Fake PHP ' + level + ' [' + errorClass +
+                '] for #' + translationKey +
+                ' with ' + JSON.stringify(placeholderVariables || {}) +
+                ' reportsOwnContext=' + (reportsOwnContext ? 'yes' : 'no') +
+                ' @ ' + filePath + ':' + lineNumber
             );
         });
         translator.translate.callsFake(function (translationKey, placeholderVariables) {
@@ -239,11 +254,12 @@ describe('Parameter', function () {
 
             return expect(parameter.validateArgument(argumentValue).toPromise())
                 .to.eventually.be.rejectedWith(
-                    'Fake PHP Fatal error for #core.only_variables_by_reference with {}'
+                    'Fake PHP Fatal error [null] for #core.only_variables_by_reference with {} reportsOwnContext=no ' +
+                    '@ null:null'
                 );
         });
 
-        it('should raise an error when argument is non-null and not valid and context is given', function () {
+        it('should raise an error when argument is non-null and not valid and context is given for builtin', function () {
             var argumentReference = sinon.createStubInstance(Variable),
                 argumentValue = valueFactory.createString('my invalid argument'),
                 defaultValue = valueFactory.createNull();
@@ -257,18 +273,46 @@ describe('Parameter', function () {
 
             return expect(parameter.validateArgument(argumentReference, argumentValue).toPromise())
                 .to.eventually.be.rejectedWith(
-                    'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
+                    'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
                     '"actualType":"string",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345,' +
                     '"definitionFile":"/path/to/my/module.php",' +
                     '"definitionLine":101' +
-                    '}'
+                    '} reportsOwnContext=yes ' +
+                    '@ /my/caller/module.php:12345'
                 );
         });
 
-        it('should raise an error when argument is non-null and not valid but context is not given', function () {
+        it('should raise an error when argument is non-null and not valid and context is given for userland', function () {
+            var argumentReference = sinon.createStubInstance(Variable),
+                argumentValue = valueFactory.createString('my invalid argument'),
+                defaultValue = valueFactory.createNull();
+            typeObject.allowsValue
+                .withArgs(sinon.match.same(argumentValue))
+                .returns(futureFactory.createPresent(false)); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
+            defaultValueProvider.returns(defaultValue); // Default is null, meaning null can be passed
+            callStack.getCurrent.returns(sinon.createStubInstance(Call));
+            callStack.getCallerFilePath.returns('/my/caller/module.php');
+            callStack.getCallerLastLine.returns(12345);
+            callStack.isUserland.returns(true);
+
+            return expect(parameter.validateArgument(argumentReference, argumentValue).toPromise())
+                .to.eventually.be.rejectedWith(
+                    'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_userland with {' +
+                    '"index":7,' +
+                    '"actualType":"string",' +
+                    '"callerFile":"/my/caller/module.php",' +
+                    '"callerLine":12345,' +
+                    '"definitionFile":"/path/to/my/module.php",' +
+                    '"definitionLine":101' +
+                    '} reportsOwnContext=yes ' +
+                    '@ /path/to/my/module.php:101' // Note definition rather than caller is given here.
+                );
+        });
+
+        it('should raise an error when argument is non-null and not valid but context is not given for builtin', function () {
             var argumentReference = sinon.createStubInstance(Variable),
                 argumentValue = valueFactory.createString('my invalid argument'),
                 defaultValue = valueFactory.createNull();
@@ -298,18 +342,19 @@ describe('Parameter', function () {
 
             return expect(parameter.validateArgument(argumentReference, argumentValue).toPromise())
                 .to.eventually.be.rejectedWith(
-                    'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
+                    'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
                     '"actualType":"string",' +
                     '"callerFile":"[Translated] core.unknown {}",' +
                     '"callerLine":"[Translated] core.unknown {}",' +
                     '"definitionFile":"[Translated] core.unknown {}",' +
                     '"definitionLine":"[Translated] core.unknown {}"' +
-                    '}'
+                    '} reportsOwnContext=yes ' +
+                    '@ [Translated] core.unknown {}:[Translated] core.unknown {}'
                 );
         });
 
-        it('should raise an error when argument is null but type does not allow null and there is no default', function () {
+        it('should raise an error when argument is null but type does not allow null and there is no default for builtin', function () {
             var argumentReference = sinon.createStubInstance(Variable),
                 argumentValue = valueFactory.createNull();
             typeObject.allowsValue
@@ -337,19 +382,20 @@ describe('Parameter', function () {
 
             return expect(parameter.validateArgument(argumentReference, argumentValue).toPromise())
                 .to.eventually.be.rejectedWith(
-                    'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
+                    'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
                     '"actualType":"null",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345,' +
                     '"definitionFile":"/path/to/my/module.php",' +
                     '"definitionLine":101' +
-                    '}'
+                    '} reportsOwnContext=yes ' +
+                    '@ /my/caller/module.php:12345'
                 );
         });
 
         // An example would be a parameter of array type with a default value of an array literal
-        it('should raise an error when argument is null but type does not allow null and default is not null', function () {
+        it('should raise an error when argument is null but type does not allow null and default is not null for builtin', function () {
             var argumentReference = sinon.createStubInstance(Variable),
                 argumentValue = valueFactory.createNull();
             defaultValueProvider.returns(valueFactory.createArray(['some value']));
@@ -362,14 +408,15 @@ describe('Parameter', function () {
 
             return expect(parameter.validateArgument(argumentReference, argumentValue).toPromise())
                 .to.eventually.be.rejectedWith(
-                    'Fake PHP Fatal error for #core.invalid_value_for_type with {' +
+                    'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
                     '"actualType":"null",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345,' +
                     '"definitionFile":"/path/to/my/module.php",' +
                     '"definitionLine":101' +
-                    '}'
+                    '} reportsOwnContext=yes ' +
+                    '@ /my/caller/module.php:12345'
                 );
         });
 

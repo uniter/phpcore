@@ -587,6 +587,7 @@ module.exports = require('pauser')([
                 MethodContext,
                 ClosureContext,
                 callStack,
+                translator,
                 parameterListFactory,
                 get('return_type_provider'),
                 valueFactory,

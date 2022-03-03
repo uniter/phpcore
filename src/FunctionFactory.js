@@ -14,15 +14,13 @@ module.exports = require('pauser')([
     require('./FFI/Result'),
     require('./Control/Pause'),
     require('./Reference/Reference'),
-    require('./Variable'),
-    require('./Function/WeakBuiltinAbort')
+    require('./Variable')
 ], function (
     _,
     FFIResult,
     Pause,
     Reference,
-    Variable,
-    WeakBuiltinAbort
+    Variable
 ) {
     var slice = [].slice;
 
@@ -263,19 +261,6 @@ module.exports = require('pauser')([
 
                             // TODO: Remove NamespaceScope...
                             namespaceScope.leave();
-                        })
-                        .catch(function (error) {
-                            if (error instanceof WeakBuiltinAbort) {
-                                /*
-                                 * Function execution was aborted due to an issue with parameter arguments,
-                                 * but we only want to return null rather than raise an error.
-                                 *
-                                 * This could be because the issue was reported as a warning or notice, for example.
-                                 */
-                                return factory.valueFactory.createNull();
-                            }
-
-                            throw error;
                         });
 
                     if (!functionSpec.isReturnByReference()) {

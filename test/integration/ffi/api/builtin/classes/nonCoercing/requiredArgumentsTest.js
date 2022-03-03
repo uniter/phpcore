@@ -14,17 +14,41 @@ var expect = require('chai').expect,
     tools = require('../../../../../tools');
 
 describe('PHP builtin FFI class method non-coercion required parameter arguments integration', function () {
-    it('should raise a warning when required arguments are missing in weak type-checking mode', function () {
+    it('should raise a fatal error when required arguments are missing for exact count', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL);
 
 $result = [];
 
-$result['with no args'] = MyClass::myStaticMethod();
-$result['with one arg'] = MyClass::myStaticMethod('first');
-$result['with two args'] = MyClass::myStaticMethod('first', ['hello']);
-$result['with three args'] = MyClass::myStaticMethod('first', ['hello'], ['world']);
+function tryCall(callable $callback) {
+    $result = null;
+    $throwable = null;
+
+    try {
+        $result = $callback();
+    } catch (\Throwable $caughtThrowable) {
+        $throwable = $caughtThrowable->getMessage();
+    }
+
+    return [
+        'result' => $result,
+        'throwable' => $throwable
+    ];
+}
+
+$result['with no args'] = tryCall(function () {
+    return MyClass::myStaticMethod();
+});
+$result['with one arg'] = tryCall(function () {
+    return MyClass::myStaticMethod('first');
+});
+$result['with two args'] = tryCall(function () {
+    return MyClass::myStaticMethod('first', ['hello']);
+});
+$result['with three args'] = tryCall(function () {
+    return MyClass::myStaticMethod('first', ['hello'], ['world']);
+});
 
 return $result;
 EOS
@@ -59,19 +83,112 @@ EOS
             engine = module({}, environment);
 
         expect(engine.execute().getNative()).to.deep.equal({
-            'with no args': null,
-            'with one arg': null,
-            'with two args': null,
-            'with three args': 'All required args were passed, starting with "first"',
+            'with no args': {
+                'result': null,
+                'throwable': 'MyClass::myStaticMethod() expects exactly 3 parameters, 0 given'
+            },
+            'with one arg': {
+                'result': null,
+                'throwable': 'MyClass::myStaticMethod() expects exactly 3 parameters, 1 given'
+            },
+            'with two args': {
+                'result': null,
+                'throwable': 'MyClass::myStaticMethod() expects exactly 3 parameters, 2 given'
+            },
+            'with three args': {
+                'result': 'All required args were passed, starting with "first"',
+                'throwable': null
+            }
         });
-        expect(engine.getStderr().readAll()).to.equal(
-            nowdoc(function () {/*<<<EOS
-PHP Warning:  MyClass::myStaticMethod() expects at least 3 parameters, 0 given in /path/to/my_module.php on line 6
-PHP Warning:  MyClass::myStaticMethod() expects at least 3 parameters, 1 given in /path/to/my_module.php on line 7
-PHP Warning:  MyClass::myStaticMethod() expects at least 3 parameters, 2 given in /path/to/my_module.php on line 8
+        expect(engine.getStderr().readAll()).to.equal('');
+    });
 
+    it('should raise a fatal error when required arguments are missing for minimum count', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+ini_set('error_reporting', E_ALL);
+
+$result = [];
+
+function tryCall(callable $callback) {
+    $result = null;
+    $throwable = null;
+
+    try {
+        $result = $callback();
+    } catch (\Throwable $caughtThrowable) {
+        $throwable = $caughtThrowable->getMessage();
+    }
+
+    return [
+        'result' => $result,
+        'throwable' => $throwable
+    ];
+}
+
+$result['with no args'] = tryCall(function () {
+    return MyClass::myStaticMethod();
+});
+$result['with one arg'] = tryCall(function () {
+    return MyClass::myStaticMethod('first');
+});
+$result['with two args'] = tryCall(function () {
+    return MyClass::myStaticMethod('first', ['hello']);
+});
+$result['with three args'] = tryCall(function () {
+    return MyClass::myStaticMethod('first', ['hello'], ['world']);
+});
+
+return $result;
 EOS
-*/;}) //jshint ignore:line
-        );
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            environment = tools.createSyncEnvironment({}, [
+                {
+                    classGroups: [
+                        function () {
+                            return {
+                                'MyClass': function (internals) {
+                                    internals.disableAutoCoercion();
+
+                                    function MyClass() {}
+
+                                    MyClass.prototype.myStaticMethod = internals.typeStaticMethod(
+                                        'mixed $firstParam, iterable $secondParam, array $optionalThirdParam = []',
+                                        function (firstParamReference) {
+                                            var firstArg = firstParamReference.getValue().getNative();
+
+                                            return 'All required args were passed, starting with "' + firstArg + '"';
+                                        }
+                                    );
+
+                                    return MyClass;
+                                }
+                            };
+                        }
+                    ]
+                }
+            ]),
+            engine = module({}, environment);
+
+        expect(engine.execute().getNative()).to.deep.equal({
+            'with no args': {
+                'result': null,
+                'throwable': 'MyClass::myStaticMethod() expects at least 2 parameters, 0 given'
+            },
+            'with one arg': {
+                'result': null,
+                'throwable': 'MyClass::myStaticMethod() expects at least 2 parameters, 1 given'
+            },
+            'with two args': {
+                'result': 'All required args were passed, starting with "first"',
+                'throwable': null
+            },
+            'with three args': {
+                'result': 'All required args were passed, starting with "first"',
+                'throwable': null
+            }
+        });
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 });

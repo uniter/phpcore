@@ -41,10 +41,13 @@ module.exports = function (internals) {
          * @returns {boolean}
          */
         caught: function (throwableClassName, error) {
+            var resolvedClass = callStack.getCurrentNamespaceScope().resolveClass(throwableClassName),
+                resolvedThrowableClassName = resolvedClass.namespace.getPrefix() + resolvedClass.name;
+
             // TODO: Handle non-Throwable instances being thrown at this point?
             return valueFactory.isValue(error) &&
                 error.getType() === 'object' &&
-                error.classIs(throwableClassName);
+                error.classIs(resolvedThrowableClassName);
         },
 
         /**

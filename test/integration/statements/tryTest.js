@@ -44,6 +44,68 @@ EOS
         expect(module().execute().getNative()).to.deep.equal([1, 4, 5, 6]);
     });
 
+    it('should support a global-namespace-relative class path', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+class MyException extends Exception {}
+
+try {
+    $result[] = 1;
+    throw new MyException('Oh no');
+    $result[] = 2;
+} catch (NotMyException $ex2) {
+    $result[] = 3;
+} catch (\MyException $ex1) {
+    $result[] = 4;
+} finally {
+    $result[] = 5;
+}
+$result[] = 6;
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php);
+
+        expect(module().execute().getNative()).to.deep.equal([1, 4, 5, 6]);
+    });
+
+    it('should support a namespace-relative class path', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+namespace My\Stuff {
+    class MyException extends \Exception {}
+}
+
+namespace {
+    use My\Stuff\MyException as MyImportedException;
+
+    $result = [];
+
+    try {
+        $result[] = 1;
+        throw new MyImportedException('Oh no');
+        $result[] = 2;
+    } catch (NotMyException $ex2) {
+        $result[] = 3;
+    } catch (MyImportedException $ex1) {
+        $result[] = 4;
+    } finally {
+        $result[] = 5;
+    }
+    $result[] = 6;
+
+    return $result;
+}
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php);
+
+        expect(module().execute().getNative()).to.deep.equal([1, 4, 5, 6]);
+    });
+
     it('should allow a thrown exception stored in variable to be caught', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

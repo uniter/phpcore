@@ -10,6 +10,7 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
@@ -21,6 +22,7 @@ var expect = require('chai').expect,
     Parameter = require('../../../src/Function/Parameter'),
     ParameterListFactory = require('../../../src/Function/ParameterListFactory'),
     ReturnTypeProvider = require('../../../src/Function/ReturnTypeProvider'),
+    Translator = phpCommon.Translator,
     TypeFactory = require('../../../src/Type/TypeFactory'),
     TypeInterface = require('../../../src/Type/TypeInterface'),
     ValueFactory = require('../../../src/ValueFactory').sync();
@@ -33,6 +35,7 @@ describe('FunctionSpecFactory', function () {
         namespaceScope,
         parameterListFactory,
         returnTypeProvider,
+        translator,
         typeFactory,
         valueFactory,
         ClosureContext,
@@ -47,8 +50,9 @@ describe('FunctionSpecFactory', function () {
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         parameterListFactory = sinon.createStubInstance(ParameterListFactory);
         returnTypeProvider = sinon.createStubInstance(ReturnTypeProvider);
+        translator = sinon.createStubInstance(Translator);
         typeFactory = sinon.createStubInstance(TypeFactory);
-        valueFactory = new ValueFactory();
+        valueFactory = sinon.createStubInstance(ValueFactory);
         ClosureContext = sinon.stub();
         FunctionContext = sinon.stub();
         FunctionSpec = sinon.stub();
@@ -60,6 +64,7 @@ describe('FunctionSpecFactory', function () {
             MethodContext,
             ClosureContext,
             callStack,
+            translator,
             parameterListFactory,
             returnTypeProvider,
             valueFactory,
@@ -88,6 +93,7 @@ describe('FunctionSpecFactory', function () {
             FunctionSpec
                 .withArgs(
                     sinon.match.same(callStack),
+                    sinon.match.same(translator),
                     sinon.match.same(valueFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
@@ -167,6 +173,7 @@ describe('FunctionSpecFactory', function () {
             FunctionSpec
                 .withArgs(
                     sinon.match.same(callStack),
+                    sinon.match.same(translator),
                     sinon.match.same(valueFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
@@ -200,6 +207,7 @@ describe('FunctionSpecFactory', function () {
             FunctionSpec
                 .withArgs(
                     sinon.match.same(callStack),
+                    sinon.match.same(translator),
                     sinon.match.same(valueFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
@@ -232,6 +240,7 @@ describe('FunctionSpecFactory', function () {
             FunctionSpec
                 .withArgs(
                     sinon.match.same(callStack),
+                    sinon.match.same(translator),
                     sinon.match.same(valueFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
@@ -306,6 +315,7 @@ describe('FunctionSpecFactory', function () {
             FunctionSpec
                 .withArgs(
                     sinon.match.same(callStack),
+                    sinon.match.same(translator),
                     sinon.match.same(valueFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
@@ -383,6 +393,7 @@ describe('FunctionSpecFactory', function () {
             FunctionSpec
                 .withArgs(
                     sinon.match.same(callStack),
+                    sinon.match.same(translator),
                     sinon.match.same(valueFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),

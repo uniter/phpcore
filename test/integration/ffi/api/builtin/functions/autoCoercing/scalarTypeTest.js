@@ -61,9 +61,8 @@ EOS
             engine.execute();
         }).to.throw(
             PHPFatalError,
-            'PHP Fatal error: Uncaught TypeError: Argument 1 passed to i_want_an_integer() ' +
-            'must be of the type int, array given, called in /path/to/my_module.php on line 4 ' +
-            'and defined in unknown:unknown in unknown on line unknown'
+            'PHP Fatal error: Uncaught TypeError: i_want_an_integer() ' +
+            'expects parameter 1 to be of the type int, array given in /path/to/my_module.php on line 4'
         );
     });
 });

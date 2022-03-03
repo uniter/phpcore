@@ -15,6 +15,8 @@
 module.exports = {
     'en_GB': {
         'core': {
+            'at_least': 'at least',
+
             // For uncaught errors (see ErrorReporting)
             'error_with_context_and_trace': ' in ${filePath}:${line}\n' +
                 'Stack trace:' + '\n' +
@@ -30,6 +32,8 @@ module.exports = {
 
             // The path used in stack traces etc. for eval'd code
             'eval_path': '${path}(${lineNumber}) : eval()\'d code',
+
+            'exactly': 'exactly',
 
             // Used for building messages referencing types
             'instance_of_type_expected': 'an instance of ${expectedType}',

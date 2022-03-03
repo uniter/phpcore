@@ -11,18 +11,21 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
+    AT_LEAST = 'core.at_least',
+    EXACTLY = 'core.exactly',
     INVALID_RETURN_VALUE_TYPE = 'core.invalid_return_value_type',
     ONLY_REFERENCES_RETURNED_BY_REFERENCE = 'core.only_references_returned_by_reference',
-    TOO_FEW_ARGS_FOR_EXACT_COUNT_USERLAND = 'core.too_few_args_for_exact_count_userland',
-    TOO_FEW_ARGS_FOR_MINIMUM_COUNT_BUILTIN = 'core.too_few_args_for_minimum_count_builtin',
+    TOO_FEW_ARGS_USERLAND = 'core.too_few_args_userland',
+    TOO_FEW_ARGS_BUILTIN = 'core.too_few_args_builtin',
     PHPError = phpCommon.PHPError,
-    Value = require('../Value').sync(),
-    WeakBuiltinAbort = require('../Function/WeakBuiltinAbort');
+    UNKNOWN = 'core.unknown',
+    Value = require('../Value').sync();
 
 /**
  * Represents the parameters, return type and location of a PHP function.
  *
  * @param {CallStack} callStack
+ * @param {Translator} translator
  * @param {ValueFactory} valueFactory
  * @param {FutureFactory} futureFactory
  * @param {Flow} flow
@@ -37,6 +40,7 @@ var _ = require('microdash'),
  */
 function FunctionSpec(
     callStack,
+    translator,
     valueFactory,
     futureFactory,
     flow,
@@ -88,6 +92,10 @@ function FunctionSpec(
      * @type {TypeInterface|null}
      */
     this.returnType = returnType;
+    /**
+     * @type {Translator}
+     */
+    this.translator = translator;
     /**
      * @type {ValueFactory}
      */
@@ -268,12 +276,48 @@ _.extend(FunctionSpec.prototype, {
     },
 
     /**
+     * Fetches the number of required parameters.
+     * Note that if an optional parameter appears before a required one, the optional one
+     * is effectively required as its argument cannot validly be omitted.
+     *
+     * @returns {number}
+     */
+    getRequiredParameterCount: function () {
+        var spec = this,
+            count;
+
+        for (count = spec.parameterList.length; count > 0; count--) {
+            if (spec.parameterList[count - 1].isRequired()) {
+                break;
+            }
+        }
+
+        return count;
+    },
+
+    /**
      * Fetches the name of this function, without any qualifying namespace and/or class prefix
      *
      * @returns {string}
      */
     getUnprefixedFunctionName: function () {
         return this.context.getUnprefixedName();
+    },
+
+    /**
+     * Determines whether this function has any optional parameter.
+     *
+     * Note that any optional parameters not in the final position will be ignored,
+     * as if any required ones come afterwards then they cannot actually be omitted.
+     *
+     * If the function has no parameters then false will be returned.
+     *
+     * @returns {boolean}
+     */
+    hasOptionalParameter: function () {
+        var spec = this;
+
+        return spec.parameterList.length > 0 && !spec.parameterList[spec.parameterList.length - 1].isRequired();
     },
 
     /**
@@ -367,37 +411,23 @@ _.extend(FunctionSpec.prototype, {
                     lineNumber = spec.callStack.getCallerLastLine();
                 }
 
-                if (!spec.callStack.isUserland()) {
-                    // For a built-in, in weak type-checking mode we only want to raise a warning
-                    // if there are required parameter arguments missing.
-                    // TODO: Raise an error rather than warning in strict types mode when that is supported.
-                    spec.callStack.raiseTranslatedError(
-                        PHPError.E_WARNING,
-                        TOO_FEW_ARGS_FOR_MINIMUM_COUNT_BUILTIN,
-                        {
-                            func: spec.context.getName(),
-                            expectedCount: spec.parameterList.length,
-                            actualCount: argumentReferenceList.length
-                        }
-                    );
-
-                    // Indicate that function execution should be aborted and null returned,
-                    // but we do not want to actually raise an error.
-                    throw new WeakBuiltinAbort();
-                }
-
                 // No argument is given for this required parameter - error
                 // TODO: Consider using callStack.raiseTranslatedError(...) instead, as we do in Parameter -
                 //       then remove this .createTranslatedErrorObject() method?
                 throw spec.valueFactory.createTranslatedErrorObject(
                     'ArgumentCountError',
-                    TOO_FEW_ARGS_FOR_EXACT_COUNT_USERLAND,
+                    spec.callStack.isUserland() ?
+                        TOO_FEW_ARGS_USERLAND :
+                        TOO_FEW_ARGS_BUILTIN,
                     {
                         func: spec.context.getName(),
-                        expectedCount: spec.parameterList.length,
+                        bound: spec.hasOptionalParameter() ?
+                            spec.translator.translate(AT_LEAST) :
+                            spec.translator.translate(EXACTLY),
+                        expectedCount: spec.getRequiredParameterCount(),
                         actualCount: argumentReferenceList.length,
-                        callerFile: filePath !== null ? filePath : '(unknown)',
-                        callerLine: lineNumber !== null ? lineNumber : '(unknown)'
+                        callerFile: filePath !== null ? filePath : '(' + spec.translator.translate(UNKNOWN) + ')',
+                        callerLine: lineNumber !== null ? lineNumber : '(' + spec.translator.translate(UNKNOWN) + ')'
                     },
                     null,
                     null,

@@ -15,7 +15,6 @@
 module.exports = {
     'en_GB': {
         'core': {
-            'too_few_args_for_minimum_count_builtin': '${func}() expects at least ${expectedCount} parameters, ${actualCount} given'
         }
     }
 };

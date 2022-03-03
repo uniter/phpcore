@@ -27,8 +27,7 @@ var expect = require('chai').expect,
     PHPError = phpCommon.PHPError,
     TypeInterface = require('../../../src/Type/TypeInterface'),
     Translator = phpCommon.Translator,
-    Variable = require('../../../src/Variable').sync(),
-    WeakBuiltinAbort = require('../../../src/Function/WeakBuiltinAbort');
+    Variable = require('../../../src/Variable').sync();
 
 describe('FunctionSpec', function () {
     var callStack,
@@ -65,6 +64,8 @@ describe('FunctionSpec', function () {
         returnType = sinon.createStubInstance(TypeInterface);
         valueFactory = state.getValueFactory();
 
+        callStack.getCallerFilePath.returns('/path/to/my/caller.php');
+        callStack.getCallerLastLine.returns(21);
         callStack.getCurrent.returns(sinon.createStubInstance(Call));
         callStack.getLastFilePath.returns('/path/to/my/module.php');
         callStack.getLastLine.returns(123);
@@ -90,6 +91,7 @@ describe('FunctionSpec', function () {
         createSpec = function (returnByReference) {
             spec = new FunctionSpec(
                 callStack,
+                translator,
                 valueFactory,
                 futureFactory,
                 flow,
@@ -375,12 +377,55 @@ describe('FunctionSpec', function () {
         });
     });
 
+    describe('getRequiredParameterCount()', function () {
+        it('should return the number of required parameters when there is a final optional one', function () {
+            expect(spec.getRequiredParameterCount()).to.equal(1);
+        });
+
+        it('should treat any optional parameters appearing before required ones as required', function () {
+            parameter1.isRequired.returns(false);
+            parameter2.isRequired.returns(true);
+
+            expect(spec.getRequiredParameterCount()).to.equal(2, 'Optional before required should be ignored');
+        });
+
+        it('should return the number of required parameters when all are required', function () {
+            parameter2.isRequired.returns(true);
+
+            expect(spec.getRequiredParameterCount()).to.equal(2);
+        });
+    });
+
     describe('getUnprefixedFunctionName()', function () {
         it('should correctly fetch the name from the context', function () {
             context.getUnprefixedName
                 .returns('myFunction');
 
             expect(spec.getUnprefixedFunctionName()).to.equal('myFunction');
+        });
+    });
+
+    describe('hasOptionalParameter()', function () {
+        it('should return true for only a single optional parameter', function () {
+            parameterList.length = 1;
+            parameter1.isRequired.returns(false);
+            createSpec(false);
+
+            expect(spec.hasOptionalParameter()).to.be.true;
+        });
+
+        it('should return false for two required parameters', function () {
+            parameter2.isRequired.returns(true);
+            createSpec(false);
+
+            expect(spec.hasOptionalParameter()).to.be.false;
+        });
+
+        it('should return false when no parameters', function () {
+            parameterList.length = 0;
+            createSpec(false);
+
+            expect(spec.hasOptionalParameter()).to.be.false;
         });
     });
 
@@ -414,7 +459,7 @@ describe('FunctionSpec', function () {
             );
         });
 
-        it('should raise the correct warning when a required parameter is missing an argument in for a builtin in weak type-checking mode', function () {
+        it('should raise the correct error when a required parameter is missing an argument for a builtin with exact parameter count', function () {
             var caughtError = null,
                 errorClassObject = sinon.createStubInstance(Class),
                 errorValue = sinon.createStubInstance(ObjectValue);
@@ -425,7 +470,14 @@ describe('FunctionSpec', function () {
             errorClassObject.instantiate
                 .withArgs([
                     sinon.match(function (arg) {
-                        return arg.getNative() === '[Translated] core.too_few_args_for_minimum_count_builtin {"func":"myFunction","expectedCount":2,"actualCount":1}';
+                        return arg.getNative() === '[Translated] core.too_few_args_builtin {' +
+                            '"func":"myFunction",' +
+                            '"bound":"[Translated] core.exactly {}",' +
+                            '"expectedCount":2,' +
+                            '"actualCount":1,' +
+                            '"callerFile":"/path/to/my/caller.php",' +
+                            '"callerLine":21' +
+                            '}';
                     }),
                     sinon.match(function (arg) {
                         return arg.getNative() === 0;
@@ -443,20 +495,48 @@ describe('FunctionSpec', function () {
                 caughtError = error;
             }
 
-            expect(caughtError).to.be.an.instanceOf(WeakBuiltinAbort);
-            expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
-            expect(callStack.raiseTranslatedError).to.have.been.calledWith(
-                PHPError.E_WARNING,
-                'core.too_few_args_for_minimum_count_builtin',
-                {
-                    func: 'myFunction',
-                    expectedCount: 2,
-                    actualCount: 1
-                }
-            );
+            expect(caughtError).to.equal(errorValue);
         });
 
-        it('should throw the correct error when a required parameter is missing an argument in userland', function () {
+        it('should raise the correct error when a required parameter is missing an argument for a builtin with minimum parameter count', function () {
+            var caughtError = null,
+                errorClassObject = sinon.createStubInstance(Class),
+                errorValue = sinon.createStubInstance(ObjectValue);
+            callStack.isUserland.returns(false);
+            globalNamespace.getClass
+                .withArgs('ArgumentCountError')
+                .returns(futureFactory.createPresent(errorClassObject));
+            errorClassObject.instantiate
+                .withArgs([
+                    sinon.match(function (arg) {
+                        return arg.getNative() === '[Translated] core.too_few_args_builtin {' +
+                            '"func":"myFunction",' +
+                            '"bound":"[Translated] core.at_least {}",' +
+                            '"expectedCount":1,' +
+                            '"actualCount":0,' +
+                            '"callerFile":"/path/to/my/caller.php",' +
+                            '"callerLine":21' +
+                            '}';
+                    }),
+                    sinon.match(function (arg) {
+                        return arg.getNative() === 0;
+                    }),
+                    sinon.match(function (arg) {
+                        return arg.getNative() === null;
+                    })
+                ])
+                .returns(errorValue);
+
+            try {
+                spec.validateArguments([], []).yieldSync();
+            } catch (error) {
+                caughtError = error;
+            }
+
+            expect(caughtError).to.equal(errorValue);
+        });
+
+        it('should raise the correct error when a required parameter is missing an argument in userland with known caller position', function () {
             var caughtError = null,
                 errorClassObject = sinon.createStubInstance(Class),
                 errorValue = sinon.createStubInstance(ObjectValue);
@@ -467,7 +547,55 @@ describe('FunctionSpec', function () {
             errorClassObject.instantiate
                 .withArgs([
                     sinon.match(function (arg) {
-                        return arg.getNative() === '[Translated] core.too_few_args_for_exact_count_userland {"func":"myFunction","expectedCount":2,"actualCount":1}';
+                        return arg.getNative() === '[Translated] core.too_few_args_userland {' +
+                            '"func":"myFunction",' +
+                            '"bound":"[Translated] core.exactly {}",' +
+                            '"expectedCount":2,' +
+                            '"actualCount":1,' +
+                            '"callerFile":"/path/to/my/caller.php",' +
+                            '"callerLine":21' +
+                            '}';
+                    }),
+                    sinon.match(function (arg) {
+                        return arg.getNative() === 0;
+                    }),
+                    sinon.match(function (arg) {
+                        return arg.getNative() === null;
+                    })
+                ])
+                .returns(errorValue);
+            parameter2.isRequired.returns(true);
+
+            try {
+                spec.validateArguments([argumentReference1], [argumentValue1]).yieldSync();
+            } catch (error) {
+                caughtError = error;
+            }
+
+            expect(caughtError).to.equal(errorValue);
+        });
+
+        it('should raise the correct error when a required parameter is missing an argument in userland with unknown caller position', function () {
+            var caughtError = null,
+                errorClassObject = sinon.createStubInstance(Class),
+                errorValue = sinon.createStubInstance(ObjectValue);
+            callStack.isUserland.returns(true);
+            callStack.getCallerFilePath.returns(null);
+            callStack.getCallerLastLine.returns(null);
+            globalNamespace.getClass
+                .withArgs('ArgumentCountError')
+                .returns(futureFactory.createPresent(errorClassObject));
+            errorClassObject.instantiate
+                .withArgs([
+                    sinon.match(function (arg) {
+                        return arg.getNative() === '[Translated] core.too_few_args_userland {' +
+                            '"func":"myFunction",' +
+                            '"bound":"[Translated] core.exactly {}",' +
+                            '"expectedCount":2,' +
+                            '"actualCount":1,' +
+                            '"callerFile":"([Translated] core.unknown {})",' +
+                            '"callerLine":"([Translated] core.unknown {})"' +
+                            '}';
                     }),
                     sinon.match(function (arg) {
                         return arg.getNative() === 0;

@@ -135,9 +135,9 @@ EOS
             engine.execute();
         }).to.throw(
             PHPFatalError,
-            'PHP Fatal error: Uncaught TypeError: Argument 1 passed to i_want_an_object() ' +
-            'must be an instance of My\\Stuff\\MyClass, int given, ' +
-            'called in /path/to/my_module.php on line 2 and defined in unknown:unknown in unknown on line unknown'
+            'PHP Fatal error: Uncaught TypeError: i_want_an_object() ' +
+            'expects parameter 1 to be an instance of My\\Stuff\\MyClass, int given ' +
+            'in /path/to/my_module.php on line 2'
         );
     });
 
@@ -156,13 +156,13 @@ EOS
             engine.execute();
         }).to.throw(
             PHPFatalError,
-            'PHP Fatal error: Uncaught TypeError: Argument 1 passed to i_want_an_object() ' +
-            'must be an instance of My\\Stuff\\MyClass, null given, ' +
-            'called in /path/to/my_module.php on line 2 and defined in unknown:unknown in unknown on line unknown'
+            'PHP Fatal error: Uncaught TypeError: i_want_an_object() ' +
+            'expects parameter 1 to be an instance of My\\Stuff\\MyClass, null given ' +
+            'in /path/to/my_module.php on line 2'
         );
     });
 
-    it('should raise a warning when required parameters are missing in weak type-checking mode', function () {
+    it('should raise a fatal error when required parameters are missing', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 i_want_two_args(21);
@@ -170,16 +170,15 @@ EOS
 */;}), //jshint ignore:line
             module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
+
         engine.defineCoercingFunction('i_want_two_args', function () {}, 'mixed $myMixed, My\\MyClass $myObject');
 
-        engine.execute();
-
-        expect(engine.getStderr().readAll()).to.equal(
-            nowdoc(function () {/*<<<EOS
-PHP Warning:  i_want_two_args() expects at least 2 parameters, 1 given in /path/to/my_module.php on line 2
-
-EOS
-*/;}) //jshint ignore:line
+        expect(function () {
+            engine.execute();
+        }).to.throw(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught ArgumentCountError: i_want_two_args() ' +
+            'expects exactly 2 parameters, 1 given in /path/to/my_module.php on line 2'
         );
     });
 });

@@ -15,7 +15,8 @@ var _ = require('microdash'),
     Value = require('../Value').sync(),
 
     INSTANCE_OF_TYPE_ACTUAL = 'core.instance_of_type_actual',
-    INVALID_VALUE_FOR_TYPE = 'core.invalid_value_for_type',
+    INVALID_VALUE_FOR_TYPE_BUILTIN = 'core.invalid_value_for_type_builtin',
+    INVALID_VALUE_FOR_TYPE_USERLAND = 'core.invalid_value_for_type_userland',
     ONLY_VARIABLES_BY_REFERENCE = 'core.only_variables_by_reference',
     UNKNOWN = 'core.unknown';
 
@@ -280,7 +281,8 @@ _.extend(Parameter.prototype, {
                         callerLineNumber = null,
                         definitionFilePath,
                         definitionLineNumber,
-                        expectedType;
+                        expectedType,
+                        isUserland;
 
                     if (argumentIsValid) {
                         // Nothing to do; argument is allowed
@@ -294,7 +296,16 @@ _.extend(Parameter.prototype, {
 
                     if (parameter.callStack.getCurrent()) {
                         callerFilePath = parameter.callStack.getCallerFilePath();
+
+                        if (callerFilePath === null) {
+                            callerFilePath = parameter.translator.translate(UNKNOWN);
+                        }
+
                         callerLineNumber = parameter.callStack.getCallerLastLine();
+
+                        if (callerLineNumber === null) {
+                            callerLineNumber = parameter.translator.translate(UNKNOWN);
+                        }
                     }
 
                     actualType = argumentValue.getDisplayType();
@@ -306,25 +317,29 @@ _.extend(Parameter.prototype, {
                         });
                     }
 
+                    isUserland = parameter.callStack.isUserland();
+
                     // Parameter is typehinted as expecting values of a certain type,
                     // but the given argument does not match.
                     parameter.callStack.raiseTranslatedError(
                         PHPError.E_ERROR,
-                        INVALID_VALUE_FOR_TYPE,
+                        isUserland ?
+                            INVALID_VALUE_FOR_TYPE_USERLAND :
+                            INVALID_VALUE_FOR_TYPE_BUILTIN,
                         {
                             index: parameter.index + 1,
                             func: parameter.context.getName(),
                             expectedType: expectedType,
                             actualType: actualType,
-                            callerFile: callerFilePath !== null ? callerFilePath : parameter.translator.translate(UNKNOWN),
-                            callerLine: callerLineNumber !== null ? callerLineNumber : parameter.translator.translate(UNKNOWN),
+                            callerFile: callerFilePath,
+                            callerLine: callerLineNumber,
                             definitionFile: definitionFilePath,
                             definitionLine: definitionLineNumber
                         },
                         'TypeError',
                         true,
-                        definitionFilePath,
-                        definitionLineNumber
+                        isUserland ? definitionFilePath : callerFilePath,
+                        isUserland ? definitionLineNumber : callerLineNumber
                     );
                 })
                 .next(resolve, reject);
