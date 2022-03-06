@@ -220,6 +220,20 @@ _.extend(ClassInternalsClassFactory.prototype, {
             },
 
             /**
+             * Creates a native instance method definition with type information.
+             *
+             * Note that this is currently identical to (the inherited) .typeFunction(),
+             * but that may change in the future.
+             *
+             * @param {string} signature
+             * @param {Function} func
+             * @returns {TypedFunction}
+             */
+            typeInstanceMethod: function (signature, func) {
+                return new TypedFunction(signature, func);
+            },
+
+            /**
              * Creates a native static method definition with type information.
              *
              * @param {string} signature

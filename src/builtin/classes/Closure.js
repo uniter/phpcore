@@ -10,7 +10,6 @@
 'use strict';
 
 var _ = require('microdash'),
-    PHPError = require('phpcommon').PHPError,
     Promise = require('lie');
 
 module.exports = function (internals) {
@@ -84,34 +83,13 @@ module.exports = function (internals) {
          * @param {ObjectValue|Variable|undefined} newThisReference
          * @param {StringValue|Variable|undefined} newScopeReference
          */
-        'bindTo': function (newThisReference, newScopeReference) {
+        'bindTo': internals.typeInstanceMethod('?object $newThis, mixed $newScope = null', function (newThisValue, newScopeValue) {
+            // TODO: $newScope should be typed as object|string|null above once we support union types.
             var closureValue = this,
-                newScopeValue,
-                newThisValue,
-                scopeClass,
+                scopeClassFuture,
                 scopeClassName;
 
-            if (!newThisReference) {
-                callStack.raiseError(
-                    PHPError.E_WARNING,
-                    'Closure::bindTo() expects at least 1 parameter, 0 given'
-                );
-                return valueFactory.createNull();
-            }
-
-            newThisValue = newThisReference.getValue();
-
-            if (newThisValue.getType() !== 'object' && newThisValue.getType() !== 'null') {
-                callStack.raiseError(
-                    PHPError.E_WARNING,
-                    'Closure::bindTo() expects parameter 1 to be object, ' + newThisValue.getType() + ' given'
-                );
-                return valueFactory.createNull();
-            }
-
-            newScopeValue = newScopeReference ? newScopeReference.getValue() : null;
-
-            if (newScopeValue) {
+            if (newScopeValue.getType() !== 'null') {
                 if (newScopeValue.getType() === 'object') {
                     // Use object's class as the scope class
                     scopeClassName = newScopeValue.getClassName();
@@ -127,15 +105,17 @@ module.exports = function (internals) {
             // Fetch the class to use as the static scope if specified,
             // otherwise if not specified or "static", use the class of the `$this` object
             if (scopeClassName && scopeClassName !== 'static') {
-                scopeClass = globalNamespace.getClass(scopeClassName).yieldSync();
+                scopeClassFuture = globalNamespace.getClass(scopeClassName);
             } else if (newThisValue.getType() !== 'null') {
-                scopeClass = newThisValue.getClass();
+                scopeClassFuture = internals.createPresent(newThisValue.getClass());
             } else {
-                scopeClass = null;
+                scopeClassFuture = internals.createPresent(null);
             }
 
-            return valueFactory.createClosureObject(closureValue.bindClosure(newThisValue, scopeClass));
-        },
+            return scopeClassFuture.next(function (scopeClass) {
+                return valueFactory.createClosureObject(closureValue.bindClosure(newThisValue, scopeClass));
+            });
+        }),
 
         /**
          * Invokes the closure with the specified arguments, using calling magic.

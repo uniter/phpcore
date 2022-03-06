@@ -274,6 +274,18 @@ describe('FFI ClassInternalsClassFactory', function () {
                 });
             });
 
+            describe('typeInstanceMethod()', function () {
+                it('should return a correct TypedFunction', function () {
+                    var func = sinon.stub(),
+                        typedMethodFunction = classInternals.typeInstanceMethod('my signature', func);
+
+                    expect(typedMethodFunction).to.be.an.instanceOf(TypedFunction);
+                    expect(typedMethodFunction.getFunction()).to.equal(func);
+                    expect(typedMethodFunction.getSignature()).to.equal('my signature');
+                    expect(func.isStatic).not.to.be.true; // Ensure it has not been marked static.
+                });
+            });
+
             describe('typeStaticMethod()', function () {
                 it('should return a correct TypedFunction', function () {
                     var func = sinon.stub(),

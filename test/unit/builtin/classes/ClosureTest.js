@@ -12,7 +12,6 @@
 var _ = require('microdash'),
     closureClassFactory = require('../../../../src/builtin/classes/Closure'),
     expect = require('chai').expect,
-    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('../../tools'),
     CallFactory = require('../../../../src/CallFactory'),
@@ -23,9 +22,7 @@ var _ = require('microdash'),
     FFICall = require('../../../../src/FFI/Call'),
     Namespace = require('../../../../src/Namespace').sync(),
     NullValue = require('../../../../src/Value/Null').sync(),
-    ObjectValue = require('../../../../src/Value/Object').sync(),
-    PHPError = phpCommon.PHPError,
-    Variable = require('../../../../src/Variable').sync();
+    ObjectValue = require('../../../../src/Value/Object').sync();
 
 describe('PHP builtin Closure class', function () {
     var callFactory,
@@ -66,6 +63,9 @@ describe('PHP builtin Closure class', function () {
             errorPromoter: errorPromoter,
             globalNamespace: globalNamespace,
             mode: 'sync',
+            typeInstanceMethod: sinon.stub().callsFake(function (signature, func) {
+                return func;
+            }),
             typeStaticMethod: sinon.stub().callsFake(function (signature, func) {
                 func.isStatic = true;
 
@@ -198,8 +198,8 @@ describe('PHP builtin Closure class', function () {
             callBindTo,
             closure,
             closureValue,
-            newThisReference,
-            newThisValue;
+            newThisValue,
+            scopeClassValue;
 
         beforeEach(function () {
             closure = sinon.createStubInstance(Closure);
@@ -209,57 +209,35 @@ describe('PHP builtin Closure class', function () {
             closureValue.classIs.withArgs('Closure').returns(true);
             closureValue.getClassName.returns('Closure');
             closureValue.getType.returns('object');
-            newThisReference = sinon.createStubInstance(Variable);
             newThisValue = valueFactory.createObject({}, stdClassClass);
-            newThisReference.getValue.returns(newThisValue);
-            args = [newThisReference];
+            scopeClassValue = valueFactory.createNull();
+            args = [newThisValue, scopeClassValue];
 
             callBindTo = function () {
                 return InternalClosureClass.prototype.bindTo.apply(closureValue, args);
             };
         });
 
-        it('should return a Closure ObjectValue with the bound closure', function () {
-            var result = callBindTo();
+        it('should return a Closure ObjectValue with the bound closure', async function () {
+            var result = await callBindTo().toPromise();
 
             expect(result).to.be.an.instanceOf(ObjectValue);
             expect(result.getInternalProperty('closure')).to.equal(boundClosure);
             expect(result.getClass()).to.equal(closureClass);
         });
 
-        it('should raise an error and return null when no arguments are given', function () {
-            args.length = 0;
+        it('should allow `null` as `$this` object, for creating an unbound closure', async function () {
+            newThisValue = valueFactory.createNull();
+            args[0] = newThisValue;
 
-            expect(callBindTo()).to.be.an.instanceOf(NullValue);
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_WARNING,
-                'Closure::bindTo() expects at least 1 parameter, 0 given'
-            );
-        });
-
-        it('should raise an error and return null when `$this` object arg is not an object', function () {
-            newThisReference.getValue.returns(valueFactory.createInteger(1002));
-
-            expect(callBindTo()).to.be.an.instanceOf(NullValue);
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_WARNING,
-                'Closure::bindTo() expects parameter 1 to be object, int given'
-            );
-        });
-
-        it('should allow `null` as `$this` object, for creating an unbound closure', function () {
-            newThisReference.getValue.returns(valueFactory.createNull());
-
-            callBindTo();
+            await callBindTo().toPromise();
 
             expect(closureValue.bindClosure).to.have.been.calledOnce;
             expect(closureValue.bindClosure.args[0][0]).to.be.an.instanceOf(NullValue);
         });
 
-        it('should use the class of the `$this` object as scope class if not specified', function () {
-            callBindTo();
+        it('should use the class of the `$this` object as scope class if not specified', async function () {
+            await callBindTo().toPromise();
 
             expect(closureValue.bindClosure).to.have.been.calledOnce;
             expect(closureValue.bindClosure).to.have.been.calledWith(
@@ -268,13 +246,11 @@ describe('PHP builtin Closure class', function () {
             );
         });
 
-        it('should use the class of the `$this` object as scope class if "static" is specified', function () {
-            var scopeClassReference = sinon.createStubInstance(Variable),
-                scopeClassValue = valueFactory.createString('static');
-            scopeClassReference.getValue.returns(scopeClassValue);
-            args[1] = scopeClassReference;
+        it('should use the class of the `$this` object as scope class if "static" is specified', async function () {
+            scopeClassValue = valueFactory.createString('static');
+            args[1] = scopeClassValue;
 
-            callBindTo();
+            await callBindTo().toPromise();
 
             expect(closureValue.bindClosure).to.have.been.calledOnce;
             expect(closureValue.bindClosure).to.have.been.calledWith(
@@ -283,13 +259,28 @@ describe('PHP builtin Closure class', function () {
             );
         });
 
-        it('should use the class of the scope class object as scope class if an object is specified', function () {
-            var scopeClassReference = sinon.createStubInstance(Variable),
-                scopeClassValue = valueFactory.createObject({}, stdClassClass);
-            scopeClassReference.getValue.returns(scopeClassValue);
-            args[1] = scopeClassReference;
+        it('should autoload and use a specified class as scope class', async function () {
+            var myClassClass = sinon.createStubInstance(Class);
+            globalNamespace.getClass.withArgs('My\\Stuff\\MyClass')
+                // Use an async future to ensure we handle pauses correctly.
+                .returns(futureFactory.createAsyncPresent(myClassClass));
+            scopeClassValue = valueFactory.createString('My\\Stuff\\MyClass');
+            args[1] = scopeClassValue;
 
-            callBindTo();
+            await callBindTo().toPromise();
+
+            expect(closureValue.bindClosure).to.have.been.calledOnce;
+            expect(closureValue.bindClosure).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.same(myClassClass)
+            );
+        });
+
+        it('should use the class of the scope class object as scope class if an object is specified', async function () {
+            scopeClassValue = valueFactory.createObject({}, stdClassClass);
+            args[1] = scopeClassValue;
+
+            await callBindTo().toPromise();
 
             expect(closureValue.bindClosure).to.have.been.calledOnce;
             expect(closureValue.bindClosure).to.have.been.calledWith(
