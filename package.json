@@ -23,6 +23,7 @@
     "test": "npm run jshint && npm run mocha"
   },
   "dependencies": {
+    "core-js-pure": "^3.21.1",
     "es6-weak-map": "^2.0.3",
     "is-promise": "^4.0.0",
     "lie": "^3.0.1",

@@ -23,6 +23,7 @@ var expect = require('chai').expect,
     Evaluator = require('../../../../src/Load/Evaluator'),
     FFIResult = require('../../../../src/FFI/Result'),
     Flow = require('../../../../src/Control/Flow'),
+    Future = require('../../../../src/Control/Future'),
     FutureFactory = require('../../../../src/Control/FutureFactory'),
     Namespace = require('../../../../src/Namespace').sync(),
     Includer = require('../../../../src/Load/Includer').sync(),
@@ -41,6 +42,7 @@ var expect = require('chai').expect,
     Translator = phpCommon.Translator,
     TypedFunction = require('../../../../src/Function/TypedFunction'),
     Userland = require('../../../../src/Control/Userland'),
+    Value = require('../../../../src/Value').sync(),
     ValueFactory = require('../../../../src/ValueFactory').sync(),
     ValueHelper = require('../../../../src/FFI/Value/ValueHelper');
 
@@ -103,7 +105,7 @@ describe('FFI Internals', function () {
         traceFormatter = sinon.createStubInstance(TraceFormatter);
         translator = sinon.createStubInstance(Translator);
         userland = sinon.createStubInstance(Userland);
-        valueFactory = new ValueFactory();
+        valueFactory = sinon.createStubInstance(ValueFactory);
         valueHelper = sinon.createStubInstance(ValueHelper);
 
         createInternals = function (mode) {
@@ -273,6 +275,65 @@ describe('FFI Internals', function () {
         });
     });
 
+    describe('createFuture()', function () {
+        it('should return a Future created via the FutureFactory', function () {
+            var executor = sinon.stub(),
+                future = sinon.createStubInstance(Future);
+            futureFactory.createFuture
+                .withArgs(sinon.match.same(executor))
+                .returns(future);
+
+            expect(internals.createFuture(executor)).to.equal(future);
+        });
+    });
+
+    describe('createPresent()', function () {
+        it('should return a present Future created via the FutureFactory', function () {
+            var future = sinon.createStubInstance(Future);
+            futureFactory.createPresent
+                .withArgs('my value')
+                .returns(future);
+
+            expect(internals.createPresent('my value')).to.equal(future);
+        });
+    });
+
+    describe('createPresentValue()', function () {
+        it('should return a present FutureValue created via the ValueFactory', function () {
+            var futureValue = sinon.createStubInstance(Future),
+                value = sinon.createStubInstance(Value);
+            valueFactory.createPresent
+                .withArgs(sinon.match.same(value))
+                .returns(futureValue);
+
+            expect(internals.createPresentValue(value)).to.equal(futureValue);
+        });
+    });
+
+    describe('createRejection()', function () {
+        it('should return a rejected Future created via the FutureFactory', function () {
+            var error = new Error('my error'),
+                future = sinon.createStubInstance(Future);
+            futureFactory.createRejection
+                .withArgs(sinon.match.same(error))
+                .returns(future);
+
+            expect(internals.createRejection(error)).to.equal(future);
+        });
+    });
+
+    describe('createRejectionValue()', function () {
+        it('should return a rejected FutureValue created via the ValueFactory', function () {
+            var error = new Error('my error'),
+                futureValue = sinon.createStubInstance(Future);
+            valueFactory.createRejection
+                .withArgs(sinon.match.same(error))
+                .returns(futureValue);
+
+            expect(internals.createRejectionValue(error)).to.equal(futureValue);
+        });
+    });
+
     describe('getBinding()', function () {
         it('should fetch the given binding from the PHPState', function () {
             var binding = {my: 'binding value'};
@@ -296,7 +357,7 @@ describe('FFI Internals', function () {
 
     describe('getGlobal()', function () {
         it('should fetch the given global variable\'s Value from the PHPState', function () {
-            var globalValue = valueFactory.createString('my global value');
+            var globalValue = sinon.createStubInstance(Value);
             state.getGlobal
                 .withArgs('myGlobal')
                 .returns(globalValue);
@@ -361,7 +422,7 @@ describe('FFI Internals', function () {
 
     describe('setGlobal()', function () {
         it('should set the given global variable\'s value via the PHPState', function () {
-            var value = valueFactory.createString('my global');
+            var value = sinon.createStubInstance(Value);
 
             internals.setGlobal('myGlobal', value);
 

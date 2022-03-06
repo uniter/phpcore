@@ -44,7 +44,7 @@ module.exports = function (internals) {
          */
         'bind': internals.typeStaticMethod('Closure $closure, ?object $newThis, mixed $newScope = null', function (closureValue, newThisValue, newScopeValue) {
             // TODO: $newScope should be typed as object|string|null above once we support union types.
-            var scopeClass,
+            var scopeClassFuture,
                 scopeClassName;
 
             if (newScopeValue.getType() !== 'null') {
@@ -63,14 +63,17 @@ module.exports = function (internals) {
             // Fetch the class to use as the static scope if specified,
             // otherwise if not specified or "static", use the class of the `$this` object
             if (scopeClassName && scopeClassName !== 'static') {
-                scopeClass = globalNamespace.getClass(scopeClassName).yieldSync();
+                // Note that a pending future may be returned due to autoloading.
+                scopeClassFuture = globalNamespace.getClass(scopeClassName);
             } else if (newThisValue.getType() !== 'null') {
-                scopeClass = newThisValue.getClass();
+                scopeClassFuture = internals.createPresent(newThisValue.getClass());
             } else {
-                scopeClass = null;
+                scopeClassFuture = internals.createPresent(null);
             }
 
-            return valueFactory.createClosureObject(closureValue.bindClosure(newThisValue, scopeClass));
+            return scopeClassFuture.next(function (scopeClass) {
+                return valueFactory.createClosureObject(closureValue.bindClosure(newThisValue, scopeClass));
+            });
         }),
 
         /**

@@ -11,6 +11,7 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
+    queueMicrotask = require('core-js-pure/actual/queue-microtask'),
     Exception = phpCommon.Exception,
     Pause = require('./Pause');
 
@@ -52,6 +53,34 @@ function FutureFactory(
 }
 
 _.extend(FutureFactory.prototype, {
+    /**
+     * Creates a new Future to be resolved with the given value after deferring.
+     *
+     * @param {*} value
+     * @returns {Future}
+     */
+    createAsyncPresent: function (value) {
+        return this.createFuture(function (resolve) {
+            queueMicrotask(function () {
+                resolve(value);
+            });
+        });
+    },
+
+    /**
+     * Creates a new Future to be rejected with the given error after deferring.
+     *
+     * @param {Error} error
+     * @returns {Future}
+     */
+    createAsyncRejection: function (error) {
+        return this.createFuture(function (resolve, reject) {
+            queueMicrotask(function () {
+                reject(error);
+            });
+        });
+    },
+
     /**
      * Creates a new Future
      *

@@ -15,7 +15,11 @@ var _ = require('microdash'),
     Promise = require('lie');
 
 /**
- * ...
+ * Represents a value that may not be known immediately, but should be resolved to an eventual
+ * value or rejected with an eventual error at some point in the future.
+ *
+ * Futures are very similar to Promises, the main difference being that when no pause occurs
+ * execution is synchronous to improve performance by not constantly queueing microtasks.
  *
  * @param {FutureFactory} futureFactory
  * @param {PauseFactory} pauseFactory
@@ -97,6 +101,24 @@ _.extend(Future.prototype, {
         future.sequence.finally(finallyHandler);
 
         return future; // Fluent interface
+    },
+
+    /**
+     * Determines whether this future has completed (been resolved or rejected).
+     *
+     * @returns {boolean}
+     */
+    isCompleted: function () {
+        return this.sequence.isCompleted();
+    },
+
+    /**
+     * Determines whether this future is pending (not yet completed by being resolved or rejected).
+     *
+     * @returns {boolean}
+     */
+    isPending: function () {
+        return !this.isCompleted();
     },
 
     /**

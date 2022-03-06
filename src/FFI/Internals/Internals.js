@@ -234,13 +234,63 @@ _.extend(Internals.prototype, {
     },
 
     /**
-     * Creates a FutureValue
+     * Creates a Future.
+     *
+     * @param {Function} executor
+     * @returns {Future}
+     */
+    createFuture: function (executor) {
+        return this.futureFactory.createFuture(executor);
+    },
+
+    /**
+     * Creates a FutureValue.
      *
      * @param {Function} executor
      * @returns {FutureValue}
      */
     createFutureValue: function (executor) {
         return this.valueFactory.createFuture(executor);
+    },
+
+    /**
+     * Creates a present Future.
+     *
+     * @param {*} value
+     * @returns {Future}
+     */
+    createPresent: function (value) {
+        return this.futureFactory.createPresent(value);
+    },
+
+    /**
+     * Creates a present FutureValue.
+     *
+     * @param {Value} value
+     * @returns {FutureValue}
+     */
+    createPresentValue: function (value) {
+        return this.valueFactory.createPresent(value);
+    },
+
+    /**
+     * Creates a rejected Future.
+     *
+     * @param {Error} error
+     * @returns {Future}
+     */
+    createRejection: function (error) {
+        return this.futureFactory.createRejection(error);
+    },
+
+    /**
+     * Creates a rejected FutureValue.
+     *
+     * @param {Error} error
+     * @returns {FutureValue}
+     */
+    createRejectionValue: function (error) {
+        return this.valueFactory.createRejection(error);
     },
 
     /**
