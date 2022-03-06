@@ -10,12 +10,7 @@
 'use strict';
 
 var _ = require('microdash'),
-    /*
-     * Prevent hooking by Sinon.useFakeTimers() etc.
-     * This is so that clock.tick(1) is not required to trigger the actual resume logic
-     * which is wrapped in a setImmediate() call, etc.
-     */
-    defer = setImmediate,
+    queueMicrotask = require('core-js-pure/actual/queue-microtask'),
     phpCommon = require('phpcommon'),
     util = require('util'),
     Exception = phpCommon.Exception;
@@ -46,16 +41,18 @@ function Pause(callStack, controlScope, sequence, executor) {
             throw new Exception('Pause has not yet been enacted');
         }
 
-        defer(function () {
+        queueMicrotask(function () {
             restoreCallStack();
 
             try {
                 return sequence.resume(resultValue);
             } catch (error) {
-                // Swallow errors (including Pauses) because setImmediate() does not expect errors
-                if (error instanceof Pause) {
-                    controlScope.markPaused(error); // Call stack should be unwound by this point
+                if (!(error instanceof Pause)) {
+                    // A normal non-Pause error was raised, simply rethrow.
+                    throw error;
                 }
+
+                controlScope.markPaused(error); // Call stack should be unwound by this point.
             }
         });
     }
@@ -65,16 +62,18 @@ function Pause(callStack, controlScope, sequence, executor) {
             throw new Exception('Pause has not yet been enacted');
         }
 
-        defer(function () {
+        queueMicrotask(function () {
             restoreCallStack();
 
             try {
                 return sequence.throwInto(error);
             } catch (error) {
-                // Swallow errors (including Pauses) because setImmediate() does not expect errors
-                if (error instanceof Pause) {
-                    controlScope.markPaused(error); // Call stack should be unwound by this point
+                if (!(error instanceof Pause)) {
+                    // A normal non-Pause error was raised, simply rethrow.
+                    throw error;
                 }
+
+                controlScope.markPaused(error); // Call stack should be unwound by this point.
             }
         });
     }
