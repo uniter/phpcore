@@ -78,6 +78,18 @@ _.extend(Future.prototype, {
     },
 
     /**
+     * Returns a new Future that will have the given text appended to its resolved value.
+     *
+     * @param {string} text
+     * @returns {Future<string>}
+     */
+    concatString: function (text) {
+        return this.derive().next(function (previousText) {
+            return previousText + text;
+        });
+    },
+
+    /**
      * Derives a new future from this one that will be resumed/thrown-into
      * once the future value (or error result) is known.
      *

@@ -246,6 +246,20 @@ describe('FutureValue', function () {
         });
     });
 
+    describe('concatString()', function () {
+        it('should be able to concatenate a string asynchronously multiple times', async function () {
+            var presentValue;
+            createValue(futureFactory.createAsyncPresent('first'));
+
+            value = value.concatString(' second');
+            value = value.concatString(' third');
+            presentValue = await value.toPromise();
+
+            expect(presentValue.getType()).to.equal('string');
+            expect(presentValue.getNative()).to.equal('first second third');
+        });
+    });
+
     describe('convertForBooleanType()', function () {
         it('should convert the resolved value to boolean when truthy', async function () {
             var result;

@@ -168,6 +168,18 @@ _.extend(FutureValue.prototype, {
     },
 
     /**
+     * Returns a new FutureValue that will have the given text appended to its resolved value.
+     *
+     * @param {string} text
+     * @returns {FutureValue<StringValue>}
+     */
+    concatString: function (text) {
+        return this.derive().next(function (presentValue) {
+            return presentValue.getNative() + text;
+        });
+    },
+
+    /**
      * {@inheritdoc}
      */
     convertForBooleanType: function () {
