@@ -17,32 +17,18 @@ module.exports = function (internals) {
         callStack = internals.callStack,
         errorPromoter = internals.errorPromoter,
         globalNamespace = internals.globalNamespace,
-        valueFactory = internals.valueFactory;
+        valueFactory = internals.valueFactory,
 
-    /**
-     * Class used to represent anonymous functions or "closures"
-     *
-     * @see {@link https://secure.php.net/manual/en/class.closure.php}
-     * @see {@link https://secure.php.net/manual/en/closure.construct.php}
-     *
-     * @constructor
-     */
-    function Closure() {
-
-    }
-
-    _.extend(Closure.prototype, {
         /**
-         * Duplicates a closure with a specific bound object and class scope.
-         *
-         * @see {@link https://secure.php.net/manual/en/closure.bind.php}
+         * Binds a closure to a different $this and/or class scope. Returns a new bound closure,
+         * the original is left untouched. Logic shared between ::bind(...) and ->bindTo(...) methods below.
          *
          * @param {ObjectValue} closureValue
-         * @param {ObjectValue} newThisValue
+         * @param {NullValue|ObjectValue} newThisValue
          * @param {Value} newScopeValue
+         * @returns {Future<ObjectValue>}
          */
-        'bind': internals.typeStaticMethod('Closure $closure, ?object $newThis, mixed $newScope = null', function (closureValue, newThisValue, newScopeValue) {
-            // TODO: $newScope should be typed as object|string|null above once we support union types.
+        bind = function (closureValue, newThisValue, newScopeValue) {
             var scopeClassFuture,
                 scopeClassName;
 
@@ -73,6 +59,33 @@ module.exports = function (internals) {
             return scopeClassFuture.next(function (scopeClass) {
                 return valueFactory.createClosureObject(closureValue.bindClosure(newThisValue, scopeClass));
             });
+        };
+
+    /**
+     * Class used to represent anonymous functions or "closures"
+     *
+     * @see {@link https://secure.php.net/manual/en/class.closure.php}
+     * @see {@link https://secure.php.net/manual/en/closure.construct.php}
+     *
+     * @constructor
+     */
+    function Closure() {
+
+    }
+
+    _.extend(Closure.prototype, {
+        /**
+         * Duplicates a closure with a specific bound object and class scope.
+         *
+         * @see {@link https://secure.php.net/manual/en/closure.bind.php}
+         *
+         * @param {ObjectValue} closureValue
+         * @param {ObjectValue} newThisValue
+         * @param {Value} newScopeValue
+         */
+        'bind': internals.typeStaticMethod('Closure $closure, ?object $newThis, mixed $newScope = "static": ?Closure', function (closureValue, newThisValue, newScopeValue) {
+            // TODO: $newScope should be typed as object|string|null above once we support union types.
+            return bind(closureValue, newThisValue, newScopeValue);
         }),
 
         /**
@@ -83,38 +96,11 @@ module.exports = function (internals) {
          * @param {ObjectValue|Variable|undefined} newThisReference
          * @param {StringValue|Variable|undefined} newScopeReference
          */
-        'bindTo': internals.typeInstanceMethod('?object $newThis, mixed $newScope = null', function (newThisValue, newScopeValue) {
+        'bindTo': internals.typeInstanceMethod('?object $newThis, mixed $newScope = "static": ?Closure', function (newThisValue, newScopeValue) {
             // TODO: $newScope should be typed as object|string|null above once we support union types.
-            var closureValue = this,
-                scopeClassFuture,
-                scopeClassName;
+            var closureValue = this;
 
-            if (newScopeValue.getType() !== 'null') {
-                if (newScopeValue.getType() === 'object') {
-                    // Use object's class as the scope class
-                    scopeClassName = newScopeValue.getClassName();
-                } else {
-                    // For any other type, coerce to string to use as class name
-                    // (yes, even integers/floats or resources)
-                    scopeClassName = newScopeValue.coerceToString().getNative();
-                }
-            } else {
-                scopeClassName = null;
-            }
-
-            // Fetch the class to use as the static scope if specified,
-            // otherwise if not specified or "static", use the class of the `$this` object
-            if (scopeClassName && scopeClassName !== 'static') {
-                scopeClassFuture = globalNamespace.getClass(scopeClassName);
-            } else if (newThisValue.getType() !== 'null') {
-                scopeClassFuture = internals.createPresent(newThisValue.getClass());
-            } else {
-                scopeClassFuture = internals.createPresent(null);
-            }
-
-            return scopeClassFuture.next(function (scopeClass) {
-                return valueFactory.createClosureObject(closureValue.bindClosure(newThisValue, scopeClass));
-            });
+            return bind(closureValue, newThisValue, newScopeValue);
         }),
 
         /**
