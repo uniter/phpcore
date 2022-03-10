@@ -52,16 +52,6 @@ _.extend(Reference.prototype, {
     getForAssignment: throwUnimplemented('getForAssignment'),
 
     /**
-     * Fetches an instance property of this reference's value (assuming it contains an object) by its name
-     *
-     * @param {Value} nameValue
-     * @returns {PropertyReference}
-     */
-    getInstancePropertyByName: function (nameValue) {
-        return this.getValue().getInstancePropertyByName(nameValue);
-    },
-
-    /**
      * Fetches the native value of the PHP value being referred to
      *
      * @returns {*}

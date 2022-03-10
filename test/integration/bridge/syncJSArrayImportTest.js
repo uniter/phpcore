@@ -34,6 +34,11 @@ return function ($object) {
 
     $result['are internal values identical'] = are_internal_values_identical($leftArray, $rightArray);
 
+    // Note that all of these reference the same element of the same array.
+    $result['element of $object->myArrayProp'] = $object->myArrayProp[0];
+    $result['element of $leftArray'] = $leftArray[0];
+    $result['element of $rightArray'] = $rightArray[0];
+
     return $result;
 };
 EOS
@@ -54,7 +59,10 @@ EOS
             'right is JSArray': true,
             'JSArrays are identical (userland)': true,
             'myCustomProp from left, via right (userland)': 'my custom value',
-            'are internal values identical': true
+            'are internal values identical': true,
+            'element of $object->myArrayProp': 21,
+            'element of $leftArray': 21,
+            'element of $rightArray': 21
         });
     });
 });

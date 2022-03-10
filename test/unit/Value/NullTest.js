@@ -17,6 +17,7 @@ var expect = require('chai').expect,
     CallStack = require('../../../src/CallStack'),
     KeyValuePair = require('../../../src/KeyValuePair'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
+    NullReference = require('../../../src/Reference/Null'),
     NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
@@ -454,6 +455,24 @@ describe('Null', function () {
     describe('getDisplayType()', function () {
         it('should return the value type', function () {
             expect(value.getDisplayType()).to.equal('null');
+        });
+    });
+
+    describe('getInstancePropertyByName()', function () {
+        it('should raise a warning', function () {
+            value.getInstancePropertyByName(factory.createString('myProp'));
+
+            expect(callStack.raiseError).to.have.been.calledOnce;
+            expect(callStack.raiseError).to.have.been.calledWith(
+                PHPError.E_NOTICE,
+                'Trying to get property of non-object'
+            );
+        });
+
+        it('should return a NullReference', function () {
+            var propertyReference = value.getInstancePropertyByName(factory.createString('myProp'));
+
+            expect(propertyReference).to.be.an.instanceOf(NullReference);
         });
     });
 

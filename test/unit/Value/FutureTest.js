@@ -19,7 +19,6 @@ var expect = require('chai').expect,
     Exception = phpCommon.Exception,
     ObjectValue = require('../../../src/Value/Object').sync(),
     Pause = require('../../../src/Control/Pause'),
-    PropertyReference = require('../../../src/Reference/Property'),
     Reference = require('../../../src/Reference/Reference'),
     StaticPropertyReference = require('../../../src/Reference/StaticProperty'),
     Value = require('../../../src/Value').sync(),
@@ -404,20 +403,6 @@ describe('FutureValue', function () {
             createValue(futureFactory.createPresent(factory.createString('my result')));
 
             expect(value.formatAsString()).to.equal('(Future)');
-        });
-    });
-
-    describe('getInstancePropertyByName()', function () {
-        it('should be able to fetch a property of the eventual resolved value', async function () {
-            var propertyNameValue = factory.createString('myProp'),
-                propertyReference = sinon.createStubInstance(PropertyReference),
-                resolvedValue = sinon.createStubInstance(ObjectValue);
-            resolvedValue.getInstancePropertyByName
-                .withArgs(sinon.match.same(propertyNameValue))
-                .returns(propertyReference);
-            createValue(futureFactory.createPresent(resolvedValue));
-
-            expect(await value.getInstancePropertyByName(propertyNameValue).toPromise()).to.equal(propertyReference);
         });
     });
 

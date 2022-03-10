@@ -52,7 +52,7 @@ describe('ObjectElementReference', function () {
     });
 
     describe('getValueOrNull()', function () {
-        it('should return the value when the element is defined', function () {
+        it('should return the value from ArrayAccess::offsetGet(...)', function () {
             var value = valueFactory.createString('my value');
             objectValue.callMethod.withArgs(
                 'offsetGet',
@@ -61,34 +61,11 @@ describe('ObjectElementReference', function () {
 
             expect(element.getValueOrNull()).to.equal(value);
         });
-
-        it('should return a NullValue when the element is not defined', function () {
-            objectValue.callMethod.withArgs(
-                'offsetExists',
-                sinon.match([sinon.match.same(keyValue)])
-            ).returns(valueFactory.createBoolean(false));
-
-            expect(element.getValueOrNull().getType()).to.equal('null');
-        });
     });
 
     describe('isDefined()', function () {
-        it('should return true when ArrayAccess::offsetExists(...) returns true', function () {
-            objectValue.callMethod.withArgs(
-                'offsetExists',
-                sinon.match([sinon.match.same(keyValue)])
-            ).returns(valueFactory.createBoolean(true));
-
+        it('should return true', function () {
             expect(element.isDefined()).to.be.true;
-        });
-
-        it('should return false when ArrayAccess::offsetExists(...) returns false', function () {
-            objectValue.callMethod.withArgs(
-                'offsetExists',
-                sinon.match([sinon.match.same(keyValue)])
-            ).returns(valueFactory.createBoolean(false));
-
-            expect(element.isDefined()).to.be.false;
         });
     });
 

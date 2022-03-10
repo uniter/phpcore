@@ -69,6 +69,9 @@ module.exports = require('pauser')([
             return 'NULL';
         },
 
+        /**
+         * {@inheritdoc}
+         */
         getInstancePropertyByName: function () {
             var value = this;
 
@@ -77,7 +80,7 @@ module.exports = require('pauser')([
                 'Trying to get property of non-object'
             );
 
-            return value.factory.createNull();
+            return value.referenceFactory.createNull();
         },
 
         isAnInstanceOf: function (classNameValue) {

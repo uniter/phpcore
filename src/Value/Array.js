@@ -342,6 +342,9 @@ module.exports = require('pauser')([
             return this.getCurrentElementReference().getValue();
         },
 
+        /**
+         * {@inheritdoc}
+         */
         getElementByKey: function (key) {
             var element,
                 keyValue,

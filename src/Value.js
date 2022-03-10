@@ -521,6 +521,11 @@ module.exports = require('pauser')([
             return this.type;
         },
 
+        /**
+         * Fetches an element of this value, as used by the array element dereference syntax $value[$element].
+         *
+         * @returns {ElementReference|ObjectElement}
+         */
         getElementByKey: function () {
             return createNullReference(this);
         },
@@ -533,7 +538,7 @@ module.exports = require('pauser')([
          * Fetches an instance property of this object by its name.
          *
          * @param {Reference|Value|Variable} nameReference
-         * @returns {PropertyReference}
+         * @returns {NullReference|PropertyReference|Reference}
          */
         getInstancePropertyByName: throwUnimplemented('getInstancePropertyByName'),
 

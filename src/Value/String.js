@@ -246,6 +246,9 @@ module.exports = require('pauser')([
             });
         },
 
+        /**
+         * {@inheritdoc}
+         */
         getElementByKey: function (key) {
             var keyValue,
                 value = this;

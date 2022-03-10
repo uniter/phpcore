@@ -227,11 +227,13 @@ module.exports = function (internals) {
         callVariableInstanceMethod: function (objectReference, methodNameReference, argReferences) {
             var objectValue = objectReference.getValue();
 
-            return methodNameReference.getValue().next(function (methodNameValue) {
-                var methodName = methodNameValue.getNative(); // Now guaranteed to be present.
+            return methodNameReference.getValue()
+                .asFuture() // Do not wrap result as a value, may be return-by-reference.
+                .next(function (methodNameValue) {
+                    var methodName = methodNameValue.getNative(); // Now guaranteed to be present.
 
-                return objectValue.callMethod(methodName, argReferences);
-            });
+                    return objectValue.callMethod(methodName, argReferences);
+                });
         },
 
         /**
@@ -592,7 +594,9 @@ module.exports = function (internals) {
             var keyValue = valueFactory.coerce(nativeKey);
 
             return internals.implyArray(arrayReference).next(function () {
-                return arrayReference.getValue().getElementByKey(keyValue);
+                return arrayReference.getValue();
+            }).next(function (presentValue) {
+                return presentValue.getElementByKey(keyValue);
             });
         },
 
@@ -609,7 +613,11 @@ module.exports = function (internals) {
             // TODO: Remove need for this to be wrapped as a StringValue
             var propertyNameValue = valueFactory.createString(propertyName);
 
-            return objectReference.getValue().getInstancePropertyByName(propertyNameValue);
+            return objectReference.getValue()
+                .asFuture() // Do not wrap result as a value, we expect to resolve with a property reference.
+                .next(function (presentValue) {
+                    return presentValue.getInstancePropertyByName(propertyNameValue);
+                });
         },
 
         /**
@@ -760,7 +768,11 @@ module.exports = function (internals) {
          * @returns {PropertyReference}
          */
         getVariableInstanceProperty: function (objectReference, propertyNameReference) {
-            return objectReference.getValue().getInstancePropertyByName(propertyNameReference.getValue());
+            return objectReference.getValue()
+                .asFuture() // Do not wrap result as a value, we expect to resolve with a property reference.
+                .next(function (presentValue) {
+                    return presentValue.getInstancePropertyByName(propertyNameReference.getValue());
+                });
         },
 
         /**
@@ -768,7 +780,7 @@ module.exports = function (internals) {
          *
          * @param {Reference|Value|Variable} objectReference
          * @param {Reference|Value|Variable} propertyNameReference
-         * @returns {PropertyReference}
+         * @returns {Future<StaticPropertyReference>}
          */
         getVariableStaticProperty: function (objectReference, propertyNameReference) {
             return objectReference.getValue().getStaticPropertyByName(propertyNameReference.getValue());
@@ -1358,14 +1370,16 @@ module.exports = function (internals) {
         // },
 
         /**
-         * Fetches a push element for the given array, so that a value or reference may be pushed onto it
+         * Fetches a push element for the given array, so that a value or reference may be pushed onto it.
          *
          * @param {Reference|Value|Variable} arrayReference
          * @returns {Future<ElementReference>}
          */
         pushElement: function (arrayReference) {
             return internals.implyArray(arrayReference).next(function () {
-                return arrayReference.getValue().getPushElement();
+                return arrayReference.getValue();
+            }).next(function (presentArrayValue) {
+                return presentArrayValue.getPushElement();
             });
         },
 

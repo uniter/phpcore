@@ -42,16 +42,6 @@ util.inherits(HookableElementReference, Reference);
 
 _.extend(HookableElementReference.prototype, {
     /**
-     * Fetches an instance property of this element (assuming it contains an object) by its name
-     *
-     * @param {Value} nameValue
-     * @returns {PropertyReference}
-     */
-    getInstancePropertyByName: function (nameValue) {
-        return this.decoratedElement.getInstancePropertyByName(nameValue);
-    },
-
-    /**
      * Fetches this element's key value
      *
      * @returns {Value}

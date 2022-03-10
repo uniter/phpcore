@@ -266,17 +266,6 @@ _.extend(FutureValue.prototype, {
     /**
      * {@inheritdoc}
      */
-    getInstancePropertyByName: function (nameReference) {
-        return this.derive()
-            .asFuture() // Do not wrap result as a value, we expect to resolve with a property reference.
-            .next(function (leftValue) {
-                return leftValue.getInstancePropertyByName(nameReference);
-            });
-    },
-
-    /**
-     * {@inheritdoc}
-     */
     getNative: function () {
         throw new Exception('Unable to call .getNative() on a FutureValue - did you mean to call .yieldSync()?');
     },

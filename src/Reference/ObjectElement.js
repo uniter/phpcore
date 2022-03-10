@@ -59,9 +59,14 @@ _.extend(ObjectElement.prototype, {
      * @returns {boolean}
      */
     isDefined: function () {
-        var element = this;
-
-        return element.objectValue.callMethod('offsetExists', [element.keyValue]).getNative();
+        /*
+         * Note that elements of objects implementing ArrayAccess are always treated
+         * as defined.
+         *
+         * This is because ->offsetExists() is only intended to be called
+         * for empty() and isset() constructs.
+         */
+        return true;
     },
 
     /**
