@@ -264,7 +264,7 @@ module.exports = require('pauser')([
 
                     return presentValue;
                 })
-                .yield();
+                .asValue();
         },
 
         setReference: function (reference) {

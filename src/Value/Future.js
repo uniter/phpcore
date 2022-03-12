@@ -322,6 +322,24 @@ _.extend(FutureValue.prototype, {
     },
 
     /**
+     * Determines whether this future has completed (been resolved or rejected).
+     *
+     * @returns {boolean}
+     */
+    isCompleted: function () {
+        return this.future.isCompleted();
+    },
+
+    /**
+     * Determines whether this future is pending (not yet completed by being resolved or rejected).
+     *
+     * @returns {boolean}
+     */
+    isPending: function () {
+        return !this.isCompleted();
+    },
+
+    /**
      * {@inheritdoc}
      */
     isEmpty: function () {

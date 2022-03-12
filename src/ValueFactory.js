@@ -12,6 +12,7 @@
 module.exports = require('pauser')([
     require('microdash'),
     require('phpcommon'),
+    require('core-js-pure/actual/queue-microtask'),
     require('./Iterator/ArrayIterator'),
     require('./Value/Array'),
     require('./Value/BarewordString'),
@@ -36,6 +37,7 @@ module.exports = require('pauser')([
 ], function (
     _,
     phpCommon,
+    queueMicrotask,
     ArrayIterator,
     ArrayValue,
     BarewordStringValue,
@@ -285,6 +287,34 @@ module.exports = require('pauser')([
          */
         createArrayIterator: function (arrayLikeValue) {
             return new ArrayIterator(arrayLikeValue);
+        },
+
+        /**
+         * Creates a new FutureValue to be resolved with the given value after deferring.
+         *
+         * @param {*} value
+         * @returns {FutureValue}
+         */
+        createAsyncPresent: function (value) {
+            return this.createFuture(function (resolve) {
+                queueMicrotask(function () {
+                    resolve(value);
+                });
+            });
+        },
+
+        /**
+         * Creates a new FutureValue to be rejected with the given error after deferring.
+         *
+         * @param {Error} error
+         * @returns {FutureValue}
+         */
+        createAsyncRejection: function (error) {
+            return this.createFuture(function (resolve, reject) {
+                queueMicrotask(function () {
+                    reject(error);
+                });
+            });
         },
 
         /**

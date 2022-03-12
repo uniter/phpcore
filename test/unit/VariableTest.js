@@ -30,7 +30,7 @@ describe('Variable', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
-        state = tools.createIsolatedState(null, {
+        state = tools.createIsolatedState('async', {
             'call_stack': callStack
         });
         futureFactory = state.getFutureFactory();
@@ -256,24 +256,31 @@ describe('Variable', function () {
 
     describe('setValue()', function () {
         it('should allow a normal variable to set to null', function () {
-            expect(function () {
-                variable.setValue(valueFactory.createNull());
-            }).not.to.throw();
+            return expect(variable.setValue(valueFactory.createNull()).toPromise()).not.to.be.rejected;
         });
 
-        it('should unset $this when setting to null', function () {
+        it('should return the assigned present value', async function () {
+            var resultValue = await variable
+                .setValue(valueFactory.createAsyncPresent('my assigned value'))
+                .toPromise();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('my assigned value');
+        });
+
+        it('should unset $this when setting to null', async function () {
             variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'this');
 
-            variable.setValue(valueFactory.createNull());
+            await variable.setValue(valueFactory.createNull()).toPromise();
 
             expect(variable.isDefined()).to.be.false;
         });
 
-        it('should return the null value when setting to null', function () {
+        it('should return the null value when setting $this to null', async function () {
             var value;
             variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'this');
 
-            value = variable.setValue(valueFactory.createNull());
+            value = await variable.setValue(valueFactory.createNull()).toPromise();
 
             expect(value.getType()).to.equal('null');
         });

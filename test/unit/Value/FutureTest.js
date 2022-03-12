@@ -15,6 +15,7 @@ var expect = require('chai').expect,
     tools = require('../tools'),
     CallStack = require('../../../src/CallStack'),
     ElementReference = require('../../../src/Reference/Element'),
+    Future = require('../../../src/Control/Future'),
     FutureValue = require('../../../src/Value/Future'),
     Exception = phpCommon.Exception,
     ObjectValue = require('../../../src/Value/Object').sync(),
@@ -516,6 +517,27 @@ describe('FutureValue', function () {
         });
     });
 
+    describe('isCompleted()', function () {
+        var future;
+
+        beforeEach(function () {
+            future = sinon.createStubInstance(Future);
+            createValue(future);
+        });
+
+        it('should return true when the wrapped Future is completed', function () {
+            future.isCompleted.returns(true);
+
+            expect(value.isCompleted()).to.be.true;
+        });
+
+        it('should return false when the wrapped Future is incomplete', function () {
+            future.isCompleted.returns(false);
+
+            expect(value.isCompleted()).to.be.false;
+        });
+    });
+
     describe('isEmpty()', function () {
         it('should return true when the eventual value is empty', async function () {
             var eventualValue = sinon.createStubInstance(Value);
@@ -551,6 +573,27 @@ describe('FutureValue', function () {
             createValue(futureFactory.createPresent(factory.createString('my value')));
 
             expect(value.isFuture()).to.be.true;
+        });
+    });
+
+    describe('isPending()', function () {
+        var future;
+
+        beforeEach(function () {
+            future = sinon.createStubInstance(Future);
+            createValue(future);
+        });
+
+        it('should return true when the wrapped Future is incomplete', function () {
+            future.isCompleted.returns(false);
+
+            expect(value.isPending()).to.be.true;
+        });
+
+        it('should return false when the wrapped Future is completed', function () {
+            future.isCompleted.returns(true);
+
+            expect(value.isPending()).to.be.false;
         });
     });
 

@@ -200,6 +200,41 @@ describe('ValueFactory', function () {
         });
     });
 
+    describe('createAsyncPresent()', function () {
+        it('should return a pending FutureValue', function () {
+            var value = factory.createAsyncPresent('my value');
+
+            expect(value.getType()).to.equal('future');
+            expect(value.isPending()).to.be.true;
+        });
+
+        it('should return a FutureValue that eventually resolves with the given value', async function () {
+            var resolvedValue,
+                value = factory.createAsyncPresent('my value');
+
+            resolvedValue = await value.toPromise();
+
+            expect(resolvedValue.getType()).to.equal('string');
+            expect(resolvedValue.getNative()).to.equal('my value');
+        });
+    });
+
+    describe('createAsyncRejection()', function () {
+        it('should return a pending FutureValue', function () {
+            var value = factory.createAsyncRejection(new Error('my error'));
+
+            expect(value.getType()).to.equal('future');
+            expect(value.isPending()).to.be.true;
+        });
+
+        it('should return a FutureValue that eventually rejects with the given error', function () {
+            var error = new Error('my error'),
+                value = factory.createAsyncRejection(error);
+
+            return expect(value.toPromise()).to.eventually.be.rejectedWith(error);
+        });
+    });
+
     describe('createBarewordString()', function () {
         it('should return a BarewordString', function () {
             var value = factory.createBarewordString('mybareword');
