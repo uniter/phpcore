@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../../tools'),
     CallFactory = require('../../../../src/CallFactory'),
     CallStack = require('../../../../src/CallStack'),
     ClassAutoloader = require('../../../../src/ClassAutoloader').sync(),
@@ -34,6 +35,7 @@ var expect = require('chai').expect,
     Output = require('../../../../src/Output/Output'),
     PauseFactory = require('../../../../src/Control/PauseFactory'),
     PHPState = require('../../../../src/PHPState').sync(),
+    Reference = require('../../../../src/Reference/Reference'),
     ReferenceFactory = require('../../../../src/ReferenceFactory').sync(),
     Runtime = require('../../../../src/Runtime').sync(),
     Scope = require('../../../../src/Scope').sync(),
@@ -68,6 +70,9 @@ describe('FFI Internals', function () {
         optionSet,
         output,
         pauseFactory,
+        realFutureFactory,
+        realState,
+        realValueFactory,
         referenceFactory,
         runtime,
         state,
@@ -81,6 +86,11 @@ describe('FFI Internals', function () {
     beforeEach(function () {
         callFactory = sinon.createStubInstance(CallFactory);
         callStack = sinon.createStubInstance(CallStack);
+        realState = tools.createIsolatedState('async', {
+            'call_stack': callStack
+        });
+        realFutureFactory = realState.getFutureFactory();
+        realValueFactory = realState.getValueFactory();
         classAutoloader = sinon.createStubInstance(ClassAutoloader);
         controlFactory = sinon.createStubInstance(ControlFactory);
         controlScope = sinon.createStubInstance(ControlScope);
@@ -363,6 +373,67 @@ describe('FFI Internals', function () {
                 .returns(globalValue);
 
             expect(internals.getGlobal('myGlobal')).to.equal(globalValue);
+        });
+    });
+
+    describe('implyArray()', function () {
+        var reference;
+
+        beforeEach(function () {
+            reference = sinon.createStubInstance(Reference);
+
+            futureFactory.createPresent.callsFake(function (value) {
+                return realFutureFactory.createPresent(value);
+            });
+            valueFactory.createArray.callsFake(function (value) {
+                return realValueFactory.createArray(value);
+            });
+
+            reference.getValue.returns(realValueFactory.createNull());
+            reference.isDefined.returns(false);
+            reference.isEmpty.returns(realFutureFactory.createAsyncPresent(true));
+            reference.setValue.callsFake(function (value) {
+                reference.getValue.returns(value);
+
+                return value;
+            });
+        });
+
+        it('should assign an empty array to an undefined and empty reference', async function () {
+            await internals.implyArray(reference).toPromise();
+
+            expect(reference.setValue).to.have.been.calledOnce;
+            expect(reference.setValue.args[0][0].getType()).to.equal('array');
+            expect(reference.setValue.args[0][0].getNative()).to.deep.equal([]);
+        });
+
+        it('should assign an empty array to a defined reference with value null', async function () {
+            reference.isDefined.returns(true);
+
+            await internals.implyArray(reference).toPromise();
+
+            expect(reference.setValue).to.have.been.calledOnce;
+            expect(reference.setValue.args[0][0].getType()).to.equal('array');
+            expect(reference.setValue.args[0][0].getNative()).to.deep.equal([]);
+        });
+
+        it('should not assign an empty array to a defined empty but non-null reference', async function () {
+            reference.getValue.returns(realValueFactory.createInteger(0));
+            reference.isDefined.returns(true);
+
+            await internals.implyArray(reference).toPromise();
+
+            expect(reference.setValue).not.to.have.been.called;
+        });
+
+        // Note that if the reference is not defined, it may still be non-empty,
+        // if for example it is a virtual property fetched with ->__get().
+        it('should not assign an empty array to an undefined but non-empty reference', async function () {
+            reference.isEmpty.returns(realFutureFactory.createAsyncPresent(false));
+
+            await internals.implyArray(reference).toPromise();
+
+            expect(reference.setValue).not.to.have.been.called;
         });
     });
 

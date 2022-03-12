@@ -325,20 +325,30 @@ _.extend(Internals.prototype, {
     },
 
     /**
-     * Implicitly converts undefined variables/references and those containing null to arrays
+     * Implicitly converts undefined variables/references and those containing null to arrays.
      *
      * @param {Reference|Value|Variable} arrayReference
      * @returns {Future}
      */
     implyArray: function (arrayReference) {
-        var internals = this;
+        var internals = this,
+            needsArrayAssignmentFuture;
 
-        return arrayReference.isEmpty().next(function (isEmpty) {
-            if (
-                (!arrayReference.isDefined() && isEmpty) ||
-                arrayReference.getValue().getType() === 'null'
-            ) {
-                arrayReference.setValue(internals.valueFactory.createArray([]));
+        if (!arrayReference.isDefined()) {
+            // Note that if the reference is not defined, it may still be non-empty,
+            // if for example it is a virtual property fetched with ->__get().
+            needsArrayAssignmentFuture = arrayReference.isEmpty();
+        } else {
+            needsArrayAssignmentFuture = arrayReference.getValue()
+                .asFuture()
+                .next(function (presentValue) {
+                    return presentValue.getType() === 'null';
+                });
+        }
+
+        return needsArrayAssignmentFuture.next(function (needsArrayAssignment) {
+            if (needsArrayAssignment) {
+                return arrayReference.setValue(internals.valueFactory.createArray([]));
             }
         });
     },

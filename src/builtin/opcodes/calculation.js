@@ -1461,8 +1461,20 @@ module.exports = function (internals) {
             return targetReference.setReference(sourceReference);
         },
 
+        /**
+         * Sets the value of the target reference to that of the source reference,
+         * returning the assigned value. Note that if the assignment happens asynchronously,
+         * a FutureValue may be returned which will then be awaited.
+         *
+         * Used by the assignment operators "=", ".=" etc.
+         *
+         * @param {Reference|Value|Variable} targetReference
+         * @param {Reference|Value|Variable} sourceReference
+         * @returns {Value}
+         */
         setValue: function (targetReference, sourceReference) {
-            // The result of an assignment is the value assigned
+            // The result of an assignment is the value assigned. Assignments can also involve
+            // async behaviour so we need to return the result in case it is a FutureValue.
             return targetReference.setValue(sourceReference.getValue());
         },
 
