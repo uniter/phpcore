@@ -45,7 +45,7 @@ $result[] = (new MyClass())->myInstanceMethod();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -188,7 +188,7 @@ $result[] = (new MyClass())->myInstanceMethod();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -242,7 +242,7 @@ $result[] = MyClass::callClosure();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -298,7 +298,7 @@ $result[] = MyClass::callClosure();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -352,10 +352,12 @@ namespace My\App {
     }();
 }
 
-return $result;
+namespace {
+    return $result;
+}
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([

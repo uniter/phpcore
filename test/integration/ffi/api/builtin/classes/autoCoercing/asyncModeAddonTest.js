@@ -80,15 +80,16 @@ EOS
         }), done);
     });
 
-    it('should support installing an auto-coercing custom class using the "classGroups" property whose method returns a Promise that resolves to a primitive value', function (done) {
+    it('should not await Promises returned from auto-coercing custom class methods', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $myObject = new AwesomeClass();
 
-return $myObject->getIt() + 100;
+return $myObject->getIt();
 EOS
 */;}), //jshint ignore:line
             module = tools.asyncTranspile('/path/to/my_module.php', php),
+            doResolve,
             environment = tools.createAsyncEnvironment({}, [
                 {
                     classGroups: [
@@ -98,7 +99,9 @@ EOS
                                     function AwesomeClass() {}
 
                                     AwesomeClass.prototype.getIt = function () {
-                                        return Promise.resolve(21);
+                                        return new Promise(function (resolve) {
+                                            doResolve = resolve;
+                                        });
                                     };
 
                                     return AwesomeClass;
@@ -109,9 +112,12 @@ EOS
                 }
             ]);
 
-        module({}, environment).execute().then(when(done, function (result) {
-            expect(result.getNative()).to.equal(121);
-        }), done);
+        return module({}, environment).execute().then(function (result) {
+            // Check that the promise is returned unaltered, without being awaited
+            expect(result.getType()).to.equal('object');
+            doResolve(21);
+            return expect(result.getNative()).to.eventually.equal(21);
+        });
     });
 
     it('should support installing an auto-coercing custom class using the "classGroups" property whose method returns an FFI result returning a Promise that resolves to a primitive value', function (done) {

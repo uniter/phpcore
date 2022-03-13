@@ -20,7 +20,9 @@ module.exports = function (internals) {
      * @constructor
      */
     function ParseError() {
-        internals.callSuperConstructor(this, arguments);
+        // Synchronously await the superconstructor: should be fine as it should always be defined
+        // and not require autoloading.
+        internals.callSuperConstructor(this, arguments).yieldSync();
     }
 
     internals.extendClass('CompileError');

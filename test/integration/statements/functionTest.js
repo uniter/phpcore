@@ -22,7 +22,7 @@ function doNothing() {}
 return doNothing();
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php);
 
         module().execute().then(function (result) {
             expect(result.getNative()).to.equal(null);

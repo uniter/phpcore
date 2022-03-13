@@ -20,7 +20,7 @@ describe('PHP JS<->PHP bridge JS function import synchronous mode integration', 
 return 21 + $myJSFunc();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.expose(function () {
@@ -36,7 +36,7 @@ EOS
 return 21 + $myJSFunc();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.expose(function () {
@@ -57,7 +57,7 @@ EOS
 return 21 + $myJSFunc();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.expose(function () {
@@ -75,7 +75,7 @@ EOS
 return 21 + $myJSFunc();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.expose(function () {

@@ -18,11 +18,19 @@ var _ = require('microdash'),
  * - An array
  * - An object implementing Traversable
  *
+ * @param {FutureFactory} futureFactory
  * @param {boolean} nullIsAllowed
  * @constructor
  */
-function IterableType(nullIsAllowed) {
+function IterableType(futureFactory, nullIsAllowed) {
     /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
+    /**
+     * Note that whether a type is nullable is not directly to whether a parameter using that type is nullable -
+     * if the default value is null then it will allow null, which is checked in the Parameter class.
+     *
      * @type {boolean}
      */
     this.nullIsAllowed = nullIsAllowed;
@@ -44,8 +52,19 @@ _.extend(IterableType.prototype, {
      * {@inheritdoc}
      */
     allowsValue: function (value) {
-        return value.isIterable() ||
-            (this.allowsNull() && value.getType() === 'null');
+        var typeObject = this;
+
+        return typeObject.futureFactory.createPresent(
+            value.isIterable() ||
+            (typeObject.allowsNull() && value.getType() === 'null')
+        );
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    coerceValue: function (value) {
+        return value; // No special coercion to perform.
     },
 
     /**

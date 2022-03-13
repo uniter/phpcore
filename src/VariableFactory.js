@@ -18,17 +18,29 @@ module.exports = require('pauser')([
      * @param {class} Variable
      * @param {CallStack} callStack
      * @param {ValueFactory} valueFactory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {FutureFactory} futureFactory
      * @constructor
      */
     function VariableFactory(
         Variable,
         callStack,
-        valueFactory
+        valueFactory,
+        referenceFactory,
+        futureFactory
     ) {
         /**
          * @type {CallStack}
          */
         this.callStack = callStack;
+        /**
+         * @type {FutureFactory}
+         */
+        this.futureFactory = futureFactory;
+        /**
+         * @type {ReferenceFactory}
+         */
+        this.referenceFactory = referenceFactory;
         /**
          * @type {ValueFactory}
          */
@@ -49,7 +61,13 @@ module.exports = require('pauser')([
         createVariable: function (variableName) {
             var factory = this;
 
-            return new factory.Variable(factory.callStack, factory.valueFactory, variableName);
+            return new factory.Variable(
+                factory.callStack,
+                factory.valueFactory,
+                factory.referenceFactory,
+                factory.futureFactory,
+                variableName
+            );
         }
     });
 

@@ -17,11 +17,19 @@ var _ = require('microdash'),
 /**
  * Represents a type that can only accept an array value
  *
+ * @param {FutureFactory} futureFactory
  * @param {boolean} nullIsAllowed
  * @constructor
  */
-function ArrayType(nullIsAllowed) {
+function ArrayType(futureFactory, nullIsAllowed) {
     /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
+    /**
+     * Note that whether a type is nullable is not directly to whether a parameter using that type is nullable -
+     * if the default value is null then it will allow null, which is checked in the Parameter class.
+     *
      * @type {boolean}
      */
     this.nullIsAllowed = nullIsAllowed;
@@ -43,8 +51,19 @@ _.extend(ArrayType.prototype, {
      * {@inheritdoc}
      */
     allowsValue: function (value) {
-        return value.getType() === 'array' ||
-            (this.allowsNull() && value.getType() === 'null');
+        var typeObject = this;
+
+        return typeObject.futureFactory.createPresent(
+            value.getType() === 'array' ||
+            (typeObject.allowsNull() && value.getType() === 'null')
+        );
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    coerceValue: function (value) {
+        return value; // No special coercion to perform.
     },
 
     /**

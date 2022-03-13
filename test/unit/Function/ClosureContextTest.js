@@ -13,34 +13,50 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     Class = require('../../../src/Class').sync(),
     ClosureContext = require('../../../src/Function/ClosureContext'),
-    NamespaceScope = require('../../../src/NamespaceScope').sync();
+    NamespaceScope = require('../../../src/NamespaceScope').sync(),
+    ObjectValue = require('../../../src/Value/Object').sync();
 
 describe('ClosureContext', function () {
+    var classObject,
+        context,
+        enclosingObject,
+        namespaceScope;
+
     beforeEach(function () {
-        this.classObject = sinon.createStubInstance(Class);
-        this.namespaceScope = sinon.createStubInstance(NamespaceScope);
+        classObject = sinon.createStubInstance(Class);
+        enclosingObject = sinon.createStubInstance(ObjectValue);
+        namespaceScope = sinon.createStubInstance(NamespaceScope);
 
-        this.classObject.getName.returns('Your\\Lib\\YourNamespace\\YourClass');
-        this.namespaceScope.getNamespacePrefix.returns('My\\Lib\\MyNamespace\\');
+        classObject.getName.returns('Your\\Lib\\YourNamespace\\YourClass');
+        namespaceScope.getNamespacePrefix.returns('My\\Lib\\MyNamespace\\');
 
-        this.context = new ClosureContext(this.namespaceScope, this.classObject);
+        context = new ClosureContext(namespaceScope, classObject, enclosingObject);
     });
 
     describe('getName()', function () {
         it('should return the correct string including the namespace prefix but not the class', function () {
-            expect(this.context.getName()).to.equal('My\\Lib\\MyNamespace\\{closure}');
+            expect(context.getName()).to.equal('My\\Lib\\MyNamespace\\{closure}');
         });
     });
 
     describe('getTraceFrameName()', function () {
-        it('should return the correct string including the class and namespace when there is a current class', function () {
-            expect(this.context.getTraceFrameName()).to.equal(
+        it('should return the correct string including the class and namespace when there is a current class and object', function () {
+            expect(context.getTraceFrameName()).to.equal(
+                'Your\\Lib\\YourNamespace\\YourClass->My\\Lib\\MyNamespace\\{closure}'
+            );
+        });
+
+        it('should return the correct string including the class and namespace when there is a current class but no object', function () {
+            var context = new ClosureContext(namespaceScope, classObject, null);
+
+            expect(context.getTraceFrameName()).to.equal(
+                // Note that "::" is used as the delimiter rather than "->".
                 'Your\\Lib\\YourNamespace\\YourClass::My\\Lib\\MyNamespace\\{closure}'
             );
         });
 
         it('should return the correct string including the namespace prefix when there is no current class', function () {
-            var context = new ClosureContext(this.namespaceScope, null);
+            var context = new ClosureContext(namespaceScope, null, null);
 
             expect(context.getTraceFrameName()).to.equal('My\\Lib\\MyNamespace\\{closure}');
         });
@@ -48,7 +64,7 @@ describe('ClosureContext', function () {
 
     describe('getUnprefixedName()', function () {
         it('should return the correct string including the namespace prefix but not the class', function () {
-            expect(this.context.getUnprefixedName()).to.equal('My\\Lib\\MyNamespace\\{closure}');
+            expect(context.getUnprefixedName()).to.equal('My\\Lib\\MyNamespace\\{closure}');
         });
     });
 });

@@ -22,7 +22,6 @@ describe('Runtime', function () {
         Environment,
         globalStackHooker,
         options,
-        pausable,
         phpCommon,
         PHPState,
         runtime,
@@ -32,7 +31,6 @@ describe('Runtime', function () {
         Environment = sinon.stub();
         Engine = sinon.stub();
         globalStackHooker = sinon.createStubInstance(GlobalStackHooker);
-        pausable = {};
         phpCommon = {};
         PHPState = sinon.stub();
 
@@ -49,7 +47,6 @@ describe('Runtime', function () {
             stdin,
             stdout,
             stderr,
-            pausable,
             mode,
             optionGroups,
             newOptions
@@ -69,7 +66,6 @@ describe('Runtime', function () {
                 PHPState,
                 phpCommon,
                 globalStackHooker,
-                mode === 'async' ? pausable : null,
                 mode
             );
         };
@@ -81,20 +77,6 @@ describe('Runtime', function () {
             expect(function () {
                 createRuntime('my-invalid-mode');
             }).to.throw('Invalid mode "my-invalid-mode" given - must be one of "async", "psync" or "sync"');
-        });
-
-        it('should throw when async mode is given but Pausable is not', function () {
-            expect(function () {
-                runtime = new Runtime(
-                    Environment,
-                    Engine,
-                    PHPState,
-                    phpCommon,
-                    globalStackHooker,
-                    null,
-                    'async'
-                );
-            }).to.throw('Pausable library must be provided for async mode');
         });
     });
 
@@ -126,7 +108,6 @@ describe('Runtime', function () {
                     sinon.match.same(phpCommon),
                     {option1: 21},
                     sinon.match.same(wrapper),
-                    sinon.match.same(pausable),
                     'async'
                 );
             });
@@ -158,7 +139,6 @@ describe('Runtime', function () {
                     sinon.match.same(phpCommon),
                     {option1: 21},
                     sinon.match.same(wrapper),
-                    null,
                     'psync'
                 );
             });
@@ -186,8 +166,7 @@ describe('Runtime', function () {
                     null,
                     sinon.match.same(phpCommon),
                     {'first-option': 21, 'second-option': 101},
-                    sinon.match.same(wrapper),
-                    sinon.match.same(pausable)
+                    sinon.match.same(wrapper)
                 );
             });
 
@@ -202,8 +181,7 @@ describe('Runtime', function () {
                     null,
                     sinon.match.same(phpCommon),
                     {'my-option': 101},
-                    sinon.match.same(wrapper),
-                    sinon.match.same(pausable)
+                    sinon.match.same(wrapper)
                 );
             });
 
@@ -224,8 +202,7 @@ describe('Runtime', function () {
                         'my-option': 'final value',
                         'your-option': 'unchanged value'
                     },
-                    sinon.match.same(wrapper),
-                    sinon.match.same(pausable)
+                    sinon.match.same(wrapper)
                 );
             });
 
@@ -375,7 +352,7 @@ describe('Runtime', function () {
             });
 
             expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState.args[0][8][0]()).to.deep.equal({yourOption: 1001});
+            expect(PHPState.args[0][7][0]()).to.deep.equal({yourOption: 1001});
         });
     });
 
@@ -396,12 +373,13 @@ describe('Runtime', function () {
                     constantGroups: [],
                     defaultINIGroups: [],
                     functionGroups: [],
+                    opcodeGroups: [],
+                    serviceGroups: [],
                     translationCatalogues: []
                 },
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
-                sinon.match.same(pausable),
                 'async',
                 [],
                 {myOption: 21}
@@ -415,7 +393,9 @@ describe('Runtime', function () {
                 constantGroup = sinon.stub(),
                 defaultINIGroup = sinon.stub(),
                 functionGroup = sinon.stub(),
+                opcodeGroup = sinon.stub(),
                 optionGroup = sinon.stub(),
+                serviceGroup = sinon.stub(),
                 translationCatalogue = sinon.stub();
 
             runtime.createEnvironment({
@@ -434,7 +414,9 @@ describe('Runtime', function () {
                     return {
                         defaultINIGroups: [defaultINIGroup],
                         functionGroups: [functionGroup],
+                        opcodeGroups: [opcodeGroup],
                         optionGroups: [optionGroup],
+                        serviceGroups: [serviceGroup],
                         translationCatalogues: [translationCatalogue]
                     };
                 }
@@ -451,12 +433,13 @@ describe('Runtime', function () {
                     constantGroups: [constantGroup],
                     defaultINIGroups: [defaultINIGroup],
                     functionGroups: [functionGroup],
+                    opcodeGroups: [opcodeGroup],
+                    serviceGroups: [serviceGroup],
                     translationCatalogues: [translationCatalogue]
                 },
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
-                sinon.match.same(pausable),
                 'async',
                 [
                     optionGroup
@@ -495,12 +478,13 @@ describe('Runtime', function () {
                     constantGroups: [],
                     defaultINIGroups: [],
                     functionGroups: [],
+                    opcodeGroups: [],
+                    serviceGroups: [],
                     translationCatalogues: []
                 },
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
                 sinon.match.instanceOf(Stream),
-                sinon.match.same(pausable),
                 'async',
                 [],
                 {myOption: 101}
@@ -551,6 +535,8 @@ describe('Runtime', function () {
                     constantGroups: [],
                     defaultINIGroups: [],
                     functionGroups: [],
+                    opcodeGroups: [],
+                    serviceGroups: [],
                     translationCatalogues: []
                 }
             );
@@ -577,9 +563,10 @@ describe('Runtime', function () {
                     constantGroups: [],
                     defaultINIGroups: [],
                     functionGroups: [],
+                    opcodeGroups: [],
+                    serviceGroups: [],
                     translationCatalogues: []
                 },
-                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -613,12 +600,10 @@ describe('Runtime', function () {
                     constantGroups: [],
                     defaultINIGroups: [],
                     functionGroups: [],
+                    opcodeGroups: [],
+                    serviceGroups: [],
                     translationCatalogues: []
-                },
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.any
+                }
             );
         });
 
@@ -645,12 +630,10 @@ describe('Runtime', function () {
                     classes: {},
                     defaultINIGroups: [],
                     functionGroups: [],
+                    opcodeGroups: [],
+                    serviceGroups: [],
                     translationCatalogues: []
-                },
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.any
+                }
             );
         });
 
@@ -677,12 +660,70 @@ describe('Runtime', function () {
                         sinon.match.same(defaultINIGroupFactory)
                     ],
                     functionGroups: [],
+                    opcodeGroups: [],
+                    serviceGroups: [],
                     translationCatalogues: []
-                },
+                }
+            );
+        });
+
+        it('should cause created environments to have the provided opcode groups', function () {
+            var opcodeGroupFactory = sinon.stub();
+
+            runtime.install({
+                opcodeGroups: [
+                    opcodeGroupFactory
+                ]
+            });
+            runtime.createEnvironment();
+
+            expect(PHPState).to.have.been.calledOnce;
+            expect(PHPState).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
+                {
+                    bindingGroups: [],
+                    constantGroups: [],
+                    classGroups: [],
+                    classes: {},
+                    defaultINIGroups: [],
+                    functionGroups: [],
+                    opcodeGroups: [
+                        sinon.match.same(opcodeGroupFactory)
+                    ],
+                    serviceGroups: [],
+                    translationCatalogues: []
+                }
+            );
+        });
+
+        it('should cause created environments to have the provided service groups', function () {
+            var serviceGroupFactory = sinon.stub();
+
+            runtime.install({
+                serviceGroups: [
+                    serviceGroupFactory
+                ]
+            });
+            runtime.createEnvironment();
+
+            expect(PHPState).to.have.been.calledOnce;
+            expect(PHPState).to.have.been.calledWith(
                 sinon.match.any,
-                sinon.match.any
+                sinon.match.any,
+                {
+                    bindingGroups: [],
+                    constantGroups: [],
+                    classGroups: [],
+                    classes: {},
+                    defaultINIGroups: [],
+                    functionGroups: [],
+                    opcodeGroups: [],
+                    serviceGroups: [
+                        sinon.match.same(serviceGroupFactory)
+                    ],
+                    translationCatalogues: []
+                }
             );
         });
 
@@ -713,14 +754,12 @@ describe('Runtime', function () {
                     classes: {},
                     defaultINIGroups: [],
                     functionGroups: [],
+                    opcodeGroups: [],
+                    serviceGroups: [],
                     translationCatalogues: [
                         sinon.match.same(defaultTranslationCatalogue)
                     ]
-                },
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.any
+                }
             );
         });
 
@@ -749,6 +788,8 @@ describe('Runtime', function () {
                     constantGroups: [],
                     defaultINIGroups: [],
                     functionGroups: [],
+                    opcodeGroups: [],
+                    serviceGroups: [],
                     translationCatalogues: []
                 }
             );

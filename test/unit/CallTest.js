@@ -17,70 +17,80 @@ var expect = require('chai').expect,
     NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     Scope = require('../../src/Scope').sync(),
+    Trace = require('../../src/Control/Trace'),
     Value = require('../../src/Value').sync();
 
 describe('Call', function () {
-    beforeEach(function () {
-        this.argValue1 = sinon.createStubInstance(Value);
-        this.argValue2 = sinon.createStubInstance(Value);
-        this.namespaceScope = sinon.createStubInstance(NamespaceScope);
-        this.newStaticClass = sinon.createStubInstance(Class);
-        this.scope = sinon.createStubInstance(Scope);
+    var argValue1,
+        argValue2,
+        call,
+        namespaceScope,
+        newStaticClass,
+        scope,
+        trace;
 
-        this.call = new Call(this.scope, this.namespaceScope, [this.argValue1, this.argValue2], this.newStaticClass);
+    beforeEach(function () {
+        argValue1 = sinon.createStubInstance(Value);
+        argValue2 = sinon.createStubInstance(Value);
+        namespaceScope = sinon.createStubInstance(NamespaceScope);
+        newStaticClass = sinon.createStubInstance(Class);
+        scope = sinon.createStubInstance(Scope);
+        trace = sinon.createStubInstance(Trace);
+
+        call = new Call(scope, namespaceScope, trace, [argValue1, argValue2], newStaticClass);
     });
 
     describe('getCurrentClass()', function () {
         it('should return the current Class from the Scope', function () {
             var classObject = sinon.createStubInstance(Class);
-            this.scope.getCurrentClass.returns(classObject);
+            scope.getCurrentClass.returns(classObject);
 
-            expect(this.call.getCurrentClass()).to.equal(classObject);
+            expect(call.getCurrentClass()).to.equal(classObject);
         });
     });
 
     describe('getFilePath()', function () {
         it('should return the path from the NamespaceScope', function () {
-            this.namespaceScope.getFilePath.returns('/my/current/file.php');
+            namespaceScope.getFilePath.returns('/my/current/file.php');
 
-            expect(this.call.getFilePath()).to.equal('/my/current/file.php');
+            expect(call.getFilePath()).to.equal('/my/current/file.php');
         });
     });
 
     describe('getFunctionArgs()', function () {
         it('should return the argument Values passed to the called function', function () {
-            var argValues = this.call.getFunctionArgs();
+            var argValues = call.getFunctionArgs();
 
             expect(argValues).to.have.length(2);
-            expect(argValues[0]).to.equal(this.argValue1);
-            expect(argValues[1]).to.equal(this.argValue2);
+            expect(argValues[0]).to.equal(argValue1);
+            expect(argValues[1]).to.equal(argValue2);
         });
     });
 
     describe('getFunctionName()', function () {
         it('should return the current trace frame name from the Scope', function () {
-            this.scope.getTraceFrameName.returns('myFunc');
+            scope.getTraceFrameName.returns('myFunc');
 
-            expect(this.call.getFunctionName()).to.equal('myFunc');
+            expect(call.getFunctionName()).to.equal('myFunc');
         });
     });
 
     describe('getLastLine()', function () {
         it('should return the current line from the Finder if instrumented', function () {
             var finder = sinon.stub().returns(123);
-            this.call.instrument(finder);
+            call.instrument(finder);
 
-            expect(this.call.getLastLine()).to.equal(123);
+            expect(call.getLastLine()).to.equal(123);
         });
 
         it('should return null if not instrumented', function () {
-            expect(this.call.getLastLine()).to.be.null;
+            expect(call.getLastLine()).to.be.null;
         });
     });
 
     describe('getScope()', function () {
         it('should return the scope', function () {
-            expect(this.call.getScope()).to.equal(this.scope);
+            expect(call.getScope()).to.equal(scope);
         });
     });
 
@@ -90,66 +100,95 @@ describe('Call', function () {
                 thisObject = sinon.createStubInstance(ObjectValue);
             thisObject.getClass.returns(classObject);
             thisObject.getType.returns('object');
-            this.scope.getThisObject.returns(thisObject);
+            scope.getThisObject.returns(thisObject);
 
-            expect(this.call.getStaticClass()).to.equal(classObject);
+            expect(call.getStaticClass()).to.equal(classObject);
         });
 
         it('should return the new static class when $this is a NullValue', function () {
             var thisObject = sinon.createStubInstance(NullValue);
             thisObject.getType.returns('null');
-            this.scope.getThisObject.returns(thisObject);
+            scope.getThisObject.returns(thisObject);
 
-            expect(this.call.getStaticClass()).to.equal(this.newStaticClass);
+            expect(call.getStaticClass()).to.equal(newStaticClass);
         });
 
         it('should return the new static class for this call when no $this object is set', function () {
-            expect(this.call.getStaticClass()).to.equal(this.newStaticClass);
+            expect(call.getStaticClass()).to.equal(newStaticClass);
         });
 
         it('should return null when neither a $this object nor a new static class are set', function () {
-            this.call = new Call(
-                this.scope,
-                this.namespaceScope,
-                [this.argValue1, this.argValue2],
+            call = new Call(
+                scope,
+                namespaceScope,
+                trace,
+                [argValue1, argValue2],
                 null // No new static class (eg. forwarding static call)
             );
 
-            expect(this.call.getStaticClass()).to.be.null;
+            expect(call.getStaticClass()).to.be.null;
         });
     });
 
     describe('getThisObject()', function () {
         it('should return the this object from the scope', function () {
             var thisObject = sinon.createStubInstance(ObjectValue);
-            this.scope.getThisObject.returns(thisObject);
+            scope.getThisObject.returns(thisObject);
 
-            expect(this.call.getThisObject()).to.equal(thisObject);
+            expect(call.getThisObject()).to.equal(thisObject);
+        });
+    });
+
+    describe('getTrace()', function () {
+        it('should fetch the Trace for this call', function () {
+            expect(call.getTrace()).to.equal(trace);
         });
     });
 
     describe('getTraceFilePath()', function () {
         it('should fetch the path via the Scope', function () {
-            this.namespaceScope.getFilePath.returns('/my/module_path.php');
-            this.scope.getFilePath
+            namespaceScope.getFilePath.returns('/my/module_path.php');
+            scope.getFilePath
                 .withArgs('/my/module_path.php')
                 .returns('/my/module_path.php with some additional context');
 
-            expect(this.call.getTraceFilePath()).to.equal('/my/module_path.php with some additional context');
+            expect(call.getTraceFilePath()).to.equal('/my/module_path.php with some additional context');
         });
     });
 
     describe('isUserland()', function () {
         it('should return true when the called function was not defined in the global NamespaceScope', function () {
-            this.namespaceScope.isGlobal.returns(false);
+            namespaceScope.isGlobal.returns(false);
 
-            expect(this.call.isUserland()).to.be.true;
+            expect(call.isUserland()).to.be.true;
         });
 
         it('should return false when the called function was defined in the global NamespaceScope', function () {
-            this.namespaceScope.isGlobal.returns(true);
+            namespaceScope.isGlobal.returns(true);
 
-            expect(this.call.isUserland()).to.be.false;
+            expect(call.isUserland()).to.be.false;
+        });
+    });
+
+    describe('resume()', function () {
+        it('should resume this call\'s trace with the given result value', function () {
+            var result = {my: 'result'};
+
+            call.resume(result);
+
+            expect(trace.resume).to.have.been.calledOnce;
+            expect(trace.resume).to.have.been.calledWith(sinon.match.same(result));
+        });
+    });
+
+    describe('throwInto()', function () {
+        it('should throw into this call\'s trace with the given result error', function () {
+            var error = new Error('My error');
+
+            call.throwInto(error);
+
+            expect(trace.throwInto).to.have.been.calledOnce;
+            expect(trace.throwInto).to.have.been.calledWith(sinon.match.same(error));
         });
     });
 });

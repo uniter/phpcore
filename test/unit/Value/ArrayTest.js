@@ -11,6 +11,7 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('../tools'),
     ArrayIterator = require('../../../src/Iterator/ArrayIterator'),
     ArrayValue = require('../../../src/Value/Array').sync(),
     CallStack = require('../../../src/CallStack'),
@@ -27,8 +28,7 @@ var expect = require('chai').expect,
     PropertyReference = require('../../../src/Reference/Property'),
     Reference = require('../../../src/Reference/Reference'),
     StringValue = require('../../../src/Value/String').sync(),
-    Value = require('../../../src/Value').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    Value = require('../../../src/Value').sync();
 
 describe('Array', function () {
     var callStack,
@@ -44,17 +44,25 @@ describe('Array', function () {
         elementValue1,
         elementValue2,
         factory,
+        futureFactory,
         globalNamespace,
         namespaceScope,
+        referenceFactory,
+        state,
         value;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        state = tools.createIsolatedState(null, {
+            'call_stack': callStack
+        });
         elementProvider = new ElementProvider();
-        factory = new ValueFactory();
+        factory = state.getValueFactory();
+        futureFactory = state.getFutureFactory();
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         globalNamespace = sinon.createStubInstance(Namespace);
         namespaceScope.getGlobalNamespace.returns(globalNamespace);
+        referenceFactory = state.getReferenceFactory();
 
         createKeyValuePair = function (key, value) {
             var keyValuePair = sinon.createStubInstance(KeyValuePair);
@@ -95,120 +103,147 @@ describe('Array', function () {
         createValue = function (valueFactory) {
             value = new ArrayValue(
                 valueFactory || factory,
+                referenceFactory,
+                futureFactory,
                 callStack,
                 elements,
-                null,
                 elementProvider
             );
         };
         createValue();
     });
 
-    describe('addToArray() - adding an array to another array', function () {
-        var leftElement1,
-            leftElement2,
-            leftValue;
+    describe('add()', function () {
+        describe('adding an array to another array', function () {
+            var rightElement1,
+                rightElement2,
+                rightValue;
 
-        beforeEach(function () {
-            leftElement1 = createKeyValuePair(
-                factory.createString('firstEl'),
-                factory.createString('value of left first el')
-            );
-            leftElement2 = createKeyValuePair(
-                factory.createString('leftSecondEl'),
-                factory.createString('value of left second el')
-            );
+            beforeEach(function () {
+                rightElement1 = createKeyValuePair(
+                    factory.createString('firstEl'),
+                    factory.createString('value of left first el')
+                );
+                rightElement2 = createKeyValuePair(
+                    factory.createString('rightSecondEl'),
+                    factory.createString('value of right second el')
+                );
 
-            leftValue = new ArrayValue(factory, callStack, [
-                leftElement1,
-                leftElement2
-            ], null, elementProvider);
+                rightValue = new ArrayValue(
+                    factory,
+                    referenceFactory,
+                    futureFactory,
+                    callStack,
+                    [rightElement1, rightElement2],
+                    elementProvider
+                );
+            });
+
+            it('should return an array', function () {
+                expect(value.add(rightValue)).to.be.an.instanceOf(ArrayValue);
+            });
+
+            it('should return a different array to the left operand', function () {
+                expect(value.add(rightValue)).not.to.equal(rightValue);
+            });
+
+            it('should prefer elements from left array over elements from right array', function () {
+                var result = value.add(rightValue);
+
+                expect(result.getNative().firstEl).to.equal('value of first el');
+                expect(result.getNative().secondEl).to.equal('value of second el');
+                expect(result.getNative().rightSecondEl).to.equal('value of right second el');
+            });
         });
 
-        it('should return an array', function () {
-            expect(value.addToArray(leftValue)).to.be.an.instanceOf(ArrayValue);
+        describe('adding an array to a boolean', function () {
+            it('should throw an "Unsupported operand" error', function () {
+                var booleanValue = factory.createBoolean(true);
+
+                expect(function () {
+                    value.add(booleanValue);
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                );
+            });
         });
 
-        it('should return a different array to the left operand', function () {
-            expect(value.addToArray(leftValue)).not.to.equal(leftValue);
+        describe('adding an array to a float', function () {
+            it('should throw an "Unsupported operand" error', function () {
+                var floatValue = factory.createFloat(1.2);
+
+                expect(function () {
+                    value.add(floatValue);
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                );
+            });
         });
 
-        it('should prefer elements from left array over elements from right array', function () {
-            var result = value.addToArray(leftValue);
+        describe('adding an array to an integer', function () {
+            it('should throw an "Unsupported operand" error', function () {
+                var integerValue = factory.createInteger(4);
 
-            expect(result.getNative().firstEl).to.equal('value of left first el');
-            expect(result.getNative().secondEl).to.equal('value of second el');
-            expect(result.getNative().leftSecondEl).to.equal('value of left second el');
+                expect(function () {
+                    value.add(integerValue);
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                );
+            });
+        });
+
+        describe('adding an array to null', function () {
+            it('should throw an "Unsupported operand" error', function () {
+                var nullValue = factory.createNull();
+
+                expect(function () {
+                    value.add(nullValue);
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                );
+            });
+        });
+
+        describe('adding an array to an object', function () {
+            it('should attempt to coerce to number, to raise the relevant notice if an object', function () {
+                var objectValue = sinon.createStubInstance(ObjectValue);
+
+                try {
+                    value.add(objectValue);
+                } catch (e) {}
+
+                // Would raise "Object of class ... could not be converted to number"
+                expect(objectValue.coerceToNumber).to.have.been.calledOnce;
+            });
+
+            it('should throw an "Unsupported operand" error', function () {
+                var objectValue = sinon.createStubInstance(ObjectValue);
+                objectValue.getType.returns('object');
+
+                expect(function () {
+                    value.add(objectValue);
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                );
+            });
+        });
+
+        describe('adding an array to a string', function () {
+            it('should throw an "Unsupported operand" error', function () {
+                var stringValue = factory.createString('My string value');
+
+                expect(function () {
+                    value.add(stringValue);
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                );
+            });
         });
     });
 
-    describe('addToBoolean() - adding an array to a boolean', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var booleanValue = factory.createBoolean(true);
-
-            expect(function () {
-                value.addToBoolean(booleanValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('addToFloat() - adding an array to a float', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var floatValue = factory.createFloat(1.2);
-
-            expect(function () {
-                value.addToFloat(floatValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('addToInteger() - adding an array to an integer', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var integerValue = factory.createInteger(4);
-
-            expect(function () {
-                value.addToInteger(integerValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('addToNull() - adding an array to null', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var nullValue = factory.createNull();
-
-            expect(function () {
-                value.addToNull(nullValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('addToObject() - adding an array to an object', function () {
-        it('should hand off to ObjectValue.addToArray(...)', function () {
-            var objectValue = sinon.createStubInstance(ObjectValue),
-                result = {};
-            objectValue.addToArray.withArgs(value).returns(result);
-
-            expect(value.addToObject(objectValue)).to.equal(result);
-        });
-    });
-
-    describe('addToString() - adding an array to a string', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var stringValue = factory.createString('My string value');
-
-            expect(function () {
-                value.addToString(stringValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
+    describe('asFuture()', function () {
+        it('should return a Present that resolves to this value', function () {
+            return expect(value.asFuture().toPromise()).to.eventually.equal(value);
         });
     });
 
@@ -273,23 +308,6 @@ describe('Array', function () {
                 expect(classNameValue.callStaticMethod.args[0][1][1]).to.be.an.instanceOf(StringValue);
                 expect(classNameValue.callStaticMethod.args[0][1][1].getNative()).to.equal('second arg');
             });
-
-            it('should pass the NamespaceScope along', function () {
-                value.call(
-                    [
-                        factory.createString('first arg'),
-                        factory.createString('second arg')
-                    ],
-                    namespaceScope
-                );
-
-                expect(classNameValue.callStaticMethod).to.have.been.calledOnce;
-                expect(classNameValue.callStaticMethod).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.same(namespaceScope)
-                );
-            });
         });
 
         describe('for an instance method call', function () {
@@ -325,23 +343,6 @@ describe('Array', function () {
                 expect(objectValue.callMethod.args[0][1][0].getNative()).to.equal('first arg');
                 expect(objectValue.callMethod.args[0][1][1]).to.be.an.instanceOf(StringValue);
                 expect(objectValue.callMethod.args[0][1][1].getNative()).to.equal('second arg');
-            });
-
-            it('should pass the NamespaceScope along', function () {
-                value.call(
-                    [
-                        factory.createString('first arg'),
-                        factory.createString('second arg')
-                    ],
-                    namespaceScope
-                );
-
-                expect(objectValue.callMethod).to.have.been.calledOnce;
-                expect(objectValue.callMethod).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.same(namespaceScope)
-                );
             });
         });
     });
@@ -396,6 +397,7 @@ describe('Array', function () {
         beforeEach(function () {
             nativeStdClassObject = {};
             stdClassObject = sinon.createStubInstance(ObjectValue);
+            stdClassObject.next.yields(stdClassObject);
             sinon.stub(factory, 'createStdClassObject').returns(stdClassObject);
 
             stdClassObject.getInstancePropertyByName.callsFake(function (nameValue) {
@@ -423,108 +425,46 @@ describe('Array', function () {
         });
     });
 
-    describe('divide()', function () {
+    describe('convertForBooleanType()', function () {
+        it('should just return this value as no conversion is possible', function () {
+            expect(value.convertForBooleanType()).to.equal(value);
+        });
+    });
+
+    describe('convertForFloatType()', function () {
+        it('should just return this value as no conversion is possible', function () {
+            expect(value.convertForFloatType()).to.equal(value);
+        });
+    });
+
+    describe('convertForIntegerType()', function () {
+        it('should just return this value as no conversion is possible', function () {
+            expect(value.convertForIntegerType()).to.equal(value);
+        });
+    });
+
+    describe('convertForStringType()', function () {
+        it('should just return this value as no conversion is possible', function () {
+            expect(value.convertForStringType()).to.equal(value);
+        });
+    });
+
+    describe('decrement()', function () {
+        // NB: Yes, this is actually the correct behaviour, vs. subtracting one from an array explicitly.
+        it('should return a copy of the array', function () {
+            var resultValue = value.decrement();
+
+            expect(resultValue.getNative()).to.deep.equal(value.getNative());
+            expect(resultValue).not.to.equal(value);
+        });
+    });
+
+    describe('divideBy()', function () {
         it('should throw an "Unsupported operand" error', function () {
             var rightValue = sinon.createStubInstance(Value);
 
             expect(function () {
-                value.divide(rightValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('divideByArray()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createArray([]);
-
-            expect(function () {
-                value.divideByArray(leftValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('divideByBoolean()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createBoolean(true);
-
-            expect(function () {
-                value.divideByBoolean(leftValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('divideByFloat()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createFloat(1.2);
-
-            expect(function () {
-                value.divideByFloat(leftValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('divideByInteger()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createInteger(4);
-
-            expect(function () {
-                value.divideByInteger(leftValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('divideByNonArray()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createInteger(21);
-
-            expect(function () {
-                value.divideByNonArray(leftValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('divideByNull()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createNull();
-
-            expect(function () {
-                value.divideByNull(leftValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('divideByObject()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createObject({});
-
-            expect(function () {
-                value.divideByObject(leftValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('divideByString()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createString('my string value');
-
-            expect(function () {
-                value.divideByString(leftValue);
+                value.divideBy(rightValue);
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
@@ -675,8 +615,8 @@ describe('Array', function () {
     });
 
     describe('getIterator()', function () {
-        it('should return an ArrayIterator for this array', function () {
-            var iterator = value.getIterator();
+        it('should return an ArrayIterator for this array', async function () {
+            var iterator = await value.getIterator().toPromise();
 
             expect(iterator).to.be.an.instanceOf(ArrayIterator);
             expect(iterator.getIteratedValue()).to.equal(value);
@@ -688,10 +628,14 @@ describe('Array', function () {
             var result;
             element1.getKey.returns(factory.createString('1'));
             element2.getKey.returns(factory.createString('0'));
-            value = new ArrayValue(factory, callStack, [
-                element1,
-                element2
-            ], null, elementProvider);
+            value = new ArrayValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                [element1, element2],
+                elementProvider
+            );
 
             result = value.getNative();
 
@@ -703,10 +647,14 @@ describe('Array', function () {
             var result;
             element1.getKey.returns(factory.createString('nonNumeric'));
             element2.getKey.returns(factory.createString('7'));
-            value = new ArrayValue(factory, callStack, [
-                element1,
-                element2
-            ], null, elementProvider);
+            value = new ArrayValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                [element1, element2],
+                elementProvider
+            );
 
             result = value.getNative();
 
@@ -720,7 +668,14 @@ describe('Array', function () {
 
         it('should unwrap to a native array when the array is empty', function () {
             var result;
-            value = new ArrayValue(factory, callStack, [], null, elementProvider);
+            value = new ArrayValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                [],
+                elementProvider
+            );
 
             result = value.getNative();
 
@@ -734,10 +689,14 @@ describe('Array', function () {
             var result;
             element1.getKey.returns(factory.createString('1'));
             element2.getKey.returns(factory.createString('0'));
-            value = new ArrayValue(factory, callStack, [
-                element1,
-                element2
-            ], null, elementProvider);
+            value = new ArrayValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                [element1, element2],
+                elementProvider
+            );
 
             result = value.getProxy();
 
@@ -749,10 +708,14 @@ describe('Array', function () {
             var result;
             element1.getKey.returns(factory.createString('nonNumeric'));
             element2.getKey.returns(factory.createString('7'));
-            value = new ArrayValue(factory, callStack, [
-                element1,
-                element2
-            ], null, elementProvider);
+            value = new ArrayValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                [element1, element2],
+                elementProvider
+            );
 
             result = value.getProxy();
 
@@ -766,7 +729,14 @@ describe('Array', function () {
 
         it('should unwrap to a native array when the array is empty', function () {
             var result;
-            value = new ArrayValue(factory, callStack, [], null, elementProvider);
+            value = new ArrayValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                [],
+                elementProvider
+            );
 
             result = value.getProxy();
 
@@ -805,6 +775,16 @@ describe('Array', function () {
         });
     });
 
+    describe('increment()', function () {
+        // NB: Yes, this is actually the correct behaviour, vs. adding one to an array explicitly.
+        it('should return a copy of the array', function () {
+            var resultValue = value.increment();
+
+            expect(resultValue.getNative()).to.deep.equal(value.getNative());
+            expect(resultValue).not.to.equal(value);
+        });
+    });
+
     describe('instantiate()', function () {
         it('should raise a fatal error', function () {
             expect(function () {
@@ -826,7 +806,7 @@ describe('Array', function () {
     });
 
     describe('isCallable()', function () {
-        it('should return true for a valid instance method name of a given object', function () {
+        it('should return true for a valid instance method name of a given object', async function () {
             var classObject = sinon.createStubInstance(Class),
                 methodSpec = sinon.createStubInstance(MethodSpec),
                 objectValue = sinon.createStubInstance(ObjectValue);
@@ -851,10 +831,10 @@ describe('Array', function () {
             );
             createValue();
 
-            expect(value.isCallable(globalNamespace)).to.be.true;
+            expect(await value.isCallable(globalNamespace).toPromise()).to.be.true;
         });
 
-        it('should return true for a valid static method name of a given class', function () {
+        it('should return true for a valid static method name of a given class', async function () {
             var classObject = sinon.createStubInstance(Class),
                 methodSpec = sinon.createStubInstance(MethodSpec);
             classObject.getMethodSpec
@@ -865,7 +845,7 @@ describe('Array', function () {
                 .returns(true);
             globalNamespace.getClass
                 .withArgs('My\\Fqcn')
-                .returns(classObject);
+                .returns(futureFactory.createPresent(classObject));
             elements[0] = createKeyValuePair(
                 elementKey2,
                 factory.createString('My\\Fqcn')
@@ -876,36 +856,37 @@ describe('Array', function () {
             );
             createValue();
 
-            expect(value.isCallable(globalNamespace)).to.be.true;
+            expect(await value.isCallable(globalNamespace).toPromise()).to.be.true;
         });
 
-        it('should return false for an empty array', function () {
+        it('should return false for an empty array', async function () {
             elements.length = 0;
             createValue();
 
-            expect(value.isCallable(globalNamespace)).to.be.false;
+            expect(await value.isCallable(globalNamespace).toPromise()).to.be.false;
         });
 
-        it('should return false for an array with one element', function () {
+        it('should return false for an array with one element', async function () {
             elements.length = 1;
             createValue();
 
-            expect(value.isCallable(globalNamespace)).to.be.false;
+            expect(await value.isCallable(globalNamespace).toPromise()).to.be.false;
         });
 
-        it('should return false for an array with a non-string second element', function () {
+        it('should return false for an array with a non-string second element', async function () {
             elements[1] = createKeyValuePair(
                 elementKey2,
                 factory.createInteger(21)
             );
+            createValue();
 
-            expect(value.isCallable(globalNamespace)).to.be.false;
+            expect(await value.isCallable(globalNamespace).toPromise()).to.be.false;
         });
 
-        it('should return false for a non-existent class', function () {
-            globalNamespace.hasClass
-                .withArgs('My\\Fqcn')
-                .returns(false);
+        it('should return false for a non-existent class', async function () {
+            globalNamespace.getClass
+                .withArgs('My\\NonExistentFqcn')
+                .returns(futureFactory.createRejection(new Error('Class not found')));
             elements[0] = createKeyValuePair(
                 elementKey2,
                 factory.createString('My\\NonExistentFqcn')
@@ -916,10 +897,10 @@ describe('Array', function () {
             );
             createValue();
 
-            expect(value.isCallable(globalNamespace)).to.be.false;
+            expect(await value.isCallable(globalNamespace).toPromise()).to.be.false;
         });
 
-        it('should return false for a non-existent instance method', function () {
+        it('should return false for a non-existent instance method', async function () {
             var classObject = sinon.createStubInstance(Class),
                 objectValue = sinon.createStubInstance(ObjectValue);
             objectValue.getClass.returns(classObject);
@@ -932,7 +913,7 @@ describe('Array', function () {
                 .returns(true);
             globalNamespace.getClass
                 .withArgs('My\\Fqcn')
-                .returns(classObject);
+                .returns(futureFactory.createPresent(classObject));
             elements[0] = createKeyValuePair(
                 elementKey2,
                 objectValue
@@ -943,10 +924,10 @@ describe('Array', function () {
             );
             createValue();
 
-            expect(value.isCallable(globalNamespace)).to.be.false;
+            expect(await value.isCallable(globalNamespace).toPromise()).to.be.false;
         });
 
-        it('should return true for a non-existent static method', function () {
+        it('should return true for a non-existent static method', async function () {
             var classObject = sinon.createStubInstance(Class);
             classObject.getMethodSpec
                 .withArgs('myNonExistentStaticMethod')
@@ -956,7 +937,7 @@ describe('Array', function () {
                 .returns(true);
             globalNamespace.getClass
                 .withArgs('My\\Fqcn')
-                .returns(classObject);
+                .returns(futureFactory.createPresent(classObject));
             elements[0] = createKeyValuePair(
                 elementKey2,
                 factory.createString('My\\Fqcn')
@@ -967,20 +948,20 @@ describe('Array', function () {
             );
             createValue();
 
-            expect(value.isCallable(globalNamespace)).to.be.false;
+            expect(await value.isCallable(globalNamespace).toPromise()).to.be.false;
         });
     });
 
     describe('isEmpty()', function () {
-        it('should return true when the array is empty', function () {
+        it('should return true when the array is empty', async function () {
             elements.length = 0;
             createValue();
 
-            expect(value.isEmpty()).to.be.true;
+            expect(await value.isEmpty().toPromise()).to.be.true;
         });
 
-        it('should return false when the array is not empty', function () {
-            expect(value.isEmpty()).to.be.false;
+        it('should return false when the array is not empty', async function () {
+            expect(await value.isEmpty().toPromise()).to.be.false;
         });
     });
 
@@ -993,6 +974,12 @@ describe('Array', function () {
     describe('isNumeric()', function () {
         it('should return false', function () {
             expect(value.isNumeric()).to.be.false;
+        });
+    });
+
+    describe('isReferenceable()', function () {
+        it('should return false', function () {
+            expect(value.isReferenceable()).to.be.false;
         });
     });
 
@@ -1117,96 +1104,72 @@ describe('Array', function () {
         });
     });
 
-    describe('multiply()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var rightValue = sinon.createStubInstance(Value);
+    describe('multiplyBy()', function () {
+        it('should throw an "Unsupported operand" error when multiplier is an array', function () {
+            var multiplierValue = factory.createArray([]);
 
             expect(function () {
-                value.multiply(rightValue);
+                value.multiplyBy(multiplierValue);
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
         });
-    });
 
-    describe('multiplyByArray()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createArray([]);
+        it('should throw an "Unsupported operand" error when multiplier is a boolean', function () {
+            var multiplierValue = factory.createBoolean(true);
 
             expect(function () {
-                value.multiplyByArray(leftValue);
+                value.multiplyBy(multiplierValue);
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
         });
-    });
 
-    describe('multiplyByBoolean()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createBoolean(true);
+        it('should throw an "Unsupported operand" error when multiplier is a float', function () {
+            var multiplierValue = factory.createFloat(1.2);
 
             expect(function () {
-                value.multiplyByBoolean(leftValue);
+                value.multiplyBy(multiplierValue);
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
         });
-    });
 
-    describe('multiplyByFloat()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createFloat(1.2);
-
-            expect(function () {
-                value.multiplyByFloat(leftValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('multiplyByInteger()', function () {
-        it('should throw an "Unsupported operand" error', function () {
+        it('should throw an "Unsupported operand" error when multiplier is an integer', function () {
             var leftValue = factory.createInteger(4);
 
             expect(function () {
-                value.multiplyByInteger(leftValue);
+                value.multiplyBy(leftValue);
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
         });
-    });
 
-    describe('multiplyByNull()', function () {
-        it('should throw an "Unsupported operand" error', function () {
+        it('should throw an "Unsupported operand" error when multiplier is null', function () {
             var leftValue = factory.createNull();
 
             expect(function () {
-                value.multiplyByNull(leftValue);
+                value.multiplyBy(leftValue);
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
         });
-    });
 
-    describe('multiplyByObject()', function () {
-        it('should throw an "Unsupported operand" error', function () {
+        it('should throw an "Unsupported operand" error when multiplier is an object', function () {
             var leftValue = factory.createObject({});
 
             expect(function () {
-                value.multiplyByObject(leftValue);
+                value.multiplyBy(leftValue);
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
         });
-    });
 
-    describe('multiplyByString()', function () {
-        it('should throw an "Unsupported operand" error', function () {
+        it('should throw an "Unsupported operand" error when multiplier is a string', function () {
             var leftValue = factory.createString('my string value');
 
             expect(function () {
-                value.multiplyByString(leftValue);
+                value.multiplyBy(leftValue);
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
@@ -1382,10 +1345,12 @@ describe('Array', function () {
         });
     });
 
-    describe('subtractFromNull() - subtracting an array from null', function () {
+    describe('subtract()', function () {
         it('should throw an "Unsupported operand" error', function () {
+            var subtrahendValue = factory.createInteger(21);
+
             expect(function () {
-                value.subtractFromNull();
+                value.subtract(subtrahendValue);
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
@@ -1406,11 +1371,14 @@ describe('Array', function () {
         });
 
         it('should set the reference for the element', function () {
-            value = new ArrayValue(factory, callStack, [
-                element1,
-                element2,
-                element3
-            ], null, elementProvider);
+            value = new ArrayValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                [element1, element2, element3],
+                elementProvider
+            );
 
             expect(value.getElementByIndex(2).getValue().getNative()).to.equal(21);
         });

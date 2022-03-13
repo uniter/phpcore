@@ -103,8 +103,7 @@ _.extend(ValueHelper.prototype, {
 
     /**
      * Takes the given ObjectValue and returns a special AsyncObjectValue that wraps it,
-     * providing the same API but with Promises returned when relevant methods are called,
-     * to avoid the caller having to be Pausable-aware
+     * providing the same API but with Promises returned when relevant methods are called
      *
      * @param {ObjectValue} objectValue
      * @returns {AsyncObjectValue}

@@ -18,6 +18,7 @@ module.exports = require('pauser')([
     require('../KeyValuePair'),
     require('../Reference/Null'),
     require('../Reference/Reference'),
+    require('../Reference/ReferenceSlot'),
     require('../Value'),
     require('../Variable')
 ], function (
@@ -29,6 +30,7 @@ module.exports = require('pauser')([
     KeyValuePair,
     NullReference,
     Reference,
+    ReferenceSlot,
     Value,
     Variable
 ) {
@@ -56,7 +58,25 @@ module.exports = require('pauser')([
             return keyNative;
         };
 
-    function ArrayValue(factory, callStack, orderedElements, type, elementProvider) {
+    /**
+     * Represents a PHP array value
+     *
+     * @param {ValueFactory} factory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {FutureFactory} futureFactory
+     * @param {CallStack} callStack
+     * @param {Array} orderedElements
+     * @param {ElementProvider|HookableElementProvider} elementProvider
+     * @constructor
+     */
+    function ArrayValue(
+        factory,
+        referenceFactory,
+        futureFactory,
+        callStack,
+        orderedElements,
+        elementProvider
+    ) {
         var elements = [],
             keysToElements = [],
             value = this;
@@ -79,12 +99,16 @@ module.exports = require('pauser')([
                     key = factory.createFromNative(key);
                 }
 
-                if (orderedElement instanceof Reference) {
+                if (orderedElement instanceof ReferenceSlot) {
+                    // A reference was explicitly provided: the resulting array element
+                    // should be a reference
                     elementReference = orderedElement;
-                } else if (orderedElement instanceof Variable) {
-                    // TODO: Prevent Variables ever being passed to the ArrayValue ctor, only References
-                    elementValue = orderedElement.getValue();
+                } else if (orderedElement instanceof Reference || orderedElement instanceof Variable) {
+                    // For other storage types, the value contained should be extracted
+                    // and used as the array element value
+                    elementReference = orderedElement.getValue().getForAssignment();
                 } else {
+                    // Otherwise, value is either native or already a Value object: coerce to Value
                     elementValue = factory.coerce(orderedElement);
                 }
             }
@@ -99,23 +123,43 @@ module.exports = require('pauser')([
             keysToElements[sanitiseKey(key.getNative())] = element;
         });
 
-        Value.call(this, factory, callStack, type || 'array', elements);
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'array', elements);
 
+        /**
+         * @type {ElementProvider|HookableElementProvider}
+         */
         this.elementProvider = elementProvider;
+        /**
+         * @type {Object.<string, ElementReference>}
+         */
         this.keysToElements = keysToElements;
+        /**
+         * @type {number}
+         */
         this.pointer = 0;
     }
 
     util.inherits(ArrayValue, Value);
 
     _.extend(ArrayValue.prototype, {
+        /**
+         * Overrides the implementation in Value, allowing for unioning arrays together
+         * with the plus operator
+         *
+         * @param {Reference|Value|Variable} rightValue
+         * @returns {Value}
+         */
         add: function (rightValue) {
-            return rightValue.addToArray(this);
-        },
+            var leftValue = this,
+                resultArray;
 
-        addToArray: function (leftValue) {
-            var rightValue = this,
-                resultArray = leftValue.getForAssignment();
+            if (rightValue.getType() !== 'array') {
+                rightValue.coerceToNumber();
+
+                leftValue.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
+            }
+
+            resultArray = leftValue.getForAssignment();
 
             _.forOwn(rightValue.keysToElements, function (element, key) {
                 if (!hasOwn.call(resultArray.keysToElements, key)) {
@@ -127,56 +171,13 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Adds this value to a boolean
-         */
-        addToBoolean: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
-         * Adds this value to a float
-         */
-        addToFloat: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
-         * Adds this value to an integer
-         */
-        addToInteger: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
-         * Adds this value to null
-         */
-        addToNull: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
-         * Adds this value to an object
-         */
-        addToObject: function (objectValue) {
-            return objectValue.addToArray(this);
-        },
-
-        /**
-         * Adds this value to a string
-         */
-        addToString: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
          * Calls a static or instance method, referenced by the first two elements of this array
          *
-         * @param {Value[]} args
-         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
+         * @param {Reference[]|Value[]|Variable[]} args
          * @returns {Value}
          * @throws {PHPFatalError} Throws when the given function name is not a string
          */
-        call: function (args, namespaceOrNamespaceScope) {
+        call: function (args) {
             var methodNameValue,
                 objectOrClassValue,
                 arrayValue = this,
@@ -190,20 +191,18 @@ module.exports = require('pauser')([
             methodNameValue = value[1].getValue();
 
             if (objectOrClassValue.getType() === 'string') {
-                return objectOrClassValue.callStaticMethod(
-                    methodNameValue,
-                    args,
-                    namespaceOrNamespaceScope
-                );
+                return objectOrClassValue.callStaticMethod(methodNameValue, args);
             }
 
-            return objectOrClassValue.callMethod(
-                methodNameValue.getNative(),
-                args,
-                namespaceOrNamespaceScope
-            );
+            return objectOrClassValue.callMethod(methodNameValue.getNative(), args);
         },
 
+        /**
+         * Overrides the implementation in Value - when an array is coerced to an array,
+         * we keep it unchanged and do not wrap it in a further array
+         *
+         * @returns {ArrayValue}
+         */
         coerceToArray: function () {
             return this;
         },
@@ -225,22 +224,34 @@ module.exports = require('pauser')([
         },
 
         coerceToNumber: function () {
-            return this.coerceToInteger();
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
+        /**
+         * {@inheritdoc}
+         */
         coerceToObject: function () {
-            var value = this,
-                object = value.factory.createStdClassObject();
+            var value = this;
 
-            _.each(value.value, function (element) {
-                object.getInstancePropertyByName(element.getKey()).setValue(element.getValue());
+            return value.factory.createStdClassObject().next(function (objectValue) {
+                _.each(value.value, function (element) {
+                    objectValue.getInstancePropertyByName(element.getKey()).setValue(element.getValue());
+                });
+
+                return objectValue;
             });
-
-            return object;
         },
 
         coerceToString: function () {
             return this.factory.createString('Array');
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        decrement: function () {
+            // NB: This is the expected behaviour, vs. attempting to subtract one from an array explicitly.
+            return this.getForAssignment();
         },
 
         defineElement: function (elementReference) {
@@ -271,13 +282,7 @@ module.exports = require('pauser')([
                 }
             });
 
-            return new ArrayValue(
-                arrayValue.factory,
-                arrayValue.callStack,
-                orderedElements,
-                arrayValue.type,
-                arrayValue.elementProvider
-            );
+            return arrayValue.factory.createArray(orderedElements, arrayValue.elementProvider);
         },
 
         getKeys: function () {
@@ -317,12 +322,29 @@ module.exports = require('pauser')([
             return result;
         },
 
-        getCurrentElement: function () {
+        /**
+         * Fetches a reference to the element this array's internal pointer is currently pointing to.
+         *
+         * @returns {Reference}
+         */
+        getCurrentElementReference: function () {
             var value = this;
 
-            return value.value[value.pointer] || value.factory.createNull();
+            return value.value[value.pointer] || value.referenceFactory.createNull();
         },
 
+        /**
+         * Fetches the value of the element this array's internal pointer is currently pointing to.
+         *
+         * @returns {Value}
+         */
+        getCurrentElementValue: function () {
+            return this.getCurrentElementReference().getValue();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
         getElementByKey: function (key) {
             var element,
                 keyValue,
@@ -332,7 +354,7 @@ module.exports = require('pauser')([
 
             if (!key) {
                 // Could not be coerced to a key: error will already have been handled, just return NULL
-                return new NullReference(value.factory);
+                return value.referenceFactory.createNull();
             }
 
             keyValue = sanitiseKey(key.getNative());
@@ -352,7 +374,7 @@ module.exports = require('pauser')([
             return value.value[index] || (function () {
                     value.callStack.raiseError(PHPError.E_NOTICE, 'Undefined ' + value.referToElement(index));
 
-                    return new NullReference(value.factory);
+                    return value.referenceFactory.createNull();
                 }());
         },
 
@@ -371,12 +393,12 @@ module.exports = require('pauser')([
         /**
          * Creates an ArrayIterator for iterating over this array. Used by transpiled foreach loops.
          *
-         * @returns {ArrayIterator}
+         * @returns {Future<ArrayIterator>}
          */
         getIterator: function () {
             var value = this;
 
-            return value.factory.createArrayIterator(value);
+            return value.futureFactory.createPresent(value.factory.createArrayIterator(value));
         },
 
         getValueReferences: function () {
@@ -404,6 +426,9 @@ module.exports = require('pauser')([
             return this.pointer;
         },
 
+        /**
+         * {@inheritdoc}
+         */
         getPushElement: function () {
             var value = this;
 
@@ -420,6 +445,14 @@ module.exports = require('pauser')([
             return values;
         },
 
+        /**
+         * {@inheritdoc}
+         */
+        increment: function () {
+            // NB: This is the expected behaviour, vs. attempting to add one to an array explicitly.
+            return this.getForAssignment();
+        },
+
         isAnInstanceOf: function (classNameValue) {
             return classNameValue.isTheClassOfArray(this);
         },
@@ -428,48 +461,54 @@ module.exports = require('pauser')([
          * {@inheritdoc}
          */
         isCallable: function (globalNamespace) {
-            var classObject,
+            var classObjectFuture,
                 methodNameValue,
                 objectOrClassValue,
                 arrayValue = this,
+                futureFactory = arrayValue.futureFactory,
                 value = arrayValue.value;
 
             if (value.length < 2) {
-                return false;
+                // We need two elements: the class FQCN or an instance plus the method name
+                return futureFactory.createPresent(false);
             }
 
             objectOrClassValue = value[0].getValue();
             methodNameValue = value[1].getValue();
 
             if (objectOrClassValue.getType() === 'string') {
-                if (!globalNamespace.hasClass(objectOrClassValue.getNative())) {
-                    return false;
-                }
-
-                classObject = globalNamespace.getClass(objectOrClassValue.getNative());
+                classObjectFuture = globalNamespace.getClass(objectOrClassValue.getNative());
             } else if (objectOrClassValue.getType() === 'object') {
-                classObject = objectOrClassValue.getClass();
+                classObjectFuture = futureFactory.createPresent(objectOrClassValue.getClass());
             } else {
                 // First element must either be an object or a string
-                return false;
+                return futureFactory.createPresent(false);
             }
 
             if (methodNameValue.getType() !== 'string') {
                 // Second, method name element must be a string containing the name of a method
-                return false;
+                return futureFactory.createPresent(false);
             }
 
-            return classObject.getMethodSpec(methodNameValue.getNative()) !== null;
+            return classObjectFuture.next(function (classObject) {
+                return classObject.getMethodSpec(methodNameValue.getNative()) !== null;
+            }, function () {
+                // TODO: Ensure that the error swallowed here cannot be something important
+
+                return false;
+            });
         },
 
         /**
          * Determines whether this array is classed as "empty" or not.
          * Only empty arrays (with no elements) are classed as empty
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>}
          */
         isEmpty: function () {
-            return this.value.length === 0;
+            var value = this;
+
+            return value.futureFactory.createPresent(value.value.length === 0);
         },
 
         isEqualTo: function (rightValue) {
@@ -565,10 +604,6 @@ module.exports = require('pauser')([
             return false;
         },
 
-        next: function () {
-            this.pointer++;
-        },
-
         /**
          * Calculates the ones' complement of this value
          */
@@ -643,6 +678,12 @@ module.exports = require('pauser')([
             return keyValue;
         },
 
+        /**
+         * Generates a human-readable string that refers to an element
+         *
+         * @param {string} key
+         * @returns {string}
+         */
         referToElement: function (key) {
             return 'offset: ' + key;
         },
@@ -700,14 +741,6 @@ module.exports = require('pauser')([
             value.value = newElements;
 
             return elements[0].getValue();
-        },
-
-        shiftLeftBy: function (rightValue) {
-            return this.coerceToInteger().shiftLeftBy(rightValue);
-        },
-
-        shiftRightBy: function (rightValue) {
-            return this.coerceToInteger().shiftRightBy(rightValue);
         },
 
         sort: function (callback) {

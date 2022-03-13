@@ -17,16 +17,24 @@ var _ = require('microdash'),
 /**
  * Represents a type that can only accept an instance of the specified class or interface or null (if allowed)
  *
+ * @param {FutureFactory} futureFactory
  * @param {string} className
  * @param {boolean} nullIsAllowed
  * @constructor
  */
-function ClassType(className, nullIsAllowed) {
+function ClassType(futureFactory, className, nullIsAllowed) {
     /**
      * @type {string}
      */
     this.className = className;
     /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
+    /**
+     * Note that whether a type is nullable is not directly to whether a parameter using that type is nullable -
+     * if the default value is null then it will allow null, which is checked in the Parameter class.
+     *
      * @type {boolean}
      */
     this.nullIsAllowed = nullIsAllowed;
@@ -50,8 +58,17 @@ _.extend(ClassType.prototype, {
     allowsValue: function (value) {
         var typeObject = this;
 
-        return (value.getType() === 'object' && value.classIs(typeObject.className)) ||
-            (typeObject.allowsNull() && value.getType() === 'null');
+        return typeObject.futureFactory.createPresent(
+            (value.getType() === 'object' && value.classIs(typeObject.className)) ||
+            (typeObject.allowsNull() && value.getType() === 'null')
+        );
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    coerceValue: function (value) {
+        return value; // No special coercion to perform.
     },
 
     /**

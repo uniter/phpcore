@@ -12,24 +12,28 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../tools'),
     ClassType = require('../../../src/Type/ClassType'),
     ObjectValue = require('../../../src/Value/Object').sync(),
-    Translator = phpCommon.Translator,
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    Translator = phpCommon.Translator;
 
 describe('ClassType', function () {
-    var type,
+    var futureFactory,
+        state,
+        type,
         valueFactory;
 
     beforeEach(function () {
-        valueFactory = new ValueFactory();
+        state = tools.createIsolatedState();
+        futureFactory = state.getFutureFactory();
+        valueFactory = state.getValueFactory();
 
-        type = new ClassType('My\\Fqcn\\ToMyClass', false);
+        type = new ClassType(futureFactory, 'My\\Fqcn\\ToMyClass', false);
     });
 
     describe('allowsNull()', function () {
         it('should return true when set', function () {
-            type = new ClassType('My\\Fqcn\\ToMyClass', true);
+            type = new ClassType(futureFactory, 'My\\Fqcn\\ToMyClass', true);
 
             expect(type.allowsNull()).to.be.true;
         });
@@ -40,70 +44,78 @@ describe('ClassType', function () {
     });
 
     describe('allowsValue()', function () {
-        it('should return true for an instance of the class', function () {
+        it('should return true for an instance of the class', async function () {
             var objectValue = sinon.createStubInstance(ObjectValue);
             objectValue.classIs
                 .withArgs('My\\Fqcn\\ToMyClass')
                 .returns(true);
             objectValue.getType.returns('object');
 
-            expect(type.allowsValue(objectValue)).to.be.true;
+            expect(await type.allowsValue(objectValue).toPromise()).to.be.true;
         });
 
-        it('should return false for an object that is not an instance of the class', function () {
+        it('should return false for an object that is not an instance of the class', async function () {
             var objectValue = sinon.createStubInstance(ObjectValue);
             objectValue.classIs
                 .withArgs('My\\Fqcn\\ToMyClass')
                 .returns(false);
             objectValue.getType.returns('object');
 
-            expect(type.allowsValue(objectValue)).to.be.false;
+            expect(await type.allowsValue(objectValue).toPromise()).to.be.false;
         });
 
-        it('should return false for an array', function () {
+        it('should return false for an array', async function () {
             var value = valueFactory.createArray([21]);
 
-            expect(type.allowsValue(value)).to.be.false;
+            expect(await type.allowsValue(value).toPromise()).to.be.false;
         });
 
-        it('should return false for a boolean', function () {
+        it('should return false for a boolean', async function () {
             var value = valueFactory.createBoolean(true);
 
-            expect(type.allowsValue(value)).to.be.false;
+            expect(await type.allowsValue(value).toPromise()).to.be.false;
         });
 
-        it('should return false for a float', function () {
+        it('should return false for a float', async function () {
             var value = valueFactory.createFloat(123.456);
 
-            expect(type.allowsValue(value)).to.be.false;
+            expect(await type.allowsValue(value).toPromise()).to.be.false;
         });
 
-        it('should return false for an integer', function () {
+        it('should return false for an integer', async function () {
             var value = valueFactory.createInteger(4321);
 
-            expect(type.allowsValue(value)).to.be.false;
+            expect(await type.allowsValue(value).toPromise()).to.be.false;
         });
 
-        it('should return false for null', function () {
+        it('should return false for null', async function () {
             var value = valueFactory.createNull();
 
-            expect(type.allowsValue(value)).to.be.false;
+            expect(await type.allowsValue(value).toPromise()).to.be.false;
         });
 
-        it('should return false for a string', function () {
+        it('should return false for a string', async function () {
             var value = valueFactory.createString('my string');
 
-            expect(type.allowsValue(value)).to.be.false;
+            expect(await type.allowsValue(value).toPromise()).to.be.false;
         });
 
-        it('should return true when null given and null is allowed', function () {
-            type = new ClassType('My\\Fqcn\\ToMyClass', true);
+        it('should return true when null given and null is allowed', async function () {
+            type = new ClassType(futureFactory, 'My\\Fqcn\\ToMyClass', true);
 
-            expect(type.allowsValue(valueFactory.createNull())).to.be.true;
+            expect(await type.allowsValue(valueFactory.createNull()).toPromise()).to.be.true;
         });
 
-        it('should return false when null given but null is disallowed', function () {
-            expect(type.allowsValue(valueFactory.createNull())).to.be.false;
+        it('should return false when null given but null is disallowed', async function () {
+            expect(await type.allowsValue(valueFactory.createNull()).toPromise()).to.be.false;
+        });
+    });
+
+    describe('coerceValue()', function () {
+        it('should return the value unchanged', function () {
+            var value = sinon.createStubInstance(ObjectValue);
+
+            expect(type.coerceValue(value)).to.equal(value);
         });
     });
 

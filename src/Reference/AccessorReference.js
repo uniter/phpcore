@@ -10,22 +10,55 @@
 'use strict';
 
 var _ = require('microdash'),
+    phpCommon = require('phpcommon'),
     util = require('util'),
+    Exception = phpCommon.Exception,
     Reference = require('./Reference');
 
-function AccessorReference(valueFactory, valueGetter, valueSetter) {
+/**
+ * Represents a special type of reference where a getter and setter callback function are provided.
+ *
+ * @param {ValueFactory} valueFactory
+ * @param {ReferenceFactory} referenceFactory
+ * @param {Function} valueGetter
+ * @param {Function|null} valueSetter
+ * @constructor
+ */
+function AccessorReference(
+    valueFactory,
+    referenceFactory,
+    valueGetter,
+    valueSetter
+) {
+    Reference.call(this, referenceFactory);
+
+    /**
+     * @type {ValueFactory}
+     */
     this.valueFactory = valueFactory;
+    /**
+     * @type {Function}
+     */
     this.valueGetter = valueGetter;
+    /**
+     * @type {Function}
+     */
     this.valueSetter = valueSetter;
 }
 
 util.inherits(AccessorReference, Reference);
 
 _.extend(AccessorReference.prototype, {
+    /**
+     * {@inheritdoc}
+     */
     getReference: function () {
         return this;
     },
 
+    /**
+     * {@inheritdoc}
+     */
     getValue: function () {
         var reference = this;
 
@@ -33,18 +66,50 @@ _.extend(AccessorReference.prototype, {
     },
 
     /**
-     * Determines whether this reference is defined
-     *
-     * @returns {boolean}
+     * {@inheritdoc}
      */
     isDefined: function () {
         return true;
     },
 
-    setValue: function (value) {
-        this.valueSetter(value.getNative());
+    /**
+     * {@inheritdoc}
+     */
+    isEmpty: function () {
+        return this.getValue()
+            .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
+            .next(function (resultValue) {
+                return resultValue.isEmpty();
+            });
+    },
 
-        return value;
+    /**
+     * {@inheritdoc}
+     */
+    isSet: function () {
+        return this.getValue()
+            .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
+            .next(function (resultValue) {
+                return resultValue.isSet();
+            });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    setValue: function (value) {
+        var reference = this;
+
+        if (!reference.valueSetter) {
+            throw new Exception('Accessor is read-only');
+        }
+
+        return value.next(function (presentValue) {
+            reference.valueSetter(presentValue.getNative());
+
+            // Return the set value as the result.
+            return presentValue;
+        });
     }
 });
 

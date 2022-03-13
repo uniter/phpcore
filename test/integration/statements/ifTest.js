@@ -27,7 +27,7 @@ if (1 === 2 || 7 === 4 || 3 === 3) {
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal([
             'yep'
@@ -58,10 +58,111 @@ callIt(function () {
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal([
             'found'
         ]);
+    });
+
+    it('should support pause/resume', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+$result[] = get_async('first');
+
+function testAsync($value)
+{
+    global $result;
+    $result[] = get_async('second');
+
+    if (get_async($value) === get_async(1000)) {
+        $result[] = get_async('third') . get_async(' and a concat');
+    } elseif (get_async($value) === get_async(1001)) {
+        $result[] = get_async('fourth');
+    } else {
+        $result[] = get_async('fifth');
+    }
+
+    return get_async($value);
+}
+
+$result[] = get_async('sixth');
+$result[] = testAsync(get_async(1000));
+
+$result[] = get_async('seventh');
+$result[] = testAsync(get_async(1001));
+
+$result[] = get_async('eighth');
+$result[] = testAsync(get_async(99999));
+
+$result[] = get_async('ninth');
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        engine.defineCoercingFunction('get_async', function (value) {
+            return this.createFutureValue(function (resolve) {
+                setImmediate(function () {
+                    resolve(value);
+                });
+            });
+        });
+
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal([
+                'first',
+                'sixth',
+                'second',
+                'third and a concat',
+                1000,
+                'seventh',
+                'second',
+                'fourth',
+                1001,
+                'eighth',
+                'second',
+                'fifth',
+                99999,
+                'ninth'
+            ]);
+        });
+    });
+
+    it('should support fetching the condition from accessor returning future in async mode', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+// Read the value from the accessor as the condition.
+if ($myAccessor) {
+    $result['accessor in condition'] = 'yes';
+}
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineGlobalAccessor(
+            'myAccessor',
+            function () {
+                return this.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve('my value');
+                    });
+                });
+            }
+        );
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'accessor in condition': 'yes'
+        });
     });
 });

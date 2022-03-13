@@ -18,15 +18,53 @@ module.exports = require('pauser')([
     util,
     StringValue
 ) {
-    function BarewordStringValue(factory, callStack, value) {
-        StringValue.call(this, factory, callStack, value);
+    /**
+     * Represents an undelimited string, which can resolve relative to the current namespace scope
+     * (eg. with "use function", "use {class}" etc.)
+     *
+     * Note that global constants will be transpiled as a getConstant() opcode and not a bareword,
+     * therefore a bareword is not actually a valid expression term.
+     *
+     * @param {ValueFactory} factory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {FutureFactory} futureFactory
+     * @param {CallStack} callStack
+     * @param {string} value
+     * @param {Namespace} globalNamespace
+     * @param {NamespaceScope} namespaceScope
+     * @constructor
+     */
+    function BarewordStringValue(
+        factory,
+        referenceFactory,
+        futureFactory,
+        callStack,
+        value,
+        globalNamespace,
+        namespaceScope
+    ) {
+        StringValue.call(this, factory, referenceFactory, futureFactory, callStack, value, globalNamespace);
+
+        /**
+         * @type {NamespaceScope}
+         */
+        this.namespaceScope = namespaceScope;
     }
 
     util.inherits(BarewordStringValue, StringValue);
 
     _.extend(BarewordStringValue.prototype, {
-        call: function (args, namespaceOrNamespaceScope) {
-            return namespaceOrNamespaceScope.getFunction(this.value).apply(null, args);
+        /**
+         * Calls the function this bareword references.
+         *
+         * @param {Reference[]|Value[]|Variable[]} args
+         * @returns {Value}
+         */
+        call: function (args) {
+            var value = this,
+                func = value.namespaceScope.getFunction(value.value);
+
+            return func.apply(null, args);
         },
 
         /**
@@ -34,26 +72,30 @@ module.exports = require('pauser')([
          *
          * @param {StringValue} nameValue
          * @param {Value[]} args
-         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
          * @param {bool} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
-         * @returns {Value}
+         * @returns {FutureValue}
          */
-        callStaticMethod: function (nameValue, args, namespaceOrNamespaceScope, isForwarding) {
-            var value = this,
-                classObject = namespaceOrNamespaceScope.getClass(value.value);
+        callStaticMethod: function (nameValue, args, isForwarding) {
+            var value = this;
 
-            return classObject.callMethod(nameValue.getNative(), args, null, null, null, isForwarding);
+            // Note that this may pause due to autoloading
+            return value.factory.createFuture(function (resolve, reject) {
+                value.namespaceScope.getClass(value.value)
+                    .next(function (classObject) {
+                        classObject.callMethod(nameValue.getNative(), args, null, null, null, !!isForwarding)
+                            .next(resolve, reject);
+                    }, reject);
+            });
         },
 
         /**
          * Fetches the fully-qualified version of this name (function or class)
          *
-         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
          * @returns {StringValue}
          */
-        getCallableName: function (namespaceOrNamespaceScope) {
+        getCallableName: function () {
             var rightValue = this,
-                resolvedClass = namespaceOrNamespaceScope.resolveClass(rightValue.value);
+                resolvedClass = rightValue.namespaceScope.resolveClass(rightValue.value);
 
             return resolvedClass.namespace.getPrefix() + resolvedClass.name;
         },
@@ -62,28 +104,33 @@ module.exports = require('pauser')([
          * Fetches the value of a constant from the class this string refers to
          *
          * @param {string} name
-         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
-         * @returns {Value}
+         * @returns {FutureValue}
          */
-        getConstantByName: function (name, namespaceOrNamespaceScope) {
-            var value = this,
-                classObject = namespaceOrNamespaceScope.getClass(value.value);
+        getConstantByName: function (name) {
+            var value = this;
 
-            return classObject.getConstantByName(name);
+            // Note that this may pause due to autoloading
+            return value.factory.createFuture(function (resolve, reject) {
+                value.namespaceScope.getClass(value.value)
+                    .next(function (classObject) {
+                        resolve(classObject.getConstantByName(name));
+                    }, reject);
+            });
         },
 
         /**
-         * Fetches the value of a static property of the class this string refers to
+         * Fetches a reference to a static property of the class this string refers to
          *
          * @param {StringValue} nameValue
-         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
-         * @returns {Value}
+         * @returns {Future<StaticPropertyReference|UndeclaredStaticPropertyReference>}
          */
-        getStaticPropertyByName: function (nameValue, namespaceOrNamespaceScope) {
-            var value = this,
-                classObject = namespaceOrNamespaceScope.getClass(value.value);
+        getStaticPropertyByName: function (nameValue) {
+            var value = this;
 
-            return classObject.getStaticPropertyByName(nameValue.getNative());
+            return value.namespaceScope.getClass(value.value)
+                .next(function (classObject) {
+                    return classObject.getStaticPropertyByName(nameValue.getNative());
+                });
         },
 
         /**
@@ -91,26 +138,27 @@ module.exports = require('pauser')([
          * relative to the current namespace
          *
          * @param {Value[]} args
-         * @param {NamespaceScope} namespaceScope
-         * @returns {ObjectValue}
+         * @returns {FutureValue<ObjectValue>}
          */
-        instantiate: function (args, namespaceScope) {
-            var value = this,
-                classObject = namespaceScope.getClass(value.value);
+        instantiate: function (args) {
+            var value = this;
 
-            return classObject.instantiate(args);
+            return value.namespaceScope.getClass(value.value)
+                .next(function (classObject) {
+                    return classObject.instantiate(args);
+                })
+                .asValue();
         },
 
         /**
          * Determines whether the class this string references is the class of the specified object
          *
          * @param {ObjectValue} objectValue
-         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
          * @returns {BooleanValue}
          */
-        isTheClassOfObject: function (objectValue, namespaceOrNamespaceScope) {
+        isTheClassOfObject: function (objectValue) {
             var rightValue = this,
-                fqcn = rightValue.getCallableName(namespaceOrNamespaceScope);
+                fqcn = rightValue.getCallableName(rightValue.namespaceScope);
 
             return rightValue.factory.createBoolean(
                 objectValue.classIs(fqcn)

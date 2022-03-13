@@ -9,12 +9,22 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    TypedFunction = require('../../Function/TypedFunction');
 
 /**
  * @param {string} mode Synchronicity mode: "async", "psync" or "sync"
- * @param {Resumable|null} pausable
+ * @param {Userland} userland
+ * @param {Flow} flow
+ * @param {ControlScope} controlScope
+ * @param {Includer} includer
+ * @param {OnceIncluder} onceIncluder
+ * @param {Evaluator} evaluator
  * @param {ValueFactory} valueFactory
+ * @param {ReferenceFactory} referenceFactory
+ * @param {ControlFactory} controlFactory
+ * @param {PauseFactory} pauseFactory
+ * @param {FutureFactory} futureFactory
  * @param {CallFactory} callFactory
  * @param {CallStack} callStack
  * @param {ValueHelper} valueHelper
@@ -36,8 +46,17 @@ var _ = require('microdash');
  */
 function Internals(
     mode,
-    pausable,
+    userland,
+    flow,
+    controlScope,
+    includer,
+    onceIncluder,
+    evaluator,
     valueFactory,
+    referenceFactory,
+    controlFactory,
+    pauseFactory,
+    futureFactory,
     callFactory,
     callStack,
     valueHelper,
@@ -73,6 +92,16 @@ function Internals(
     this.classAutoloader = classAutoloader;
     /**
      * @public
+     * @type {ControlFactory}
+     */
+    this.controlFactory = controlFactory;
+    /**
+     * @public
+     * @type {ControlScope}
+     */
+    this.controlScope = controlScope;
+    /**
+     * @public
      * @type {ErrorConfiguration}
      */
     this.errorConfiguration = errorConfiguration;
@@ -88,6 +117,21 @@ function Internals(
     this.errorReporting = errorReporting;
     /**
      * @public
+     * @type {Evaluator}
+     */
+    this.evaluator = evaluator;
+    /**
+     * @public
+     * @type {Flow}
+     */
+    this.flow = flow;
+    /**
+     * @public
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
+    /**
+     * @public
      * @type {Namespace}
      */
     this.globalNamespace = globalNamespace;
@@ -96,6 +140,11 @@ function Internals(
      * @type {Scope}
      */
     this.globalScope = globalScope;
+    /**
+     * @public
+     * @type {Includer}
+     */
+    this.includer = includer;
     /**
      * @public
      * @type {INIState}
@@ -108,6 +157,11 @@ function Internals(
     this.mode = mode;
     /**
      * @public
+     * @type {OnceIncluder}
+     */
+    this.onceIncluder = onceIncluder;
+    /**
+     * @public
      * @type {OptionSet}
      */
     this.optionSet = optionSet;
@@ -118,9 +172,13 @@ function Internals(
     this.output = output;
     /**
      * @public
-     * @type {Resumable|null}
+     * @type {PauseFactory}
      */
-    this.pausable = pausable;
+    this.pauseFactory = pauseFactory;
+    /**
+     * @type {ReferenceFactory}
+     */
+    this.referenceFactory = referenceFactory;
     /**
      * @public
      * @type {Runtime}
@@ -148,6 +206,11 @@ function Internals(
     this.translator = translator;
     /**
      * @public
+     * @type {Userland}
+     */
+    this.userland = userland;
+    /**
+     * @public
      * @type {ValueFactory}
      */
     this.valueFactory = valueFactory;
@@ -156,11 +219,6 @@ function Internals(
      * @type {ValueHelper}
      */
     this.valueHelper = valueHelper;
-
-    // Sanity check
-    if (mode === 'async' && !pausable) {
-        throw new Error('Pausable is required for async mode');
-    }
 }
 
 _.extend(Internals.prototype, {
@@ -173,6 +231,66 @@ _.extend(Internals.prototype, {
      */
     createFFIResult: function (syncCallback, asyncCallback) {
         return this.state.createFFIResult(syncCallback, asyncCallback);
+    },
+
+    /**
+     * Creates a Future.
+     *
+     * @param {Function} executor
+     * @returns {Future}
+     */
+    createFuture: function (executor) {
+        return this.futureFactory.createFuture(executor);
+    },
+
+    /**
+     * Creates a FutureValue.
+     *
+     * @param {Function} executor
+     * @returns {FutureValue}
+     */
+    createFutureValue: function (executor) {
+        return this.valueFactory.createFuture(executor);
+    },
+
+    /**
+     * Creates a present Future.
+     *
+     * @param {*} value
+     * @returns {Future}
+     */
+    createPresent: function (value) {
+        return this.futureFactory.createPresent(value);
+    },
+
+    /**
+     * Creates a present FutureValue.
+     *
+     * @param {Value} value
+     * @returns {FutureValue}
+     */
+    createPresentValue: function (value) {
+        return this.valueFactory.createPresent(value);
+    },
+
+    /**
+     * Creates a rejected Future.
+     *
+     * @param {Error} error
+     * @returns {Future}
+     */
+    createRejection: function (error) {
+        return this.futureFactory.createRejection(error);
+    },
+
+    /**
+     * Creates a rejected FutureValue.
+     *
+     * @param {Error} error
+     * @returns {FutureValue}
+     */
+    createRejectionValue: function (error) {
+        return this.valueFactory.createRejection(error);
     },
 
     /**
@@ -204,6 +322,35 @@ _.extend(Internals.prototype, {
      */
     getGlobal: function (name) {
         return this.state.getGlobal(name);
+    },
+
+    /**
+     * Implicitly converts undefined variables/references and those containing null to arrays.
+     *
+     * @param {Reference|Value|Variable} arrayReference
+     * @returns {Future}
+     */
+    implyArray: function (arrayReference) {
+        var internals = this,
+            needsArrayAssignmentFuture;
+
+        if (!arrayReference.isDefined()) {
+            // Note that if the reference is not defined, it may still be non-empty,
+            // if for example it is a virtual property fetched with ->__get().
+            needsArrayAssignmentFuture = arrayReference.isEmpty();
+        } else {
+            needsArrayAssignmentFuture = arrayReference.getValue()
+                .asFuture()
+                .next(function (presentValue) {
+                    return presentValue.getType() === 'null';
+                });
+        }
+
+        return needsArrayAssignmentFuture.next(function (needsArrayAssignment) {
+            if (needsArrayAssignment) {
+                return arrayReference.setValue(internals.valueFactory.createArray([]));
+            }
+        });
     },
 
     /**
@@ -245,6 +392,17 @@ _.extend(Internals.prototype, {
      */
     setGlobal: function (name, value) {
         this.state.setGlobal(name, value);
+    },
+
+    /**
+     * Creates a native function definition with type information.
+     *
+     * @param {string} signature
+     * @param {Function} func
+     * @returns {TypedFunction}
+     */
+    typeFunction: function (signature, func) {
+        return new TypedFunction(signature, func);
     }
 });
 

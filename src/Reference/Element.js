@@ -15,19 +15,64 @@ var _ = require('microdash'),
     KeyReferencePair = require('../KeyReferencePair'),
     KeyValuePair = require('../KeyValuePair'),
     PHPError = phpCommon.PHPError,
-    Reference = require('./Reference'),
-    ReferenceSlot = require('./ReferenceSlot');
+    Reference = require('./Reference');
 
-function ElementReference(valueFactory, callStack, arrayValue, key, value, reference) {
+/**
+ * Represents an element of a PHP array
+ *
+ * @param {ValueFactory} valueFactory
+ * @param {ReferenceFactory} referenceFactory
+ * @param {FutureFactory} futureFactory
+ * @param {CallStack} callStack
+ * @param {ArrayValue} arrayValue
+ * @param {Value} key
+ * @param {Value|null} value
+ * @param {ReferenceSlot|null} reference
+ * @constructor
+ */
+function ElementReference(
+    valueFactory,
+    referenceFactory,
+    futureFactory,
+    callStack,
+    arrayValue,
+    key,
+    value,
+    reference
+) {
     if (value && reference) {
         throw new Error('Array elements can only have a value or be a reference, not both');
     }
 
+    Reference.call(this, referenceFactory);
+
+    /**
+     * @type {ArrayValue}
+     */
     this.arrayValue = arrayValue;
+    /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
+    /**
+     * @type {Value}
+     */
     this.key = key;
+    /**
+     * @type {ReferenceSlot|null}
+     */
     this.reference = reference || null;
+    /**
+     * @type {CallStack}
+     */
     this.callStack = callStack;
+    /**
+     * @type {Value|null}
+     */
     this.value = value || null;
+    /**
+     * @type {ValueFactory}
+     */
     this.valueFactory = valueFactory;
 }
 
@@ -80,7 +125,7 @@ _.extend(ElementReference.prototype, {
         }
 
         // Implicitly define a "slot" to contain this element's value
-        element.reference = new ReferenceSlot(element.valueFactory);
+        element.reference = element.referenceFactory.createReferenceSlot();
 
         if (element.value) {
             element.reference.setValue(element.value);
@@ -120,9 +165,9 @@ _.extend(ElementReference.prototype, {
     },
 
     /**
-     * Determines whether the specified array element is "empty" or not
+     * Determines whether the specified array element is "empty" or not.
      *
-     * @returns {boolean}
+     * @returns {Future<boolean>}
      */
     isEmpty: function () {
         var element = this;
@@ -135,13 +180,16 @@ _.extend(ElementReference.prototype, {
             return element.reference.getValue().isEmpty();
         }
 
-        return true; // Undefined elements are empty
+        return element.futureFactory.createPresent(true); // Undefined elements are empty.
     },
 
     isReference: function () {
         return !!this.reference;
     },
 
+    /**
+     * {@inheritdoc}
+     */
     isSet: function () {
         var element = this;
 
@@ -153,7 +201,7 @@ _.extend(ElementReference.prototype, {
             return element.reference.getValue().isSet();
         }
 
-        return false;
+        return element.futureFactory.createPresent(false);
     },
 
     /**
@@ -166,17 +214,6 @@ _.extend(ElementReference.prototype, {
     },
 
     setReference: function (reference) {
-        var element = this;
-
-        element.reference = reference;
-        element.value = null;
-
-        element.arrayValue.defineElement(element);
-
-        return reference;
-    },
-
-    setValue: function (value) {
         var element = this,
             isFirstElement = (element.arrayValue.getLength() === 0);
 
@@ -185,18 +222,47 @@ _.extend(ElementReference.prototype, {
             element.arrayValue.pushElement(element);
         }
 
-        if (element.reference) {
-            element.reference.setValue(value);
-        } else {
-            element.arrayValue.defineElement(element);
-            element.value = value.getForAssignment();
-        }
+        // TODO: Can this be else'd with the check above?
+        element.arrayValue.defineElement(element);
+
+        element.reference = reference;
+        element.value = null;
 
         if (isFirstElement) {
             element.arrayValue.pointToElement(element);
         }
 
-        return value;
+        return reference;
+    },
+
+    setValue: function (value) {
+        var element = this;
+
+        return value
+            .next(function (presentValue) {
+                var isFirstElement = (element.arrayValue.getLength() === 0);
+
+                if (element.key === null) {
+                    // This reference refers to a new element to push onto the end of an array
+                    element.arrayValue.pushElement(element);
+                }
+
+                if (element.reference) {
+                    element.reference.setValue(presentValue);
+                } else {
+                    // TODO: Does this only need to happen when .pushElement() has not above?
+                    element.arrayValue.defineElement(element);
+
+                    element.value = presentValue.getForAssignment();
+                }
+
+                if (isFirstElement) {
+                    element.arrayValue.pointToElement(element);
+                }
+
+                return presentValue;
+            })
+            .yield();
     },
 
     unset: function () {

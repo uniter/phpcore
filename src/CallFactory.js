@@ -22,6 +22,12 @@ function CallFactory(Call, FFICall) {
      */
     this.Call = Call;
     /**
+     * Injected by .setControlFactory(...)
+     *
+     * @type {ControlFactory|null}
+     */
+    this.controlFactory = null;
+    /**
      * @type {class}
      */
     this.FFICall = FFICall;
@@ -33,25 +39,35 @@ _.extend(CallFactory.prototype, {
      *
      * @param {Scope} scope
      * @param {NamespaceScope} namespaceScope
-     * @param {Reference[]|Value[]|Variable[]|=} args
+     * @param {Value[]=} args
      * @param {Class|null} newStaticClass
      * @returns {Call}
      */
     create: function (scope, namespaceScope, args, newStaticClass) {
-        var factory = this;
+        var factory = this,
+            trace = factory.controlFactory.createTrace();
 
-        return new factory.Call(scope, namespaceScope, args || [], newStaticClass || null);
+        return new factory.Call(scope, namespaceScope, trace, args || [], newStaticClass || null);
     },
 
     /**
      * Creates a new FFI Call
      *
-     * @param {Reference[]|Value[]|Variable[]|=} args
+     * @param {Value[]=} args
      */
     createFFICall: function (args) {
         var factory = this;
 
         return new factory.FFICall(args || []);
+    },
+
+    /**
+     * Injects the ControlFactory service dependency
+     *
+     * @param {ControlFactory} controlFactory
+     */
+    setControlFactory: function (controlFactory) {
+        this.controlFactory = controlFactory;
     }
 });
 

@@ -15,7 +15,9 @@
 module.exports = {
     'en_GB': {
         'core': {
-            'constant_already_defined': 'Constant ${name} already defined'
+            'constant_already_defined': 'Constant ${name} already defined',
+            'non_well_formed_numeric_value': 'A non well formed numeric value encountered',
+            'only_references_returned_by_reference': 'Only variable references should be returned by reference'
         }
     }
 };

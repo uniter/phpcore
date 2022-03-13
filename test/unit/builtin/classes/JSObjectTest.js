@@ -23,7 +23,8 @@ describe('PHP builtin JSObject class', function () {
         callStack = sinon.createStubInstance(CallStack);
         internals = {
             callStack: callStack,
-            defineUnwrapper: sinon.stub()
+            defineUnwrapper: sinon.stub(),
+            disableAutoCoercion: sinon.stub()
         };
 
         InternalJSObjectClass = jsObjectClassFactory(internals);

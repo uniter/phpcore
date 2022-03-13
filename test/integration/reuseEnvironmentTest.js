@@ -22,13 +22,13 @@ describe('PHP environment reuse integration', function () {
 $num = 21;
 EOS
 */;}),//jshint ignore:line
-            module1 = tools.asyncTranspile(null, php1),
+            module1 = tools.asyncTranspile('/path/to/my_module.php', php1),
             php2 = nowdoc(function () {/*<<<EOS
 <?php
 return $num + 3;
 EOS
 */;}),//jshint ignore:line
-            module2 = tools.asyncTranspile(null, php2);
+            module2 = tools.asyncTranspile('/path/to/my_module.php', php2);
 
         module1({}, environment).execute().then(function () {
             module2({}, environment).execute().then(function (result) {

@@ -10,9 +10,8 @@
 'use strict';
 
 var expect = require('chai').expect,
-    pausable = require('pausable'),
     phpCore = require('../../async'),
-    Runtime = require('../../src/Runtime').async(pausable);
+    Runtime = require('../../src/Runtime').sync();
 
 describe('Public asynchronous API', function () {
     it('should export an instance of Runtime', function () {

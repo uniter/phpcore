@@ -12,24 +12,28 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../tools'),
     IterableType = require('../../../src/Type/IterableType'),
     Translator = phpCommon.Translator,
-    Value = require('../../../src/Value').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    Value = require('../../../src/Value').sync();
 
 describe('IterableType', function () {
-    var type,
+    var futureFactory,
+        state,
+        type,
         valueFactory;
 
     beforeEach(function () {
-        valueFactory = new ValueFactory();
+        state = tools.createIsolatedState();
+        futureFactory = state.getFutureFactory();
+        valueFactory = state.getValueFactory();
 
-        type = new IterableType(false);
+        type = new IterableType(futureFactory, false);
     });
 
     describe('allowsNull()', function () {
         it('should return true when set', function () {
-            type = new IterableType(true);
+            type = new IterableType(futureFactory, true);
 
             expect(type.allowsNull()).to.be.true;
         });
@@ -40,28 +44,36 @@ describe('IterableType', function () {
     });
 
     describe('allowsValue()', function () {
-        it('should return true for an iterable', function () {
+        it('should return true for an iterable', async function () {
             var iterableValue = sinon.createStubInstance(Value);
             iterableValue.isIterable.returns(true);
 
-            expect(type.allowsValue(iterableValue)).to.be.true;
+            expect(await type.allowsValue(iterableValue).toPromise()).to.be.true;
         });
 
-        it('should return false for a non-iterable', function () {
+        it('should return false for a non-iterable', async function () {
             var iterableValue = sinon.createStubInstance(Value);
             iterableValue.isIterable.returns(false);
 
-            expect(type.allowsValue(iterableValue)).to.be.false;
+            expect(await type.allowsValue(iterableValue).toPromise()).to.be.false;
         });
 
-        it('should return true when null given and null is allowed', function () {
-            type = new IterableType(true);
+        it('should return true when null given and null is allowed', async function () {
+            type = new IterableType(futureFactory, true);
 
-            expect(type.allowsValue(valueFactory.createNull())).to.be.true;
+            expect(await type.allowsValue(valueFactory.createNull()).toPromise()).to.be.true;
         });
 
-        it('should return false when null given but null is disallowed', function () {
-            expect(type.allowsValue(valueFactory.createNull())).to.be.false;
+        it('should return false when null given but null is disallowed', async function () {
+            expect(await type.allowsValue(valueFactory.createNull()).toPromise()).to.be.false;
+        });
+    });
+
+    describe('coerceValue()', function () {
+        it('should return the value unchanged', function () {
+            var value = valueFactory.createArray([21]);
+
+            expect(type.coerceValue(value)).to.equal(value);
         });
     });
 

@@ -11,28 +11,19 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    phpCore = require('../..'),
-    phpToAST = require('phptoast'),
-    phpToJS = require('phptojs'),
-    when = require('../when');
+    tools = require('./tools');
 
 describe('PHP string-as-array integration', function () {
-    it('should correctly handle reading a character of a string', function (done) {
+    it('should correctly handle reading a character of a string', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 return 'my string'[1];
 EOS
 */;}), //jshint ignore:line
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return phpCore;
-            });
+            module = tools.asyncTranspile('/path/to/my_module.php', php);
 
-        module().execute().then(when(done, function (result) {
-            expect(result.getNative()).to.equal('y');
-        }), done);
+        return module().execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.equal('y');
+        });
     });
 });

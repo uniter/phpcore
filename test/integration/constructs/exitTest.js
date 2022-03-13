@@ -34,7 +34,7 @@ print 'After (I should not be reached either)';
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.be.null;
@@ -60,7 +60,7 @@ print 'After (I should not be reached either)';
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.execute().then(when(done, function (result) {
@@ -69,7 +69,7 @@ EOS
         }), done);
     });
 
-    it('should correctly handle an include exiting in sync mode', function () {
+    it('should correctly handle an include exiting from inside a function in sync mode', function () {
         var parentPHP = nowdoc(function () {/*<<<EOS
 <?php
 print 'before ';
@@ -77,15 +77,23 @@ include 'my_module.php';
 print ' after';
 EOS
 */;}), //jshint ignore:line
-            parentModule = tools.syncTranspile(null, parentPHP),
+            parentModule = tools.syncTranspile('/path/to/my_module.php', parentPHP),
             childPHP = nowdoc(function () {/*<<<EOS
 <?php
-print 'inside';
-exit(22);
+
+function myExiter()
+{
+    print 'func';
+    exit(22);
+    print 'also func';
+}
+
+print 'inside ';
+myExiter();
 print 'also inside';
 EOS
 */;}), //jshint ignore:line
-            childModule = tools.syncTranspile(null, childPHP),
+            childModule = tools.syncTranspile('/path/to/my_module.php', childPHP),
             options = {
                 include: function (path, promise) {
                     promise.resolve(childModule);
@@ -97,38 +105,83 @@ EOS
         expect(result.getType()).to.equal('exit');
         expect(result.getNative()).to.be.null;
         expect(result.getStatus()).to.equal(22);
-        expect(engine.getStdout().readAll()).to.equal('before inside');
+        expect(engine.getStdout().readAll()).to.equal('before inside func');
     });
 
-    it('should correctly handle an include exiting in async mode', function (done) {
-        var parentPHP = nowdoc(function () {/*<<<EOS
+    it('should correctly handle an include exiting in async mode following a pause', function () {
+        var grandparentPHP = nowdoc(function () {/*<<<EOS
 <?php
-print 'before ';
-include 'my_module.php';
-print ' after';
+
+print '[grandparent before]';
+require '/path/to/my_parent_module.php';
+print '[grandparent after]';
 EOS
 */;}), //jshint ignore:line
-            parentModule = tools.asyncTranspile(null, parentPHP),
+            grandparentModule = tools.asyncTranspile('/path/to/my_grandparent_module.php', grandparentPHP),
+            parentPHP = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyIncluder
+{
+    public static function include()
+    {
+        print '[require before]';
+        $result = require_once '/path/to/my_child_module.php';
+        print '[require after]';
+    }
+}
+
+print '[parent before]';
+MyIncluder::include();
+print '[parent after]';
+EOS
+*/;}), //jshint ignore:line
+            parentModule = tools.asyncTranspile('/path/to/my_parent_module.php', parentPHP),
             childPHP = nowdoc(function () {/*<<<EOS
 <?php
-print 'inside';
+
+print get_async('[child before]');
 exit(21);
-print 'also inside';
+print '[child after]';
 EOS
 */;}), //jshint ignore:line
-            childModule = tools.asyncTranspile(null, childPHP),
+            childModule = tools.asyncTranspile('/path/to/my_child_module.php', childPHP),
             options = {
                 include: function (path, promise) {
-                    promise.resolve(childModule);
+                    setImmediate(function () {
+                        var module;
+
+                        switch (path) {
+                            case '/path/to/my_parent_module.php':
+                                module = parentModule;
+                                break;
+                            case '/path/to/my_child_module.php':
+                                module = childModule;
+                                break;
+                            default:
+                                throw new Error('Unexpected path "' + path + '"');
+                        }
+
+                        promise.resolve(module);
+                    });
                 }
             },
-            engine = parentModule(options);
+            engine = grandparentModule(options);
+        engine.defineFunction('get_async', function (internals) {
+            return function (value) {
+                return internals.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(value);
+                    });
+                });
+            };
+        });
 
-        engine.execute().then(when(done, function (result) {
+        return engine.execute().then(function (result) {
             expect(result.getType()).to.equal('exit');
             expect(result.getNative()).to.be.null;
             expect(result.getStatus()).to.equal(21);
-            expect(engine.getStdout().readAll()).to.equal('before inside');
-        }), done);
+            expect(engine.getStdout().readAll()).to.equal('[grandparent before][parent before][require before][child before]');
+        });
     });
 });

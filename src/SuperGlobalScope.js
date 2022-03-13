@@ -10,28 +10,21 @@
 'use strict';
 
 module.exports = require('pauser')([
-    require('microdash'),
-    require('./Variable')
+    require('microdash')
 ], function (
-    _,
-    Variable
+    _
 ) {
     var hasOwn = {}.hasOwnProperty;
 
     /**
-     * @param {CallStack} callStack
-     * @param {ValueFactory} valueFactory
+     * @param {VariableFactory} variableFactory
      * @constructor
      */
-    function SuperGlobalScope(callStack, valueFactory) {
+    function SuperGlobalScope(variableFactory) {
         /**
-         * @type {CallStack}
+         * @type {VariableFactory}
          */
-        this.callStack = callStack;
-        /**
-         * @type {ValueFactory}
-         */
-        this.valueFactory = valueFactory;
+        this.variableFactory = variableFactory;
         /**
          * @type {Object.<string, Variable>}
          */
@@ -47,7 +40,7 @@ module.exports = require('pauser')([
          */
         defineVariable: function (name) {
             var scope = this,
-                variable = new Variable(scope.callStack, scope.valueFactory, name);
+                variable = scope.variableFactory.createVariable(name);
 
             scope.variables[name] = variable;
 

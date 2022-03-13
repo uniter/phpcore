@@ -31,6 +31,7 @@ module.exports = require('pauser')([
      * @param {ScopeFactory} scopeFactory
      * @param {Loader} loader
      * @param {OptionSet} optionSet
+     * @param {Flow} flow
      * @constructor
      */
     function Includer(
@@ -38,12 +39,17 @@ module.exports = require('pauser')([
         valueFactory,
         scopeFactory,
         loader,
-        optionSet
+        optionSet,
+        flow
     ) {
         /**
          * @type {CallStack}
          */
         this.callStack = callStack;
+        /**
+         * @type {Flow}
+         */
+        this.flow = flow;
         /**
          * @type {Object.<string, boolean>}
          */
@@ -84,7 +90,6 @@ module.exports = require('pauser')([
          * @param {string} errorLevel One of the PHPError.E_* constant
          * @param {Environment} environment
          * @param {Module} module PHP Module that the include occurred inside
-         * @param {NamespaceScope} topLevelNamespaceScope
          * @param {string} includedPath
          * @param {Scope} enclosingScope
          * @param {Object} options
@@ -97,7 +102,6 @@ module.exports = require('pauser')([
             errorLevel,
             environment,
             module,
-            topLevelNamespaceScope,
             includedPath,
             enclosingScope,
             options
@@ -117,15 +121,15 @@ module.exports = require('pauser')([
 
             includeScope = includer.scopeFactory.createLoadScope(
                 enclosingScope,
-                topLevelNamespaceScope.getFilePath(),
+                module.getFilePath(),
                 type
             );
 
             // Mark the module as included so we may avoid including it a second time
             includer.includedPaths[includedPath] = true;
 
-            try {
-                return includer.loader.load(
+            return includer.valueFactory.coerce(
+                includer.loader.load(
                     type,
                     includedPath,
                     options,
@@ -135,8 +139,8 @@ module.exports = require('pauser')([
                     function (path, promise, parentPath, valueFactory) {
                         return includeFunction(path, promise, parentPath, valueFactory);
                     }
-                );
-            } catch (error) {
+                )
+            ).catch(function (error) {
                 if (!(error instanceof LoadFailedException)) {
                     // Rethrow for anything other than the expected possible exception(s) trying to load the module
                     throw error;
@@ -147,7 +151,7 @@ module.exports = require('pauser')([
                 includer.callStack.raiseError(
                     PHPError.E_WARNING,
                     type + '(' + includedPath + '): failed to open stream: ' +
-                        (previousError ? previousError.message : 'Unknown error')
+                    (previousError ? previousError.message : 'Unknown error')
                 );
                 includer.callStack.raiseError(
                     errorLevel,
@@ -155,7 +159,7 @@ module.exports = require('pauser')([
                 );
 
                 return includer.valueFactory.createBoolean(false);
-            }
+            });
         }
     });
 

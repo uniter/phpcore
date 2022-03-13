@@ -29,38 +29,50 @@ $result = [];
 
 // Multiply a variable
 $myNumber *= 4;
-$result['variable'] = $myNumber;
+$result['with variable'] = $myNumber;
 
 // Multiply an accessor
 $myAccessor *= 5;
-$result['accessor'] = $myAccessor;
+$result['with accessor'] = $myAccessor;
 
 // Multiply an instance property
-$myObject->myInstanceProp *= 17;
-$result['instance prop'] = $myObject->myInstanceProp;
+$myObject->myInstanceProp *= $mySeventeen;
+$result['with instance prop'] = $myObject->myInstanceProp;
 
 // Multiply a static property
 MyClass::$myStaticProp *= 21;
-$result['static prop'] = MyClass::$myStaticProp;
+$result['with static prop'] = MyClass::$myStaticProp;
 
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module(),
             accessorValue = 21;
-
+        engine.defineGlobalAccessor('mySeventeen', function () {
+            return this.createFutureValue(function (resolve) {
+                setImmediate(function () {
+                    resolve(17);
+                });
+            });
+        });
         engine.defineGlobalAccessor('myAccessor', function () {
-            return accessorValue;
+            return this.createFutureValue(function (resolve) {
+                setImmediate(function () {
+                    resolve(accessorValue);
+                });
+            });
         }, function (newValue) {
             accessorValue = newValue;
         });
 
-        expect(engine.execute().getNative()).to.deep.equal({
-            'variable': 1000 * 4,
-            'accessor': 21 * 5,
-            'instance prop': 10 * 17,
-            'static prop': 100 * 21
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal({
+                'with variable': 1000 * 4,
+                'with accessor': 21 * 5,
+                'with instance prop': 10 * 17,
+                'with static prop': 100 * 21
+            });
         });
     });
 });

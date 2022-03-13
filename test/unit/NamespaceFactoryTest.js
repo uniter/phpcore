@@ -13,43 +13,43 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
     ClassAutoloader = require('../../src/ClassAutoloader').sync(),
-    ExportRepository = require('../../src/FFI/Export/ExportRepository'),
-    FFIFactory = require('../../src/FFI/FFIFactory'),
+    ClassDefiner = require('../../src/Class/ClassDefiner'),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     FunctionSpecFactory = require('../../src/Function/FunctionSpecFactory'),
+    FutureFactory = require('../../src/Control/FutureFactory'),
     NamespaceFactory = require('../../src/NamespaceFactory'),
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('NamespaceFactory', function () {
     var callStack,
         classAutoloader,
-        exportRepository,
+        classDefiner,
         factory,
-        ffiFactory,
         functionFactory,
         functionSpecFactory,
+        futureFactory,
         Namespace,
         valueFactory;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
         classAutoloader = sinon.createStubInstance(ClassAutoloader);
-        exportRepository = sinon.createStubInstance(ExportRepository);
-        ffiFactory = sinon.createStubInstance(FFIFactory);
+        classDefiner = sinon.createStubInstance(ClassDefiner);
         functionFactory = sinon.createStubInstance(FunctionFactory);
         functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
+        futureFactory = sinon.createStubInstance(FutureFactory);
         Namespace = sinon.stub();
         valueFactory = sinon.createStubInstance(ValueFactory);
 
         factory = new NamespaceFactory(
             Namespace,
             callStack,
+            futureFactory,
             functionFactory,
             functionSpecFactory,
             valueFactory,
             classAutoloader,
-            exportRepository,
-            ffiFactory
+            classDefiner
         );
     });
 
@@ -82,10 +82,20 @@ describe('NamespaceFactory', function () {
             expect(Namespace).to.have.been.calledWith(sinon.match.same(callStack));
         });
 
+        it('should pass the FutureFactory to the namespace', function () {
+            callCreate();
+
+            expect(Namespace).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.same(futureFactory)
+            );
+        });
+
         it('should pass the ValueFactory to the namespace', function () {
             callCreate();
 
             expect(Namespace).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.same(valueFactory)
             );
@@ -95,6 +105,7 @@ describe('NamespaceFactory', function () {
             callCreate();
 
             expect(Namespace).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.same(factory)
@@ -108,6 +119,7 @@ describe('NamespaceFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
                 sinon.match.same(functionFactory)
             );
         });
@@ -116,6 +128,7 @@ describe('NamespaceFactory', function () {
             callCreate();
 
             expect(Namespace).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -133,25 +146,12 @@ describe('NamespaceFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
                 sinon.match.same(classAutoloader)
             );
         });
 
-        it('should pass the ExportRepository to the namespace', function () {
-            callCreate();
-
-            expect(Namespace).to.have.been.calledWith(
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.same(exportRepository)
-            );
-        });
-
-        it('should pass the FFIFactory to the namespace', function () {
+        it('should pass the ClassDefiner to the namespace', function () {
             callCreate();
 
             expect(Namespace).to.have.been.calledWith(
@@ -162,7 +162,7 @@ describe('NamespaceFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.same(ffiFactory)
+                sinon.match.same(classDefiner)
             );
         });
 

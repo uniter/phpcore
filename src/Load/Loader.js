@@ -30,14 +30,14 @@ module.exports = require('pauser')([
 
     /**
      * @param {ValueFactory} valueFactory
-     * @param {Resumable|null} pausable
+     * @param {string} mode
      * @constructor
      */
-    function Loader(valueFactory, pausable) {
+    function Loader(valueFactory, mode) {
         /**
-         * @type {Resumable|null}
+         * @type {string}
          */
-        this.pausable = pausable;
+        this.mode = mode;
         /**
          * @type {ValueFactory}
          */
@@ -61,144 +61,164 @@ module.exports = require('pauser')([
          * @param {Module} module
          * @param {Scope} enclosingScope
          * @param {Function} load
-         * @returns {*}
+         * @returns {FutureValue}
          */
         load: function (type, filePath, options, environment, module, enclosingScope, load) {
             var done = false,
-                errorResult = null,
                 loader = this,
-                pause = null,
-                result,
                 subOptions;
 
-            function completeWith(moduleResult) {
-                done = true;
+            // Always return a FutureValue, for a consistent interface regardless of synchronicity mode
+            return loader.valueFactory.createFuture(function (resolveFuture, rejectFuture/*, restoreCallStack*/) {
+                /**
+                 * Completes an unsuccessful module load
+                 *
+                 * @param {Error|ObjectValue<Throwable>} error
+                 */
+                function failWith(error) {
+                    done = true;
 
-                if (pause) {
-                    if (moduleResult instanceof ExitValue) {
-                        pause.throw(moduleResult);
-                        return;
-                    }
-
-                    pause.resume(moduleResult);
-                } else {
-                    if (moduleResult instanceof ExitValue) {
-                        throw moduleResult;
-                    }
-
-                    result = moduleResult;
+                    rejectFuture(error);
                 }
-            }
 
-            function resolve(valueOrModule) {
-                var executeResult;
+                /**
+                 * Completes a successful module load, with special handling for a returned ExitValue
+                 *
+                 * @param {Value} moduleResult
+                 */
+                function succeedWith(moduleResult) {
+                    done = true;
 
-                // Handle wrapper function being returned from loader for module
-                if (_.isFunction(valueOrModule)) {
-                    executeResult = valueOrModule(subOptions, environment, enclosingScope).execute();
-
-                    if (!loader.pausable) {
-                        completeWith(executeResult);
+                    if (moduleResult instanceof ExitValue) {
+                        // When including a module, Engine.js will have resolved with an ExitValue
+                        // rather than rejecting with it
+                        failWith(moduleResult);
                         return;
                     }
 
-                    executeResult.then(
-                        completeWith,
-                        function (error) {
-                            pause.throw(error);
+                    resolveFuture(moduleResult);
+                }
+
+                /**
+                 * Called by the transport when the load was successful
+                 *
+                 * @param {Function|Value|string} valueOrModule
+                 */
+                function resolve(valueOrModule) {
+                    var executeResult;
+
+                    // Handle wrapper function being returned from loader for module
+                    if (_.isFunction(valueOrModule)) {
+                        // if (pause) {
+                        //     // Restore the paused stack frames before invoking the load, so that
+                        //     // any errors raised during will have access to the complete call stack
+                        //     pause.restoreCallStack();
+                        // }
+
+                        executeResult = valueOrModule(subOptions, environment, enclosingScope).execute();
+
+                        if (loader.mode !== 'async') {
+                            succeedWith(executeResult);
+                            return;
                         }
-                    );
 
+                        executeResult.then(
+                            succeedWith,
+                            function (error) {
+                                failWith(error);
+                            }
+                        );
+
+                        return;
+                    }
+
+                    // Handle PHP code string being returned from loader for module
+                    if (_.isString(valueOrModule)) {
+                        failWith(new Exception(type + '(' + filePath + ') :: Returning a PHP string is not supported'));
+                        return;
+                    }
+
+                    // Handle a value object being returned as the module's return value
+                    if (loader.valueFactory.isValue(valueOrModule)) {
+                        succeedWith(valueOrModule);
+                        return;
+                    }
+
+                    failWith(new Exception(type + '(' + filePath + ') :: Module is in a weird format'));
+                }
+
+                /**
+                 * Called by the transport when the load was unsuccessful
+                 *
+                 * @param {Error|ObjectValue<Throwable>} error
+                 */
+                function reject(error) {
+                    var filePath,
+                        lineNumber,
+                        subError;
+
+                    if (error instanceof PHPParseError) {
+                        filePath = error.getFilePath();
+                        lineNumber = error.getLineNumber();
+
+                        // Parse errors should be thrown as a ParseError in PHP 7+
+                        // NB: The Error class' constructor will fetch file and line number info
+                        subError = loader.valueFactory.createErrorObject(
+                            'ParseError',
+                            error.getMessage(),
+                            null,
+                            null,
+                            filePath !== null ? filePath : '(unknown)',
+                            lineNumber !== null ? lineNumber : 0
+                        );
+                    } else if (error instanceof PHPFatalError) {
+                        // Uncatchable fatal error (?)
+
+                        subError = error;
+                    } else if (error instanceof Value) {
+                        // Throwable Error, Exception or an exit occurred (ExitValue)
+
+                        subError = error;
+                    } else {
+                        subError = new LoadFailedException(error);
+                    }
+
+                    failWith(subError);
+                }
+
+                // Resolve "./" and "../" components in the file path
+                filePath = path.normalize(filePath);
+
+                subOptions = _.extend({}, options, {
+                    // TODO: Can we improve this? Can we include a module's path in its compiled output,
+                    //       rather than having the runtime provide its path like this?
+                    'path': filePath
+                });
+
+                // NB: The loader may throw an error, which will be caught and passed to reject()
+                //     for consistent behaviour
+                try {
+                    load(filePath, {
+                        reject: reject,
+                        resolve: resolve
+                    }, module.getFilePath(), loader.valueFactory);
+                } catch (error) {
+                    reject(error);
+                }
+
+                if (done) {
+                    // Future was synchronously either resolved or rejected, which is compatible
+                    // with any synchronicity mode
                     return;
                 }
 
-                // Handle PHP code string being returned from loader for module
-                if (_.isString(valueOrModule)) {
-                    throw new Exception(type + '(' + filePath + ') :: Returning a PHP string is not supported');
+                if (!done && loader.mode !== 'async') {
+                    // We're not in async mode, so we cannot yield while the module is loaded
+                    throw new Exception(type + '(' + filePath + ') :: Async support not enabled');
                 }
 
-                // Handle a value object being returned as the module's return value
-                if (loader.valueFactory.isValue(valueOrModule)) {
-                    completeWith(valueOrModule);
-                    return;
-                }
-
-                throw new Exception(type + '(' + filePath + ') :: Module is in a weird format');
-            }
-
-            function reject(error) {
-                var filePath,
-                    lineNumber,
-                    subError;
-
-                if (error instanceof PHPParseError) {
-                    filePath = error.getFilePath();
-                    lineNumber = error.getLineNumber();
-
-                    // Parse errors should be thrown as a ParseError in PHP 7+
-                    // NB: The Error class' constructor will fetch file and line number info
-                    subError = loader.valueFactory.createErrorObject(
-                        'ParseError',
-                        error.getMessage(),
-                        null,
-                        null,
-                        filePath !== null ? filePath : '(unknown)',
-                        lineNumber !== null ? lineNumber : 0
-                    );
-                } else if (error instanceof PHPFatalError) {
-                    // Uncatchable fatal error (?)
-
-                    subError = error;
-                } else if (error instanceof Value) {
-                    // Throwable Error, Exception or an exit occurred (ExitValue)
-
-                    subError = error;
-                } else {
-                    subError = new LoadFailedException(error);
-                }
-
-                if (pause) {
-                    pause.throw(subError);
-                } else {
-                    errorResult = subError;
-                }
-            }
-
-            // Resolve "./" and "../" components in the file path
-            filePath = path.normalize(filePath);
-
-            subOptions = _.extend({}, options, {
-                // TODO: Can we improve this? Can we include a module's path in its compiled output,
-                //       rather than having the runtime provide its path like this?
-                'path': filePath
+                // We're now in async mode and waiting for the module to be loaded
             });
-
-            // NB: The loader may throw an error, which will be caught and passed to reject()
-            //     for consistent behaviour
-            try {
-                load(filePath, {
-                    reject: reject,
-                    resolve: resolve
-                }, module.getFilePath(), loader.valueFactory);
-            } catch (error) {
-                reject(error);
-            }
-
-            if (errorResult) {
-                throw errorResult;
-            }
-
-            if (done) {
-                return result;
-            }
-
-            if (!loader.pausable) {
-                // Pausable is not available, so we cannot yield while the module is loaded
-                throw new Exception(type + '(' + filePath + ') :: Async support not enabled');
-            }
-
-            pause = loader.pausable.createPause();
-            return pause.now();
         }
     });
 

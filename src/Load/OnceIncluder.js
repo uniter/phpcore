@@ -43,7 +43,6 @@ module.exports = require('pauser')([
          * @param {string} errorLevel One of the PHPError.E_* constants
          * @param {Environment} environment
          * @param {Module} module PHP Module that the include occurred inside
-         * @param {NamespaceScope} topLevelNamespaceScope
          * @param {string} includedPath
          * @param {Scope} enclosingScope
          * @param {Object} options
@@ -56,7 +55,6 @@ module.exports = require('pauser')([
             errorLevel,
             environment,
             module,
-            topLevelNamespaceScope,
             includedPath,
             enclosingScope,
             options
@@ -74,7 +72,6 @@ module.exports = require('pauser')([
                 errorLevel,
                 environment,
                 module,
-                topLevelNamespaceScope,
                 includedPath,
                 enclosingScope,
                 options

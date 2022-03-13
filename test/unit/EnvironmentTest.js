@@ -79,12 +79,13 @@ describe('Environment', function () {
         it('should define the function on the state', function () {
             var myFunction = sinon.stub();
 
-            environment.defineCoercingFunction('my_func', myFunction);
+            environment.defineCoercingFunction('my_func', myFunction, 'mixed $myParam = 21');
 
             expect(state.defineCoercingFunction).to.have.been.calledOnce;
             expect(state.defineCoercingFunction).to.have.been.calledWith(
                 'my_func',
-                sinon.match.same(myFunction)
+                sinon.match.same(myFunction),
+                'mixed $myParam = 21'
             );
         });
     });
@@ -159,12 +160,13 @@ describe('Environment', function () {
         it('should define the function on the state', function () {
             var myFunction = sinon.stub();
 
-            environment.defineNonCoercingFunction('my_func', myFunction);
+            environment.defineNonCoercingFunction('my_func', myFunction, 'mixed $myParam = 21');
 
             expect(state.defineNonCoercingFunction).to.have.been.calledOnce;
             expect(state.defineNonCoercingFunction).to.have.been.calledWith(
                 'my_func',
-                sinon.match.same(myFunction)
+                sinon.match.same(myFunction),
+                'mixed $myParam = 21'
             );
         });
     });

@@ -1,0 +1,175 @@
+/*
+ * PHPCore - PHP environment runtime components
+ * Copyright (c) Dan Phillimore (asmblah)
+ * https://github.com/uniter/phpcore/
+ *
+ * Released under the MIT license
+ * https://github.com/uniter/phpcore/raw/master/MIT-LICENSE.txt
+ */
+
+'use strict';
+
+var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
+    sinon = require('sinon'),
+    tools = require('../tools'),
+    ScalarType = require('../../../src/Type/ScalarType'),
+    Translator = phpCommon.Translator,
+    Value = require('../../../src/Value').sync();
+
+describe('ScalarType', function () {
+    var createType,
+        futureFactory,
+        state,
+        type,
+        valueFactory;
+
+    beforeEach(function () {
+        state = tools.createIsolatedState();
+        futureFactory = state.getFutureFactory();
+        valueFactory = state.getValueFactory();
+
+        createType = function (scalarType) {
+            type = new ScalarType(futureFactory, scalarType, false);
+        };
+        createType('int');
+    });
+
+    describe('allowsNull()', function () {
+        it('should return true when set', function () {
+            type = new ScalarType(futureFactory, 'boolean', true);
+
+            expect(type.allowsNull()).to.be.true;
+        });
+
+        it('should return false when set', function () {
+            expect(type.allowsNull()).to.be.false;
+        });
+    });
+
+    describe('allowsValue()', function () {
+        describe('when type is integer', function () {
+            it('should return true for a value of the correct type', async function () {
+                var scalarValue = valueFactory.createInteger(21);
+
+                expect(await type.allowsValue(scalarValue).toPromise()).to.be.true;
+            });
+
+            it('should return false for an array', async function () {
+                var value = valueFactory.createArray([21]);
+
+                expect(await type.allowsValue(value).toPromise()).to.be.false;
+            });
+
+            it('should return false for a boolean', async function () {
+                var value = valueFactory.createBoolean(true);
+
+                expect(await type.allowsValue(value).toPromise()).to.be.false;
+            });
+
+            it('should return false for a float', async function () {
+                var value = valueFactory.createFloat(123.456);
+
+                expect(await type.allowsValue(value).toPromise()).to.be.false;
+            });
+
+            it('should return false for null', async function () {
+                var value = valueFactory.createNull();
+
+                expect(await type.allowsValue(value).toPromise()).to.be.false;
+            });
+
+            it('should return false for a string', async function () {
+                var value = valueFactory.createString('my string');
+
+                expect(await type.allowsValue(value).toPromise()).to.be.false;
+            });
+        });
+
+        it('should return true when null given and null is allowed', async function () {
+            type = new ScalarType(futureFactory, 'float', true);
+
+            expect(await type.allowsValue(valueFactory.createNull()).toPromise()).to.be.true;
+        });
+
+        it('should return false when null given but null is disallowed', async function () {
+            expect(await type.allowsValue(valueFactory.createNull()).toPromise()).to.be.false;
+        });
+    });
+
+    describe('coerceValue()', function () {
+        var convertedValue,
+            originalValue;
+
+        beforeEach(function () {
+            convertedValue = sinon.createStubInstance(Value);
+            originalValue = sinon.createStubInstance(Value);
+        });
+
+        it('should convert the value to boolean when the scalar type is boolean', function () {
+            originalValue.convertForBooleanType
+                .returns(convertedValue);
+            createType('bool');
+
+            expect(type.coerceValue(originalValue)).to.equal(convertedValue);
+        });
+
+        it('should convert the value to float when the type scalar is float', function () {
+            originalValue.convertForFloatType
+                .returns(convertedValue);
+            createType('float');
+
+            expect(type.coerceValue(originalValue)).to.equal(convertedValue);
+        });
+
+        it('should convert the value to integer when the scalar type is integer', function () {
+            originalValue.convertForIntegerType
+                .returns(convertedValue);
+            createType('int');
+
+            expect(type.coerceValue(originalValue)).to.equal(convertedValue);
+        });
+
+        it('should convert the value to string when the scalar type is string', function () {
+            originalValue.convertForStringType
+                .returns(convertedValue);
+            createType('string');
+
+            expect(type.coerceValue(originalValue)).to.equal(convertedValue);
+        });
+
+        it('should raise an exception for an invalid scalar type', function () {
+            createType('invalidtype');
+
+            expect(function () {
+                type.coerceValue(originalValue);
+            }).to.throw('Unknown scalar type "invalidtype"');
+        });
+    });
+
+    describe('getDisplayName()', function () {
+        it('should return the scalar type name', function () {
+            expect(type.getDisplayName()).to.equal('int');
+        });
+    });
+
+    describe('getExpectedMessage()', function () {
+        it('should return the correct message', function () {
+            var translator = sinon.createStubInstance(Translator);
+            translator.translate
+                .callsFake(function (translationKey, placeholderVariables) {
+                    return '[Translated] ' + translationKey + ' ' + JSON.stringify(placeholderVariables || {});
+                });
+
+            expect(type.getExpectedMessage(translator)).to.equal(
+                '[Translated] core.of_generic_type_expected {"expectedType":"int"}'
+            );
+        });
+    });
+
+    describe('isScalar()', function () {
+        it('should return true', function () {
+            expect(type.isScalar()).to.be.true;
+        });
+    });
+});

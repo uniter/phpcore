@@ -27,7 +27,7 @@ $result[] = $myObject->getString();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.defineClass('MyClass', function () {
@@ -68,7 +68,7 @@ $result[] = $concatenator->concatenate($stringA, $stringB);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.defineClass('StringEncapsulator', function () {
@@ -119,7 +119,7 @@ $myObject->appendSomething('[from PHP]');
 return $myObject;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module(),
             nativeObject;
         engine.defineClass('MyClass', function (/* internals */) {
@@ -156,7 +156,7 @@ return [
 ];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module(),
             result;
         engine.defineClass('MyClass', function () {
@@ -189,7 +189,7 @@ $result[] = $myObject->getString();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.defineClass('MyParentClass', function () {
@@ -231,7 +231,7 @@ $result[] = $myObject->getString();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.defineClass('MyParentClass', function (internals) {

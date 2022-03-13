@@ -16,11 +16,18 @@ var _ = require('microdash'),
 /**
  * Decorates an ElementReference to allow it to be hooked into
  *
+ * @param {ReferenceFactory} referenceFactory
  * @param {ElementReference} decoratedElement
  * @param {ElementHookCollection} elementHookCollection
  * @constructor
  */
-function HookableElementReference(decoratedElement, elementHookCollection) {
+function HookableElementReference(
+    referenceFactory,
+    decoratedElement,
+    elementHookCollection
+) {
+    Reference.call(this, referenceFactory);
+
     /**
      * @type {ElementReference}
      */
@@ -34,16 +41,6 @@ function HookableElementReference(decoratedElement, elementHookCollection) {
 util.inherits(HookableElementReference, Reference);
 
 _.extend(HookableElementReference.prototype, {
-    /**
-     * Fetches an instance property of this element (assuming it contains an object) by its name
-     *
-     * @param {string} name
-     * @returns {PropertyReference}
-     */
-    getInstancePropertyByName: function (name) {
-        return this.decoratedElement.getInstancePropertyByName(name);
-    },
-
     /**
      * Fetches this element's key value
      *
@@ -105,7 +102,7 @@ _.extend(HookableElementReference.prototype, {
     /**
      * Determines whether the specified array element is "empty" or not
      *
-     * @returns {boolean}
+     * @returns {Future<boolean>}
      */
     isEmpty: function () {
         return this.decoratedElement.isEmpty();
@@ -123,7 +120,7 @@ _.extend(HookableElementReference.prototype, {
     /**
      * Determines whether this element is defined and if so, whether its value or reference is "set"
      *
-     * @returns {boolean}
+     * @returns {Future<boolean>}
      */
     isSet: function () {
         return this.decoratedElement.isSet();

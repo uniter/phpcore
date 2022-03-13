@@ -11,24 +11,18 @@
 
 module.exports = require('pauser')([
     require('microdash'),
-    require('phpcommon'),
-    require('./Class')
+    require('phpcommon')
 ], function (
     _,
-    phpCommon,
-    Class
+    phpCommon
 ) {
     var CALL_TO_UNDEFINED_FUNCTION = 'core.call_to_undefined_function',
         CANNOT_DECLARE_CLASS_AS_NAME_ALREADY_IN_USE = 'core.cannot_declare_class_as_name_already_in_use',
-        CANNOT_IMPLEMENT_THROWABLE = 'core.cannot_implement_throwable',
         CANNOT_REDECLARE_CLASS_AS_NAME_ALREADY_IN_USE = 'core.cannot_redeclare_class_as_name_already_in_use',
         CLASS_NOT_FOUND = 'core.class_not_found',
         CONSTANT_ALREADY_DEFINED = 'core.constant_already_defined',
         UNDEFINED_CONSTANT = 'core.undefined_constant',
 
-        IS_METHOD = 'isMethod',
-        IS_STATIC = 'isStatic',
-        MAGIC_CONSTRUCT = '__construct',
         hasOwn = {}.hasOwnProperty,
         PHPError = phpCommon.PHPError;
 
@@ -42,26 +36,26 @@ module.exports = require('pauser')([
      * along with null as its parent namespace.
      *
      * @param {CallStack} callStack
+     * @param {FutureFactory} futureFactory
      * @param {ValueFactory} valueFactory
      * @param {NamespaceFactory} namespaceFactory
      * @param {FunctionFactory} functionFactory
      * @param {FunctionSpecFactory} functionSpecFactory
      * @param {ClassAutoloader} classAutoloader
-     * @param {ExportRepository} exportRepository
-     * @param {FFIFactory} ffiFactory
+     * @param {ClassDefiner} classDefiner
      * @param {Namespace|null} parent
      * @param {string} name
      * @constructor
      */
     function Namespace(
         callStack,
+        futureFactory,
         valueFactory,
         namespaceFactory,
         functionFactory,
         functionSpecFactory,
         classAutoloader,
-        exportRepository,
-        ffiFactory,
+        classDefiner,
         parent,
         name
     ) {
@@ -78,6 +72,10 @@ module.exports = require('pauser')([
          */
         this.classAutoloader = classAutoloader;
         /**
+         * @type {ClassDefiner}
+         */
+        this.classDefiner = classDefiner;
+        /**
          * @type {Object.<string, Class>}
          */
         this.classes = {};
@@ -85,14 +83,6 @@ module.exports = require('pauser')([
          * @type {Object.<string, {caseInsensitive: boolean, name: string, value: Value}>}
          */
         this.constants = {};
-        /**
-         * @type {ExportRepository}
-         */
-        this.exportRepository = exportRepository;
-        /**
-         * @type {FFIFactory}
-         */
-        this.ffiFactory = ffiFactory;
         /**
          * @type {FunctionFactory}
          */
@@ -105,6 +95,10 @@ module.exports = require('pauser')([
          * @type {Object.<string, Function>}
          */
         this.functions = {};
+        /**
+         * @type {FutureFactory}
+         */
+        this.futureFactory = futureFactory;
         /**
          * @type {string}
          */
@@ -160,7 +154,7 @@ module.exports = require('pauser')([
          * @param {Function|object} definition Either a Function for a native JS class or a transpiled definition object
          * @param {NamespaceScope} namespaceScope
          * @param {boolean=} autoCoercionEnabled Whether the class should be auto-coercing
-         * @returns {Class} Returns the internal Class instance created
+         * @returns {Future<Class>}
          */
         defineClass: function (
             name,
@@ -168,16 +162,10 @@ module.exports = require('pauser')([
             namespaceScope,
             autoCoercionEnabled
         ) {
-            var classObject,
-                constants,
-                constructorName = null,
-                methodData = {},
-                methods = {},
-                namespace = this,
-                proxyConstructor,
-                rootInternalPrototype,
-                staticProperties,
-                InternalClass;
+            var
+                // TODO: Should we parse the name here to allow for nested namespace paths?
+                lowerName = name.toLowerCase(),
+                namespace = this;
 
             autoCoercionEnabled = Boolean(autoCoercionEnabled);
 
@@ -192,194 +180,19 @@ module.exports = require('pauser')([
                 );
             }
 
-            if (_.isFunction(definition)) {
-                // Class is defined using native JavaScript, not PHP
-
-                // Create a new, empty native constructor so that we can avoid calling
-                // the original if the derived class does not call parent::__construct(...)
-                // - Unless the class defines the special `shadowConstructor` property, which
-                //   is always called regardless of whether the parent constructor is called explicitly
-                InternalClass = function () {
-                    var objectValue = this;
-
-                    if (definition.shadowConstructor) {
-                        definition.shadowConstructor.call(
-                            // Use the native object as the `this` object inside the shadow constructor
-                            // if auto-coercion is enabled, otherwise use the ObjectValue
-                            classObject.isAutoCoercionEnabled() ? objectValue.getObject() : objectValue
-                        );
-                    }
-
-                    if (definition.superClass) {
-                        // Class has a parent, call the parent's internal constructor
-                        definition.superClass.getInternalClass().call(objectValue);
-                    }
-                };
-                InternalClass.prototype = Object.create(definition.prototype);
-                proxyConstructor = function () {
-                    var
-                        objectValue = this,
-                        // Will be the native object as the `this` object inside the (shadow) constructor
-                        // if auto-coercion is enabled, otherwise use the ObjectValue
-                        unwrappedThisObject = classObject.isAutoCoercionEnabled() ?
-                            objectValue.getObject() :
-                            objectValue,
-                        unwrappedArgs = classObject.unwrapArguments(arguments);
-
-                    // Call the original native constructor
-                    definition.apply(unwrappedThisObject, unwrappedArgs);
-
-                    // Call magic __construct method if defined for the original native class
-                    if (definition.prototype[MAGIC_CONSTRUCT]) {
-                        definition.prototype[MAGIC_CONSTRUCT].apply(unwrappedThisObject, unwrappedArgs);
-                    }
-                };
-                proxyConstructor.neverCoerce = true;
-                proxyConstructor.data = methodData;
-                InternalClass.prototype[MAGIC_CONSTRUCT] = proxyConstructor;
-                constructorName = MAGIC_CONSTRUCT;
-
-                // Record the prototype object that we should stop at when walking up the chain
-                rootInternalPrototype = definition.prototype;
-            } else {
-                // Class has a definition, so it was defined using PHP
-
-                // Ensure the class does not attempt to implement Throwable directly
-                _.each(definition.interfaces, function (interfaceName) {
-                    var resolvedClass = namespaceScope.resolveClass(interfaceName);
-
-                    if (resolvedClass.namespace.getName() === '' && resolvedClass.name.toLowerCase() === 'throwable') {
-                        namespace.callStack.raiseUncatchableFatalError(
-                            CANNOT_IMPLEMENT_THROWABLE,
-                            {
-                                className: namespace.getPrefix() + name
-                            }
-                        );
-                    }
-                });
-
-                InternalClass = function () {
-                    var objectValue = this,
-                        properties = {};
-
-                    // Go through and declare the properties and their default values
-                    // on the object from the class definition
-                    _.forOwn(definition.properties, function (propertyData, name) {
-                        properties[name] = objectValue.declareProperty(name, classObject, propertyData.visibility);
-                    });
-
-                    if (definition.superClass) {
-                        // Class has a parent, call the parent's internal constructor
-                        definition.superClass.getInternalClass().call(objectValue);
-                    }
-
-                    // Go through and define the properties and their default values
-                    // on the object from the class definition by initialising them
-                    _.forOwn(definition.properties, function (propertyData, name) {
-                        var instanceProperty = properties[name],
-                            initialValue = propertyData.value();
-
-                        if (initialValue === null) {
-                            // If a property has no initialiser then its initial value is NULL
-                            initialValue = namespace.valueFactory.createNull();
-                        }
-
-                        instanceProperty.initialise(initialValue);
-                    });
-                };
-
-                // Prevent native 'constructor' property from erroneously being detected as PHP class method
-                delete InternalClass.prototype.constructor;
-
-                if (definition.superClass) {
-                    InternalClass.prototype = Object.create(definition.superClass.getInternalClass().prototype);
-                }
-
-                _.each(definition.methods, function (data, methodName) {
-                    // PHP5-style __construct magic method takes precedence
-                    if (methodName === '__construct') {
-                        if (constructorName) {
-                            // TODO: Change for PHP 7 (see https://www.php.net/manual/en/migration70.incompatible.php)
-                            namespace.callStack.raiseError(PHPError.E_STRICT, 'Redefining already defined constructor for class ' + name);
-                        }
-
-                        constructorName = methodName;
-                    }
-
-                    if (!constructorName && methodName === name) {
-                        constructorName = methodName;
-                    }
-
-                    methods[methodName] = data;
-                });
-
-                staticProperties = definition.staticProperties;
-                constants = definition.constants;
-
-                // Record the prototype object that we should stop at when walking up the chain
-                rootInternalPrototype = InternalClass.prototype;
-            }
-
-            classObject = new Class(
-                namespace.valueFactory,
-                namespace.functionFactory,
-                namespace.callStack,
-                namespace.getPrefix() + name,
-                constructorName,
-                InternalClass,
-                rootInternalPrototype,
-                staticProperties,
-                constants,
-                definition.superClass,
-                definition.interfaces,
+            return namespace.classDefiner.defineClass(
+                name,
+                definition,
+                namespace,
                 namespaceScope,
-                namespace.exportRepository,
-                namespace.ffiFactory.createValueCoercer(autoCoercionEnabled),
-                namespace.ffiFactory
-            );
+                autoCoercionEnabled
+            )
+                .next(function (classObject) {
+                    // TODO: What happens if during this class/interface load it is requested again? Add integration test
+                    namespace.classes[lowerName] = classObject;
 
-            _.forOwn(methods, function (data, methodName) {
-                // TODO: For JS-defined functions, `methods` is always empty - see above.
-                //       Consider building it up with processed methods/specs etc., indexed by lowercased name,
-                //       to also solve the performance issue with the current method lookup logic.
-                var functionSpec,
-                    lineNumber = data.line,
-                    method,
-                    methodIsStatic = data[IS_STATIC],
-                    // Parameter spec data may only be provided for PHP-transpiled functions
-                    parametersSpecData = data.args;
-
-                functionSpec = namespace.functionSpecFactory.createMethodSpec(
-                    namespaceScope,
-                    classObject,
-                    methodName,
-                    parametersSpecData || [],
-                    namespace.callStack.getLastFilePath(),
-                    lineNumber || null
-                );
-
-                method = namespace.functionFactory.create(
-                    namespaceScope,
-                    classObject,
-                    data.method,
-                    methodName,
-                    null,
-                    null, // NB: No need to override the class for a method
-                    functionSpec
-                );
-
-                method[IS_METHOD] = true;
-                method[IS_STATIC] = methodIsStatic;
-                method.data = methodData;
-
-                InternalClass.prototype[methodName] = method;
-            });
-
-            methodData.classObject = classObject;
-
-            namespace.classes[name.toLowerCase()] = classObject;
-
-            return classObject;
+                    return classObject;
+                });
         },
 
         /**
@@ -425,17 +238,28 @@ module.exports = require('pauser')([
          * @param {Function} func
          * @param {NamespaceScope} namespaceScope
          * @param {Array=} parametersSpecData
+         * @param {Object|null} returnTypeSpecData
+         * @param {boolean=} returnByReference
          * @param {number=} lineNumber
          */
-        defineFunction: function (name, func, namespaceScope, parametersSpecData, lineNumber) {
+        defineFunction: function (
+            name,
+            func,
+            namespaceScope,
+            parametersSpecData,
+            returnTypeSpecData,
+            returnByReference,
+            lineNumber
+        ) {
             var functionSpec,
                 namespace = this;
 
-            // Parameter spec data may only be provided for PHP-transpiled functions
             functionSpec = namespace.functionSpecFactory.createFunctionSpec(
                 namespaceScope,
                 name,
                 parametersSpecData || [],
+                returnTypeSpecData,
+                returnByReference,
                 namespace.callStack.getLastFilePath(),
                 lineNumber || null
             );
@@ -459,26 +283,38 @@ module.exports = require('pauser')([
          * If applicable, the class autoloader will be invoked.
          *
          * @param {string} name
-         * @returns {Class}
+         * @param {boolean} autoload Whether to attempt to autoload the class if it is not defined
+         * @returns {Future<Class>}
          */
-        getClass: function (name) {
+        getClass: function (name, autoload) {
             var namespace = this,
                 parsed = namespace.parseName(name),
                 lowerName = parsed.name.toLowerCase();
 
-            if (!hasOwn.call(parsed.namespace.classes, lowerName)) {
-                // Try to autoload the class
-                namespace.classAutoloader.autoloadClass(parsed.namespace.getPrefix() + parsed.name);
+            if (hasOwn.call(parsed.namespace.classes, lowerName)) {
+                // Class already exists; just return it
+                return namespace.futureFactory.createPresent(parsed.namespace.classes[lowerName]);
+            }
 
+            // Otherwise the class must be successfully autoloaded or we fail
+
+            return namespace.futureFactory.createFuture(function (resolve) {
+                if (autoload !== false) {
+                    // Try to autoload the class
+                    resolve(namespace.classAutoloader.autoloadClass(parsed.namespace.getPrefix() + parsed.name));
+                } else {
+                    resolve();
+                }
+            }).next(function () {
                 // Raise an error if it is still not defined
-                if (!hasOwn.call(parsed.namespace.classes, lowerName)) {
+                if (!parsed.namespace.hasClass(lowerName)) {
                     namespace.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NOT_FOUND, {
                         name: parsed.namespace.getPrefix() + parsed.name
                     });
                 }
-            }
 
-            return parsed.namespace.classes[lowerName];
+                return parsed.namespace.getClass(lowerName);
+            });
         },
 
         /**

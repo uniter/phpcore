@@ -10,11 +10,9 @@
 'use strict';
 
 var _ = require('microdash'),
-    builtins = require('../../src/builtin/builtins'),
     escapeRegex = require('regexp.escape'),
     path = require('path'),
     mochaPath = path.dirname(require.resolve('mocha/package.json')),
-    pausable = require('pausable'),
     phpCorePath = path.resolve(__dirname, '../..'),
     phpToAST = require('phptoast'),
     phpToJS = require('phptojs'),
@@ -27,21 +25,11 @@ var _ = require('microdash'),
 
     createAsyncRuntime = function () {
         // Create an isolated runtime we can install builtins into without affecting the main singleton one
-        var runtime = runtimeFactory.create('async', pausable);
-
-        // Install the standard set of builtins
-        runtime.install(builtins);
-
-        return runtime;
+        return runtimeFactory.create('async');
     },
     createSyncRuntime = function () {
         // Create an isolated runtime we can install builtins into without affecting the main singleton one
-        var runtime = runtimeFactory.create('sync');
-
-        // Install the standard set of builtins
-        runtime.install(builtins);
-
-        return runtime;
+        return runtimeFactory.create('sync');
     },
 
     transpile = function (path, php, phpCore, options) {

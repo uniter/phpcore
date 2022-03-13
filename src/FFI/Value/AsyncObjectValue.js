@@ -20,15 +20,17 @@ module.exports = require('pauser')([
 ) {
     /**
      * @param {ValueFactory} factory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
      * @param {ValueCaller} valueCaller
      * @param {ObjectValue} wrappedObjectValue
      * @constructor
      */
-    function AsyncObjectValue(factory, callStack, valueCaller, wrappedObjectValue) {
+    function AsyncObjectValue(factory, referenceFactory, futureFactory, callStack, valueCaller, wrappedObjectValue) {
         var nativeValue = wrappedObjectValue.getObject();
 
-        Value.call(this, factory, callStack, 'object', nativeValue);
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'object', nativeValue);
 
         /**
          * @type {ValueCaller}

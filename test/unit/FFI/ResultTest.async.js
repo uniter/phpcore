@@ -10,17 +10,21 @@
 'use strict';
 
 var expect = require('chai').expect,
-    pausable = require('pausable'),
     sinon = require('sinon'),
+    tools = require('../tools'),
     Promise = require('lie'),
-    Result = require('../../../src/FFI/Result'),
-    ValueFactory = require('../../../src/ValueFactory').async(pausable);
+    Result = require('../../../src/FFI/Result');
 
 describe('FFIResult (async mode)', function () {
     var asyncCallback,
-        syncCallback;
+        state,
+        syncCallback,
+        valueFactory;
 
     beforeEach(function () {
+        state = tools.createIsolatedState();
+        valueFactory = state.getValueFactory();
+
         asyncCallback = sinon.stub();
         syncCallback = sinon.stub();
     });
@@ -33,7 +37,7 @@ describe('FFIResult (async mode)', function () {
                 return Promise.resolve(101);
             });
 
-            result = new Result(syncCallback, asyncCallback);
+            result = new Result(syncCallback, asyncCallback, valueFactory, 'async');
 
             return expect(result.getAsync()).to.eventually.equal(101);
         });
@@ -45,7 +49,7 @@ describe('FFIResult (async mode)', function () {
                 return 'I am not a promise';
             });
 
-            result = new Result(syncCallback, asyncCallback);
+            result = new Result(syncCallback, asyncCallback, valueFactory, 'async');
 
             expect(function () {
                 result.getAsync();
@@ -54,40 +58,19 @@ describe('FFIResult (async mode)', function () {
     });
 
     describe('resolve()', function () {
-        var valueFactory;
+        it('should return the result from the Promise returned by .getAsync(), coerced to a Value object', async function () {
+            var ffiResult = new Result(syncCallback, asyncCallback, valueFactory, 'async'),
+                resultValue;
+            asyncCallback.returns(new Promise(function (resolve) {
+                setImmediate(function () {
+                    resolve(21);
+                });
+            }));
 
-        beforeEach(function () {
-            valueFactory = new ValueFactory();
-        });
+            resultValue = await ffiResult.resolve().toPromise();
 
-        it('should return the result from the Promise returned by .getAsync(), coerced to a Value object, blocking via Pausable', function (done) {
-            var func = pausable.executeSync([
-                done,
-                expect,
-                pausable,
-                asyncCallback,
-                syncCallback,
-                valueFactory,
-                Result
-            ], function (done, expect, pausable, asyncCallback, syncCallback, valueFactory, Result) {
-                return function () {
-                    var ffiResult = new Result(syncCallback, asyncCallback, pausable),
-                        resultValue;
-                    asyncCallback.returns(new Promise(function (resolve) {
-                        setTimeout(function () {
-                            resolve(21);
-                        }, 1);
-                    }));
-
-                    resultValue = ffiResult.resolve(valueFactory);
-
-                    expect(resultValue.getType()).to.equal('int');
-                    expect(resultValue.getNative()).to.equal(21);
-                    done();
-                };
-            });
-
-            pausable.call(func);
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(21);
         });
     });
 });

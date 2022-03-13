@@ -62,19 +62,22 @@ module.exports = require('pauser')([
         },
         Exception = phpCommon.Exception,
         MAGIC_CLONE = '__clone',
+        MAGIC_TO_STRING = '__toString',
         PHPError = phpCommon.PHPError,
 
         CANNOT_ACCESS_PROPERTY = 'core.cannot_access_property',
+        CANNOT_CONVERT_OBJECT = 'core.cannot_convert_object',
         CANNOT_USE_WRONG_TYPE_AS = 'core.cannot_use_wrong_type_as',
         OBJECT_FROM_GET_ITERATOR_MUST_BE_TRAVERSABLE = 'core.object_from_get_iterator_must_be_traversable',
-        UNDEFINED_PROPERTY = 'core.undefined_property',
-        UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types';
+        UNDEFINED_PROPERTY = 'core.undefined_property';
 
     /**
      * Represents an instance of a class. There is a JS<->PHP bridge
      * that wraps objects passed in from JS-land in instances of a special JSObject builtin class.
      *
      * @param {ValueFactory} factory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
      * @param {Translator} translator
      * @param {object} object
@@ -82,8 +85,17 @@ module.exports = require('pauser')([
      * @param {number} id
      * @constructor
      */
-    function ObjectValue(factory, callStack, translator, object, classObject, id) {
-        Value.call(this, factory, callStack, 'object', object);
+    function ObjectValue(
+        factory,
+        referenceFactory,
+        futureFactory,
+        callStack,
+        translator,
+        object,
+        classObject,
+        id
+    ) {
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'object', object);
 
         /**
          * @type {Class}
@@ -132,64 +144,10 @@ module.exports = require('pauser')([
 
     _.extend(ObjectValue.prototype, {
         /**
-         * Adds this value to another
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
-         */
-        add: function (rightValue) {
-            return rightValue.addToObject(this);
-        },
-
-        /**
-         * Adds this value to an array
-         */
-        addToArray: function () {
-            var value = this;
-
-            value.callStack.raiseError(
-                PHPError.E_NOTICE,
-                'Object of class ' + value.classObject.getName() + ' could not be converted to number'
-            );
-
-            value.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
-         * Adds this value to a boolean
-         *
-         * @param {BooleanValue} booleanValue
-         */
-        addToBoolean: function (booleanValue) {
-            var value = this;
-
-            value.callStack.raiseError(
-                PHPError.E_NOTICE,
-                'Object of class ' + value.classObject.getName() + ' could not be converted to number'
-            );
-
-            return value.factory.createInteger((booleanValue.getNative() ? 1 : 0) + 1);
-        },
-
-        /**
-         * Adds this value to a float
-         *
-         * @param {FloatValue} floatValue
-         */
-        addToFloat: function (floatValue) {
-            var value = this;
-
-            value.callStack.raiseError(
-                PHPError.E_NOTICE,
-                'Object of class ' + value.classObject.getName() + ' could not be converted to number'
-            );
-
-            return value.factory.createFloat(floatValue.getNative() + 1);
-        },
-
-        /**
          * Moves the iterator to its next position.
          * Used by transpiled foreach loops over objects implementing Iterator.
+         *
+         * @returns {FutureValue}
          */
         advance: function () {
             var value = this;
@@ -198,7 +156,8 @@ module.exports = require('pauser')([
                 throw new Exception('Object.advance() :: Object does not implement Iterator');
             }
 
-            value.callMethod('next');
+            // Note that the return value is ignored, but may be a FutureValue which we must yield to.
+            return value.callMethod('next');
         },
 
         /**
@@ -229,7 +188,15 @@ module.exports = require('pauser')([
          * @returns {Reference|Value}
          */
         call: function (args) {
-            return this.callMethod('__invoke', args);
+            var value = this;
+
+            return value.classIs('Closure') ?
+                // For a closure, invoke it directly rather than via the wrapped __invoke() method
+                // of the builtin Closure class, both for performance and to avoid adding a stack frame
+                // for the __invoke() call, which is not present in the reference implementation.
+                value.invokeClosure(args) :
+                // For all other types of object there is no such shortcut.
+                value.callMethod('__invoke', args);
         },
 
         /**
@@ -251,11 +218,10 @@ module.exports = require('pauser')([
          *
          * @param {StringValue} nameValue
          * @param {Value[]} args
-         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
          * @param {bool} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
          * @returns {Value}
          */
-        callStaticMethod: function (nameValue, args, namespaceOrNamespaceScope, isForwarding) {
+        callStaticMethod: function (nameValue, args, isForwarding) {
             // Could be a static call in object context, in which case we want to pass
             // the object value through.
             // This will be handled by a fetch of `callStack.getThisObject()` inside `.callMethod(...)`
@@ -273,21 +239,33 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Returns a clone of this object value
+         * Returns a clone of this object value. Note that the userland __clone() method, if defined,
+         * may pause, in which case a FutureValue will be returned that eventually resolves to the clone.
          *
-         * @returns {ObjectValue}
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
          */
         clone: function () {
             var value = this,
                 // Avoid calling the __construct() class constructor when cloning,
                 // however note that the native constructor will still be called
                 // as that is used to initialise properties for PHP-defined classes etc.
-                cloneObjectValue = value.classObject.instantiateBare(
-                    // TODO: Consider storing the arguments passed to the constructor,
-                    //       so that they may be passed here - however this may then leak memory
-                    //       as we would be holding on to references to those arguments' values
-                    []
-                );
+                cloneObjectValue,
+                nativeObject;
+
+            // TODO: Move to Class and make configurable for native definitions
+            //       via .defineCloner(...)
+            if (value.classIs('JSObject')) {
+                // Create a new native object with the same [[Prototype]] as the original.
+                nativeObject = Object.create(Object.getPrototypeOf(value.value));
+
+                // Copy enumerable own properties to the clone.
+                _.extend(nativeObject, value.value);
+
+                // Wrap the clone as an ObjectValue<JSObject>.
+                return value.factory.createBoxedJSObject(nativeObject);
+            }
+
+            cloneObjectValue = value.classObject.instantiateBare();
 
             // Clones are shallow: each property's value is simply copied over to the clone.
             // (Note that arrays will be copied as is done for assignments.)
@@ -299,14 +277,17 @@ module.exports = require('pauser')([
 
             // Call the magic __clone method if defined
             if (cloneObjectValue.isMethodDefined(MAGIC_CLONE)) {
-                cloneObjectValue.callMethod(MAGIC_CLONE);
+                // Note that this could pause by returning a FutureValue, which we handle.
+                return cloneObjectValue.callMethod(MAGIC_CLONE).next(function () {
+                    return cloneObjectValue;
+                });
             }
 
             return cloneObjectValue;
         },
 
         /**
-         * Coerces this ObjectValue to an ArrayValue
+         * Coerces this ObjectValue to an ArrayValue (overrides the implementation in Value)
          *
          * @returns {ArrayValue}
          */
@@ -365,20 +346,16 @@ module.exports = require('pauser')([
             // Uncaught PHP Throwables become E_FATAL errors
 
             if (!value.classIs('Throwable')) {
-                // TODO: Change for PHP 7:
-                //       "Fatal error: Uncaught Error: Can only throw objects in Command line code:1"
-                //       "Fatal error: Uncaught Error: Cannot throw objects that do not implement Throwable in Command line code:1"
-                //       These will probably need to be handled with transpiler-level changes,
-                //       so that a throw statement becomes eg. `tools.throw(...)` as it is too late
-                //       to make these checks at this point, due to the original stack/context being lost
+                /*
+                 * Note that this should not be possible, as the "throw_" opcode handler
+                 * should throw the specific PHP error for an instance of a non-Throwable class:
+                 *
+                 * "Cannot throw objects that do not implement Throwable".
+                 */
                 throw new Exception('Weird value class thrown: ' + value.getClassName());
             }
 
             return value.getNative();
-        },
-
-        coerceToNumber: function () {
-            return this.coerceToInteger();
         },
 
         coerceToKey: function () {
@@ -390,8 +367,40 @@ module.exports = require('pauser')([
             return this;
         },
 
+        /**
+         * {@inheritdoc}
+         *
+         * @throws {ObjectValue} Raises an error when the class does not implement ->__toString()
+         */
         coerceToString: function () {
-            return this.callMethod('__toString');
+            var value = this;
+
+            if (!value.isMethodDefined(MAGIC_TO_STRING)) {
+                // Class does not implement ->__toString() magic, so instances cannot be coerced.
+                value.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    CANNOT_CONVERT_OBJECT,
+                    {
+                        className: value.classObject.getName(),
+                        type: 'string'
+                    }
+                );
+            }
+
+            return value.callMethod(MAGIC_TO_STRING);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        convertForStringType: function () {
+            var value = this;
+
+            return value.isMethodDefined(MAGIC_TO_STRING) ?
+                value.callMethod(MAGIC_TO_STRING) :
+                // Return the object value unchanged if ->__toString() not defined.
+                // Note that this behaviour differs from .coerceToString().
+                value;
         },
 
         /**
@@ -407,9 +416,7 @@ module.exports = require('pauser')([
                 propertyReference;
 
             function createProperty() {
-                return new PropertyReference(
-                    value.factory,
-                    value.callStack,
+                return value.referenceFactory.createProperty(
                     value,
                     value.factory.coerce(name),
                     classObject,
@@ -444,27 +451,11 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Divides (the numeric coercion of) this object by another value
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
+         * {@inheritdoc}
          */
-        divide: function (rightValue) {
-            return rightValue.divideByObject(this);
-        },
-
-        /**
-         * Divides a non-array value by this object
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        divideByNonArray: function (leftValue) {
-            // Trigger notice due to coercion
-            this.coerceToInteger();
-
-            // Objects are always cast to int(1), so divisor will always be 1
-            return leftValue.coerceToNumber();
+        decrement: function () {
+            // NB: This is the expected behaviour, vs. subtracting one from an object explicitly.
+            return this;
         },
 
         /**
@@ -538,13 +529,30 @@ module.exports = require('pauser')([
          * @returns {Value}
          */
         getCurrentElementValue: function () {
-            var value = this;
+            var propertyName,
+                propertyNames,
+                value = this;
 
-            if (!value.classIs('Iterator')) {
-                throw new Exception('Object.getCurrentElementValue() :: Object does not implement Iterator');
+            if (value.classIs('Iterator')) {
+                return value.callMethod('current');
             }
 
-            return value.callMethod('current');
+            // Otherwise we're treating the object as an array.
+            propertyNames = value.getInstancePropertyNames();
+
+            if (propertyNames.length === 0) {
+                // Object is empty so can have no current value.
+                return value.factory.createNull();
+            }
+
+            if (value.pointer >= propertyNames.length) {
+                // Internal property pointer is invalid.
+                throw new Exception('ObjectValue.getCurrentElementValue() :: Pointer is invalid');
+            }
+
+            propertyName = propertyNames[value.pointer];
+
+            return value.getInstancePropertyByName(value.factory.coerce(propertyName)).getValue();
         },
 
         /**
@@ -587,7 +595,7 @@ module.exports = require('pauser')([
                     'Undefined ' + value.referToElement(index)
                 );
 
-                return new NullReference(value.factory);
+                return value.referenceFactory.createNull();
             }
 
             return value.getInstancePropertyByName(names[index]);
@@ -606,11 +614,11 @@ module.exports = require('pauser')([
 
             if (!keyValue) {
                 // Could not be coerced to a key: error will already have been handled, just return NULL
-                return new NullReference(value.factory);
+                return value.referenceFactory.createNull();
             }
 
             if (value.classObject.is('ArrayAccess')) {
-                return new ObjectElement(value.factory, value, keyValue);
+                return value.referenceFactory.createObjectElement(value, keyValue);
             }
 
             value.callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_USE_WRONG_TYPE_AS, {
@@ -649,6 +657,15 @@ module.exports = require('pauser')([
                 nameValue = value.factory.createString(name);
 
             return value.getInstancePropertyByName(nameValue).getValue();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        getPushElement: function () {
+            var value = this;
+
+            return value.referenceFactory.createObjectElement(value, value.factory.createNull());
         },
 
         /**
@@ -839,37 +856,43 @@ module.exports = require('pauser')([
          * or the object itself if it implements Traversable via Iterator or IteratorAggregate.
          * Used by transpiled foreach loops over objects implementing Iterator.
          *
-         * @returns {ArrayIterator|ObjectValue}
+         * @returns {Future<ArrayIterator>|FutureValue<ObjectValue>}
          */
         getIterator: function () {
             var value = this,
-                iteratorValue = value;
+                iteratorFutureValue = value;
 
             value.pointer = 0;
 
-            if (iteratorValue.classIs('IteratorAggregate')) {
+            if (value.classIs('IteratorAggregate')) {
                 // IteratorAggregate requires its ->getIterator() method to return something iterable
-                iteratorValue = iteratorValue.callMethod('getIterator');
-
-                if (iteratorValue.getType() !== 'object' || !iteratorValue.classIs('Iterator')) {
-                    throw value.factory.createTranslatedExceptionObject(
-                        'Exception',
-                        OBJECT_FROM_GET_ITERATOR_MUST_BE_TRAVERSABLE,
-                        {
-                            className: value.getClassName()
+                iteratorFutureValue = value.callMethod('getIterator')
+                    .next(function (iteratorValue) {
+                        if (iteratorValue.getType() !== 'object' || !iteratorValue.classIs('Iterator')) {
+                            throw value.factory.createTranslatedExceptionObject(
+                                'Exception',
+                                OBJECT_FROM_GET_ITERATOR_MUST_BE_TRAVERSABLE,
+                                {
+                                    className: value.getClassName()
+                                }
+                            );
                         }
-                    );
-                }
-            }
 
-            if (!iteratorValue.classIs('Iterator')) {
+                        return iteratorValue;
+                    });
+            } else if (!value.classIs('Iterator')) {
                 // Objects not implementing Traversable are iterated like arrays
-                return value.factory.createArrayIterator(value);
+                return value.futureFactory.createPresent(value.factory.createArrayIterator(value));
             }
 
-            iteratorValue.callMethod('rewind');
+            // At this point, iteratorFutureValue will either be the original ObjectValue if it implemented Iterator
+            // or the result of calling ->getIterator() if it implemented IteratorAggregate
 
-            return iteratorValue;
+            return iteratorFutureValue.next(function (iteratorValue) {
+                iteratorValue.callMethod('rewind');
+
+                return iteratorValue;
+            });
         },
 
         /**
@@ -976,6 +999,9 @@ module.exports = require('pauser')([
          * Exports a proxy object that allows JS code to call any method of this object
          * (including magic ones implemented with __call)
          *
+         * @deprecated Is this required, why not just use a non-coercing function/class?
+         *             Also, the concept of "Proxy" is now the replacement for the old "UnwrappedClass"
+         *
          * @returns {PHPObject}
          */
         getProxy: function () {
@@ -988,7 +1014,7 @@ module.exports = require('pauser')([
          * Fetches a reference to a static property of this object's class by its name
          *
          * @param {Reference|Value} nameValue
-         * @returns {StaticPropertyReference|UndeclaredStaticPropertyReference}
+         * @returns {Future<StaticPropertyReference|UndeclaredStaticPropertyReference>}
          */
         getStaticPropertyByName: function (nameValue) {
             return this.classObject.getStaticPropertyByName(nameValue.getNative());
@@ -1006,18 +1032,25 @@ module.exports = require('pauser')([
         },
 
         /**
+         * {@inheritdoc}
+         */
+        increment: function () {
+            // NB: This is the expected behaviour, vs. adding one to an object explicitly.
+            return this;
+        },
+
+        /**
          * Creates a new instance of the class of this object for a normal PHP object.
          * For a JSObject, if the wrapped object is a function then it will create
          * a new instance of the wrapped JS class instead,
          * returning the resulting new JSObject instance
          *
          * @param {Value[]} args
-         * @returns {ObjectValue}
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
          */
         instantiate: function (args) {
             var value = this,
                 nativeObject,
-                objectValue,
                 unwrappedArgs;
 
             if (value.getClassName() !== 'JSObject') {
@@ -1046,9 +1079,7 @@ module.exports = require('pauser')([
              */
             nativeObject = new (function () {}.bind.apply(value.value, [undefined].concat(unwrappedArgs)))();
 
-            objectValue = value.factory.coerceObject(nativeObject);
-
-            return objectValue;
+            return value.factory.coerceObject(nativeObject);
         },
 
         /**
@@ -1087,17 +1118,19 @@ module.exports = require('pauser')([
         isCallable: function () {
             var value = this;
 
-            return value.classIs('Closure') ||
-                value.isMethodDefined('__invoke');
+            return value.futureFactory.createPresent(
+                value.classIs('Closure') ||
+                value.isMethodDefined('__invoke')
+            );
         },
 
         /**
          * Objects are never classed as empty
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>}
          */
         isEmpty: function () {
-            return false;
+            return this.futureFactory.createPresent(false);
         },
 
         isEqualTo: function (rightValue) {
@@ -1209,7 +1242,7 @@ module.exports = require('pauser')([
          * Determines whether this iterator has finished iterating or not.
          * Used by transpiled foreach loops over objects implementing Iterator.
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>|boolean}
          */
         isNotFinished: function () {
             var value = this;
@@ -1218,7 +1251,9 @@ module.exports = require('pauser')([
                 throw new Exception('ObjectValue.isNotFinished() :: Object does not implement Iterator');
             }
 
-            return value.callMethod('valid').coerceToBoolean().getNative();
+            return value.callMethod('valid')
+                .coerceToBoolean()
+                .asEventualNative();
         },
 
         /**
@@ -1264,49 +1299,11 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Multiplies this object by another value
+         * Generates a human-readable string that refers to a property
          *
-         * @param {Value} rightValue
-         * @returns {Value}
+         * @param {string} key
+         * @returns {string}
          */
-        multiply: function (rightValue) {
-            return rightValue.multiplyByObject(this);
-        },
-
-        /**
-         * Multiplies this object by a non-array value
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        multiplyByNonArray: function (leftValue) {
-            // Trigger notice due to coercion
-            this.coerceToInteger();
-
-            // Objects are always cast to int(1), so multiplier will always be 1
-            return leftValue.coerceToNumber();
-        },
-
-        /**
-         * Moves the internal array-like pointer to the specified property
-         *
-         * @param {PropertyReference} propertyReference
-         */
-        pointToProperty: function (propertyReference) {
-            var index = 0,
-                propertyName = propertyReference.getKey().getNative(),
-                value = this;
-
-            // Find the property in the set of properties visible to the current scope
-            _.each(value.getInstancePropertyNames(), function (name) {
-                if (name.getNative() === propertyName) {
-                    value.setPointer(index);
-                }
-
-                index++;
-            });
-        },
-
         referToElement: function (key) {
             return 'property: ' + this.getClassName() + '::$' + key;
         },

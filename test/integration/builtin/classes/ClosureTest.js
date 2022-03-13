@@ -18,6 +18,8 @@ describe('PHP builtin Closure class integration', function () {
         it('should support duplicating with a specific bound object', function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
+ini_set('error_reporting', E_ALL);
+
 class MyClass
 {
     private $myProp = 21;
@@ -41,7 +43,7 @@ $newClosure = Closure::bind($closure, $newThis);
 return $newClosure();
 EOS
 */;}),//jshint ignore:line,
-                module = tools.syncTranspile(null, php),
+                module = tools.syncTranspile('/path/to/my_module.php', php),
                 engine = module(),
                 result = engine.execute();
 
@@ -52,6 +54,10 @@ EOS
         it('should support duplicating with a specific bound class but no object', function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
+namespace {
+    ini_set('error_reporting', E_ALL);
+}
+
 namespace My\Space
 {
     class FirstClass
@@ -86,7 +92,7 @@ namespace
 }
 EOS
 */;}),//jshint ignore:line,
-                module = tools.syncTranspile(null, php),
+                module = tools.syncTranspile('/path/to/my_module.php', php),
                 engine = module(),
                 result = engine.execute();
 
@@ -99,6 +105,8 @@ EOS
         it('should support duplicating with a specific bound object', function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
+ini_set('error_reporting', E_ALL);
+
 class MyClass
 {
     private $myProp = 21;
@@ -122,7 +130,7 @@ $newClosure = $closure->bindTo($newThis);
 return $newClosure();
 EOS
 */;}),//jshint ignore:line,
-                module = tools.syncTranspile(null, php),
+                module = tools.syncTranspile('/path/to/my_module.php', php),
                 engine = module(),
                 result = engine.execute();
 
@@ -133,6 +141,10 @@ EOS
         it('should support duplicating with a specific bound class but no object', function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
+namespace {
+    ini_set('error_reporting', E_ALL);
+}
+
 namespace My\Space
 {
     class FirstClass
@@ -166,7 +178,7 @@ namespace
 }
 EOS
 */;}),//jshint ignore:line,
-                module = tools.syncTranspile(null, php),
+                module = tools.syncTranspile('/path/to/my_module.php', php),
                 engine = module(),
                 result = engine.execute();
 

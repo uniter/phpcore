@@ -12,60 +12,136 @@
 module.exports = require('pauser')([
     require('microdash'),
     require('phpcommon'),
-    require('./Reference/Null')
+    require('lie')
 ], function (
     _,
     phpCommon,
-    NullReference
+    Promise
 ) {
     var PHPError = phpCommon.PHPError,
 
         CLASS_NAME_NOT_VALID = 'core.class_name_not_valid',
         METHOD_CALLED_ON_NON_OBJECT = 'core.method_called_on_non_object',
         NON_OBJECT_METHOD_CALL = 'core.non_object_method_call',
-        UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types',
 
         createNullReference = function (value) {
             var callStack = value.callStack;
 
-            return new NullReference(value.factory, {
+            return value.referenceFactory.createNull({
                 onSet: function () {
                     callStack.raiseError(PHPError.E_WARNING, 'Cannot use a scalar value as an array');
                 }
             });
         },
-        throwUnimplemented = function () {
-            throw new Error('Unimplemented');
+
+        /**
+         * Generates a function that will throw to indicate an unimplemented method when called.
+         *
+         * @param {string} functionName
+         * @returns {Function}
+         */
+        throwUnimplemented = function (functionName) {
+            return function () {
+                throw new Error(functionName + '() :: Not implemented');
+            };
         };
 
-    function Value(factory, callStack, type, value) {
-        this.factory = factory;
+    /**
+     * @param {ValueFactory} factory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {FutureFactory} futureFactory
+     * @param {CallStack} callStack
+     * @param {string} type
+     * @param {*} value
+     * @abstract
+     * @constructor
+     */
+    function Value(
+        factory,
+        referenceFactory,
+        futureFactory,
+        callStack,
+        type,
+        value
+    ) {
+        /**
+         * @type {CallStack}
+         */
         this.callStack = callStack;
+        /**
+         * @type {ValueFactory}
+         */
+        this.factory = factory;
+        /**
+         * @type {FutureFactory}
+         */
+        this.futureFactory = futureFactory;
+        /**
+         * @type {ReferenceFactory}
+         */
+        this.referenceFactory = referenceFactory;
+        /**
+         * @type {string}
+         */
         this.type = type;
+        /**
+         * @type {*}
+         */
         this.value = value;
     }
 
     _.extend(Value.prototype, {
         /**
-         * Adds this value to an array
+         * Adds this value to another
+         *
+         * @param {Value} rightValue
+         * @returns {Value}
          */
-        addToArray: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
+        add: function (rightValue) {
+            var leftValue = this,
+                coercedLeftValue = leftValue.coerceToNumber(),
+                coercedRightValue = rightValue.coerceToNumber();
+
+            if (rightValue.isFuture()) {
+                return rightValue.derive().next(function (rightValue) {
+                    return leftValue.add(rightValue);
+                });
+            }
+
+            return leftValue.factory.createArithmeticResult(
+                coercedLeftValue,
+                coercedRightValue,
+                coercedLeftValue.getNative() + coercedRightValue.getNative()
+            );
         },
 
-        addToFloat: function (floatValue) {
-            var leftValue = this;
-
-            // Coerce to float and return a float if either operand is a float
-            return leftValue.factory.createFloat(leftValue.coerceToFloat().getNative() + floatValue.getNative());
+        /**
+         * Returns either a native or a Future-wrapped native for this value.
+         *
+         * @returns {Future<*>|*}
+         */
+        asEventualNative: function () {
+            return this.getNative();
         },
 
-        addToNull: function () {
+        /**
+         * Derives a Future from this value
+         *
+         * @returns {Future}
+         */
+        asFuture: function () {
+            var value = this;
+
+            return value.futureFactory.createPresent(value);
+        },
+
+        /**
+         * Derives a value from this value (shared interface with Future)
+         *
+         * @returns {Value}
+         */
+        asValue: function () {
             return this;
-        },
-
-        addToString: function (stringValue) {
-            return stringValue.coerceToNumber().add(this.coerceToNumber());
         },
 
         /**
@@ -75,12 +151,18 @@ module.exports = require('pauser')([
          * @returns {IntegerValue}
          */
         bitwiseAnd: function (rightValue) {
-            var value = this;
+            var leftValue = this;
+
+            if (rightValue.isFuture()) {
+                return rightValue.derive().next(function (rightValue) {
+                    return leftValue.bitwiseAnd(rightValue);
+                });
+            }
 
             /*jshint bitwise:false */
-            return value.factory.createInteger(
+            return leftValue.factory.createInteger(
                 (
-                    value.coerceToInteger().getNative() & rightValue.coerceToInteger().getNative()
+                    leftValue.coerceToInteger().getNative() & rightValue.coerceToInteger().getNative()
                 ) >>> 0 // Force unsigned native JS number
             );
         },
@@ -92,15 +174,52 @@ module.exports = require('pauser')([
          * @returns {IntegerValue}
          */
         bitwiseOr: function (rightValue) {
-            var value = this;
+            var leftValue = this;
+
+            if (rightValue.isFuture()) {
+                return rightValue.derive().next(function (rightValue) {
+                    return leftValue.bitwiseOr(rightValue);
+                });
+            }
 
             /*jshint bitwise:false */
-            return value.factory.createInteger(
+            return leftValue.factory.createInteger(
                 (
-                    value.coerceToInteger().getNative() | rightValue.coerceToInteger().getNative()
+                    leftValue.coerceToInteger().getNative() | rightValue.coerceToInteger().getNative()
                 ) >>> 0 // Force unsigned native JS number
             );
         },
+
+        /**
+         * Calculates the bitwise-XOR of this and a right-operand
+         *
+         * @param {Value} rightValue
+         * @returns {FutureValue|IntegerValue}
+         */
+        bitwiseXor: function (rightValue) {
+            var leftValue = this;
+
+            if (rightValue.isFuture()) {
+                return rightValue.derive().next(function (rightValue) {
+                    return leftValue.bitwiseXor(rightValue);
+                });
+            }
+
+            /*jshint bitwise:false */
+            return leftValue.factory.createInteger(
+                (
+                    leftValue.coerceToInteger().getNative() ^ rightValue.coerceToInteger().getNative()
+                ) >>> 0 // Force unsigned native JS number
+            );
+        },
+
+        /**
+         * Calls this value, if it is callable
+         *
+         * @param {Reference[]|Value[]|Variable[]} args
+         * @returns {Reference|Value}
+         */
+        call: throwUnimplemented('call'),
 
         /**
          * Calls a method on an object
@@ -124,6 +243,16 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Attaches a callback for when the value has resulted in an error. As present values
+         * are already a present value, this simply ignores the given catch handler and returns the value unchanged.
+         *
+         * @returns {Value}
+         */
+        catch: function () {
+            return this; // Fluent interface
+        },
+
+        /**
          * Returns a clone of this value, or throws an Error if not supported
          *
          * @throws {ObjectValue}
@@ -135,8 +264,8 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Coerces this value to an array. For all Value types except ArrayValue,
-         * the result will be wrapped in an array using this default implementation
+         * Coerces this value to an array. For all scalar types, the result will be wrapped
+         * in an array using this default implementation.
          *
          * @returns {FloatValue}
          */
@@ -180,34 +309,45 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Coerces this value to a number as a FloatValue
+         * Coerces this value to a number as an IntegerValue
          *
-         * @returns {FloatValue}
+         * @returns {FloatValue|IntegerValue}
          */
         coerceToNumber: function () {
-            return this.coerceToFloat();
+            return this.coerceToInteger();
         },
 
+        /**
+         * Coerces this value to an object as an ObjectValue.
+         *
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
+         */
         coerceToObject: function () {
-            var value = this,
-                object = value.factory.createStdClassObject();
+            var value = this;
 
-            /**
-             * Scalars are coerced to objects as follows:
-             *
-             * > var_dump((object)21);
-             *
-             * object(stdClass)#1 (1) {
-             *   ["scalar"]=>
-             *   int(21)
-             * }
-             */
-            object.getInstancePropertyByName(value.factory.createString('scalar')).setValue(value);
+            return value.factory.createStdClassObject().next(function (objectValue) {
+                /**
+                 * Scalars are coerced to objects as follows:
+                 *
+                 * > var_dump((object)21);
+                 *
+                 * object(stdClass)#1 (1) {
+                 *   ["scalar"]=>
+                 *   int(21)
+                 * }
+                 */
+                objectValue.getInstancePropertyByName(value.factory.createString('scalar')).setValue(value);
 
-            return object;
+                return objectValue;
+            });
         },
 
-        coerceToString: throwUnimplemented,
+        /**
+         * Coerces this value to a string, if possible.
+         *
+         * @returns {FutureValue<StringValue>|StringValue}
+         */
+        coerceToString: throwUnimplemented('coerceToString'),
 
         /**
          * Concatenates this value's string representation with the provided other value's
@@ -216,96 +356,139 @@ module.exports = require('pauser')([
          * @returns {StringValue}
          */
         concat: function (rightValue) {
-            var leftValue = this;
+            var leftValue = this,
+                coercedLeftValue = leftValue.coerceToString(),
+                coercedRightValue = rightValue.coerceToString();
+
+            // This value could coerce to a future, eg. if an ObjectValue implementing ->__toString().
+            if (coercedLeftValue.isFuture()) {
+                return coercedLeftValue.derive().next(function (leftValue) {
+                    return leftValue.concat(rightValue);
+                });
+            }
+
+            if (coercedRightValue.isFuture()) {
+                return coercedRightValue.derive().next(function (rightValue) {
+                    return leftValue.concat(rightValue);
+                });
+            }
 
             return leftValue.factory.createString(
-                leftValue.coerceToString().getNative() + rightValue.coerceToString().getNative()
+                coercedLeftValue.getNative() + coercedRightValue.getNative()
             );
         },
 
-        decrement: throwUnimplemented,
+        /**
+         * Converts this value for a boolean type hint. If it cannot be successfully converted,
+         * the value is returned unchanged. Used by scalar type hinting.
+         *
+         * @returns {Value}
+         */
+        convertForBooleanType: function () {
+            return this;
+        },
+
+        /**
+         * Converts this value for a float type hint. If it cannot be successfully converted,
+         * the value is returned unchanged. Used by scalar type hinting.
+         *
+         * @returns {Value}
+         */
+        convertForFloatType: function () {
+            return this;
+        },
+
+        /**
+         * Converts this value for an integer type hint. If it cannot be successfully converted,
+         * the value is returned unchanged. Used by scalar type hinting.
+         *
+         * @returns {Value}
+         */
+        convertForIntegerType: function () {
+            return this;
+        },
+
+        /**
+         * Converts this value for a string type hint. If it cannot be successfully converted,
+         * the value is returned unchanged. Used by scalar type hinting.
+         *
+         * @returns {Value}
+         */
+        convertForStringType: function () {
+            return this;
+        },
+
+        /**
+         * Coerces this value to a number and subtracts one from it.
+         *
+         * @returns {Value}
+         */
+        decrement: function () {
+            var value = this;
+
+            return value.factory.createInteger(value.getNative() - 1);
+        },
+
+        /**
+         * Derives a new value from this one that will be resumed/thrown-into
+         * once the future value (or error result) is known. For a present value we will just
+         * return itself, whereas for a future value we will return a new future
+         * so that any handlers attached to it will not affect the original one.
+         *
+         * @returns {Value}
+         */
+        derive: function () {
+            return this;
+        },
 
         /**
          * Divides this value by another
-         */
-        divide: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
-         * Divides an array value by this one
-         */
-        divideByArray: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
-         * Divides a boolean value by this value
          *
-         * @param {Value} leftValue
+         * @param {Value} rightValue
          * @returns {Value}
          */
-        divideByBoolean: function (leftValue) {
-            return this.divideByNonArray(leftValue);
+        divideBy: function (rightValue) {
+            var leftValue = this,
+                coercedLeftValue,
+                coercedRightValue,
+                divisor;
+
+            if (rightValue.isFuture()) {
+                return rightValue.derive().next(function (rightValue) {
+                    return leftValue.divideBy(rightValue);
+                });
+            }
+
+            coercedLeftValue = leftValue.coerceToNumber();
+            coercedRightValue = rightValue.coerceToNumber();
+            divisor = coercedRightValue.getNative();
+
+            if (divisor === 0) {
+                leftValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
+
+                return leftValue.factory.createBoolean(false);
+            }
+
+            return leftValue.factory.createArithmeticResult(
+                coercedLeftValue,
+                coercedRightValue,
+                coercedLeftValue.getNative() / divisor
+            );
         },
 
         /**
-         * Divides a float value by this value
+         * Attaches a callback for when the value has been evaluated regardless of result or error.
+         * As present values are already, this simply calls the handler synchronously.
          *
-         * @param {Value} leftValue
+         * @param {Function} finallyHandler
          * @returns {Value}
          */
-        divideByFloat: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
+        finally: function (finallyHandler) {
+            var value = this;
 
-        /**
-         * Divides an integer value by this value
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        divideByInteger: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
+            finallyHandler(value);
 
-        /**
-         * Divides a non-array value by this value
-         *
-         * @throws {PHPFatalError}
-         */
-        divideByNonArray: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
-         * Divides a null value by this value
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        divideByNull: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        /**
-         * Divides an object value by this value
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        divideByObject: function (leftValue) {
-            return this.divideByNonArray(leftValue);
-        },
-
-        /**
-         * Divides a string value by this value
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        divideByString: function (leftValue) {
-            return this.divideByNonArray(leftValue);
+            return value; // Fluent interface
         },
 
         /**
@@ -313,9 +496,14 @@ module.exports = require('pauser')([
          *
          * @returns {string}
          */
-        formatAsString: throwUnimplemented,
+        formatAsString: throwUnimplemented('formatAsString'),
 
-        getCallableName: throwUnimplemented,
+        /**
+         * Generates a string representing how this value could be called.
+         *
+         * @returns {string}
+         */
+        getCallableName: throwUnimplemented('getCallableName'),
 
         /**
          * Fetches a constant of a class by its name
@@ -333,6 +521,11 @@ module.exports = require('pauser')([
             return this.type;
         },
 
+        /**
+         * Fetches an element of this value, as used by the array element dereference syntax $value[$element].
+         *
+         * @returns {ElementReference|ObjectElement}
+         */
         getElementByKey: function () {
             return createNullReference(this);
         },
@@ -341,7 +534,13 @@ module.exports = require('pauser')([
             return this;
         },
 
-        getInstancePropertyByName: throwUnimplemented,
+        /**
+         * Fetches an instance property of this object by its name.
+         *
+         * @param {Reference|Value|Variable} nameReference
+         * @returns {NullReference|PropertyReference|Reference}
+         */
+        getInstancePropertyByName: throwUnimplemented('getInstancePropertyByName'),
 
         getLength: function () {
             return this.coerceToString().getLength();
@@ -367,6 +566,11 @@ module.exports = require('pauser')([
             return this.getNative();
         },
 
+        /**
+         * Fetches a special element that will append to the array
+         *
+         * @returns {ElementReference|NullReference|ObjectElement}
+         */
         getPushElement: function () {
             return createNullReference(this);
         },
@@ -376,7 +580,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches a static property for a class by its name
+         * Fetches a reference to a static property for a class by its name
          */
         getStaticPropertyByName: function () {
             this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
@@ -386,6 +590,12 @@ module.exports = require('pauser')([
             return this.type;
         },
 
+        /**
+         * Fetches the current value. Implemented by References, Variables and Values
+         * for a consistent interface.
+         *
+         * @returns {Value}
+         */
         getValue: function () {
             return this;
         },
@@ -405,7 +615,11 @@ module.exports = require('pauser')([
          *
          * @returns {Value}
          */
-        increment: throwUnimplemented,
+        increment: function () {
+            var value = this;
+
+            return value.factory.createInteger(value.getNative() + 1);
+        },
 
         /**
          * Creates an instance of the class this value refers to
@@ -416,22 +630,58 @@ module.exports = require('pauser')([
             this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
         },
 
-        isAnInstanceOf: throwUnimplemented,
+        /**
+         * Determines whether this value is an instance of the given class or interface.
+         *
+         * @param {Reference|Value|Variable} classNameReference
+         * @returns {BooleanValue}
+         */
+        isAnInstanceOf: throwUnimplemented('isAnInstanceOf'),
 
         /**
          * Determines whether this value is callable
          *
          * @param {Namespace} globalNamespace
+         * @returns {Future<boolean>}
+         */
+        isCallable: throwUnimplemented('isCallable'),
+
+        /**
+         * Determines whether this reference or value is defined
+         * (always true for any value, including null)
+         *
          * @returns {boolean}
          */
-        isCallable: throwUnimplemented,
+        isDefined: function () {
+            return true;
+        },
+
+        /**
+         * Determines whether this value is a future
+         *
+         * @returns {boolean}
+         */
+        isFuture: function () {
+            return false;
+        },
 
         /**
          * Determines whether this value is iterable
          *
          * @returns {boolean}
          */
-        isIterable: throwUnimplemented,
+        isIterable: throwUnimplemented('isIterable'),
+
+        /**
+         * Determines whether this value may be referenced (shared interface with Reference and Variable).
+         *
+         * Values are never referenceable as they are the result of a dereference.
+         *
+         * @returns {boolean}
+         */
+        isReferenceable: function () {
+            return false;
+        },
 
         /**
          * Determines whether this value is the class of another value
@@ -485,20 +735,27 @@ module.exports = require('pauser')([
         /**
          * Determines whether the value is classed as "empty" or not
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>}
          */
-        isEmpty: throwUnimplemented,
+        isEmpty: throwUnimplemented('isEmpty'),
 
         /**
          * Determines whether this value is loosely equal to the provided other value
          *
-         * @param {Reference|Value} rightValue
+         * @param {Value} rightValue
          * @returns {BooleanValue}
          */
         isEqualTo: function (rightValue) {
             /*jshint eqeqeq:false */
             var leftValue = this;
 
+            if (rightValue.isFuture()) {
+                return rightValue.derive().next(function (rightValue) {
+                    return leftValue.isEqualTo(rightValue);
+                });
+            }
+
+            // TODO: Investigate whether JS and PHP loose equality semantics are close enough (eg. octal?)
             return leftValue.factory.createBoolean(rightValue.value == leftValue.value);
         },
 
@@ -707,16 +964,16 @@ module.exports = require('pauser')([
          *
          * @returns {boolean}
          */
-        isNumeric: throwUnimplemented,
+        isNumeric: throwUnimplemented('isNumeric'),
 
         /**
          * Determines whether this value is classed as "set" or not
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>}
          */
         isSet: function () {
             // All values except NULL are classed as 'set'
-            return true;
+            return this.futureFactory.createPresent(true);
         },
 
         /**
@@ -770,101 +1027,166 @@ module.exports = require('pauser')([
 
         /**
          * Multiplies this value with another
-         */
-        multiply: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
-         * Multiplies an array value by this value
          *
-         * @throws {PHPFatalError}
-         */
-        multiplyByArray: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        /**
-         * Multiplies a boolean value by this value
-         *
-         * @param {Value} leftValue
+         * @param {Value} multiplierValue
          * @returns {Value}
          */
-        multiplyByBoolean: function (leftValue) {
-            return this.multiplyByNonArray(leftValue);
+        multiplyBy: function (multiplierValue) {
+            var multiplicandValue = this,
+                coercedMultiplicandValue,
+                coercedMultiplierValue,
+                product;
+
+            if (multiplierValue.isFuture()) {
+                return multiplierValue.derive().next(function (multiplierValue) {
+                    return multiplicandValue.multiplyBy(multiplierValue);
+                });
+            }
+
+            coercedMultiplicandValue = multiplicandValue.coerceToNumber();
+            coercedMultiplierValue = multiplierValue.coerceToNumber();
+            product = coercedMultiplicandValue.getNative() * coercedMultiplierValue.getNative();
+
+            return multiplicandValue.factory.createArithmeticResult(
+                coercedMultiplicandValue,
+                coercedMultiplierValue,
+                product
+            );
         },
 
         /**
-         * Multiplies a float value by this value
+         * Negates the current value arithmetically, inverting its sign and returning
+         * either a FloatValue or IntegerValue as appropriate
          *
-         * @param {Value} leftValue
-         * @returns {Value}
+         * @returns {FloatValue|IntegerValue}
          */
-        multiplyByFloat: function (leftValue) {
-            return this.multiplyByNonArray(leftValue);
+        negate: function () {
+            var value = this,
+                coercedValue = value.coerceToNumber();
+
+            return value.factory.createArithmeticResult(coercedValue, coercedValue, -coercedValue.getNative());
         },
 
         /**
-         * Multiplies an integer value by this value
+         * Attaches a callback for when the value has been evaluated. As present values
+         * are already, this simply calls the resume handler synchronously and ignores
+         * the catch handler as there will never be an error involved here.
+         * Note that the FutureValue class will override this method with support
+         * for the catch handler parameter.
          *
-         * @param {Value} leftValue
-         * @returns {Value}
+         * @param {Function} resumeHandler
+         * @returns {FutureValue|Value}
          */
-        multiplyByInteger: function (leftValue) {
-            return this.multiplyByNonArray(leftValue);
+        next: function (resumeHandler) {
+            var value = this,
+                result;
+
+            try {
+                result = resumeHandler(value);
+            } catch (error) {
+                return value.factory.createRejection(error);
+            }
+
+            result = value.factory.coerce(result);
+
+            return result;
         },
 
         /**
-         * Multiplies a non-array value by this value
+         * Bitwise-shifts this value left by the given number of bits
          *
-         * @throws {PHPFatalError}
+         * @param {Value} rightValue
+         * @returns {IntegerValue|FutureValue<IntegerValue>}
          */
-        multiplyByNonArray: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
+        shiftLeft: function (rightValue) {
+            /*jshint bitwise: false */
+            var leftValue = this,
+                factory = leftValue.factory,
+                coercedRightValue = rightValue.coerceToInteger(),
+                coercedLeftValue = leftValue.coerceToInteger();
+
+            if (rightValue.isFuture()) {
+                return rightValue.derive().next(function (rightValue) {
+                    return leftValue.shiftLeft(rightValue);
+                });
+            }
+
+            return factory.createInteger(coercedLeftValue.getNative() << coercedRightValue.getNative());
         },
 
         /**
-         * Multiplies a null value by this value
+         * Bitwise-shifts this value right by the given number of bits
          *
-         * @param {Value} leftValue
-         * @returns {Value}
+         * @param {Value} rightValue
+         * @returns {IntegerValue|FutureValue<IntegerValue>}
          */
-        multiplyByNull: function (leftValue) {
-            return this.multiplyByNonArray(leftValue);
-        },
+        shiftRight: function (rightValue) {
+            /*jshint bitwise: false */
+            var leftValue = this,
+                factory = leftValue.factory,
+                coercedRightValue = rightValue.coerceToInteger(),
+                coercedLeftValue = leftValue.coerceToInteger();
 
-        /**
-         * Multiplies an object value by this value
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        multiplyByObject: function (leftValue) {
-            return this.multiplyByNonArray(leftValue);
-        },
+            if (rightValue.isFuture()) {
+                return rightValue.derive().next(function (rightValue) {
+                    return leftValue.shiftRight(rightValue);
+                });
+            }
 
-        /**
-         * Multiplies a string value by this value
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        multiplyByString: function (leftValue) {
-            return this.multiplyByNonArray(leftValue);
+            return factory.createInteger(coercedLeftValue.getNative() >> coercedRightValue.getNative());
         },
 
         /**
          * Subtracts another value from this one
          *
+         * @param {Value} rightValue
          * @returns {Value}
          */
-        subtract: throwUnimplemented,
+        subtract: function (rightValue) {
+            var leftValue = this,
+                coercedLeftValue = leftValue.coerceToNumber(),
+                coercedRightValue = rightValue.coerceToNumber();
+
+            if (rightValue.isFuture()) {
+                return rightValue.derive().next(function (rightValue) {
+                    return leftValue.subtract(rightValue);
+                });
+            }
+
+            return leftValue.factory.createArithmeticResult(
+                coercedLeftValue,
+                coercedRightValue,
+                coercedLeftValue.getNative() - coercedRightValue.getNative()
+            );
+        },
 
         /**
-         * Subtracts this value from null
+         * Derives a promise of this value (shared interface with Future)
+         *
+         * @returns {Promise<Value>}
          */
-        subtractFromNull: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
+        toPromise: function () {
+            return Promise.resolve(this);
+        },
+
+        /**
+         * Either returns this value if it is present, or raises a Pause if it is a future,
+         * to allow it to be resolved to a present value
+         *
+         * @returns {Value}
+         * @throws {Pause}
+         */
+        yield: function () {
+            return this;
+        },
+
+        /**
+         * Fetches the present value synchronously
+         *
+         * @returns {Value}
+         */
+        yieldSync: function () {
+            return this;
         }
     });
 

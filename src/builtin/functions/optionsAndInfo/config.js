@@ -9,12 +9,8 @@
 
 'use strict';
 
-var phpCommon = require('phpcommon'),
-    PHPError = phpCommon.PHPError;
-
 module.exports = function (internals) {
-    var callStack = internals.callStack,
-        iniState = internals.iniState,
+    var iniState = internals.iniState,
         valueFactory = internals.valueFactory;
 
     return {
@@ -24,24 +20,13 @@ module.exports = function (internals) {
          *
          * @see {@link https://secure.php.net/manual/en/function.ini-get.php}
          *
-         * @param {Reference|Value|Variable} optionNameReference
+         * @param {Value} optionNameValue
          * @returns {Value}
          */
-        'ini_get': function (optionNameReference) {
-            var optionName,
-                optionValue;
-
-            if (arguments.length !== 1) {
-                callStack.raiseError(
-                    PHPError.E_WARNING,
-                    'ini_get() expects exactly 1 parameter, ' + arguments.length + ' given'
-                );
-
-                return valueFactory.createNull();
-            }
-
-            optionName = optionNameReference.getValue().getNative();
-            optionValue = iniState.get(optionName);
+        'ini_get': internals.typeFunction('string $option', function (optionNameValue) {
+            // TODO: Add return type above once union types are supported.
+            var optionName = optionNameValue.getNative(),
+                optionValue = iniState.get(optionName);
 
             if (optionValue === null) {
                 // Indicate that the option is not defined with bool(false)
@@ -49,7 +34,7 @@ module.exports = function (internals) {
             }
 
             return valueFactory.coerce(optionValue);
-        },
+        }),
 
         /**
          * Sets the value of a defined PHP configuration option at runtime,
@@ -58,37 +43,23 @@ module.exports = function (internals) {
          *
          * @see {@link https://secure.php.net/manual/en/function.ini-set.php}
          *
-         * @param {Reference|Value|Variable} optionNameReference
-         * @param {Reference|Value|Variable} optionValueReference
+         * @param {Value} optionNameValue
+         * @param {Value} optionValue
          * @returns {Value}
          */
-        'ini_set': function (optionNameReference, optionValueReference) {
-            var previousOptionValue,
-                optionName,
-                optionValue;
-
-            if (arguments.length !== 2) {
-                callStack.raiseError(
-                    PHPError.E_WARNING,
-                    'ini_set() expects exactly 2 parameters, ' + arguments.length + ' given'
-                );
-
-                return valueFactory.createNull();
-            }
-
-            optionName = optionNameReference.getValue().getNative();
-            previousOptionValue = iniState.get(optionName);
+        'ini_set': internals.typeFunction('string $option, mixed $value', function (optionNameValue, optionValue) {
+            // TODO: Add return type above once union types are supported.
+            var optionName = optionNameValue.getNative(),
+                previousOptionValue = iniState.get(optionName);
 
             if (previousOptionValue === null) {
                 // Indicate that the option is not defined with bool(false)
                 return valueFactory.createBoolean(false);
             }
 
-            optionValue = optionValueReference.getValue().getNative();
-
-            iniState.set(optionName, optionValue);
+            iniState.set(optionName, optionValue.getNative());
 
             return valueFactory.coerce(previousOptionValue);
-        }
+        })
     };
 };

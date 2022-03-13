@@ -29,38 +29,50 @@ $result = [];
 
 // Divide a variable
 $myNumber /= 4;
-$result['variable'] = $myNumber;
+$result['with variable'] = $myNumber;
 
 // Divide an accessor
 $myAccessor /= 5;
-$result['accessor'] = $myAccessor;
+$result['with accessor'] = $myAccessor;
 
 // Divide an instance property
-$myObject->myInstanceProp /= 2;
-$result['instance prop'] = $myObject->myInstanceProp;
+$myObject->myInstanceProp /= $myTwo;
+$result['with instance prop'] = $myObject->myInstanceProp;
 
 // Divide a static property
 MyClass::$myStaticProp /= 5;
-$result['static prop'] = MyClass::$myStaticProp;
+$result['with static prop'] = MyClass::$myStaticProp;
 
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module(),
             accessorValue = 20;
-
+        engine.defineGlobalAccessor('myTwo', function () {
+            return this.createFutureValue(function (resolve) {
+                setImmediate(function () {
+                    resolve(2);
+                });
+            });
+        });
         engine.defineGlobalAccessor('myAccessor', function () {
-            return accessorValue;
+            return this.createFutureValue(function (resolve) {
+                setImmediate(function () {
+                    resolve(accessorValue);
+                });
+            });
         }, function (newValue) {
             accessorValue = newValue;
         });
 
-        expect(engine.execute().getNative()).to.deep.equal({
-            'variable': 1000 / 4,
-            'accessor': 20 / 5,
-            'instance prop': 10 / 2,
-            'static prop': 100 / 5
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal({
+                'with variable': 1000 / 4,
+                'with accessor': 20 / 5,
+                'with instance prop': 10 / 2,
+                'with static prop': 100 / 5
+            });
         });
     });
 });

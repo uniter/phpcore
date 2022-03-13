@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('./tools'),
     Call = require('../../src/Call'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
@@ -22,40 +23,49 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError,
     Scope = require('../../src/Scope').sync(),
     Translator = phpCommon.Translator,
-    Value = require('../../src/Value').sync(),
-    ValueFactory = require('../../src/ValueFactory').sync();
+    Value = require('../../src/Value').sync();
 
 describe('CallStack', function () {
+    var callStack,
+        errorReporting,
+        futureFactory,
+        globalNamespace,
+        state,
+        translator,
+        valueFactory;
+
     beforeEach(function () {
-        this.errorReporting = sinon.createStubInstance(ErrorReporting);
-        this.globalNamespace = sinon.createStubInstance(Namespace);
-        this.translator = sinon.createStubInstance(Translator);
-        this.valueFactory = new ValueFactory();
+        state = tools.createIsolatedState();
+        errorReporting = sinon.createStubInstance(ErrorReporting);
+        futureFactory = state.getFutureFactory();
+        globalNamespace = sinon.createStubInstance(Namespace);
+        translator = sinon.createStubInstance(Translator);
+        valueFactory = state.getValueFactory();
 
-        this.valueFactory.setGlobalNamespace(this.globalNamespace);
+        valueFactory.setGlobalNamespace(globalNamespace);
 
-        this.callStack = new CallStack(this.valueFactory, this.translator, this.errorReporting);
+        callStack = new CallStack(valueFactory, translator, errorReporting);
     });
 
     describe('getCaller()', function () {
         it('should return the caller call when there is one', function () {
             var callerCall = sinon.createStubInstance(Call),
                 currentCall = sinon.createStubInstance(Call);
-            this.callStack.push(callerCall);
-            this.callStack.push(currentCall);
+            callStack.push(callerCall);
+            callStack.push(currentCall);
 
-            expect(this.callStack.getCaller()).to.equal(callerCall);
+            expect(callStack.getCaller()).to.equal(callerCall);
         });
 
         it('should return null when the current call is the top-level one', function () {
             var currentCall = sinon.createStubInstance(Call);
-            this.callStack.push(currentCall);
+            callStack.push(currentCall);
 
-            expect(this.callStack.getCaller()).to.be.null;
+            expect(callStack.getCaller()).to.be.null;
         });
 
         it('should return null when the call stack is empty', function () {
-            expect(this.callStack.getCaller()).to.be.null;
+            expect(callStack.getCaller()).to.be.null;
         });
     });
 
@@ -67,12 +77,12 @@ describe('CallStack', function () {
             initialCall.isUserland.returns(false);
             userlandCall1.isUserland.returns(true);
             userlandCall2.isUserland.returns(true);
-            this.callStack.push(initialCall);
-            this.callStack.push(userlandCall1);
-            this.callStack.push(userlandCall2);
+            callStack.push(initialCall);
+            callStack.push(userlandCall1);
+            callStack.push(userlandCall2);
             userlandCall1.getFilePath.returns('/my/caller/module.php');
 
-            expect(this.callStack.getCallerFilePath()).to.equal('/my/caller/module.php');
+            expect(callStack.getCallerFilePath()).to.equal('/my/caller/module.php');
         });
     });
 
@@ -84,12 +94,12 @@ describe('CallStack', function () {
             initialCall.isUserland.returns(false);
             userlandCall1.isUserland.returns(true);
             userlandCall2.isUserland.returns(true);
-            this.callStack.push(initialCall);
-            this.callStack.push(userlandCall1);
-            this.callStack.push(userlandCall2);
+            callStack.push(initialCall);
+            callStack.push(userlandCall1);
+            callStack.push(userlandCall2);
             userlandCall1.getLastLine.returns(21);
 
-            expect(this.callStack.getCallerLastLine()).to.equal(21);
+            expect(callStack.getCallerLastLine()).to.equal(21);
         });
     });
 
@@ -99,32 +109,32 @@ describe('CallStack', function () {
                 callerScope = sinon.createStubInstance(Scope),
                 currentCall = sinon.createStubInstance(Call);
             callerCall.getScope.returns(callerScope);
-            this.callStack.push(callerCall);
-            this.callStack.push(currentCall);
+            callStack.push(callerCall);
+            callStack.push(currentCall);
 
-            expect(this.callStack.getCallerScope()).to.equal(callerScope);
+            expect(callStack.getCallerScope()).to.equal(callerScope);
         });
 
         it('should return null when the current call is the top-level one', function () {
             var currentCall = sinon.createStubInstance(Call);
-            this.callStack.push(currentCall);
+            callStack.push(currentCall);
 
-            expect(this.callStack.getCallerScope()).to.be.null;
+            expect(callStack.getCallerScope()).to.be.null;
         });
 
         it('should return null when the call stack is empty', function () {
-            expect(this.callStack.getCallerScope()).to.be.null;
+            expect(callStack.getCallerScope()).to.be.null;
         });
     });
 
     describe('getCurrent()', function () {
         it('should return the current Call when there are 3 on the stack', function () {
             var currentCall = sinon.createStubInstance(Call);
-            this.callStack.push(sinon.createStubInstance(Call));
-            this.callStack.push(sinon.createStubInstance(Call));
-            this.callStack.push(currentCall);
+            callStack.push(sinon.createStubInstance(Call));
+            callStack.push(sinon.createStubInstance(Call));
+            callStack.push(currentCall);
 
-            expect(this.callStack.getCurrent()).to.equal(currentCall);
+            expect(callStack.getCurrent()).to.equal(currentCall);
         });
     });
 
@@ -133,15 +143,15 @@ describe('CallStack', function () {
             var currentCall = sinon.createStubInstance(Call),
                 currentClass = sinon.createStubInstance(Class);
             currentCall.getCurrentClass.returns(currentClass);
-            this.callStack.push(sinon.createStubInstance(Call));
-            this.callStack.push(sinon.createStubInstance(Call));
-            this.callStack.push(currentCall);
+            callStack.push(sinon.createStubInstance(Call));
+            callStack.push(sinon.createStubInstance(Call));
+            callStack.push(currentCall);
 
-            expect(this.callStack.getCurrentClass()).to.equal(currentClass);
+            expect(callStack.getCurrentClass()).to.equal(currentClass);
         });
 
         it('should return null when there is no call on the stack', function () {
-            expect(this.callStack.getCurrentClass()).to.equal(null);
+            expect(callStack.getCurrentClass()).to.equal(null);
         });
     });
 
@@ -153,12 +163,12 @@ describe('CallStack', function () {
             initialCall.isUserland.returns(false);
             userlandCall.isUserland.returns(true);
             builtinCall.isUserland.returns(false);
-            this.callStack.push(initialCall);
-            this.callStack.push(userlandCall);
-            this.callStack.push(builtinCall);
+            callStack.push(initialCall);
+            callStack.push(userlandCall);
+            callStack.push(builtinCall);
             userlandCall.getFilePath.returns('/my/current/module.php');
 
-            expect(this.callStack.getLastFilePath()).to.equal('/my/current/module.php');
+            expect(callStack.getLastFilePath()).to.equal('/my/current/module.php');
         });
     });
 
@@ -170,12 +180,12 @@ describe('CallStack', function () {
             initialCall.isUserland.returns(false);
             userlandCall.isUserland.returns(true);
             builtinCall.isUserland.returns(false);
-            this.callStack.push(initialCall);
-            this.callStack.push(userlandCall);
-            this.callStack.push(builtinCall);
+            callStack.push(initialCall);
+            callStack.push(userlandCall);
+            callStack.push(builtinCall);
             userlandCall.getLastLine.returns(27);
 
-            expect(this.callStack.getLastLine()).to.equal(27);
+            expect(callStack.getLastLine()).to.equal(27);
         });
     });
 
@@ -183,10 +193,10 @@ describe('CallStack', function () {
         it('should return the number of calls on the stack', function () {
             var callerCall = sinon.createStubInstance(Call),
                 currentCall = sinon.createStubInstance(Call);
-            this.callStack.push(callerCall);
-            this.callStack.push(currentCall);
+            callStack.push(callerCall);
+            callStack.push(currentCall);
 
-            expect(this.callStack.getLength()).to.equal(2);
+            expect(callStack.getLength()).to.equal(2);
         });
     });
 
@@ -196,10 +206,10 @@ describe('CallStack', function () {
                 currentCall = sinon.createStubInstance(Call),
                 currentStaticClass = sinon.createStubInstance(Class);
             currentCall.getStaticClass.returns(currentStaticClass);
-            this.callStack.push(callerCall);
-            this.callStack.push(currentCall);
+            callStack.push(callerCall);
+            callStack.push(currentCall);
 
-            expect(this.callStack.getStaticClass()).to.equal(currentStaticClass);
+            expect(callStack.getStaticClass()).to.equal(currentStaticClass);
         });
 
         it('should return the static class for the caller, if it has one specified', function () {
@@ -208,14 +218,14 @@ describe('CallStack', function () {
                 currentCall = sinon.createStubInstance(Call);
             currentCall.getStaticClass.returns(null);
             callerCall.getStaticClass.returns(callerStaticClass);
-            this.callStack.push(callerCall);
-            this.callStack.push(currentCall);
+            callStack.push(callerCall);
+            callStack.push(currentCall);
 
-            expect(this.callStack.getStaticClass()).to.equal(callerStaticClass);
+            expect(callStack.getStaticClass()).to.equal(callerStaticClass);
         });
 
         it('should return null when the call stack is empty', function () {
-            expect(this.callStack.getStaticClass()).to.be.null;
+            expect(callStack.getStaticClass()).to.be.null;
         });
     });
 
@@ -223,58 +233,66 @@ describe('CallStack', function () {
         it('should return the `$this` object from the scope of the current Call', function () {
             var currentCall = sinon.createStubInstance(Call),
                 thisObjectValue = sinon.createStubInstance(ObjectValue);
-            this.callStack.push(sinon.createStubInstance(Call));
-            this.callStack.push(currentCall);
+            callStack.push(sinon.createStubInstance(Call));
+            callStack.push(currentCall);
             currentCall.getThisObject.returns(thisObjectValue);
 
-            expect(this.callStack.getThisObject()).to.equal(thisObjectValue);
+            expect(callStack.getThisObject()).to.equal(thisObjectValue);
         });
 
         it('should return null when the call stack is empty', function () {
-            expect(this.callStack.getThisObject()).to.be.null;
+            expect(callStack.getThisObject()).to.be.null;
         });
     });
 
     describe('getTrace()', function () {
         it('should return an empty array when there are no calls on the stack', function () {
-            expect(this.callStack.getTrace()).to.deep.equal([]);
+            expect(callStack.getTrace()).to.deep.equal([]);
         });
 
-        describe('with three calls', function () {
+        describe('with three userland calls', function () {
+            var entryCall,
+                firstCall,
+                firstCallArgs,
+                secondCall,
+                secondCallArgs,
+                thirdCall,
+                thirdCallArgs;
+
             beforeEach(function () {
-                this.entryCall = sinon.createStubInstance(Call);
-                this.entryCall.getTraceFilePath.returns('(Entry file)');
-                this.entryCall.getLastLine.returns(4);
-                this.firstCall = sinon.createStubInstance(Call);
-                this.firstCall.getTraceFilePath.returns('/path/to/oldest/call.php');
-                this.firstCallArgs = [sinon.createStubInstance(Value)];
-                this.firstCall.getFunctionArgs.returns(this.firstCallArgs);
-                this.firstCall.getFunctionName.returns('myOldestCalledFunc');
-                this.firstCall.getLastLine.returns(100);
-                this.secondCall = sinon.createStubInstance(Call);
-                this.secondCall.getTraceFilePath.returns('/path/to/second/call.php');
-                this.secondCallArgs = [sinon.createStubInstance(Value)];
-                this.secondCall.getFunctionArgs.returns(this.secondCallArgs);
-                this.secondCall.getFunctionName.returns('mySecondCalledFunc');
-                this.secondCall.getLastLine.returns(21);
-                this.thirdCall = sinon.createStubInstance(Call);
-                this.thirdCall.getTraceFilePath.returns('/path/to/newest/call.php');
-                this.thirdCallArgs = [sinon.createStubInstance(Value)];
-                this.thirdCall.getFunctionArgs.returns(this.thirdCallArgs);
-                this.thirdCall.getFunctionName.returns('myMostRecentlyCalledFunc');
-                this.thirdCall.getLastLine.returns(27);
-                this.callStack.push(this.entryCall); // Entry call gets ignored
-                this.callStack.push(this.firstCall);
-                this.callStack.push(this.secondCall);
-                this.callStack.push(this.thirdCall);
+                entryCall = sinon.createStubInstance(Call);
+                entryCall.getTraceFilePath.returns('(Entry file)');
+                entryCall.getLastLine.returns(4);
+                firstCall = sinon.createStubInstance(Call);
+                firstCall.getTraceFilePath.returns('/path/to/oldest/call.php');
+                firstCallArgs = [sinon.createStubInstance(Value)];
+                firstCall.getFunctionArgs.returns(firstCallArgs);
+                firstCall.getFunctionName.returns('myOldestCalledFunc');
+                firstCall.getLastLine.returns(100);
+                secondCall = sinon.createStubInstance(Call);
+                secondCall.getTraceFilePath.returns('/path/to/second/call.php');
+                secondCallArgs = [sinon.createStubInstance(Value)];
+                secondCall.getFunctionArgs.returns(secondCallArgs);
+                secondCall.getFunctionName.returns('mySecondCalledFunc');
+                secondCall.getLastLine.returns(21);
+                thirdCall = sinon.createStubInstance(Call);
+                thirdCall.getTraceFilePath.returns('/path/to/newest/call.php');
+                thirdCallArgs = [sinon.createStubInstance(Value)];
+                thirdCall.getFunctionArgs.returns(thirdCallArgs);
+                thirdCall.getFunctionName.returns('myMostRecentlyCalledFunc');
+                thirdCall.getLastLine.returns(27);
+                callStack.push(entryCall); // Entry call gets ignored
+                callStack.push(firstCall);
+                callStack.push(secondCall);
+                callStack.push(thirdCall);
             });
 
             it('should return a trace with three entries', function () {
-                expect(this.callStack.getTrace()).to.have.length(3);
+                expect(callStack.getTrace()).to.have.length(3);
             });
 
             it('should give each entry the correct index, with index 0 as the most recent call', function () {
-                var trace = this.callStack.getTrace();
+                var trace = callStack.getTrace();
 
                 expect(trace[0].index).to.equal(0);
                 expect(trace[1].index).to.equal(1);
@@ -282,7 +300,7 @@ describe('CallStack', function () {
             });
 
             it('should give each entry the correct file path', function () {
-                var trace = this.callStack.getTrace();
+                var trace = callStack.getTrace();
 
                 expect(trace[0].file).to.equal('/path/to/second/call.php');
                 expect(trace[1].file).to.equal('/path/to/oldest/call.php');
@@ -290,7 +308,7 @@ describe('CallStack', function () {
             });
 
             it('should give each entry the correct line (from the previous call)', function () {
-                var trace = this.callStack.getTrace();
+                var trace = callStack.getTrace();
 
                 // We return the previous call's line number, as that is the line
                 // the call was made from in the calling file
@@ -300,7 +318,7 @@ describe('CallStack', function () {
             });
 
             it('should give each entry the correct function name', function () {
-                var trace = this.callStack.getTrace();
+                var trace = callStack.getTrace();
 
                 expect(trace[0].func).to.equal('myMostRecentlyCalledFunc');
                 expect(trace[1].func).to.equal('mySecondCalledFunc');
@@ -308,18 +326,150 @@ describe('CallStack', function () {
             });
 
             it('should give each entry the correct function args', function () {
-                var trace = this.callStack.getTrace();
+                var trace = callStack.getTrace();
 
-                expect(trace[0].args).to.equal(this.thirdCallArgs);
-                expect(trace[1].args).to.equal(this.secondCallArgs);
-                expect(trace[2].args).to.equal(this.firstCallArgs);
+                expect(trace[0].args).to.equal(thirdCallArgs);
+                expect(trace[1].args).to.equal(secondCallArgs);
+                expect(trace[2].args).to.equal(firstCallArgs);
+            });
+        });
+
+        describe('with two native calls followed by a userland one', function () {
+            var entryCall,
+                firstCall,
+                firstCallArgs,
+                secondCall,
+                secondCallArgs,
+                thirdCall,
+                thirdCallArgs;
+
+            beforeEach(function () {
+                entryCall = sinon.createStubInstance(Call);
+                entryCall.getTraceFilePath.returns('(Entry file)');
+                entryCall.getLastLine.returns(4);
+                entryCall.isUserland.returns(true);
+                firstCall = sinon.createStubInstance(Call);
+                firstCall.getTraceFilePath.returns(null);
+                firstCallArgs = [sinon.createStubInstance(Value)];
+                firstCall.getFunctionArgs.returns(firstCallArgs);
+                firstCall.getFunctionName.returns('myOldestCalledFunc');
+                firstCall.getLastLine.returns(null);
+                firstCall.isUserland.returns(false);
+                secondCall = sinon.createStubInstance(Call);
+                secondCall.getTraceFilePath.returns(null);
+                secondCallArgs = [sinon.createStubInstance(Value)];
+                secondCall.getFunctionArgs.returns(secondCallArgs);
+                secondCall.getFunctionName.returns('mySecondCalledFunc');
+                secondCall.getLastLine.returns(null);
+                secondCall.isUserland.returns(false);
+                thirdCall = sinon.createStubInstance(Call);
+                thirdCall.getTraceFilePath.returns('/path/to/newest/call.php');
+                thirdCallArgs = [sinon.createStubInstance(Value)];
+                thirdCall.getFunctionArgs.returns(thirdCallArgs);
+                thirdCall.getFunctionName.returns('myMostRecentlyCalledFunc');
+                thirdCall.getLastLine.returns(27);
+                thirdCall.isUserland.returns(false);
+                callStack.push(entryCall); // Entry call gets ignored
+                callStack.push(firstCall);
+                callStack.push(secondCall);
+                callStack.push(thirdCall);
+            });
+
+            it('should return a trace with three entries', function () {
+                expect(callStack.getTrace()).to.have.length(3);
+            });
+
+            it('should give each entry the correct file path', function () {
+                var trace = callStack.getTrace();
+
+                // Note that the unknown (null) file paths are populated
+                // with the path of the nearest ancestor instead.
+                expect(trace[0].file).to.equal('(Entry file)');
+                expect(trace[1].file).to.equal('(Entry file)');
+                expect(trace[2].file).to.equal('(Entry file)');
+            });
+
+            it('should give each entry the correct line (from the previous call)', function () {
+                var trace = callStack.getTrace();
+
+                // We return the previous call's line number, as that is the line
+                // the call was made from in the calling file
+                expect(trace[0].line).to.equal(4);
+                expect(trace[1].line).to.equal(4);
+                expect(trace[2].line).to.equal(4);
+            });
+        });
+
+        describe('with a userland call that has a path but no line number', function () {
+            var entryCall,
+                firstCall,
+                firstCallArgs,
+                secondCall,
+                secondCallArgs,
+                thirdCall,
+                thirdCallArgs;
+
+            beforeEach(function () {
+                entryCall = sinon.createStubInstance(Call);
+                entryCall.getTraceFilePath.returns('(Entry file)');
+                entryCall.getLastLine.returns(4);
+                entryCall.isUserland.returns(true);
+                firstCall = sinon.createStubInstance(Call);
+                firstCall.getTraceFilePath.returns('/path/to/oldest/call.php');
+                firstCallArgs = [sinon.createStubInstance(Value)];
+                firstCall.getFunctionArgs.returns(firstCallArgs);
+                firstCall.getFunctionName.returns('myOldestCalledFunc');
+                firstCall.getLastLine.returns(null);
+                firstCall.isUserland.returns(false);
+                secondCall = sinon.createStubInstance(Call);
+                secondCall.getTraceFilePath.returns('/path/to/second/call.php');
+                secondCallArgs = [sinon.createStubInstance(Value)];
+                secondCall.getFunctionArgs.returns(secondCallArgs);
+                secondCall.getFunctionName.returns('mySecondCalledFunc');
+                secondCall.getLastLine.returns(null);
+                secondCall.isUserland.returns(false);
+                thirdCall = sinon.createStubInstance(Call);
+                thirdCall.getTraceFilePath.returns('/path/to/newest/call.php');
+                thirdCallArgs = [sinon.createStubInstance(Value)];
+                thirdCall.getFunctionArgs.returns(thirdCallArgs);
+                thirdCall.getFunctionName.returns('myMostRecentlyCalledFunc');
+                thirdCall.getLastLine.returns(27);
+                thirdCall.isUserland.returns(false);
+                callStack.push(entryCall); // Entry call gets ignored
+                callStack.push(firstCall);
+                callStack.push(secondCall);
+                callStack.push(thirdCall);
+            });
+
+            it('should return a trace with three entries', function () {
+                expect(callStack.getTrace()).to.have.length(3);
+            });
+
+            it('should give each entry the correct file path', function () {
+                var trace = callStack.getTrace();
+
+                expect(trace[0].file).to.equal('/path/to/second/call.php');
+                expect(trace[1].file).to.equal('/path/to/oldest/call.php');
+                expect(trace[2].file).to.equal('(Entry file)');
+            });
+
+            it('should give each entry the correct line (from the previous call)', function () {
+                var trace = callStack.getTrace();
+
+                // We return the previous call's line number, as that is the line
+                // the call was made from in the calling file.
+                // However these should be left null as there is a path given,
+                // therefore fetching a line number from an ancestor call may be invalid.
+                expect(trace[0].line).to.be.null;
+                expect(trace[1].line).to.be.null;
+                expect(trace[2].line).to.equal(4);
             });
         });
     });
 
     describe('getUserlandCallee()', function () {
         it('should return null when the call stack is empty', function () {
-            expect(this.callStack.getUserlandCallee()).to.be.null;
+            expect(callStack.getUserlandCallee()).to.be.null;
         });
 
         it('should return the first call when none on the stack are userland', function () {
@@ -329,11 +479,11 @@ describe('CallStack', function () {
             initialCall.isUserland.returns(false);
             intermediateCall.isUserland.returns(false);
             builtinCall.isUserland.returns(false);
-            this.callStack.push(initialCall);
-            this.callStack.push(intermediateCall);
-            this.callStack.push(builtinCall);
+            callStack.push(initialCall);
+            callStack.push(intermediateCall);
+            callStack.push(builtinCall);
 
-            expect(this.callStack.getUserlandCallee()).to.equal(initialCall);
+            expect(callStack.getUserlandCallee()).to.equal(initialCall);
         });
 
         it('should return the most recent userland call when callee is not userland', function () {
@@ -345,12 +495,12 @@ describe('CallStack', function () {
             userlandCall1.isUserland.returns(true);
             userlandCall2.isUserland.returns(true);
             builtinCall.isUserland.returns(false);
-            this.callStack.push(initialCall);
-            this.callStack.push(userlandCall1);
-            this.callStack.push(userlandCall2);
-            this.callStack.push(builtinCall);
+            callStack.push(initialCall);
+            callStack.push(userlandCall1);
+            callStack.push(userlandCall2);
+            callStack.push(builtinCall);
 
-            expect(this.callStack.getUserlandCallee()).to.equal(userlandCall2);
+            expect(callStack.getUserlandCallee()).to.equal(userlandCall2);
         });
 
         it('should return the userland callee when callee is userland', function () {
@@ -362,18 +512,18 @@ describe('CallStack', function () {
             userlandCall1.isUserland.returns(true);  // Caller of caller is userland
             userlandCall2.isUserland.returns(false); // Caller is not userland
             userlandCall3.isUserland.returns(true);  // Most recent call is userland
-            this.callStack.push(initialCall);
-            this.callStack.push(userlandCall1);
-            this.callStack.push(userlandCall2);
-            this.callStack.push(userlandCall3);
+            callStack.push(initialCall);
+            callStack.push(userlandCall1);
+            callStack.push(userlandCall2);
+            callStack.push(userlandCall3);
 
-            expect(this.callStack.getUserlandCallee()).to.equal(userlandCall3);
+            expect(callStack.getUserlandCallee()).to.equal(userlandCall3);
         });
     });
 
     describe('getUserlandCaller()', function () {
         it('should return null when the call stack is empty', function () {
-            expect(this.callStack.getUserlandCaller()).to.be.null;
+            expect(callStack.getUserlandCaller()).to.be.null;
         });
 
         it('should return the first call when none on the stack are userland', function () {
@@ -383,11 +533,11 @@ describe('CallStack', function () {
             initialCall.isUserland.returns(false);
             intermediateCall.isUserland.returns(false);
             builtinCall.isUserland.returns(false);
-            this.callStack.push(initialCall);
-            this.callStack.push(intermediateCall);
-            this.callStack.push(builtinCall);
+            callStack.push(initialCall);
+            callStack.push(intermediateCall);
+            callStack.push(builtinCall);
 
-            expect(this.callStack.getUserlandCaller()).to.equal(initialCall);
+            expect(callStack.getUserlandCaller()).to.equal(initialCall);
         });
 
         it('should return the most recent userland call when callee is not userland', function () {
@@ -399,12 +549,12 @@ describe('CallStack', function () {
             userlandCall1.isUserland.returns(true);
             userlandCall2.isUserland.returns(true);
             builtinCall.isUserland.returns(false);
-            this.callStack.push(initialCall);
-            this.callStack.push(userlandCall1);
-            this.callStack.push(userlandCall2);
-            this.callStack.push(builtinCall);
+            callStack.push(initialCall);
+            callStack.push(userlandCall1);
+            callStack.push(userlandCall2);
+            callStack.push(builtinCall);
 
-            expect(this.callStack.getUserlandCaller()).to.equal(userlandCall2);
+            expect(callStack.getUserlandCaller()).to.equal(userlandCall2);
         });
 
         it('should return the userland caller when callee is userland', function () {
@@ -416,12 +566,12 @@ describe('CallStack', function () {
             userlandCall1.isUserland.returns(true);  // Caller of caller is userland
             userlandCall2.isUserland.returns(false); // Caller is not userland
             userlandCall3.isUserland.returns(true);  // Most recent call is userland
-            this.callStack.push(initialCall);
-            this.callStack.push(userlandCall1);
-            this.callStack.push(userlandCall2);
-            this.callStack.push(userlandCall3);
+            callStack.push(initialCall);
+            callStack.push(userlandCall1);
+            callStack.push(userlandCall2);
+            callStack.push(userlandCall3);
 
-            expect(this.callStack.getUserlandCaller()).to.equal(userlandCall1);
+            expect(callStack.getUserlandCaller()).to.equal(userlandCall1);
         });
     });
 
@@ -429,12 +579,56 @@ describe('CallStack', function () {
         it('should instrument the current call with the provided finder', function () {
             var currentCall = sinon.createStubInstance(Call),
                 finder = sinon.stub();
-            this.callStack.push(currentCall);
+            callStack.push(currentCall);
 
-            this.callStack.instrumentCurrent(finder);
+            callStack.instrumentCurrent(finder);
 
             expect(currentCall.instrument).to.have.been.calledOnce;
             expect(currentCall.instrument).to.have.been.calledWith(sinon.match.same(finder));
+        });
+    });
+
+    describe('isUserland()', function () {
+        it('should return true when the current call is userland', function () {
+            var initialCall = sinon.createStubInstance(Call),
+                intermediateCall = sinon.createStubInstance(Call),
+                userlandCall = sinon.createStubInstance(Call);
+            initialCall.isUserland.returns(false);
+            intermediateCall.isUserland.returns(false);
+            userlandCall.isUserland.returns(true);
+            callStack.push(initialCall);
+            callStack.push(intermediateCall);
+            callStack.push(userlandCall);
+
+            expect(callStack.isUserland()).to.be.true;
+        });
+
+        it('should return false when none on the stack are userland', function () {
+            var initialCall = sinon.createStubInstance(Call),
+                intermediateCall = sinon.createStubInstance(Call),
+                builtinCall = sinon.createStubInstance(Call);
+            initialCall.isUserland.returns(false);
+            intermediateCall.isUserland.returns(false);
+            builtinCall.isUserland.returns(false);
+            callStack.push(initialCall);
+            callStack.push(intermediateCall);
+            callStack.push(builtinCall);
+
+            expect(callStack.isUserland()).to.be.false;
+        });
+
+        it('should return false when only the caller was userland', function () {
+            var initialCall = sinon.createStubInstance(Call),
+                intermediateCall = sinon.createStubInstance(Call),
+                builtinCall = sinon.createStubInstance(Call);
+            initialCall.isUserland.returns(false);
+            intermediateCall.isUserland.returns(true);
+            builtinCall.isUserland.returns(false);
+            callStack.push(initialCall);
+            callStack.push(intermediateCall);
+            callStack.push(builtinCall);
+
+            expect(callStack.isUserland()).to.be.false;
         });
     });
 
@@ -442,27 +636,29 @@ describe('CallStack', function () {
         it('should revert to the previous call', function () {
             var firstCall = sinon.createStubInstance(Call),
                 secondCall = sinon.createStubInstance(Call);
-            this.callStack.push(firstCall);
-            this.callStack.push(secondCall);
+            callStack.push(firstCall);
+            callStack.push(secondCall);
 
-            this.callStack.pop();
+            callStack.pop();
 
-            expect(this.callStack.getCurrent()).to.equal(firstCall);
+            expect(callStack.getCurrent()).to.equal(firstCall);
         });
     });
 
     describe('push()', function () {
         it('should add the call to the top of the stack', function () {
             var call = sinon.createStubInstance(Call);
-            this.callStack.push(call);
+            callStack.push(call);
 
-            expect(this.callStack.getCurrent()).to.equal(call);
+            expect(callStack.getCurrent()).to.equal(call);
         });
     });
 
     describe('raiseError()', function () {
+        var whenThereAreCallsOnTheStack;
+
         beforeEach(function () {
-            this.whenThereAreCallsOnTheStack = function () {
+            whenThereAreCallsOnTheStack = function () {
                 var initialCall = sinon.createStubInstance(Call),
                     userlandCall = sinon.createStubInstance(Call),
                     builtinCall = sinon.createStubInstance(Call);
@@ -488,22 +684,22 @@ describe('CallStack', function () {
                 builtinCall.getFunctionName.returns('some_builtin');
                 builtinCall.getLastLine.returns(null);
 
-                this.callStack.push(initialCall);
-                this.callStack.push(userlandCall);
-                this.callStack.push(builtinCall);
-            }.bind(this);
+                callStack.push(initialCall);
+                callStack.push(userlandCall);
+                callStack.push(builtinCall);
+            };
         });
 
         describe('for a non-fatal error when there are calls on the stack', function () {
             beforeEach(function () {
-                this.whenThereAreCallsOnTheStack();
+                whenThereAreCallsOnTheStack();
             });
 
             it('should report the error via ErrorReporting when no errors are suppressed', function () {
-                this.callStack.raiseError(PHPError.E_WARNING, 'This may or may not be bad.', null, true);
+                callStack.raiseError(PHPError.E_WARNING, 'This may or may not be bad.', null, true);
 
-                expect(this.errorReporting.reportError).to.have.been.calledOnce;
-                expect(this.errorReporting.reportError).to.have.been.calledWith(
+                expect(errorReporting.reportError).to.have.been.calledOnce;
+                expect(errorReporting.reportError).to.have.been.calledWith(
                     PHPError.E_WARNING,
                     'This may or may not be bad.',
                     '/my/userland/module.php',
@@ -531,10 +727,10 @@ describe('CallStack', function () {
 
         describe('for a non-fatal error when there are no calls on the stack', function () {
             it('should report the error via ErrorReporting when no errors are suppressed', function () {
-                this.callStack.raiseError(PHPError.E_WARNING, 'This may or may not be bad.', null, true);
+                callStack.raiseError(PHPError.E_WARNING, 'This may or may not be bad.', null, true);
 
-                expect(this.errorReporting.reportError).to.have.been.calledOnce;
-                expect(this.errorReporting.reportError).to.have.been.calledWith(
+                expect(errorReporting.reportError).to.have.been.calledOnce;
+                expect(errorReporting.reportError).to.have.been.calledWith(
                     PHPError.E_WARNING,
                     'This may or may not be bad.',
                     null,
@@ -547,21 +743,21 @@ describe('CallStack', function () {
 
         describe('for a fatal error when there are calls on the stack', function () {
             beforeEach(function () {
-                this.whenThereAreCallsOnTheStack();
+                whenThereAreCallsOnTheStack();
             });
 
             it('should not invoke ErrorReporting', function () {
                 try {
-                    this.callStack.raiseError(PHPError.E_ERROR, 'Oh dear...!');
+                    callStack.raiseError(PHPError.E_ERROR, 'Oh dear...!');
                 } catch (error) {}
 
-                expect(this.errorReporting.reportError).not.to.have.been.called;
+                expect(errorReporting.reportError).not.to.have.been.called;
             });
 
             it('should throw a PHPFatalError with the correct message and context', function () {
                 expect(function () {
-                    this.callStack.raiseError(PHPError.E_ERROR, 'Oh dear...!');
-                }.bind(this)).to.throw(
+                    callStack.raiseError(PHPError.E_ERROR, 'Oh dear...!');
+                }).to.throw(
                     PHPFatalError,
                     // Context should be the userland caller when the current function is a builtin
                     'PHP Fatal error: Oh dear...! in /my/userland/module.php on line 101'
@@ -572,16 +768,16 @@ describe('CallStack', function () {
         describe('for a fatal error when there are no calls on the stack', function () {
             it('should not invoke ErrorReporting', function () {
                 try {
-                    this.callStack.raiseError(PHPError.E_ERROR, 'Oh dear...!');
+                    callStack.raiseError(PHPError.E_ERROR, 'Oh dear...!');
                 } catch (error) {}
 
-                expect(this.errorReporting.reportError).not.to.have.been.called;
+                expect(errorReporting.reportError).not.to.have.been.called;
             });
 
             it('should throw a PHPFatalError with the correct message and context', function () {
                 expect(function () {
-                    this.callStack.raiseError(PHPError.E_ERROR, 'Oh dear...!');
-                }.bind(this)).to.throw(
+                    callStack.raiseError(PHPError.E_ERROR, 'Oh dear...!');
+                }).to.throw(
                     PHPFatalError,
                     // Context should be the userland caller when the current function is a builtin
                     'PHP Fatal error: Oh dear...! in (unknown) on line (unknown)'
@@ -594,17 +790,17 @@ describe('CallStack', function () {
         beforeEach(function () {
             // Make sure we have at least one call on the stack
             // for things like checking for error suppression
-            this.callStack.push(sinon.createStubInstance(Call));
+            callStack.push(sinon.createStubInstance(Call));
         });
 
-        it('should throw an ObjectValue wrapping an instance of Error when the E_ERROR level is given', function () {
+        it('should throw an ObjectValue wrapping an instance of Error when the E_ERROR level is given', async function () {
             var caughtError = null,
                 errorClassObject = sinon.createStubInstance(Class),
                 errorValue = sinon.createStubInstance(ObjectValue);
-            this.globalNamespace.getClass
+            globalNamespace.getClass
                 .withArgs('MySubError')
-                .returns(errorClassObject);
-            this.translator.translate
+                .returns(futureFactory.createPresent(errorClassObject));
+            translator.translate
                 .withArgs('my_translation_key', {
                     my_placeholder: 'My value'
                 })
@@ -624,7 +820,7 @@ describe('CallStack', function () {
                 .returns(errorValue);
 
             try {
-                this.callStack.raiseTranslatedError(
+                callStack.raiseTranslatedError(
                     PHPError.E_ERROR,
                     'my_translation_key',
                     {
@@ -636,7 +832,7 @@ describe('CallStack', function () {
                     4321
                 );
             } catch (error) {
-                caughtError = error;
+                caughtError = await error.toPromise(); // Error will be a FutureValue.
             }
 
             expect(caughtError).to.equal(errorValue);
@@ -650,13 +846,13 @@ describe('CallStack', function () {
         });
 
         it('should raise an error via ErrorReporting when the E_WARNING level is given', function () {
-            this.translator.translate
+            translator.translate
                 .withArgs('my_translation_key', {
                     my_placeholder: 'My value'
                 })
                 .returns('My translated message');
 
-            this.callStack.raiseTranslatedError(
+            callStack.raiseTranslatedError(
                 PHPError.E_WARNING,
                 'my_translation_key',
                 {
@@ -666,8 +862,8 @@ describe('CallStack', function () {
                 false
             );
 
-            expect(this.errorReporting.reportError).to.have.been.calledOnce;
-            expect(this.errorReporting.reportError).to.have.been.calledWith(
+            expect(errorReporting.reportError).to.have.been.calledOnce;
+            expect(errorReporting.reportError).to.have.been.calledWith(
                 PHPError.E_WARNING,
                 'My translated message'
             );
@@ -698,11 +894,11 @@ describe('CallStack', function () {
             builtinCall.getFunctionName.returns('some_builtin');
             builtinCall.getLastLine.returns(null);
 
-            this.callStack.push(initialCall);
-            this.callStack.push(userlandCall);
-            this.callStack.push(builtinCall);
+            callStack.push(initialCall);
+            callStack.push(userlandCall);
+            callStack.push(builtinCall);
 
-            this.translator.translate
+            translator.translate
                 .withArgs('my_translation_key', {
                     my_placeholder: 'My value'
                 })
@@ -711,10 +907,10 @@ describe('CallStack', function () {
 
         it('should throw a PHPFatalError with the correct message and context', function () {
             expect(function () {
-                this.callStack.raiseUncatchableFatalError('my_translation_key', {
+                callStack.raiseUncatchableFatalError('my_translation_key', {
                     my_placeholder: 'My value'
                 });
-            }.bind(this)).to.throw(
+            }).to.throw(
                 PHPFatalError,
                 // Context should be the userland caller when the current function is a builtin
                 'PHP Fatal error: My translated error message! in /my/userland/module.php on line 101'

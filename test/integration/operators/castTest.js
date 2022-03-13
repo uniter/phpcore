@@ -25,7 +25,7 @@ $result[] = (array)'my string here';
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -61,7 +61,7 @@ $result[] = (array)$object; // Cast to array from outside class
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -88,7 +88,7 @@ $result[] = (binary)'still a string';
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -108,7 +108,7 @@ $result[] = (boolean)4;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -129,7 +129,7 @@ $result[] = (real)'23.5';
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -184,7 +184,7 @@ $result[] = (object)$object;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module(),
             value = engine.execute();
 
@@ -208,7 +208,7 @@ $result[] = (string)22.2;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -232,7 +232,7 @@ $result[] = (unset)$myFunc();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([

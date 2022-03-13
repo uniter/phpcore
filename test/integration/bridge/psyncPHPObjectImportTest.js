@@ -49,7 +49,7 @@ class MyChildAPI extends MyParentAPI {
 return new MyChildAPI();
 EOS
 */;}),//jshint ignore:line
-                module = tools.psyncTranspile(null, php),
+                module = tools.psyncTranspile('/path/to/my_module.php', php),
                 phpEngine = module();
 
             phpEngine.execute().then(function (moduleResult) {

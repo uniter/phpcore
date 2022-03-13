@@ -15,7 +15,7 @@ var expect = require('chai').expect,
     tools = require('../../../../../tools');
 
 describe('PHP builtin FFI function asynchronous mode auto-coercion integration', function () {
-    it('should support installing a custom function that returns a number', function () {
+    it('should support installing a custom function that returns a number', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 return add_one_to(21);
@@ -28,12 +28,52 @@ EOS
             return number + 1;
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.equal(22);
-        });
+        expect((await engine.execute()).getNative()).to.equal(22);
     });
 
-    it('should support installing a custom function that returns an FFIResult that resolves to a number', function () {
+    it('should support installing a custom function with default parameter argument', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return add_one_to();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        engine.defineCoercingFunction('add_one_to', function (number) {
+            return number + 1;
+        }, 'mixed $number = 21');
+
+        expect((await engine.execute()).getNative()).to.equal(22);
+    });
+
+    it('should support installing a custom function with by-value parameter that receives a FutureValue', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return add_one_to($myAccessor);
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineGlobalAccessor(
+            'myAccessor',
+            function () {
+                return this.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(21);
+                    });
+                });
+            }
+        );
+
+        engine.defineCoercingFunction('add_one_to', function (number) {
+            return number + 1;
+        }, 'mixed $number');
+
+        expect((await engine.execute()).getNative()).to.equal(22);
+    });
+
+    it('should support installing a custom function that returns an FFIResult that resolves to a number', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 return add_one_to(21) + 100;
@@ -52,12 +92,10 @@ EOS
             });
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.equal(122);
-        });
+        expect((await engine.execute()).getNative()).to.equal(122);
     });
 
-    it('should support installing a custom function that receives an ObjectValue', function () {
+    it('should support installing a custom function that receives an ObjectValue', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -76,13 +114,11 @@ EOS
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
         engine.defineCoercingFunction('get_async', function (value) {
-            var pause = this.pausable.createPause();
-
-            setTimeout(function () {
-                pause.resume(value);
-            }, 1);
-
-            pause.now();
+            return this.createFutureValue(function (resolve) {
+                setImmediate(function () {
+                    resolve(value);
+                });
+            });
         });
 
         engine.defineCoercingFunction('get_it_and_add_two', function (objectArg) {
@@ -103,8 +139,6 @@ EOS
             });
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.equal(27);
-        });
+        expect((await engine.execute()).getNative()).to.equal(27);
     });
 });

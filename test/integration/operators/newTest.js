@@ -36,7 +36,7 @@ class MyChild extends MyParent
 return new MyChild('Fred')->name;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.equal('Fred');
@@ -77,11 +77,12 @@ namespace My\Stuff\In\Here
     }
 }
 
-return (new My\Stuff\MyClass)->fetchIt();
-
+namespace {
+    return (new My\Stuff\MyClass)->fetchIt();
+}
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.equal(21);
@@ -122,11 +123,12 @@ namespace There
     }
 }
 
-return (new My\Stuff\MyClass)->fetchIt();
-
+namespace {
+    return (new My\Stuff\MyClass)->fetchIt();
+}
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.equal(21);
@@ -169,11 +171,12 @@ namespace Your\Space
     }
 }
 
-return (new My\Space\MyClass)->fetchIt();
-
+namespace {
+    return (new My\Space\MyClass)->fetchIt();
+}
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.equal(101);
@@ -201,18 +204,19 @@ namespace My\Space
     }
 }
 
-$result = [];
-$myObject = new My\Space\MyClass(21);
-$newObject = $myObject->cloneMeWith(101);
+namespace {
+    $result = [];
+    $myObject = new My\Space\MyClass(21);
+    $newObject = $myObject->cloneMeWith(101);
 
-$result[] = $myObject->myProp;
-$result[] = $newObject->myProp;
+    $result[] = $myObject->myProp;
+    $result[] = $newObject->myProp;
 
-return $result;
-
+    return $result;
+}
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -253,18 +257,19 @@ namespace My\Space
     }
 }
 
-$result = [];
-$myObject = new My\Space\MyChildClass(21);
-$newObject = $myObject->cloneMeWith(101);
+namespace {
+    $result = [];
+    $myObject = new My\Space\MyChildClass(21);
+    $newObject = $myObject->cloneMeWith(101);
 
-$result[] = $myObject->getProp();
-$result[] = $newObject->getProp();
+    $result[] = $myObject->getProp();
+    $result[] = $newObject->getProp();
 
-return $result;
-
+    return $result;
+}
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -297,7 +302,7 @@ return $result;
 
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -341,7 +346,7 @@ return $result;
 
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -363,7 +368,7 @@ EOS
 
         expect(function () {
             engine.execute();
-        }.bind(this)).to.throw(
+        }).to.throw(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Class \'SomeUndefinedClass\' not found in my_module.php on line 3'
         );

@@ -14,17 +14,82 @@ var expect = require('chai').expect,
     tools = require('./tools');
 
 describe('PHP "return" statement integration', function () {
-    it('should return the expected result for a simple return statement', function (done) {
+    it('should return the expected result for a simple return statement in async mode', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 return 4;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php);
 
-        module().execute().then(function (result) {
+        return module().execute().then(function (result) {
             expect(result.getNative()).to.equal(4);
-            done();
-        }, done).catch(done);
+        });
+    });
+
+    it('should correctly handle a return of pending future from accessor in async mode', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return $myAccessor;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineGlobalAccessor(
+            'myAccessor',
+            function () {
+                return this.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve('my result');
+                    });
+                });
+            }
+        );
+
+        expect((await engine.execute()).getNative()).to.equal('my result');
+    });
+
+    it('should return the expected result for a simple return statement in psync mode', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return 4;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.psyncTranspile('/path/to/my_module.php', php);
+
+        return module().execute().then(function (result) {
+            expect(result.getNative()).to.equal(4);
+        });
+    });
+
+    it('should return the expected result for a simple return statement in sync mode', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return 4;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php);
+
+        expect(module().execute().getNative()).to.equal(4);
+    });
+
+    it('should correctly handle a return of resolved future from accessor in sync mode', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return $myAccessor;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineGlobalAccessor(
+            'myAccessor',
+            function () {
+                return this.createFutureValue(function (resolve) {
+                    resolve('my result');
+                });
+            }
+        );
+
+        expect(engine.execute().getNative()).to.equal('my result');
     });
 });

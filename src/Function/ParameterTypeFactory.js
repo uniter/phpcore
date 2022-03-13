@@ -12,48 +12,28 @@
 var _ = require('microdash');
 
 /**
- * Creates the correct Type from a function, closure or method parameter spec
+ * Creates the correct Type from a function, closure or method parameter spec.
  *
- * @param {TypeFactory} typeFactory
+ * @param {SpecTypeProvider} specTypeProvider
  * @constructor
  */
-function ParameterTypeFactory(typeFactory) {
+function ParameterTypeFactory(specTypeProvider) {
     /**
-     * @type {TypeFactory}
+     * @type {SpecTypeProvider}
      */
-    this.typeFactory = typeFactory;
+    this.specTypeProvider = specTypeProvider;
 }
 
 _.extend(ParameterTypeFactory.prototype, {
     /**
-     * Creates the correct Type from a function, closure or method parameter spec
+     * Creates the correct Type from a function, closure or method parameter spec.
      *
      * @param {Object} parameterSpecData
      * @param {NamespaceScope} namespaceScope
      * @returns {TypeInterface}
      */
     createParameterType: function (parameterSpecData, namespaceScope) {
-        var factory = this,
-            resolvedClass;
-
-        switch (parameterSpecData.type) {
-            case 'array':
-                return factory.typeFactory.createArrayType();
-            case 'callable':
-                return factory.typeFactory.createCallableType(namespaceScope);
-            case 'class':
-                // We must now resolve the class name given relative to the current namespace scope,
-                // as it may be a relative class name that relies on the current namespace or a `use` import
-                resolvedClass = namespaceScope.resolveClass(parameterSpecData.className);
-
-                return factory.typeFactory.createClassType(resolvedClass.namespace.getPrefix() + resolvedClass.name);
-            case 'iterable':
-                return factory.typeFactory.createIterableType();
-            case undefined:
-                return factory.typeFactory.createMixedType();
-            default:
-                throw new Error('Unsupported parameter type "' + parameterSpecData.type + '"');
-        }
+        return this.specTypeProvider.createType(parameterSpecData, namespaceScope);
     }
 });
 

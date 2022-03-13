@@ -10,15 +10,22 @@
 'use strict';
 
 module.exports = require('pauser')([
+    require('./services/base'),
+    require('./opcodes/calculation'),
     require('./functions/optionsAndInfo/config'),
+    require('./opcodes/controlExpression'),
+    require('./opcodes/controlStructure'),
     require('./constants/errorHandling'),
     require('./ini/errorHandling'),
     require('./messages/error.en_GB'),
+    require('./opcodes/instrumentation'),
+    require('./opcodes/loopStructure'),
     require('./messages/misc.en_GB'),
     require('./messages/notice.en_GB'),
     require('./constants/reserved'),
     require('./functions/spl'),
     require('./classes/stdClass'),
+    require('./messages/warning.en_GB'),
     require('./classes/Error/ArgumentCountError'),
     require('./interfaces/ArrayAccess'),
     require('./classes/Closure'),
@@ -27,21 +34,29 @@ module.exports = require('pauser')([
     require('./classes/Exception'),
     require('./interfaces/Iterator'),
     require('./interfaces/IteratorAggregate'),
+    require('./classes/JSArray'),
     require('./classes/JSObject'),
     require('./classes/Error/ParseError'),
     require('./interfaces/Throwable'),
     require('./interfaces/Traversable'),
     require('./classes/Error/TypeError')
 ], function (
+    baseServiceGroup,
+    calculationOpcodeGroup,
     configOptionsAndInfoFunctions,
+    controlExpressionOpcodeGroup,
+    controlStructureOpcodeGroup,
     errorHandlingConstants,
     errorHandlingDefaultINIOptions,
     errorMessages,
+    instrumentationOpcodeGroup,
+    loopStructureOpcodeGroup,
     miscellaneousMessages,
     noticeMessages,
     reservedConstants,
     splFunctions,
     stdClass,
+    warningMessages,
     ArgumentCountError,
     ArrayAccess,
     Closure,
@@ -50,6 +65,7 @@ module.exports = require('pauser')([
     Exception,
     Iterator,
     IteratorAggregate,
+    JSArray,
     JSObject,
     ParseError,
     Throwable,
@@ -68,10 +84,11 @@ module.exports = require('pauser')([
             {'TypeError': TypeError},
             {'ArgumentCountError': ArgumentCountError},
             {'Exception': Exception},
+            {'Traversable': Traversable},
             {'Iterator': Iterator},
             {'IteratorAggregate': IteratorAggregate},
-            {'JSObject': JSObject},
-            {'Traversable': Traversable}
+            {'JSArray': JSArray},
+            {'JSObject': JSObject}
         ],
         constantGroups: [
             errorHandlingConstants,
@@ -84,10 +101,21 @@ module.exports = require('pauser')([
         defaultINIGroups: [
             errorHandlingDefaultINIOptions
         ],
+        opcodeGroups: [
+            calculationOpcodeGroup,
+            controlExpressionOpcodeGroup,
+            controlStructureOpcodeGroup,
+            instrumentationOpcodeGroup,
+            loopStructureOpcodeGroup
+        ],
+        serviceGroups: [
+            baseServiceGroup
+        ],
         translationCatalogues: [
             errorMessages,
             noticeMessages,
-            miscellaneousMessages
+            miscellaneousMessages,
+            warningMessages
         ]
     };
 }, {strict: true});

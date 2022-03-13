@@ -18,14 +18,19 @@ var _ = require('microdash'),
  *
  * @param {NamespaceScope} namespaceScope
  * @param {Class|null} classObject Used when the closure is defined inside a class
+ * @param {ObjectValue|null} enclosingObject Used when the closure is defined inside an instance method
  * @constructor
  * @implements {FunctionContextInterface}
  */
-function ClosureContext(namespaceScope, classObject) {
+function ClosureContext(namespaceScope, classObject, enclosingObject) {
     /**
      * @type {Class|null}
      */
     this.classObject = classObject;
+    /**
+     * @type {ObjectValue|null}
+     */
+    this.enclosingObject = enclosingObject;
     /**
      * @type {NamespaceScope}
      */
@@ -54,7 +59,9 @@ _.extend(ClosureContext.prototype, {
             name = spec.namespaceScope.getNamespacePrefix() + '{closure}';
 
         if (spec.classObject) {
-            name = spec.classObject.getName() + '::' + name;
+            name = spec.classObject.getName() +
+                (spec.enclosingObject ? '->' : '::') +
+                name;
         }
 
         return name;

@@ -59,6 +59,7 @@ module.exports = require('pauser')([
          */
         create: function (enclosingScope, unwrappedFunction, namespaceScope, scopeClass, thisObject, functionSpec) {
             var factory = this,
+                staticClass,
                 wrappedFunction;
 
             // If a bound object is specified but no class scope, use the class of the object
@@ -68,6 +69,13 @@ module.exports = require('pauser')([
                     null;
             }
 
+            staticClass = factory.callStack.getStaticClass();
+
+            if (staticClass && staticClass.is('Closure')) {
+                // Ignore the special Closure class itself, we do not want to bind to it.
+                staticClass = null;
+            }
+
             wrappedFunction = factory.functionFactory.create(
                 namespaceScope,
                 scopeClass,
@@ -75,8 +83,8 @@ module.exports = require('pauser')([
                 null,
                 null,
                 // Inside a closure, static:: will either refer to the current bound static class
-                // or, if none, then the current/owning class of the method that created it
-                factory.callStack.getStaticClass() || scopeClass || null,
+                // or, if none, then the current/owning class of the method that created it.
+                staticClass || scopeClass || null,
                 functionSpec
             );
 

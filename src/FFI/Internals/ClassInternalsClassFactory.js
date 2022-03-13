@@ -11,7 +11,9 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
-    Exception = phpCommon.Exception;
+    Exception = phpCommon.Exception,
+    IS_STATIC = 'isStatic',
+    TypedFunction = require('../../Function/TypedFunction');
 
 /**
  * @param {Internals} baseInternals
@@ -95,6 +97,7 @@ _.extend(ClassInternalsClassFactory.prototype, {
              *
              * @param {ObjectValue|object} instance Object instance (see below)
              * @param {Value[]|*[]} args Arguments (Value objects if non-coercing, native if coercing)
+             * @returns {FutureValue<ObjectValue>|ObjectValue}
              */
             callSuperConstructor: function (instance, args) {
                 var argValues,
@@ -102,8 +105,10 @@ _.extend(ClassInternalsClassFactory.prototype, {
                     internals = this;
 
                 if (!internals.superClass) {
-                    throw new Exception(
-                        'Cannot call superconstructor: no superclass is defined for class "' + internals.fqcn + '"'
+                    return factory.valueFactory.createRejection(
+                        new Exception(
+                            'Cannot call superconstructor: no superclass is defined for class "' + internals.fqcn + '"'
+                        )
                     );
                 }
 
@@ -129,20 +134,19 @@ _.extend(ClassInternalsClassFactory.prototype, {
                     argValues = args;
                 }
 
-                internals.superClass.construct(instanceValue, argValues);
+                return internals.superClass.construct(instanceValue, argValues);
             },
 
             /**
              * Defines the class
              *
              * @param {Function} definitionFactory
-             * @return {Class}
+             * @returns {Future<Class>}
              */
             defineClass: function (definitionFactory) {
                 var internals = this,
                     name,
                     Class = definitionFactory(internals),
-                    classObject,
                     namespace,
                     // Split the FQCN into a Namespace from its prefix and its name within that namespace
                     // (ie. a FQCN of "My\Stuff\MyClass" gives Namespace<My\Stuff> and name "MyClass")
@@ -163,19 +167,19 @@ _.extend(ClassInternalsClassFactory.prototype, {
 
                 // Now create the internal Uniter class (an instance of Class)
                 // from the PHP class definition information
-                classObject = namespace.defineClass(
+                return namespace.defineClass(
                     name,
                     Class,
                     factory.globalNamespaceScope,
                     internals.enableAutoCoercion
-                );
+                ).next(function (classObject) {
+                    if (internals.unwrapper) {
+                        // Custom unwrappers may be used to eg. unwrap a PHP \DateTime object to a JS Date object
+                        factory.unwrapperRepository.defineUnwrapper(classObject, internals.unwrapper);
+                    }
 
-                if (internals.unwrapper) {
-                    // Custom unwrappers may be used to eg. unwrap a PHP \DateTime object to a JS Date object
-                    factory.unwrapperRepository.defineUnwrapper(classObject, internals.unwrapper);
-                }
-
-                return classObject;
+                    return classObject;
+                });
             },
 
             /**
@@ -201,7 +205,9 @@ _.extend(ClassInternalsClassFactory.prototype, {
              * @param {string} fqcn
              */
             extendClass: function (fqcn) {
-                this.superClass = factory.globalNamespace.getClass(fqcn);
+                // TODO: Confirm that we are ok to disable autoloading here
+                //       (not if we are dependent on autoloaders)
+                this.superClass = factory.globalNamespace.getClass(fqcn, false).yieldSync();
             },
 
             /**
@@ -211,6 +217,33 @@ _.extend(ClassInternalsClassFactory.prototype, {
              */
             implement: function (interfaceName) {
                 this.definedInterfaceNames.push(interfaceName);
+            },
+
+            /**
+             * Creates a native instance method definition with type information.
+             *
+             * Note that this is currently identical to (the inherited) .typeFunction(),
+             * but that may change in the future.
+             *
+             * @param {string} signature
+             * @param {Function} func
+             * @returns {TypedFunction}
+             */
+            typeInstanceMethod: function (signature, func) {
+                return new TypedFunction(signature, func);
+            },
+
+            /**
+             * Creates a native static method definition with type information.
+             *
+             * @param {string} signature
+             * @param {Function} func
+             * @returns {TypedFunction}
+             */
+            typeStaticMethod: function (signature, func) {
+                func[IS_STATIC] = true;
+
+                return new TypedFunction(signature, func);
             }
         });
 

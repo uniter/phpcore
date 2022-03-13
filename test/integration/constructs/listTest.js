@@ -25,7 +25,7 @@ list(, $val2, , $val4) = $array;
 return [$val2, $val4];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -47,7 +47,7 @@ list(, $val1, , $val2) = 21;
 return [$val1, $val2];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([

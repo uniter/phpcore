@@ -13,47 +13,81 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     CallFactory = require('../../src/CallFactory'),
     Class = require('../../src/Class').sync(),
+    ControlFactory = require('../../src/Control/ControlFactory'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     Scope = require('../../src/Scope').sync(),
+    Trace = require('../../src/Control/Trace'),
     Value = require('../../src/Value').sync();
 
 describe('CallFactory', function () {
-    beforeEach(function () {
-        this.Call = sinon.stub();
-        this.FFICall = sinon.stub();
-        this.namespaceScope = sinon.createStubInstance(NamespaceScope);
-        this.scope = sinon.createStubInstance(Scope);
+    var Call,
+        controlFactory,
+        factory,
+        FFICall,
+        namespaceScope,
+        scope,
+        trace;
 
-        this.factory = new CallFactory(this.Call, this.FFICall);
+    beforeEach(function () {
+        Call = sinon.stub();
+        controlFactory = sinon.createStubInstance(ControlFactory);
+        FFICall = sinon.stub();
+        namespaceScope = sinon.createStubInstance(NamespaceScope);
+        scope = sinon.createStubInstance(Scope);
+        trace = null; // Assigned by stub below.
+
+        controlFactory.createTrace.callsFake(function () {
+            trace = sinon.createStubInstance(Trace);
+
+            return trace;
+        });
+
+        factory = new CallFactory(Call, FFICall);
+        factory.setControlFactory(controlFactory);
     });
 
     describe('create()', function () {
         it('should return an instance of Call', function () {
-            expect(this.factory.create(this.scope, this.namespaceScope)).to.be.an.instanceOf(this.Call);
+            expect(factory.create(scope, namespaceScope)).to.be.an.instanceOf(Call);
         });
 
         it('should pass the Scope to the Call constructor', function () {
-            this.factory.create(this.scope, this.namespaceScope);
+            factory.create(scope, namespaceScope);
 
-            expect(this.Call).to.have.been.calledOnce;
-            expect(this.Call).to.have.been.calledWith(sinon.match.same(this.scope));
+            expect(Call).to.have.been.calledOnce;
+            expect(Call).to.have.been.calledWith(sinon.match.same(scope));
         });
 
         it('should pass the NamespaceScope to the Call constructor', function () {
-            this.factory.create(this.scope, this.namespaceScope);
+            factory.create(scope, namespaceScope);
 
-            expect(this.Call).to.have.been.calledOnce;
-            expect(this.Call).to.have.been.calledWith(sinon.match.any, sinon.match.same(this.namespaceScope));
+            expect(Call).to.have.been.calledOnce;
+            expect(Call).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.same(namespaceScope)
+            );
+        });
+
+        it('should pass the Trace to the Call constructor', function () {
+            factory.create(scope, namespaceScope);
+
+            expect(Call).to.have.been.calledOnce;
+            expect(Call).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(trace)
+            );
         });
 
         it('should pass the argument values to the Call constructor if specified', function () {
             var argValue1 = sinon.createStubInstance(Value),
                 argValue2 = sinon.createStubInstance(Value);
 
-            this.factory.create(this.scope, this.namespaceScope, [argValue1, argValue2]);
+            factory.create(scope, namespaceScope, [argValue1, argValue2]);
 
-            expect(this.Call).to.have.been.calledOnce;
-            expect(this.Call).to.have.been.calledWith(
+            expect(Call).to.have.been.calledOnce;
+            expect(Call).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match([sinon.match.same(argValue1), sinon.match.same(argValue2)])
@@ -61,10 +95,11 @@ describe('CallFactory', function () {
         });
 
         it('should pass an empty array of argument values to the Call constructor if none specified', function () {
-            this.factory.create(this.scope, this.namespaceScope);
+            factory.create(scope, namespaceScope);
 
-            expect(this.Call).to.have.been.calledOnce;
-            expect(this.Call).to.have.been.calledWith(
+            expect(Call).to.have.been.calledOnce;
+            expect(Call).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match([])
@@ -74,10 +109,11 @@ describe('CallFactory', function () {
         it('should pass the new static class to the Call constructor if specified', function () {
             var newStaticClass = sinon.createStubInstance(Class);
 
-            this.factory.create(this.scope, this.namespaceScope, [], newStaticClass);
+            factory.create(scope, namespaceScope, [], newStaticClass);
 
-            expect(this.Call).to.have.been.calledOnce;
-            expect(this.Call).to.have.been.calledWith(
+            expect(Call).to.have.been.calledOnce;
+            expect(Call).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -86,10 +122,11 @@ describe('CallFactory', function () {
         });
 
         it('should pass null as the new static class to the Call constructor if none specified', function () {
-            this.factory.create(this.scope, this.namespaceScope);
+            factory.create(scope, namespaceScope);
 
-            expect(this.Call).to.have.been.calledOnce;
-            expect(this.Call).to.have.been.calledWith(
+            expect(Call).to.have.been.calledOnce;
+            expect(Call).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -100,26 +137,26 @@ describe('CallFactory', function () {
 
     describe('createFFICall()', function () {
         it('should return an instance of FFICall', function () {
-            expect(this.factory.createFFICall()).to.be.an.instanceOf(this.FFICall);
+            expect(factory.createFFICall()).to.be.an.instanceOf(FFICall);
         });
 
         it('should pass the argument values to the Call constructor if specified', function () {
             var argValue1 = sinon.createStubInstance(Value),
                 argValue2 = sinon.createStubInstance(Value);
 
-            this.factory.createFFICall([argValue1, argValue2]);
+            factory.createFFICall([argValue1, argValue2]);
 
-            expect(this.FFICall).to.have.been.calledOnce;
-            expect(this.FFICall).to.have.been.calledWith(
+            expect(FFICall).to.have.been.calledOnce;
+            expect(FFICall).to.have.been.calledWith(
                 sinon.match([sinon.match.same(argValue1), sinon.match.same(argValue2)])
             );
         });
 
         it('should pass an empty array of argument values to the Call constructor if none specified', function () {
-            this.factory.createFFICall();
+            factory.createFFICall();
 
-            expect(this.FFICall).to.have.been.calledOnce;
-            expect(this.FFICall).to.have.been.calledWith(sinon.match([]));
+            expect(FFICall).to.have.been.calledOnce;
+            expect(FFICall).to.have.been.calledWith(sinon.match([]));
         });
     });
 });

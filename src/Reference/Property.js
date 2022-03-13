@@ -16,11 +16,12 @@ var _ = require('microdash'),
     MAGIC_SET = '__set',
     MAGIC_UNSET = '__unset',
     PHPError = phpCommon.PHPError,
-    Reference = require('./Reference'),
-    ReferenceSlot = require('./ReferenceSlot');
+    Reference = require('./Reference');
 
 /**
  * @param {ValueFactory} valueFactory
+ * @param {ReferenceFactory} referenceFactory
+ * @param {FutureFactory} futureFactory
  * @param {CallStack} callStack
  * @param {ObjectValue} objectValue
  * @param {Value} key
@@ -29,11 +30,27 @@ var _ = require('microdash'),
  * @param {number} index
  * @constructor
  */
-function PropertyReference(valueFactory, callStack, objectValue, key, classObject, visibility, index) {
+function PropertyReference(
+    valueFactory,
+    referenceFactory,
+    futureFactory,
+    callStack,
+    objectValue,
+    key,
+    classObject,
+    visibility,
+    index
+) {
+    Reference.call(this, referenceFactory);
+
     /**
      * @type {Class}
      */
     this.classObject = classObject;
+    /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
     /**
      * @type {number}
      */
@@ -105,6 +122,15 @@ _.extend(PropertyReference.prototype, {
     },
 
     /**
+     * Fetches the native string name of this property.
+     *
+     * @returns {string}
+     */
+    getName: function () {
+        return this.key.getNative();
+    },
+
+    /**
      * Fetches a reference to this property's value
      *
      * @returns {Reference}
@@ -118,7 +144,7 @@ _.extend(PropertyReference.prototype, {
         }
 
         // Implicitly define a "slot" to contain this property's value
-        property.reference = new ReferenceSlot(property.valueFactory);
+        property.reference = property.referenceFactory.createReferenceSlot();
 
         if (property.value) {
             property.reference.setValue(property.value);
@@ -205,7 +231,7 @@ _.extend(PropertyReference.prototype, {
     /**
      * Determines whether this object property is "empty" or not
      *
-     * @returns {boolean}
+     * @returns {Future<boolean>}
      */
     isEmpty: function () {
         var property = this;
@@ -222,7 +248,7 @@ _.extend(PropertyReference.prototype, {
 
         // Property is not defined and there is no magic getter,
         // so the property must be empty as it is unset and undefined
-        return true;
+        return property.futureFactory.createPresent(true);
     },
 
     isReference: function () {
@@ -233,21 +259,21 @@ _.extend(PropertyReference.prototype, {
      * Determines whether this property is "set".
      * A set property must be both defined and have a non-NULL value
      *
-     * @returns {boolean}
+     * @returns {Future<boolean>}
      */
     isSet: function () {
         var property = this,
             defined = property.isDefined();
 
         if (!defined) {
-            return false;
+            return property.futureFactory.createPresent(false);
         }
 
         // Check that the property resolves to something other than null,
         // otherwise it is not set
         // (no need to check for a value of native null - meaning an undefined property -
         //  as the check for that is done just above)
-        return property.value.getType() !== 'null';
+        return property.futureFactory.createPresent(property.value.getType() !== 'null');
     },
 
     /**
@@ -297,42 +323,36 @@ _.extend(PropertyReference.prototype, {
      * @returns {Value}
      */
     setValue: function (value) {
-        var property = this,
-            isFirstProperty = (property.objectValue.getLength() === 0),
-            valueForAssignment;
+        var property = this;
 
-        function pointIfFirstProperty() {
-            if (isFirstProperty) {
-                property.objectValue.pointToProperty(property);
-            }
-        }
+        return value
+            .next(function (presentValue) {
+                var valueForAssignment;
 
-        if (property.reference) {
-            property.reference.setValue(value);
+                if (property.reference) {
+                    property.reference.setValue(presentValue);
 
-            pointIfFirstProperty();
+                    return presentValue;
+                }
 
-            return value;
-        }
+                valueForAssignment = presentValue.getForAssignment();
 
-        valueForAssignment = value.getForAssignment();
+                if (!property.isDefined()) {
+                    // Property is not defined - attempt to call magic setter method first,
+                    // otherwise just dynamically define the new property by setting its value below
+                    if (property.objectValue.isMethodDefined(MAGIC_SET)) {
+                        property.objectValue.callMethod(MAGIC_SET, [property.key, valueForAssignment]);
 
-        if (!property.isDefined()) {
-            // Property is not defined - attempt to call magic setter method first,
-            // otherwise just dynamically define the new property by setting its value below
-            if (property.objectValue.isMethodDefined(MAGIC_SET)) {
-                property.objectValue.callMethod(MAGIC_SET, [property.key, valueForAssignment]);
+                        return presentValue;
+                    }
+                }
 
-                return value;
-            }
-        }
+                // No magic setter is defined - store the value of this property directly on itself
+                property.value = valueForAssignment;
 
-        // No magic setter is defined - store the value of this property directly on itself
-        property.value = valueForAssignment;
-
-        pointIfFirstProperty();
-
-        return value;
+                return presentValue;
+            })
+            .yield();
     },
 
     /**

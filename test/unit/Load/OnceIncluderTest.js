@@ -16,7 +16,6 @@ var expect = require('chai').expect,
     Includer = require('../../../src/Load/Includer').sync(),
     Loader = require('../../../src/Load/Loader').sync(),
     Module = require('../../../src/Module'),
-    NamespaceScope = require('../../../src/NamespaceScope').sync(),
     OnceIncluder = require('../../../src/Load/OnceIncluder').sync(),
     PHPError = phpCommon.PHPError,
     Scope = require('../../../src/Scope').sync(),
@@ -31,7 +30,6 @@ describe('OnceIncluder', function () {
         module,
         onceIncluder,
         scopeFactory,
-        topLevelNamespaceScope,
         valueFactory;
 
     beforeEach(function () {
@@ -41,7 +39,6 @@ describe('OnceIncluder', function () {
         loader = sinon.createStubInstance(Loader);
         module = sinon.createStubInstance(Module);
         scopeFactory = sinon.createStubInstance(ScopeFactory);
-        topLevelNamespaceScope = sinon.createStubInstance(NamespaceScope);
         includer = sinon.createStubInstance(Includer);
         valueFactory = new ValueFactory();
 
@@ -60,7 +57,6 @@ describe('OnceIncluder', function () {
                     errorLevel || PHPError.E_WARNING,
                     environment,
                     module,
-                    topLevelNamespaceScope,
                     includedPath,
                     enclosingScope,
                     options || {}
@@ -76,7 +72,6 @@ describe('OnceIncluder', function () {
                     PHPError.E_ERROR, // For requires, a fatal error is raised on failure
                     sinon.match.same(environment),
                     sinon.match.same(module),
-                    sinon.match.same(topLevelNamespaceScope),
                     '/my/required_path.php',
                     sinon.match.same(enclosingScope),
                     {my: 'options'}

@@ -67,6 +67,7 @@ _.extend(ParameterListFactory.prototype, {
                 parameterIndex,
                 parameterType,
                 context,
+                namespaceScope,
                 parameterSpecData.ref,
                 parameterSpecData.value || null,
                 filePath,

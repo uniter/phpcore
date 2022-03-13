@@ -78,16 +78,14 @@ EOS
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
         engine.defineNonCoercingFunction('get_async', function (valueReference) {
-            var pause = this.pausable.createPause(),
-                value = valueReference.getValue();
+            return this.createFutureValue(function (resolve) {
+                var value = valueReference.getValue();
 
-            setTimeout(function () {
-                pause.resume(value);
-            }, 1);
-
-            pause.now();
+                setImmediate(function () {
+                    resolve(value);
+                });
+            });
         });
-
         engine.defineFunction('get_it_and_add_two', function (internals) {
             internals.disableAutoCoercion();
 

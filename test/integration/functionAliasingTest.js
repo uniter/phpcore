@@ -45,8 +45,6 @@ EOS
             engine.aliasFunction(originalName, aliasName);
         });
 
-        engine.execute();
-
         expect(engine.execute().getNative()).to.equal('21 was passed to My\\Awesome\\Space\\myAliasFunc');
     });
 });

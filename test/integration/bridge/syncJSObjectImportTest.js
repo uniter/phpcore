@@ -20,7 +20,7 @@ describe('PHP JS<->PHP bridge JS object import synchronous mode integration', fu
 return 21 + $myJSObject->myMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.expose({
@@ -32,13 +32,50 @@ EOS
         expect(engine.execute().getNative()).to.equal(30);
     });
 
+    it('should always box an imported JS object as the same JSObject PHP class instance', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return function ($leftObject, $rightObject) {
+    $result = [];
+
+    $result['left is JSObject'] = $leftObject instanceof JSObject;
+    $result['right is JSObject'] = $rightObject instanceof JSObject;
+    $result['JSObjects are identical (userland)'] = $leftObject === $rightObject;
+
+    // Make a change via one variable, ensure it is reflected via the other
+    $leftObject->myCustomProp = 'my custom value';
+    $result['myCustomProp from left, via right (userland)'] = $rightObject->myCustomProp;
+
+    $result['are internal values identical'] = are_internal_values_identical($leftObject, $rightObject);
+
+    return $result;
+};
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module(),
+            // Use an object with a method to avoid being coerced to an associative array
+            jsObject = {myMethod: function () { return 'my value'; }};
+        engine.defineNonCoercingFunction('are_internal_values_identical', function (leftReference, rightReference) {
+            return leftReference.getValue() === rightReference.getValue();
+        });
+
+        expect(engine.execute().getNative()(jsObject, jsObject)).to.deep.equal({
+            'left is JSObject': true,
+            'right is JSObject': true,
+            'JSObjects are identical (userland)': true,
+            'myCustomProp from left, via right (userland)': 'my custom value',
+            'are internal values identical': true
+        });
+    });
+
     it('should allow an imported method to return a value from an FFI Result synchronous handler', function (done) {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 return 21 + $myJSObject->myMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.expose({
@@ -61,7 +98,7 @@ EOS
 return 21 + $myJSObject->myMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.expose({
@@ -81,7 +118,7 @@ EOS
 return 21 + $myJSObject->myMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.expose({

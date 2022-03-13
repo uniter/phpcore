@@ -58,6 +58,39 @@ EOS
         ]);
     });
 
+    it('should be able to loop over a stdClass instance that has had properties appended', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$myObject = new stdClass;
+$myObject->firstProp = 'first value'; // This should become the initial "current" property
+$myObject->secondProp = 'second value';
+
+$result = [];
+
+$result['initial current'] = get_current($myObject);
+
+foreach ($myObject as $key => $value) {
+    $result['iteration'][] = 'value for ' . $key . ' is: ' . $value;
+}
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile('/my/path/to/my_module.php', php),
+            engine = module();
+        engine.defineNonCoercingFunction('get_current', function (arrayReference) {
+            return arrayReference.getValue().getCurrentElementValue();
+        });
+
+        expect(engine.execute().getNative()).to.deep.equal({
+            'initial current': 'first value',
+            'iteration': [
+                'value for firstProp is: first value',
+                'value for secondProp is: second value'
+            ]
+        });
+    });
+
     it('should raise a notice and return null for reads of undefined properties of stdClass instances', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

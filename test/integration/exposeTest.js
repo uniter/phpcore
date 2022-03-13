@@ -20,7 +20,7 @@ describe('PHP<->JS Bridge integration', function () {
 return $myNum + 4;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.expose(18, 'myNum');
@@ -40,7 +40,7 @@ $result[] = $myArray['myProp'];
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module(),
             myArray = [27];
         myArray.myProp = 31;
@@ -62,7 +62,7 @@ EOS
 return $myJSFunc(21);
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.expose(function (myArg) {

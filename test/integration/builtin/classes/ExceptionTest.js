@@ -153,7 +153,7 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php);
+                module = tools.syncTranspile('/path/to/my_module.php', php);
 
             expect(module().execute().getNative()).to.deep.equal([
                 4,  // From myFirstThrower
@@ -190,7 +190,7 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php, {
+                module = tools.syncTranspile('/path/to/my_module.php', php, {
                     // Turn off line tracking
                     phpToAST: {captureAllBounds: false},
                     phpToJS: {lineNumbers: false}
@@ -239,7 +239,7 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php);
+                module = tools.syncTranspile('/path/to/my_module.php', php);
 
             expect(module().execute().getNative()).to.deep.equal([
                 12, // From myFirstThrower
@@ -300,7 +300,7 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php);
+                module = tools.syncTranspile('/path/to/my_module.php', php);
 
             expect(module().execute().getNative()).to.deep.equal([
                 'First bang',

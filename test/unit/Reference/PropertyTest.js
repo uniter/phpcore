@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../tools'),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
     PropertyReference = require('../../../src/Reference/Property'),
@@ -21,23 +22,28 @@ var expect = require('chai').expect,
     Reference = require('../../../src/Reference/Reference'),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
     Value = require('../../../src/Value').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync(),
     Variable = require('../../../src/Variable').sync();
 
 describe('PropertyReference', function () {
     var callStack,
         classObject,
         createProperty,
+        futureFactory,
         keyValue,
         objectValue,
         property,
         propertyValue,
+        state,
         valueFactory;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        state = tools.createIsolatedState(null, {
+            'call_stack': callStack
+        });
         classObject = sinon.createStubInstance(Class);
-        valueFactory = new ValueFactory();
+        futureFactory = state.getFutureFactory();
+        valueFactory = state.getValueFactory();
         propertyValue = sinon.createStubInstance(Value);
         objectValue = sinon.createStubInstance(ObjectValue);
         objectValue.isMethodDefined.returns(false);
@@ -54,6 +60,8 @@ describe('PropertyReference', function () {
         createProperty = function (visibility) {
             property = new PropertyReference(
                 valueFactory,
+                state.getReferenceFactory(),
+                state.getFutureFactory(),
                 callStack,
                 objectValue,
                 keyValue,
@@ -65,50 +73,20 @@ describe('PropertyReference', function () {
         createProperty();
     });
 
-    describe('concatWith()', function () {
-        it('should append the given value to the property\'s value and assign it back to the property', function () {
-            property.setValue(valueFactory.createString('value for my prop'));
-
-            property.concatWith(valueFactory.createString(' with world on the end'));
-
-            expect(property.getNative()).to.equal('value for my prop with world on the end');
-        });
-    });
-
-    describe('decrementBy()', function () {
-        it('should subtract the given value from the property\'s value and assign it back to the property', function () {
-            property.setValue(valueFactory.createInteger(20));
-
-            property.decrementBy(valueFactory.createInteger(4));
-
-            expect(property.getNative()).to.equal(16);
-        });
-    });
-
-    describe('divideBy()', function () {
-        it('should divide the property\'s value by the given value and assign it back to the property', function () {
-            property.setValue(valueFactory.createInteger(20));
-
-            property.divideBy(valueFactory.createInteger(4));
-
-            expect(property.getNative()).to.equal(5);
-        });
-    });
-
     describe('formatAsString()', function () {
         it('should return "NULL" for an unset property', function () {
             expect(property.formatAsString()).to.equal('NULL');
         });
 
         it('should return the correct string when the property has a value that is empty', function () {
-            propertyValue.isEmpty.returns(true);
+            propertyValue.isEmpty.returns(futureFactory.createPresent(true));
             property.initialise(propertyValue);
 
             expect(property.formatAsString()).to.equal('\'the value of my...\'');
         });
 
         it('should return the correct string when the property has a value that is not empty', function () {
-            propertyValue.isEmpty.returns(false);
+            propertyValue.isEmpty.returns(futureFactory.createPresent(false));
             property.initialise(propertyValue);
 
             expect(property.formatAsString()).to.equal('\'the value of my...\'');
@@ -117,7 +95,7 @@ describe('PropertyReference', function () {
         it('should return the correct string when the property has a reference to a value that is empty', function () {
             var reference = sinon.createStubInstance(Variable);
             reference.getValue.returns(propertyValue);
-            propertyValue.isEmpty.returns(true);
+            propertyValue.isEmpty.returns(futureFactory.createPresent(true));
             property.setReference(reference);
             property.initialise(propertyValue);
 
@@ -127,7 +105,7 @@ describe('PropertyReference', function () {
         it('should return the correct string when the property has a reference to a value that is not empty', function () {
             var reference = sinon.createStubInstance(Variable);
             reference.getValue.returns(propertyValue);
-            propertyValue.isEmpty.returns(false);
+            propertyValue.isEmpty.returns(futureFactory.createPresent(false));
             property.setReference(reference);
             property.initialise(propertyValue);
 
@@ -156,6 +134,12 @@ describe('PropertyReference', function () {
     describe('getIndex()', function () {
         it('should return the index of the property', function () {
             expect(property.getIndex()).to.equal(21);
+        });
+    });
+
+    describe('getName()', function () {
+        it('should return the key of the property as a string', function () {
+            expect(property.getName()).to.equal('my_property');
         });
     });
 
@@ -307,16 +291,6 @@ describe('PropertyReference', function () {
         });
     });
 
-    describe('incrementBy()', function () {
-        it('should add the given value to the property\'s value and assign it back to the property', function () {
-            property.setValue(valueFactory.createInteger(20));
-
-            property.incrementBy(valueFactory.createInteger(4));
-
-            expect(property.getNative()).to.equal(24);
-        });
-    });
-
     describe('initialise()', function () {
         it('should set the value of the property', function () {
             property.initialise(propertyValue);
@@ -346,41 +320,47 @@ describe('PropertyReference', function () {
     });
 
     describe('isEmpty()', function () {
-        it('should return true when the property is not set', function () {
+        it('should return true when the property is not set', async function () {
             property.unset();
 
-            expect(property.isEmpty()).to.be.true;
+            expect(await property.isEmpty().toPromise()).to.be.true;
         });
 
-        it('should return true when the property is set to an empty value', function () {
-            propertyValue.isEmpty.returns(true);
+        it('should return true when the property is set to an empty value', async function () {
+            propertyValue.isEmpty.returns(futureFactory.createPresent(true));
 
-            expect(property.isEmpty()).to.be.true;
+            expect(await property.isEmpty().toPromise()).to.be.true;
         });
 
-        it('should return false when the property is set to a non-empty value', function () {
+        it('should return false when the property is set to a non-empty value', async function () {
             property.initialise(propertyValue);
-            propertyValue.isEmpty.returns(false);
+            propertyValue.isEmpty.returns(futureFactory.createPresent(false));
 
-            expect(property.isEmpty()).to.be.false;
+            expect(await property.isEmpty().toPromise()).to.be.false;
+        });
+    });
+
+    describe('isReferenceable()', function () {
+        it('should return true', function () {
+            expect(property.isReferenceable()).to.be.true;
         });
     });
 
     describe('isSet()', function () {
-        it('should return true when the property is set', function () {
+        it('should return true when the property is set', async function () {
             property.initialise(propertyValue);
 
-            expect(property.isSet()).to.be.true;
+            expect(await property.isSet().toPromise()).to.be.true;
         });
 
-        it('should return false when the property is not set', function () {
-            expect(property.isSet()).to.be.false;
+        it('should return false when the property is not set', async function () {
+            expect(await property.isSet().toPromise()).to.be.false;
         });
 
-        it('should return false when the property is set to null', function () {
+        it('should return false when the property is set to null', async function () {
             propertyValue.getType.returns('null');
 
-            expect(property.isSet()).to.be.false;
+            expect(await property.isSet().toPromise()).to.be.false;
         });
     });
 
@@ -439,16 +419,6 @@ describe('PropertyReference', function () {
         });
     });
 
-    describe('multiplyBy()', function () {
-        it('should multiply the property\'s value by the given value and assign it back to the property', function () {
-            property.setValue(valueFactory.createInteger(20));
-
-            property.multiplyBy(valueFactory.createInteger(4));
-
-            expect(property.getNative()).to.equal(80);
-        });
-    });
-
     describe('setReference()', function () {
         it('should return the property reference', function () {
             var reference = sinon.createStubInstance(Variable);
@@ -496,45 +466,11 @@ describe('PropertyReference', function () {
             });
         });
 
-        describe('when this property is the first one to be defined', function () {
-            beforeEach(function () {
-                objectValue.getLength.returns(0);
-            });
-
-            it('should change the object\'s array-like pointer to point to this property', function () {
-                property.setValue(newValue);
-
-                expect(objectValue.pointToProperty).to.have.been.calledOnce;
-                expect(objectValue.pointToProperty).to.have.been.calledWith(sinon.match.same(property));
-            });
-        });
-
-        describe('when this property is the second one to be defined', function () {
-            beforeEach(function () {
-                objectValue.getLength.returns(1);
-            });
-
-            it('should not change the array-like pointer', function () {
-                property.setValue(newValue);
-
-                expect(objectValue.pointToProperty).not.to.have.been.called;
-            });
-        });
-
         describe('when this property is not defined', function () {
             beforeEach(function () {
                 objectValue.getLength.returns(0); // Property is the first to be defined
 
                 keyValue.getNative.returns('my_new_property');
-            });
-
-            describe('when magic __set is not defined either', function () {
-                it('should change the object\'s array-like pointer to point to this property', function () {
-                    property.setValue(newValue);
-
-                    expect(objectValue.pointToProperty).to.have.been.calledOnce;
-                    expect(objectValue.pointToProperty).to.have.been.calledWith(sinon.match.same(property));
-                });
             });
 
             describe('when magic __set is defined', function () {
@@ -551,31 +487,25 @@ describe('PropertyReference', function () {
                         sinon.match.same(newValue)
                     ]);
                 });
-
-                it('should not change the array-like pointer', function () {
-                    property.setValue(newValue);
-
-                    expect(objectValue.pointToProperty).not.to.have.been.called;
-                });
             });
         });
     });
 
     describe('unset()', function () {
-        it('should leave the property no longer set', function () {
+        it('should leave the property no longer set', async function () {
             property.initialise(propertyValue);
 
             property.unset();
 
-            expect(property.isSet()).to.be.false;
+            expect(await property.isSet().toPromise()).to.be.false;
         });
 
-        it('should leave the property empty', function () {
+        it('should leave the property empty', async function () {
             property.initialise(propertyValue);
 
             property.unset();
 
-            expect(property.isEmpty()).to.be.true;
+            expect(await property.isEmpty().toPromise()).to.be.true;
         });
 
         it('should leave the property undefined', function () {

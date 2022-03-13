@@ -324,4 +324,38 @@ EOS
             'hello world'
         ]);
     });
+
+    it('should be able to modify a property of a JSObject that contains an array', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+$result['is JSObject'] = $myJSObject instanceof JSObject;
+
+$myJSObject->myArrayProp[] = 'my pushed value';
+$result['final array'] = $myJSObject->myArrayProp;
+
+return $result;
+
+EOS
+*/;}),//jshint ignore:line
+            module = tools.syncTranspile('/my/test/module.php', php, {
+                // Capture offsets of all nodes for line tracking
+                phpToAST: {captureAllBounds: true},
+                // Record line numbers for statements/expressions
+                phpToJS: {lineNumbers: true}
+            }),
+            engine = module();
+
+        // Use Object.create(...) so that the object is not seen as a POJO and casted to an assoc. array
+        engine.defineGlobal('myJSObject', Object.create({
+            myArrayProp: [21, 101]
+        }));
+
+        expect(engine.execute().getNative()).to.deep.equal({
+            'is JSObject': true, // Check for instance of JSObject
+            'final array': [21, 101, 'my pushed value']
+        });
+    });
 });

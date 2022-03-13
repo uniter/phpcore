@@ -12,6 +12,7 @@
 var _ = require('microdash'),
     expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('./tools'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     ExportRepository = require('../../src/FFI/Export/ExportRepository'),
@@ -21,36 +22,51 @@ var _ = require('microdash'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPObject = require('../../src/FFI/Value/PHPObject').sync(),
+    PropertyReference = require('../../src/Reference/Property'),
+    ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     StaticPropertyReference = require('../../src/Reference/StaticProperty'),
     UndeclaredStaticPropertyReference = require('../../src/Reference/UndeclaredStaticProperty'),
     Value = require('../../src/Value').sync(),
-    ValueCoercer = require('../../src/FFI/Value/ValueCoercer'),
-    ValueFactory = require('../../src/ValueFactory').sync();
+    Userland = require('../../src/Control/Userland'),
+    ValueCoercer = require('../../src/FFI/Value/ValueCoercer');
 
 describe('Class', function () {
     var callStack,
         classObject,
+        constructorMethod,
         createClass,
         exportRepository,
         ffiFactory,
+        flow,
         functionFactory,
+        futureFactory,
         interfaceObject,
         namespaceScope,
+        referenceFactory,
+        state,
         superClass,
+        userland,
         valueCoercer,
         valueFactory,
         InternalClass;
 
     beforeEach(function () {
+        state = tools.createIsolatedState();
         callStack = sinon.createStubInstance(CallStack);
         exportRepository = sinon.createStubInstance(ExportRepository);
         ffiFactory = sinon.createStubInstance(FFIFactory);
+        flow = state.getFlow();
         functionFactory = sinon.createStubInstance(FunctionFactory);
+        futureFactory = state.getFutureFactory();
         namespaceScope = sinon.createStubInstance(NamespaceScope);
+        referenceFactory = sinon.createStubInstance(ReferenceFactory);
         superClass = sinon.createStubInstance(Class);
+        userland = sinon.createStubInstance(Userland);
         valueCoercer = sinon.createStubInstance(ValueCoercer);
-        valueFactory = new ValueFactory(null, callStack);
+        valueFactory = state.getValueFactory();
         InternalClass = sinon.stub();
+        constructorMethod = sinon.stub().returns(valueFactory.createNull());
+        InternalClass.prototype.__construct = constructorMethod;
         interfaceObject = sinon.createStubInstance(Class);
         interfaceObject.is
             .withArgs('My\\Interface')
@@ -63,6 +79,33 @@ describe('Class', function () {
             throw new Error(
                 'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
             );
+        });
+
+        referenceFactory.createStaticProperty.callsFake(function (name, classObject, visibility, value) {
+            var reference = sinon.createStubInstance(StaticPropertyReference);
+
+            reference.getName.returns(name);
+            reference.getValue.returns(value);
+            reference.getVisibility.returns(visibility);
+
+            reference.setValue.callsFake(function (newValue) {
+                reference.getValue.returns(newValue);
+            });
+
+            return reference;
+        });
+        referenceFactory.createUndeclaredStaticProperty.callsFake(function (name) {
+            var reference = sinon.createStubInstance(UndeclaredStaticPropertyReference);
+
+            reference.getName.returns(name);
+
+            return reference;
+        });
+
+        superClass.construct.returns(valueFactory.createNull());
+
+        userland.enterIsolated.callsFake(function (executor) {
+            return valueFactory.maybeFuturise(executor);
         });
 
         valueCoercer.coerceArguments.callsFake(function (argumentValues) {
@@ -79,12 +122,24 @@ describe('Class', function () {
         createClass = function (constructorName, superClass, constants) {
             classObject = new Class(
                 valueFactory,
+                referenceFactory,
                 functionFactory,
                 callStack,
+                flow,
+                futureFactory,
+                userland,
                 'My\\Class\\Path\\Here',
                 constructorName,
                 InternalClass,
                 InternalClass.prototype,
+                {
+                    myPrivateInstanceProp: {
+                        visibility: 'private',
+                        value: function () {
+                            return valueFactory.createString('my private instance prop value');
+                        }
+                    }
+                },
                 {
                     myPublicStaticProp: {
                         visibility: 'public',
@@ -107,7 +162,7 @@ describe('Class', function () {
                 },
                 constants || {},
                 superClass,
-                ['My\\Interface'],
+                [interfaceObject],
                 namespaceScope,
                 exportRepository,
                 valueCoercer,
@@ -164,7 +219,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    methodFunction.returns('the result');
+                    methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethod', [argValue]);
@@ -172,7 +227,7 @@ describe('Class', function () {
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
                     expect(methodFunction).to.have.been.calledOnce;
-                    expect(methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction.args[0][0].getNative()).to.equal('the arg');
                 });
 
                 describe('for a forwarding static call', function () {
@@ -228,7 +283,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    methodFunction.returns('the result');
+                    methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethodWithWrongCase', [argValue]);
@@ -236,7 +291,7 @@ describe('Class', function () {
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
                     expect(methodFunction).to.have.been.calledOnce;
-                    expect(methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction.args[0][0].getNative()).to.equal('the arg');
                 });
             });
 
@@ -265,7 +320,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    methodFunction.returns('the result');
+                    methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethod', [argValue]);
@@ -273,7 +328,7 @@ describe('Class', function () {
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
                     expect(methodFunction).to.have.been.calledOnce;
-                    expect(methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction.args[0][0].getNative()).equal('the arg');
                 });
             });
 
@@ -333,7 +388,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    methodFunction.returns('the result');
+                    methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethod', [argValue]);
@@ -341,7 +396,7 @@ describe('Class', function () {
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
                     expect(methodFunction).to.have.been.calledOnce;
-                    expect(methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction.args[0][0].getNative()).equal('the arg');
                 });
             });
 
@@ -369,7 +424,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    methodFunction.returns('the result');
+                    methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethodWithWrongCase', [argValue]);
@@ -377,7 +432,7 @@ describe('Class', function () {
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
                     expect(methodFunction).to.have.been.calledOnce;
-                    expect(methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction.args[0][0].getNative()).to.equal('the arg');
                 });
             });
 
@@ -406,7 +461,7 @@ describe('Class', function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
-                    methodFunction.returns('the result');
+                    methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
                     resultValue = callMethod('myMethod', [argValue]);
@@ -414,7 +469,7 @@ describe('Class', function () {
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
                     expect(methodFunction).to.have.been.calledOnce;
-                    expect(methodFunction).to.have.been.calledWith('the arg');
+                    expect(methodFunction.args[0][0].getNative()).to.equal('the arg');
                 });
             });
 
@@ -433,15 +488,12 @@ describe('Class', function () {
     });
 
     describe('construct()', function () {
-        var constructorMethod,
-            nativeObject,
+        var nativeObject,
             objectValue;
 
         beforeEach(function () {
             objectValue = sinon.createStubInstance(ObjectValue);
-            constructorMethod = sinon.stub();
             nativeObject = new InternalClass();
-            InternalClass.prototype.__construct = constructorMethod;
             objectValue.getObject.returns(nativeObject);
         });
 
@@ -504,14 +556,16 @@ describe('Class', function () {
 
     describe('getConstantByName()', function () {
         beforeEach(function () {
-            interfaceObject.getConstantByName.throws(new Error('Constant not defined'));
-            superClass.getConstantByName.throws(new Error('Constant not defined'));
+            interfaceObject.getConstantByName.returns(valueFactory.createRejection(new Error('Constant not defined')));
+            superClass.getConstantByName.returns(valueFactory.createRejection(new Error('Constant not defined')));
         });
 
-        it('should return the FQCN for the magic `::class` constant', function () {
+        it('should return the FQCN for the magic `::class` constant case-insensitively', function () {
             createClass('__construct', superClass);
 
-            expect(classObject.getConstantByName('class').getNative()).to.equal('My\\Class\\Path\\Here');
+            return classObject.getConstantByName('clAss').toPromise().then(function (value) {
+                expect(value.getNative()).to.equal('My\\Class\\Path\\Here');
+            });
         });
 
         it('should be able to fetch a constant defined by the current class', function () {
@@ -521,7 +575,25 @@ describe('Class', function () {
                 }
             });
 
-            expect(classObject.getConstantByName('MY_CONST').getNative()).to.equal('my value');
+            return classObject.getConstantByName('MY_CONST').toPromise().then(function (value) {
+                expect(value.getNative()).to.equal('my value');
+            });
+        });
+
+        it('should evaluate a constant defined by the current class within an isolated opcode', function () {
+            createClass('__construct', superClass, {
+                'MY_CONST': function () {
+                    return valueFactory.createString('my value');
+                }
+            });
+
+            return classObject.getConstantByName('MY_CONST').toPromise().then(function () {
+                expect(userland.enterIsolated).to.have.been.calledOnce;
+                expect(userland.enterIsolated).to.have.been.calledWith(
+                    sinon.match.func,
+                    sinon.match.same(namespaceScope)
+                );
+            });
         });
 
         it('should be able to fetch a constant defined by an interface implemented directly by the current class', function () {
@@ -530,8 +602,9 @@ describe('Class', function () {
                 .returns(valueFactory.createString('my value from interface'));
             createClass('__construct', superClass);
 
-            expect(classObject.getConstantByName('MY_INTERFACE_CONST').getNative())
-                .to.equal('my value from interface');
+            return classObject.getConstantByName('MY_INTERFACE_CONST').toPromise().then(function (value) {
+                expect(value.getNative()).to.equal('my value from interface');
+            });
         });
 
         it('should be able to fetch a constant defined by the superclass (or other ancestor)', function () {
@@ -540,16 +613,28 @@ describe('Class', function () {
                 .returns(valueFactory.createString('my value from superclass'));
             createClass('__construct', superClass);
 
-            expect(classObject.getConstantByName('MY_SUPER_CONST').getNative())
-                .to.equal('my value from superclass');
+            return classObject.getConstantByName('MY_SUPER_CONST').toPromise().then(function (value) {
+                expect(value.getNative()).to.equal('my value from superclass');
+            });
+        });
+
+        it('should cache the constant\'s value', async function () {
+            var value;
+            createClass('__construct', superClass, {
+                'MY_CONST': function () {
+                    return valueFactory.createString('my value');
+                }
+            });
+
+            value = await classObject.getConstantByName('MY_CONST').toPromise();
+
+            expect(await classObject.getConstantByName('MY_CONST').toPromise()).to.equal(value);
         });
 
         it('should raise the correct error when the constant is not defined in the class hierarchy', function () {
             createClass('__construct', null);
 
-            expect(function () {
-                classObject.getConstantByName('MY_CONST');
-            }).to.throw(
+            return expect(classObject.getConstantByName('MY_CONST').toPromise()).to.eventually.be.rejectedWith(
                 'Fake PHP Fatal error for #core.undefined_class_constant with {"name":"MY_CONST"}'
             );
         });
@@ -557,13 +642,7 @@ describe('Class', function () {
 
     describe('getInterfaces()', function () {
         it('should return all interfaces implemented by this class', function () {
-            var interfaceObject = sinon.createStubInstance(Class),
-                result;
-            namespaceScope.getClass
-                .withArgs('My\\Interface')
-                .returns(interfaceObject);
-
-            result = classObject.getInterfaces();
+            var result = classObject.getInterfaces();
 
             expect(result).to.have.length(1);
             expect(result[0]).to.equal(interfaceObject);
@@ -797,13 +876,14 @@ describe('Class', function () {
         });
 
         describe('for an undefined property', function () {
-            it('should return an UndeclaredStaticPropertyReference', function () {
+            it('should return an UndeclaredStaticPropertyReference', async function () {
                 var propertyReference;
                 createClass('__construct', null);
 
-                propertyReference = classObject.getStaticPropertyByName('myUndeclaredStaticProp');
+                propertyReference = await classObject.getStaticPropertyByName('myUndeclaredStaticProp').toPromise();
 
                 expect(propertyReference).to.be.an.instanceOf(UndeclaredStaticPropertyReference);
+                expect(propertyReference.getName()).to.equal('myUndeclaredStaticProp');
             });
         });
 
@@ -823,8 +903,8 @@ describe('Class', function () {
                     .to.equal('my inherited static prop value');
             });
 
-            it('should return when not inside any class', function () {
-                var staticProperty = classObject.getStaticPropertyByName('myPublicStaticProp');
+            it('should return when not inside any class', async function () {
+                var staticProperty = await classObject.getStaticPropertyByName('myPublicStaticProp').toPromise();
 
                 expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
                 expect(staticProperty.getName()).to.equal('myPublicStaticProp');
@@ -832,11 +912,11 @@ describe('Class', function () {
                 expect(staticProperty.getValue().getNative()).to.equal('my public static prop value');
             });
 
-            it('should return when inside a class that is not the defining one', function () {
+            it('should return when inside a class that is not the defining one', async function () {
                 var staticProperty;
                 callStack.getCurrentClass.returns(foreignClass);
 
-                staticProperty = classObject.getStaticPropertyByName('myPublicStaticProp');
+                staticProperty = await classObject.getStaticPropertyByName('myPublicStaticProp').toPromise();
 
                 expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
                 expect(staticProperty.getName()).to.equal('myPublicStaticProp');
@@ -846,11 +926,11 @@ describe('Class', function () {
         });
 
         describe('for a protected property', function () {
-            it('should return when inside the defining class', function () {
+            it('should return when inside the defining class', async function () {
                 var staticProperty;
                 callStack.getCurrentClass.returns(classObject);
 
-                staticProperty = classObject.getStaticPropertyByName('myProtectedStaticProp');
+                staticProperty = await classObject.getStaticPropertyByName('myProtectedStaticProp').toPromise();
 
                 expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
                 expect(staticProperty.getName()).to.equal('myProtectedStaticProp');
@@ -869,11 +949,11 @@ describe('Class', function () {
                 );
             });
 
-            it('should return when inside a class that is an ancestor of the definer', function () {
+            it('should return when inside a class that is an ancestor of the definer', async function () {
                 var staticProperty;
                 callStack.getCurrentClass.returns(ancestorClass);
 
-                staticProperty = classObject.getStaticPropertyByName('myProtectedStaticProp');
+                staticProperty = await classObject.getStaticPropertyByName('myProtectedStaticProp').toPromise();
 
                 expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
                 expect(staticProperty.getName()).to.equal('myProtectedStaticProp');
@@ -881,11 +961,11 @@ describe('Class', function () {
                 expect(staticProperty.getValue().getNative()).to.equal('my protected static prop value');
             });
 
-            it('should return when inside a class that is a descendant of the definer', function () {
+            it('should return when inside a class that is a descendant of the definer', async function () {
                 var staticProperty;
                 callStack.getCurrentClass.returns(descendantClass);
 
-                staticProperty = classObject.getStaticPropertyByName('myProtectedStaticProp');
+                staticProperty = await classObject.getStaticPropertyByName('myProtectedStaticProp').toPromise();
 
                 expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
                 expect(staticProperty.getName()).to.equal('myProtectedStaticProp');
@@ -895,11 +975,11 @@ describe('Class', function () {
         });
 
         describe('for a private property', function () {
-            it('should return when inside the defining class', function () {
+            it('should return when inside the defining class', async function () {
                 var staticProperty;
                 callStack.getCurrentClass.returns(classObject);
 
-                staticProperty = classObject.getStaticPropertyByName('myPrivateStaticProp');
+                staticProperty = await classObject.getStaticPropertyByName('myPrivateStaticProp').toPromise();
 
                 expect(staticProperty).to.be.an.instanceOf(StaticPropertyReference);
                 expect(staticProperty.getName()).to.equal('myPrivateStaticProp');
@@ -985,56 +1065,39 @@ describe('Class', function () {
 
         beforeEach(function () {
             objectValue = sinon.createStubInstance(ObjectValue);
+            sinon.stub(valueFactory, 'createObject').returns(objectValue);
+
             createClass('__construct', superClass);
+
+            objectValue.declareProperty
+                .withArgs(sinon.match.any, sinon.match(function (givenClass) {
+                    return givenClass === classObject;
+                }))
+                .callsFake(function (name, classObject, visibility) {
+                    var property = sinon.createStubInstance(PropertyReference);
+
+                    property.getName.returns(name);
+                    property.getVisibility.returns(visibility);
+
+                    return property;
+                });
         });
 
-        it('should call the internal constructor with arguments wrapped by default', function () {
-            var arg1 = sinon.createStubInstance(Value),
-                arg2 = sinon.createStubInstance(Value);
-            sinon.stub(valueFactory, 'createObject').returns(objectValue);
-
-            classObject.instantiate([arg1, arg2]);
-
-            expect(InternalClass).to.have.been.calledOnce;
-            expect(InternalClass).to.have.been.calledOn(sinon.match.same(objectValue));
-            expect(InternalClass).to.have.been.calledWith(
-                sinon.match.same(arg1),
-                sinon.match.same(arg2)
-            );
-        });
-
-        it('should call the internal constructor with arguments unwrapped with auto-coercion enabled', function () {
-            var arg1 = sinon.createStubInstance(Value),
-                arg2 = sinon.createStubInstance(Value);
-            sinon.stub(valueFactory, 'createObject').returns(objectValue);
-            arg1.getNative.returns(21);
-            arg2.getNative.returns('second');
-            valueCoercer.isAutoCoercionEnabled.returns(true);
-
-            classObject.instantiate([arg1, arg2]);
-
-            expect(InternalClass).to.have.been.calledOnce;
-            expect(InternalClass).to.have.been.calledOn(sinon.match.same(objectValue));
-            expect(InternalClass).to.have.been.calledWith(21, 'second');
-        });
-
-        it('should call the userland constructor for the current class', function () {
+        it('should call the userland constructor for the current class', async function () {
             var arg1 = sinon.createStubInstance(Value),
                 arg2 = sinon.createStubInstance(Value),
-                constructor = sinon.stub();
+                constructor = sinon.stub().returns(valueFactory.createNull());
             arg1.getNative.returns(21);
             arg2.getNative.returns('second');
             InternalClass.prototype.__construct = constructor;
 
-            classObject.instantiate([arg1, arg2]);
+            await classObject.instantiate([arg1, arg2]).toPromise();
 
             expect(constructor).to.have.been.calledOnce;
         });
 
-        it('should wrap an instance of the InternalClass in an ObjectValue', function () {
-            sinon.stub(valueFactory, 'createObject').returns(objectValue);
-
-            classObject.instantiate([]);
+        it('should wrap an instance of the InternalClass in an ObjectValue', async function () {
+            await classObject.instantiate([]).toPromise();
 
             expect(valueFactory.createObject).to.have.been.calledOnce;
             expect(valueFactory.createObject).to.have.been.calledWith(
@@ -1042,68 +1105,71 @@ describe('Class', function () {
             );
         });
 
-        it('should return the created object', function () {
-            sinon.stub(valueFactory, 'createObject').returns(objectValue);
+        it('should declare the instance properties on the ObjectValue', async function () {
+            await classObject.instantiate([]).toPromise();
 
-            expect(classObject.instantiate([])).to.equal(objectValue);
+            expect(objectValue.declareProperty).to.have.been.calledOnce;
+            expect(objectValue.declareProperty).to.have.been.calledWith(
+                'myPrivateInstanceProp',
+                sinon.match.same(classObject),
+                'private'
+            );
+        });
+
+        it('should initialise the instance properties on the ObjectValue', async function () {
+            var instanceProperty = sinon.createStubInstance(PropertyReference);
+            objectValue.declareProperty
+                .withArgs('myPrivateInstanceProp', sinon.match.same(classObject), 'private')
+                .returns(instanceProperty);
+
+            await classObject.instantiate([]).toPromise();
+
+            expect(instanceProperty.initialise).to.have.been.calledOnce;
+            expect(instanceProperty.initialise.args[0][0].getType()).equal('string');
+            expect(instanceProperty.initialise.args[0][0].getNative()).equal('my private instance prop value');
+        });
+
+        it('should return the created object', async function () {
+            expect(await classObject.instantiate([]).toPromise()).to.equal(objectValue);
         });
     });
 
     describe('instantiateBare()', function () {
         var objectValue;
 
-        beforeEach(function () {
+        beforeEach(async function () {
             objectValue = sinon.createStubInstance(ObjectValue);
+            sinon.stub(valueFactory, 'createObject').returns(objectValue);
+
             createClass('__construct', superClass);
-        });
 
-        it('should call the internal constructor with arguments wrapped by default', function () {
-            var arg1 = sinon.createStubInstance(Value),
-                arg2 = sinon.createStubInstance(Value);
-            sinon.stub(valueFactory, 'createObject').returns(objectValue);
+            objectValue.declareProperty
+                .withArgs(sinon.match.any, sinon.match(function (givenClass) {
+                    return givenClass === classObject;
+                }))
+                .callsFake(function (name, classObject, visibility) {
+                    var property = sinon.createStubInstance(PropertyReference);
 
-            classObject.instantiateBare([arg1, arg2]);
+                    property.getName.returns(name);
+                    property.getVisibility.returns(visibility);
 
-            expect(InternalClass).to.have.been.calledOnce;
-            expect(InternalClass).to.have.been.calledOn(sinon.match.same(objectValue));
-            expect(InternalClass).to.have.been.calledWith(
-                sinon.match.same(arg1),
-                sinon.match.same(arg2)
-            );
-        });
+                    return property;
+                });
 
-        it('should call the internal constructor with arguments unwrapped with auto-coercion enabled', function () {
-            var arg1 = sinon.createStubInstance(Value),
-                arg2 = sinon.createStubInstance(Value);
-            sinon.stub(valueFactory, 'createObject').returns(objectValue);
-            arg1.getNative.returns(21);
-            arg2.getNative.returns('second');
-            valueCoercer.isAutoCoercionEnabled.returns(true);
-
-            classObject.instantiateBare([arg1, arg2]);
-
-            expect(InternalClass).to.have.been.calledOnce;
-            expect(InternalClass).to.have.been.calledOn(sinon.match.same(objectValue));
-            expect(InternalClass).to.have.been.calledWith(21, 'second');
+            await classObject.initialiseInstancePropertyDefaults();
         });
 
         it('should not call the userland constructor for the current class', function () {
-            var arg1 = sinon.createStubInstance(Value),
-                arg2 = sinon.createStubInstance(Value),
-                constructor = sinon.stub();
-            arg1.getNative.returns(21);
-            arg2.getNative.returns('second');
+            var constructor = sinon.stub();
             InternalClass.prototype.__construct = constructor;
 
-            classObject.instantiateBare([arg1, arg2]);
+            classObject.instantiateBare();
 
             expect(constructor).not.to.have.been.called;
         });
 
         it('should wrap an instance of the InternalClass in an ObjectValue', function () {
-            sinon.stub(valueFactory, 'createObject').returns(objectValue);
-
-            classObject.instantiateBare([]);
+            classObject.instantiateBare();
 
             expect(valueFactory.createObject).to.have.been.calledOnce;
             expect(valueFactory.createObject).to.have.been.calledWith(
@@ -1111,33 +1177,170 @@ describe('Class', function () {
             );
         });
 
-        it('should return the created object', function () {
-            sinon.stub(valueFactory, 'createObject').returns(objectValue);
+        it('should declare the instance properties on the ObjectValue', async function () {
+            await classObject.instantiateBare().toPromise();
 
-            expect(classObject.instantiateBare([])).to.equal(objectValue);
+            expect(objectValue.declareProperty).to.have.been.calledOnce;
+            expect(objectValue.declareProperty).to.have.been.calledWith(
+                'myPrivateInstanceProp',
+                sinon.match.same(classObject),
+                'private'
+            );
+        });
+
+        it('should initialise the instance properties on the ObjectValue', async function () {
+            var instanceProperty = sinon.createStubInstance(PropertyReference);
+            objectValue.declareProperty
+                .withArgs('myPrivateInstanceProp', sinon.match.same(classObject), 'private')
+                .returns(instanceProperty);
+
+            await classObject.instantiateBare().toPromise();
+
+            expect(instanceProperty.initialise).to.have.been.calledOnce;
+            expect(instanceProperty.initialise.args[0][0].getType()).equal('string');
+            expect(instanceProperty.initialise.args[0][0].getNative()).equal('my private instance prop value');
+        });
+
+        it('should return the created object', function () {
+            expect(classObject.instantiateBare()).to.equal(objectValue);
         });
     });
 
     describe('instantiateWithInternals()', function () {
-        var objectValue;
+        var doCall,
+            objectValue;
 
         beforeEach(function () {
             objectValue = sinon.createStubInstance(ObjectValue);
             sinon.stub(valueFactory, 'createObject').returns(objectValue);
             createClass('__construct', superClass);
+
+            objectValue.declareProperty
+                .withArgs(sinon.match.any, sinon.match(function (givenClass) {
+                    return givenClass === classObject;
+                }))
+                .callsFake(function (name, classObject, visibility) {
+                    var property = sinon.createStubInstance(PropertyReference);
+
+                    property.getName.returns(name);
+                    property.getVisibility.returns(visibility);
+
+                    return property;
+                });
+
+            doCall = function () {
+                return classObject.instantiateWithInternals([], {
+                    myInternal: 'my value'
+                }).toPromise();
+            };
         });
 
-        it('should set the given internal properties on the object', function () {
-            classObject.instantiateWithInternals([], {
-                myInternal: 'my value'
-            });
+        it('should set the given internal properties on the object', async function () {
+            await doCall();
 
             expect(objectValue.setInternalProperty).to.have.been.calledOnce;
             expect(objectValue.setInternalProperty).to.have.been.calledWith('myInternal', 'my value');
         });
 
-        it('should return the created object', function () {
-            expect(classObject.instantiateWithInternals([], {})).to.equal(objectValue);
+        it('should declare the instance properties on the ObjectValue', async function () {
+            await doCall();
+
+            expect(objectValue.declareProperty).to.have.been.calledOnce;
+            expect(objectValue.declareProperty).to.have.been.calledWith(
+                'myPrivateInstanceProp',
+                sinon.match.same(classObject),
+                'private'
+            );
+        });
+
+        it('should initialise the instance properties on the ObjectValue', async function () {
+            var instanceProperty = sinon.createStubInstance(PropertyReference);
+            objectValue.declareProperty
+                .withArgs('myPrivateInstanceProp', sinon.match.same(classObject), 'private')
+                .returns(instanceProperty);
+
+            await doCall();
+
+            expect(instanceProperty.initialise).to.have.been.calledOnce;
+            expect(instanceProperty.initialise.args[0][0].getType()).equal('string');
+            expect(instanceProperty.initialise.args[0][0].getNative()).equal('my private instance prop value');
+        });
+
+        it('should return the created object', async function () {
+            expect(await doCall()).to.equal(objectValue);
+        });
+    });
+
+    describe('internalConstruct()', function () {
+        var objectValue;
+
+        beforeEach(async function () {
+            objectValue = sinon.createStubInstance(ObjectValue);
+
+            objectValue.declareProperty
+                .withArgs(sinon.match.any, sinon.match(function (givenClass) {
+                    return givenClass === classObject;
+                }))
+                .callsFake(function (name, classObject, visibility) {
+                    var property = sinon.createStubInstance(PropertyReference);
+
+                    property.getName.returns(name);
+                    property.getVisibility.returns(visibility);
+
+                    return property;
+                });
+        });
+
+        it('should throw if called before instance property defaults\' initialisation', function () {
+            expect(function () {
+                classObject.internalConstruct(objectValue);
+            }).to.throw('Instance property defaults have not been initialised');
+        });
+
+        it('should call the internal constructor', async function () {
+            await classObject.initialiseInstancePropertyDefaults();
+
+            await classObject.internalConstruct(objectValue);
+
+            expect(InternalClass).to.have.been.calledOnce;
+            expect(InternalClass).to.have.been.calledOn(sinon.match.same(objectValue));
+        });
+
+        it('should call .internalConstruct() on the superclass when there is one', async function () {
+            createClass('__construct', superClass);
+            await classObject.initialiseInstancePropertyDefaults();
+
+            await classObject.internalConstruct(objectValue);
+
+            expect(superClass.internalConstruct).to.have.been.calledOnce;
+            expect(superClass.internalConstruct).to.have.been.calledWith(sinon.match.same(objectValue));
+        });
+
+        it('should declare the instance properties on the ObjectValue', async function () {
+            await classObject.initialiseInstancePropertyDefaults();
+
+            await classObject.internalConstruct(objectValue);
+
+            expect(objectValue.declareProperty).to.have.been.calledOnce;
+            expect(objectValue.declareProperty).to.have.been.calledWith(
+                'myPrivateInstanceProp',
+                sinon.match.same(classObject),
+                'private'
+            );
+        });
+
+        it('should initialise the instance properties on the ObjectValue', async function () {
+            var instanceProperty = sinon.createStubInstance(PropertyReference);
+            objectValue.declareProperty
+                .withArgs('myPrivateInstanceProp', sinon.match.same(classObject), 'private')
+                .returns(instanceProperty);
+            await classObject.initialiseInstancePropertyDefaults();
+
+            await classObject.internalConstruct(objectValue);
+
+            expect(instanceProperty.initialise).to.have.been.calledOnce;
+            expect(instanceProperty.initialise.args[0][0].getType()).equal('string');
+            expect(instanceProperty.initialise.args[0][0].getNative()).equal('my private instance prop value');
         });
     });
 

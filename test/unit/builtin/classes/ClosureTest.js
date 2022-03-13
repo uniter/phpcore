@@ -12,8 +12,8 @@
 var _ = require('microdash'),
     closureClassFactory = require('../../../../src/builtin/classes/Closure'),
     expect = require('chai').expect,
-    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../../tools'),
     CallFactory = require('../../../../src/CallFactory'),
     CallStack = require('../../../../src/CallStack'),
     Class = require('../../../../src/Class').sync(),
@@ -22,11 +22,7 @@ var _ = require('microdash'),
     FFICall = require('../../../../src/FFI/Call'),
     Namespace = require('../../../../src/Namespace').sync(),
     NullValue = require('../../../../src/Value/Null').sync(),
-    ObjectValue = require('../../../../src/Value/Object').sync(),
-    PHPError = phpCommon.PHPError,
-    Promise = require('lie'),
-    ValueFactory = require('../../../../src/ValueFactory').sync(),
-    Variable = require('../../../../src/Variable').sync();
+    ObjectValue = require('../../../../src/Value/Object').sync();
 
 describe('PHP builtin Closure class', function () {
     var callFactory,
@@ -34,9 +30,11 @@ describe('PHP builtin Closure class', function () {
         closureClass,
         disableAutoCoercion,
         errorPromoter,
+        futureFactory,
         globalNamespace,
         InternalClosureClass,
         internals,
+        state,
         stdClassClass,
         valueFactory;
 
@@ -47,25 +45,32 @@ describe('PHP builtin Closure class', function () {
         });
         callStack = sinon.createStubInstance(CallStack);
         errorPromoter = sinon.createStubInstance(ErrorPromoter);
+        state = tools.createIsolatedState(null, {
+            'call_factory': callFactory,
+            'call_stack': callStack,
+            'error_promoter': errorPromoter
+        });
+        futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
-        valueFactory = new ValueFactory(
-            null,
-            null,
-            null,
-            null,
-            null,
-            errorPromoter
-        );
+        valueFactory = state.getValueFactory();
         disableAutoCoercion = sinon.stub();
         internals = {
             callFactory: callFactory,
             callStack: callStack,
+            createPresent: futureFactory.createPresent.bind(futureFactory),
             defineUnwrapper: sinon.stub(),
             disableAutoCoercion: disableAutoCoercion,
             errorPromoter: errorPromoter,
             globalNamespace: globalNamespace,
             mode: 'sync',
-            pausable: null,
+            typeInstanceMethod: sinon.stub().callsFake(function (signature, func) {
+                return func;
+            }),
+            typeStaticMethod: sinon.stub().callsFake(function (signature, func) {
+                func.isStatic = true;
+
+                return func;
+            }),
             valueFactory: valueFactory
         };
         InternalClosureClass = closureClassFactory(internals);
@@ -82,8 +87,10 @@ describe('PHP builtin Closure class', function () {
         });
         stdClassClass = sinon.createStubInstance(Class);
         stdClassClass.getName.returns('stdClass');
-        globalNamespace.getClass.withArgs('Closure').returns(closureClass);
-        globalNamespace.getClass.withArgs('stdClass').returns(stdClassClass);
+        globalNamespace.getClass.withArgs('Closure')
+            .returns(futureFactory.createPresent(closureClass));
+        globalNamespace.getClass.withArgs('stdClass')
+            .returns(futureFactory.createPresent(stdClassClass));
         valueFactory.setGlobalNamespace(globalNamespace);
     });
 
@@ -92,105 +99,47 @@ describe('PHP builtin Closure class', function () {
             boundClosure,
             callBind,
             closure,
-            closureReference,
             closureValue,
-            newThisReference,
-            newThisValue;
+            newThisValue,
+            scopeClassValue;
 
         beforeEach(function () {
             closure = sinon.createStubInstance(Closure);
             boundClosure = sinon.createStubInstance(Closure);
-            closureReference = sinon.createStubInstance(Variable);
             closureValue = sinon.createStubInstance(ObjectValue);
             closureValue.bindClosure.returns(boundClosure);
             closureValue.classIs.withArgs('Closure').returns(true);
             closureValue.getClassName.returns('Closure');
             closureValue.getType.returns('object');
-            closureReference.getValue.returns(closureValue);
-            newThisReference = sinon.createStubInstance(Variable);
             newThisValue = valueFactory.createObject({}, stdClassClass);
-            newThisReference.getValue.returns(newThisValue);
-            args = [closureReference, newThisReference];
+            scopeClassValue = valueFactory.createNull();
+            args = [closureValue, newThisValue, scopeClassValue];
 
             callBind = function () {
                 return InternalClosureClass.prototype.bind.apply(null, args);
-            }.bind(this);
+            };
         });
 
-        it('should return a Closure ObjectValue with the bound closure', function () {
-            var result = callBind();
+        it('should return a Closure ObjectValue with the bound closure', async function () {
+            var result = await callBind().toPromise();
 
             expect(result).to.be.an.instanceOf(ObjectValue);
             expect(result.getInternalProperty('closure')).to.equal(boundClosure);
             expect(result.getClass()).to.equal(closureClass);
         });
 
-        it('should raise an error and return null when no arguments are given', function () {
-            args.length = 0;
+        it('should allow `null` as `$this` object, for creating an unbound closure', async function () {
+            newThisValue = valueFactory.createNull();
+            args[1] = newThisValue;
 
-            expect(callBind()).to.be.an.instanceOf(NullValue);
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_WARNING,
-                'Closure::bind() expects at least 2 parameters, 0 given'
-            );
-        });
-
-        it('should raise an error and return null when no `$this` object is given', function () {
-            args.length = 1;
-
-            expect(callBind()).to.be.an.instanceOf(NullValue);
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_WARNING,
-                'Closure::bind() expects at least 2 parameters, 1 given'
-            );
-        });
-
-        it('should raise an error and return null when `$this` object arg is not an object', function () {
-            newThisReference.getValue.returns(valueFactory.createInteger(1002));
-
-            expect(callBind()).to.be.an.instanceOf(NullValue);
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_WARNING,
-                'Closure::bind() expects parameter 2 to be object, int given'
-            );
-        });
-
-        it('should allow `null` as `$this` object, for creating an unbound closure', function () {
-            newThisReference.getValue.returns(valueFactory.createNull());
-
-            callBind();
+            await callBind().toPromise();
 
             expect(closureValue.bindClosure).to.have.been.calledOnce;
             expect(closureValue.bindClosure.args[0][0]).to.be.an.instanceOf(NullValue);
         });
 
-        it('should raise an error and return null when `closure` arg is not an object', function () {
-            closureReference.getValue.returns(valueFactory.createInteger(1002));
-
-            expect(callBind()).to.be.an.instanceOf(NullValue);
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_WARNING,
-                'Closure::bind() expects parameter 1 to be Closure, int given'
-            );
-        });
-
-        it('should raise an error and return null when `closure` arg is not a Closure instance', function () {
-            closureReference.getValue.returns(valueFactory.createObject({}, stdClassClass));
-
-            expect(callBind()).to.be.an.instanceOf(NullValue);
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_WARNING,
-                'Closure::bind() expects parameter 1 to be Closure, object given'
-            );
-        });
-
-        it('should use the class of the `$this` object as scope class if not specified', function () {
-            callBind();
+        it('should use the class of the `$this` object as scope class if not specified', async function () {
+            await callBind().toPromise();
 
             expect(closureValue.bindClosure).to.have.been.calledOnce;
             expect(closureValue.bindClosure).to.have.been.calledWith(
@@ -199,13 +148,11 @@ describe('PHP builtin Closure class', function () {
             );
         });
 
-        it('should use the class of the `$this` object as scope class if "static" is specified', function () {
-            var scopeClassReference = sinon.createStubInstance(Variable),
-                scopeClassValue = valueFactory.createString('static');
-            scopeClassReference.getValue.returns(scopeClassValue);
-            args[2] = scopeClassReference;
+        it('should use the class of the `$this` object as scope class if "static" is specified', async function () {
+            scopeClassValue = valueFactory.createString('static');
+            args[2] = scopeClassValue;
 
-            callBind();
+            await callBind().toPromise();
 
             expect(closureValue.bindClosure).to.have.been.calledOnce;
             expect(closureValue.bindClosure).to.have.been.calledWith(
@@ -214,13 +161,28 @@ describe('PHP builtin Closure class', function () {
             );
         });
 
-        it('should use the class of the scope class object as scope class if an object is specified', function () {
-            var scopeClassReference = sinon.createStubInstance(Variable),
-                scopeClassValue = valueFactory.createObject({}, stdClassClass);
-            scopeClassReference.getValue.returns(scopeClassValue);
-            args[2] = scopeClassReference;
+        it('should autoload and use a specified class as scope class', async function () {
+            var myClassClass = sinon.createStubInstance(Class);
+            globalNamespace.getClass.withArgs('My\\Stuff\\MyClass')
+                // Use an async future to ensure we handle pauses correctly.
+                .returns(futureFactory.createAsyncPresent(myClassClass));
+            scopeClassValue = valueFactory.createString('My\\Stuff\\MyClass');
+            args[2] = scopeClassValue;
 
-            callBind();
+            await callBind().toPromise();
+
+            expect(closureValue.bindClosure).to.have.been.calledOnce;
+            expect(closureValue.bindClosure).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.same(myClassClass)
+            );
+        });
+
+        it('should use the class of the scope class object as scope class if an object is specified', async function () {
+            scopeClassValue = valueFactory.createObject({}, stdClassClass);
+            args[2] = scopeClassValue;
+
+            await callBind().toPromise();
 
             expect(closureValue.bindClosure).to.have.been.calledOnce;
             expect(closureValue.bindClosure).to.have.been.calledWith(
@@ -236,8 +198,8 @@ describe('PHP builtin Closure class', function () {
             callBindTo,
             closure,
             closureValue,
-            newThisReference,
-            newThisValue;
+            newThisValue,
+            scopeClassValue;
 
         beforeEach(function () {
             closure = sinon.createStubInstance(Closure);
@@ -247,57 +209,35 @@ describe('PHP builtin Closure class', function () {
             closureValue.classIs.withArgs('Closure').returns(true);
             closureValue.getClassName.returns('Closure');
             closureValue.getType.returns('object');
-            newThisReference = sinon.createStubInstance(Variable);
             newThisValue = valueFactory.createObject({}, stdClassClass);
-            newThisReference.getValue.returns(newThisValue);
-            args = [newThisReference];
+            scopeClassValue = valueFactory.createNull();
+            args = [newThisValue, scopeClassValue];
 
             callBindTo = function () {
                 return InternalClosureClass.prototype.bindTo.apply(closureValue, args);
-            }.bind(this);
+            };
         });
 
-        it('should return a Closure ObjectValue with the bound closure', function () {
-            var result = callBindTo();
+        it('should return a Closure ObjectValue with the bound closure', async function () {
+            var result = await callBindTo().toPromise();
 
             expect(result).to.be.an.instanceOf(ObjectValue);
             expect(result.getInternalProperty('closure')).to.equal(boundClosure);
             expect(result.getClass()).to.equal(closureClass);
         });
 
-        it('should raise an error and return null when no arguments are given', function () {
-            args.length = 0;
+        it('should allow `null` as `$this` object, for creating an unbound closure', async function () {
+            newThisValue = valueFactory.createNull();
+            args[0] = newThisValue;
 
-            expect(callBindTo()).to.be.an.instanceOf(NullValue);
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_WARNING,
-                'Closure::bindTo() expects at least 1 parameter, 0 given'
-            );
-        });
-
-        it('should raise an error and return null when `$this` object arg is not an object', function () {
-            newThisReference.getValue.returns(valueFactory.createInteger(1002));
-
-            expect(callBindTo()).to.be.an.instanceOf(NullValue);
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_WARNING,
-                'Closure::bindTo() expects parameter 1 to be object, int given'
-            );
-        });
-
-        it('should allow `null` as `$this` object, for creating an unbound closure', function () {
-            newThisReference.getValue.returns(valueFactory.createNull());
-
-            callBindTo();
+            await callBindTo().toPromise();
 
             expect(closureValue.bindClosure).to.have.been.calledOnce;
             expect(closureValue.bindClosure.args[0][0]).to.be.an.instanceOf(NullValue);
         });
 
-        it('should use the class of the `$this` object as scope class if not specified', function () {
-            callBindTo();
+        it('should use the class of the `$this` object as scope class if not specified', async function () {
+            await callBindTo().toPromise();
 
             expect(closureValue.bindClosure).to.have.been.calledOnce;
             expect(closureValue.bindClosure).to.have.been.calledWith(
@@ -306,13 +246,11 @@ describe('PHP builtin Closure class', function () {
             );
         });
 
-        it('should use the class of the `$this` object as scope class if "static" is specified', function () {
-            var scopeClassReference = sinon.createStubInstance(Variable),
-                scopeClassValue = valueFactory.createString('static');
-            scopeClassReference.getValue.returns(scopeClassValue);
-            args[1] = scopeClassReference;
+        it('should use the class of the `$this` object as scope class if "static" is specified', async function () {
+            scopeClassValue = valueFactory.createString('static');
+            args[1] = scopeClassValue;
 
-            callBindTo();
+            await callBindTo().toPromise();
 
             expect(closureValue.bindClosure).to.have.been.calledOnce;
             expect(closureValue.bindClosure).to.have.been.calledWith(
@@ -321,13 +259,28 @@ describe('PHP builtin Closure class', function () {
             );
         });
 
-        it('should use the class of the scope class object as scope class if an object is specified', function () {
-            var scopeClassReference = sinon.createStubInstance(Variable),
-                scopeClassValue = valueFactory.createObject({}, stdClassClass);
-            scopeClassReference.getValue.returns(scopeClassValue);
-            args[1] = scopeClassReference;
+        it('should autoload and use a specified class as scope class', async function () {
+            var myClassClass = sinon.createStubInstance(Class);
+            globalNamespace.getClass.withArgs('My\\Stuff\\MyClass')
+                // Use an async future to ensure we handle pauses correctly.
+                .returns(futureFactory.createAsyncPresent(myClassClass));
+            scopeClassValue = valueFactory.createString('My\\Stuff\\MyClass');
+            args[1] = scopeClassValue;
 
-            callBindTo();
+            await callBindTo().toPromise();
+
+            expect(closureValue.bindClosure).to.have.been.calledOnce;
+            expect(closureValue.bindClosure).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.same(myClassClass)
+            );
+        });
+
+        it('should use the class of the scope class object as scope class if an object is specified', async function () {
+            scopeClassValue = valueFactory.createObject({}, stdClassClass);
+            args[1] = scopeClassValue;
+
+            await callBindTo().toPromise();
 
             expect(closureValue.bindClosure).to.have.been.calledOnce;
             expect(closureValue.bindClosure).to.have.been.calledWith(
@@ -360,10 +313,10 @@ describe('PHP builtin Closure class', function () {
 
             callUnwrapper = function () {
                 unwrappedClosure = internals.defineUnwrapper.args[0][0].call(closureValue, closureValue);
-            }.bind(this);
+            };
         });
 
-        describe('in synchronous mode (when Pausable is not available)', function () {
+        describe('in synchronous mode', function () {
             it('should have the inbound stack marker as its name for stack cleaning', function () {
                 callUnwrapper();
 
@@ -376,7 +329,7 @@ describe('PHP builtin Closure class', function () {
                     expect(callStack.push).to.have.been.calledWith(sinon.match.instanceOf(FFICall));
 
                     return closureReturnValue;
-                }.bind(this));
+                });
                 callUnwrapper();
 
                 unwrappedClosure();
@@ -421,12 +374,12 @@ describe('PHP builtin Closure class', function () {
             });
 
             it('should not catch a non-PHP error', function () {
-                closure.invoke.throws(new TypeError('A type error occurred'));
+                closure.invoke.returns(valueFactory.createRejection(new TypeError('A type error occurred')));
                 callUnwrapper();
 
                 expect(function () {
                     unwrappedClosure();
-                }.bind(this)).to.throw(TypeError, 'A type error occurred');
+                }).to.throw(TypeError, 'A type error occurred');
             });
 
             it('should coerce a PHP error to a native JS one and rethrow it as that', function () {
@@ -435,34 +388,18 @@ describe('PHP builtin Closure class', function () {
                 errorPromoter.promote
                     .withArgs(sinon.match.same(errorValue))
                     .returns(new Error('My error, coerced from a PHP exception'));
-                closure.invoke.throws(errorValue);
+                closure.invoke.returns(valueFactory.createRejection(errorValue));
                 callUnwrapper();
 
                 expect(function () {
                     unwrappedClosure();
-                }.bind(this)).to.throw(Error, 'My error, coerced from a PHP exception');
+                }).to.throw(Error, 'My error, coerced from a PHP exception');
             });
         });
 
-        describe('in asynchronous mode (when Pausable is available)', function () {
-            var pausableCall;
-
+        describe('in asynchronous mode', function () {
             beforeEach(function () {
-                pausableCall = sinon.spy(function (func, args, thisObj) {
-                    return new Promise(function (resolve, reject) {
-                        setTimeout(function () {
-                            try {
-                                resolve(func.apply(thisObj, args));
-                            } catch (error) {
-                                reject(error);
-                            }
-                        }, 1);
-                    });
-                });
                 internals.mode = 'async';
-                internals.pausable = {
-                    call: pausableCall
-                };
             });
 
             it('should push an FFICall onto the stack before the closure is called', function () {
@@ -471,12 +408,12 @@ describe('PHP builtin Closure class', function () {
                     expect(callStack.push).to.have.been.calledWith(sinon.match.instanceOf(FFICall));
 
                     return closureReturnValue;
-                }.bind(this));
+                });
                 callUnwrapper();
 
                 return unwrappedClosure().then(function () {
                     expect(closure.invoke).to.have.been.calledOnce; // Ensure the assertions above have run
-                }.bind(this));
+                });
             });
 
             it('should pop the FFICall off the stack after the closure returns', function () {
@@ -484,7 +421,7 @@ describe('PHP builtin Closure class', function () {
 
                 return unwrappedClosure().then(function () {
                     expect(callStack.pop).to.have.been.calledOnce;
-                }.bind(this));
+                });
             });
 
             it('should pass the coerced arguments to Closure.invoke(...)', function () {
@@ -494,7 +431,7 @@ describe('PHP builtin Closure class', function () {
                     expect(closure.invoke).to.have.been.calledOnce;
                     expect(closure.invoke.args[0][0][0].getNative()).to.equal(21);
                     expect(closure.invoke.args[0][0][1].getNative()).to.equal(38);
-                }.bind(this));
+                });
             });
 
             it('should coerce the `$this` object to an object', function () {
@@ -507,7 +444,7 @@ describe('PHP builtin Closure class', function () {
                         sinon.match.any,
                         sinon.match.same(coercedThisObject)
                     );
-                }.bind(this));
+                });
             });
 
             it('should return the native value of the result from Closure.invoke(...)', function () {
@@ -517,7 +454,7 @@ describe('PHP builtin Closure class', function () {
             });
 
             it('should not catch a non-PHP error', function () {
-                closure.invoke.throws(new TypeError('A type error occurred'));
+                closure.invoke.returns(valueFactory.createRejection(new TypeError('A type error occurred')));
                 callUnwrapper();
 
                 return expect(unwrappedClosure())
@@ -530,7 +467,7 @@ describe('PHP builtin Closure class', function () {
                 errorPromoter.promote
                     .withArgs(sinon.match.same(errorValue))
                     .returns(new Error('My error, coerced from a PHP exception'));
-                closure.invoke.throws(errorValue);
+                closure.invoke.returns(valueFactory.createRejection(errorValue));
                 callUnwrapper();
 
                 return expect(unwrappedClosure())
@@ -541,7 +478,6 @@ describe('PHP builtin Closure class', function () {
         describe('in Promise-synchronous mode', function () {
             beforeEach(function () {
                 internals.mode = 'psync';
-                internals.pausable = null;
             });
 
             it('should push an FFICall onto the stack before the closure is called', function () {
@@ -550,12 +486,12 @@ describe('PHP builtin Closure class', function () {
                     expect(callStack.push).to.have.been.calledWith(sinon.match.instanceOf(FFICall));
 
                     return closureReturnValue;
-                }.bind(this));
+                });
                 callUnwrapper();
 
                 return unwrappedClosure().then(function () {
                     expect(closure.invoke).to.have.been.calledOnce; // Ensure the assertions above have run
-                }.bind(this));
+                });
             });
 
             it('should pop the FFICall off the stack after the closure returns', function () {
@@ -563,7 +499,7 @@ describe('PHP builtin Closure class', function () {
 
                 return unwrappedClosure().then(function () {
                     expect(callStack.pop).to.have.been.calledOnce;
-                }.bind(this));
+                });
             });
 
             it('should pass the coerced arguments to Closure.invoke(...)', function () {
@@ -573,7 +509,7 @@ describe('PHP builtin Closure class', function () {
                     expect(closure.invoke).to.have.been.calledOnce;
                     expect(closure.invoke.args[0][0][0].getNative()).to.equal(21);
                     expect(closure.invoke.args[0][0][1].getNative()).to.equal(38);
-                }.bind(this));
+                });
             });
 
             it('should coerce the `$this` object to an object', function () {
@@ -586,7 +522,7 @@ describe('PHP builtin Closure class', function () {
                         sinon.match.any,
                         sinon.match.same(coercedThisObject)
                     );
-                }.bind(this));
+                });
             });
 
             it('should return the native value of the result from Closure.invoke(...)', function () {
@@ -596,7 +532,7 @@ describe('PHP builtin Closure class', function () {
             });
 
             it('should not catch a non-PHP error', function () {
-                closure.invoke.throws(new TypeError('A type error occurred'));
+                closure.invoke.returns(valueFactory.createRejection(new TypeError('A type error occurred')));
                 callUnwrapper();
 
                 return expect(unwrappedClosure())
@@ -609,7 +545,7 @@ describe('PHP builtin Closure class', function () {
                 errorPromoter.promote
                     .withArgs(sinon.match.same(errorValue))
                     .returns(new Error('My error, coerced from a PHP exception'));
-                closure.invoke.throws(errorValue);
+                closure.invoke.returns(valueFactory.createRejection(errorValue));
                 callUnwrapper();
 
                 return expect(unwrappedClosure())

@@ -11,12 +11,10 @@
 
 module.exports = require('pauser')([
     require('microdash'),
-    require('phpcommon'),
-    require('./Reference/ReferenceSlot')
+    require('phpcommon')
 ], function (
     _,
-    phpCommon,
-    ReferenceSlot
+    phpCommon
 ) {
     var USED_THIS_OUTSIDE_OBJECT_CONTEXT = 'core.used_this_outside_object_context',
         PHPError = phpCommon.PHPError;
@@ -27,10 +25,26 @@ module.exports = require('pauser')([
      *
      * @param {CallStack} callStack
      * @param {ValueFactory} valueFactory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {FutureFactory} futureFactory
      * @param {string} name
      * @constructor
      */
-    function Variable(callStack, valueFactory, name) {
+    function Variable(
+        callStack,
+        valueFactory,
+        referenceFactory,
+        futureFactory,
+        name
+    ) {
+        /**
+         * @type {CallStack}
+         */
+        this.callStack = callStack;
+        /**
+         * @type {FutureFactory}
+         */
+        this.futureFactory = futureFactory;
         /**
          * @type {string}
          */
@@ -40,9 +54,9 @@ module.exports = require('pauser')([
          */
         this.reference = null;
         /**
-         * @type {CallStack}
+         * @type {ReferenceFactory}
          */
-        this.callStack = callStack;
+        this.referenceFactory = referenceFactory;
         /**
          * @type {Value|null}
          */
@@ -55,37 +69,6 @@ module.exports = require('pauser')([
 
     _.extend(Variable.prototype, {
         /**
-         * Coerces this value and the specified one to strings,
-         * concatenates them together and then assigns the result back to this variable
-         *
-         * @param {Value} rightValue
-         */
-        concatWith: function (rightValue) {
-            var variable = this;
-
-            variable.setValue(variable.getValue().concat(rightValue));
-        },
-
-        decrementBy: function (rightValue) {
-            var variable = this;
-
-            variable.setValue(variable.getValue().subtract(rightValue));
-        },
-
-        /**
-         * Divides the value of this variable by the specified value
-         *
-         * Used by the `/=` operator
-         *
-         * @param {Value} rightValue
-         */
-        divideBy: function (rightValue) {
-            var variable = this;
-
-            variable.setValue(variable.getValue().divide(rightValue));
-        },
-
-        /**
          * Formats the variable (which may not be defined) for display in stack traces etc.
          *
          * @returns {string}
@@ -94,24 +77,9 @@ module.exports = require('pauser')([
             var variable = this;
 
             return variable.isDefined() ?
+                // TODO: Handle async pause with Flow
                 variable.getValue().formatAsString() :
                 'NULL';
-        },
-
-        /**
-         * Fetches a property of an object stored in this variable
-         *
-         * @param {Value} nameValue
-         * @returns {PropertyReference}
-         */
-        getInstancePropertyByName: function (nameValue) {
-            var variable = this;
-
-            if (variable.name === 'this' && variable.value === null) {
-                variable.callStack.raiseTranslatedError(PHPError.E_ERROR, USED_THIS_OUTSIDE_OBJECT_CONTEXT);
-            }
-
-            return variable.getValue().getInstancePropertyByName(nameValue);
         },
 
         /**
@@ -165,6 +133,12 @@ module.exports = require('pauser')([
                 variable.valueFactory.createNull();
         },
 
+        /**
+         * Fetches the native value for the value or reference of this variable.
+         * Note that if its value is a pending FutureValue, an error will be raised.
+         *
+         * @returns {*}
+         */
         getNative: function () {
             return this.getValue().getNative();
         },
@@ -183,7 +157,7 @@ module.exports = require('pauser')([
             }
 
             // Implicitly define a "slot" to contain this variable's value
-            variable.reference = new ReferenceSlot(variable.valueFactory);
+            variable.reference = variable.referenceFactory.createReferenceSlot();
 
             if (variable.value) {
                 variable.reference.setValue(variable.value);
@@ -191,12 +165,6 @@ module.exports = require('pauser')([
             }
 
             return variable.reference;
-        },
-
-        incrementBy: function (rightValue) {
-            var variable = this;
-
-            variable.setValue(variable.getValue().add(rightValue));
         },
 
         /**
@@ -215,117 +183,54 @@ module.exports = require('pauser')([
         /**
          * Determines whether this variable is classed as "empty" or not
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>}
          */
         isEmpty: function () {
             var variable = this;
 
-            return !variable.isDefined() || variable.getValue().isEmpty();
+            if (variable.value) {
+                // Variable has a value - check the value for emptiness
+                return variable.value.isEmpty();
+            }
+
+            if (variable.reference) {
+                // Variable has a reference - check the reference for emptiness
+                return variable.reference.isEmpty();
+            }
+
+            // Otherwise the variable is undefined, so it is empty
+            return variable.futureFactory.createPresent(true);
+        },
+
+        /**
+         * Determines whether this variable may be referenced (shared interface with Reference and Value).
+         *
+         * @returns {boolean}
+         */
+        isReferenceable: function () {
+            return true;
         },
 
         /**
          * Determines whether this variable is classed as "set" or not
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>}
          */
         isSet: function () {
             var variable = this;
 
-            return variable.isDefined() && variable.getValue().isSet();
-        },
-
-        /**
-         * Multiplies the value of this variable by the specified value
-         *
-         * Used by the `*=` operator
-         *
-         * @param {Value} rightValue
-         */
-        multiplyBy: function (rightValue) {
-            var variable = this;
-
-            variable.setValue(variable.getValue().multiply(rightValue));
-        },
-
-        /**
-         * Decrements the stored value, returning its original value
-         *
-         * @returns {Value}
-         */
-        postDecrement: function () {
-            var variable = this,
-                decrementedValue = variable.getValue().decrement(),
-                result = variable.getValue();
-
-            if (decrementedValue) {
-                variable.setValue(decrementedValue);
+            if (variable.value) {
+                // Variable has a value - check the value for emptiness
+                return variable.value.isSet();
             }
 
-            return result;
-        },
-
-        /**
-         * Decrements the stored value, returning its new value
-         *
-         * @returns {Value}
-         */
-        preDecrement: function () {
-            var variable = this,
-                decrementedValue = variable.getValue().decrement();
-
-            if (decrementedValue) {
-                variable.setValue(decrementedValue);
+            if (variable.reference) {
+                // Variable has a reference - check the reference for emptiness
+                return variable.reference.isSet();
             }
 
-            return variable.getValue();
-        },
-
-        /**
-         * Increments the stored value, returning its original value
-         *
-         * @returns {Value}
-         */
-        postIncrement: function () {
-            var variable = this,
-                incrementedValue = variable.getValue().increment(),
-                result = variable.getValue();
-
-            if (incrementedValue) {
-                variable.setValue(incrementedValue);
-            }
-
-            return result;
-        },
-
-        /**
-         * Increments the stored value, returning its new value
-         *
-         * @returns {Value}
-         */
-        preIncrement: function () {
-            var variable = this,
-                incrementedValue = variable.getValue().increment();
-
-            if (incrementedValue) {
-                variable.setValue(incrementedValue);
-            }
-
-            return variable.getValue();
-        },
-
-        /**
-         * Sets either the value or the reference of this variable depending on the argument provided
-         *
-         * @param {Reference|Value|Variable} referenceOrValue
-         */
-        setReferenceOrValue: function (referenceOrValue) {
-            var variable = this;
-
-            if (variable.valueFactory.isValue(referenceOrValue)) {
-                variable.setValue(referenceOrValue);
-            } else {
-                variable.setReference(referenceOrValue.getReference());
-            }
+            // Otherwise the variable is undefined, so it is not set
+            return variable.futureFactory.createPresent(false);
         },
 
         /**
@@ -341,21 +246,25 @@ module.exports = require('pauser')([
         setValue: function (value) {
             var variable = this;
 
-            if (variable.name === 'this' && value.getType() === 'null') {
-                // Normalise the value of $this to either be set to an ObjectValue
-                // or be unset
-                variable.value = null;
+            return value
+                .next(function (presentValue) {
+                    if (variable.name === 'this' && presentValue.getType() === 'null') {
+                        // Normalise the value of $this to either be set to an ObjectValue
+                        // or be unset
+                        variable.value = null;
 
-                return value;
-            }
+                        return presentValue;
+                    }
 
-            if (variable.reference) {
-                variable.reference.setValue(value);
-            } else {
-                variable.value = value.getForAssignment();
-            }
+                    if (variable.reference) {
+                        variable.reference.setValue(presentValue);
+                    } else {
+                        variable.value = presentValue.getForAssignment();
+                    }
 
-            return value;
+                    return presentValue;
+                })
+                .asValue();
         },
 
         setReference: function (reference) {
@@ -365,22 +274,6 @@ module.exports = require('pauser')([
             variable.value = null;
 
             return variable;
-        },
-
-        toArray: function () {
-            return this.value.toArray();
-        },
-
-        toBoolean: function () {
-            return this.value.toBoolean();
-        },
-
-        toFloat: function () {
-            return this.value.toFloat();
-        },
-
-        toInteger: function () {
-            return this.value.toInteger();
         },
 
         unset: function () {

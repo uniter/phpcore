@@ -17,6 +17,8 @@ var expect = require('chai').expect,
     IterableType = require('../../../src/Type/IterableType'),
     MixedType = require('../../../src/Type/MixedType'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
+    ObjectType = require('../../../src/Type/ObjectType'),
+    ScalarType = require('../../../src/Type/ScalarType'),
     TypeFactory = require('../../../src/Type/TypeFactory');
 
 describe('TypeFactory', function () {
@@ -120,6 +122,44 @@ describe('TypeFactory', function () {
 
             expect(type).to.be.an.instanceOf(MixedType);
             expect(type.allowsNull()).to.be.true;
+        });
+    });
+
+    describe('createObjectType()', function () {
+        it('should return an ObjectType that allows null when specified', function () {
+            var type = factory.createObjectType(true);
+
+            expect(type).to.be.an.instanceOf(ObjectType);
+            expect(type.allowsNull()).to.be.true;
+        });
+
+        it('should return an ObjectType that disallows null when specified', function () {
+            var type = factory.createObjectType(false);
+
+            expect(type).to.be.an.instanceOf(ObjectType);
+            expect(type.allowsNull()).to.be.false;
+        });
+    });
+
+    describe('createScalarType()', function () {
+        it('should return a ScalarType that allows null when specified', function () {
+            var type = factory.createScalarType('int', true);
+
+            expect(type).to.be.an.instanceOf(ScalarType);
+            expect(type.allowsNull()).to.be.true;
+        });
+
+        it('should return a ScalarType that disallows null when specified', function () {
+            var type = factory.createScalarType('int', false);
+
+            expect(type).to.be.an.instanceOf(ScalarType);
+            expect(type.allowsNull()).to.be.false;
+        });
+
+        it('should give the ScalarType the correct scalar type', function () {
+            var type = factory.createScalarType('int', false);
+
+            expect(type.getDisplayName()).to.equal('int');
         });
     });
 });

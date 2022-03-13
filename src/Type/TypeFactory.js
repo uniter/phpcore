@@ -14,15 +14,21 @@ var _ = require('microdash'),
     CallableType = require('./CallableType'),
     ClassType = require('./ClassType'),
     IterableType = require('./IterableType'),
-    MixedType = require('./MixedType');
+    MixedType = require('./MixedType'),
+    ObjectType = require('./ObjectType'),
+    ScalarType = require('./ScalarType');
 
 /**
  * Creates objects related to Types
  *
+ * @param {FutureFactory} futureFactory
  * @constructor
  */
-function TypeFactory() {
-
+function TypeFactory(futureFactory) {
+    /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
 }
 
 _.extend(TypeFactory.prototype, {
@@ -33,7 +39,7 @@ _.extend(TypeFactory.prototype, {
      * @returns {ArrayType}
      */
     createArrayType: function (nullIsAllowed) {
-        return new ArrayType(nullIsAllowed);
+        return new ArrayType(this.futureFactory, Boolean(nullIsAllowed));
     },
 
     /**
@@ -44,7 +50,7 @@ _.extend(TypeFactory.prototype, {
      * @returns {CallableType}
      */
     createCallableType: function (namespaceScope, nullIsAllowed) {
-        return new CallableType(namespaceScope, nullIsAllowed);
+        return new CallableType(namespaceScope, Boolean(nullIsAllowed));
     },
 
     /**
@@ -55,7 +61,7 @@ _.extend(TypeFactory.prototype, {
      * @returns {ClassType}
      */
     createClassType: function (className, nullIsAllowed) {
-        return new ClassType(className, nullIsAllowed);
+        return new ClassType(this.futureFactory, className, Boolean(nullIsAllowed));
     },
 
     /**
@@ -65,7 +71,7 @@ _.extend(TypeFactory.prototype, {
      * @returns {IterableType}
      */
     createIterableType: function (nullIsAllowed) {
-        return new IterableType(nullIsAllowed);
+        return new IterableType(this.futureFactory, Boolean(nullIsAllowed));
     },
 
     /**
@@ -74,7 +80,28 @@ _.extend(TypeFactory.prototype, {
      * @returns {MixedType}
      */
     createMixedType: function () {
-        return new MixedType();
+        return new MixedType(this.futureFactory);
+    },
+
+    /**
+     * Creates a new ObjectType.
+     *
+     * @param {boolean=} nullIsAllowed
+     * @returns {ObjectType}
+     */
+    createObjectType: function (nullIsAllowed) {
+        return new ObjectType(this.futureFactory, Boolean(nullIsAllowed));
+    },
+
+    /**
+     * Creates a new ScalarType.
+     *
+     * @param {string} scalarType
+     * @param {boolean=} nullIsAllowed
+     * @returns {ScalarType}
+     */
+    createScalarType: function (scalarType, nullIsAllowed) {
+        return new ScalarType(this.futureFactory, scalarType, Boolean(nullIsAllowed));
     }
 });
 

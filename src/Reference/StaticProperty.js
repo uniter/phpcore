@@ -14,27 +14,28 @@ var _ = require('microdash'),
     util = require('util'),
     PHPError = phpCommon.PHPError,
     Reference = require('./Reference'),
-    ReferenceSlot = require('./ReferenceSlot'),
 
     CANNOT_UNSET_STATIC_PROPERTY = 'core.cannot_unset_static_property';
 
 /**
  * @param {ValueFactory} valueFactory
+ * @param {ReferenceFactory} referenceFactory
  * @param {CallStack} callStack
  * @param {Class} classObject
  * @param {string} name
  * @param {string} visibility "private", "protected" or "public"
- * @param {Value} value
  * @constructor
  */
 function StaticPropertyReference(
     valueFactory,
+    referenceFactory,
     callStack,
     classObject,
     name,
-    visibility,
-    value
+    visibility
 ) {
+    Reference.call(this, referenceFactory);
+
     /**
      * @type {CallStack}
      */
@@ -52,9 +53,11 @@ function StaticPropertyReference(
      */
     this.reference = null;
     /**
-     * @type {Value}
+     * Static properties' values are initialised lazily - see Class.getStaticPropertyByName(...)
+     *
+     * @type {Value|null}
      */
-    this.value = value;
+    this.value = null;
     /**
      * @type {ValueFactory}
      */
@@ -86,7 +89,7 @@ _.extend(StaticPropertyReference.prototype, {
         }
 
         // Implicitly define a "slot" to contain this property's value
-        property.reference = new ReferenceSlot(property.valueFactory);
+        property.reference = property.referenceFactory.createReferenceSlot();
 
         if (property.value) {
             property.reference.setValue(property.value);
@@ -118,7 +121,7 @@ _.extend(StaticPropertyReference.prototype, {
     /**
      * Determines whether this class property is "empty" or not
      *
-     * @returns {boolean}
+     * @returns {Future<boolean>}
      */
     isEmpty: function () {
         return this.getValue().isEmpty();
@@ -131,7 +134,7 @@ _.extend(StaticPropertyReference.prototype, {
     /**
      * Determines whether this class property is "set" (assigned a non-NULL value) or not
      *
-     * @returns {boolean}
+     * @returns {Future<boolean>}
      */
     isSet: function () {
         return this.getValue().isSet();

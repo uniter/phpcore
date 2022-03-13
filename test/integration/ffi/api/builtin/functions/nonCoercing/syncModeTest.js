@@ -30,6 +30,47 @@ EOS
         expect(engine.execute().getNative()).to.equal(22);
     });
 
+    it('should support installing a custom function with optional by-value parameter', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return add_one_to();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        engine.defineNonCoercingFunction('add_one_to', function (numberValue) {
+            return this.valueFactory.createInteger(numberValue.getNative() + 1);
+        }, 'mixed $number = 21');
+
+        expect(engine.execute().getNative()).to.equal(22);
+    });
+
+    it('should support installing a custom function with by-reference parameter', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = 21;
+
+add_one_to($result);
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        engine.defineNonCoercingFunction('add_one_to', function (numberReference) {
+            var internals = this;
+
+            return numberReference.getValue().next(function (numberValue) {
+                numberReference.setValue(numberValue.add(internals.valueFactory.createInteger(1)));
+            });
+        }, 'mixed &$number');
+
+        expect(engine.execute().getNative()).to.equal(22);
+    });
+
     it('should support installing a custom function that returns an FFIResult that resolves to a Value object', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

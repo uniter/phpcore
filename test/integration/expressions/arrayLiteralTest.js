@@ -25,7 +25,7 @@ $myVar = 27;
 return $myArray;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal([
             21,
@@ -45,7 +45,7 @@ $myVar = 27;
 return $myArray;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal({
             0: 21,
@@ -67,7 +67,7 @@ $myArray = [21, $myObject->myProp];
 return $myArray;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal([
             21,
@@ -84,7 +84,7 @@ $myArray = ['length' => 21, 101];
 return $myArray;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal({
             length: 21,

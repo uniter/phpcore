@@ -11,54 +11,32 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
-    AccessorReference = require('../../../src/Reference/AccessorReference'),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    tools = require('../tools'),
+    AccessorReference = require('../../../src/Reference/AccessorReference');
 
 describe('AccessorReference', function () {
-    var reference,
+    var futureFactory,
+        reference,
+        referenceFactory,
+        state,
         valueFactory,
         valueGetter,
         valueSetter;
 
     beforeEach(function () {
-        valueFactory = new ValueFactory();
+        state = tools.createIsolatedState();
+        futureFactory = state.getFutureFactory();
+        referenceFactory = state.getReferenceFactory();
+        valueFactory = state.getValueFactory();
         valueGetter = sinon.stub();
         valueSetter = sinon.spy();
 
-        reference = new AccessorReference(valueFactory, valueGetter, valueSetter);
-    });
-
-    describe('concatWith()', function () {
-        it('should append the given value to the result of the getter and pass it to the setter', function () {
-            valueGetter.returns('hello');
-
-            reference.concatWith(valueFactory.createString(' world'));
-
-            expect(valueSetter).to.have.been.calledOnce;
-            expect(valueSetter).to.have.been.calledWith('hello world');
-        });
-    });
-
-    describe('decrementBy()', function () {
-        it('should subtract the given value from the result of the getter and pass it to the setter', function () {
-            valueGetter.returns(21);
-
-            reference.decrementBy(valueFactory.createInteger(10));
-
-            expect(valueSetter).to.have.been.calledOnce;
-            expect(valueSetter).to.have.been.calledWith(11);
-        });
-    });
-
-    describe('divideBy()', function () {
-        it('should divide the result of the getter by the given value and pass it to the setter', function () {
-            valueGetter.returns(40);
-
-            reference.divideBy(valueFactory.createInteger(10));
-
-            expect(valueSetter).to.have.been.calledOnce;
-            expect(valueSetter).to.have.been.calledWith(4);
-        });
+        reference = new AccessorReference(
+            valueFactory,
+            referenceFactory,
+            valueGetter,
+            valueSetter
+        );
     });
 
     describe('formatAsString()', function () {
@@ -102,48 +80,60 @@ describe('AccessorReference', function () {
         });
     });
 
-    describe('incrementBy()', function () {
-        it('should add the given value to the result of the getter and pass it to the setter', function () {
-            valueGetter.returns(21);
-
-            reference.incrementBy(valueFactory.createInteger(6));
-
-            expect(valueSetter).to.have.been.calledOnce;
-            expect(valueSetter).to.have.been.calledWith(27);
-        });
-    });
-
     describe('isDefined()', function () {
         it('should return true', function () {
             expect(reference.isDefined()).to.be.true;
         });
     });
 
-    describe('multiplyBy()', function () {
-        it('should multiply the result of the getter by the given value and pass it to the setter', function () {
-            valueGetter.returns(4);
+    describe('isEmpty()', function () {
+        it('should return true when the getter\'s result resolves to an empty value', async function () {
+            valueGetter.returns(valueFactory.createPresent(valueFactory.createArray([])));
 
-            reference.multiplyBy(valueFactory.createInteger(10));
+            expect(await reference.isEmpty().toPromise()).to.be.true;
+        });
 
-            expect(valueSetter).to.have.been.calledOnce;
-            expect(valueSetter).to.have.been.calledWith(40);
+        it('should return false when the getter\'s result resolves to a non-empty value', async function () {
+            valueGetter.returns(valueFactory.createPresent(21));
+
+            expect(await reference.isEmpty().toPromise()).to.be.false;
+        });
+    });
+
+    describe('isReferenceable()', function () {
+        it('should return true', function () {
+            expect(reference.isReferenceable()).to.be.true;
+        });
+    });
+
+    describe('isSet()', function () {
+        it('should return true when the getter\'s result resolves to a set value', async function () {
+            valueGetter.returns(valueFactory.createPresent(true));
+
+            expect(await reference.isSet().toPromise()).to.be.true;
+        });
+
+        it('should return false when the getter\'s result resolves to an unset value', async function () {
+            valueGetter.returns(valueFactory.createPresent(null));
+
+            expect(await reference.isSet().toPromise()).to.be.false;
         });
     });
 
     describe('setValue()', function () {
-        it('should call the setter with the value unwrapped for native JS', function () {
+        it('should call the setter with the value unwrapped for native JS', async function () {
             var newValue = valueFactory.createInteger(27);
 
-            reference.setValue(newValue);
+            await reference.setValue(newValue).toPromise();
 
             expect(valueSetter).to.have.been.calledOnce;
             expect(valueSetter).to.have.been.calledWith(27);
         });
 
-        it('should return the new value', function () {
+        it('should return the new value', async function () {
             var newValue = valueFactory.createString('my new value');
 
-            expect(reference.setValue(newValue)).to.equal(newValue);
+            expect(await reference.setValue(newValue).toPromise()).to.equal(newValue);
         });
     });
 });

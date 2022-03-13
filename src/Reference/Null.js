@@ -13,20 +13,42 @@ var _ = require('microdash'),
     util = require('util'),
     Reference = require('./Reference');
 
-function NullReference(valueFactory, options) {
+/**
+ * @param {ValueFactory} valueFactory
+ * @param {FutureFactory} futureFactory
+ * @param {Object} options
+ * @constructor
+ */
+function NullReference(valueFactory, futureFactory, options) {
     options = options || {};
 
+    /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
+    /**
+     * @type {Function|null}
+     */
     this.onSet = options.onSet;
+    /**
+     * @type {ValueFactory}
+     */
     this.valueFactory = valueFactory;
 }
 
 util.inherits(NullReference, Reference);
 
 _.extend(NullReference.prototype, {
+    /**
+     * {@inheritdoc}
+     */
     getReference: function () {
         return this;
     },
 
+    /**
+     * {@inheritdoc}
+     */
     getValue: function () {
         return this.valueFactory.createNull();
     },
@@ -44,16 +66,22 @@ _.extend(NullReference.prototype, {
      * Determines whether this reference is empty or not
      * (NULL references are always empty)
      *
-     * @returns {boolean}
+     * @returns {Future<boolean>}
      */
     isEmpty: function () {
-        return true; // PHP NULL is classed as empty
+        return this.futureFactory.createPresent(true); // PHP NULL is classed as empty
     },
 
+    /**
+     * {@inheritdoc}
+     */
     isSet: function () {
-        return false;
+        return this.futureFactory.createPresent(false);
     },
 
+    /**
+     * {@inheritdoc}
+     */
     setValue: function () {
         var reference = this;
 

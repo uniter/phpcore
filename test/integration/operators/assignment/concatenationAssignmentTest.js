@@ -29,38 +29,50 @@ $result = [];
 
 // Append to a variable
 $myString .= ' world';
-$result[] = $myString;
+$result['with variable'] = $myString;
 
 // Append to an accessor
 $myAccessor .= ' back';
-$result[] = $myAccessor;
+$result['with accessor'] = $myAccessor;
 
 // Append to an instance property
-$myObject->myInstanceProp .= ' bar';
-$result[] = $myObject->myInstanceProp;
+$myObject->myInstanceProp .= $myBar;
+$result['with instance prop'] = $myObject->myInstanceProp;
 
 // Append to a static property
 MyClass::$myStaticProp .= ' tuesday';
-$result[] = MyClass::$myStaticProp;
+$result['with static prop'] = MyClass::$myStaticProp;
 
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module(),
             accessorValue = 'welcome';
-
+        engine.defineGlobalAccessor('myBar', function () {
+            return this.createFutureValue(function (resolve) {
+                setImmediate(function () {
+                    resolve(' bar');
+                });
+            });
+        });
         engine.defineGlobalAccessor('myAccessor', function () {
-            return accessorValue;
+            return this.createFutureValue(function (resolve) {
+                setImmediate(function () {
+                    resolve(accessorValue);
+                });
+            });
         }, function (newValue) {
             accessorValue = newValue;
         });
 
-        expect(engine.execute().getNative()).to.deep.equal([
-            'hello world',   // Variable
-            'welcome back',  // Accessor
-            'foo bar',       // Instance property
-            'monday tuesday' // Static property
-        ]);
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal({
+                'with variable': 'hello world',
+                'with accessor': 'welcome back',
+                'with instance prop': 'foo bar',
+                'with static prop': 'monday tuesday'
+            });
+        });
     });
 });

@@ -12,23 +12,26 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../tools'),
     CallableType = require('../../../src/Type/CallableType'),
-    Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     Translator = phpCommon.Translator,
-    Value = require('../../../src/Value').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    Value = require('../../../src/Value').sync();
 
 describe('CallableType', function () {
-    var globalNamespace,
+    var futureFactory,
+        globalNamespace,
         namespaceScope,
+        state,
         type,
         valueFactory;
 
     beforeEach(function () {
-        globalNamespace = sinon.createStubInstance(Namespace);
+        state = tools.createIsolatedState();
+        futureFactory = state.getFutureFactory();
+        globalNamespace = state.getGlobalNamespace();
         namespaceScope = sinon.createStubInstance(NamespaceScope);
-        valueFactory = new ValueFactory();
+        valueFactory = state.getValueFactory();
 
         namespaceScope.getGlobalNamespace.returns(globalNamespace);
 
@@ -48,32 +51,40 @@ describe('CallableType', function () {
     });
 
     describe('allowsValue()', function () {
-        it('should return true for a callable', function () {
+        it('should return true for a callable', async function () {
             var callableValue = sinon.createStubInstance(Value);
             callableValue.isCallable
                 .withArgs(sinon.match.same(globalNamespace))
-                .returns(true);
+                .returns(futureFactory.createPresent(true));
 
-            expect(type.allowsValue(callableValue)).to.be.true;
+            expect(await type.allowsValue(callableValue).toPromise()).to.be.true;
         });
 
-        it('should return false for a non-callable', function () {
+        it('should return false for a non-callable', async function () {
             var callableValue = sinon.createStubInstance(Value);
             callableValue.isCallable
                 .withArgs(sinon.match.same(globalNamespace))
-                .returns(false);
+                .returns(futureFactory.createPresent(false));
 
-            expect(type.allowsValue(callableValue)).to.be.false;
+            expect(await type.allowsValue(callableValue).toPromise()).to.be.false;
         });
 
-        it('should return true when null given and null is allowed', function () {
+        it('should return true when null given and null is allowed', async function () {
             type = new CallableType(namespaceScope, true);
 
-            expect(type.allowsValue(valueFactory.createNull())).to.be.true;
+            expect(await type.allowsValue(valueFactory.createNull()).toPromise()).to.be.true;
         });
 
-        it('should return false when null given but null is disallowed', function () {
-            expect(type.allowsValue(valueFactory.createNull())).to.be.false;
+        it('should return false when null given but null is disallowed', async function () {
+            expect(await type.allowsValue(valueFactory.createNull()).toPromise()).to.be.false;
+        });
+    });
+
+    describe('coerceValue()', function () {
+        it('should return the value unchanged', function () {
+            var value = valueFactory.createString('MyClass::myStaticMethod()');
+
+            expect(type.coerceValue(value)).to.equal(value);
         });
     });
 

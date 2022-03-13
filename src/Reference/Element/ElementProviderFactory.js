@@ -15,12 +15,21 @@ var _ = require('microdash'),
     HookableElementProvider = require('./HookableElementProvider');
 
 /**
- * Creates element providers and objects related to them
+ * Creates element providers and objects related to them.
  *
+ * @param {ReferenceFactory} referenceFactory
+ * @param {FutureFactory} futureFactory
  * @constructor
  */
-function ElementProviderFactory() {
-
+function ElementProviderFactory(referenceFactory, futureFactory) {
+    /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
+    /**
+     * @type {ReferenceFactory}
+     */
+    this.referenceFactory = referenceFactory;
 }
 
 _.extend(ElementProviderFactory.prototype, {
@@ -41,7 +50,13 @@ _.extend(ElementProviderFactory.prototype, {
      * @returns {HookableElementProvider}
      */
     createHookableProvider: function (baseElementProvider, elementHookCollection) {
-        return new HookableElementProvider(baseElementProvider, elementHookCollection);
+        var factory = this;
+
+        return new HookableElementProvider(
+            factory.referenceFactory,
+            baseElementProvider,
+            elementHookCollection
+        );
     },
 
     /**
@@ -50,7 +65,9 @@ _.extend(ElementProviderFactory.prototype, {
      * @returns {ElementProvider}
      */
     createProvider: function () {
-        return new ElementProvider();
+        var factory = this;
+
+        return new ElementProvider(factory.referenceFactory, factory.futureFactory);
     }
 });
 

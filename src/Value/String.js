@@ -22,31 +22,37 @@ module.exports = require('pauser')([
     NullReference,
     Value
 ) {
-    var PHPError = phpCommon.PHPError;
+    var PHPError = phpCommon.PHPError,
+        NON_WELL_FORMED_NUMERIC_VALUE = 'core.non_well_formed_numeric_value';
 
-    function StringValue(factory, callStack, value) {
-        Value.call(this, factory, callStack, 'string', value);
+    /**
+     * @param {ValueFactory} factory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {FutureFactory} futureFactory
+     * @param {CallStack} callStack
+     * @param {string} value
+     * @param {Namespace} globalNamespace
+     * @constructor
+     */
+    function StringValue(factory, referenceFactory, futureFactory, callStack, value, globalNamespace) {
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'string', value);
+
+        /**
+         * @type {Namespace}
+         */
+        this.globalNamespace = globalNamespace;
     }
 
     util.inherits(StringValue, Value);
 
     _.extend(StringValue.prototype, {
-        add: function (rightValue) {
-            return rightValue.addToString(this);
-        },
-
-        addToBoolean: function (booleanValue) {
-            return this.coerceToNumber().add(booleanValue);
-        },
-
         /**
          * Calls a function or static method based on the contents of the string
          *
          * @param {Value[]} args
-         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
          * @returns {Value}
          */
-        call: function (args, namespaceOrNamespaceScope) {
+        call: function (args) {
             var classNameValue,
                 match,
                 methodNameValue,
@@ -64,15 +70,12 @@ module.exports = require('pauser')([
                 classNameValue = value.factory.createString(match[1]);
                 methodNameValue = value.factory.createString(match[2]);
 
-                return classNameValue.callStaticMethod(
-                    methodNameValue,
-                    args,
-                    namespaceOrNamespaceScope
-                );
+                // Note that this may return a FutureValue due to autoloading.
+                return classNameValue.callStaticMethod(methodNameValue, args);
             }
 
             // Otherwise must just be the name of a function
-            return namespaceOrNamespaceScope.getGlobalNamespace().getFunction(value.value).apply(null, args);
+            return value.globalNamespace.getFunction(value.value).apply(null, args);
         },
 
         /**
@@ -80,15 +83,20 @@ module.exports = require('pauser')([
          *
          * @param {StringValue} nameValue
          * @param {Value[]} args
-         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
          * @param {bool=} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
-         * @returns {Value}
+         * @returns {FutureValue}
          */
-        callStaticMethod: function (nameValue, args, namespaceOrNamespaceScope, isForwarding) {
-            var value = this,
-                classObject = namespaceOrNamespaceScope.getGlobalNamespace().getClass(value.value);
+        callStaticMethod: function (nameValue, args, isForwarding) {
+            var value = this;
 
-            return classObject.callMethod(nameValue.getNative(), args, null, null, null, !!isForwarding);
+            // Note that this may pause due to autoloading
+            return value.factory.createFuture(function (resolve, reject) {
+                value.globalNamespace.getClass(value.value)
+                    .next(function (classObject) {
+                        classObject.callMethod(nameValue.getNative(), args, null, null, null, !!isForwarding)
+                            .next(resolve, reject);
+                    }, reject);
+            });
         },
 
         coerceToBoolean: function () {
@@ -103,7 +111,8 @@ module.exports = require('pauser')([
         coerceToFloat: function () {
             var value = this;
 
-            return value.factory.createFloat(/^(\d|-[\d.])/.test(value.value) ? parseFloat(value.value) : 0);
+            // Note that both leading and trailing whitespace is allowed.
+            return value.factory.createFloat(/^\s*(\d|-[\d.])/.test(value.value) ? parseFloat(value.value) : 0);
         },
 
         /**
@@ -114,7 +123,8 @@ module.exports = require('pauser')([
         coerceToInteger: function () {
             var value = this;
 
-            return value.factory.createInteger(/^(\d|-[\d.])/.test(value.value) ? parseInt(value.value, 10) : 0);
+            // Note that both leading and trailing whitespace is allowed.
+            return value.factory.createInteger(/^\s*(\d|-[\d.])/.test(value.value) ? parseInt(value.value, 10) : 0);
         },
 
         coerceToKey: function () {
@@ -142,63 +152,57 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Divides this string by another value
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
+         * {@inheritdoc}
          */
-        divide: function (rightValue) {
-            return rightValue.divideByString(this);
+        convertForBooleanType: function () {
+            return this.coerceToBoolean();
         },
 
         /**
-         * Divides a float by this string
-         *
-         * @param {FloatValue} leftValue
-         * @returns {Value}
+         * {@inheritdoc}
          */
-        divideByFloat: function (leftValue) {
-            var coercedLeftValue,
-                rightValue = this,
-                divisor = rightValue.coerceToNumber().getNative();
+        convertForFloatType: function () {
+            var value = this;
 
-            if (divisor === 0) {
-                rightValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
+            // Ensure only leading and/or trailing whitespace is present if any.
+            if (!/^\s*-?(?:\d\.\d+e\d+|\d*\.\d+|\d+e[+-]?\d+)\s*$/i.test(value.value)) {
+                if (!/^\s*[.-]?\d/.test(value.value)) {
+                    // String is completely non-numeric, no conversion is possible.
+                    return value;
+                }
 
-                return rightValue.factory.createBoolean(false);
+                value.callStack.raiseTranslatedError(PHPError.E_NOTICE, NON_WELL_FORMED_NUMERIC_VALUE);
             }
 
-            coercedLeftValue = leftValue.coerceToNumber();
-
-            return rightValue.factory.createFloat(coercedLeftValue.getNative() / divisor);
+            return this.coerceToFloat();
         },
 
         /**
-         * Divides a non-array value by this string
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
+         * {@inheritdoc}
          */
-        divideByNonArray: function (leftValue) {
-            var coercedLeftValue,
-                rightValue = this,
-                divisorValue = rightValue.coerceToNumber(),
-                quotient;
+        convertForIntegerType: function () {
+            var value = this;
 
-            if (divisorValue.getNative() === 0) {
-                rightValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
+            // Ensure only leading and/or trailing whitespace is present if any.
+            if (!/^\s*-?(?:0x[0-9a-f]+|\d+)\s*$/.test(value.value)) {
+                if (!/^\s*[.-]?\d/.test(value.value)) {
+                    // String is completely non-numeric, no conversion is possible.
+                    return value;
+                }
 
-                return rightValue.factory.createBoolean(false);
+                value.callStack.raiseTranslatedError(PHPError.E_NOTICE, NON_WELL_FORMED_NUMERIC_VALUE);
             }
 
-            coercedLeftValue = leftValue.coerceToNumber();
+            return this.coerceToInteger();
+        },
 
-            quotient = coercedLeftValue.getNative() / divisorValue.getNative();
+        /**
+         * {@inheritdoc}
+         */
+        decrement: function () {
+            var value = this;
 
-            // Return result as a float if needed, otherwise keep as integer
-            return Math.round(quotient) !== quotient || divisorValue.getType() === 'float' ?
-                rightValue.factory.createFloat(quotient) :
-                rightValue.factory.createInteger(quotient);
+            return value.coerceToNumber().subtract(value.factory.createInteger(1));
         },
 
         /**
@@ -228,16 +232,23 @@ module.exports = require('pauser')([
          * Fetches the value of a constant from the class this string refers to
          *
          * @param {string} name
-         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
-         * @returns {Value}
+         * @returns {FutureValue}
          */
-        getConstantByName: function (name, namespaceOrNamespaceScope) {
-            var value = this,
-                classObject = namespaceOrNamespaceScope.getGlobalNamespace().getClass(value.value);
+        getConstantByName: function (name) {
+            var value = this;
 
-            return classObject.getConstantByName(name);
+            // Note that this may pause due to autoloading
+            return value.factory.createFuture(function (resolve, reject) {
+                value.globalNamespace.getClass(value.value)
+                    .next(function (classObject) {
+                        resolve(classObject.getConstantByName(name));
+                    }, reject);
+            });
         },
 
+        /**
+         * {@inheritdoc}
+         */
         getElementByKey: function (key) {
             var keyValue,
                 value = this;
@@ -246,7 +257,7 @@ module.exports = require('pauser')([
 
             if (!key) {
                 // Could not be coerced to a key: error will already have been handled, just return NULL
-                return new NullReference(value.factory);
+                return value.referenceFactory.createNull();
             }
 
             keyValue = key.getNative();
@@ -259,31 +270,45 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches the value of a static property of the class this string refers to
+         * Fetches a reference to a static property of the class this string refers to
          *
          * @param {StringValue} nameValue
-         * @param {Namespace|NamespaceScope} namespaceOrNamespaceScope
-         * @returns {Value}
+         * @returns {Future<StaticPropertyReference|UndeclaredStaticPropertyReference>}
          */
-        getStaticPropertyByName: function (nameValue, namespaceOrNamespaceScope) {
-            var value = this,
-                classObject = namespaceOrNamespaceScope.getGlobalNamespace().getClass(value.value);
+        getStaticPropertyByName: function (nameValue) {
+            var value = this;
 
-            return classObject.getStaticPropertyByName(nameValue.getNative());
+            // Note that this may pause due to autoloading
+            return value.globalNamespace.getClass(value.value)
+                .next(function (classObject) {
+                    return classObject.getStaticPropertyByName(nameValue.getNative());
+                });
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        increment: function () {
+            var value = this;
+
+            return value.coerceToNumber().add(value.factory.createInteger(1));
         },
 
         /**
          * Creates an instance of the class this string contains the FQCN of
          *
          * @param {Value[]} args
-         * @param {NamespaceScope} namespaceScope
-         * @returns {ObjectValue}
+         * @returns {FutureValue<ObjectValue>}
          */
-        instantiate: function (args, namespaceScope) {
-            var value = this,
-                classObject = namespaceScope.getGlobalNamespace().getClass(value.value);
+        instantiate: function (args) {
+            var value = this;
 
-            return classObject.instantiate(args);
+            // Note that this may pause due to autoloading
+            return value.globalNamespace.getClass(value.value)
+                .next(function (classObject) {
+                    return classObject.instantiate(args);
+                })
+                .asValue();
         },
 
         isAnInstanceOf: function (classNameValue) {
@@ -299,7 +324,7 @@ module.exports = require('pauser')([
             // and not relative to the current namespace scope
 
             var className,
-                classObject,
+                classObjectFuture,
                 match,
                 methodName,
                 value = this;
@@ -316,28 +341,28 @@ module.exports = require('pauser')([
                 className = match[1];
                 methodName = match[2];
 
-                if (!globalNamespace.hasClass(className)) {
-                    return false;
-                }
+                classObjectFuture = globalNamespace.getClass(className);
 
-                classObject = globalNamespace.getClass(className);
-
-                return classObject.getMethodSpec(methodName) !== null;
+                return classObjectFuture.next(function (classObject) {
+                    return classObject.getMethodSpec(methodName) !== null;
+                }, function () {
+                    return false; // Class could not be found, so method must be uncallable.
+                });
             }
 
-            return globalNamespace.hasFunction(value.value);
+            return value.futureFactory.createPresent(globalNamespace.hasFunction(value.value));
         },
 
         /**
          * Determines whether this value is classed as "empty" or not
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>}
          */
         isEmpty: function () {
             var value = this;
 
             // NB: string("0.0") is _not_ classed as empty
-            return value.value === '' || value.value === '0';
+            return value.futureFactory.createPresent(value.value === '' || value.value === '0');
         },
 
         isEqualTo: function (rightValue) {
@@ -406,48 +431,6 @@ module.exports = require('pauser')([
 
         isTheClassOfString: function () {
             return this.factory.createBoolean(false);
-        },
-
-        /**
-         * Multiplies this string by another value
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
-         */
-        multiply: function (rightValue) {
-            return rightValue.multiplyByString(this);
-        },
-
-        /**
-         * Multiplies a float by this string
-         *
-         * @param {FloatValue} leftValue
-         * @returns {Value}
-         */
-        multiplyByFloat: function (leftValue) {
-            var coercedMultiplicandValue = leftValue.coerceToNumber(),
-                rightValue = this,
-                multiplier = rightValue.coerceToNumber().getNative();
-
-            return rightValue.factory.createFloat(coercedMultiplicandValue.getNative() * multiplier);
-        },
-
-        /**
-         * Multiplies a non-array value by this string
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        multiplyByNonArray: function (leftValue) {
-            var coercedMultiplicandValue = leftValue.coerceToNumber(),
-                rightValue = this,
-                coercedMultiplierValue = rightValue.coerceToNumber(),
-                product = coercedMultiplicandValue.getNative() * coercedMultiplierValue.getNative();
-
-            // Return result as a float if either coerced operand is a float, otherwise keep as integer
-            return coercedMultiplicandValue.getType() === 'float' || coercedMultiplierValue.getType() === 'float' ?
-                rightValue.factory.createFloat(product) :
-                rightValue.factory.createInteger(product);
         },
 
         onesComplement: function () {

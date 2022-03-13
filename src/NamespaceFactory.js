@@ -16,23 +16,23 @@ var _ = require('microdash');
  *
  * @param {class} Namespace
  * @param {CallStack} callStack
+ * @param {FutureFactory} futureFactory
  * @param {FunctionFactory} functionFactory
  * @param {FunctionSpecFactory} functionSpecFactory
  * @param {ValueFactory} valueFactory
  * @param {ClassAutoloader} classAutoloader
- * @param {ExportRepository} exportRepository
- * @param {FFIFactory} ffiFactory
+ * @param {ClassDefiner} classDefiner
  * @constructor
  */
 function NamespaceFactory(
     Namespace,
     callStack,
+    futureFactory,
     functionFactory,
     functionSpecFactory,
     valueFactory,
     classAutoloader,
-    exportRepository,
-    ffiFactory
+    classDefiner
 ) {
     /**
      * @type {CallStack}
@@ -43,13 +43,9 @@ function NamespaceFactory(
      */
     this.classAutoloader = classAutoloader;
     /**
-     * @type {ExportRepository}
+     * @type {ClassDefiner}
      */
-    this.exportRepository = exportRepository;
-    /**
-     * @type {FFIFactory}
-     */
-    this.ffiFactory = ffiFactory;
+    this.classDefiner = classDefiner;
     /**
      * @type {FunctionFactory}
      */
@@ -58,6 +54,10 @@ function NamespaceFactory(
      * @type {FunctionSpecFactory}
      */
     this.functionSpecFactory = functionSpecFactory;
+    /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
     /**
      * @type {class}
      */
@@ -69,18 +69,25 @@ function NamespaceFactory(
 }
 
 _.extend(NamespaceFactory.prototype, {
+    /**
+     * Creates a new Namespace
+     *
+     * @param {Namespace|null} parentNamespace
+     * @param {string|null} name
+     * @returns {Namespace}
+     */
     create: function (parentNamespace, name) {
         var factory = this;
 
         return new factory.Namespace(
             factory.callStack,
+            factory.futureFactory,
             factory.valueFactory,
             factory,
             factory.functionFactory,
             factory.functionSpecFactory,
             factory.classAutoloader,
-            factory.exportRepository,
-            factory.ffiFactory,
+            factory.classDefiner,
             parentNamespace || null,
             name || ''
         );

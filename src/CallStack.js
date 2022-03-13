@@ -113,6 +113,74 @@ _.extend(CallStack.prototype, {
     },
 
     /**
+     * Fetches the module of the current call
+     *
+     * @returns {Module|null}
+     */
+    getCurrentModule: function () {
+        return this.getCurrent().getModule();
+    },
+
+    /**
+     * Fetches the module scope of the current call
+     *
+     * @returns {ModuleScope}
+     */
+    getCurrentModuleScope: function () {
+        return this.getCurrent().getModuleScope();
+    },
+
+    /**
+     * Fetches the current NamespaceScope of the ModuleScope of the current call
+     *
+     * @returns {NamespaceScope}
+     */
+    getCurrentNamespaceScope: function () {
+        var stack = this,
+            currentCall = stack.getCurrent(),
+            currentCallNamespaceScope = currentCall.getNamespaceScope(),
+            moduleScope;
+
+        if (currentCallNamespaceScope.isGlobal()) {
+            return currentCallNamespaceScope;
+        }
+
+        moduleScope = this.getCurrentModuleScope();
+
+        if (currentCallNamespaceScope === moduleScope.getTopLevelNamespaceScope()) {
+            // We are at the top level of a module, use the ModuleScope's current NamespaceScope
+            return moduleScope.getCurrentNamespaceScope();
+        }
+
+        // Otherwise we are inside a nested scope, so use the NamespaceScope it was defined in
+        return currentCallNamespaceScope;
+    },
+
+    /**
+     * Fetches the scope of the current call
+     *
+     * @returns {Scope}
+     */
+    getCurrentScope: function () {
+        return this.getCurrent().getScope();
+    },
+
+    /**
+     * Fetches the control trace for the current call
+     *
+     * @returns {Trace}
+     */
+    getCurrentTrace: function () {
+        var currentCall = this.getCurrent();
+
+        if (currentCall === null) {
+            throw new Error('CallStack.getCurrentTrace() :: No current call');
+        }
+
+        return currentCall.getTrace();
+    },
+
+    /**
      * Fetches the path to the file containing the last line of code executed
      *
      * @returns {string|null}
@@ -197,16 +265,87 @@ _.extend(CallStack.prototype, {
             trace = [],
             chronoIndex = callStack.calls.length - 2;
 
+        /**
+         * Fetches the path to the file the call was made from.
+         *
+         * @param {number} index
+         * @returns {string|null}
+         */
+        function getFilePath(index) {
+            var caller = callStack.calls[index - 1],
+                filePath = caller.getTraceFilePath(),
+                ancestorCaller,
+                ancestorIndex;
+
+            if (filePath !== null) {
+                return filePath;
+            }
+
+            for (ancestorIndex = index - 2; ancestorIndex >= 0; ancestorIndex--) {
+                ancestorCaller = callStack.calls[ancestorIndex];
+
+                if (!ancestorCaller.isUserland()) {
+                    continue;
+                }
+
+                filePath = ancestorCaller.getTraceFilePath();
+
+                if (filePath !== null) {
+                    return filePath;
+                }
+            }
+
+            return null;
+        }
+
+        /**
+         * Fetches the line number the call _occurred on_, rather than the line
+         * last executed inside the called function.
+         *
+         * @param {number} index
+         * @returns {number|null}
+         */
+        function getLineNumber(index) {
+            var caller = callStack.calls[index - 1],
+                lineNumber = caller.getLastLine(),
+                ancestorCaller,
+                ancestorIndex;
+
+            if (lineNumber !== null) {
+                return lineNumber;
+            }
+
+            if (caller.getTraceFilePath() !== null) {
+                // Leave line number unknown if we do have a file path,
+                // otherwise the line number fetched may be unrelated.
+                return null;
+            }
+
+            for (ancestorIndex = index - 2; ancestorIndex >= 0; ancestorIndex--) {
+                ancestorCaller = callStack.calls[ancestorIndex];
+
+                if (!ancestorCaller.isUserland()) {
+                    continue;
+                }
+
+                lineNumber = ancestorCaller.getLastLine();
+
+                if (lineNumber !== null) {
+                    return lineNumber;
+                }
+            }
+
+            return null;
+        }
+
         for (index = 1; index < callStack.calls.length; index++) {
             call = callStack.calls[index];
 
             trace.unshift({
                 // Most recent call should have index 0
                 index: chronoIndex--,
-                file: callStack.calls[index - 1].getTraceFilePath(),
-                // Fetch the line number the call _occurred on_, rather than the line
-                // last executed inside the called function
-                line: callStack.calls[index - 1].getLastLine(),
+                file: getFilePath(index),
+                line: getLineNumber(index),
                 func: call.getFunctionName(),
                 args: call.getFunctionArgs()
             });
@@ -282,6 +421,17 @@ _.extend(CallStack.prototype, {
      */
     instrumentCurrent: function (finder) {
         this.getCurrent().instrument(finder);
+    },
+
+    /**
+     * Determines whether or not the current stack frame is a userland PHP function.
+     *
+     * @returns {boolean}
+     */
+    isUserland: function () {
+        var callStack = this;
+
+        return callStack.calls[callStack.calls.length - 1].isUserland();
     },
 
     /**
@@ -402,6 +552,77 @@ _.extend(CallStack.prototype, {
             message = callStack.translator.translate(translationKey, placeholderVariables);
 
         callStack.raiseError(PHPError.E_ERROR, message);
+    },
+
+    /**
+     * Restores the stack from a paused state, ready to be resumed
+     *
+     * @param {Call[]} savedCalls
+     */
+    restore: function (savedCalls) {
+        var stack = this;
+
+        if (stack.calls.length > 0) {
+            throw new Error('Cannot restore when not paused');
+        }
+
+        [].push.apply(stack.calls, savedCalls);
+
+        // var stack = this;
+        //
+        // if (stack.calls.length > 0 && savedCalls.length > 0) {
+        //     stack.calls.length = 0;
+        // }
+        //
+        // [].push.apply(stack.calls, savedCalls);
+    },
+
+    /**
+     * Resumes with a given resume value
+     *
+     * @param {*} resumeValue
+     */
+    resume: function (resumeValue) {
+        // Set up ready to be resumed from the top stack frame
+        var call = this.getUserlandCallee();
+
+        if (!call) {
+            throw new Error('CallStack.resume() :: Cannot resume when there is no userland callee');
+        }
+
+        call.resume(resumeValue);
+    },
+
+    /**
+     * Pauses the current call stack, returning the current stack state
+     * and clearing the stack contents
+     *
+     * @returns {Call[]}
+     */
+    save: function () {
+        var stack = this,
+            calls = stack.calls.slice();
+
+        // Clear the current call stack
+        stack.calls.length = 0;
+
+        return calls;
+    },
+
+    /**
+     * Resumes with a given error to throw
+     *
+     * @param {Error} error
+     */
+    throwInto: function (error) {
+        // Set up ready to be resumed from the top stack frame
+        var call = this.getUserlandCallee();
+
+        if (!call) {
+            throw new Error('CallStack.throwInto() :: Cannot throw-resume when there is no userland callee');
+        }
+
+        call.throwInto(error);
     }
 });
 

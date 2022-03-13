@@ -39,7 +39,7 @@ $myObject = new MyClass($tools);
 return $myObject;
 EOS
 */;}), //jshint ignore:line
-            module = tools.psyncTranspile(null, php),
+            module = tools.psyncTranspile('/path/to/my_module.php', php),
             phpEngine = module();
 
         phpEngine.expose({

@@ -27,7 +27,7 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal([
             1001
@@ -50,7 +50,7 @@ namespace {
 }
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.deep.equal([
             21
@@ -68,7 +68,7 @@ namespace My\Stuff {
 }
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
         engine.defineConstant('My\\Stuff\\MY_CONST', 21, {caseInsensitive: false});
 

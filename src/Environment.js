@@ -53,10 +53,9 @@ _.extend(Environment.prototype, {
      *
      * @param {string} name FQCN for the class to define
      * @param {function} definitionFactory Called with `internals` object, returns the class definition
-     * @returns {Class} Returns the instance of Class that represents a PHP class
      */
     defineClass: function (name, definitionFactory) {
-        return this.state.defineClass(name, definitionFactory);
+        this.state.defineClass(name, definitionFactory);
     },
 
     /**
@@ -65,9 +64,10 @@ _.extend(Environment.prototype, {
      *
      * @param {string} name
      * @param {Function} fn
+     * @param {string=} signature Function signature (parameter and return type definitions)
      */
-    defineCoercingFunction: function (name, fn) {
-        this.state.defineCoercingFunction(name, fn);
+    defineCoercingFunction: function (name, fn, signature) {
+        this.state.defineCoercingFunction(name, fn, signature);
     },
 
     /**
@@ -107,7 +107,7 @@ _.extend(Environment.prototype, {
      *
      * @param {string} name
      * @param {Function} valueGetter
-     * @param {Function} valueSetter
+     * @param {Function=} valueSetter
      */
     defineGlobalAccessor: function (name, valueGetter, valueSetter) {
         this.state.defineGlobalAccessor(name, valueGetter, valueSetter);
@@ -119,9 +119,10 @@ _.extend(Environment.prototype, {
      *
      * @param {string} name
      * @param {Function} fn
+     * @param {string=} signature Function signature (parameter and return type definitions)
      */
-    defineNonCoercingFunction: function (name, fn) {
-        this.state.defineNonCoercingFunction(name, fn);
+    defineNonCoercingFunction: function (name, fn, signature) {
+        this.state.defineNonCoercingFunction(name, fn, signature);
     },
 
     /**

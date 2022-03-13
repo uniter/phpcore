@@ -11,21 +11,23 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('../../tools'),
     NativeCaller = require('../../../../src/FFI/Call/NativeCaller').sync(),
     ObjectValue = require('../../../../src/Value/Object').sync(),
-    PHPObject = require('../../../../src/FFI/Value/PHPObject').sync(),
-    ValueFactory = require('../../../../src/ValueFactory').sync();
+    PHPObject = require('../../../../src/FFI/Value/PHPObject').sync();
 
 describe('PHPObject', function () {
     var nativeCaller,
         objectValue,
         phpObject,
+        state,
         valueFactory;
 
     beforeEach(function () {
+        state = tools.createIsolatedState();
         nativeCaller = sinon.createStubInstance(NativeCaller);
         objectValue = sinon.createStubInstance(ObjectValue);
-        valueFactory = new ValueFactory();
+        valueFactory = state.getValueFactory();
 
         phpObject = new PHPObject(valueFactory, nativeCaller, objectValue);
     });

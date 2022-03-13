@@ -12,8 +12,11 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('./tools'),
     CallStack = require('../../src/CallStack'),
+    Class = require('../../src/Class').sync(),
     ClassAutoloader = require('../../src/ClassAutoloader').sync(),
+    ClassDefiner = require('../../src/Class/ClassDefiner'),
     ExportRepository = require('../../src/FFI/Export/ExportRepository'),
     FFIFactory = require('../../src/FFI/FFIFactory'),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
@@ -23,33 +26,38 @@ var expect = require('chai').expect,
     NamespaceFactory = require('../../src/NamespaceFactory'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     PHPError = phpCommon.PHPError,
-    PHPFatalError = phpCommon.PHPFatalError,
-    ValueFactory = require('../../src/ValueFactory').sync();
+    PHPFatalError = phpCommon.PHPFatalError;
 
 describe('Namespace', function () {
     var callStack,
         classAutoloader,
+        classDefiner,
         createNamespace,
         exportRepository,
         ffiFactory,
         functionFactory,
         functionSpecFactory,
+        futureFactory,
         globalNamespace,
         namespace,
         namespaceFactory,
         namespaceScope,
+        state,
         valueFactory;
 
     beforeEach(function () {
+        state = tools.createIsolatedState();
         callStack = sinon.createStubInstance(CallStack);
         classAutoloader = sinon.createStubInstance(ClassAutoloader);
+        classDefiner = sinon.createStubInstance(ClassDefiner);
         exportRepository = sinon.createStubInstance(ExportRepository);
         ffiFactory = sinon.createStubInstance(FFIFactory);
         functionFactory = sinon.createStubInstance(FunctionFactory);
         functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
+        futureFactory = state.getFutureFactory();
         namespaceFactory = sinon.createStubInstance(NamespaceFactory);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
-        valueFactory = new ValueFactory();
+        valueFactory = state.getValueFactory();
 
         callStack.raiseTranslatedError
             .withArgs(PHPError.E_ERROR)
@@ -64,6 +72,18 @@ describe('Namespace', function () {
                 '/path/to/my_module.php',
                 1234
             );
+        });
+
+        classDefiner.defineClass.callsFake(function (
+            name,
+            definition,
+            namespace
+        ) {
+            var classObject = sinon.createStubInstance(Class);
+
+            classObject.getName.returns(namespace.getPrefix() + name);
+
+            return futureFactory.createPresent(classObject);
         });
 
         functionFactory.create.callsFake(function (namespace, currentClass, func, name, currentObject) {
@@ -81,13 +101,13 @@ describe('Namespace', function () {
         namespaceFactory.create.callsFake(function (parentNamespace, name) {
             return new Namespace(
                 callStack,
+                futureFactory,
                 valueFactory,
                 namespaceFactory,
                 functionFactory,
                 functionSpecFactory,
                 classAutoloader,
-                exportRepository,
-                ffiFactory,
+                classDefiner,
                 parentNamespace || null,
                 name || ''
             );
@@ -117,6 +137,8 @@ describe('Namespace', function () {
                     sinon.match.same(namespaceScope),
                     'myOriginalFunc',
                     parametersSpecData,
+                    {my: 'return type'},
+                    true,
                     '/path/to/my_module.php',
                     123
                 )
@@ -137,6 +159,8 @@ describe('Namespace', function () {
                 originalFunction,
                 namespaceScope,
                 parametersSpecData,
+                {my: 'return type'},
+                true,
                 123
             );
             wrappedFunction.functionSpec = functionSpec;
@@ -195,23 +219,22 @@ describe('Namespace', function () {
             );
         });
 
-        it('should raise an uncatchable fatal error when a PHP-defined class attempts to implement Throwable', function () {
-            namespaceScope.resolveClass
-                .withArgs('Throwable')
-                .returns({
-                    namespace: globalNamespace,
-                    name: 'Throwable'
-                });
+        it('should invoke the ClassDefiner correctly', function () {
+            var definition = {
+                interfaces: ['Throwable'],
+                properties: {},
+                methods: []
+            };
 
-            expect(function () {
-                namespace.defineClass('MyInvalidThrowable', {
-                    interfaces: ['Throwable'],
-                    properties: {},
-                    methods: []
-                }, namespaceScope);
-            }).to.throw(
-                'PHP Fatal error: Fake uncatchable fatal error for #core.cannot_implement_throwable ' +
-                'with {"className":"MyInvalidThrowable"} in /path/to/my_module.php on line 1234'
+            namespace.defineClass('MyInvalidThrowable', definition, namespaceScope, true);
+
+            expect(classDefiner.defineClass).to.have.been.calledOnce;
+            expect(classDefiner.defineClass).to.have.been.calledWith(
+                'MyInvalidThrowable',
+                sinon.match.same(definition),
+                sinon.match.same(namespace),
+                sinon.match.same(namespaceScope),
+                true // Auto-coercion enabled
             );
         });
 
@@ -289,6 +312,8 @@ describe('Namespace', function () {
                     sinon.match.same(namespaceScope),
                     'myFunction',
                     parametersSpecData,
+                    {my: 'return type'},
+                    false,
                     '/path/to/my_module.php',
                     123
                 )
@@ -310,6 +335,8 @@ describe('Namespace', function () {
                 originalFunction,
                 namespaceScope,
                 parametersSpecData,
+                {my: 'return type'},
+                false,
                 123
             );
 
@@ -319,42 +346,44 @@ describe('Namespace', function () {
 
     describe('getClass()', function () {
         describe('when the current namespace is the global namespace', function () {
-            it('should correctly fetch an unqualified class name from the global namespace', function () {
+            it('should correctly fetch an unqualified class name from the global namespace', async function () {
                 var classObject;
-                namespace.defineClass('MyClass', function () {}, namespaceScope);
+                await namespace.defineClass('MyClass', function () {}, namespaceScope).toPromise();
 
-                classObject = namespace.getClass('MyClass');
+                classObject = await namespace.getClass('MyClass').toPromise();
 
                 expect(classObject.getName()).to.equal('MyClass');
             });
 
-            it('should correctly fetch a class name qualified by just a leading slash from the global namespace', function () {
+            it('should correctly fetch a class name qualified by just a leading slash from the global namespace', async function () {
                 var classObject;
-                namespace.defineClass('MyClass', function () {}, namespaceScope);
+                await namespace.defineClass('MyClass', function () {}, namespaceScope).toPromise();
 
-                classObject = namespace.getClass('\\MyClass');
+                classObject = await namespace.getClass('\\MyClass').toPromise();
 
                 expect(classObject.getName()).to.equal('MyClass');
             });
 
-            it('should correctly fetch a fully-qualified class name from the relevant sub-namespace', function () {
+            it('should correctly fetch a fully-qualified class name from the relevant sub-namespace', async function () {
                 var classObject;
-                globalNamespace.getDescendant('My\\Stuff')
-                    .defineClass('MyClass', function () {}, namespaceScope);
+                await globalNamespace.getDescendant('My\\Stuff')
+                    .defineClass('MyClass', function () {}, namespaceScope)
+                    .toPromise();
 
                 // NB: Unlike the test below, this one has a leading slash to make it fully-qualified
-                classObject = namespace.getClass('\\My\\Stuff\\MyClass');
+                classObject = await namespace.getClass('\\My\\Stuff\\MyClass').toPromise();
 
                 expect(classObject.getName()).to.equal('My\\Stuff\\MyClass');
             });
 
-            it('should correctly fetch a relatively-qualified class name from the relevant sub-namespace', function () {
+            it('should correctly fetch a relatively-qualified class name from the relevant sub-namespace', async function () {
                 var classObject;
-                globalNamespace.getDescendant('My\\Stuff')
-                    .defineClass('MyClass', function () {}, namespaceScope);
+                await globalNamespace.getDescendant('My\\Stuff')
+                    .defineClass('MyClass', function () {}, namespaceScope)
+                    .toPromise();
 
                 // NB: Unlike the test above, this one has no leading slash to make it relatively-qualified
-                classObject = namespace.getClass('My\\Stuff\\MyClass');
+                classObject = await namespace.getClass('My\\Stuff\\MyClass').toPromise();
 
                 expect(classObject.getName()).to.equal('My\\Stuff\\MyClass');
             });
@@ -363,28 +392,26 @@ describe('Namespace', function () {
                 beforeEach(function () {
                     // Fake a successful autoloading
                     classAutoloader.autoloadClass.callsFake(function () {
-                        globalNamespace.getDescendant('My\\Lib')
+                        return globalNamespace.getDescendant('My\\Lib')
                             .defineClass('MyAutoloadedClass', function () {}, namespaceScope);
                     });
                 });
 
-                it('should invoke the autoloader correctly', function () {
-                    namespace.getClass('My\\Lib\\MyAutoloadedClass');
+                it('should invoke the autoloader correctly', async function () {
+                    await namespace.getClass('My\\Lib\\MyAutoloadedClass').toPromise();
 
                     expect(classAutoloader.autoloadClass).to.have.been.calledOnce;
                     expect(classAutoloader.autoloadClass).to.have.been.calledWith('My\\Lib\\MyAutoloadedClass');
                 });
 
-                it('should return the autoloaded class', function () {
-                    var classObject = namespace.getClass('My\\Lib\\MyAutoloadedClass');
+                it('should return the autoloaded class', async function () {
+                    var classObject = await namespace.getClass('My\\Lib\\MyAutoloadedClass').toPromise();
 
                     expect(classObject.getName()).to.equal('My\\Lib\\MyAutoloadedClass');
                 });
 
                 it('should not raise any error', function () {
-                    expect(function () {
-                        namespace.getClass('My\\Lib\\MyAutoloadedClass');
-                    }).not.to.throw();
+                    return expect(namespace.getClass('My\\Lib\\MyAutoloadedClass').toPromise()).not.to.be.rejected;
                 });
             });
 
@@ -399,9 +426,7 @@ describe('Namespace', function () {
                 });
 
                 it('should raise a "class not found" error', function () {
-                    expect(function () {
-                        namespace.getClass('My\\Lib\\MyAutoloadedClass');
-                    }).to.throw(
+                    return expect(namespace.getClass('My\\Lib\\MyAutoloadedClass').toPromise()).to.be.rejectedWith(
                         'Fake PHP Fatal error for #core.class_not_found with {"name":"My\\\\Lib\\\\MyAutoloadedClass"}'
                     );
                 });
@@ -413,42 +438,44 @@ describe('Namespace', function () {
                 createNamespace('My\\Sub\\Space');
             });
 
-            it('should correctly fetch an unqualified name from the current namespace', function () {
+            it('should correctly fetch an unqualified name from the current namespace', async function () {
                 var classObject;
-                namespace.defineClass('MyClass', function () {}, namespaceScope);
+                await namespace.defineClass('MyClass', function () {}, namespaceScope).toPromise();
 
-                classObject = namespace.getClass('MyClass');
+                classObject = await namespace.getClass('MyClass').toPromise();
 
                 expect(classObject.getName()).to.equal('My\\Sub\\Space\\MyClass');
             });
 
-            it('should correctly fetch a name qualified by just a leading slash from the global namespace', function () {
+            it('should correctly fetch a name qualified by just a leading slash from the global namespace', async function () {
                 var classObject;
-                globalNamespace.defineClass('MyClass', function () {}, namespaceScope);
+                await globalNamespace.defineClass('MyClass', function () {}, namespaceScope).toPromise();
 
-                classObject = namespace.getClass('\\MyClass');
+                classObject = await namespace.getClass('\\MyClass').toPromise();
 
                 expect(classObject.getName()).to.equal('MyClass');
             });
 
-            it('should correctly fetch a fully-qualified name from the relevant sub-namespace, relative to global', function () {
+            it('should correctly fetch a fully-qualified name from the relevant sub-namespace, relative to global', async function () {
                 var classObject;
-                globalNamespace.getDescendant('My\\Stuff')
-                    .defineClass('MyClass', function () {}, namespaceScope);
+                await globalNamespace.getDescendant('My\\Stuff')
+                    .defineClass('MyClass', function () {}, namespaceScope)
+                    .toPromise();
 
                 // NB: Unlike the test below, this one has a leading slash to make it fully-qualified
-                classObject = namespace.getClass('\\My\\Stuff\\MyClass');
+                classObject = await namespace.getClass('\\My\\Stuff\\MyClass').toPromise();
 
                 expect(classObject.getName()).to.equal('My\\Stuff\\MyClass');
             });
 
-            it('should correctly fetch a relatively-qualified name from the relevant sub-namespace, relative to current', function () {
+            it('should correctly fetch a relatively-qualified name from the relevant sub-namespace, relative to current', async function () {
                 var classObject;
-                globalNamespace.getDescendant('My\\Sub\\Space\\Your\\Stuff')
-                    .defineClass('YourClass', function () {}, namespaceScope);
+                await globalNamespace.getDescendant('My\\Sub\\Space\\Your\\Stuff')
+                    .defineClass('YourClass', function () {}, namespaceScope)
+                    .toPromise();
 
                 // NB: Unlike the test above, this one has no leading slash to make it relatively-qualified
-                classObject = namespace.getClass('Your\\Stuff\\YourClass');
+                classObject = await namespace.getClass('Your\\Stuff\\YourClass').toPromise();
 
                 expect(classObject.getName()).to.equal('My\\Sub\\Space\\Your\\Stuff\\YourClass');
             });
@@ -457,13 +484,13 @@ describe('Namespace', function () {
                 beforeEach(function () {
                     // Fake a successful autoloading
                     classAutoloader.autoloadClass.callsFake(function () {
-                        namespace.getDescendant('Your\\Stuff')
+                        return namespace.getDescendant('Your\\Stuff')
                             .defineClass('YourAutoloadedClass', function () {}, namespaceScope);
                     });
                 });
 
-                it('should invoke the autoloader correctly', function () {
-                    namespace.getClass('Your\\Stuff\\YourAutoloadedClass');
+                it('should invoke the autoloader correctly', async function () {
+                    await namespace.getClass('Your\\Stuff\\YourAutoloadedClass').toPromise();
 
                     expect(classAutoloader.autoloadClass).to.have.been.calledOnce;
                     expect(classAutoloader.autoloadClass).to.have.been.calledWith(

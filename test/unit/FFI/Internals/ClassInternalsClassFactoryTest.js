@@ -11,32 +11,39 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('../../tools'),
     ClassInternalsClassFactory = require('../../../../src/FFI/Internals/ClassInternalsClassFactory'),
     Class = require('../../../../src/Class').sync(),
     Internals = require('../../../../src/FFI/Internals/Internals'),
     Namespace = require('../../../../src/Namespace').sync(),
     NamespaceScope = require('../../../../src/NamespaceScope').sync(),
     ObjectValue = require('../../../../src/Value/Object').sync(),
+    TypedFunction = require('../../../../src/Function/TypedFunction'),
     UnwrapperRepository = require('../../../../src/FFI/Export/UnwrapperRepository'),
-    ValueFactory = require('../../../../src/ValueFactory').sync(),
     ValueStorage = require('../../../../src/FFI/Value/ValueStorage');
 
 describe('FFI ClassInternalsClassFactory', function () {
     var baseInternals,
         factory,
+        futureFactory,
         globalNamespace,
         globalNamespaceScope,
+        state,
         unwrapperRepository,
         valueFactory,
         valueStorage;
 
     beforeEach(function () {
+        valueStorage = sinon.createStubInstance(ValueStorage);
+        state = tools.createIsolatedState(null, {
+            'ffi_value_storage': valueStorage
+        });
         baseInternals = sinon.createStubInstance(Internals);
+        futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
         globalNamespaceScope = sinon.createStubInstance(NamespaceScope);
         unwrapperRepository = sinon.createStubInstance(UnwrapperRepository);
-        valueStorage = sinon.createStubInstance(ValueStorage);
-        valueFactory = new ValueFactory(null, null, null, null, null, null, valueStorage);
+        valueFactory = state.getValueFactory();
 
         factory = new ClassInternalsClassFactory(
             baseInternals,
@@ -88,9 +95,9 @@ describe('FFI ClassInternalsClassFactory', function () {
                         'MyClass',
                         sinon.match.same(MyClass),
                         sinon.match.same(globalNamespaceScope),
-                        true // enableAutoCoercion
+                        sinon.match.any // enableAutoCoercion
                     )
-                    .returns(classObject);
+                    .returns(futureFactory.createPresent(classObject));
             });
 
             it('should extend the base Internals instance', function () {
@@ -102,11 +109,10 @@ describe('FFI ClassInternalsClassFactory', function () {
 
             describe('callSuperConstructor()', function () {
                 it('should throw when not extending a super class', function () {
-                    expect(function () {
-                        classInternals.callSuperConstructor({}, ['first arg', 21]);
-                    }).to.throw(
-                        'Cannot call superconstructor: no superclass is defined for class "My\\Stuff\\MyClass"'
-                    );
+                    return expect(classInternals.callSuperConstructor({}, ['first arg', 21]).toPromise())
+                        .to.eventually.be.rejectedWith(
+                            'Cannot call superconstructor: no superclass is defined for class "My\\Stuff\\MyClass"'
+                        );
                 });
 
                 describe('when extending a super class, in auto-coercing mode', function () {
@@ -119,9 +125,10 @@ describe('FFI ClassInternalsClassFactory', function () {
                         objectValue = sinon.createStubInstance(ObjectValue);
                         objectValue.getType.returns('object');
                         superClass = sinon.createStubInstance(Class);
+                        superClass.construct.returns(valueFactory.createNull());
                         globalNamespace.getClass
                             .withArgs('My\\SuperClass')
-                            .returns(superClass);
+                            .returns(futureFactory.createPresent(superClass));
 
                         valueStorage.hasObjectValueForExport
                             .withArgs(sinon.match.same(nativeObject))
@@ -133,21 +140,32 @@ describe('FFI ClassInternalsClassFactory', function () {
                         classInternals.extendClass('My\\SuperClass');
                     });
 
-                    it('should call the super constructor with native instance coerced to ObjectValue', function () {
-                        classInternals.callSuperConstructor(nativeObject, ['first arg', 21]);
+                    it('should call the super constructor with native instance coerced to ObjectValue', async function () {
+                        await classInternals.callSuperConstructor(nativeObject, ['first arg', 21]).toPromise();
 
                         expect(superClass.construct).to.have.been.calledOnce;
                         expect(superClass.construct.args[0][0]).to.equal(objectValue);
                     });
 
-                    it('should call the super constructor with native arguments coerced', function () {
-                        classInternals.callSuperConstructor(nativeObject, ['first arg', 21]);
+                    it('should call the super constructor with native arguments coerced', async function () {
+                        await classInternals.callSuperConstructor(nativeObject, ['first arg', 21]).toPromise();
 
                         expect(superClass.construct).to.have.been.calledOnce;
                         expect(superClass.construct.args[0][1][0].getType()).to.equal('string');
                         expect(superClass.construct.args[0][1][0].getNative()).to.equal('first arg');
                         expect(superClass.construct.args[0][1][1].getType()).to.equal('int');
                         expect(superClass.construct.args[0][1][1].getNative()).to.equal(21);
+                    });
+
+                    it('should return the result to allow for pausing', async function () {
+                        var resultValue;
+                        superClass.construct.returns(valueFactory.createPresent(valueFactory.createString('my result')));
+
+                        resultValue = await classInternals.callSuperConstructor(nativeObject, ['my arg'])
+                            .toPromise();
+
+                        expect(resultValue.getType()).to.equal('string');
+                        expect(resultValue.getNative()).to.equal('my result');
                     });
                 });
 
@@ -161,7 +179,7 @@ describe('FFI ClassInternalsClassFactory', function () {
                         superClass = sinon.createStubInstance(Class);
                         globalNamespace.getClass
                             .withArgs('My\\SuperClass')
-                            .returns(superClass);
+                            .returns(futureFactory.createPresent(superClass));
 
                         classInternals.disableAutoCoercion();
                         classInternals.extendClass('My\\SuperClass');
@@ -194,7 +212,7 @@ describe('FFI ClassInternalsClassFactory', function () {
                     var superClass = sinon.createStubInstance(Class);
                     globalNamespace.getClass
                         .withArgs('My\\SuperClass')
-                        .returns(superClass);
+                        .returns(futureFactory.createPresent(superClass));
                     classInternals.extendClass('My\\SuperClass');
 
                     classInternals.defineClass(definitionFactory);
@@ -251,8 +269,32 @@ describe('FFI ClassInternalsClassFactory', function () {
                     );
                 });
 
-                it('should return the Class instance from the Namespace', function () {
-                    expect(classInternals.defineClass(definitionFactory)).to.equal(classObject);
+                it('should return the Class instance from the Namespace', async function () {
+                    expect(await classInternals.defineClass(definitionFactory).toPromise()).to.equal(classObject);
+                });
+            });
+
+            describe('typeInstanceMethod()', function () {
+                it('should return a correct TypedFunction', function () {
+                    var func = sinon.stub(),
+                        typedMethodFunction = classInternals.typeInstanceMethod('my signature', func);
+
+                    expect(typedMethodFunction).to.be.an.instanceOf(TypedFunction);
+                    expect(typedMethodFunction.getFunction()).to.equal(func);
+                    expect(typedMethodFunction.getSignature()).to.equal('my signature');
+                    expect(func.isStatic).not.to.be.true; // Ensure it has not been marked static.
+                });
+            });
+
+            describe('typeStaticMethod()', function () {
+                it('should return a correct TypedFunction', function () {
+                    var func = sinon.stub(),
+                        typedMethodFunction = classInternals.typeStaticMethod('my signature', func);
+
+                    expect(typedMethodFunction).to.be.an.instanceOf(TypedFunction);
+                    expect(typedMethodFunction.getFunction()).to.equal(func);
+                    expect(typedMethodFunction.getSignature()).to.equal('my signature');
+                    expect(func.isStatic).to.be.true;
                 });
             });
         });

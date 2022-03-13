@@ -28,7 +28,7 @@ $result[] = getItPlusOne();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.defineSuperGlobal('MY_SUPER_GLOBAL', 21);
@@ -54,7 +54,7 @@ $result[] = $MY_SUPER_GLOBAL;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.defineSuperGlobal('MY_SUPER_GLOBAL', 30);
@@ -80,7 +80,7 @@ $result[] = $MY_MAGIC_SUPER_GLOBAL;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module(),
             theValue = 21;
 
@@ -117,7 +117,7 @@ $result[] = $GLOBALS;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -143,7 +143,7 @@ $result[] = $myNewGlobal;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -170,7 +170,7 @@ $result[] = $myExistingGlobal;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -195,7 +195,7 @@ $result[] = $myNewRefedGlobal;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -221,7 +221,7 @@ $result[] = $myNewRefedGlobal;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -246,7 +246,7 @@ $result[] = isset($myGlobal);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([

@@ -36,8 +36,12 @@ class MyClass
 return MyClass::myUndefinedMethod(20, 3);
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile(null, php);
+            module = tools.syncTranspile('/path/to/my_module.php', php);
 
         expect(module().execute().getNative()).to.equal('myUndefinedMethod :: 60');
     });
+
+    // TODO: Test call from inside a closure that relies on __callStatic
+
+    // TODO: Test a JS-defined class that defines __callStatic, ie. MyClass.prototype.__callStatic
 });

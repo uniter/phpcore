@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../tools'),
     CallStack = require('../../../src/CallStack'),
     Environment = require('../../../src/Environment'),
     Exception = phpCommon.Exception,
@@ -20,12 +21,10 @@ var expect = require('chai').expect,
     LoadFailedException = require('../../../src/Exception/LoadFailedException'),
     LoadScope = require('../../../src/Load/LoadScope'),
     Module = require('../../../src/Module'),
-    NamespaceScope = require('../../../src/NamespaceScope').sync(),
     OptionSet = require('../../../src/OptionSet'),
     PHPError = phpCommon.PHPError,
     Scope = require('../../../src/Scope').sync(),
-    ScopeFactory = require('../../../src/ScopeFactory'),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    ScopeFactory = require('../../../src/ScopeFactory');
 
 describe('Includer', function () {
     var callStack,
@@ -34,40 +33,41 @@ describe('Includer', function () {
         includer,
         loader,
         module,
-        namespaceScope,
         optionSet,
         scopeFactory,
-        topLevelNamespaceScope,
+        state,
         topLevelScope,
         valueFactory;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        state = tools.createIsolatedState('async', {
+            'call_stack': callStack
+        });
         enclosingScope = sinon.createStubInstance(Scope);
         environment = sinon.createStubInstance(Environment);
         includer = sinon.createStubInstance(Includer);
         loader = sinon.createStubInstance(Loader);
         module = sinon.createStubInstance(Module);
-        namespaceScope = sinon.createStubInstance(NamespaceScope);
         optionSet = sinon.createStubInstance(OptionSet);
         scopeFactory = sinon.createStubInstance(ScopeFactory);
-        topLevelNamespaceScope = sinon.createStubInstance(NamespaceScope);
         topLevelScope = sinon.createStubInstance(Scope);
-        valueFactory = new ValueFactory(null, callStack);
+        valueFactory = state.getValueFactory();
 
         callStack.raiseError
             .withArgs(PHPError.E_ERROR)
             .callsFake(function (level, message) {
                 throw new Error('Fake PHP ' + level + ': ' + message);
             });
-        topLevelNamespaceScope.getFilePath.returns('/path/to/my/module.php');
+        module.getFilePath.returns('/path/to/my/module.php');
 
         includer = new Includer(
             callStack,
             valueFactory,
             scopeFactory,
             loader,
-            optionSet
+            optionSet,
+            state.getFlow()
         );
     });
 
@@ -81,11 +81,10 @@ describe('Includer', function () {
                     errorLevel || PHPError.E_WARNING,
                     environment,
                     module,
-                    topLevelNamespaceScope,
                     includedPath,
                     enclosingScope,
                     options || {}
-                );
+                ).yieldSync();
             };
         });
 
@@ -110,7 +109,7 @@ describe('Includer', function () {
                     .withArgs('include')
                     .returns(includeOption);
 
-                topLevelNamespaceScope.getFilePath
+                module.getFilePath
                     .returns('/path/to/my/parent/module.php');
             });
 
@@ -162,7 +161,7 @@ describe('Includer', function () {
                 );
             });
 
-            it('should invoke the Loader with a correctly created IncludeScope', function () {
+            it('should invoke the Loader with a correctly created LoadScope', function () {
                 var includeLoadScope = sinon.createStubInstance(LoadScope);
                 scopeFactory.createLoadScope
                     .withArgs(sinon.match.same(enclosingScope), '/path/to/my/parent/module.php', 'include')
@@ -217,14 +216,14 @@ describe('Includer', function () {
 
             describe('on LoadFailedException', function () {
                 it('should return bool(false)', function () {
-                    loader.load.throws(new LoadFailedException(new Error('Oh dear')));
+                    loader.load.returns(valueFactory.createRejection(new LoadFailedException(new Error('Oh dear'))));
 
                     expect(callInclude('/some/path/to/my_included_module.php').getNative())
                         .to.be.false;
                 });
 
                 it('should raise a warning with the underlying error when one is given', function () {
-                    loader.load.throws(new LoadFailedException(new Error('Oh dear!')));
+                    loader.load.returns(valueFactory.createRejection(new LoadFailedException(new Error('Oh dear!'))));
 
                     callInclude('/some/path/to/my_included_module.php');
 
@@ -235,7 +234,7 @@ describe('Includer', function () {
                 });
 
                 it('should raise a warning with a generic message when no underlying error is given', function () {
-                    loader.load.throws(new LoadFailedException(null));
+                    loader.load.returns(valueFactory.createRejection(new LoadFailedException(null)));
 
                     callInclude('/some/path/to/my_included_module.php');
 
@@ -246,7 +245,7 @@ describe('Includer', function () {
                 });
 
                 it('should raise an error of the given level', function () {
-                    loader.load.throws(new LoadFailedException(new Error('Oh dear!')));
+                    loader.load.returns(valueFactory.createRejection(new LoadFailedException(new Error('Oh dear!'))));
 
                     expect(function () {
                         callInclude(
@@ -265,7 +264,7 @@ describe('Includer', function () {
             });
 
             it('should not catch any other type of error', function () {
-                loader.load.throws(new Error('Bang!'));
+                loader.load.returns(valueFactory.createRejection(new Error('Bang!')));
 
                 expect(function () {
                     callInclude('/some/path/to/my_included_module.php');
@@ -290,11 +289,10 @@ describe('Includer', function () {
                     errorLevel || PHPError.E_WARNING,
                     environment,
                     module,
-                    topLevelNamespaceScope,
                     includedPath,
                     enclosingScope,
                     options || {}
-                );
+                ).yieldSync();
             };
         });
 

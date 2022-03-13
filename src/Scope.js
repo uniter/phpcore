@@ -109,7 +109,10 @@ module.exports = require('pauser')([
             functionSpec = scope.functionSpecFactory.createClosureSpec(
                 namespaceScope,
                 scope.currentClass,
+                thisObject,
                 parametersSpecData || [],
+                null, // TODO: Implement userland return types.
+                false, // TODO: Implement userland return-by-reference.
                 namespaceScope.getFilePath(),
                 lineNumber
             );

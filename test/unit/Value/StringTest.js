@@ -13,6 +13,7 @@ var _ = require('microdash'),
     expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../tools'),
     ArrayValue = require('../../../src/Value/Array').sync(),
     BooleanValue = require('../../../src/Value/Boolean').sync(),
     CallStack = require('../../../src/CallStack'),
@@ -23,30 +24,42 @@ var _ = require('microdash'),
     MethodSpec = require('../../../src/MethodSpec'),
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
-    NullValue = require('../../../src/Value/Null').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
     StringValue = require('../../../src/Value/String').sync(),
-    Value = require('../../../src/Value').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    Value = require('../../../src/Value').sync();
 
 describe('String', function () {
     var callStack,
         createKeyValuePair,
         createValue,
         factory,
+        futureFactory,
         globalNamespace,
         namespaceScope,
+        referenceFactory,
+        state,
         value;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
-        factory = new ValueFactory();
+        state = tools.createIsolatedState(null, {
+            'call_stack': callStack
+        });
+        factory = state.getValueFactory();
+        futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         namespaceScope.getGlobalNamespace.returns(globalNamespace);
+        referenceFactory = state.getReferenceFactory();
+
+        factory.setGlobalNamespace(globalNamespace);
 
         callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+            if (level !== PHPError.E_ERROR) {
+                return;
+            }
+
             throw new Error(
                 'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
             );
@@ -60,32 +73,183 @@ describe('String', function () {
         };
 
         createValue = function (nativeValue) {
-            value = new StringValue(factory, callStack, nativeValue);
+            value = new StringValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                nativeValue,
+                globalNamespace
+            );
         };
     });
 
-    describe('addToArray()', function () {
-        it('should raise a fatal error', function () {
-            createValue('my string');
+    describe('add()', function () {
+        beforeEach(function () {
+            createValue('21');
+        });
+
+        it('should throw an "Unsupported operand" error for an array addend', function () {
+            var addendValue = factory.createArray([]);
 
             expect(function () {
-                value.addToArray(factory.createArray([]));
+                value.add(addendValue);
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
         });
+
+        describe('for a boolean addend', function () {
+            it('should return the result of adding true', function () {
+                var addendOperand = factory.createBoolean(true), // Will be coerced to int(1)
+                    resultValue;
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(22);
+            });
+
+            it('should return the result of adding false', function () {
+                var addendOperand = factory.createBoolean(false), // Will be coerced to int(0)
+                    resultValue;
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(21);
+            });
+        });
+
+        describe('for a float addend', function () {
+            it('should return the result of adding', function () {
+                var addendOperand = factory.createFloat(2.5),
+                    resultValue;
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(23.5);
+            });
+        });
+
+        describe('for an integer addend', function () {
+            it('should return the result of adding when this string contains an integer', function () {
+                var addendOperand = factory.createInteger(2),
+                    resultValue;
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(23);
+            });
+
+            it('should return the result of adding when this string contains a float', function () {
+                var addendOperand = factory.createInteger(2),
+                    resultValue;
+                createValue('101.4');
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(103.4);
+            });
+        });
+
+        it('should add zero for a null addend', function () {
+            var addendOperand = factory.createNull(),
+                resultValue;
+
+            resultValue = value.add(addendOperand);
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(21);
+        });
+
+        describe('for an object addend', function () {
+            it('should return the result of adding, with the object coerced to int(1)', function () {
+                var addendOperand = sinon.createStubInstance(ObjectValue),
+                    resultValue;
+                addendOperand.coerceToNumber.returns(factory.createInteger(1));
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(22);
+            });
+
+            it('should not raise any extra notices', function () {
+                var addendOperand = sinon.createStubInstance(ObjectValue);
+                addendOperand.coerceToNumber.returns(factory.createInteger(1));
+
+                value.add(addendOperand);
+
+                expect(callStack.raiseError).not.to.have.been.called;
+            });
+        });
+
+        describe('for a string addend', function () {
+            it('should return the result of adding a float string when this string is an integer', function () {
+                var addendOperand = factory.createString('2.5'),
+                    resultValue;
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(23.5);
+            });
+
+            it('should return the result of adding a float string when this string is also a float', function () {
+                var addendOperand = factory.createString('2.5'),
+                    resultValue;
+                createValue('1.4');
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(3.9);
+            });
+
+            it('should return the result of adding a float with decimal string prefix', function () {
+                var addendOperand = factory.createString('3.5.4'),
+                    resultValue;
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(24.5);
+            });
+
+            it('should return the result of adding an integer string', function () {
+                var addendOperand = factory.createString('7'),
+                    resultValue;
+
+                resultValue = value.add(addendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(28);
+            });
+        });
+    });
+
+    describe('asFuture()', function () {
+        it('should return a Present that resolves to this value', function () {
+            createValue('my string');
+
+            return expect(value.asFuture().toPromise()).to.eventually.equal(value);
+        });
     });
 
     describe('call()', function () {
-        it('should call the function and return its result when string only contains a function name', function () {
+        it('should call the function and return its result when string only contains a function name', async function () {
             var argValue = sinon.createStubInstance(Value),
                 result,
-                resultValue = sinon.createStubInstance(Value),
+                resultValue = factory.createString('my result'),
                 func = sinon.stub().returns(resultValue);
             globalNamespace.getFunction.withArgs('My\\Space\\my_function').returns(func);
             createValue('My\\Space\\my_function');
 
-            result = value.call([argValue], namespaceScope);
+            result = await value.call([argValue], namespaceScope).toPromise();
 
             expect(result).to.equal(resultValue);
             expect(func).to.have.been.calledOnce;
@@ -93,14 +257,14 @@ describe('String', function () {
             expect(func).to.have.been.calledWith(sinon.match.same(argValue));
         });
 
-        it('should call the static method and return its result when string contains [class]::[method]', function () {
+        it('should call the static method and return its result when string contains [class]::[method]', async function () {
             var argValue = sinon.createStubInstance(Value),
                 classObject = sinon.createStubInstance(Class),
                 result,
-                resultValue = sinon.createStubInstance(Value);
+                resultValue = factory.createString('my result');
             globalNamespace.getClass
                 .withArgs('My\\Space\\MyClass')
-                .returns(classObject);
+                .returns(futureFactory.createPresent(classObject));
             classObject.callMethod
                 .withArgs(
                     'myStaticMethod',
@@ -113,7 +277,7 @@ describe('String', function () {
                 .returns(resultValue);
             createValue('My\\Space\\MyClass::myStaticMethod');
 
-            result = value.call([argValue], namespaceScope);
+            result = await value.call([argValue], namespaceScope).toPromise();
 
             expect(result).to.equal(resultValue);
         });
@@ -132,17 +296,18 @@ describe('String', function () {
     });
 
     describe('callStaticMethod()', function () {
-        it('should ask the class to call the method and return its result when non-forwarding', function () {
+        it('should ask the class to call the method and return its result when non-forwarding', async function () {
             var argValue = sinon.createStubInstance(Value),
                 classObject = sinon.createStubInstance(Class),
                 methodNameValue = factory.createString('myMethod'),
                 result,
-                resultValue = sinon.createStubInstance(Value);
+                resultValue = factory.createString('my result');
             classObject.callMethod.returns(resultValue);
-            globalNamespace.getClass.withArgs('\\My\\Space\\MyClass').returns(classObject);
+            globalNamespace.getClass.withArgs('\\My\\Space\\MyClass')
+                .returns(futureFactory.createPresent(classObject));
             createValue('\\My\\Space\\MyClass');
 
-            result = value.callStaticMethod(methodNameValue, [argValue], namespaceScope, false);
+            result = await value.callStaticMethod(methodNameValue, [argValue], false).toPromise();
 
             expect(result).to.equal(resultValue);
             expect(classObject.callMethod).to.have.been.calledOnce;
@@ -156,17 +321,18 @@ describe('String', function () {
             );
         });
 
-        it('should ask the class to call the method and return its result when forwarding', function () {
+        it('should ask the class to call the method and return its result when forwarding', async function () {
             var argValue = sinon.createStubInstance(Value),
                 classObject = sinon.createStubInstance(Class),
                 methodNameValue = factory.createString('myMethod'),
                 result,
-                resultValue = sinon.createStubInstance(Value);
+                resultValue = factory.createString('my result');
             classObject.callMethod.returns(resultValue);
-            globalNamespace.getClass.withArgs('\\My\\Space\\MyClass').returns(classObject);
+            globalNamespace.getClass.withArgs('\\My\\Space\\MyClass')
+                .returns(futureFactory.createPresent(classObject));
             createValue('\\My\\Space\\MyClass');
 
-            result = value.callStaticMethod(methodNameValue, [argValue], namespaceScope, true);
+            result = await value.callStaticMethod(methodNameValue, [argValue], true).toPromise();
 
             expect(result).to.equal(resultValue);
             expect(classObject.callMethod).to.have.been.calledOnce;
@@ -238,6 +404,14 @@ describe('String', function () {
             'coercing an uppercase exponent with float result': {
                 string: '1E-3',
                 expectedResult: 0.001
+            },
+            'coercing a float with leading whitespace': {
+                string: '   123.456',
+                expectedResult: 123.456
+            },
+            'coercing an integer with trailing whitespace': {
+                string: '456.789  ',
+                expectedResult: 456.789
             }
         }, function (scenario, description) {
             describe(description, function () {
@@ -306,6 +480,14 @@ describe('String', function () {
             'coercing an uppercase exponent with float result': {
                 string: '1E-3',
                 expectedResult: 1
+            },
+            'coercing an integer with leading whitespace': {
+                string: '   123',
+                expectedResult: 123
+            },
+            'coercing an integer with trailing whitespace': {
+                string: '456  ',
+                expectedResult: 456
             }
         }, function (scenario, description) {
             describe(description, function () {
@@ -430,440 +612,432 @@ describe('String', function () {
         });
     });
 
-    describe('divide()', function () {
-        it('should hand off to the right-hand operand to divide by this string', function () {
-            var rightOperand = sinon.createStubInstance(Value),
-                result = sinon.createStubInstance(Value);
-            createValue('my string');
-            rightOperand.divideByString.withArgs(value).returns(result);
+    describe('concat()', function () {
+        it('should be able to concatenate another string', function () {
+            var resultValue;
+            createValue('hello');
 
-            expect(value.divide(rightOperand)).to.equal(result);
+            resultValue = value.concat(factory.createString(' world'));
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('hello world');
         });
     });
 
-    describe('divideByArray()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createArray([]);
+    describe('convertForBooleanType()', function () {
+        it('should return bool(true) when not "0" or the empty string', function () {
+            var resultValue;
             createValue('my string');
 
+            resultValue = value.convertForBooleanType();
+
+            expect(resultValue.getType()).to.equal('boolean');
+            expect(resultValue.getNative()).to.be.true;
+        });
+
+        it('should return bool(false) when "0"', function () {
+            var resultValue;
+            createValue('0');
+
+            resultValue = value.convertForBooleanType();
+
+            expect(resultValue.getType()).to.equal('boolean');
+            expect(resultValue.getNative()).to.be.false;
+        });
+
+        it('should return bool(false) when ""', function () {
+            var resultValue;
+            createValue('');
+
+            resultValue = value.convertForBooleanType();
+
+            expect(resultValue.getType()).to.equal('boolean');
+            expect(resultValue.getNative()).to.be.false;
+        });
+    });
+
+    describe('convertForFloatType()', function () {
+        describe('when valid with no whitespace', function () {
+            it('should return a float containing the parsed number', function () {
+                var resultValue;
+                createValue('456.789');
+
+                resultValue = value.convertForFloatType();
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(456.789);
+            });
+
+            it('should not raise a notice', function () {
+                createValue('456.789');
+
+                value.convertForFloatType();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+
+        describe('when valid with leading and trailing whitespace', function () {
+            it('should return a float containing the parsed number', function () {
+                var resultValue;
+                createValue('   456.789  ');
+
+                resultValue = value.convertForFloatType();
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(456.789);
+            });
+
+            it('should not raise a notice', function () {
+                createValue('   456.789  ');
+
+                value.convertForFloatType();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+
+        describe('when semi-invalid with trailing non-numeric characters', function () {
+            it('should return a float containing the parsed number', function () {
+                var resultValue;
+                createValue('   456.789abc');
+
+                resultValue = value.convertForFloatType();
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(456.789);
+            });
+
+            it('should raise a notice', function () {
+                createValue('   456.789abc');
+
+                value.convertForFloatType();
+
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'core.non_well_formed_numeric_value'
+                );
+            });
+        });
+
+        describe('when fully invalid with leading non-numeric characters', function () {
+            it('should just return this value as no conversion is possible', function () {
+                createValue('I am not numeric');
+
+                expect(value.convertForFloatType()).to.equal(value);
+            });
+
+            it('should not raise a notice', function () {
+                createValue('I am not numeric');
+
+                value.convertForFloatType();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+    });
+
+    describe('convertForIntegerType()', function () {
+        describe('when valid with no whitespace', function () {
+            it('should return an integer containing the parsed number', function () {
+                var resultValue;
+                createValue('456.789'); // Decimal places ignored.
+
+                resultValue = value.convertForIntegerType();
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(456);
+            });
+
+            it('should not raise a notice', function () {
+                createValue('456');
+
+                value.convertForIntegerType();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+
+        describe('when valid with leading and trailing whitespace', function () {
+            it('should return an integer containing the parsed number', function () {
+                var resultValue;
+                createValue('   456  ');
+
+                resultValue = value.convertForIntegerType();
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(456);
+            });
+
+            it('should not raise a notice', function () {
+                createValue('   456  ');
+
+                value.convertForIntegerType();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+
+        describe('when semi-invalid with trailing non-numeric characters', function () {
+            it('should return an integer containing the parsed number', function () {
+                var resultValue;
+                createValue('   456abc');
+
+                resultValue = value.convertForIntegerType();
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(456);
+            });
+
+            it('should raise a notice', function () {
+                createValue('   456abc');
+
+                value.convertForIntegerType();
+
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_NOTICE,
+                    'core.non_well_formed_numeric_value'
+                );
+            });
+        });
+
+        describe('when fully invalid with leading non-numeric characters', function () {
+            it('should just return this value as no conversion is possible', function () {
+                createValue('I am not numeric');
+
+                expect(value.convertForIntegerType()).to.equal(value);
+            });
+
+            it('should not raise a notice', function () {
+                createValue('I am not numeric');
+
+                value.convertForIntegerType();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+    });
+
+    describe('convertForStringType()', function () {
+        it('should just return this value as it is already the correct type', function () {
+            expect(value.convertForStringType()).to.equal(value);
+        });
+    });
+
+    describe('decrement()', function () {
+        it('should return one less when the string contains a positive float', function () {
+            var resultValue;
+            createValue('21.52');
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(20.52);
+        });
+
+        it('should return -1 when the string contains float zero', function () {
+            var resultValue;
+            createValue('0.0');
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(-1);
+        });
+
+        it('should return -1 when the string contains integer zero', function () {
+            var resultValue;
+            createValue('0');
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(-1);
+        });
+
+        it('should return one less when the string contains a negative float', function () {
+            var resultValue;
+            createValue('-41.7');
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(-42.7);
+        });
+    });
+
+    describe('divideBy()', function () {
+        beforeEach(function () {
+            createValue('21');
+        });
+
+        it('should throw an "Unsupported operand" error for an array divisor', function () {
+            var divisorValue = factory.createArray([]);
+
             expect(function () {
-                value.divideByArray(leftValue);
+                value.divideBy(divisorValue);
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
         });
-    });
 
-    describe('divideByBoolean()', function () {
-        var leftValue;
+        describe('for a boolean divisor', function () {
+            it('should return the result of dividing by true', function () {
+                var divisorOperand = factory.createBoolean(true), // Will be coerced to int(1)
+                    resultValue;
 
-        _.each([
-            {
-                left: true,
-                right: '1.25',
-                expectedResultType: FloatValue,
-                expectedResult: 0.8,
-                expectDivisionByZero: false
-            },
-            {
-                left: true,
-                right: '0.0',
-                expectedResultType: BooleanValue,
-                expectedResult: false,
-                expectDivisionByZero: true
-            },
-            {
-                left: false,
-                right: '1.0',
-                expectedResultType: FloatValue,
-                expectedResult: 0.0,
-                expectDivisionByZero: false
-            },
-            {
-                left: true,
-                right: 'not a number',
-                expectedResultType: BooleanValue,
-                expectedResult: false,
-                expectDivisionByZero: true
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' / ' + scenario.right + '`', function () {
-                beforeEach(function () {
-                    leftValue = factory.createBoolean(scenario.left);
-                    createValue(scenario.right);
-                });
+                resultValue = value.divideBy(divisorOperand);
 
-                it('should return the correct value', function () {
-                    var result = value.divideByBoolean(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                if (scenario.expectDivisionByZero) {
-                    it('should raise a warning due to division by zero', function () {
-                        value.divideByBoolean(leftValue);
-
-                        expect(callStack.raiseError).to.have.been.calledOnce;
-                        expect(callStack.raiseError)
-                            .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
-                    });
-                } else {
-                    it('should not raise any warnings', function () {
-                        value.divideByBoolean(leftValue);
-
-                        expect(callStack.raiseError).not.to.have.been.called;
-                    });
-                }
-            });
-        });
-    });
-
-    describe('divideByFloat()', function () {
-        var leftValue;
-
-        _.each([
-            {
-                left: 12.4,
-                right: '1.0',
-                expectedResultType: FloatValue,
-                expectedResult: 12.4,
-                expectDivisionByZero: false
-            },
-            {
-                left: 20.5,
-                right: '0.5',
-                expectedResultType: FloatValue,
-                expectedResult: 41.0,
-                expectDivisionByZero: false
-            },
-            {
-                left: 11.0,
-                right: '0',
-                expectedResultType: BooleanValue,
-                expectedResult: false,
-                expectDivisionByZero: true
-            },
-            {
-                left: 21.0,
-                right: 'not a number',
-                expectedResultType: BooleanValue,
-                expectedResult: false,
-                expectDivisionByZero: true
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' / ' + scenario.right + '`', function () {
-                beforeEach(function () {
-                    leftValue = factory.createFloat(scenario.left);
-                    createValue(scenario.right);
-                });
-
-                it('should return the correct value', function () {
-                    var result = value.divideByFloat(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                if (scenario.expectDivisionByZero) {
-                    it('should raise a warning due to division by zero', function () {
-                        value.divideByFloat(leftValue);
-
-                        expect(callStack.raiseError).to.have.been.calledOnce;
-                        expect(callStack.raiseError)
-                            .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
-                    });
-                } else {
-                    it('should not raise any warnings', function () {
-                        value.divideByFloat(leftValue);
-
-                        expect(callStack.raiseError).not.to.have.been.called;
-                    });
-                }
-            });
-        });
-    });
-
-    describe('divideByInteger()', function () {
-        var leftValue;
-
-        _.each([
-            {
-                left: 15,
-                right: '1.0',
-                expectedResultType: FloatValue,
-                expectedResult: 15,
-                expectDivisionByZero: false
-            },
-            {
-                left: 100,
-                right: '2.5',
-                expectedResultType: FloatValue,
-                expectedResult: 40.0,
-                expectDivisionByZero: false
-            },
-            {
-                left: 11,
-                right: '0.0',
-                expectedResultType: BooleanValue,
-                expectedResult: false,
-                expectDivisionByZero: true
-            },
-            {
-                left: 21,
-                right: 'not a number',
-                expectedResultType: BooleanValue,
-                expectedResult: false,
-                expectDivisionByZero: true
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' / ' + scenario.right + '`', function () {
-                beforeEach(function () {
-                    leftValue = factory.createInteger(scenario.left);
-                    createValue(scenario.right);
-                });
-
-                it('should return the correct value', function () {
-                    var result = value.divideByInteger(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                if (scenario.expectDivisionByZero) {
-                    it('should raise a warning due to division by zero', function () {
-                        value.divideByInteger(leftValue);
-
-                        expect(callStack.raiseError).to.have.been.calledOnce;
-                        expect(callStack.raiseError)
-                            .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
-                    });
-                } else {
-                    it('should not raise any warnings', function () {
-                        value.divideByInteger(leftValue);
-
-                        expect(callStack.raiseError).not.to.have.been.called;
-                    });
-                }
-            });
-        });
-    });
-
-    describe('divideByNull()', function () {
-        var coercedLeftValue,
-            leftValue;
-
-        _.each([
-            {
-                right: '1',
-                expectedResultType: IntegerValue,
-                expectedResult: 0,
-                expectDivisionByZero: false
-            },
-            {
-                right: '1.0',
-                expectedResultType: FloatValue,
-                expectedResult: 0,
-                expectDivisionByZero: false
-            },
-            {
-                right: '0.0',
-                expectedResultType: BooleanValue,
-                expectedResult: false,
-                expectDivisionByZero: true
-            },
-            {
-                right: 'not my number',
-                expectedResultType: BooleanValue,
-                expectedResult: false,
-                expectDivisionByZero: true
-            }
-        ], function (scenario) {
-            describe('for `null / ' + scenario.right + '`', function () {
-                beforeEach(function () {
-                    leftValue = sinon.createStubInstance(NullValue);
-                    createValue(scenario.right);
-                    leftValue.getNative.returns(null);
-
-                    coercedLeftValue = sinon.createStubInstance(IntegerValue);
-                    coercedLeftValue.getNative.returns(0);
-                    leftValue.coerceToNumber.returns(coercedLeftValue);
-                });
-
-                it('should return the correct value', function () {
-                    var result = value.divideByNull(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                if (scenario.expectDivisionByZero) {
-                    it('should raise a warning due to division by zero', function () {
-                        value.divideByNull(leftValue);
-
-                        expect(callStack.raiseError).to.have.been.calledOnce;
-                        expect(callStack.raiseError)
-                            .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
-                    });
-                } else {
-                    it('should not raise any warnings', function () {
-                        value.divideByNull(leftValue);
-
-                        expect(callStack.raiseError).not.to.have.been.called;
-                    });
-                }
-            });
-        });
-    });
-
-    describe('divideByObject()', function () {
-        var coercedLeftValue,
-            leftValue;
-
-        beforeEach(function () {
-            leftValue = sinon.createStubInstance(ObjectValue);
-            leftValue.getNative.returns({});
-
-            coercedLeftValue = sinon.createStubInstance(IntegerValue);
-            coercedLeftValue.getNative.returns(1);
-            leftValue.coerceToNumber.returns(coercedLeftValue);
-        });
-
-        describe('when the divisor is `1`', function () {
-            beforeEach(function () {
-                createValue('1');
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(21);
             });
 
-            it('should return int(1)', function () {
-                var result = value.divideByObject(leftValue);
+            it('should raise a warning and return false when dividing by false', function () {
+                var divisorOperand = factory.createBoolean(false), // Will be coerced to int(0)
+                    resultValue;
 
-                expect(result).to.be.an.instanceOf(IntegerValue);
-                expect(result.getNative()).to.equal(1);
-            });
-
-            it('should not raise any extra notices', function () {
-                value.divideByObject(leftValue);
-
-                expect(callStack.raiseError).not.to.have.been.called;
-            });
-        });
-
-        describe('when the divisor is `1.0`', function () {
-            beforeEach(function () {
-                createValue('1.0');
-            });
-
-            it('should return float(1.0)', function () {
-                var result = value.divideByObject(leftValue);
-
-                expect(result).to.be.an.instanceOf(FloatValue);
-                expect(result.getNative()).to.equal(1);
-            });
-
-            it('should not raise any extra notices', function () {
-                value.divideByObject(leftValue);
-
-                expect(callStack.raiseError).not.to.have.been.called;
-            });
-        });
-
-        describe('when the divisor is `0`', function () {
-            beforeEach(function () {
-                createValue('0');
-            });
-
-            it('should return bool(false)', function () {
-                var result = value.divideByObject(leftValue);
-
-                expect(result).to.be.an.instanceOf(BooleanValue);
-                expect(result.getNative()).to.equal(false);
-            });
-
-            it('should raise a warning due to division by zero', function () {
-                value.divideByObject(leftValue);
+                resultValue = value.divideBy(divisorOperand);
 
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError)
                     .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
+                expect(resultValue.getType()).to.equal('boolean');
+                expect(resultValue.getNative()).to.equal(false);
             });
         });
-    });
 
-    describe('divideByString()', function () {
-        var leftValue;
+        describe('for a float divisor', function () {
+            it('should return the result of dividing', function () {
+                var divisorOperand = factory.createFloat(2.5),
+                    resultValue;
+                createValue('10.5');
 
-        _.each([
-            {
-                left: 'my string',
-                right: '1.0',
-                expectedResultType: FloatValue,
-                expectedResult: 0,
-                expectDivisionByZero: false
-            },
-            {
-                left: '21', // Int string is coerced to int
-                right: '1.0',
-                expectedResultType: FloatValue,
-                expectedResult: 21,
-                expectDivisionByZero: false
-            },
-            {
-                left: '22.4', // Decimal string is coerced to float
-                right: '2',
-                expectedResultType: FloatValue,
-                expectedResult: 11.2,
-                expectDivisionByZero: false
-            },
-            {
-                left: '27.2', // Decimal string is coerced to float
-                right: '3.4',
-                expectedResultType: FloatValue,
-                expectedResult: 8.0,
-                expectDivisionByZero: false
-            },
-            {
-                left: '25.4.7', // Decimal string prefix is coerced to float
-                right: '2.0',
-                expectedResultType: FloatValue,
-                expectedResult: 12.7,
-                expectDivisionByZero: false
-            },
-            {
-                left: '23',
-                right: '0',
-                expectedResultType: BooleanValue,
-                expectedResult: false,
-                expectDivisionByZero: true
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' / ' + scenario.right + '`', function () {
-                beforeEach(function () {
-                    leftValue = factory.createString(scenario.left);
-                    createValue(scenario.right);
-                });
+                resultValue = value.divideBy(divisorOperand);
 
-                it('should return the correct value', function () {
-                    var result = value.divideByString(leftValue);
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(4.2);
+            });
 
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
+            it('should raise a warning and return false when dividing by zero', function () {
+                var divisorOperand = factory.createFloat(0),
+                    resultValue;
 
-                if (scenario.expectDivisionByZero) {
-                    it('should raise a warning due to division by zero', function () {
-                        value.divideByString(leftValue);
+                resultValue = value.divideBy(divisorOperand);
 
-                        expect(callStack.raiseError).to.have.been.calledOnce;
-                        expect(callStack.raiseError)
-                            .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
-                    });
-                } else {
-                    it('should not raise any warnings', function () {
-                        value.divideByString(leftValue);
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError)
+                    .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
+                expect(resultValue.getType()).to.equal('boolean');
+                expect(resultValue.getNative()).to.equal(false);
+            });
+        });
 
-                        expect(callStack.raiseError).not.to.have.been.called;
-                    });
-                }
+        describe('for an integer divisor', function () {
+            it('should return the result of dividing', function () {
+                var divisorOperand = factory.createInteger(2),
+                    resultValue;
+
+                resultValue = value.divideBy(divisorOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(10.5);
+            });
+
+            it('should raise a warning and return false when dividing by zero', function () {
+                var divisorOperand = factory.createInteger(0),
+                    resultValue;
+
+                resultValue = value.divideBy(divisorOperand);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError)
+                    .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
+                expect(resultValue.getType()).to.equal('boolean');
+                expect(resultValue.getNative()).to.equal(false);
+            });
+        });
+
+        it('should raise a warning and return false for a null divisor', function () {
+            var divisorOperand = factory.createNull(),
+                resultValue;
+
+            resultValue = value.divideBy(divisorOperand);
+
+            expect(callStack.raiseError).to.have.been.calledOnce;
+            expect(callStack.raiseError)
+                .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
+            expect(resultValue.getType()).to.equal('boolean');
+            expect(resultValue.getNative()).to.equal(false);
+        });
+
+        describe('for an object divisor', function () {
+            it('should return the result of dividing', function () {
+                var divisorOperand = sinon.createStubInstance(ObjectValue),
+                    resultValue;
+                divisorOperand.coerceToNumber.returns(factory.createInteger(1));
+
+                resultValue = value.divideBy(divisorOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(21);
+            });
+
+            it('should not raise any extra notices', function () {
+                var divisorOperand = sinon.createStubInstance(ObjectValue);
+                divisorOperand.coerceToNumber.returns(factory.createInteger(1));
+
+                value.divideBy(divisorOperand);
+
+                expect(callStack.raiseError).not.to.have.been.called;
+            });
+        });
+
+        describe('for a string divisor', function () {
+            it('should return the result of dividing by a float string', function () {
+                var divisorOperand = factory.createString('2.5'),
+                    resultValue;
+                createValue('10.5');
+
+                resultValue = value.divideBy(divisorOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(4.2);
+            });
+
+            it('should return the result of dividing by a float with decimal string prefix', function () {
+                var divisorOperand = factory.createString('2.5.4'),
+                    resultValue;
+                createValue('10.5');
+
+                resultValue = value.divideBy(divisorOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(4.2);
+            });
+
+            it('should return the result of dividing by an integer string', function () {
+                var divisorOperand = factory.createString('2'),
+                    resultValue;
+
+                resultValue = value.divideBy(divisorOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(10.5);
+            });
+
+            it('should raise a warning and return false when dividing by zero', function () {
+                var divisorOperand = factory.createString('0'),
+                    resultValue;
+
+                resultValue = value.divideBy(divisorOperand);
+
+                expect(callStack.raiseError).to.have.been.calledOnce;
+                expect(callStack.raiseError)
+                    .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
+                expect(resultValue.getType()).to.equal('boolean');
+                expect(resultValue.getNative()).to.equal(false);
             });
         });
     });
@@ -910,14 +1084,15 @@ describe('String', function () {
     });
 
     describe('getConstantByName()', function () {
-        it('should fetch the constant from the class', function () {
+        it('should fetch the constant from the class', async function () {
             var classObject = sinon.createStubInstance(Class),
-                resultValue = sinon.createStubInstance(Value);
-            globalNamespace.getClass.withArgs('My\\Space\\MyClass').returns(classObject);
+                resultValue = factory.createString('my result');
+            globalNamespace.getClass.withArgs('My\\Space\\MyClass')
+                .returns(futureFactory.createPresent(classObject));
             classObject.getConstantByName.withArgs('MY_CONST').returns(resultValue);
             createValue('My\\Space\\MyClass');
 
-            expect(value.getConstantByName('MY_CONST', namespaceScope)).to.equal(resultValue);
+            expect(await value.getConstantByName('MY_CONST', namespaceScope).toPromise()).to.equal(resultValue);
         });
     });
 
@@ -968,18 +1143,20 @@ describe('String', function () {
     });
 
     describe('getStaticPropertyByName()', function () {
-        it('should fetch the property\'s value from the class', function () {
+        it('should fetch the property\'s value from the class', async function () {
             var classObject = sinon.createStubInstance(Class),
                 resultValue = sinon.createStubInstance(Value);
-            globalNamespace.getClass.withArgs('My\\Space\\MyClass').returns(classObject);
-            classObject.getStaticPropertyByName.withArgs('myProp').returns(resultValue);
+            globalNamespace.getClass.withArgs('My\\Space\\MyClass')
+                .returns(futureFactory.createPresent(classObject));
+            classObject.getStaticPropertyByName.withArgs('myProp')
+                .returns(futureFactory.createPresent(resultValue));
             createValue('My\\Space\\MyClass');
 
             expect(
-                value.getStaticPropertyByName(
+                await value.getStaticPropertyByName(
                     factory.createString('myProp'),
                     namespaceScope
-                )
+                ).toPromise()
             ).to.equal(resultValue);
         });
     });
@@ -992,13 +1169,56 @@ describe('String', function () {
         });
     });
 
+    describe('increment()', function () {
+        it('should return one more when the string contains a positive float', function () {
+            var resultValue;
+            createValue('21.52');
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(22.52);
+        });
+
+        it('should return 1 when the string contains float zero', function () {
+            var resultValue;
+            createValue('0.0');
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(1);
+        });
+
+        it('should return 1 when the string contains integer zero', function () {
+            var resultValue;
+            createValue('0');
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(1);
+        });
+
+        it('should return one more when the string contains a negative float', function () {
+            var resultValue;
+            createValue('-41.7');
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('float');
+            expect(resultValue.getNative()).to.equal(-40.7);
+        });
+    });
+
     describe('instantiate()', function () {
         var classObject,
             newObjectValue;
 
         beforeEach(function () {
             classObject = sinon.createStubInstance(Class);
-            globalNamespace.getClass.withArgs('My\\Space\\MyClass').returns(classObject);
+            globalNamespace.getClass.withArgs('My\\Space\\MyClass')
+                .returns(futureFactory.createPresent(classObject));
             newObjectValue = sinon.createStubInstance(ObjectValue);
             classObject.instantiate.returns(newObjectValue);
         });
@@ -1013,10 +1233,10 @@ describe('String', function () {
             expect(classObject.instantiate).to.have.been.calledWith([sinon.match.same(argValue)]);
         });
 
-        it('should return the new instance created by the class', function () {
+        it('should return the new instance created by the class', async function () {
             createValue('My\\Space\\MyClass');
 
-            expect(value.instantiate([], namespaceScope)).to.equal(newObjectValue);
+            expect(await value.instantiate([], namespaceScope).toPromise()).to.equal(newObjectValue);
         });
     });
 
@@ -1035,21 +1255,21 @@ describe('String', function () {
     });
 
     describe('isCallable()', function () {
-        it('should return true for a function name that exists', function () {
+        it('should return true for a function name that exists', async function () {
             globalNamespace.hasFunction
                 .withArgs('myFunction')
                 .returns(true);
             createValue('myFunction');
 
-            expect(value.isCallable(globalNamespace)).to.be.true;
+            expect(await value.isCallable(globalNamespace).toPromise()).to.be.true;
         });
 
-        it('should return true for a static method name that exists', function () {
+        it('should return true for a static method name that exists', async function () {
             var classObject = sinon.createStubInstance(Class),
                 methodSpec = sinon.createStubInstance(MethodSpec);
             globalNamespace.getClass
                 .withArgs('My\\Fqcn')
-                .returns(classObject);
+                .returns(futureFactory.createPresent(classObject));
             globalNamespace.hasClass
                 .withArgs('My\\Fqcn')
                 .returns(true);
@@ -1058,23 +1278,23 @@ describe('String', function () {
                 .returns(methodSpec);
             createValue('My\\Fqcn::myMethod');
 
-            expect(value.isCallable(globalNamespace)).to.be.true;
+            expect(await value.isCallable(globalNamespace).toPromise()).to.be.true;
         });
 
-        it('should return false for a function name that doesn\'t exist', function () {
+        it('should return false for a function name that doesn\'t exist', async function () {
             globalNamespace.hasFunction
                 .withArgs('myNonExistentFunction')
                 .returns(false);
             createValue('myNonExistentFunction');
 
-            expect(value.isCallable(globalNamespace)).to.be.false;
+            expect(await value.isCallable(globalNamespace).toPromise()).to.be.false;
         });
 
-        it('should return false for a static method that doesn\'t exist for a defined class', function () {
+        it('should return false for a static method that doesn\'t exist for a defined class', async function () {
             var classObject = sinon.createStubInstance(Class);
             globalNamespace.getClass
                 .withArgs('My\\Fqcn')
-                .returns(classObject);
+                .returns(futureFactory.createPresent(classObject));
             globalNamespace.hasClass
                 .withArgs('My\\Fqcn')
                 .returns(true);
@@ -1083,42 +1303,45 @@ describe('String', function () {
                 .returns(null);
             createValue('My\\Fqcn::myMethod');
 
-            expect(value.isCallable(globalNamespace)).to.be.false;
+            expect(await value.isCallable(globalNamespace).toPromise()).to.be.false;
         });
 
-        it('should return false for a static method of a non-existent class', function () {
+        it('should return false for a static method of a non-existent class', async function () {
+            globalNamespace.getClass
+                .withArgs('My\\NonExistentFqcn')
+                .returns(futureFactory.createRejection(new PHPError(PHPError.E_ERROR, 'Class not found')));
             globalNamespace.hasClass
-                .withArgs('My\\Fqcn')
+                .withArgs('My\\NonExistentFqcn')
                 .returns(false);
             createValue('My\\NonExistentFqcn::myMethod');
 
-            expect(value.isCallable(globalNamespace)).to.be.false;
+            expect(await value.isCallable(globalNamespace).toPromise()).to.be.false;
         });
     });
 
     describe('isEmpty()', function () {
-        it('should return true for the empty string', function () {
+        it('should return true for the empty string', async function () {
             createValue('');
 
-            expect(value.isEmpty()).to.be.true;
+            expect(await value.isEmpty().toPromise()).to.be.true;
         });
 
-        it('should return true for the string "0"', function () {
+        it('should return true for the string "0"', async function () {
             createValue('0');
 
-            expect(value.isEmpty()).to.be.true;
+            expect(await value.isEmpty().toPromise()).to.be.true;
         });
 
-        it('should return false for a string of text', function () {
+        it('should return false for a string of text', async function () {
             createValue('my text');
 
-            expect(value.isEmpty()).to.be.false;
+            expect(await value.isEmpty().toPromise()).to.be.false;
         });
 
-        it('should return false for the string "0.0", in contrast to the integer version', function () {
+        it('should return false for the string "0.0", in contrast to the integer version', async function () {
             createValue('0.0');
 
-            expect(value.isEmpty()).to.be.false;
+            expect(await value.isEmpty().toPromise()).to.be.false;
         });
     });
 
@@ -1149,6 +1372,14 @@ describe('String', function () {
             createValue('hello');
 
             expect(value.isNumeric()).to.be.false;
+        });
+    });
+
+    describe('isReferenceable()', function () {
+        it('should return false', function () {
+            createValue('my string');
+
+            expect(value.isReferenceable()).to.be.false;
         });
     });
 
@@ -1299,379 +1530,309 @@ describe('String', function () {
         });
     });
 
-    describe('multiply()', function () {
-        it('should hand off to the right-hand operand to multiply by this string', function () {
-            var rightOperand = sinon.createStubInstance(Value),
-                result = sinon.createStubInstance(Value);
-            createValue('my string');
-            rightOperand.multiplyByString.withArgs(value).returns(result);
-
-            expect(value.multiply(rightOperand)).to.equal(result);
-        });
-    });
-
-    describe('multiplyByArray()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            var leftValue = factory.createArray([]);
-            createValue('my string');
-
-            expect(function () {
-                value.multiplyByArray(leftValue);
-            }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-            );
-        });
-    });
-
-    describe('multiplyByBoolean()', function () {
-        var leftValue;
-
-        _.each([
-            {
-                left: true,
-                right: '1.25',
-                expectedResultType: FloatValue,
-                expectedResult: 1.25
-            },
-            {
-                left: true,
-                right: '0.0',
-                expectedResultType: FloatValue,
-                expectedResult: 0.0
-            },
-            {
-                left: false,
-                right: '1.0',
-                expectedResultType: FloatValue,
-                expectedResult: 0.0
-            },
-            {
-                left: true,
-                right: 'not a number',
-                expectedResultType: IntegerValue,
-                expectedResult: 0.0
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' * ' + scenario.right + '`', function () {
-                beforeEach(function () {
-                    leftValue = factory.createBoolean(scenario.left);
-                    createValue(scenario.right);
-                });
-
-                it('should return the correct value', function () {
-                    var result = value.multiplyByBoolean(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                it('should not raise any warnings', function () {
-                    value.multiplyByBoolean(leftValue);
-
-                    expect(callStack.raiseError).not.to.have.been.called;
-                });
-            });
-        });
-    });
-
-    describe('multiplyByFloat()', function () {
-        var leftValue;
-
-        _.each([
-            {
-                left: 12.4,
-                right: '1.0',
-                expectedResultType: FloatValue,
-                expectedResult: 12.4
-            },
-            {
-                left: 20.5,
-                right: '0.5',
-                expectedResultType: FloatValue,
-                expectedResult: 10.25
-            },
-            {
-                left: 11.0,
-                right: '0',
-                expectedResultType: FloatValue,
-                expectedResult: 0.0
-            },
-            {
-                left: 21.0,
-                right: 'not a number',
-                expectedResultType: FloatValue,
-                expectedResult: 0.0
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' * ' + scenario.right + '`', function () {
-                beforeEach(function () {
-                    leftValue = factory.createFloat(scenario.left);
-                    createValue(scenario.right);
-                });
-
-                it('should return the correct value', function () {
-                    var result = value.multiplyByFloat(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                it('should not raise any warnings', function () {
-                    value.multiplyByFloat(leftValue);
-
-                    expect(callStack.raiseError).not.to.have.been.called;
-                });
-            });
-        });
-    });
-
-    describe('multiplyByInteger()', function () {
-        var leftValue;
-
-        _.each([
-            {
-                left: 15,
-                right: '1.0',
-                expectedResultType: FloatValue,
-                expectedResult: 15.0
-            },
-            {
-                left: 100,
-                right: '2.5',
-                expectedResultType: FloatValue,
-                expectedResult: 250.0
-            },
-            {
-                left: 11,
-                right: '0.0',
-                expectedResultType: FloatValue,
-                expectedResult: 0.0
-            },
-            {
-                left: 21,
-                right: 'not a number',
-                expectedResultType: IntegerValue, // No float operands, so product will be an integer
-                expectedResult: 0
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' * ' + scenario.right + '`', function () {
-                beforeEach(function () {
-                    leftValue = factory.createInteger(scenario.left);
-                    createValue(scenario.right);
-                });
-
-                it('should return the correct value', function () {
-                    var result = value.multiplyByInteger(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                it('should not raise any warnings', function () {
-                    value.multiplyByInteger(leftValue);
-
-                    expect(callStack.raiseError).not.to.have.been.called;
-                });
-            });
-        });
-    });
-
-    describe('multiplyByNull()', function () {
-        var coercedLeftValue,
-            leftValue;
-
-        _.each([
-            {
-                right: '1',
-                expectedResultType: IntegerValue,
-                expectedResult: 0
-            },
-            {
-                right: '1.0',
-                expectedResultType: FloatValue,
-                expectedResult: 0.0
-            },
-            {
-                right: '0.0',
-                expectedResultType: FloatValue,
-                expectedResult: 0.0
-            },
-            {
-                right: 'not my number',
-                expectedResultType: IntegerValue,
-                expectedResult: 0
-            }
-        ], function (scenario) {
-            describe('for `null * ' + scenario.right + '`', function () {
-                beforeEach(function () {
-                    leftValue = sinon.createStubInstance(NullValue);
-                    createValue(scenario.right);
-                    leftValue.getNative.returns(null);
-
-                    coercedLeftValue = sinon.createStubInstance(IntegerValue);
-                    coercedLeftValue.getNative.returns(0);
-                    leftValue.coerceToNumber.returns(coercedLeftValue);
-                });
-
-                it('should return the correct value', function () {
-                    var result = value.multiplyByNull(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                it('should not raise any warnings', function () {
-                    value.multiplyByNull(leftValue);
-
-                    expect(callStack.raiseError).not.to.have.been.called;
-                });
-            });
-        });
-    });
-
-    describe('multiplyByObject()', function () {
-        var coercedLeftValue,
-            leftValue;
-
+    describe('multiplyBy()', function () {
         beforeEach(function () {
-            leftValue = sinon.createStubInstance(ObjectValue);
-            leftValue.getNative.returns({});
-
-            coercedLeftValue = sinon.createStubInstance(IntegerValue);
-            coercedLeftValue.getNative.returns(1);
-            leftValue.coerceToNumber.returns(coercedLeftValue);
+            createValue('21');
         });
 
-        describe('when the multiplier is `1`', function () {
-            beforeEach(function () {
-                createValue('1');
-            });
-
-            it('should return int(1)', function () {
-                var result = value.multiplyByObject(leftValue);
-
-                expect(result).to.be.an.instanceOf(IntegerValue);
-                expect(result.getNative()).to.equal(1);
-            });
-
-            it('should not raise any extra notices', function () {
-                value.multiplyByObject(leftValue);
-
-                expect(callStack.raiseError).not.to.have.been.called;
-            });
-        });
-
-        describe('when the multiplier is `1.0`', function () {
-            beforeEach(function () {
-                createValue('1.0');
-            });
-
-            it('should return float(1.0)', function () {
-                var result = value.multiplyByObject(leftValue);
-
-                expect(result).to.be.an.instanceOf(FloatValue);
-                expect(result.getNative()).to.equal(1.0);
-            });
-
-            it('should not raise any extra notices', function () {
-                value.multiplyByObject(leftValue);
-
-                expect(callStack.raiseError).not.to.have.been.called;
-            });
-        });
-
-        describe('when the multiplier is `0`', function () {
-            beforeEach(function () {
-                createValue('0');
-            });
-
-            it('should return int(0)', function () {
-                var result = value.multiplyByObject(leftValue);
-
-                expect(result).to.be.an.instanceOf(IntegerValue);
-                expect(result.getNative()).to.equal(0);
-            });
-
-            it('should not raise any extra notices', function () {
-                value.multiplyByObject(leftValue);
-
-                expect(callStack.raiseError).not.to.have.been.called;
-            });
-        });
-    });
-
-    describe('multiplyByString()', function () {
-        var leftValue;
-
-        _.each([
-            {
-                left: 'my string',
-                right: '1.0',
-                expectedResultType: FloatValue,
-                expectedResult: 0.0
-            },
-            {
-                left: '21', // Int string is coerced to int
-                right: '1.0',
-                expectedResultType: FloatValue,
-                expectedResult: 21.0
-            },
-            {
-                left: '22.4', // Decimal string is coerced to float
-                right: '2',
-                expectedResultType: FloatValue,
-                expectedResult: 44.8
-            },
-            {
-                left: '16.2', // Decimal string is coerced to float
-                right: '2.5',
-                expectedResultType: FloatValue,
-                expectedResult: 40.5
-            },
-            {
-                left: '25.4.7', // Decimal string prefix is coerced to float
-                right: '2.0',
-                expectedResultType: FloatValue,
-                expectedResult: 50.8
-            },
-            {
-                left: '23',
-                right: '0',
-                expectedResultType: IntegerValue,
-                expectedResult: 0
-            }
-        ], function (scenario) {
-            describe('for `' + scenario.left + ' * ' + scenario.right + '`', function () {
-                beforeEach(function () {
-                    leftValue = factory.createString(scenario.left);
-                    createValue(scenario.right);
-                });
-
-                it('should return the correct value', function () {
-                    var result = value.multiplyByString(leftValue);
-
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
-
-                it('should not raise any warnings', function () {
-                    value.multiplyByString(leftValue);
-
-                    expect(callStack.raiseError).not.to.have.been.called;
-                });
-            });
-        });
-    });
-
-    describe('subtractFromNull()', function () {
-        it('should throw an "Unsupported operand" error', function () {
-            createValue('my string');
+        it('should throw an "Unsupported operand" error for an array multiplier', function () {
+            var multiplierValue = factory.createArray([]);
 
             expect(function () {
-                value.subtractFromNull();
+                value.multiplyBy(multiplierValue);
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
+        });
+
+        describe('for a boolean multiplier', function () {
+            it('should return the result of multiplying by true', function () {
+                var multiplierOperand = factory.createBoolean(true), // Will be coerced to int(1)
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(21);
+            });
+
+            it('should return the result of multiplying by false', function () {
+                var multiplierOperand = factory.createBoolean(false), // Will be coerced to int(0)
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(0);
+            });
+        });
+
+        describe('for a float multiplier', function () {
+            it('should return the result of multiplying', function () {
+                var multiplierOperand = factory.createFloat(2.5),
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(52.5);
+            });
+        });
+
+        describe('for an integer multiplier', function () {
+            it('should return the result of multiplying when this string is an integer', function () {
+                var multiplierOperand = factory.createInteger(2),
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(42);
+            });
+
+            it('should return the result of multiplying when this string is a float', function () {
+                var multiplierOperand = factory.createInteger(2),
+                    resultValue;
+                createValue('1.4');
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(2.8);
+            });
+        });
+
+        it('should return zero for a null multiplier', function () {
+            var multiplierOperand = factory.createNull(),
+                resultValue;
+
+            resultValue = value.multiplyBy(multiplierOperand);
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(0);
+        });
+
+        describe('for an object multiplier', function () {
+            it('should return the result of multiplying', function () {
+                var multiplierOperand = sinon.createStubInstance(ObjectValue),
+                    resultValue;
+                multiplierOperand.coerceToNumber.returns(factory.createInteger(1));
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(21);
+            });
+
+            it('should not raise any extra notices', function () {
+                var multiplierOperand = sinon.createStubInstance(ObjectValue);
+                multiplierOperand.coerceToNumber.returns(factory.createInteger(1));
+
+                value.multiplyBy(multiplierOperand);
+
+                expect(callStack.raiseError).not.to.have.been.called;
+            });
+        });
+
+        describe('for a string multiplier', function () {
+            it('should return the result of multiplying by a float string when this string is an integer', function () {
+                var multiplierOperand = factory.createString('2.5'),
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(52.5);
+            });
+
+            it('should return the result of multiplying by a float string when this string is a float', function () {
+                var multiplierOperand = factory.createString('2.5'),
+                    resultValue;
+                createValue('1.4');
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(3.5);
+            });
+
+            it('should return the result of multiplying by a float with decimal string prefix', function () {
+                var multiplierOperand = factory.createString('2.5.4'),
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(52.5);
+            });
+
+            it('should return the result of multiplying by an integer string', function () {
+                var multiplierOperand = factory.createString('2'),
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(42);
+            });
+
+            it('should return zero when multiplying by zero', function () {
+                var multiplierOperand = factory.createString('0'),
+                    resultValue;
+
+                resultValue = value.multiplyBy(multiplierOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(0);
+            });
+        });
+    });
+
+    describe('subtract()', function () {
+        beforeEach(function () {
+            createValue('21');
+        });
+
+        it('should throw an "Unsupported operand" error for an array subtrahend', function () {
+            var subtrahendValue = factory.createArray([]);
+
+            expect(function () {
+                value.subtract(subtrahendValue);
+            }).to.throw(
+                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+            );
+        });
+
+        describe('for a boolean subtrahend', function () {
+            it('should return the result of subtracting true', function () {
+                var subtrahendOperand = factory.createBoolean(true), // Will be coerced to int(1)
+                    resultValue;
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(20);
+            });
+
+            it('should return the result of subtracting false', function () {
+                var subtrahendOperand = factory.createBoolean(false), // Will be coerced to int(0)
+                    resultValue;
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(21);
+            });
+        });
+
+        describe('for a float subtrahend', function () {
+            it('should return the result of subtracting', function () {
+                var subtrahendOperand = factory.createFloat(2.5),
+                    resultValue;
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(18.5);
+            });
+        });
+
+        describe('for an integer subtrahend', function () {
+            it('should return the result of subtracting when this string is an integer', function () {
+                var subtrahendOperand = factory.createInteger(2),
+                    resultValue;
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(19);
+            });
+
+            it('should return the result of subtracting when this string is a float', function () {
+                var subtrahendOperand = factory.createInteger(2),
+                    resultValue;
+                createValue('3.5');
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(1.5);
+            });
+        });
+
+        it('should subtract zero for a null subtrahend', function () {
+            var subtrahendOperand = factory.createNull(),
+                resultValue;
+
+            resultValue = value.subtract(subtrahendOperand);
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(21);
+        });
+
+        describe('for an object subtrahend', function () {
+            it('should return the result of subtracting, with the object coerced to int(1)', function () {
+                var subtrahendOperand = sinon.createStubInstance(ObjectValue),
+                    resultValue;
+                subtrahendOperand.coerceToNumber.returns(factory.createInteger(1));
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(20);
+            });
+
+            it('should not raise any extra notices', function () {
+                var subtrahendOperand = sinon.createStubInstance(ObjectValue);
+                subtrahendOperand.coerceToNumber.returns(factory.createInteger(1));
+
+                value.subtract(subtrahendOperand);
+
+                expect(callStack.raiseError).not.to.have.been.called;
+            });
+        });
+
+        describe('for a string subtrahend', function () {
+            it('should return the result of subtracting a float string when this string is an integer', function () {
+                var subtrahendOperand = factory.createString('2.5'),
+                    resultValue;
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(18.5);
+            });
+
+            it('should return the result of subtracting a float string when this string is a float', function () {
+                var subtrahendOperand = factory.createString('2.5'),
+                    resultValue;
+                createValue(5.7);
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(3.2);
+            });
+
+            it('should return the result of subtracting a float with decimal string prefix', function () {
+                var subtrahendOperand = factory.createString('3.5.4'),
+                    resultValue;
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('float');
+                expect(resultValue.getNative()).to.equal(17.5);
+            });
+
+            it('should return the result of subtracting an integer string', function () {
+                var subtrahendOperand = factory.createString('7'),
+                    resultValue;
+
+                resultValue = value.subtract(subtrahendOperand);
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(14);
+            });
         });
     });
 });

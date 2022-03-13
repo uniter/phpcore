@@ -31,7 +31,7 @@ $result[] = 'fifth';
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal({
@@ -57,7 +57,7 @@ $result[] = $doPush();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
@@ -79,13 +79,68 @@ $result[] = $myArray;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile(null, php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
             {
                 my_key: 'the value for element 21'
             }
+        ]);
+    });
+
+    it('should return the pushed value as the result of the push expression', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+$myArray = ['my' => 'my value'];
+$result[] = ($myArray[] = 'the value for my pushed element');
+$result[] = $myArray;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            'the value for my pushed element',
+            {
+                'my': 'my value',
+                0: 'the value for my pushed element'
+            }
+        ]);
+    });
+
+    it('should return the pushed reference\'s value as the result of the push expression', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+$myValue = 21;
+
+$myArray = ['my' => 'my value'];
+$result[] =& $myValue;
+$result[] = ($myArray[] =& $myValue); // $result[] should only have the value pushed, not the reference
+$result[] = $myArray;
+
+$myValue = 101;
+
+$result[] = $myArray;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect(engine.execute().getNative()).to.deep.equal([
+            101,
+            21,
+            {'my': 'my value', 0: 101},
+            {'my': 'my value', 0: 101}
         ]);
     });
 

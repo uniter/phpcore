@@ -23,35 +23,29 @@ module.exports = require('pauser')([
     var UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types',
         PHPError = phpCommon.PHPError;
 
-    function BooleanValue(factory, callStack, value) {
-        Value.call(this, factory, callStack, 'boolean', !!value);
+    /**
+     * Represents a PHP boolean value
+     *
+     * @param {ValueFactory} factory
+     * @param {ReferenceFactory} referenceFactory
+     * @param {FutureFactory} futureFactory
+     * @param {CallStack} callStack
+     * @param {boolean} value
+     * @constructor
+     */
+    function BooleanValue(
+        factory,
+        referenceFactory,
+        futureFactory,
+        callStack,
+        value
+    ) {
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'boolean', !!value);
     }
 
     util.inherits(BooleanValue, Value);
 
     _.extend(BooleanValue.prototype, {
-        add: function (rightValue) {
-            return rightValue.addToBoolean(this);
-        },
-
-        addToBoolean: function (rightValue) {
-            var value = this;
-
-            return value.factory.createInteger(value.value + rightValue.value);
-        },
-
-        addToInteger: function (integerValue) {
-            return integerValue.addToBoolean(this);
-        },
-
-        addToNull: function () {
-            return this.coerceToInteger();
-        },
-
-        addToObject: function (objectValue) {
-            return objectValue.addToBoolean(this);
-        },
-
         coerceToBoolean: function () {
             return this;
         },
@@ -66,10 +60,6 @@ module.exports = require('pauser')([
             return this.coerceToInteger();
         },
 
-        coerceToNumber: function () {
-            return this.coerceToInteger();
-        },
-
         coerceToString: function () {
             var value = this;
 
@@ -77,39 +67,32 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Divides this boolean by another value
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
+         * {@inheritdoc}
          */
-        divide: function (rightValue) {
-            return rightValue.divideByBoolean(this);
+        convertForFloatType: function () {
+            return this.coerceToFloat();
         },
 
         /**
-         * Divides a non-array value by this boolean
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
+         * {@inheritdoc}
          */
-        divideByNonArray: function (leftValue) {
-            var coercedLeftValue,
-                rightValue = this,
-                divisor = rightValue.getNative(),
-                quotient;
+        convertForIntegerType: function () {
+            return this.coerceToInteger();
+        },
 
-            if (divisor === false) {
-                rightValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
+        /**
+         * {@inheritdoc}
+         */
+        convertForStringType: function () {
+            return this.coerceToString();
+        },
 
-                return rightValue.factory.createBoolean(false);
-            }
-
-            coercedLeftValue = leftValue.coerceToNumber();
-            quotient = coercedLeftValue.getNative() / divisor;
-
-            return coercedLeftValue.getType() === 'float' ?
-                rightValue.factory.createFloat(quotient) :
-                rightValue.factory.createInteger(quotient);
+        /**
+         * {@inheritdoc}
+         */
+        decrement: function () {
+            // NB: This is the expected behaviour, vs. subtracting one from a boolean explicitly.
+            return this;
         },
 
         formatAsString: function () {
@@ -121,6 +104,14 @@ module.exports = require('pauser')([
             return this.factory.createNull();
         },
 
+        /**
+         * {@inheritdoc}
+         */
+        increment: function () {
+            // NB: This is the expected behaviour, vs. adding one to a boolean explicitly.
+            return this;
+        },
+
         isAnInstanceOf: function (classNameValue) {
             return classNameValue.isTheClassOfBoolean(this);
         },
@@ -129,17 +120,19 @@ module.exports = require('pauser')([
          * {@inheritdoc}
          */
         isCallable: function () {
-            return false;
+            return this.futureFactory.createPresent(false);
         },
 
         /**
          * Determines whether this boolean is classed as "empty" or not.
          * Only false is classed as empty
          *
-         * @returns {boolean}
+         * @returns {Future<boolean>}
          */
         isEmpty: function () {
-            return this.value === false;
+            var value = this;
+
+            return value.futureFactory.createPresent(value.value === false);
         },
 
         isEqualTo: function (rightValue) {
@@ -178,45 +171,10 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Multiplies this boolean by the specified value
-         *
-         * @param {Value} rightValue
-         * @returns {Value}
-         */
-        multiply: function (rightValue) {
-            return rightValue.multiplyByBoolean(this);
-        },
-
-        /**
-         * Multiplies a non-array value by this boolean
-         *
-         * @param {Value} leftValue
-         * @returns {Value}
-         */
-        multiplyByNonArray: function (leftValue) {
-            var coercedLeftValue = leftValue.coerceToNumber(),
-                rightValue = this,
-                multiplier = rightValue.getNative(),
-                product = coercedLeftValue.getNative() * multiplier;
-
-            return coercedLeftValue.getType() === 'float' ?
-                rightValue.factory.createFloat(product) :
-                rightValue.factory.createInteger(product);
-        },
-
-        /**
          * Calculates the ones' complement of this value
          */
         onesComplement: function () {
             this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-        },
-
-        shiftLeftBy: function (rightValue) {
-            return this.coerceToInteger().shiftLeftBy(rightValue);
-        },
-
-        shiftRightBy: function (rightValue) {
-            return this.coerceToInteger().shiftRightBy(rightValue);
         }
     });
 

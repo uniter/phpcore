@@ -30,7 +30,7 @@ module.exports = require('pauser')([
      * @param {CallFactory} callFactory
      * @param {CallStack} callStack
      * @param {ErrorPromoter} errorPromoter
-     * @param {Resumable|null} pausable
+     * @param {Flow} flow
      * @param {string} mode
      * @constructor
      */
@@ -38,7 +38,7 @@ module.exports = require('pauser')([
         callFactory,
         callStack,
         errorPromoter,
-        pausable,
+        flow,
         mode
     ) {
         /**
@@ -54,13 +54,13 @@ module.exports = require('pauser')([
          */
         this.errorPromoter = errorPromoter;
         /**
+         * @type {Flow}
+         */
+        this.flow = flow;
+        /**
          * @type {string}
          */
         this.mode = mode;
-        /**
-         * @type {Resumable|null}
-         */
-        this.pausable = pausable;
     }
 
     _.extend(Caller.prototype, {
@@ -79,12 +79,8 @@ module.exports = require('pauser')([
                 throw new Exception('Caller.callMethodAsync() :: Must be in async mode');
             }
 
-            // Call the method via Pausable to allow for blocking operation
-            return caller.pausable.call(
-                objectValue.callMethod,
-                [methodName, args],
-                objectValue
-            )
+            // Call the method - note that it may return a FutureValue for async operation
+            return objectValue.callMethod(methodName, args)
                 // Pop the call off the stack _before_ returning, to mirror sync mode's behaviour
                 .finally(caller.popFFICall.bind(caller))
                 .catch(function (error) {
@@ -95,7 +91,8 @@ module.exports = require('pauser')([
 
                     // Normal error: just pass it up to the caller
                     throw error;
-                });
+                })
+                .toPromise();
         },
 
         /**
@@ -118,7 +115,7 @@ module.exports = require('pauser')([
 
             function invoke() {
                 try {
-                    return objectValue.callMethod(methodName, args);
+                    return objectValue.callMethod(methodName, args).yieldSync();
                 } catch (error) {
                     if (error instanceof Value && error.getType() === 'object') {
                         // Method threw a PHP Exception, so throw a native JS error for it

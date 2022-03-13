@@ -12,7 +12,7 @@
 var _ = require('microdash'),
     PATH = 'path',
     Promise = require('lie'),
-    ValueWrapper = require('./Value');
+    Value = require('./Value').sync();
 
 /**
  * Executes a transpiled PHP module
@@ -22,7 +22,6 @@ var _ = require('microdash'),
  * @param {Object} phpCommon
  * @param {Object} options Configuration options for this engine
  * @param {Function} wrapper The wrapper function for the transpiled PHP module
- * @param {Resumable|null} pausable Pausable library for async mode, null for psync or sync modes
  * @param {string} mode
  * @constructor
  */
@@ -32,7 +31,6 @@ function Engine(
     phpCommon,
     options,
     wrapper,
-    pausable,
     mode
 ) {
     /**
@@ -52,10 +50,6 @@ function Engine(
         },
         options || {}
     );
-    /**
-     * @type {Resumable}
-     */
-    this.pausable = pausable;
     /**
      * @type {Object}
      */
@@ -93,31 +87,15 @@ _.extend(Engine.prototype, {
     },
 
     /**
-     * Creates a Pause object for use in async mode
-     *
-     * @returns {PauseException}
-     */
-    createPause: function () {
-        var engine = this;
-
-        if (!engine.pausable) {
-            throw new Error('Pausable is not available');
-        }
-
-        return engine.pausable.createPause();
-    },
-
-    /**
      * Defines a new class (in any namespace).
      * Note that the class will be defined on the current engine's environment,
      * so any other engines that share this environment will also see the new class
      *
      * @param {string} name FQCN for the class to define
      * @param {function} definitionFactory Called with `internals` object, returns the class definition
-     * @returns {Class} Returns the instance of Class that represents a PHP class
      */
     defineClass: function (name, definitionFactory) {
-        return this.environment.defineClass(name, definitionFactory);
+        this.environment.defineClass(name, definitionFactory);
     },
 
     /**
@@ -126,9 +104,10 @@ _.extend(Engine.prototype, {
      *
      * @param {string} name
      * @param {Function} fn
+     * @param {string=} signature Function signature (parameter and return type definitions)
      */
-    defineCoercingFunction: function (name, fn) {
-        this.environment.defineCoercingFunction(name, fn);
+    defineCoercingFunction: function (name, fn, signature) {
+        this.environment.defineCoercingFunction(name, fn, signature);
     },
 
     /**
@@ -174,7 +153,7 @@ _.extend(Engine.prototype, {
      *
      * @param {string} name
      * @param {Function} valueGetter
-     * @param {Function} valueSetter
+     * @param {Function=} valueSetter
      */
     defineGlobalAccessor: function (name, valueGetter, valueSetter) {
         this.environment.defineGlobalAccessor(name, valueGetter, valueSetter);
@@ -186,9 +165,10 @@ _.extend(Engine.prototype, {
      *
      * @param {string} name
      * @param {Function} fn
+     * @param {string=} signature Function signature (parameter and return type definitions)
      */
-    defineNonCoercingFunction: function (name, fn) {
-        this.environment.defineNonCoercingFunction(name, fn);
+    defineNonCoercingFunction: function (name, fn, signature) {
+        this.environment.defineNonCoercingFunction(name, fn, signature);
     },
 
     /**
@@ -217,6 +197,8 @@ _.extend(Engine.prototype, {
     execute: function __uniterInboundStackMarker__() {
         var callFactory,
             callStack,
+            core,
+            coreFactory,
             engine = this,
             environment = engine.environment,
             errorReporting,
@@ -229,28 +211,21 @@ _.extend(Engine.prototype, {
             path = options[PATH],
             isMainProgram = engine.topLevelScope === null,
             output,
-            pausable = engine.pausable,
             phpCommon = engine.phpCommon,
             PHPError = phpCommon.PHPError,
             PHPParseError = phpCommon.PHPParseError,
             resultValue,
             scopeFactory,
             state,
-            stderr = engine.getStderr(),
-            stdin = engine.getStdin(),
-            tools,
-            toolsFactory,
+            valueFactory,
             wrapper = engine.wrapper,
-            unwrap = function (wrapper) {
-                return mode === 'async' ? wrapper.async(pausable) : wrapper.sync();
-            },
-            // TODO: Wrap this module with `pauser` to remove the need for this
-            Value = unwrap(ValueWrapper),
+            userland,
             topLevelNamespaceScope,
             topLevelScope;
 
         state = environment.getState();
         callFactory = state.getCallFactory();
+        coreFactory = state.getCoreFactory();
         errorReporting = state.getErrorReporting();
         moduleFactory = state.getModuleFactory();
         scopeFactory = state.getScopeFactory();
@@ -258,17 +233,19 @@ _.extend(Engine.prototype, {
         callStack = state.getCallStack();
         globalScope = state.getGlobalScope();
         output = state.getOutput();
-        toolsFactory = state.getToolsFactory();
+        userland = state.getUserland();
+        valueFactory = state.getValueFactory();
         // Use the provided top-level scope if specified, otherwise use the global scope
         // (used eg. when an `include(...)` is used inside a function)
         topLevelScope = engine.topLevelScope || globalScope;
         module = moduleFactory.create(path);
-        topLevelNamespaceScope = scopeFactory.createNamespaceScope(globalNamespace, globalNamespace, module);
+        topLevelNamespaceScope = scopeFactory.createNamespaceScope(globalNamespace, module);
+        module.setScope(scopeFactory.createModuleScope(module, topLevelNamespaceScope, environment));
 
-        // Create the runtime tools object, referenced by the transpiled JS output from PHPToJS
-        tools = toolsFactory.create(environment, module, topLevelNamespaceScope, topLevelScope, options);
+        core = coreFactory.createCore(topLevelScope);
 
-        // Push the 'main' global scope call onto the stack
+        // Push the call for this scope onto the stack (the "main" top-level one initially,
+        // then for a load such as include or eval it will be its top-level scope)
         callStack.push(callFactory.create(topLevelScope, topLevelNamespaceScope));
 
         function handleError(error, reject) {
@@ -337,51 +314,77 @@ _.extend(Engine.prototype, {
                 return;
             }
 
+            // Otherwise it must be a native/internal JS error
+            if (isMainProgram) {
+                /*
+                 * TODO: Improve native error handling. Perhaps native errors (except for Uniter's
+                 *       internal Exceptions, once all either use or extend that class?) should
+                 *       be catchable as a special JSError PHP class that implements Throwable,
+                 *       leaving any uncaught ones to be reported by the existing uncaught handling
+                 */
+                errorReporting.reportError(
+                    PHPError.E_ERROR,
+                    'Native JavaScript error: ' + error.message,
+                    error.fileName || null,  // Firefox only
+                    error.lineNumber || null // Firefox only
+                );
+            }
+
             reject(error);
         }
 
-        // Asynchronous mode - Pausable must be available
+        /**
+         * Top-level entrypoint passed to Userland for all synchronicity modes.
+         *
+         * @returns {Value}
+         * @throws {Pause} When the result is an unresolved FutureValue.
+         */
+        function topLevel() {
+            var result = wrapper(core),
+                // Resolve the result to a value (which may be a FutureValue, eg. if returned from an accessor).
+                resultValue = result ?
+                    // Module may return a reference (eg. a variable), so always extract the value.
+                    result.getValue() :
+                    // Program returns null rather than undefined if nothing is returned.
+                    valueFactory.createNull();
+
+            // Yield the value, which will raise a pause if an unresolved FutureValue in async mode.
+            return resultValue.yield();
+        }
+
+        // Asynchronous mode
         if (mode === 'async') {
             return new Promise(function (resolve, reject) {
-                var code = 'return (' +
-                    wrapper.toString() +
-                    '(stdin, stdout, stderr, tools, globalNamespace));';
+                userland
+                    .enterTopLevel(topLevel)
+                    .then(function (resultValue) {
+                        // Pop the top-level scope (of the include, if this module was included) off the stack
+                        // regardless of whether an error occurred
+                        callStack.pop();
 
-                pausable.execute(code, {
-                    strict: true,
-                    expose: {
-                        stdin: stdin,
-                        stdout: output,
-                        stderr: stderr,
-                        tools: tools,
-                        globalNamespace: globalNamespace
-                    }
-                }).then(function (resultValue) {
-                    // Pop the top-level scope (of the include, if this module was included) off the stack
-                    // regardless of whether an error occurred
-                    callStack.pop();
+                        resolve(resultValue);
+                    })
+                    .catch(function (error) {
+                        var result;
 
-                    resolve(resultValue);
-                }, function (error) {
-                    var result;
+                        // Pop the top-level scope (of the include, if this module was included) off the stack
+                        // regardless of whether an error occurred
+                        callStack.pop();
 
-                    // Pop the top-level scope (of the include, if this module was included) off the stack
-                    // regardless of whether an error occurred
-                    callStack.pop();
+                        result = handleError(error, reject);
 
-                    result = handleError(error, reject);
-
-                    if (result) {
-                        resolve(result);
-                    }
-                });
+                        if (result) {
+                            resolve(result);
+                        }
+                    });
             });
         }
 
         // Otherwise load the module synchronously
+        // TODO: Improve Userland for sync behavior to avoid branching here?
         try {
             try {
-                resultValue = wrapper(stdin, output, stderr, tools, globalNamespace);
+                resultValue = userland.enterTopLevel(topLevel);
 
                 return mode === 'psync' && isMainProgram ?
                     // Promise-sync mode - return a promise resolved with the result

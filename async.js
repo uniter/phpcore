@@ -14,9 +14,8 @@
 'use strict';
 
 var debugFormatterInstaller = require('./src/shared/debugFormatterInstaller'),
-    pausable = require('pausable'),
     runtimeFactory = require('./src/shared/runtimeFactory');
 
 debugFormatterInstaller.install();
 
-module.exports = runtimeFactory.create('async', pausable);
+module.exports = runtimeFactory.create('async');

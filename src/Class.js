@@ -12,13 +12,11 @@
 module.exports = require('pauser')([
     require('microdash'),
     require('phpcommon'),
-    require('./Reference/StaticProperty'),
-    require('./Reference/UndeclaredStaticProperty')
+    require('es6-weak-map')
 ], function (
     _,
     phpCommon,
-    StaticPropertyReference,
-    UndeclaredStaticPropertyReference
+    WeakMap
 ) {
     var IS_STATIC = 'isStatic',
         MAGIC_CALL = '__call',
@@ -31,37 +29,57 @@ module.exports = require('pauser')([
         VALUE = 'value',
         VISIBILITY = 'visibility',
         hasOwn = {}.hasOwnProperty,
+        Exception = phpCommon.Exception,
         PHPError = phpCommon.PHPError,
+        methodLookupMap = new WeakMap(),
+        /**
+         * Fetches a method from the specified object
+         *
+         * TODO: Build method map when class is initialised rather than resolving at runtime like this
+         *
+         * @param {Object} object
+         * @param {string} methodName
+         * @returns {Function|null}
+         */
         getMethod = function (object, methodName) {
-            var result = null;
+            var methods;
 
-            _.forOwn(object, function (value, propertyName) {
-                if (
-                    propertyName.toLowerCase() === methodName.toLowerCase() &&
-                    _.isFunction(value)
-                ) {
-                    result = value;
-                    return false;
-                }
-            });
+            if (methodLookupMap.has(object)) {
+                methods = methodLookupMap.get(object);
+            } else {
+                methods = Object.create(null);
 
-            return result;
+                _.forOwn(object, function (value, propertyName) {
+                    if (_.isFunction(value)) {
+                        methods[propertyName.toLowerCase()] = value;
+                    }
+                });
+
+                methodLookupMap.set(object, methods);
+            }
+
+            return methods[methodName.toLowerCase()] || null;
         };
 
     /**
      * Represents a class exposed to PHP-land
      *
      * @param {ValueFactory} valueFactory
+     * @param {ReferenceFactory} referenceFactory
      * @param {FunctionFactory} functionFactory
      * @param {CallStack} callStack
+     * @param {Flow} flow
+     * @param {FutureFactory} futureFactory
+     * @param {Userland} userland
      * @param {string} name Fully-qualified class name (FQCN)
-     * @param {string} constructorName
+     * @param {string|null} constructorName
      * @param {Function} InternalClass
      * @param {Object} rootInternalPrototype
+     * @param {Object} instancePropertiesData
      * @param {Object} staticPropertiesData
-     * @param {Object.<string, Function>} constants Map of constant names to value factory functions
+     * @param {Object.<string, Function>} constantToProviderMap Map of constant names to value provider functions
      * @param {Class|null} superClass Parent class, if any
-     * @param {string[]} interfaceNames FQCNs (FQINs) of interfaces implemented by this class
+     * @param {Class[]} interfaces Interfaces implemented by this class
      * @param {NamespaceScope} namespaceScope
      * @param {ExportRepository} exportRepository
      * @param {ValueCoercer} valueCoercer Value coercer configured specifically for this class
@@ -70,16 +88,21 @@ module.exports = require('pauser')([
      */
     function Class(
         valueFactory,
+        referenceFactory,
         functionFactory,
         callStack,
+        flow,
+        futureFactory,
+        userland,
         name,
         constructorName,
         InternalClass,
         rootInternalPrototype,
+        instancePropertiesData,
         staticPropertiesData,
-        constants,
+        constantToProviderMap,
         superClass,
-        interfaceNames,
+        interfaces,
         namespaceScope,
         exportRepository,
         valueCoercer,
@@ -88,23 +111,116 @@ module.exports = require('pauser')([
         var classObject = this,
             staticProperties = {};
 
+        /**
+         * @type {CallStack}
+         */
         this.callStack = callStack;
-        this.constants = constants;
+        /**
+         * @type {Object<string, Function>}
+         */
+        this.constantToProviderMap = constantToProviderMap;
+        /**
+         * @type {boolean}
+         */
+        this.constantsInitialised = false;
+        /**
+         * Cache of the lazily-evaluated values of this class' constants.
+         *
+         * @type {Object.<string, Value>}
+         */
+        this.constantValues = {};
+        /**
+         * @type {string|null}
+         */
         this.constructorName = constructorName;
+        /**
+         * @type {ExportRepository}
+         */
         this.exportRepository = exportRepository;
         /**
          * @type {FFIFactory}
          */
         this.ffiFactory = ffiFactory;
+        /**
+         * @type {Flow}
+         */
+        this.flow = flow;
+        /**
+         * @type {FunctionFactory}
+         */
         this.functionFactory = functionFactory;
-        this.interfaceNames = interfaceNames || [];
+        /**
+         * @type {FutureFactory}
+         */
+        this.futureFactory = futureFactory;
+        /**
+         * @type {Object}
+         */
+        this.instancePropertiesData = instancePropertiesData;
+        /**
+         * See .initialiseInstancePropertyDefaults() for initialisation logic.
+         *
+         * @type {Object.<string, Value>}
+         */
+        this.instancePropertyDefaults = {};
+        /**
+         * @type {boolean}
+         */
+        this.instancePropertyDefaultsInitialised = false;
+        /**
+         * @type {Class[]}
+         */
+        this.interfaces = interfaces;
+        /**
+         * @type {Function}
+         */
         this.InternalClass = InternalClass;
+        /**
+         * Looked up method specs, indexed by lowercase name to handle case-insensitivity
+         *
+         * @type {Object.<string, MethodSpec>}
+         */
+        this.methodSpecCache = Object.create(null);
+        /**
+         * @type {string}
+         */
         this.name = name;
+        /**
+         * @type {NamespaceScope}
+         */
         this.namespaceScope = namespaceScope;
-        // The prototype object that we should stop at when walking up the chain
+        /**
+         * @type {ReferenceFactory}
+         */
+        this.referenceFactory = referenceFactory;
+        /**
+         * The prototype object that we should stop at when walking up the chain
+         *
+         * @type {Object}
+         */
         this.rootInternalPrototype = rootInternalPrototype;
+        /**
+         * See below for creation logic, and .initialiseStaticProperties() for initialisation logic
+         *
+         * @type {Object.<string, StaticPropertyReference>}
+         */
         this.staticProperties = staticProperties;
+        /**
+         * @type {Object}
+         */
+        this.staticPropertiesData = staticPropertiesData;
+        /**
+         * @type {boolean}
+         */
+        this.staticPropertiesInitialised = false;
+        /**
+         * @type {Class|null}
+         */
         this.superClass = superClass || null;
+        /**
+         * @type {Userland}
+         */
+        this.userland = userland;
         /**
          * @type {ValueCoercer}
          */
@@ -114,16 +230,13 @@ module.exports = require('pauser')([
          */
         this.valueFactory = valueFactory;
 
+        // Create static properties: note that values are initialised lazily,
+        // see .initialiseStaticProperties()
         _.each(staticPropertiesData, function (data, name) {
-            // Pass the class object to the property initialiser (if any),
-            // so that it may refer to other properties/constants of this class with self::*
-            staticProperties[name] = new StaticPropertyReference(
-                valueFactory,
-                callStack,
-                classObject,
+            staticProperties[name] = referenceFactory.createStaticProperty(
                 name,
-                data[VISIBILITY],
-                data[VALUE](classObject)
+                classObject,
+                data[VISIBILITY]
             );
         });
     }
@@ -141,7 +254,7 @@ module.exports = require('pauser')([
          * @param {object|null} currentNativeObject The current native JS object on the prototype chain to search for the method
          * @param {Class|null} currentClass The original called class (this function is called recursively for inherited methods)
          * @param {bool} isForwardingStaticCall eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
-         * @returns {Value} Returns the result of the method if it is defined
+         * @returns {Future<Reference|Value|Variable>|Value} Returns the result of the method if it is defined
          * @throws {PHPFatalError} Throws when the method is not defined
          */
         callMethod: function (methodName, args, objectValue, currentNativeObject, currentClass, isForwardingStaticCall) {
@@ -182,16 +295,12 @@ module.exports = require('pauser')([
                         classObject.functionFactory.setNewStaticClassIfWrapped(method, currentClass);
                     }
 
-                    return classObject.valueFactory.coerce(
-                        method.apply(
-                            // Some methods should never have their `this` object and args auto-coerced,
-                            // eg the magic `__construct` method as it is proxied in Namespace.js
-                            classObject.valueCoercer.isAutoCoercionEnabled() && !method.neverCoerce ?
-                                objectValue.getObject() :
-                                objectValue,
-                            method.neverCoerce ? args : classObject.valueCoercer.coerceArguments(args)
-                        )
-                    );
+                    /*
+                     * Method may return a Value, Future-wrapped Reference or Variable etc.
+                     * If the method returns undefined (eg. userland and there was no return statement)
+                     * then the wrapper from FunctionFactory will ensure it is coerced to a NullValue for example.
+                     */
+                    return method.apply(objectValue, args);
                 }
 
                 if (
@@ -285,23 +394,33 @@ module.exports = require('pauser')([
          *
          * @param {ObjectValue} objectValue
          * @param {Value[]} args
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
          */
         construct: function (objectValue, args) {
             var classObject = this;
 
             if (!classObject.constructorName) {
                 // Class does not define a constructor: call the superclass' constructor
-                // if it has one, otherwise do nothing
+                // if it has one, otherwise do nothing.
                 if (classObject.superClass) {
-                    classObject.superClass.construct(objectValue, args);
+                    // Note that this may return a FutureValue if the constructor paused.
+                    return classObject.superClass.construct(objectValue, args);
                 }
 
-                return;
+                return objectValue;
             }
 
             // Call the constructor for the current class and not via the object value,
-            // as the method may have been overridden by descendant classes
-            classObject.callMethod(classObject.constructorName, args, objectValue);
+            // as the method may have been overridden by descendant classes.
+            return classObject.callMethod(classObject.constructorName, args, objectValue)
+                /*
+                 * Discard the result value of the constructor method and return the new ObjectValue.
+                 * Note that if a pause occurs inside the constructor, a FutureValue will
+                 * be returned.
+                 */
+                .next(function () {
+                    return objectValue;
+                });
         },
 
         /**
@@ -332,47 +451,82 @@ module.exports = require('pauser')([
          * an ancestor or by an interface implemented by this class or an ancestor
          *
          * @param {string} name
-         * @returns {Value}
+         * @returns {FutureValue|Value}
          */
         getConstantByName: function (name) {
             var classObject = this,
-                i,
-                interfaceObject;
+                getValue = function () {
+                    var value = null;
 
-            if (name.toLowerCase() === 'class') {
-                // The special MyClass::class constant that fetches the FQCN of the class as a string
-                return classObject.valueFactory.createString(classObject.getName());
-            }
+                    if (hasOwn.call(classObject.constantValues, name)) {
+                        // Constant has already been initialised; just return its value.
+                        return classObject.constantValues[name];
+                    }
 
-            if (hasOwn.call(classObject.constants, name)) {
-                return classObject.constants[name]();
-            }
+                    if (name.toLowerCase() === 'class') {
+                        // The special MyClass::class constant that fetches the FQCN of the class as a string.
+                        // Note that this constant is case-insensitive while all others are not.
+                        return classObject.valueFactory.createString(classObject.getName());
+                    }
 
-            for (i = 0; i < classObject.interfaceNames.length; i++) {
-                interfaceObject = classObject.namespaceScope.getClass(classObject.interfaceNames[i]);
+                    if (hasOwn.call(classObject.constantToProviderMap, name)) {
+                        // Allow for the constant value to be loaded asynchronously,
+                        // eg. if it references a constant of a different, asynchronously autoloaded class
+                        return classObject.userland.enterIsolated(function () {
+                            return classObject.constantToProviderMap[name](classObject);
+                        }, classObject.namespaceScope);
+                    }
 
-                try {
-                    return interfaceObject.getConstantByName(name);
-                } catch (e) {
-                    // Not found, try the next interface
-                }
-            }
+                    return classObject.flow.eachAsync(classObject.interfaces, function (interfaceObject) {
+                        // Note that this lookup may asynchronously raise an error if the constant is not defined
+                        return interfaceObject.getConstantByName(name)
+                            .asFuture() // Avoid auto-boxing the boolean result (that stops iteration) as a BooleanValue.
+                            .next(function (constantValue) {
+                                value = constantValue;
 
-            if (classObject.superClass) {
-                return classObject.superClass.getConstantByName(name);
-            }
+                                // Found, stop iterating
+                                return false;
+                            }, function () {
+                                // Not found, try the next interface
+                            });
+                    })
+                        .next(function () {
+                            if (value !== null) {
+                                // Constant was defined by an interface of this class
+                                return value;
+                            }
 
-            classObject.callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_CLASS_CONSTANT, {
-                name: name
+                            if (classObject.superClass) {
+                                return classObject.superClass.getConstantByName(name);
+                            }
+
+                            classObject.callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_CLASS_CONSTANT, {
+                                name: name
+                            });
+                        })
+                        .asValue();
+                };
+
+            return getValue().next(function (constantValue) {
+                classObject.constantValues[name] = constantValue;
+
+                return constantValue;
             });
         },
 
+        /**
+         * Fetches the internal native JS class for this class exposed to PHP
+         *
+         * @returns {Function}
+         */
         getInternalClass: function () {
             return this.InternalClass;
         },
 
         /**
          * Fetches the spec for an instance or static method
+         *
+         * TODO: Merge/replace MethodSpec with FunctionSpec/MethodContext etc.?
          *
          * @param {string} methodName The name of the method to fetch the spec for
          * @param {ObjectValue=null} objectValue The wrapped ObjectValue for this instance
@@ -382,7 +536,9 @@ module.exports = require('pauser')([
          */
         getMethodSpec: function (methodName, objectValue, currentNativeObject, originalClass) {
             var classObject = this,
-                nativeObject = objectValue ? objectValue.getObject() : null;
+                lowercaseMethodName = methodName.toLowerCase(),
+                methodSpec,
+                nativeObject;
 
             function getMethodSpec(currentObject, methodName) {
                 var method = getMethod(currentObject, methodName);
@@ -412,6 +568,13 @@ module.exports = require('pauser')([
                 return getMethodSpec(currentObject, methodName);
             }
 
+            // Fetch spec from cache if possible
+            if (classObject.methodSpecCache[lowercaseMethodName]) {
+                return classObject.methodSpecCache[lowercaseMethodName];
+            }
+
+            nativeObject = objectValue ? objectValue.getObject() : null;
+
             if (!currentNativeObject) {
                 // Walk up the prototype chain from the native object
                 currentNativeObject = nativeObject;
@@ -432,7 +595,12 @@ module.exports = require('pauser')([
                 currentNativeObject = classObject.InternalClass.prototype;
             }
 
-            return getMethodSpec(currentNativeObject, methodName);
+            methodSpec = getMethodSpec(currentNativeObject, methodName);
+
+            // Cache the spec for speed next time
+            classObject.methodSpecCache[lowercaseMethodName] = methodSpec;
+
+            return methodSpec;
         },
 
         /**
@@ -458,11 +626,14 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches a reference to a static property of this class by its name
+         * Fetches a reference to a static property of this class by its name.
+         * Note that static properties are initialised lazily (not until they are required),
+         * and when any static property is fetched,
+         * all will be initialised at that point if not already done.
          *
          * @param {string} name
          * @param {Class=} calledClass
-         * @returns {StaticPropertyReference|UndeclaredStaticPropertyReference}
+         * @returns {Future<StaticPropertyReference|UndeclaredStaticPropertyReference>}
          */
         getStaticPropertyByName: function (name, calledClass) {
             var callingClass,
@@ -482,11 +653,11 @@ module.exports = require('pauser')([
 
                 // Undeclared static properties cannot be accessed _except_ by isset(...) or empty(...),
                 // which return the relevant boolean result (`false` and `true` respectively)
-                return new UndeclaredStaticPropertyReference(
-                    classObject.valueFactory,
-                    classObject.callStack,
-                    classObject,
-                    name
+                return classObject.futureFactory.createPresent(
+                    classObject.referenceFactory.createUndeclaredStaticProperty(
+                        name,
+                        classObject
+                    )
                 );
             }
 
@@ -522,7 +693,10 @@ module.exports = require('pauser')([
                 }
             }
 
-            return staticProperty;
+            // Lazily initialise _all_ static properties if needed before returning this one
+            return classObject.initialiseStaticProperties().next(function () {
+                return staticProperty;
+            });
         },
 
         /**
@@ -534,6 +708,12 @@ module.exports = require('pauser')([
             return this.superClass;
         },
 
+        /**
+         * Determines whether this class defines a static property with the given name
+         *
+         * @param {string} name
+         * @returns {boolean}
+         */
         hasStaticPropertyByName: function (name) {
             return hasOwn.call(this.staticProperties, name);
         },
@@ -544,11 +724,7 @@ module.exports = require('pauser')([
          * @returns {Class[]}
          */
         getInterfaces: function () {
-            var classObject = this;
-
-            return classObject.interfaceNames.map(function (interfaceName) {
-                return classObject.namespaceScope.getClass(interfaceName);
-            });
+            return this.interfaces;
         },
 
         /**
@@ -562,49 +738,178 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Initialises all constants of the class that have not yet been initialised.
+         *
+         * @returns {Future}
+         */
+        initialiseConstants: function () {
+            var classObject = this;
+
+            if (classObject.constantsInitialised) {
+                return classObject.futureFactory.createPresent();
+            }
+
+            return classObject.flow.eachAsync(
+                Object.keys(classObject.constantToProviderMap),
+                function (name) {
+                    // Note that this could return a FutureValue, eg. if the constant references
+                    // a class that needs to be autoloaded asynchronously.
+                    return classObject.getConstantByName(name);
+                }
+            ).next(function () {
+                classObject.constantsInitialised = true;
+            });
+        },
+
+        /**
+         * Initialises defaults for all instance properties of the class if not already done.
+         *
+         * Note that the defaults are then used to synchronously provide the initial values
+         * (after .getForAssignment()) for all instance properties, see .initialiseInstanceProperties().
+         *
+         * @returns {Future}
+         */
+        initialiseInstancePropertyDefaults: function () {
+            var classObject = this,
+                future = classObject.futureFactory.createPresent();
+
+            if (classObject.instancePropertyDefaultsInitialised) {
+                // No need to initialise a second time.
+                return future;
+            }
+
+            if (classObject.superClass) {
+                // Ensure all ancestors have been initialised first.
+                future.next(function () {
+                    return classObject.superClass.initialiseInstancePropertyDefaults();
+                });
+            }
+
+            // Go through and define the properties and their default values
+            // on the object from the class definition by initialising them.
+            future.next(function () {
+                return classObject.flow.eachAsync(
+                    Object.keys(classObject.instancePropertiesData),
+                    function (propertyName) {
+                        var data = classObject.instancePropertiesData[propertyName];
+
+                        // Allow for the initial value to be loaded asynchronously,
+                        // eg. if it references a constant of a different, asynchronously autoloaded class.
+                        return classObject.userland.enterIsolated(
+                            function () {
+                                // Pass the class object to the property initialiser (if any),
+                                // so that it may refer to other properties/constants of this class with self::*
+                                return data[VALUE](classObject);
+                            },
+                            classObject.namespaceScope
+                        ).next(function (initialValue) {
+                            if (initialValue === null) {
+                                // If a property has no initialiser then its initial value is NULL
+                                initialValue = classObject.valueFactory.createNull();
+                            }
+
+                            classObject.instancePropertyDefaults[propertyName] = initialValue;
+                        });
+                    }
+                );
+            });
+
+            future.next(function () {
+                classObject.instancePropertyDefaultsInitialised = true;
+            });
+
+            return future;
+        },
+
+        /**
+         * Initialises all static properties for the class if not already done.
+         *
+         * @returns {Future}
+         */
+        initialiseStaticProperties: function () {
+            var classObject = this;
+
+            if (classObject.staticPropertiesInitialised) {
+                // No need to initialise a second time
+                return classObject.futureFactory.createPresent();
+            }
+
+            /*
+             * Static properties have not yet been initialised, do it now.
+             * Note that the initialisation may be asynchronous and need to block,
+             * eg. if the default value refers to a constant of a class not yet autoloaded
+             */
+
+            return classObject.flow.eachAsync(
+                Object.keys(classObject.staticPropertiesData),
+                function (propertyName) {
+                    var data = classObject.staticPropertiesData[propertyName];
+
+                    // Allow for the initial value to be loaded asynchronously,
+                    // eg. if it references a constant of a different, asynchronously autoloaded class
+                    return classObject.userland.enterIsolated(
+                        function () {
+                            // Pass the class object to the property initialiser (if any),
+                            // so that it may refer to other properties/constants of this class with self::*
+                            return data[VALUE](classObject);
+                        },
+                        classObject.namespaceScope
+                    ).next(function (initialValue) {
+                        if (initialValue === null) {
+                            // If a property has no initialiser then its initial value is NULL
+                            initialValue = classObject.valueFactory.createNull();
+                        }
+
+                        classObject.staticProperties[propertyName].setValue(initialValue);
+                    });
+                }
+            ).next(function () {
+                classObject.staticPropertiesInitialised = true;
+            });
+        },
+
+        /**
          * Creates a new instance of this class
          *
          * @param {Value[]=} args
-         * @returns {ObjectValue}
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
          */
         instantiate: function (args) {
-            var classObject = this,
-                objectValue;
+            var classObject = this;
 
             if (!args) {
                 args = [];
             }
 
-            objectValue = classObject.instantiateBare(args);
+            return classObject.initialiseConstants()
+                .next(function () {
+                    return classObject.initialiseStaticProperties();
+                })
+                .next(function () {
+                    return classObject.initialiseInstancePropertyDefaults();
+                })
+                .next(function () {
+                    var objectValue = classObject.instantiateBare();
 
-            // Call the userland constructor
-            classObject.construct(objectValue, args);
-
-            return objectValue;
+                    // Call the userland constructor. Note that the return value of .construct(...)
+                    // may in fact be a FutureValue if there was a pause inside the userland __construct()or.
+                    return classObject.construct(objectValue, args);
+                })
+                .asValue();
         },
 
         /**
          * Creates a new instance of this class without calling any userland constructor
          * (note that for JS classes the class-constructor-function will still be called)
          *
-         * @param {Value[]=} args
          * @returns {ObjectValue}
          */
-        instantiateBare: function (args) {
+        instantiateBare: function () {
             var classObject = this,
                 nativeObject = Object.create(classObject.InternalClass.prototype),
                 objectValue = classObject.valueFactory.createObject(nativeObject, classObject);
 
-            if (!args) {
-                args = [];
-            }
-
-            classObject.InternalClass.apply(
-                // Always use the wrapped object value as `this` regardless of coercion status,
-                // so that non-native properties/methods may be accessed
-                objectValue,
-                classObject.valueCoercer.coerceArguments(args)
-            );
+            classObject.internalConstruct(objectValue);
 
             return objectValue;
         },
@@ -614,17 +919,57 @@ module.exports = require('pauser')([
          *
          * @param {Value[]} args
          * @param {Object.<string, *>} internals
-         * @return {ObjectValue}
+         * @return {FutureValue<ObjectValue>|ObjectValue}
          */
         instantiateWithInternals: function (args, internals) {
-            var classObject = this,
-                objectValue = classObject.instantiate(args);
+            var classObject = this;
 
-            _.forOwn(internals, function (value, name) {
-                objectValue.setInternalProperty(name, value);
+            return classObject.instantiate(args).next(function (objectValue) {
+                _.forOwn(internals, function (value, name) {
+                    objectValue.setInternalProperty(name, value);
+                });
+
+                return objectValue;
+            });
+        },
+
+        /**
+         * Performs internal construction for an ObjectValue instance of this class:
+         *
+         * - Calls the internal constructor
+         * - Initialises instance properties from defaults.
+         *
+         * @param {ObjectValue} objectValue
+         */
+        internalConstruct: function (objectValue) {
+            var classObject = this,
+                properties = {};
+
+            if (!classObject.instancePropertyDefaultsInitialised) {
+                throw new Exception('Instance property defaults have not been initialised');
+            }
+
+            classObject.InternalClass.call(
+                // Always use the wrapped object value as `this` regardless of coercion status,
+                // so that non-native properties/methods may be accessed.
+                objectValue
+            );
+
+            // Go through and declare the properties on the object from the class definition.
+            _.forOwn(classObject.instancePropertiesData, function (propertyData, name) {
+                properties[name] = objectValue.declareProperty(name, classObject, propertyData.visibility);
             });
 
-            return objectValue;
+            if (classObject.superClass) {
+                // Class has a parent, perform internal construction for it.
+                classObject.superClass.internalConstruct(objectValue);
+            }
+
+            // Go through and initialise the default values on the object
+            // from the class definition.
+            _.forOwn(classObject.instancePropertyDefaults, function (propertyValue, name) {
+                properties[name].initialise(propertyValue);
+            });
         },
 
         /**
@@ -633,7 +978,7 @@ module.exports = require('pauser')([
          * - This class implements an interface with the name given, or
          * - This class has an ancestor with the name given
          *
-         * @param {Class} className
+         * @param {string} className
          * @returns {boolean}
          */
         is: function (className) {
@@ -647,9 +992,7 @@ module.exports = require('pauser')([
 
             // Iterate over all the interfaces implemented by this class: if any of them
             // are the requested class or extend from it, return true
-            _.each(classObject.interfaceNames, function (interfaceName) {
-                var interfaceObject = classObject.namespaceScope.getClass(interfaceName);
-
+            _.each(classObject.interfaces, function (interfaceObject) {
                 if (interfaceObject.is(className)) {
                     interfaceMatches = true;
                     return false;
@@ -707,7 +1050,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Unwraps arguments for a method based on the coercion & prefer-sync modes for the class
+         * Unwraps arguments for a method based on the coercion mode for the class
          *
          * @param {Value[]} argumentValues
          * @returns {Value[]|*[]}
