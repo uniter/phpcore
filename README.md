@@ -54,15 +54,12 @@ phpCore.install({
 
 phpCore.compile(
     // Example JS code transpiled from PHP by PHPToJS:
-    function (stdin, stdout, stderr, tools, namespace) {
-        var namespaceScope = tools.createNamespaceScope(namespace), namespaceResult, scope = tools.globalScope, currentClass = null;
-        return tools.valueFactory.createInteger(
-            namespaceScope.getConstant('MY_CONSTANT').getNative() +
-            namespaceScope.getFunction('add_one_to')(tools.valueFactory.createInteger(21)).getNative()
-        );
+    function (core) {
+        var add = core.add, callFunction = core.callFunction, createInteger = core.createInteger, getConstant = core.getConstant;
+        return add(getConstant('MY_CONSTANT'), callFunction('add_one_to', [createInteger(21)]));
     }
 )().execute().then(function (result) {
-    console.log(result.unwrapForJS()); // Prints "1022"
+    console.log(result.getNative()); // Prints "1022"
 });
 ```
 
