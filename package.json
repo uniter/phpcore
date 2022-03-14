@@ -38,7 +38,7 @@
     "mocha": "^9.2.2",
     "mocha-bootstrap": "^1.0.2",
     "nowdoc": "^1.0.1",
-    "phptoast": "^9.0.0",
+    "phptoast": "^9.0.1",
     "phptojs": "^9.0.0",
     "regexp.escape": "^1.1.0",
     "sinon": "^13.0.1",
