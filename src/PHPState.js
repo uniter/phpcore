@@ -954,8 +954,21 @@ module.exports = require('pauser')([
 
             classFuture = classInternals.defineClass(definitionFactory);
 
-            // Ensure all built-in classes are installed synchronously (for now)
-            classFuture.yieldSync();
+            try {
+                // Ensure all built-in classes are installed synchronously (for now).
+                classFuture.yieldSync();
+            } catch (error) {
+                if (state.valueFactory.isValue(error)) {
+                    // Don't throw Value objects up the call stack during initialisation,
+                    // coerce them to valid native Errors.
+                    throw new Exception(
+                        'Failed to load builtin class "' + fqcn + '": ' +
+                        error.coerceToNativeError()
+                    );
+                }
+
+                throw error;
+            }
         },
 
         /**
