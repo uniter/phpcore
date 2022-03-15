@@ -67,6 +67,10 @@ _.extend(ClassInternalsClassFactory.prototype, {
          */
         function ClassInternals(fqcn) {
             /**
+             * @type {Object.<string, Function>}
+             */
+            this.definedConstantProviders = {};
+            /**
              * @type {string[]}
              */
             this.definedInterfaceNames = [];
@@ -162,6 +166,12 @@ _.extend(ClassInternalsClassFactory.prototype, {
                 }
                 [].push.apply(Class.interfaces, internals.definedInterfaceNames);
 
+                // Add any constants to define to the class definition.
+                if (!Class.constants) {
+                    Class.constants = {};
+                }
+                _.extend(Class.constants, internals.definedConstantProviders);
+
                 namespace = parsed.namespace;
                 name = parsed.name;
 
@@ -180,6 +190,18 @@ _.extend(ClassInternalsClassFactory.prototype, {
 
                     return classObject;
                 });
+            },
+
+            /**
+             * Defines a constant for the class.
+             *
+             * @param {string} name
+             * @param {*} value
+             */
+            defineConstant: function (name, value) {
+                this.definedConstantProviders[name] = function () {
+                    return factory.valueFactory.coerce(value);
+                };
             },
 
             /**

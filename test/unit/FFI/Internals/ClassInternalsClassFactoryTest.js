@@ -230,6 +230,17 @@ describe('FFI ClassInternalsClassFactory', function () {
                     expect(MyClass.interfaces).to.contain('My\\SecondInterface');
                 });
 
+                it('should set any defined constants', function () {
+                    var value;
+                    classInternals.defineConstant('MY_CONST', 'my value');
+                    classInternals.defineClass(definitionFactory);
+
+                    value = MyClass.constants.MY_CONST();
+
+                    expect(value.getType()).to.equal('string');
+                    expect(value.getNative()).to.equal('my value');
+                });
+
                 it('should set the unwrapper if defined', function () {
                     var unwrapper = sinon.stub();
                     classInternals.defineUnwrapper(unwrapper);

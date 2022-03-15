@@ -60,6 +60,9 @@ describe('NativeDefinitionBuilder', function () {
         beforeEach(function () {
             myConstantFactoryFunction = function () {};
             definitionFunction = sinon.stub();
+            definitionFunction.constants = {
+                MY_CONST: myConstantFactoryFunction
+            };
             definitionFunction.prototype.myMethod = sinon.stub();
             firstInterface = sinon.createStubInstance(Class);
             secondInterface = sinon.createStubInstance(Class);
@@ -134,10 +137,10 @@ describe('NativeDefinitionBuilder', function () {
                 expect(definition.getInterfaces()[1]).to.equal(secondInterface);
             });
 
-            it('should have an empty constants set', function () {
+            it('should have the constants of the class definition', function () {
                 callBuildDefinition();
 
-                expect(definition.getConstants()).to.deep.equal({});
+                expect(definition.getConstants().MY_CONST).to.equal(myConstantFactoryFunction);
             });
 
             it('should have __construct for class constructor name', function () {

@@ -65,6 +65,7 @@ _.extend(NativeDefinitionBuilder.prototype, {
         autoCoercionEnabled
     ) {
         var builder = this,
+            constants,
             constructorName = null,
             hasMagicConstructor = false,
             methodData = {},
@@ -156,13 +157,15 @@ _.extend(NativeDefinitionBuilder.prototype, {
             return methods;
         }
 
+        constants = definition.constants;
+
         return new ClassDefinition(
             name,
             namespace,
             namespaceScope,
             superClass,
             interfaces,
-            {},
+            constants,
             constructorName,
             InternalClass,
             methodData,
