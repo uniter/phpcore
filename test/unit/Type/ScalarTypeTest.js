@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('../tools'),
+    Class = require('../../../src/Class').sync(),
     ScalarType = require('../../../src/Type/ScalarType'),
     Translator = phpCommon.Translator,
     Value = require('../../../src/Value').sync();
@@ -48,6 +49,54 @@ describe('ScalarType', function () {
     });
 
     describe('allowsValue()', function () {
+        describe('when type is boolean', function () {
+            beforeEach(function () {
+                createType('bool');
+            });
+
+            it('should return true for a value of the correct type', async function () {
+                var scalarValue = valueFactory.createBoolean(true);
+
+                expect(await type.allowsValue(scalarValue).toPromise()).to.be.true;
+            });
+
+            it('should return false for an array', async function () {
+                var value = valueFactory.createArray([21]);
+
+                expect(await type.allowsValue(value).toPromise()).to.be.false;
+            });
+
+            it('should return false for a float', async function () {
+                var value = valueFactory.createFloat(123.456);
+
+                expect(await type.allowsValue(value).toPromise()).to.be.false;
+            });
+
+            it('should return false for an integer', async function () {
+                var value = valueFactory.createInteger(21);
+
+                expect(await type.allowsValue(value).toPromise()).to.be.false;
+            });
+
+            it('should return false for null', async function () {
+                var value = valueFactory.createNull();
+
+                expect(await type.allowsValue(value).toPromise()).to.be.false;
+            });
+
+            it('should return false for an object', async function () {
+                var value = valueFactory.createObject({}, sinon.createStubInstance(Class));
+
+                expect(await type.allowsValue(value).toPromise()).to.be.false;
+            });
+
+            it('should return false for a string', async function () {
+                var value = valueFactory.createString('my string');
+
+                expect(await type.allowsValue(value).toPromise()).to.be.false;
+            });
+        });
+
         describe('when type is integer', function () {
             it('should return true for a value of the correct type', async function () {
                 var scalarValue = valueFactory.createInteger(21);

@@ -59,10 +59,16 @@ _.extend(ScalarType.prototype, {
      * {@inheritdoc}
      */
     allowsValue: function (value) {
-        var typeObject = this;
+        var typeObject = this,
+            valueType = value.getType();
+
+        if (valueType === 'boolean') {
+            // Scalar types use the shortened form while the value type is the long form.
+            valueType = 'bool';
+        }
 
         return typeObject.futureFactory.createPresent(
-            (value.getType() === typeObject.scalarType) ||
+            (valueType === typeObject.scalarType) ||
             (typeObject.allowsNull() && value.getType() === 'null')
         );
     },

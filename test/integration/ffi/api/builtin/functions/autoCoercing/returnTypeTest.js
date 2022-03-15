@@ -39,6 +39,31 @@ EOS
         expect(resultValue.getNative()).to.equal(21);
     });
 
+    it('should allow a boolean to be returned for boolean return type in weak type-checking mode', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return [
+    'for positive number' => is_positive(21),
+    'for negative number' => is_positive(-100)
+];
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineCoercingFunction(
+            'is_positive',
+            function (myNumber) {
+                return myNumber >= 0;
+            },
+            'int $myNumber : bool'
+        );
+
+        expect(engine.execute().getNative()).to.deep.equal({
+            'for positive number': true,
+            'for negative number': false
+        });
+    });
+
     it('should raise a fatal error when return value does not match return type in weak type-checking mode', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
