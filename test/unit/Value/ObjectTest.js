@@ -25,7 +25,6 @@ var expect = require('chai').expect,
     MethodSpec = require('../../../src/MethodSpec'),
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
-    NullReference = require('../../../src/Reference/Null'),
     ObjectElement = require('../../../src/Reference/ObjectElement'),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
@@ -1315,12 +1314,6 @@ describe('Object', function () {
     });
 
     describe('getElementByKey()', function () {
-        it('should return a NullReference when the value could not be coerced to a key', function () {
-            var reference = value.getElementByKey(factory.createArray(['my el']));
-
-            expect(reference).to.be.an.instanceOf(NullReference);
-        });
-
         it('should return an ObjectElement when this object implements ArrayAccess', function () {
             var element,
                 elementValue = factory.createString('my value'),

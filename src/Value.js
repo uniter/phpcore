@@ -299,6 +299,15 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Coerces this value to a valid element key. Note that when an element of an ObjectValue
+         * is being fetched (which therefore means it must implement ArrayAccess), this method is not used
+         * because any value is a valid key (or "offset").
+         *
+         * @returns {Value}
+         */
+        coerceToKey: throwUnimplemented('coerceToKey'),
+
+        /**
          * Unwraps an instance of Throwable to a native JS error
          *
          * @throws {Error}

@@ -41,6 +41,10 @@ class MyStuff implements ArrayAccess
             return ['my value'];
         }
 
+        if ($offset instanceof MyKey) {
+            return $offset->myProp;
+        }
+
         return 'not found';
     }
     public function offsetSet($offset, $value)
@@ -72,6 +76,15 @@ $object[] = 'my pushed value';
 $result['read of pushed offset'] = $object->lastSetOffset;
 $result['read of pushed value'] = $object->lastSetValue;
 
+class MyKey
+{
+    public $myProp;
+}
+$objectKey = new MyKey;
+$objectKey->myProp = 'my value';
+// Should return the ->myProp property of the key object.
+$result['read of object key'] = $object[$objectKey];
+
 // Push onto a previously "undefined" key, implying that it should become an array.
 // TODO: Should raise notice "Notice: Indirect modification of overloaded element of MyStuff has no effect".
 $object['get array'][] = 'a value pushed to implied array element of array';
@@ -99,6 +112,8 @@ EOS
             // Special push operator $array[] = ...;
             'read of pushed offset': null,
             'read of pushed value': 'my pushed value',
+            // Using an object as a key.
+            'read of object key': 'my value',
             // Attempting to push onto a nested element $array['a key'][] = ...;
             // is not valid and should raise a notice, see above.
             'read of nested pushed offset': null,

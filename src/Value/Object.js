@@ -604,18 +604,13 @@ module.exports = require('pauser')([
         /**
          * Fetches a property of this object using the array dereference notation if its class implements ArrayAccess
          *
-         * @param {*} keyValue
+         * @param {Value} keyValue
          * @returns {Reference}
          */
         getElementByKey: function (keyValue) {
             var value = this;
 
-            keyValue = keyValue.coerceToKey(value.callStack);
-
-            if (!keyValue) {
-                // Could not be coerced to a key: error will already have been handled, just return NULL
-                return value.referenceFactory.createNull();
-            }
+            // Note that we do not call keyValue.coerceToKey(...) as any value may be used as a key for ArrayAccess.
 
             if (value.classObject.is('ArrayAccess')) {
                 return value.referenceFactory.createObjectElement(value, keyValue);
