@@ -11,6 +11,7 @@
 
 module.exports = function () {
     return {
-        'PHP_EOL': '\n'
+        'PHP_EOL': '\n',
+        'PHP_INT_MAX': Number.MAX_SAFE_INTEGER || 0x7fffffff
     };
 };

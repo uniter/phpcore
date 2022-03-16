@@ -10,21 +10,25 @@
 'use strict';
 
 var expect = require('chai').expect,
-    phpToAST = require('phptoast'),
-    phpToJS = require('phptojs'),
-    syncPhpCore = require('../../../../sync');
+    nowdoc = require('nowdoc'),
+    tools = require('../../tools');
 
 describe('PHP builtin reserved constant integration', function () {
-    it('should support PHP_EOL', function () {
-        var php = '<?php return PHP_EOL;',
-            js = phpToJS.transpile(phpToAST.create().parse(php)),
-            module = new Function(
-                'require',
-                'return ' + js
-            )(function () {
-                return syncPhpCore;
-            });
+    it('should support the standard reserved constants', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return [
+    'PHP_EOL' => PHP_EOL,
+    'PHP_INT_MAX' => PHP_INT_MAX,
+];
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.equal('\n');
+        expect(engine.execute().getNative()).to.deep.equal({
+            PHP_EOL: '\n',
+            PHP_INT_MAX: Number.MAX_SAFE_INTEGER
+        });
     });
 });
