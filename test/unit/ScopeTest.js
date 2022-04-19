@@ -126,6 +126,7 @@ describe('Scope', function () {
             func = sinon.stub();
             namespaceScope = sinon.createStubInstance(NamespaceScope);
             thisObject = sinon.createStubInstance(ObjectValue);
+            thisObject.getForAssignment.returns(thisObject);
             thisObject.next.yields(thisObject);
 
             namespaceScope.getFilePath.returns('/path/to/my_module.php');
@@ -507,6 +508,7 @@ describe('Scope', function () {
             currentFunction.functionSpec.getFunctionTraceFrameName
                 .withArgs(false)
                 .returns('My\\Stuff\\MyClass->myMethod');
+            thisObject.getForAssignment.returns(thisObject);
             thisObject.next.yields(thisObject);
             createScope(thisObject);
 
@@ -650,6 +652,7 @@ describe('Scope', function () {
 
         it('should return false when the scope is a non-static context', function () {
             var thisObject = sinon.createStubInstance(ObjectValue);
+            thisObject.getForAssignment.returns(thisObject);
             thisObject.next.yields(thisObject);
 
             createScope(thisObject);

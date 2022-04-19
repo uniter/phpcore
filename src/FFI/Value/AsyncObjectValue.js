@@ -24,20 +24,18 @@ module.exports = require('pauser')([
      * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
      * @param {ValueCaller} valueCaller
-     * @param {ObjectValue} wrappedObjectValue
+     * @param {Value} wrappedObjectValue
      * @constructor
      */
     function AsyncObjectValue(factory, referenceFactory, futureFactory, callStack, valueCaller, wrappedObjectValue) {
-        var nativeValue = wrappedObjectValue.getObject();
-
-        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'object', nativeValue);
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'object', null);
 
         /**
          * @type {ValueCaller}
          */
         this.valueCaller = valueCaller;
         /**
-         * @type {ObjectValue}
+         * @type {Value}
          */
         this.wrappedObjectValue = wrappedObjectValue;
     }
@@ -56,7 +54,11 @@ module.exports = require('pauser')([
         callMethod: function (methodName, args) {
             var value = this;
 
-            return value.valueCaller.callMethod(value.wrappedObjectValue, methodName, args);
+            return value.wrappedObjectValue
+                .toPromise()
+                .then(function (wrappedObjectValue) {
+                    return value.valueCaller.callMethod(wrappedObjectValue, methodName, args);
+                });
         }
     });
 

@@ -16,24 +16,23 @@ var _ = require('microdash'),
 /**
  * @param {class} Pause
  * @param {CallStack} callStack
- * @param {ControlFactory} controlFactory
  * @param {ControlScope} controlScope
  * @param {string} mode
  * @constructor
  */
-function PauseFactory(Pause, callStack, controlFactory, controlScope, mode) {
+function PauseFactory(Pause, callStack, controlScope, mode) {
     /**
      * @type {CallStack}
      */
     this.callStack = callStack;
     /**
-     * @type {ControlFactory}
-     */
-    this.controlFactory = controlFactory;
-    /**
      * @type {ControlScope}
      */
     this.controlScope = controlScope;
+    /**
+     * @type {FutureFactory|null}
+     */
+    this.futureFactory = null;
     /**
      * @type {string}
      */
@@ -46,24 +45,43 @@ function PauseFactory(Pause, callStack, controlFactory, controlScope, mode) {
 
 _.extend(PauseFactory.prototype, {
     /**
-     * Creates a new control Pause
+     * Creates a new control Pause.
      *
      * @param {Function} executor
      * @returns {Pause}
      */
     createPause: function (executor) {
-        var factory = this;
+        var factory = this,
+            future,
+            resolveFuture,
+            rejectFuture;
 
         if (factory.mode !== 'async') {
             throw new Exception('PauseFactory.createPause() :: Cannot pause outside async mode');
         }
 
+        future = factory.futureFactory.createFuture(function (resolve, reject) {
+            resolveFuture = resolve;
+            rejectFuture = reject;
+        });
+
         return new factory.Pause(
             factory.callStack,
             factory.controlScope,
-            factory.controlFactory.createSequence(),
+            future,
+            resolveFuture,
+            rejectFuture,
             executor
         );
+    },
+
+    /**
+     * Sets the FutureFactory service (solves a circular dependency issue).
+     *
+     * @param {FutureFactory} futureFactory
+     */
+    setFutureFactory: function (futureFactory) {
+        this.futureFactory = futureFactory;
     }
 });
 

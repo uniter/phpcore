@@ -28,13 +28,17 @@ describe('UserlandDefinitionBuilder', function () {
     var builder,
         callStack,
         ffiFactory,
+        flow,
         state,
         valueFactory;
 
     beforeEach(function () {
-        state = tools.createIsolatedState();
         callStack = sinon.createStubInstance(CallStack);
+        state = tools.createIsolatedState('async', {
+            'call_stack': callStack
+        });
         ffiFactory = sinon.createStubInstance(FFIFactory);
+        flow = state.getFlow();
         valueFactory = state.getValueFactory();
 
         callStack.raiseUncatchableFatalError.callsFake(function (translationKey, placeholderVariables) {
@@ -46,7 +50,7 @@ describe('UserlandDefinitionBuilder', function () {
         });
 
         ffiFactory.createValueCoercer.callsFake(function (autoCoercionEnabled) {
-            return new ValueCoercer(autoCoercionEnabled);
+            return new ValueCoercer(flow, autoCoercionEnabled);
         });
 
         builder = new UserlandDefinitionBuilder(

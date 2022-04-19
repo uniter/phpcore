@@ -117,11 +117,11 @@ _.extend(FunctionInternalsClassFactory.prototype, {
 
                 namespace.defineFunction(
                     name,
-                    function __uniterOutboundStackMarker__() {
-                        // Unwrap args from PHP-land to JS-land to native values if/as appropriate
-                        var effectiveArguments = valueCoercer.coerceArguments(arguments);
-
-                        return func.apply(internals, effectiveArguments);
+                    function () {
+                        // Unwrap args from PHP-land to JS-land to native values if/as appropriate.
+                        return valueCoercer.coerceArguments(arguments).next(function __uniterOutboundStackMarker__(effectiveArguments) {
+                            return func.apply(internals, effectiveArguments);
+                        });
                     },
                     factory.globalNamespaceScope,
                     parametersSpecData,

@@ -147,14 +147,22 @@ _.extend(StaticPropertyReference.prototype, {
         property.value = null;
     },
 
+    /**
+     * {@inheritdoc}
+     */
     setValue: function (value) {
-        var property = this;
+        var assignedValue,
+            property = this;
 
         if (property.reference) {
-            property.reference.setValue(value);
-        } else {
-            property.value = value.getForAssignment();
+            // Note that we don't call .getForAssignment() here as the eventual reference will do so.
+            return property.reference.setValue(value);
         }
+
+        assignedValue = value.getForAssignment();
+        property.value = assignedValue;
+
+        return assignedValue;
     },
 
     /**

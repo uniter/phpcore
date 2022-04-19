@@ -232,6 +232,14 @@ describe('String', function () {
         });
     });
 
+    describe('asArrayElement()', function () {
+        it('should return the value itself', function () {
+            createValue('my string');
+
+            expect(value.asArrayElement()).to.equal(value);
+        });
+    });
+
     describe('asFuture()', function () {
         it('should return a Present that resolves to this value', function () {
             createValue('my string');

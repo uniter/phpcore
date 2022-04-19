@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('../tools'),
+    Future = require('../../../src/Control/Future'),
     ObjectElementReference = require('../../../src/Reference/ObjectElement'),
     ObjectValue = require('../../../src/Value/Object').sync(),
     StringValue = require('../../../src/Value/String').sync();
@@ -43,6 +44,18 @@ describe('ObjectElementReference', function () {
         ).returns(valueFactory.createString('hello'));
 
         element = new ObjectElementReference(valueFactory, referenceFactory, objectValue, keyValue);
+    });
+
+    describe('asArrayElement()', function () {
+        it('should return the value from ArrayAccess::offsetGet(...)', function () {
+            var value = valueFactory.createString('my value');
+            objectValue.callMethod.withArgs(
+                'offsetGet',
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(value);
+
+            expect(element.asArrayElement()).to.equal(value);
+        });
     });
 
     describe('getNative()', function () {
@@ -150,6 +163,72 @@ describe('ObjectElementReference', function () {
             ).returns(offsetGetReturnValue);
 
             expect(await element.isSet().toPromise()).to.be.true;
+        });
+    });
+
+    describe('setValue()', function () {
+        var offsetSetResultFuture,
+            value,
+            valueForAssignment;
+
+        beforeEach(function () {
+            valueForAssignment = valueFactory.createAsyncPresent('my final assigned value');
+            value = sinon.createStubInstance(StringValue);
+            value.getForAssignment.returns(valueForAssignment);
+
+            offsetSetResultFuture = valueFactory.createAsyncPresent('my discarded result');
+            objectValue.callMethod
+                .withArgs(
+                    'offsetSet',
+                    sinon.match([sinon.match.same(keyValue), sinon.match.same(valueForAssignment)])
+                )
+                // Result is discarded but may be async so should be awaited.
+                .returns(offsetSetResultFuture);
+        });
+
+        it('should await any FutureValue returned by ->offsetSet(...)', async function () {
+            var resultFuture = element.setValue(value);
+
+            expect(offsetSetResultFuture.getType()).to.equal('future');
+            expect(offsetSetResultFuture.isPending()).to.be.true;
+            await resultFuture.toPromise();
+            expect(offsetSetResultFuture.isSettled()).to.be.true;
+        });
+
+        it('should return the assigned value', async function () {
+            var resultFuture = element.setValue(value),
+                resultPresent = await resultFuture.toPromise();
+
+            expect(resultPresent.getType()).to.equal('string');
+            expect(resultPresent.getNative()).to.equal('my final assigned value');
+        });
+    });
+
+    describe('unset()', function () {
+        var offsetUnsetResultFuture;
+
+        beforeEach(function () {
+            offsetUnsetResultFuture = valueFactory.createAsyncPresent('my discarded result');
+            objectValue.callMethod
+                .withArgs(
+                    'offsetUnset',
+                    sinon.match([sinon.match.same(keyValue)])
+                )
+                // Result is discarded but may be async so should be awaited.
+                .returns(offsetUnsetResultFuture);
+        });
+
+        it('should return an unwrapped Future', function () {
+            expect(element.unset()).to.be.an.instanceOf(Future);
+        });
+
+        it('should await any FutureValue returned by ->offsetUnset(...)', async function () {
+            var resultFuture = element.unset();
+
+            expect(offsetUnsetResultFuture.getType()).to.equal('future');
+            expect(offsetUnsetResultFuture.isPending()).to.be.true;
+            await resultFuture.toPromise();
+            expect(offsetUnsetResultFuture.isSettled()).to.be.true;
         });
     });
 });

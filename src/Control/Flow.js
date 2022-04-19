@@ -63,6 +63,16 @@ _.extend(Flow.prototype, {
     },
 
     /**
+     * Creates a new present Future for the given value.
+     *
+     * @param {*} value
+     * @returns {Future}
+     */
+    createPresent: function (value) {
+        return this.futureFactory.createPresent(value);
+    },
+
+    /**
      * Iterates over the given inputs, calling the given handler with each one.
      * If any call to the handler pauses, iteration will continue once the pause is resumed.
      * If the handler returns false synchronously or asynchronously (via a pause resume),
@@ -79,41 +89,85 @@ _.extend(Flow.prototype, {
     eachAsync: function (inputs, handler) {
         var flow = this,
             inputIndex = 0,
+            lastHandlerResult,
             pendingInputs = [].slice.call(inputs);
 
         function checkNext() {
-            var sequence = flow.controlFactory.createSequence();
+            var future = flow.futureFactory.createPresent();
 
             if (pendingInputs.length === 0) {
-                // We've finished iterating over all the inputs
-                return sequence;
+                // We've finished iterating over all the inputs.
+                return future;
             }
 
-            return sequence
+            return future
                 .next(function () {
-                    var input = pendingInputs.shift();
+                    var input = pendingInputs.shift(),
+                        index = inputIndex++;
 
-                    return handler(input, inputIndex++);
+                    if (flow.controlBridge.isFuture(input)) {
+                        // Input is itself a future, so settle it first.
+                        return input.next(function (presentInput) {
+                            return handler(presentInput, index);
+                        });
+                    }
+
+                    return handler(input, index);
                 })
                 .next(function (handlerResult) {
                     if (handlerResult === false) {
-                        // The handler returned false either synchronously or asynchronously, stop iteration
+                        // The handler returned false either synchronously or asynchronously, stop iteration.
                         return handlerResult;
                     }
 
-                    return checkNext().resume(handlerResult);
+                    lastHandlerResult = handlerResult;
+
+                    return checkNext();
                 });
         }
 
         return flow.futureFactory.createFuture(function (resolve, reject) {
             checkNext()
-                .next(resolve, reject)
-                .resume();
+                .next(function () {
+                    // Use the result from the last handler invocation as the overall result.
+                    resolve(lastHandlerResult);
+                }, reject);
         });
     },
 
     /**
-     * Maps the given array of inputs to a Sequence via the given handler, allowing for Futures.
+     * Iterates over enumerable own properties of the given input, calling the given handler with each one.
+     * If any call to the handler pauses, iteration will continue once the pause is resumed.
+     * If the handler returns false synchronously or asynchronously (via a pause resume),
+     * iteration will be stopped.
+     * In that scenario, the sequence will still continue calling any further handlers
+     * attached outside this method.
+     * Throwing an error from the handler or calling throwInto() asynchronously will also
+     * stop iteration, calling any catch handlers attached outside this method.
+     *
+     * @param {Object} input
+     * @param {Function} handler
+     * @returns {Future}
+     */
+    forOwnAsync: function (input, handler) {
+        var flow = this;
+
+        return flow.eachAsync(Object.keys(input), function (propertyName, index) {
+            var propertyValue = input[propertyName];
+
+            if (flow.controlBridge.isFuture(propertyValue)) {
+                // Property value is itself a future, so settle it first.
+                return propertyValue.next(function (presentInput) {
+                    return handler(presentInput, index);
+                });
+            }
+
+            return handler(propertyValue, propertyName);
+        });
+    },
+
+    /**
+     * Maps the given array of inputs to a Future via the given handler, settling any intermediate Futures.
      *
      * @param {*[]} inputs
      * @param {Function} handler
@@ -125,33 +179,39 @@ _.extend(Flow.prototype, {
             results = [];
 
         function checkNext() {
-            var sequence = flow.controlFactory.createSequence();
+            var future = flow.futureFactory.createPresent();
 
             if (pendingInputs.length === 0) {
-                // We've finished iterating over all the inputs
-                return sequence;
+                // We've finished iterating over all the inputs.
+                return future;
             }
 
-            return sequence
+            return future
                 .next(function () {
                     var input = pendingInputs.shift();
+
+                    if (flow.controlBridge.isFuture(input)) {
+                        // Input is itself a future, so settle it first.
+                        return input.next(function (presentInput) {
+                            return handler(presentInput);
+                        });
+                    }
 
                     return handler(input);
                 })
                 .next(function (result) {
                     results.push(result);
 
-                    return checkNext().resume();
+                    return checkNext();
                 });
         }
 
         return flow.futureFactory.createFuture(function (resolve, reject) {
             checkNext()
                 .next(function () {
-                    // Pass the final array of all results through to the next handler in the sequence
+                    // Pass the final array of all results through to the next handler in the sequence.
                     resolve(results);
-                }, reject)
-                .resume();
+                }, reject);
         });
     },
 

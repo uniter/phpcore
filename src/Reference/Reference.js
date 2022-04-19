@@ -31,6 +31,18 @@ function Reference(referenceFactory) {
 
 _.extend(Reference.prototype, {
     /**
+     * Returns the value or reference of this reference, suitable for use as an array element.
+     * Note that FutureValues will be returned unchanged ready to be awaited.
+     * ReferenceSlots will be returned unchanged as they represent a PHP reference
+     * and not something to resolve to an eventual value.
+     *
+     * @returns {Reference|Value}
+     */
+    asArrayElement: function () {
+        return this.getValue().getForAssignment();
+    },
+
+    /**
      * Formats the reference (which may not be defined) for display in stack traces etc.
      *
      * @returns {string}

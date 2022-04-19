@@ -11,27 +11,66 @@
 
 var _ = require('microdash');
 
-function List(valueFactory, elements) {
+/**
+ * Represents a list of references to assign elements of an array to.
+ *
+ * Used by the "list(...)" construct.
+ *
+ * @param {ValueFactory} valueFactory
+ * @param {Flow} flow
+ * @param {Reference[]|Variable[]} elements
+ * @constructor
+ */
+function List(valueFactory, flow, elements) {
+    /**
+     * @type {Reference[]|Variable[]}
+     */
     this.elements = elements;
+    /**
+     * @type {Flow}
+     */
+    this.flow = flow;
+    /**
+     * @type {ValueFactory}
+     */
     this.valueFactory = valueFactory;
 }
 
 _.extend(List.prototype, {
+    /**
+     * Assigns the given value to the list.
+     *
+     * @param {Value} value
+     * @returns {Value}
+     */
     setValue: function (value) {
         var list = this;
 
-        if (value.getType() === 'array') {
-            _.each(list.elements, function (reference, index) {
-                reference.setValue(value.getElementByIndex(index).getValue());
-            });
-        } else {
-            // Non-array value assigned to list, all references should just be nulled
-            _.each(list.elements, function (reference) {
-                reference.setValue(list.valueFactory.createNull());
-            });
-        }
+        return value.next(function (presentValue) {
+            if (presentValue.getType() === 'array') {
+                return list.flow
+                    .eachAsync(list.elements, function (reference, index) {
+                        return presentValue.getElementByIndex(index).getValue()
+                            .next(function (value) {
+                                // Note that .setValue(...) could return a Future(Value) here to be awaited.
+                                return reference.setValue(value);
+                            });
+                    })
+                    .next(function () {
+                        return presentValue;
+                    });
+            }
 
-        return value;
+            // Non-array value assigned to list, all references should just be nulled.
+            return list.flow
+                .eachAsync(list.elements, function (reference) {
+                    // Note that .setValue(...) could return a Future(Value) here to be awaited.
+                    return reference.setValue(list.valueFactory.createNull());
+                })
+                .next(function () {
+                    return presentValue;
+                });
+        });
     }
 });
 

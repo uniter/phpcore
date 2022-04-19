@@ -16,7 +16,8 @@ var expect = require('chai').expect,
     ControlScope = require('../../../src/Control/ControlScope'),
     OpcodePool = require('../../../src/Core/Opcode/Opcode/OpcodePool'),
     Pause = require('../../../src/Control/Pause'),
-    Userland = require('../../../src/Control/Userland');
+    Userland = require('../../../src/Control/Userland'),
+    Variable = require('../../../src/Variable').sync();
 
 describe('Userland', function () {
     var callStack,
@@ -28,7 +29,8 @@ describe('Userland', function () {
         pauseFactory,
         state,
         userland,
-        valueFactory;
+        valueFactory,
+        variable;
 
     beforeEach(function () {
         // Stubbed below.
@@ -40,6 +42,7 @@ describe('Userland', function () {
         opcodePool = null;
         pauseFactory = null;
         valueFactory = null;
+        variable = sinon.createStubInstance(Variable);
         userland = null;
 
         createUserland = function (mode) {
@@ -73,11 +76,14 @@ describe('Userland', function () {
             });
 
             it('should return the result of the executor on success', async function () {
-                expect(
-                    await userland.enterTopLevel(function () {
-                        return 'my result';
-                    })
-                ).to.equal('my result');
+                var resultValue;
+                variable.getValue.returns(valueFactory.createString('my result'));
+
+                resultValue = await userland.enterTopLevel(function () {
+                    return variable;
+                });
+
+                expect(resultValue.getNative()).to.equal('my result');
             });
 
             it('should not catch errors on failure', function () {
@@ -89,31 +95,34 @@ describe('Userland', function () {
             });
 
             it('should return the eventual result if a pause is raised and resumed', async function () {
-                var paused = false;
+                var paused = false,
+                    resultValue;
+                variable.getValue.returns(valueFactory.createString('my result'));
 
-                expect(
-                    await userland.enterTopLevel(function () {
-                        var pause;
+                resultValue = await userland.enterTopLevel(function () {
+                    var pause;
 
-                        if (paused) {
-                            // Simulate a successful userland PHP resume.
-                            return callStack.resume.args[0][0];
-                        }
+                    if (paused) {
+                        // Simulate a successful userland PHP resume.
+                        return callStack.resume.args[0][0];
+                    }
 
-                        pause = pauseFactory.createPause(function (resume) {
-                            setImmediate(function () {
-                                resume('my result');
-                            });
+                    pause = pauseFactory.createPause(function (resume) {
+                        setImmediate(function () {
+                            resume(variable);
                         });
+                    });
 
-                        paused = true;
-                        pause.now();
-                    })
-                ).to.equal('my result');
+                    paused = true;
+                    pause.now();
+                });
+
+                expect(resultValue.getNative()).to.equal('my result');
             });
 
             it('should mark a captured pause as paused in the ControlScope', async function () {
                 var pause = null;
+                variable.getValue.returns(valueFactory.createString('my result'));
 
                 await userland.enterTopLevel(function () {
                     if (pause) {
@@ -123,7 +132,7 @@ describe('Userland', function () {
 
                     pause = pauseFactory.createPause(function (resume) {
                         setImmediate(function () {
-                            resume('my result');
+                            resume(variable);
                         });
                     });
 
@@ -190,9 +199,14 @@ describe('Userland', function () {
             });
 
             it('should return the result of the executor on success', function () {
-                expect(userland.enterTopLevel(function () {
-                    return 'my result';
-                })).to.equal('my result');
+                var resultValue;
+                variable.getValue.returns(valueFactory.createString('my result'));
+
+                resultValue = userland.enterTopLevel(function () {
+                    return variable;
+                });
+
+                expect(resultValue.getNative()).to.equal('my result');
             });
 
             it('should not catch errors on failure', function () {

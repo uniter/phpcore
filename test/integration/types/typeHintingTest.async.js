@@ -58,6 +58,44 @@ EOS
         });
     });
 
+    it('should allow passing accessors with valid values as arguments', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass {
+    public $myProp = 'my value';
+}
+
+function myFunction(MyClass $myObject) {
+    return $myObject->myProp;
+}
+
+$result = [];
+$myAccessor = new MyClass;
+
+$result['accessor passed as arg'] = myFunction($myAccessor);
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module(),
+            myValue;
+        engine.defineGlobalAccessor(
+            'myAccessor',
+            function () {
+                return this.createAsyncPresentValue(myValue);
+            },
+            function (newValue) {
+                myValue = newValue;
+            }
+        );
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'accessor passed as arg': 'my value'
+        });
+    });
+
     it('should allow passing valid arguments for function parameters with autoloaded interface types', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

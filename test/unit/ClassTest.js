@@ -48,10 +48,11 @@ describe('Class', function () {
         userland,
         valueCoercer,
         valueFactory,
+        valueProvider,
         InternalClass;
 
     beforeEach(function () {
-        state = tools.createIsolatedState();
+        state = tools.createIsolatedState('async');
         callStack = sinon.createStubInstance(CallStack);
         exportRepository = sinon.createStubInstance(ExportRepository);
         ffiFactory = sinon.createStubInstance(FFIFactory);
@@ -64,6 +65,7 @@ describe('Class', function () {
         userland = sinon.createStubInstance(Userland);
         valueCoercer = sinon.createStubInstance(ValueCoercer);
         valueFactory = state.getValueFactory();
+        valueProvider = state.getValueProvider();
         InternalClass = sinon.stub();
         constructorMethod = sinon.stub().returns(valueFactory.createNull());
         InternalClass.prototype.__construct = constructorMethod;
@@ -89,7 +91,11 @@ describe('Class', function () {
             reference.getVisibility.returns(visibility);
 
             reference.setValue.callsFake(function (newValue) {
-                reference.getValue.returns(newValue);
+                // Ensure the setter's resulting Future-ish is awaited.
+                return valueFactory.createAsyncMacrotaskFuture(function (resolve) {
+                    reference.getValue.returns(newValue);
+                    resolve(newValue);
+                });
             });
 
             return reference;
@@ -122,6 +128,7 @@ describe('Class', function () {
         createClass = function (constructorName, superClass, constants) {
             classObject = new Class(
                 valueFactory,
+                valueProvider,
                 referenceFactory,
                 functionFactory,
                 callStack,
@@ -204,25 +211,25 @@ describe('Class', function () {
                     createClass('__construct', null);
                 });
 
-                it('should be called and the result returned when auto coercion is disabled', function () {
+                it('should be called and the result returned when auto coercion is disabled', async function () {
                     var argValue = sinon.createStubInstance(Value),
-                        resultValue = sinon.createStubInstance(Value);
+                        resultValue = valueFactory.createString('my result');
                     methodFunction.returns(resultValue);
                     valueCoercer.isAutoCoercionEnabled.returns(false);
 
-                    expect(callMethod('myMethod', [argValue])).to.equal(resultValue);
+                    expect(await callMethod('myMethod', [argValue]).toPromise()).to.equal(resultValue);
                     expect(methodFunction).to.have.been.calledOnce;
                     expect(methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
                 });
 
-                it('should be called and the result returned when auto coercion is enabled', function () {
+                it('should be called and the result returned when auto coercion is enabled', async function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
                     methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
-                    resultValue = callMethod('myMethod', [argValue]);
+                    resultValue = await callMethod('myMethod', [argValue]).toPromise();
 
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
@@ -231,24 +238,24 @@ describe('Class', function () {
                 });
 
                 describe('for a forwarding static call', function () {
-                    it('should not pass along the static class', function () {
-                        var resultValue = sinon.createStubInstance(Value);
+                    it('should not pass along the static class', async function () {
+                        var resultValue = valueFactory.createString('my result');
                         methodFunction.returns(resultValue);
                         valueCoercer.isAutoCoercionEnabled.returns(false);
 
-                        callMethod('myMethod', [], true);
+                        await callMethod('myMethod', [], true).toPromise();
 
                         expect(functionFactory.setNewStaticClassIfWrapped).not.to.have.been.called;
                     });
                 });
 
                 describe('for a non-forwarding static call', function () {
-                    it('should pass along the static class', function () {
-                        var resultValue = sinon.createStubInstance(Value);
+                    it('should pass along the static class', async function () {
+                        var resultValue = valueFactory.createString('my result');
                         methodFunction.returns(resultValue);
                         valueCoercer.isAutoCoercionEnabled.returns(false);
 
-                        callMethod('myMethod', [], false);
+                        await callMethod('myMethod', [], false).toPromise();
 
                         expect(functionFactory.setNewStaticClassIfWrapped).to.have.been.calledOnce;
                         expect(functionFactory.setNewStaticClassIfWrapped).to.have.been.calledWith(
@@ -268,25 +275,25 @@ describe('Class', function () {
                     createClass('__construct', null);
                 });
 
-                it('should be called and the result returned when auto coercion is disabled', function () {
+                it('should be called and the result returned when auto coercion is disabled', async function () {
                     var argValue = sinon.createStubInstance(Value),
-                        resultValue = sinon.createStubInstance(Value);
+                        resultValue = valueFactory.createString('my result');
                     methodFunction.returns(resultValue);
                     valueCoercer.isAutoCoercionEnabled.returns(false);
 
-                    expect(callMethod('myMethodWithWrongCase', [argValue])).to.equal(resultValue);
+                    expect(await callMethod('myMethodWithWrongCase', [argValue]).toPromise()).to.equal(resultValue);
                     expect(methodFunction).to.have.been.calledOnce;
                     expect(methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
                 });
 
-                it('should be called and the result returned when auto coercion is enabled', function () {
+                it('should be called and the result returned when auto coercion is enabled', async function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
                     methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
-                    resultValue = callMethod('myMethodWithWrongCase', [argValue]);
+                    resultValue = await callMethod('myMethodWithWrongCase', [argValue]).toPromise();
 
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
@@ -305,25 +312,25 @@ describe('Class', function () {
                     createClass('__construct', null);
                 });
 
-                it('should ignore the property and call the method when auto coercion is disabled', function () {
+                it('should ignore the property and call the method when auto coercion is disabled', async function () {
                     var argValue = sinon.createStubInstance(Value),
-                        resultValue = sinon.createStubInstance(Value);
+                        resultValue = valueFactory.createString('my result');
                     methodFunction.returns(resultValue);
                     valueCoercer.isAutoCoercionEnabled.returns(false);
 
-                    expect(callMethod('myMethod', [argValue])).to.equal(resultValue);
+                    expect(await callMethod('myMethod', [argValue]).toPromise()).to.equal(resultValue);
                     expect(methodFunction).to.have.been.calledOnce;
                     expect(methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
                 });
 
-                it('should ignore the property and call the method when auto coercion is enabled', function () {
+                it('should ignore the property and call the method when auto coercion is enabled', async function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
                     methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
-                    resultValue = callMethod('myMethod', [argValue]);
+                    resultValue = await callMethod('myMethod', [argValue]).toPromise();
 
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
@@ -333,12 +340,10 @@ describe('Class', function () {
             });
 
             describe('when the method is not defined', function () {
-                it('should throw a PHPFatalError', function () {
+                it('should throw a PHPFatalError', async function () {
                     createClass('__construct', null);
 
-                    expect(function () {
-                        callMethod('myMissingMethod', []);
-                    }).to.throw(
+                    await expect(callMethod('myMissingMethod', []).toPromise()).to.eventually.be.rejectedWith(
                         'Fake PHP Fatal error for #core.undefined_method with {"className":"My\\\\Class\\\\Path\\\\Here","methodName":"myMissingMethod"}'
                     );
                 });
@@ -373,25 +378,25 @@ describe('Class', function () {
                     createClass('__construct', null);
                 });
 
-                it('should be called and the result returned when auto coercion is disabled', function () {
+                it('should be called and the result returned when auto coercion is disabled', async function () {
                     var argValue = sinon.createStubInstance(Value),
-                        resultValue = sinon.createStubInstance(Value);
+                        resultValue = valueFactory.createString('my result');
                     methodFunction.returns(resultValue);
                     valueCoercer.isAutoCoercionEnabled.returns(false);
 
-                    expect(callMethod('myMethod', [argValue])).to.equal(resultValue);
+                    expect(await callMethod('myMethod', [argValue]).toPromise()).to.equal(resultValue);
                     expect(methodFunction).to.have.been.calledOnce;
                     expect(methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
                 });
 
-                it('should be called and the result returned when auto coercion is enabled', function () {
+                it('should be called and the result returned when auto coercion is enabled', async function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
                     methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
-                    resultValue = callMethod('myMethod', [argValue]);
+                    resultValue = await callMethod('myMethod', [argValue]).toPromise();
 
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
@@ -409,25 +414,25 @@ describe('Class', function () {
                     createClass('__construct', null);
                 });
 
-                it('should be called and the result returned when auto coercion is disabled', function () {
+                it('should be called and the result returned when auto coercion is disabled', async function () {
                     var argValue = sinon.createStubInstance(Value),
-                        resultValue = sinon.createStubInstance(Value);
+                        resultValue = valueFactory.createString('my result');
                     methodFunction.returns(resultValue);
                     valueCoercer.isAutoCoercionEnabled.returns(false);
 
-                    expect(callMethod('myMethodWithWrongCase', [argValue])).to.equal(resultValue);
+                    expect(await callMethod('myMethodWithWrongCase', [argValue]).toPromise()).to.equal(resultValue);
                     expect(methodFunction).to.have.been.calledOnce;
                     expect(methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
                 });
 
-                it('should be called and the result returned when auto coercion is enabled', function () {
+                it('should be called and the result returned when auto coercion is enabled', async function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
                     methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
-                    resultValue = callMethod('myMethodWithWrongCase', [argValue]);
+                    resultValue = await callMethod('myMethodWithWrongCase', [argValue]).toPromise();
 
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
@@ -446,25 +451,25 @@ describe('Class', function () {
                     createClass('__construct', null);
                 });
 
-                it('should ignore the property and call the method when auto coercion is disabled', function () {
+                it('should ignore the property and call the method when auto coercion is disabled', async function () {
                     var argValue = sinon.createStubInstance(Value),
-                        resultValue = sinon.createStubInstance(Value);
+                        resultValue = valueFactory.createString('my result');
                     methodFunction.returns(resultValue);
                     valueCoercer.isAutoCoercionEnabled.returns(false);
 
-                    expect(callMethod('myMethod', [argValue])).to.equal(resultValue);
+                    expect(await callMethod('myMethod', [argValue]).toPromise()).to.equal(resultValue);
                     expect(methodFunction).to.have.been.calledOnce;
                     expect(methodFunction).to.have.been.calledWith(sinon.match.same(argValue));
                 });
 
-                it('should ignore the property and call the method when auto coercion is enabled', function () {
+                it('should ignore the property and call the method when auto coercion is enabled', async function () {
                     var argValue = sinon.createStubInstance(Value),
                         resultValue;
                     argValue.getNative.returns('the arg');
                     methodFunction.returns(valueFactory.createString('the result'));
                     valueCoercer.isAutoCoercionEnabled.returns(true);
 
-                    resultValue = callMethod('myMethod', [argValue]);
+                    resultValue = await callMethod('myMethod', [argValue]).toPromise();
 
                     expect(resultValue).to.be.an.instanceOf(Value);
                     expect(resultValue.getNative()).to.equal('the result');
@@ -474,12 +479,10 @@ describe('Class', function () {
             });
 
             describe('when the method is not defined', function () {
-                it('should throw a PHPFatalError', function () {
+                it('should throw a PHPFatalError', async function () {
                     createClass('__construct', null);
 
-                    expect(function () {
-                        callMethod('myMissingMethod', []);
-                    }).to.throw(
+                    await expect(callMethod('myMissingMethod', []).toPromise()).to.eventually.be.rejectedWith(
                         'Fake PHP Fatal error for #core.undefined_method with {"className":"My\\\\Class\\\\Path\\\\Here","methodName":"myMissingMethod"}'
                     );
                 });
@@ -1428,19 +1431,6 @@ describe('Class', function () {
                 .returns(phpObject);
 
             expect(classObject.proxyInstanceForJS(instance)).to.equal(phpObject);
-        });
-    });
-
-    describe('unwrapArguments()', function () {
-        it('should return the arguments coerced by the ValueCoercer', function () {
-            var originalValue1 = valueFactory.createInteger(4),
-                originalValue2 = valueFactory.createInteger(7);
-            valueCoercer.coerceArguments
-                .withArgs([sinon.match.same(originalValue1), sinon.match.same(originalValue2)])
-                .returns([4, 7]);
-
-            expect(classObject.unwrapArguments([originalValue1, originalValue2]))
-                .to.deep.equal([4, 7]);
         });
     });
 });

@@ -34,6 +34,30 @@ EOS
         ]);
     });
 
+    it('should allow indexed elements to be defined using an accessor for value', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$myArray = [21, $myAccessor, 101];
+
+return $myArray;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineGlobalAccessor(
+            'myAccessor',
+            function () {
+                return this.createAsyncPresentValue('from accessor');
+            }
+        );
+
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            21,
+            'from accessor',
+            101
+        ]);
+    });
+
     it('should allow associative elements to be defined with a reference to a variable', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

@@ -183,6 +183,12 @@ describe('Null', function () {
         });
     });
 
+    describe('asArrayElement()', function () {
+        it('should return the value itself', function () {
+            expect(value.asArrayElement()).to.equal(value);
+        });
+    });
+
     describe('asFuture()', function () {
         it('should return a Present that resolves to this value', function () {
             return expect(value.asFuture().toPromise()).to.eventually.equal(value);

@@ -10,13 +10,9 @@
 'use strict';
 
 var _ = require('microdash'),
-    phpCommon = require('phpcommon'),
-    queueMicrotask = require('core-js-pure/actual/queue-microtask'),
-    Exception = phpCommon.Exception,
-    Pause = require('./Pause');
+    queueMicrotask = require('core-js-pure/actual/queue-microtask');
 
 /**
- * @param {ControlFactory} controlFactory
  * @param {PauseFactory} pauseFactory
  * @param {ValueFactory} valueFactory
  * @param {ControlBridge} controlBridge
@@ -24,7 +20,6 @@ var _ = require('microdash'),
  * @constructor
  */
 function FutureFactory(
-    controlFactory,
     pauseFactory,
     valueFactory,
     controlBridge,
@@ -34,10 +29,6 @@ function FutureFactory(
      * @type {ControlBridge}
      */
     this.controlBridge = controlBridge;
-    /**
-     * @type {ControlFactory}
-     */
-    this.controlFactory = controlFactory;
     /**
      * @type {class}
      */
@@ -85,41 +76,27 @@ _.extend(FutureFactory.prototype, {
      * Creates a new Future
      *
      * @param {Function} executor
+     * @param {Future=} parent
      * @returns {Future}
      */
-    createFuture: function (executor) {
-        var factory = this,
-            // savedCallStack = factory.callStack.save(),
-            sequence = factory.controlFactory.createSequence(),
-            reject = function reject(error) {
-                // factory.callStack.restore(savedCallStack);
+    createFuture: function (executor, parent) {
+        var factory = this;
 
-                sequence.throwInto(error);
-            },
-            resolve = function resolve(result) {
-                // factory.callStack.restore(savedCallStack);
-
-                sequence.resume(result);
-            };
-
-        try {
-            executor(resolve, reject);
-        } catch (error) {
-            if (error instanceof Pause) {
-                throw new Exception('Unexpected Pause raised by Future executor');
-            }
-
-            // Any errors raised during evaluation of the Future executor should reject the Future
-            reject(error);
-        }
-
-        return new factory.Future(factory, factory.pauseFactory, factory.valueFactory, sequence);
+        return new factory.Future(
+            factory,
+            factory.pauseFactory,
+            factory.valueFactory,
+            factory.controlBridge,
+            executor,
+            parent || null
+        );
     },
 
     /**
      * Creates a new present Future for the given value
      *
-     * TODO: Reinstate an actual lightweight Present class to avoid creating Sequences when unnecessary
+     * TODO: Reinstate an actual lightweight Present class to avoid the complexity of Futures when unnecessary,
+     *       however now that Sequence is defunct, perhaps less of an issue?
      *
      * @param {*} value
      * @returns {Future}
@@ -140,28 +117,6 @@ _.extend(FutureFactory.prototype, {
         return this.createFuture(function (resolve, reject) {
             reject(error);
         });
-    },
-
-    /**
-     * Derives a new Future from an existing Sequence
-     *
-     * @param {Sequence} sequence
-     * @returns {Future}
-     */
-    deriveFuture: function (sequence) {
-        var factory = this,
-            derivedSequence = factory.controlFactory.createSequence();
-
-        sequence.next(
-            function (result) {
-                return derivedSequence.resume(result);
-            },
-            function (error) {
-                return derivedSequence.throwInto(error);
-            }
-        );
-
-        return new factory.Future(factory, factory.pauseFactory, factory.valueFactory, derivedSequence);
     }
 });
 

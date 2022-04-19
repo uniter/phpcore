@@ -72,7 +72,7 @@ describe('Runtime', function () {
         createRuntime();
     });
 
-    describe('constructor', function () {
+    describe('constructor()', function () {
         it('should throw when an invalid mode is given', function () {
             expect(function () {
                 createRuntime('my-invalid-mode');
@@ -508,6 +508,24 @@ describe('Runtime', function () {
             Environment.returns(environment);
 
             expect(runtime.createEnvironment()).to.equal(environment);
+        });
+    });
+
+    describe('getMode()', function () {
+        it('should return the mode when async', function () {
+            expect(runtime.getMode()).to.equal('async');
+        });
+
+        it('should return the mode when psync', function () {
+            createRuntime('psync');
+
+            expect(runtime.getMode()).to.equal('psync');
+        });
+
+        it('should return the mode when sync', function () {
+            createRuntime('sync');
+
+            expect(runtime.getMode()).to.equal('sync');
         });
     });
 

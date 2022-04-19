@@ -65,6 +65,7 @@ module.exports = require('pauser')([
      * Represents a class exposed to PHP-land
      *
      * @param {ValueFactory} valueFactory
+     * @param {ValueProvider} valueProvider
      * @param {ReferenceFactory} referenceFactory
      * @param {FunctionFactory} functionFactory
      * @param {CallStack} callStack
@@ -88,6 +89,7 @@ module.exports = require('pauser')([
      */
     function Class(
         valueFactory,
+        valueProvider,
         referenceFactory,
         functionFactory,
         callStack,
@@ -229,6 +231,10 @@ module.exports = require('pauser')([
          * @type {ValueFactory}
          */
         this.valueFactory = valueFactory;
+        /**
+         * @type {ValueProvider}
+         */
+        this.valueProvider = valueProvider;
 
         // Create static properties: note that values are initialised lazily,
         // see .initialiseStaticProperties()
@@ -354,39 +360,42 @@ module.exports = require('pauser')([
                 return result;
             }
 
-            // Method was not found on object or its prototype chain: try the magic method(s)
+            // Method was not found on object or its prototype chain: try the magic method(s).
+            return classObject.valueProvider.createFutureArray(args)
+                .asFuture() // Allow for non-Value results.
+                .next(function (argsArray) {
+                    if (!objectValue && thisObject) {
+                        // Magic __call(...) should override __callStatic(...)
+                        // when both are present for static call in object context.
+                        result = callMethod(thisObject.getObject(), MAGIC_CALL, [
+                            classObject.valueFactory.createString(methodName),
+                            argsArray
+                        ]);
 
-            if (!objectValue && thisObject) {
-                // Magic __call(...) should override __callStatic(...)
-                // when both present for static call in object context
-                result = callMethod(thisObject.getObject(), MAGIC_CALL, [
-                    classObject.valueFactory.createString(methodName),
-                    classObject.valueFactory.createArray(args)
-                ]);
+                        if (result !== null) {
+                            return result;
+                        }
+                    }
 
-                if (result !== null) {
-                    return result;
-                }
-            }
+                    result = callMethod(
+                        currentNativeObject,
+                        objectValue ? MAGIC_CALL : MAGIC_CALL_STATIC,
+                        [
+                            classObject.valueFactory.createString(methodName),
+                            argsArray
+                        ]
+                    );
 
-            result = callMethod(
-                currentNativeObject,
-                objectValue ? MAGIC_CALL : MAGIC_CALL_STATIC,
-                [
-                    classObject.valueFactory.createString(methodName),
-                    classObject.valueFactory.createArray(args)
-                ]
-            );
+                    if (result !== null) {
+                        return result;
+                    }
 
-            if (result !== null) {
-                return result;
-            }
-
-            // Method was not found and no magic __call method is defined
-            classObject.callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_METHOD, {
-                className: classObject.name,
-                methodName: methodName
-            });
+                    // Method was not found and no magic __call method is defined.
+                    classObject.callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_METHOD, {
+                        className: classObject.name,
+                        methodName: methodName
+                    });
+                });
         },
 
         /**
@@ -780,14 +789,14 @@ module.exports = require('pauser')([
 
             if (classObject.superClass) {
                 // Ensure all ancestors have been initialised first.
-                future.next(function () {
+                future = future.next(function () {
                     return classObject.superClass.initialiseInstancePropertyDefaults();
                 });
             }
 
             // Go through and define the properties and their default values
             // on the object from the class definition by initialising them.
-            future.next(function () {
+            future = future.next(function () {
                 return classObject.flow.eachAsync(
                     Object.keys(classObject.instancePropertiesData),
                     function (propertyName) {
@@ -814,7 +823,7 @@ module.exports = require('pauser')([
                 );
             });
 
-            future.next(function () {
+            future = future.next(function () {
                 classObject.instancePropertyDefaultsInitialised = true;
             });
 
@@ -860,7 +869,7 @@ module.exports = require('pauser')([
                             initialValue = classObject.valueFactory.createNull();
                         }
 
-                        classObject.staticProperties[propertyName].setValue(initialValue);
+                        return classObject.staticProperties[propertyName].setValue(initialValue);
                     });
                 }
             ).next(function () {
@@ -1047,16 +1056,6 @@ module.exports = require('pauser')([
             // Return a wrapper object that presents a promise-based API
             // for calling methods of PHP objects in sync or async mode
             return classObject.ffiFactory.createPHPObject(instance);
-        },
-
-        /**
-         * Unwraps arguments for a method based on the coercion mode for the class
-         *
-         * @param {Value[]} argumentValues
-         * @returns {Value[]|*[]}
-         */
-        unwrapArguments: function (argumentValues) {
-            return this.valueCoercer.coerceArguments(argumentValues);
         }
     });
 

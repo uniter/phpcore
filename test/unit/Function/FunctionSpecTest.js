@@ -123,45 +123,45 @@ describe('FunctionSpec', function () {
                 .returns(valueFactory.createString('second coerced'));
         });
 
-        it('should return a new array of the coerced arguments', function () {
-            var result = spec.coerceArguments([argument1, argument2]);
+        it('should return a new array of the coerced arguments', async function () {
+            var result = await spec.coerceArguments([argument1, argument2]).toPromise();
 
             expect(result).to.have.length(2);
             expect(result[0].getNative()).to.equal('first coerced');
             expect(result[1].getNative()).to.equal('second coerced');
         });
 
-        it('should skip any parameters whose specs are missing', function () {
+        it('should skip any parameters whose specs are missing', async function () {
             var result;
             parameterList[0] = null; // Missing parameter spec, eg. due to bundle size optimisations.
             createSpec(false);
 
-            result = spec.coerceArguments([argument1, argument2]);
+            result = await spec.coerceArguments([argument1, argument2]).toPromise();
 
             expect(result).to.have.length(2);
             expect(result[0].getNative()).to.equal('first uncoerced');
             expect(result[1].getNative()).to.equal('second coerced');
         });
 
-        it('should skip any parameters that have no argument provided', function () {
+        it('should skip any parameters that have no argument provided', async function () {
             var result;
             // Make all parameters required, to ensure this is not taken into account
             // at this stage (should be handled later on, when validating)
             parameter2.isRequired.returns(true);
 
-            result = spec.coerceArguments([argument1]);
+            result = await spec.coerceArguments([argument1]).toPromise();
 
             expect(result).to.have.length(1);
             expect(result[0].getNative()).to.equal('first coerced');
         });
 
-        it('should not overwrite by-reference arguments in the reference list with their resolved values', function () {
+        it('should not overwrite by-reference arguments in the reference list with their resolved values', async function () {
             var argumentReferences,
                 result;
             argumentReferences = [argument1, argument2];
             parameter1.isPassedByReference.returns(true);
 
-            result = spec.coerceArguments(argumentReferences);
+            result = await spec.coerceArguments(argumentReferences).toPromise();
 
             expect(result).to.have.length(2);
             expect(result[0].getNative()).to.equal('first coerced');
@@ -177,14 +177,18 @@ describe('FunctionSpec', function () {
         it('should return the coerced result when the function is return-by-reference', async function () {
             var originalValue = valueFactory.createString('original value'),
                 coercedValue = valueFactory.createString('coerced value'),
+                setValue = valueFactory.createString('set value'),
                 variable = sinon.createStubInstance(Variable);
             createSpec(true);
             returnType.coerceValue
                 .withArgs(sinon.match.same(originalValue))
                 .returns(coercedValue);
             variable.getValueOrNull.returns(originalValue);
+            variable.setValue
+                .withArgs(sinon.match.same(coercedValue))
+                .returns(setValue);
 
-            expect(await spec.coerceReturnReference(variable).toPromise()).to.equal(coercedValue);
+            expect(await spec.coerceReturnReference(variable).toPromise()).to.equal(setValue);
         });
 
         it('should write the coerced result back to the reference when the function is return-by-reference', async function () {

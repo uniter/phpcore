@@ -25,6 +25,7 @@ var expect = require('chai').expect,
 describe('NativeDefinitionBuilder', function () {
     var builder,
         ffiFactory,
+        flow,
         nativeMethodDefinitionBuilder,
         state,
         valueFactory;
@@ -32,11 +33,12 @@ describe('NativeDefinitionBuilder', function () {
     beforeEach(function () {
         state = tools.createIsolatedState();
         ffiFactory = sinon.createStubInstance(FFIFactory);
+        flow = state.getFlow();
         nativeMethodDefinitionBuilder = sinon.createStubInstance(NativeMethodDefinitionBuilder);
         valueFactory = state.getValueFactory();
 
         ffiFactory.createValueCoercer.callsFake(function (autoCoercionEnabled) {
-            return new ValueCoercer(autoCoercionEnabled);
+            return new ValueCoercer(flow, autoCoercionEnabled);
         });
 
         nativeMethodDefinitionBuilder.buildMethod

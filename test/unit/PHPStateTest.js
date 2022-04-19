@@ -28,7 +28,8 @@ var expect = require('chai').expect,
     Runtime = require('../../src/Runtime').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
     Stream = require('../../src/Stream'),
-    Translator = phpCommon.Translator;
+    Translator = phpCommon.Translator,
+    ValueProvider = require('../../src/Value/ValueProvider');
 
 describe('PHPState', function () {
     var globalStackHooker,
@@ -62,7 +63,7 @@ describe('PHPState', function () {
         );
     });
 
-    describe('constructor', function () {
+    describe('constructor()', function () {
         it('should install non-namespaced classes into the global namespace', function () {
             state = new PHPState(
                 runtime,
@@ -652,6 +653,13 @@ describe('PHPState', function () {
             expect(state.getGlobalScope().getVariable('myGlobal').getValue().getNative()).to.equal(1001);
         });
 
+        it('should return the assigned value', function () {
+            var resultValue = state.defineGlobal('myGlobal', 1001);
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(1001);
+        });
+
         it('should throw when the global is already defined', function () {
             state.defineGlobal('myGlobal', 21);
 
@@ -683,7 +691,8 @@ describe('PHPState', function () {
             state.getGlobalScope().getVariable('MY_GLOB').setValue(value);
 
             expect(valueSetter).to.have.been.calledOnce;
-            expect(valueSetter).to.have.been.calledWith(27);
+            expect(valueSetter.args[0][0].getType()).to.equal('int');
+            expect(valueSetter.args[0][0].getNative()).to.equal(27);
         });
     });
 
@@ -812,7 +821,8 @@ describe('PHPState', function () {
             state.getSuperGlobalScope().getVariable('MY_SUPER_GLOB').setValue(value);
 
             expect(valueSetter).to.have.been.calledOnce;
-            expect(valueSetter).to.have.been.calledWith(27);
+            expect(valueSetter.args[0][0].getType()).to.equal('int');
+            expect(valueSetter.args[0][0].getNative()).to.equal(27);
         });
     });
 
@@ -925,6 +935,12 @@ describe('PHPState', function () {
         });
     });
 
+    describe('getValueProvider()', function () {
+        it('should return the ValueProvider service', function () {
+            expect(state.getValueProvider()).to.be.an.instanceOf(ValueProvider);
+        });
+    });
+
     describe('setGlobal()', function () {
         it('should be able to change the value of a defined variable to a Value object', function () {
             state.defineGlobal('myGlobal', valueFactory.createInteger(21));
@@ -940,6 +956,16 @@ describe('PHPState', function () {
             state.setGlobal('myGlobal', 987654);
 
             expect(state.getGlobal('myGlobal').getNative()).to.equal(987654);
+        });
+
+        it('should return the assigned value', function () {
+            var resultValue;
+            state.defineGlobal('myGlobal', valueFactory.createInteger(21));
+
+            resultValue = state.setGlobal('myGlobal', 1234);
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(1234);
         });
 
         it('should throw when the specified variable is not defined', function () {

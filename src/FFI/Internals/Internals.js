@@ -21,6 +21,7 @@ var _ = require('microdash'),
  * @param {OnceIncluder} onceIncluder
  * @param {Evaluator} evaluator
  * @param {ValueFactory} valueFactory
+ * @param {ValueProvider} valueProvider
  * @param {ReferenceFactory} referenceFactory
  * @param {ControlFactory} controlFactory
  * @param {PauseFactory} pauseFactory
@@ -53,6 +54,7 @@ function Internals(
     onceIncluder,
     evaluator,
     valueFactory,
+    valueProvider,
     referenceFactory,
     controlFactory,
     pauseFactory,
@@ -219,9 +221,74 @@ function Internals(
      * @type {ValueHelper}
      */
     this.valueHelper = valueHelper;
+    /**
+     * @public
+     * @type {ValueProvider}
+     */
+    this.valueProvider = valueProvider;
 }
 
 _.extend(Internals.prototype, {
+    /**
+     * Creates a new FutureValue whose executor is always called asynchronously in a macrotask.
+     *
+     * @param {Function} executor
+     * @returns {FutureValue}
+     */
+    createAsyncMacrotaskFutureValue: function (executor) {
+        return this.valueFactory.createAsyncMacrotaskFuture(executor);
+    },
+
+    /**
+     * Creates a new FutureValue whose executor is always called asynchronously in a microtask.
+     *
+     * @param {Function} executor
+     * @returns {FutureValue}
+     */
+    createAsyncMicrotaskFutureValue: function (executor) {
+        return this.valueFactory.createAsyncMicrotaskFuture(executor);
+    },
+
+    /**
+     * Creates a new Future to be resolved with the given value after deferring.
+     *
+     * @param {*} value
+     * @returns {Future}
+     */
+    createAsyncPresent: function (value) {
+        return this.futureFactory.createAsyncPresent(value);
+    },
+
+    /**
+     * Creates a new FutureValue to be resolved with the given value after deferring.
+     *
+     * @param {*} value
+     * @returns {FutureValue}
+     */
+    createAsyncPresentValue: function (value) {
+        return this.valueFactory.createAsyncPresent(value);
+    },
+
+    /**
+     * Creates a new Future to be rejected with the given error after deferring.
+     *
+     * @param {Error} error
+     * @returns {Future}
+     */
+    createAsyncRejection: function (error) {
+        return this.futureFactory.createAsyncRejection(error);
+    },
+
+    /**
+     * Creates a new FutureValue to be rejected with the given error after deferring.
+     *
+     * @param {Error} error
+     * @returns {FutureValue}
+     */
+    createAsyncRejectionValue: function (error) {
+        return this.valueFactory.createAsyncRejection(error);
+    },
+
     /**
      * Creates a new FFI Result, to provide the result of a call to a JS function
      *
@@ -328,7 +395,7 @@ _.extend(Internals.prototype, {
      * Implicitly converts undefined variables/references and those containing null to arrays.
      *
      * @param {Reference|Value|Variable} arrayReference
-     * @returns {Future}
+     * @returns {FutureValue}
      */
     implyArray: function (arrayReference) {
         var internals = this,
@@ -346,11 +413,21 @@ _.extend(Internals.prototype, {
                 });
         }
 
-        return needsArrayAssignmentFuture.next(function (needsArrayAssignment) {
-            if (needsArrayAssignment) {
-                return arrayReference.setValue(internals.valueFactory.createArray([]));
-            }
-        });
+        return needsArrayAssignmentFuture
+            .next(function (needsArrayAssignment) {
+                var arrayValue;
+
+                if (needsArrayAssignment) {
+                    arrayValue = internals.valueFactory.createArray([]);
+
+                    return internals.valueFactory.isValue(arrayReference) ?
+                        arrayValue :
+                        arrayReference.setValue(arrayValue);
+                }
+
+                return arrayReference.getValue();
+            })
+            .asValue();
     },
 
     /**

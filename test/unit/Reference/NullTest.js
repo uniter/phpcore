@@ -33,6 +33,12 @@ describe('NullReference', function () {
         });
     });
 
+    describe('asArrayElement()', function () {
+        it('should return the value Null', function () {
+            expect(reference.asArrayElement().getType()).to.equal('null');
+        });
+    });
+
     describe('formatAsString()', function () {
         it('should return "NULL"', function () {
             expect(reference.formatAsString()).to.equal('NULL');
@@ -86,6 +92,12 @@ describe('NullReference', function () {
             reference.setValue(sinon.createStubInstance(Value));
 
             expect(onSet).to.have.been.calledOnce;
+        });
+
+        it('should return the assigned value', function () {
+            var value = sinon.createStubInstance(Value);
+
+            expect(reference.setValue(value)).to.equal(value);
         });
     });
 });

@@ -17,6 +17,15 @@ function KeyReferencePair(key, reference) {
 }
 
 _.extend(KeyReferencePair.prototype, {
+    /**
+     * Returns this pair unchanged.
+     *
+     * @returns {KeyReferencePair}
+     */
+    asArrayElement: function () {
+        return this;
+    },
+
     getKey: function () {
         return this.key;
     },

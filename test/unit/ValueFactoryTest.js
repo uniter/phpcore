@@ -29,7 +29,6 @@ var expect = require('chai').expect,
     NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPObject = require('../../src/FFI/Value/PHPObject').sync(),
-    Sequence = require('../../src/Control/Sequence'),
     Translator = phpCommon.Translator,
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync(),
@@ -211,6 +210,48 @@ describe('ValueFactory', function () {
         it('should return a FutureValue that eventually resolves with the given value', async function () {
             var resolvedValue,
                 value = factory.createAsyncPresent('my value');
+
+            resolvedValue = await value.toPromise();
+
+            expect(resolvedValue.getType()).to.equal('string');
+            expect(resolvedValue.getNative()).to.equal('my value');
+        });
+    });
+
+    describe('createAsyncMacrotaskFuture()', function () {
+        it('should return a pending FutureValue', function () {
+            var value = factory.createAsyncMacrotaskFuture(function () {});
+
+            expect(value.getType()).to.equal('future');
+            expect(value.isPending()).to.be.true;
+        });
+
+        it('should return a FutureValue that eventually resolves with the given value', async function () {
+            var resolvedValue,
+                value = factory.createAsyncMacrotaskFuture(function (resolve) {
+                    resolve('my value');
+                });
+
+            resolvedValue = await value.toPromise();
+
+            expect(resolvedValue.getType()).to.equal('string');
+            expect(resolvedValue.getNative()).to.equal('my value');
+        });
+    });
+
+    describe('createAsyncMicrotaskFuture()', function () {
+        it('should return a pending FutureValue', function () {
+            var value = factory.createAsyncMicrotaskFuture(function () {});
+
+            expect(value.getType()).to.equal('future');
+            expect(value.isPending()).to.be.true;
+        });
+
+        it('should return a FutureValue that eventually resolves with the given value', async function () {
+            var resolvedValue,
+                value = factory.createAsyncMicrotaskFuture(function (resolve) {
+                    resolve('my value');
+                });
 
             resolvedValue = await value.toPromise();
 
@@ -590,13 +631,41 @@ describe('ValueFactory', function () {
     });
 
     describe('createFromNativeObject()', function () {
-        it('should throw when a Sequence is given', function () {
-            expect(function () {
-                factory.createFromNativeObject(sinon.createStubInstance(Sequence));
-            }).to.throw(
-                Exception,
-                'Sequences should not be used as values'
-            );
+        it('should return the wrapped ObjectValue when a PHPObject is given', function () {
+            var objectValue = sinon.createStubInstance(ObjectValue),
+                phpObject = sinon.createStubInstance(PHPObject);
+            phpObject.getObjectValue.returns(objectValue);
+
+            expect(factory.createFromNativeObject(phpObject)).to.equal(objectValue);
+        });
+    });
+
+    describe('createFutureChain()', function () {
+        it('should create a FutureValue resolved with the result of the executor', async function () {
+            var value = factory
+                .createFutureChain(function () {
+                    return 'my result';
+                })
+                .next(function (intermediateValue) {
+                    return intermediateValue.getNative() + ' with suffix';
+                }),
+                resultValue = await value.toPromise();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('my result with suffix');
+        });
+
+        it('should create a FutureValue rejected with any error of the executor', async function () {
+            var error = new Error('Oh dear!'),
+                value = factory
+                    .createFutureChain(function () {
+                        throw error;
+                    })
+                    .next(function (intermediateValue) {
+                        return intermediateValue.getNative() + ' with suffix';
+                    });
+
+            await expect(value.toPromise()).to.eventually.be.rejectedWith(error);
         });
     });
 
@@ -873,6 +942,30 @@ describe('ValueFactory', function () {
             ).toPromise();
 
             expect(objectValue.getInternalProperty('reportsOwnContext')).to.be.false;
+        });
+    });
+
+    describe('deriveFuture()', function () {
+        it('should create a new FutureValue to be resolved with the given Future', async function () {
+            var derivedFuture = factory.deriveFuture(futureFactory.createAsyncPresent(21)),
+                resultValue;
+
+            // Ensure the derived Future remains unsettled until the parent one is.
+            expect(derivedFuture.isSettled()).to.be.false;
+            resultValue = await derivedFuture.toPromise();
+            expect(derivedFuture.isSettled()).to.be.true;
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(21);
+        });
+
+        it('should create a new FutureValue to be rejected with the given Future', async function () {
+            var error = new Error('Bang!'),
+                derivedFuture = factory.deriveFuture(futureFactory.createAsyncRejection(error));
+
+            // Ensure the derived Future remains unsettled until the parent one is.
+            expect(derivedFuture.isSettled()).to.be.false;
+            await expect(derivedFuture.toPromise()).to.eventually.be.rejectedWith(error);
+            expect(derivedFuture.isSettled()).to.be.true;
         });
     });
 

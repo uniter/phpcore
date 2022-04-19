@@ -12,33 +12,42 @@
 var _ = require('microdash');
 
 /**
+ * @param {Flow} flow
  * @param {boolean} autoCoercionEnabled
  * @constructor
  */
-function ValueCoercer(autoCoercionEnabled) {
+function ValueCoercer(flow, autoCoercionEnabled) {
     /**
      * @type {boolean}
      */
     this.autoCoercionEnabled = autoCoercionEnabled;
+    /**
+     * @type {Flow}
+     */
+    this.flow = flow;
 }
 
 _.extend(ValueCoercer.prototype, {
     /**
      * Unwraps arguments for a method based on the coercion mode for the class
      *
-     * @param {Value[]} argumentValues
-     * @returns {Value[]|*[]}
+     * @param {Reference[]|Value[]|Variable[]} argumentReferences
+     * @returns {Future<Value[]|*[]>}
      */
-    coerceArguments: function (argumentValues) {
+    coerceArguments: function (argumentReferences) {
         var coercer = this;
 
-        if (coercer.autoCoercionEnabled) {
-            argumentValues = _.map(argumentValues, function (argumentValue) {
-                return argumentValue.getNative();
-            });
+        if (!coercer.autoCoercionEnabled) {
+            return coercer.flow.createPresent(argumentReferences);
         }
 
-        return argumentValues;
+        return coercer.flow.mapAsync(argumentReferences, function (argumentReference) {
+            return argumentReference.getValue()
+                .asFuture() // Avoid re-boxing the result as a Value.
+                .next(function (argumentValue) {
+                    return argumentValue.getNative();
+                });
+        });
     },
 
     /**

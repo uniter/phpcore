@@ -52,6 +52,15 @@ _.extend(ControlExpressionOpcode.prototype, {
     },
 
     /**
+     * Fetches whether this opcode's result (or error) is traced.
+     *
+     * @returns {boolean}
+     */
+    isTraced: function () {
+        return true;
+    },
+
+    /**
      * Releases this opcode back into the pool to be reused
      *
      * @param {OpcodePool} opcodePool

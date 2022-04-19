@@ -18,6 +18,7 @@ var _ = require('microdash');
  * @param {ValueFactory} valueFactory
  * @param {ReferenceFactory} referenceFactory
  * @param {FutureFactory} futureFactory
+ * @param {Flow} flow
  * @param {CallStack} callStack
  * @param {NativeCaller} nativeCaller
  * @param {ValueCaller} valueCaller
@@ -30,6 +31,7 @@ function FFIFactory(
     valueFactory,
     referenceFactory,
     futureFactory,
+    flow,
     callStack,
     nativeCaller,
     valueCaller
@@ -42,6 +44,10 @@ function FFIFactory(
      * @type {CallStack}
      */
     this.callStack = callStack;
+    /**
+     * @type {Flow}
+     */
+    this.flow = flow;
     /**
      * @type {FutureFactory}
      */
@@ -80,7 +86,7 @@ _.extend(FFIFactory.prototype, {
     /**
      * Creates an AsyncObjectValue that wraps the given ObjectValue
      *
-     * @param {ObjectValue} wrappedObjectValue
+     * @param {Value} wrappedObjectValue
      * @returns {AsyncObjectValue}
      */
     createAsyncObjectValue: function (wrappedObjectValue) {
@@ -121,7 +127,10 @@ _.extend(FFIFactory.prototype, {
         var factory = this;
 
         if (!factory.modeToValueCoercerMap[autoCoercionEnabled]) {
-            factory.modeToValueCoercerMap[autoCoercionEnabled] = new factory.ValueCoercer(autoCoercionEnabled);
+            factory.modeToValueCoercerMap[autoCoercionEnabled] = new factory.ValueCoercer(
+                factory.flow,
+                autoCoercionEnabled
+            );
         }
 
         return factory.modeToValueCoercerMap[autoCoercionEnabled];

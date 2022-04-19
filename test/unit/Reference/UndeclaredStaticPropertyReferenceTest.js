@@ -54,6 +54,16 @@ describe('UndeclaredStaticPropertyReference', function () {
         );
     });
 
+    describe('asArrayElement()', function () {
+        it('should raise an error', function () {
+            expect(function () {
+                reference.asArrayElement();
+            }).to.throw(
+                'Fake PHP Fatal error for #core.undeclared_static_property with {"propertyName":"myProperty"}'
+            );
+        });
+    });
+
     describe('formatAsString()', function () {
         it('should return "NULL"', function () {
             expect(reference.formatAsString()).to.equal('NULL');

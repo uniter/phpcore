@@ -98,17 +98,20 @@ _.extend(AccessorReference.prototype, {
      * {@inheritdoc}
      */
     setValue: function (value) {
-        var reference = this;
+        var reference = this,
+            presentSetValue;
 
         if (!reference.valueSetter) {
             throw new Exception('Accessor is read-only');
         }
 
         return value.next(function (presentValue) {
-            reference.valueSetter(presentValue.getNative());
+            presentSetValue = presentValue;
 
+            return reference.valueSetter(presentValue);
+        }).next(function () {
             // Return the set value as the result.
-            return presentValue;
+            return presentSetValue;
         });
     }
 });

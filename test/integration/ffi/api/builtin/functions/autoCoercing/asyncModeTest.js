@@ -73,6 +73,34 @@ EOS
         expect((await engine.execute()).getNative()).to.equal(22);
     });
 
+    it('should support installing a custom function with by-reference parameter that receives a FutureValue', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return add_one_to($myAccessor);
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineGlobalAccessor(
+            'myAccessor',
+            function () {
+                return this.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(21);
+                    });
+                });
+            }
+        );
+
+        // Note that due to auto-coercion there is no way to access the reference.
+        // In order to access the reference, auto-coercion should be disabled for the function.
+        engine.defineCoercingFunction('add_one_to', function (number) {
+            return number + 1;
+        }, 'mixed &$number');
+
+        expect((await engine.execute()).getNative()).to.equal(22);
+    });
+
     it('should support installing a custom function that returns an FFIResult that resolves to a number', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

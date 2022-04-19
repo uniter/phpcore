@@ -87,13 +87,15 @@ describe('FunctionFactory', function () {
 
             functionSpec.coerceArguments
                 .callsFake(function (argumentReferences) {
-                    return argumentReferences.map(function (argumentReference, index) {
-                        var argumentValue = valueFactory.coerce(argumentReference);
+                    return futureFactory.createAsyncPresent(
+                        argumentReferences.map(function (argumentReference, index) {
+                            var argumentValue = valueFactory.coerce(argumentReference);
 
-                        argumentReferences[index] = argumentValue;
+                            argumentReferences[index] = argumentValue;
 
-                        return argumentValue;
-                    });
+                            return argumentValue;
+                        })
+                    );
                 });
             functionSpec.coerceReturnReference.returnsArg(0);
             functionSpec.populateDefaultArguments.returnsArg(0);

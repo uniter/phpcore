@@ -884,9 +884,9 @@ module.exports = require('pauser')([
             // or the result of calling ->getIterator() if it implemented IteratorAggregate
 
             return iteratorFutureValue.next(function (iteratorValue) {
-                iteratorValue.callMethod('rewind');
-
-                return iteratorValue;
+                return iteratorValue.callMethod('rewind').next(function () {
+                    return iteratorValue;
+                });
             });
         },
 
@@ -1327,11 +1327,18 @@ module.exports = require('pauser')([
             this.pointer = pointer;
         },
 
+        /**
+         * Sets the value of the specified property. Returns the assigned value.
+         *
+         * @param {string} name
+         * @param {Value} newValue
+         * @returns {Value}
+         */
         setProperty: function (name, newValue) {
             var value = this,
                 nameValue = value.factory.createString(name);
 
-            value.getInstancePropertyByName(nameValue).setValue(newValue);
+            return value.getInstancePropertyByName(nameValue).setValue(newValue);
         }
     });
 

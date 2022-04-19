@@ -17,6 +17,15 @@ function KeyValuePair(key, value) {
 }
 
 _.extend(KeyValuePair.prototype, {
+    /**
+     * Returns this pair unchanged.
+     *
+     * @returns {KeyValuePair}
+     */
+    asArrayElement: function () {
+        return this;
+    },
+
     getKey: function () {
         return this.key;
     },

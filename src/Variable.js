@@ -69,6 +69,16 @@ module.exports = require('pauser')([
 
     _.extend(Variable.prototype, {
         /**
+         * Returns the value of this variable, suitable for use as an array element.
+         * Note that FutureValues will be returned unchanged ready to be awaited.
+         *
+         * @returns {Value}
+         */
+        asArrayElement: function () {
+            return this.getValue().getForAssignment();
+        },
+
+        /**
          * Formats the variable (which may not be defined) for display in stack traces etc.
          *
          * @returns {string}
@@ -248,6 +258,8 @@ module.exports = require('pauser')([
 
             return value
                 .next(function (presentValue) {
+                    var assignedValue;
+
                     if (variable.name === 'this' && presentValue.getType() === 'null') {
                         // Normalise the value of $this to either be set to an ObjectValue
                         // or be unset
@@ -257,12 +269,14 @@ module.exports = require('pauser')([
                     }
 
                     if (variable.reference) {
-                        variable.reference.setValue(presentValue);
-                    } else {
-                        variable.value = presentValue.getForAssignment();
+                        // Note that we don't call .getForAssignment() here as the eventual reference will do so.
+                        return variable.reference.setValue(presentValue);
                     }
 
-                    return presentValue;
+                    assignedValue = presentValue.getForAssignment();
+                    variable.value = assignedValue;
+
+                    return assignedValue;
                 })
                 .asValue();
         },
@@ -276,10 +290,17 @@ module.exports = require('pauser')([
             return variable;
         },
 
+        /**
+         * Unsets the value or reference of this variable, if any.
+         *
+         * @returns {Future}
+         */
         unset: function () {
             var variable = this;
 
             variable.value = variable.reference = null;
+
+            return variable.futureFactory.createPresent(null);
         }
     });
 

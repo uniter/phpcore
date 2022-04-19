@@ -14,30 +14,30 @@ var expect = require('chai').expect,
     tools = require('../../tools'),
     AsyncObjectValue = require('../../../../src/FFI/Value/AsyncObjectValue').sync(),
     CallStack = require('../../../../src/CallStack'),
+    FutureValue = require('../../../../src/Value/Future'),
     ObjectValue = require('../../../../src/Value/Object').sync(),
     Value = require('../../../../src/Value').sync(),
     ValueCaller = require('../../../../src/FFI/Call/ValueCaller').sync();
 
 describe('FFI AsyncObjectValue', function () {
     var callStack,
-        nativeObject,
         state,
         value,
         valueCaller,
         valueFactory,
-        wrappedObjectValue;
+        wrappedObjectFutureValue,
+        wrappedObjectPresentValue;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
         state = tools.createIsolatedState(null, {
             'call_stack': callStack
         });
-        nativeObject = {my: 'native object'};
         valueCaller = sinon.createStubInstance(ValueCaller);
         valueFactory = state.getValueFactory();
-        wrappedObjectValue = sinon.createStubInstance(ObjectValue);
-
-        wrappedObjectValue.getObject.returns(nativeObject);
+        wrappedObjectFutureValue = sinon.createStubInstance(FutureValue);
+        wrappedObjectPresentValue = sinon.createStubInstance(ObjectValue);
+        wrappedObjectFutureValue.toPromise.returns(Promise.resolve(wrappedObjectPresentValue));
 
         value = new AsyncObjectValue(
             valueFactory,
@@ -45,7 +45,7 @@ describe('FFI AsyncObjectValue', function () {
             state.getFutureFactory(),
             callStack,
             valueCaller,
-            wrappedObjectValue
+            wrappedObjectFutureValue
         );
     });
 
@@ -54,8 +54,8 @@ describe('FFI AsyncObjectValue', function () {
     });
 
     describe('constructor()', function () {
-        it('should use the native object from the wrapped ObjectValue', function () {
-            expect(value.getNative()).to.equal(nativeObject);
+        it('should use null as the native object', function () {
+            expect(value.getNative()).to.be.null;
         });
     });
 
@@ -66,28 +66,28 @@ describe('FFI AsyncObjectValue', function () {
     });
 
     describe('callMethod()', function () {
-        it('should call the method via the ValueCaller', function () {
-            value.callMethod('myMethod', ['first arg', 101]);
+        it('should call the method via the ValueCaller', async function () {
+            await value.callMethod('myMethod', ['first arg', 101]);
 
             expect(value.valueCaller.callMethod).to.have.been.calledOnce;
             expect(value.valueCaller.callMethod).to.have.been.calledWith(
-                sinon.match.same(wrappedObjectValue),
+                sinon.match.same(wrappedObjectPresentValue),
                 'myMethod',
                 ['first arg', 101]
             );
         });
 
-        it('should return the result from the ValueCaller', function () {
+        it('should return the result from the ValueCaller', async function () {
             var resultValue = valueFactory.createString('my result');
             value.valueCaller.callMethod
                 .withArgs(
-                    sinon.match.same(wrappedObjectValue),
+                    sinon.match.same(wrappedObjectPresentValue),
                     'myMethod',
                     ['first arg', 101]
                 )
                 .returns(resultValue);
 
-            expect(value.callMethod('myMethod', ['first arg', 101])).to.equal(resultValue);
+            expect(await value.callMethod('myMethod', ['first arg', 101])).to.equal(resultValue);
         });
     });
 });

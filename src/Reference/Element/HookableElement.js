@@ -151,22 +151,27 @@ _.extend(HookableElementReference.prototype, {
      * Sets a value for this element to have, clearing any reference it may currently have
      *
      * @param {Value} value
+     * @returns {FutureValue}
      */
     setValue: function (value) {
         var element = this;
 
-        element.decoratedElement.setValue(value);
-        element.elementHookCollection.handleElementValueSet(element, value);
+        return element.decoratedElement.setValue(value).next(function () {
+            element.elementHookCollection.handleElementValueSet(element, value);
+        });
     },
 
     /**
      * Unsets this element, so that it no longer refers to a reference or holds a value
+     *
+     * @returns {Future}
      */
     unset: function () {
         var element = this;
 
-        element.decoratedElement.unset();
-        element.elementHookCollection.handleElementUnset(element);
+        return element.decoratedElement.unset().next(function () {
+            element.elementHookCollection.handleElementUnset(element);
+        });
     }
 });
 

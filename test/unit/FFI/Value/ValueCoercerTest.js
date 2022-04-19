@@ -10,19 +10,23 @@
 'use strict';
 
 var expect = require('chai').expect,
-    ValueCoercer = require('../../../../src/FFI/Value/ValueCoercer'),
-    ValueFactory = require('../../../../src/ValueFactory').sync();
+    tools = require('../../tools'),
+    ValueCoercer = require('../../../../src/FFI/Value/ValueCoercer');
 
 describe('FFI ValueCoercer', function () {
     var createCoercer,
+        flow,
+        state,
         valueCoercer,
         valueFactory;
 
     beforeEach(function () {
-        valueFactory = new ValueFactory();
+        state = tools.createIsolatedState();
+        flow = state.getFlow();
+        valueFactory = state.getValueFactory();
 
         createCoercer = function (autoCoercionEnabled) {
-            valueCoercer = new ValueCoercer(autoCoercionEnabled);
+            valueCoercer = new ValueCoercer(flow, autoCoercionEnabled);
         };
     });
 
@@ -32,11 +36,11 @@ describe('FFI ValueCoercer', function () {
                 createCoercer(true);
             });
 
-            it('should coerce the arguments to native values', function () {
+            it('should coerce the arguments to native values', async function () {
                 var argumentValue1 = valueFactory.createString('first arg'),
                     argumentValue2 = valueFactory.createString('second arg');
 
-                expect(valueCoercer.coerceArguments([argumentValue1, argumentValue2]))
+                expect(await valueCoercer.coerceArguments([argumentValue1, argumentValue2]).toPromise())
                     .to.deep.equal(['first arg', 'second arg']);
             });
         });
@@ -46,10 +50,10 @@ describe('FFI ValueCoercer', function () {
                 createCoercer(false);
             });
 
-            it('should return the argument Values unchanged', function () {
+            it('should return the argument Values unchanged', async function () {
                 var argumentValue1 = valueFactory.createString('first arg'),
                     argumentValue2 = valueFactory.createString('second arg'),
-                    result = valueCoercer.coerceArguments([argumentValue1, argumentValue2]);
+                    result = await valueCoercer.coerceArguments([argumentValue1, argumentValue2]).toPromise();
 
                 expect(result[0]).to.equal(argumentValue1);
                 expect(result[1]).to.equal(argumentValue2);

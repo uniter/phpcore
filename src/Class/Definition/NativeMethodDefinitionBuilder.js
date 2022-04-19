@@ -72,12 +72,14 @@ _.extend(NativeMethodDefinitionBuilder.prototype, {
                     scope = this,
                     objectValue = scope.getThisObject();
 
-                return method.apply(
-                    autoCoercionEnabled ?
-                        objectValue.getObject() :
-                        objectValue,
-                    valueCoercer.coerceArguments(args)
-                );
+                return valueCoercer.coerceArguments(args).next(function (effectiveArguments) {
+                    return method.apply(
+                        autoCoercionEnabled ?
+                            objectValue.getObject() :
+                            objectValue,
+                        effectiveArguments
+                    );
+                });
             },
             ref: returnByReference,
             ret: returnTypeSpecData

@@ -90,7 +90,7 @@ EOS
                 return theValue;
             },
             function (newValue) {
-                theValue = newValue * 2;
+                theValue = newValue.getNative() * 2;
             }
         );
 

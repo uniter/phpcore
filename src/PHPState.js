@@ -14,9 +14,6 @@ module.exports = require('pauser')([
     require('./builtin/builtins'),
     require('phpcommon'),
     require('./Reference/AccessorReference'),
-    require('./Core/Opcode/OpcodeHandlerFactory'),
-    require('./Core/Opcode/Opcode/CalculationOpcode'),
-    require('./Core/Opcode/Fetcher/CalculationOpcodeFetcher'),
     require('./CallStack'),
     require('./ClassAutoloader'),
     require('./Class/ClassDefiner'),
@@ -26,12 +23,7 @@ module.exports = require('pauser')([
     require('./Function/ClosureContext'),
     require('./ClosureFactory'),
     require('./Service/Container'),
-    require('./Control/ControlBridge'),
-    require('./Core/Opcode/Opcode/ControlExpressionOpcode'),
-    require('./Core/Opcode/Fetcher/ControlExpressionOpcodeFetcher'),
     require('./Control/ControlFactory'),
-    require('./Core/Opcode/Opcode/ControlStructureOpcode'),
-    require('./Core/Opcode/Fetcher/ControlStructureOpcodeFetcher'),
     require('./Core/Core'),
     require('./Core/CoreBinder'),
     require('./Core/CoreFactory'),
@@ -73,11 +65,8 @@ module.exports = require('pauser')([
     require('./Value/Future'),
     require('./Load/Includer'),
     require('./INIState'),
-    require('./Core/Opcode/Opcode/IsolatedOpcode'),
     require('./Load/Loader'),
     require('./Load/LoadScope'),
-    require('./Core/Opcode/Opcode/LoopStructureOpcode'),
-    require('./Core/Opcode/Fetcher/LoopStructureOpcodeFetcher'),
     require('./Function/MethodContext'),
     require('./MethodSpec'),
     require('./Module'),
@@ -89,10 +78,7 @@ module.exports = require('pauser')([
     require('./Reference/Null'),
     require('./Reference/ObjectElement'),
     require('./Load/OnceIncluder'),
-    require('./Core/Opcode/Opcode/OpcodeFactory'),
-    require('./Core/Opcode/Fetcher/OpcodeFetcherRepository'),
     require('./Core/Internals/OpcodeInternalsClassFactory'),
-    require('./Core/Opcode/Opcode/OpcodePool'),
     require('./OptionSet'),
     require('./Output/Output'),
     require('./Output/OutputBuffer'),
@@ -108,7 +94,6 @@ module.exports = require('pauser')([
     require('./Reference/ReferenceSlot'),
     require('./Scope'),
     require('./ScopeFactory'),
-    require('./Control/Sequence'),
     require('./Service/ServiceInternals'),
     require('./Reference/StaticProperty'),
     require('./Output/StdoutBuffer'),
@@ -117,7 +102,6 @@ module.exports = require('pauser')([
     require('./Error/TraceFormatter'),
     require('./Function/TypedFunction'),
     require('./Reference/UndeclaredStaticProperty'),
-    require('./Core/Opcode/Opcode/UntracedOpcode'),
     require('./Control/Userland'),
     require('./Class/Definition/UserlandDefinitionBuilder'),
     require('./Value'),
@@ -129,9 +113,6 @@ module.exports = require('pauser')([
     builtinTypes,
     phpCommon,
     AccessorReference,
-    OpcodeHandlerFactory,
-    CalculationOpcode,
-    CalculationOpcodeFetcher,
     CallStack,
     ClassAutoloader,
     ClassDefiner,
@@ -141,12 +122,7 @@ module.exports = require('pauser')([
     ClosureContext,
     ClosureFactory,
     Container,
-    ControlBridge,
-    ControlExpressionOpcode,
-    ControlExpressionOpcodeFetcher,
     ControlFactory,
-    ControlStructureOpcode,
-    ControlStructureOpcodeFetcher,
     Core,
     CoreBinder,
     CoreFactory,
@@ -188,11 +164,8 @@ module.exports = require('pauser')([
     FutureValue,
     Includer,
     INIState,
-    IsolatedOpcode,
     Loader,
     LoadScope,
-    LoopStructureOpcode,
-    LoopStructureOpcodeFetcher,
     MethodContext,
     MethodSpec,
     Module,
@@ -204,10 +177,7 @@ module.exports = require('pauser')([
     NullReference,
     ObjectElement,
     OnceIncluder,
-    OpcodeFactory,
-    OpcodeFetcherRepository,
     OpcodeInternalsClassFactory,
-    OpcodePool,
     OptionSet,
     Output,
     OutputBuffer,
@@ -223,7 +193,6 @@ module.exports = require('pauser')([
     ReferenceSlot,
     Scope,
     ScopeFactory,
-    Sequence,
     ServiceInternals,
     StaticPropertyReference,
     StdoutBuffer,
@@ -232,7 +201,6 @@ module.exports = require('pauser')([
     TraceFormatter,
     TypedFunction,
     UndeclaredStaticPropertyReference,
-    UntracedOpcode,
     Userland,
     UserlandDefinitionBuilder,
     Value,
@@ -496,18 +464,10 @@ module.exports = require('pauser')([
             )),
             errorPromoter = set('error_promoter', new ErrorPromoter(errorReporting)),
             ffiValueStorage = set('ffi_value_storage', new FFIValueStorage()),
-            controlBridge = set('control_bridge', new ControlBridge(Future, FutureValue, Value)),
+            controlBridge = get('control_bridge'),
             controlScope = get('control_scope'),
-            opcodeFactory = new OpcodeFactory(
-                CalculationOpcode,
-                ControlExpressionOpcode,
-                ControlStructureOpcode,
-                IsolatedOpcode,
-                LoopStructureOpcode,
-                UntracedOpcode
-            ),
-            opcodePool = new OpcodePool(opcodeFactory),
-            controlFactory = new ControlFactory(Sequence, Trace, controlBridge, controlScope, opcodePool),
+            opcodePool = get('opcode_pool'),
+            controlFactory = new ControlFactory(Trace, opcodePool),
             valueFactory = set('value_factory', new ValueFactory(
                 mode,
                 translator,
@@ -518,17 +478,16 @@ module.exports = require('pauser')([
                 controlScope
             )),
             callStack = get('call_stack'),
-            pauseFactory = new PauseFactory(Pause, callStack, controlFactory, controlScope, mode),
+            pauseFactory = new PauseFactory(Pause, callStack, controlScope, mode),
             userland = new Userland(callStack, controlBridge, controlScope, valueFactory, opcodePool, mode),
             futureFactory = set('future_factory', new FutureFactory(
-                controlFactory,
                 pauseFactory,
                 valueFactory,
                 controlBridge,
                 Future
             )),
-            flow = new Flow(controlFactory, controlBridge, controlScope, futureFactory, mode),
-            referenceFactory = new ReferenceFactory(
+            flow = set('flow', new Flow(controlFactory, controlBridge, controlScope, futureFactory, mode)),
+            referenceFactory = set('reference_factory', new ReferenceFactory(
                 AccessorReference,
                 ElementReference,
                 NullReference,
@@ -540,7 +499,7 @@ module.exports = require('pauser')([
                 valueFactory,
                 futureFactory,
                 callStack
-            ),
+            )),
             elementProviderFactory = new ElementProviderFactory(referenceFactory, futureFactory),
             elementProvider = elementProviderFactory.createProvider(),
             classAutoloader = new ClassAutoloader(valueFactory, flow),
@@ -561,6 +520,7 @@ module.exports = require('pauser')([
                 valueFactory,
                 referenceFactory,
                 futureFactory,
+                flow,
                 callStack,
                 ffiNativeCaller,
                 ffiValueCaller
@@ -627,6 +587,7 @@ module.exports = require('pauser')([
             ),
             classFactory = new ClassFactory(
                 valueFactory,
+                get('value_provider'),
                 referenceFactory,
                 functionFactory,
                 callStack,
@@ -680,17 +641,12 @@ module.exports = require('pauser')([
             optionSet,
             output = new Output(new OutputFactory(OutputBuffer), new StdoutBuffer(stdout)),
             state = this,
-            opcodeFetcherRepository = new OpcodeFetcherRepository({
-                'calculation': new CalculationOpcodeFetcher(opcodePool),
-                'controlExpression': new ControlExpressionOpcodeFetcher(opcodePool),
-                'controlStructure': new ControlStructureOpcodeFetcher(opcodePool),
-                'loopStructure': new LoopStructureOpcodeFetcher(opcodePool)
-            }),
-            opcodeHandlerFactory = new OpcodeHandlerFactory(controlBridge, callStack, opcodeFetcherRepository),
+            opcodeHandlerFactory = get('opcode_handler_factory'),
             coreBinder = new CoreBinder(),
             coreFactory;
 
         callFactory.setControlFactory(controlFactory);
+        pauseFactory.setFutureFactory(futureFactory);
         scopeFactory.setClosureFactory(closureFactory);
         globalScope = scopeFactory.create();
         scopeFactory.setGlobalNamespace(globalNamespace);
@@ -698,6 +654,8 @@ module.exports = require('pauser')([
         classAutoloader.setGlobalNamespace(globalNamespace);
         valueFactory.setCallStack(callStack);
         valueFactory.setElementProvider(elementProvider);
+
+        valueFactory.setFlow(flow);
         valueFactory.setFutureFactory(futureFactory);
         valueFactory.setGlobalNamespace(globalNamespace);
         valueFactory.setReferenceFactory(referenceFactory);
@@ -739,6 +697,7 @@ module.exports = require('pauser')([
             onceIncluder,
             evaluator,
             valueFactory,
+            get('value_provider'),
             referenceFactory,
             controlFactory,
             pauseFactory,
@@ -823,10 +782,11 @@ module.exports = require('pauser')([
                     return globalsArray;
                 },
                 function (newNative) {
-                    // Clear these accessors first
+                    // Clear these accessors first. Note there should be no need to await
+                    // any future here as there should be none returned by default.
                     globalsSuperGlobal.unset();
 
-                    globalsSuperGlobal.setValue(valueFactory.coerce(newNative));
+                    return globalsSuperGlobal.setValue(valueFactory.coerce(newNative));
                 }
             )
         );
@@ -1027,6 +987,7 @@ module.exports = require('pauser')([
          *
          * @param {string} name
          * @param {Value|*} value Value object or native value to be coerced
+         * @returns {Value} Returns the value assigned, which may be a FutureValue
          * @throws {Error} Throws when the global scope already defines the specified variable
          */
         defineGlobal: function (name, value) {
@@ -1038,7 +999,7 @@ module.exports = require('pauser')([
                 );
             }
 
-            state.globalScope.defineVariable(name).setValue(state.valueFactory.coerce(value));
+            return state.globalScope.defineVariable(name).setValue(state.valueFactory.coerce(value));
         },
 
         /**
@@ -1131,11 +1092,12 @@ module.exports = require('pauser')([
          *
          * @param {string} name
          * @param {Value|*} value
+         * @returns {Value} Returns the value assigned, which may be a FutureValue
          */
         defineSuperGlobal: function (name, value) {
             var state = this;
 
-            state.superGlobalScope
+            return state.superGlobalScope
                 .defineVariable(name)
                 .setValue(state.valueFactory.coerce(value));
         },
@@ -1439,6 +1401,15 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Fetches the ValueProvider service.
+         *
+         * @returns {ValueProvider}
+         */
+        getValueProvider: function () {
+            return this.container.getService('value_provider');
+        },
+
+        /**
          * Sets the value of an existing PHP global. If a native value is given
          * then it will be coerced to a PHP one.
          * If the global is not defined than an error will be thrown -
@@ -1446,6 +1417,7 @@ module.exports = require('pauser')([
          *
          * @param {string} name
          * @param {Value|*} value Value object or native value to be coerced
+         * @returns {Value} Returns the value assigned, which may be a FutureValue
          * @throws {Error} Throws if the variable is not defined in the global scope
          */
         setGlobal: function (name, value) {
@@ -1457,7 +1429,7 @@ module.exports = require('pauser')([
                 );
             }
 
-            state.globalScope.getVariable(name).setValue(state.valueFactory.coerce(value));
+            return state.globalScope.getVariable(name).setValue(state.valueFactory.coerce(value));
         }
     });
 

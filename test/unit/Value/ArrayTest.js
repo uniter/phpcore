@@ -10,6 +10,7 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('../tools'),
     ArrayIterator = require('../../../src/Iterator/ArrayIterator'),
@@ -18,6 +19,7 @@ var expect = require('chai').expect,
     Class = require('../../../src/Class').sync(),
     ElementProvider = require('../../../src/Reference/Element/ElementProvider'),
     ElementReference = require('../../../src/Reference/Element'),
+    Exception = phpCommon.Exception,
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyReferencePair = require('../../../src/KeyReferencePair'),
     KeyValuePair = require('../../../src/KeyValuePair'),
@@ -28,7 +30,8 @@ var expect = require('chai').expect,
     PropertyReference = require('../../../src/Reference/Property'),
     Reference = require('../../../src/Reference/Reference'),
     StringValue = require('../../../src/Value/String').sync(),
-    Value = require('../../../src/Value').sync();
+    Value = require('../../../src/Value').sync(),
+    Variable = require('../../../src/Variable').sync();
 
 describe('Array', function () {
     var callStack,
@@ -44,6 +47,7 @@ describe('Array', function () {
         elementValue1,
         elementValue2,
         factory,
+        flow,
         futureFactory,
         globalNamespace,
         namespaceScope,
@@ -58,6 +62,7 @@ describe('Array', function () {
         });
         elementProvider = new ElementProvider();
         factory = state.getValueFactory();
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         globalNamespace = sinon.createStubInstance(Namespace);
@@ -106,11 +111,32 @@ describe('Array', function () {
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 elements,
                 elementProvider
             );
         };
         createValue();
+    });
+
+    describe('constructor()', function () {
+        it('should throw when a non-ReferenceSlot reference is given as an ordered element', function () {
+            var reference = sinon.createStubInstance(Reference);
+            elements.push(reference);
+
+            expect(function () {
+                createValue();
+            }).to.throw(Exception, 'Unwrapped elements should be ReferenceSlots or Values');
+        });
+
+        it('should throw when a Variable is given as an ordered element', function () {
+            var variable = sinon.createStubInstance(Variable);
+            elements.push(variable);
+
+            expect(function () {
+                createValue();
+            }).to.throw(Exception, 'Unwrapped elements should be ReferenceSlots or Values');
+        });
     });
 
     describe('add()', function () {
@@ -134,21 +160,22 @@ describe('Array', function () {
                     referenceFactory,
                     futureFactory,
                     callStack,
+                    flow,
                     [rightElement1, rightElement2],
                     elementProvider
                 );
             });
 
-            it('should return an array', function () {
-                expect(value.add(rightValue)).to.be.an.instanceOf(ArrayValue);
+            it('should return an array', async function () {
+                expect(await value.add(rightValue).toPromise()).to.be.an.instanceOf(ArrayValue);
             });
 
-            it('should return a different array to the left operand', function () {
-                expect(value.add(rightValue)).not.to.equal(rightValue);
+            it('should return a different array to the left operand', async function () {
+                expect(await value.add(rightValue).toPromise()).not.to.equal(rightValue);
             });
 
-            it('should prefer elements from left array over elements from right array', function () {
-                var result = value.add(rightValue);
+            it('should prefer elements from left array over elements from right array', async function () {
+                var result = await value.add(rightValue).toPromise();
 
                 expect(result.getNative().firstEl).to.equal('value of first el');
                 expect(result.getNative().secondEl).to.equal('value of second el');
@@ -238,6 +265,15 @@ describe('Array', function () {
                     'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
                 );
             });
+        });
+    });
+
+    describe('asArrayElement()', function () {
+        it('should return a copy of the array', function () {
+            var cloneValue = value.asArrayElement();
+
+            expect(cloneValue).to.not.equal(value);
+            expect(cloneValue.getNative()).to.deep.equal(value.getNative());
         });
     });
 
@@ -411,14 +447,14 @@ describe('Array', function () {
             });
         });
 
-        it('should return an ObjectValue wrapping the created stdClass instance', function () {
-            var coercedValue = value.coerceToObject();
+        it('should return an ObjectValue wrapping the created stdClass instance', async function () {
+            var coercedValue = await value.coerceToObject().toPromise();
 
             expect(coercedValue).to.equal(stdClassObject);
         });
 
-        it('should store the array elements as properties of the stdClass object', function () {
-            value.coerceToObject();
+        it('should store the array elements as properties of the stdClass object', async function () {
+            await value.coerceToObject().toPromise();
 
             expect(nativeStdClassObject.firstEl).to.equal('value of first el');
             expect(nativeStdClassObject.secondEl).to.equal('value of second el');
@@ -633,6 +669,7 @@ describe('Array', function () {
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 [element1, element2],
                 elementProvider
             );
@@ -652,6 +689,7 @@ describe('Array', function () {
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 [element1, element2],
                 elementProvider
             );
@@ -673,6 +711,7 @@ describe('Array', function () {
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 [],
                 elementProvider
             );
@@ -694,6 +733,7 @@ describe('Array', function () {
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 [element1, element2],
                 elementProvider
             );
@@ -713,6 +753,7 @@ describe('Array', function () {
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 [element1, element2],
                 elementProvider
             );
@@ -734,6 +775,7 @@ describe('Array', function () {
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 [],
                 elementProvider
             );
@@ -1248,17 +1290,17 @@ describe('Array', function () {
     });
 
     describe('push()', function () {
-        it('should give the new element index 0 if the array was empty', function () {
+        it('should give the new element index 0 if the array was empty', async function () {
             elements.length = 0;
             createValue();
 
-            value.push(factory.createString('my new element'));
+            await value.push(factory.createString('my new element')).toPromise();
 
             expect(value.getNative()).to.deep.equal(['my new element']);
         });
 
-        it('should number indexed elements separately from associative ones', function () {
-            value.push(factory.createString('my new indexed element'));
+        it('should number indexed elements separately from associative ones', async function () {
+            await value.push(factory.createString('my new indexed element')).toPromise();
 
             expect(value.getNative()).to.deep.equal({
                 firstEl: 'value of first el',
@@ -1376,6 +1418,7 @@ describe('Array', function () {
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 [element1, element2, element3],
                 elementProvider
             );

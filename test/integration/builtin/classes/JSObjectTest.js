@@ -294,7 +294,7 @@ EOS
         );
     });
 
-    it('should allow JS functions wrapped as JSObjects to be called', function () {
+    it('should allow JS functions wrapped as JSObjects to be called', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -307,7 +307,7 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/my/test/module.php', php, {
+            module = tools.asyncTranspile('/my/test/module.php', php, {
                 // Capture offsets of all nodes for line tracking
                 phpToAST: {captureAllBounds: true},
                 // Record line numbers for statements/expressions
@@ -319,7 +319,7 @@ EOS
             return 'hello ' + arg;
         });
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             true, // Check for instance of JSObject
             'hello world'
         ]);

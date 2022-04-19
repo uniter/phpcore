@@ -330,33 +330,35 @@ _.extend(PropertyReference.prototype, {
                 var valueForAssignment;
 
                 if (property.reference) {
-                    property.reference.setValue(presentValue);
-
-                    return presentValue;
+                    // Note that we don't call .getForAssignment() here as the eventual reference will do so.
+                    return property.reference.setValue(presentValue);
                 }
 
                 valueForAssignment = presentValue.getForAssignment();
 
                 if (!property.isDefined()) {
                     // Property is not defined - attempt to call magic setter method first,
-                    // otherwise just dynamically define the new property by setting its value below
+                    // otherwise just dynamically define the new property by setting its value below.
                     if (property.objectValue.isMethodDefined(MAGIC_SET)) {
-                        property.objectValue.callMethod(MAGIC_SET, [property.key, valueForAssignment]);
-
-                        return presentValue;
+                        return property.objectValue.callMethod(MAGIC_SET, [property.key, valueForAssignment])
+                            // Ignore the return value of __set(), but still await it as it may return a FutureValue.
+                            .next(function () {
+                                return presentValue;
+                            });
                     }
                 }
 
-                // No magic setter is defined - store the value of this property directly on itself
+                // No magic setter is defined - store the value of this property directly on itself.
                 property.value = valueForAssignment;
 
-                return presentValue;
-            })
-            .yield();
+                return valueForAssignment;
+            });
     },
 
     /**
      * Marks this property as unset and undefined
+     *
+     * @returns {Future}
      */
     unset: function () {
         var property = this;
@@ -364,12 +366,15 @@ _.extend(PropertyReference.prototype, {
         if (!property.isDefined()) {
             // Property is not defined - call magic unsetter method if defined
             if (property.objectValue.isMethodDefined(MAGIC_UNSET)) {
-                property.objectValue.callMethod(MAGIC_UNSET, [property.key]);
+                return property.objectValue.callMethod(MAGIC_UNSET, [property.key])
+                    .asFuture();
             }
         }
 
         // Clear value and/or reference to mark as unset
         property.value = property.reference = null;
+
+        return property.futureFactory.createPresent(null);
     }
 });
 

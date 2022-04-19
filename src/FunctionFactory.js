@@ -105,7 +105,6 @@ module.exports = require('pauser')([
                  */
                 wrapperFunc = function () {
                     var argReferences = slice.call(arguments),
-                        argValues, // Populated by coercion stage.
                         thisObject = currentObject || this,
                         scope,
                         call,
@@ -212,36 +211,42 @@ module.exports = require('pauser')([
                         thisObject = null;
                     }
 
-                    // Coerce parameter arguments as required, capturing all values for later validation.
-                    // Note that coerced arguments for by-value parameters will be written back to argReferences.
-                    argValues = functionSpec.coerceArguments(argReferences);
+                    /*
+                     * Coerce parameter arguments as required, capturing all values for later validation.
+                     *
+                     * Coerced arguments for by-value parameters will be written back to argReferences.
+                     *
+                     * Any arguments that are references returning FutureValues will be resolved.
+                     */
+                    result = functionSpec.coerceArguments(argReferences)
+                        .next(function (argValues) {
+                            scope = factory.scopeFactory.create(currentClass, wrapperFunc, thisObject);
+                            call = factory.callFactory.create(
+                                scope,
+                                namespaceScope,
+                                // Note that the resolved argument values are stored against the call and not
+                                // any references passed in, so we have the actual argument used at the time.
+                                argValues,
+                                newStaticClass
+                            );
 
-                    scope = factory.scopeFactory.create(currentClass, wrapperFunc, thisObject);
-                    call = factory.callFactory.create(
-                        scope,
-                        namespaceScope,
-                        // Note that the resolved argument values are stored against the call and not
-                        // any references passed in, so we have the actual argument used at the time.
-                        argValues,
-                        newStaticClass
-                    );
+                            // TODO: Remove NamespaceScope concept, instead handling at compile time.
+                            namespaceScope.enter();
 
-                    // TODO: Remove NamespaceScope concept, instead handling at compile time.
-                    namespaceScope.enter();
+                            // Push the call onto the stack.
+                            factory.callStack.push(call);
 
-                    // Push the call onto the stack
-                    factory.callStack.push(call);
-
-                    // Now validate the arguments at this point (coercion was done earlier)
-                    // - if any error is raised then the call will still be popped off
-                    //   by the finally clause below
-                    result = functionSpec.validateArguments(argReferences, argValues)
+                            // Now validate the arguments at this point (coercion was done earlier)
+                            // - if any error is raised then the call will still be popped off
+                            //   by the finally clause below.
+                            return functionSpec.validateArguments(argReferences, argValues);
+                        })
                         .next(function () {
                             /*
                              * Now populate any optional arguments that were omitted with their default values.
                              *
                              * Note that default args could be async and cause a pause,
-                             *     eg. if a default value is a constant of an asynchronously autoloaded class
+                             *     eg. if a default value is a constant of an asynchronously autoloaded class.
                              */
                             return functionSpec.populateDefaultArguments(argReferences);
                         })

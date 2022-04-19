@@ -32,7 +32,7 @@ function OpcodePool(opcodeFactory) {
 _.extend(OpcodePool.prototype, {
     /**
      * Fetches a free CalculationOpcode from the pool if one is available,
-     * otherwise creates a new one
+     * otherwise creates a new one.
      *
      * @param {Trace} trace
      * @param {number} opIndex
@@ -45,10 +45,10 @@ _.extend(OpcodePool.prototype, {
             opcode;
 
         if (pool.calculationOpcodes.length > 0) {
-            // An opcode is available from the pool; fetch it
+            // An opcode is available from the pool; fetch it.
             opcode = pool.calculationOpcodes.pop();
         } else {
-            // All opcodes have been depleted from the pool, we'll have to create a new one
+            // All opcodes have been depleted from the pool, we'll have to create a new one.
             // TODO: Keep all regardless of growth or limit max # of opcodes returned to pool?
             opcode = pool.opcodeFactory.createCalculationOpcode();
         }
@@ -59,8 +59,9 @@ _.extend(OpcodePool.prototype, {
     },
 
     /**
-     * Fetches a free ControlExpressionOpcode from the pool if one is available,
-     * otherwise creates a new one
+     * Creates a new ControlExpressionOpcode.
+     *
+     * TODO: Investigate and pool these if needed.
      *
      * @param {Trace} trace
      * @param {number} opIndex
@@ -75,8 +76,9 @@ _.extend(OpcodePool.prototype, {
     },
 
     /**
-     * Fetches a free ControlStructureOpcode from the pool if one is available,
-     * otherwise creates a new one
+     * Creates a new ControlStructureOpcode.
+     *
+     * TODO: Investigate and pool these if needed.
      *
      * @param {Trace} trace
      * @param {number} opIndex
@@ -91,18 +93,21 @@ _.extend(OpcodePool.prototype, {
     },
 
     /**
-     * Fetches a free IsolatedOpcode from the pool if one is available,
-     * otherwise creates a new one
+     * Creates a new IsolatedOpcode.
+     *
+     * TODO: Investigate and pool these if needed.
      *
      * @returns {IsolatedOpcode}
      */
     provideIsolatedOpcode: function () {
+        // TODO: Always return the same single instance of this class?
         return this.opcodeFactory.createIsolatedOpcode();
     },
 
     /**
-     * Fetches a free LoopStructureOpcode from the pool if one is available,
-     * otherwise creates a new one
+     * Creates a new LoopStructureOpcode.
+     *
+     * TODO: Investigate and pool these if needed.
      *
      * @param {Trace} trace
      * @param {number} opIndex
@@ -118,8 +123,9 @@ _.extend(OpcodePool.prototype, {
     },
 
     /**
-     * Fetches a free UntracedOpcode from the pool if one is available,
-     * otherwise creates a new one
+     * Creates a new UntracedOpcode.
+     *
+     * TODO: Investigate and pool these if needed.
      *
      * @param {Function} handler
      * @param {*[]} args
@@ -130,7 +136,7 @@ _.extend(OpcodePool.prototype, {
     },
 
     /**
-     * Returns a finished CalculationOpcode to the pool to be reused
+     * Returns a finished CalculationOpcode to the pool to be reused.
      *
      * @param {CalculationOpcode} opcode
      */

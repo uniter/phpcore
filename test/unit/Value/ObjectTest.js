@@ -343,6 +343,12 @@ describe('Object', function () {
         });
     });
 
+    describe('asArrayElement()', function () {
+        it('should return the value itself', function () {
+            expect(value.asArrayElement()).to.equal(value);
+        });
+    });
+
     describe('asFuture()', function () {
         it('should return a Present that resolves to this value', function () {
             return expect(value.asFuture().toPromise()).to.eventually.equal(value);
@@ -1684,10 +1690,10 @@ describe('Object', function () {
     });
 
     describe('getIterator()', function () {
-        it('should reset the object\'s internal pointer', function () {
+        it('should reset the object\'s internal pointer', async function () {
             value.setPointer(4);
 
-            value.getIterator();
+            await value.getIterator().toPromise();
 
             expect(value.getPointer()).to.equal(0);
         });
@@ -1706,19 +1712,24 @@ describe('Object', function () {
 
         describe('when the object implements Iterator', function () {
             beforeEach(function () {
+                // The result of calling ->rewind() will be discarded but may be a FutureValue to await.
+                classObject.callMethod
+                    .withArgs('rewind')
+                    .returns(factory.createAsyncPresent('my discarded result'));
+
                 classObject.is.withArgs('Iterator').returns(true);
                 classObject.is.returns(false);
             });
 
-            it('should call its ->rewind() method', function () {
-                value.getIterator();
+            it('should call its ->rewind() method', async function () {
+                await value.getIterator().toPromise();
 
                 expect(classObject.callMethod).to.have.been.calledOnce;
                 expect(classObject.callMethod).to.have.been.calledWith('rewind');
             });
 
-            it('should return this object itself', function () {
-                expect(value.getIterator()).to.equal(value);
+            it('should return this object itself', async function () {
+                expect(await value.getIterator().toPromise()).to.equal(value);
             });
         });
 
@@ -1730,6 +1741,10 @@ describe('Object', function () {
 
             it('should return the Iterator instance returned by ->getIterator()', async function () {
                 var iteratorValue = sinon.createStubInstance(ObjectValue);
+                // The result of calling ->rewind() will be discarded but may be a FutureValue to await.
+                iteratorValue.callMethod
+                    .withArgs('rewind')
+                    .returns(factory.createAsyncPresent('my discarded result'));
                 iteratorValue.classIs.withArgs('Iterator').returns(true);
                 iteratorValue.classIs.returns(false);
                 iteratorValue.getType.returns('object');
@@ -1741,6 +1756,10 @@ describe('Object', function () {
 
             it('should rewind the Iterator instance returned by ->getIterator()', async function () {
                 var iteratorValue = sinon.createStubInstance(ObjectValue);
+                // The result of calling ->rewind() will be discarded but may be a FutureValue to await.
+                iteratorValue.callMethod
+                    .withArgs('rewind')
+                    .returns(factory.createAsyncPresent('my discarded result'));
                 iteratorValue.classIs.withArgs('Iterator').returns(true);
                 iteratorValue.classIs.returns(false);
                 iteratorValue.getType.returns('object');
@@ -2629,6 +2648,25 @@ describe('Object', function () {
                     'Object of class My\\Space\\AwesomeClass could not be converted to number'
                 );
             });
+        });
+    });
+
+    describe('setProperty()', function () {
+        it('should set the value of the property', async function () {
+            var resultValue;
+
+            await value.setProperty('myProp', factory.createInteger(21)).toPromise();
+
+            resultValue = value.getProperty('myProp');
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(21);
+        });
+
+        it('should return the assigned value', async function () {
+            var resultValue = await value.setProperty('myProp', factory.createInteger(21)).toPromise();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(21);
         });
     });
 

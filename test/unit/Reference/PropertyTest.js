@@ -15,6 +15,7 @@ var expect = require('chai').expect,
     tools = require('../tools'),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
+    Future = require('../../../src/Control/Future'),
     PropertyReference = require('../../../src/Reference/Property'),
     MethodSpec = require('../../../src/MethodSpec'),
     ObjectValue = require('../../../src/Value/Object').sync(),
@@ -38,7 +39,7 @@ describe('PropertyReference', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
-        state = tools.createIsolatedState(null, {
+        state = tools.createIsolatedState('async', {
             'call_stack': callStack
         });
         classObject = sinon.createStubInstance(Class);
@@ -71,6 +72,14 @@ describe('PropertyReference', function () {
             );
         };
         createProperty();
+    });
+
+    describe('asArrayElement()', function () {
+        it('should return the value of the property', function () {
+            property.initialise(propertyValue);
+
+            expect(property.asArrayElement()).to.equal(propertyValue);
+        });
     });
 
     describe('formatAsString()', function () {
@@ -431,18 +440,21 @@ describe('PropertyReference', function () {
         var newValue;
 
         beforeEach(function () {
-            newValue = valueFactory.createString('my new value');
+            newValue = valueFactory.createAsyncPresent('my new value');
         });
 
         describe('when the property is not a reference', function () {
-            it('should store the new value for the property', function () {
-                property.setValue(newValue);
+            it('should store the new value for the property', async function () {
+                await property.setValue(newValue).toPromise();
 
                 expect(property.getNative()).to.equal('my new value');
             });
 
-            it('should return the value assigned', function () {
-                expect(property.setValue(newValue)).to.equal(newValue);
+            it('should return the value assigned', async function () {
+                var resultPresent = await property.setValue(newValue).toPromise();
+
+                expect(resultPresent.getType()).to.equal('string');
+                expect(resultPresent.getNative()).to.equal('my new value');
             });
         });
 
@@ -451,23 +463,35 @@ describe('PropertyReference', function () {
 
             beforeEach(function () {
                 reference = sinon.createStubInstance(Variable);
+
+                reference.setValue.returnsArg(0);
+
                 property.setReference(reference);
             });
 
-            it('should set the property via the reference', function () {
-                property.setValue(newValue);
+            it('should set the property via the reference', async function () {
+                await property.setValue(newValue).toPromise();
 
                 expect(reference.setValue).to.have.been.calledOnce;
-                expect(reference.setValue).to.have.been.calledWith(sinon.match.same(newValue));
+                expect(reference.setValue.args[0][0].getType()).to.equal('string');
+                expect(reference.setValue.args[0][0].getNative()).to.equal('my new value');
             });
 
-            it('should return the value assigned', function () {
-                expect(property.setValue(newValue)).to.equal(newValue);
+            it('should return the value assigned', async function () {
+                var resultValue = await property.setValue(newValue).toPromise();
+
+                expect(resultValue.getType()).to.equal('string');
+                expect(resultValue.getNative()).to.equal('my new value');
             });
         });
 
         describe('when this property is not defined', function () {
             beforeEach(function () {
+                objectValue.callMethod
+                    .withArgs('__set')
+                    // Result is discarded but may be async so should be awaited.
+                    .returns(valueFactory.createAsyncPresent('my discarded result'));
+
                 objectValue.getLength.returns(0); // Property is the first to be defined
 
                 keyValue.getNative.returns('my_new_property');
@@ -478,14 +502,20 @@ describe('PropertyReference', function () {
                     objectValue.isMethodDefined.withArgs('__set').returns(sinon.createStubInstance(MethodSpec));
                 });
 
-                it('should call the magic setter', function () {
-                    property.setValue(newValue);
+                it('should call the magic setter', async function () {
+                    await property.setValue(newValue).toPromise();
 
                     expect(objectValue.callMethod).to.have.been.calledOnce;
-                    expect(objectValue.callMethod).to.have.been.calledWith('__set', [
-                        sinon.match.same(keyValue),
-                        sinon.match.same(newValue)
-                    ]);
+                    expect(objectValue.callMethod).to.have.been.calledWith('__set');
+                    expect(objectValue.callMethod.args[0][1][0].getType()).to.equal('string');
+                    expect(objectValue.callMethod.args[0][1][0].getNative()).to.equal('my_new_property');
+                });
+
+                it('should return the value assigned', async function () {
+                    var resultValue = await property.setValue(newValue).toPromise();
+
+                    expect(resultValue.getType()).to.equal('string');
+                    expect(resultValue.getNative()).to.equal('my new value');
                 });
             });
         });
@@ -495,7 +525,7 @@ describe('PropertyReference', function () {
         it('should leave the property no longer set', async function () {
             property.initialise(propertyValue);
 
-            property.unset();
+            await property.unset().toPromise();
 
             expect(await property.isSet().toPromise()).to.be.false;
         });
@@ -503,17 +533,53 @@ describe('PropertyReference', function () {
         it('should leave the property empty', async function () {
             property.initialise(propertyValue);
 
-            property.unset();
+            await property.unset().toPromise();
 
             expect(await property.isEmpty().toPromise()).to.be.true;
         });
 
-        it('should leave the property undefined', function () {
+        it('should leave the property undefined', async function () {
             property.initialise(propertyValue);
 
-            property.unset();
+            await property.unset().toPromise();
 
             expect(property.isDefined()).to.be.false;
+        });
+
+        describe('when the class does not define magic __unset(...)', function () {
+            it('should return an unwrapped Future when defined', async function () {
+                property.initialise(propertyValue);
+
+                expect(property.unset()).to.be.an.instanceOf(Future);
+            });
+
+            it('should return an unwrapped Future when undefined', async function () {
+                expect(property.unset()).to.be.an.instanceOf(Future);
+            });
+        });
+
+        describe('when the class does define magic __unset(...)', function () {
+            beforeEach(function () {
+                objectValue.callMethod
+                    .withArgs('__unset')
+                    // Result is discarded but may be async so should be awaited.
+                    .returns(valueFactory.createAsyncPresent('my discarded result'));
+
+                objectValue.isMethodDefined.withArgs('__unset').returns(sinon.createStubInstance(MethodSpec));
+            });
+
+            it('should call the magic unsetter', async function () {
+                await property.unset().toPromise();
+
+                expect(objectValue.callMethod).to.have.been.calledOnce;
+                expect(objectValue.callMethod).to.have.been.calledWith('__unset');
+                expect(objectValue.callMethod.args[0][1][0].getType()).to.equal('string');
+                expect(objectValue.callMethod.args[0][1][0].getNative()).to.equal('my_property');
+            });
+
+            it('should return an unwrapped Future when undefined', async function () {
+                expect(property.unset()).to.be.an.instanceOf(Future);
+            });
         });
     });
 });

@@ -16,7 +16,12 @@ var _ = require('microdash'),
     phpCorePath = path.resolve(__dirname, '../..'),
     phpToAST = require('phptoast'),
     phpToJS = require('phptojs'),
+    util = require('util'),
+    OpcodeExecutor = require('../../src/Core/Opcode/Handler/OpcodeExecutor'),
+    Reference = require('../../src/Reference/Reference'),
     SourceMapConsumer = require('source-map').SourceMapConsumer,
+    Value = require('../../src/Value').sync(),
+    Variable = require('../../src/Variable').sync(),
     WeakMap = require('es6-weak-map'),
     runtimeFactory = require('../../src/shared/runtimeFactory'),
 
@@ -24,11 +29,15 @@ var _ = require('microdash'),
     moduleDataMap = new WeakMap(),
 
     createAsyncRuntime = function () {
-        // Create an isolated runtime we can install builtins into without affecting the main singleton one
+        // Create an isolated runtime we can install builtins into without affecting the main singleton one.
         return runtimeFactory.create('async');
     },
+    createPsyncRuntime = function () {
+        // Create an isolated runtime we can install builtins into without affecting the main singleton one.
+        return runtimeFactory.create('psync');
+    },
     createSyncRuntime = function () {
-        // Create an isolated runtime we can install builtins into without affecting the main singleton one
+        // Create an isolated runtime we can install builtins into without affecting the main singleton one.
         return runtimeFactory.create('sync');
     },
 
@@ -92,9 +101,12 @@ var _ = require('microdash'),
 
         return module;
     },
-    asyncRuntime = require('../../async'),
-    psyncRuntime = require('../../psync'),
-    syncRuntime = require('../../sync'),
+
+    // Create isolated runtimes to be shared by all tests that don't create their own,
+    // to avoid modifying the singleton module exports.
+    asyncRuntime = createAsyncRuntime(),
+    psyncRuntime = createPsyncRuntime(),
+    syncRuntime = createSyncRuntime(),
 
     // Errors from a Function constructor-created function may be offset by the function signature
     // (currently 2), so we need to calculate this in order to adjust for source mapping below
@@ -104,6 +116,59 @@ var _ = require('microdash'),
         'return new Error().stack;'
     )()
         .match(/<anonymous>:(\d+):\d+/)[1] - 1;
+
+// Force all opcodes to be async for all async mode tests, to help ensure async handling is in place.
+asyncRuntime.install({
+    serviceGroups: [
+        function (internals) {
+            var get = internals.getServiceFetcher();
+
+            // As we'll be overriding the "opcode_executor" service.
+            internals.allowServiceOverride();
+
+            return {
+                'opcode_executor': function () {
+                    var referenceFactory = get('reference_factory'),
+                        valueFactory = get('value_factory');
+
+                    function AsyncOpcodeExecutor() {}
+
+                    util.inherits(AsyncOpcodeExecutor, OpcodeExecutor);
+
+                    AsyncOpcodeExecutor.prototype.execute = function (opcode) {
+                        var result = opcode.handle();
+
+                        if (!opcode.isTraced()) {
+                            // Don't attempt to make any untraced opcodes pause,
+                            // as resuming from inside them is not possible.
+                            return result;
+                        }
+
+                        if (result instanceof Value) {
+                            return valueFactory.createAsyncPresent(result);
+                        }
+
+                        if (result instanceof Reference || result instanceof Variable) {
+                            return referenceFactory.createAccessor(function () {
+                                // Defer returning the value of the reference.
+                                return valueFactory.createAsyncPresent(result.getValue());
+                            }, function (value) {
+                                // Defer assignment in a microtask to test for async handling.
+                                return valueFactory.createAsyncMicrotaskFuture(function (resolve, reject) {
+                                    result.setValue(value).next(resolve, reject);
+                                });
+                            });
+                        }
+
+                        return result;
+                    };
+
+                    return new AsyncOpcodeExecutor();
+                }
+            };
+        }
+    ]
+});
 
 module.exports = {
     createAsyncEnvironment: function (options, addons) {
@@ -116,11 +181,13 @@ module.exports = {
         return psyncRuntime.createEnvironment(options, addons);
     },
 
-    createSyncRuntime: createSyncRuntime,
+    createPsyncRuntime: createPsyncRuntime,
 
     createSyncEnvironment: function (options, addons) {
         return syncRuntime.createEnvironment(options, addons);
     },
+
+    createSyncRuntime: createSyncRuntime,
 
     /**
      * Attempts to make this integration test slightly less brittle when future changes occur,

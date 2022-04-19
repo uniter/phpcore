@@ -34,54 +34,68 @@ describe('Async control integration', function () {
         callStack.push(call);
     });
 
-    it('should support running a Sequence synchronously with multiple resume handlers', function () {
-        var sequence = controlFactory.createSequence();
+    it('should support running a sequence synchronously with multiple resolve handlers', function () {
+        var doResolve,
+            future = futureFactory.createFuture(function (resolve) {
+                doResolve = resolve;
+            });
 
-        sequence.next(function (previous) {
+        future = future.next(function (previous) {
             return previous + ' second';
         });
-        sequence.next(function (previous) {
+        future = future.next(function (previous) {
             return previous + ' third';
         });
+        doResolve('first');
 
-        expect(sequence.resume('first').yieldSync()).to.equal('first second third');
+        expect(future.yieldSync()).to.equal('first second third');
     });
 
-    it('should support running a Sequence synchronously with a resume handler that returns another Sequence to chain', function () {
-        var sequence = controlFactory.createSequence();
+    it('should support running a sequence synchronously with a resume handler that returns another Future to chain', function () {
+        var doResolve,
+            future = futureFactory.createFuture(function (resolve) {
+                doResolve = resolve;
+            });
 
-        sequence.next(function (previous) {
-            var subSequence = controlFactory.createSequence();
+        future = future.next(function (previous) {
+            var doSubResolve,
+                subFuture = futureFactory.createFuture(function (resolve) {
+                    doSubResolve = resolve;
+                });
 
-            subSequence.next(function (subPrevious) {
+            subFuture = subFuture.next(function (subPrevious) {
                 return 'inner(' + previous + ', ' + subPrevious + ')';
             });
-            subSequence.resume('sub');
+            doSubResolve('sub');
 
-            return subSequence;
+            return subFuture;
         });
-        sequence.next(function (previous) {
+        future = future.next(function (previous) {
             return 'outer(' + previous + ')';
         });
+        doResolve('initial');
 
-        expect(sequence.resume('initial').yieldSync()).to.equal('outer(inner(initial, sub))');
+        expect(future.yieldSync()).to.equal('outer(inner(initial, sub))');
     });
 
-    it('should support running a Sequence synchronously with multiple handlers and a throw that is rethrown', function (done) {
-        var log = [],
-            sequence = controlFactory.createSequence();
+    it('should support running a sequence synchronously with multiple handlers and a throw that is rethrown', function (done) {
+        var doResolve,
+            future = futureFactory.createFuture(function (resolve) {
+                doResolve = resolve;
+            }),
+            log = [];
 
-        sequence.next(function (previous) {
+        future = future.next(function (previous) {
             log.push('[first resume]: ' + previous);
 
             return previous + ' resume1';
         });
-        sequence.next(function (previous) {
+        future = future.next(function (previous) {
             log.push('[second resume]: ' + previous);
 
             throw new Error('resume2: My error with: ' + previous);
         });
-        sequence.next(function (previous) {
+        future = future.next(function (previous) {
             log.push('[third resume - I should not be reached!]');
 
             return previous + ' resume3';
@@ -90,8 +104,9 @@ describe('Async control integration', function () {
 
             throw error;
         });
+        doResolve('first');
 
-        sequence.resume('first').next(function (result) {
+        future.next(function (result) {
             done('Unexpected success: ' + result);
         }, function (error) {
             expect(error.message).to.equal('resume2: My error with: first resume1');
@@ -104,49 +119,57 @@ describe('Async control integration', function () {
         }).catch(done);
     });
 
-    it('should support running a Sequence asynchronously with multiple resume handlers returning Futures that resolve', function (done) {
-        var sequence = controlFactory.createSequence();
+    it('should support running a sequence asynchronously with multiple resolve handlers returning Futures that resolve', function (done) {
+        var doResolve,
+            future = futureFactory.createFuture(function (resolve) {
+                doResolve = resolve;
+            });
 
-        sequence.next(function (previous) {
+        future = future.next(function (previous) {
             return futureFactory.createFuture(function (resolve) {
                 setImmediate(function () {
                     resolve(previous + ' second');
                 });
             });
         });
-        sequence.next(function (previous) {
+        future = future.next(function (previous) {
             return futureFactory.createFuture(function (resolve) {
                 setImmediate(function () {
                     resolve(previous + ' third');
                 });
             });
         });
+        doResolve('first');
 
-        sequence.resume('first').next(function (result) {
+        future.next(function (result) {
             expect(result).to.equal('first second third');
             done();
         }).catch(done);
     });
 
-    it('should support running a Sequence asynchronously with multiple resume handlers returning Futures that resolve and reject', function (done) {
-        var sequence = controlFactory.createSequence();
+    it('should support running a sequence asynchronously with multiple resolve handlers returning Futures that resolve and reject', function (done) {
+        var doResolve,
+            future = futureFactory.createFuture(function (resolve) {
+                doResolve = resolve;
+            });
 
-        sequence.next(function (previous) {
+        future = future.next(function (previous) {
             return futureFactory.createFuture(function (resolve) {
                 setImmediate(function () {
                     resolve(previous + ' second');
                 });
             });
         });
-        sequence.next(function (previous) {
+        future = future.next(function (previous) {
             return futureFactory.createFuture(function (resolve, reject) {
                 setImmediate(function () {
                     reject(new Error('Bang! ' + previous + ' third'));
                 });
             });
         });
+        doResolve('first');
 
-        sequence.resume('first').next(function (result) {
+        future.next(function (result) {
             done('Unexpected success: ' + result);
         }, function (error) {
             expect(error.message).to.equal('Bang! first second third');
@@ -154,33 +177,40 @@ describe('Async control integration', function () {
         }).catch(done);
     });
 
-    it('should support running a Sequence asynchronously with a resume handler that returns another Sequence resumed asynchronously to chain', function (done) {
-        var sequence = controlFactory.createSequence();
+    it('should support running a sequence asynchronously with a resume handler that returns another Future resolved asynchronously to chain', function (done) {
+        var doResolve,
+            future = futureFactory.createFuture(function (resolve) {
+                doResolve = resolve;
+            });
 
-        sequence.next(function (previous) {
-            var subSequence = controlFactory.createSequence();
+        future = future.next(function (previous) {
+            var doSubResolve,
+                subFuture = futureFactory.createFuture(function (resolve) {
+                    doSubResolve = resolve;
+                });
 
-            subSequence.next(function (subPrevious) {
+            subFuture = subFuture.next(function (subPrevious) {
                 return 'inner(' + previous + ', ' + subPrevious + ')';
             });
-            // Delay before resuming the inner sequence
+            // Delay before resuming the inner future.
             setImmediate(function () {
-                subSequence.resume('sub');
+                doSubResolve('sub');
             });
 
-            return subSequence;
+            return subFuture;
         });
-        sequence.next(function (previous) {
+        future = future.next(function (previous) {
             return 'outer(' + previous + ')';
         });
+        doResolve('initial');
 
-        sequence.resume('initial').next(function (result) {
+        future.next(function (result) {
             expect(result).to.equal('outer(inner(initial, sub))');
             done();
         }).catch(done);
     });
 
-    it('should reject a future with the eventual error when rejected with another future', function () {
+    it('should reject a Future with the eventual error when rejected with another Future', function () {
         var future = futureFactory.createFuture(function (resolve, reject) {
             reject(futureFactory.createRejection(new Error('My error from future')));
         });
@@ -188,68 +218,83 @@ describe('Async control integration', function () {
         return expect(future.toPromise()).to.eventually.be.rejectedWith('My error from future');
     });
 
-    it('should reject a future with the eventual error when rejected with a sequence that rejects', function () {
+    it('should reject a Future with the eventual error when rejected with a Future that rejects', function () {
         var future = futureFactory.createFuture(function (resolve, reject) {
-            var sequence = controlFactory.createSequence();
+            var doSubReject,
+                subFuture = futureFactory.createFuture(function (resolve, reject) {
+                    doSubReject = reject;
+                });
 
             setImmediate(function () {
-                sequence.throwInto(new Error('My error from sequence'));
+                doSubReject(new Error('My error from inner future'));
             });
 
-            reject(sequence);
+            reject(subFuture);
         });
 
-        return expect(future.toPromise()).to.eventually.be.rejectedWith('My error from sequence');
+        return expect(future.toPromise()).to.eventually.be.rejectedWith('My error from inner future');
     });
 
-    it('should return the eventual result from .yieldSync() when synchronously completed with a result', function () {
-        var sequence = controlFactory.createSequence();
+    it('should return the eventual result from .yieldSync() when synchronously resolved with a result', function () {
+        var doResolve,
+            future = futureFactory.createFuture(function (resolve) {
+                doResolve = resolve;
+            });
 
-        sequence.next(function (previous) {
+        future = future.next(function (previous) {
             return previous + ' is my result';
         });
+        doResolve('this');
 
-        expect(sequence.resume('this').yieldSync()).to.equal('this is my result');
+        expect(future.yieldSync()).to.equal('this is my result');
     });
 
     it('should throw the eventual error from .yieldSync() when synchronously completed with an error', function () {
-        var sequence = controlFactory.createSequence();
+        var doResolve,
+            future = futureFactory.createFuture(function (resolve) {
+                doResolve = resolve;
+            });
 
-        sequence.next(function (previous) {
+        future = future.next(function (previous) {
             throw new Error('My error is: ' + previous);
         });
 
         expect(function () {
-            sequence.resume('from here').yieldSync();
+            doResolve('from here');
+            future.yieldSync();
         }).to.throw('My error is: from here');
     });
 
     it('should synchronously execute further synchronous handlers attached after .yieldSync()', function () {
-        var sequence = controlFactory.createSequence();
+        var doResolve,
+            future = futureFactory.createFuture(function (resolve) {
+                doResolve = resolve;
+            });
 
-        sequence.next(function (previous) {
+        future = future.next(function (previous) {
             return previous + ' first';
         });
-        sequence
-            .resume('this')
-            .yieldSync();
-        sequence.next(function (previous) {
+        doResolve('this');
+        future.yieldSync();
+        future = future.next(function (previous) {
             return previous + ' second';
         });
 
-        expect(sequence.yieldSync()).to.equal('this first second');
+        expect(future.yieldSync()).to.equal('this first second');
     });
 
     it('should throw when attempting to add an async handler (returning Future) after .yieldSync()', function () {
-        var sequence = controlFactory.createSequence();
+        var doResolve,
+            future = futureFactory.createFuture(function (resolve) {
+                doResolve = resolve;
+            });
 
-        sequence.next(function (previous) {
+        future = future.next(function (previous) {
             return previous + ' first';
         });
-        sequence
-            .resume('this')
-            .yieldSync();
-        sequence.next(function (previous) {
+        doResolve('this');
+        future.yieldSync();
+        future = future.next(function (previous) {
             return futureFactory.createFuture(function (resolve) {
                 setImmediate(function () {
                     resolve(previous + ', async');
@@ -258,63 +303,44 @@ describe('Async control integration', function () {
         });
 
         expect(function () {
-            sequence.yieldSync();
+            future.yieldSync();
         }).to.throw(
-            'Unable to yield a sequence that has not completed - did you mean to chain with .next(...)?'
+            'Cannot synchronously yield a pending Future - did you mean to chain with .next(...)?'
         );
     });
 
-    it('should support resuming a completed Sequence when another Sequence is returned', function (done) {
-        var innerSequence,
-            sequence = controlFactory.createSequence();
+    it('should support resuming a completed sequence when another Future is returned', function (done) {
+        var doResolve,
+            doResolveInnerFuture,
+            future = futureFactory.createFuture(function (resolve) {
+                doResolve = resolve;
+            });
 
-        sequence.next(function (result) {
+        future = future.next(function (result) {
             return result + ', completed';
         });
-        sequence.resume('start');
-        sequence.next(function (outerResult) {
-            innerSequence = controlFactory.createSequence();
+        doResolve('start');
+        future = future.next(function (outerResult) {
+            var innerFuture = futureFactory.createFuture(function (resolve) {
+                doResolveInnerFuture = resolve;
+            });
 
-            innerSequence.next(function (innerResult) {
+            innerFuture = innerFuture.next(function (innerResult) {
                 return outerResult + innerResult + ', reopened';
             });
 
-            return innerSequence;
+            return innerFuture;
         });
-        // Defer the resume of the inner Sequence to check that the entire sequence is delayed asynchronously
+        // Defer the resume of the inner Future to check that the entire sequence is delayed asynchronously.
         setImmediate(function () {
-            innerSequence.resume(', resumed');
+            doResolveInnerFuture(', resumed');
         });
-        sequence.next(function (result) {
+        future = future.next(function (result) {
             return result + ', last';
         });
 
-        sequence.next(function (result) {
+        future.next(function (result) {
             expect(result).to.equal('start, completed, resumed, reopened, last');
-            done();
-        }).catch(done);
-    });
-
-    it('should support resuming a completed Sequence when a Future is returned', function (done) {
-        var sequence = controlFactory.createSequence();
-
-        sequence.next(function (result) {
-            return result + ', completed';
-        });
-        sequence.resume('start');
-        sequence.next(function (result) {
-            return futureFactory.createFuture(function (resolve) {
-                setImmediate(function () {
-                    resolve(result + ', reopened');
-                });
-            });
-        });
-        sequence.next(function (result) {
-            return result + ', last';
-        });
-
-        sequence.next(function (result) {
-            expect(result).to.equal('start, completed, reopened, last');
             done();
         }).catch(done);
     });

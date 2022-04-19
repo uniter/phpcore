@@ -12,6 +12,9 @@
 var _ = require('microdash');
 
 /**
+ * Represents an opcode that is to be executed but whose result is not to be traced.
+ * Used when we are already inside an opcode and only the outer one's result is needed.
+ *
  * @param {Function} handler
  * @param {*[]} args
  * @constructor
@@ -29,7 +32,7 @@ function UntracedOpcode(handler, args) {
 
 _.extend(UntracedOpcode.prototype, {
     /**
-     * Calls the wrapped handler for this opcode
+     * Calls the wrapped handler for this opcode.
      *
      * @returns {*}
      */
@@ -40,7 +43,16 @@ _.extend(UntracedOpcode.prototype, {
     },
 
     /**
-     * Releases this opcode back into the pool to be reused
+     * Fetches whether this opcode's result (or error) is traced.
+     *
+     * @returns {boolean}
+     */
+    isTraced: function () {
+        return false;
+    },
+
+    /**
+     * Releases this opcode back into the pool to be reused.
      *
      * @param {OpcodePool} opcodePool
      */
@@ -48,16 +60,32 @@ _.extend(UntracedOpcode.prototype, {
         // TODO: Not yet implemented!
     },
 
+    /**
+     * Returns the previous result of this opcode if it succeeded,
+     * or re-throws the previous error for this opcode if it failed,
+     * or returns null if it has not executed yet.
+     *
+     * For an untraced opcode this will always return null, as they are not traced
+     * and therefore cannot be resumed.
+     *
+     * @returns {null}
+     */
     resume: function () {
         return null;
     },
 
+    /**
+     * Records the result of this opcode if/when it succeeds.
+     */
     traceResult: function () {
-        // Nothing to record
+        // Nothing to record.
     },
 
+    /**
+     * Records the error thrown by this opcode if/when it fails.
+     */
     traceThrow: function () {
-        // Nothing to record
+        // Nothing to record.
     }
 });
 

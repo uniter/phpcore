@@ -103,7 +103,7 @@ module.exports = require('pauser')([
                 coercedRightValue = rightValue.coerceToNumber();
 
             if (rightValue.isFuture()) {
-                return rightValue.derive().next(function (rightValue) {
+                return rightValue.next(function (rightValue) {
                     return leftValue.add(rightValue);
                 });
             }
@@ -113,6 +113,16 @@ module.exports = require('pauser')([
                 coercedRightValue,
                 coercedLeftValue.getNative() + coercedRightValue.getNative()
             );
+        },
+
+        /**
+         * Returns this value as an array element.
+         * Note that FutureValues will be returned unchanged ready to be awaited.
+         *
+         * @returns {Value}
+         */
+        asArrayElement: function () {
+            return this.getForAssignment();
         },
 
         /**
@@ -148,13 +158,13 @@ module.exports = require('pauser')([
          * Calculates the bitwise-AND of this and a right-operand
          *
          * @param {Value} rightValue
-         * @returns {IntegerValue}
+         * @returns {FutureValue<IntegerValue>|IntegerValue}
          */
         bitwiseAnd: function (rightValue) {
             var leftValue = this;
 
             if (rightValue.isFuture()) {
-                return rightValue.derive().next(function (rightValue) {
+                return rightValue.next(function (rightValue) {
                     return leftValue.bitwiseAnd(rightValue);
                 });
             }
@@ -171,13 +181,13 @@ module.exports = require('pauser')([
          * Calculates the bitwise-OR of this and a right-operand
          *
          * @param {Value} rightValue
-         * @returns {IntegerValue}
+         * @returns {FutureValue<IntegerValue>|IntegerValue}
          */
         bitwiseOr: function (rightValue) {
             var leftValue = this;
 
             if (rightValue.isFuture()) {
-                return rightValue.derive().next(function (rightValue) {
+                return rightValue.next(function (rightValue) {
                     return leftValue.bitwiseOr(rightValue);
                 });
             }
@@ -194,13 +204,13 @@ module.exports = require('pauser')([
          * Calculates the bitwise-XOR of this and a right-operand
          *
          * @param {Value} rightValue
-         * @returns {FutureValue|IntegerValue}
+         * @returns {FutureValue<IntegerValue>|IntegerValue}
          */
         bitwiseXor: function (rightValue) {
             var leftValue = this;
 
             if (rightValue.isFuture()) {
-                return rightValue.derive().next(function (rightValue) {
+                return rightValue.next(function (rightValue) {
                     return leftValue.bitwiseXor(rightValue);
                 });
             }
@@ -267,7 +277,7 @@ module.exports = require('pauser')([
          * Coerces this value to an array. For all scalar types, the result will be wrapped
          * in an array using this default implementation.
          *
-         * @returns {FloatValue}
+         * @returns {ArrayValue}
          */
         coerceToArray: function () {
             var value = this;
@@ -362,7 +372,7 @@ module.exports = require('pauser')([
          * Concatenates this value's string representation with the provided other value's
          *
          * @param {StringValue} rightValue
-         * @returns {StringValue}
+         * @returns {FutureValue<StringValue>|StringValue}
          */
         concat: function (rightValue) {
             var leftValue = this,
@@ -371,13 +381,13 @@ module.exports = require('pauser')([
 
             // This value could coerce to a future, eg. if an ObjectValue implementing ->__toString().
             if (coercedLeftValue.isFuture()) {
-                return coercedLeftValue.derive().next(function (leftValue) {
+                return coercedLeftValue.next(function (leftValue) {
                     return leftValue.concat(rightValue);
                 });
             }
 
             if (coercedRightValue.isFuture()) {
-                return coercedRightValue.derive().next(function (rightValue) {
+                return coercedRightValue.next(function (rightValue) {
                     return leftValue.concat(rightValue);
                 });
             }
@@ -439,18 +449,6 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Derives a new value from this one that will be resumed/thrown-into
-         * once the future value (or error result) is known. For a present value we will just
-         * return itself, whereas for a future value we will return a new future
-         * so that any handlers attached to it will not affect the original one.
-         *
-         * @returns {Value}
-         */
-        derive: function () {
-            return this;
-        },
-
-        /**
          * Divides this value by another
          *
          * @param {Value} rightValue
@@ -463,7 +461,7 @@ module.exports = require('pauser')([
                 divisor;
 
             if (rightValue.isFuture()) {
-                return rightValue.derive().next(function (rightValue) {
+                return rightValue.next(function (rightValue) {
                     return leftValue.divideBy(rightValue);
                 });
             }
@@ -550,6 +548,13 @@ module.exports = require('pauser')([
          * @returns {NullReference|PropertyReference|Reference}
          */
         getInstancePropertyByName: throwUnimplemented('getInstancePropertyByName'),
+
+        /**
+         * Fetches an appropriate iterator for this value, if any.
+         *
+         * @returns {Future<ArrayIterator>|FutureValue<ObjectValue>}
+         */
+        getIterator: throwUnimplemented('getIterator'),
 
         getLength: function () {
             return this.coerceToString().getLength();
@@ -752,14 +757,14 @@ module.exports = require('pauser')([
          * Determines whether this value is loosely equal to the provided other value
          *
          * @param {Value} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isEqualTo: function (rightValue) {
             /*jshint eqeqeq:false */
             var leftValue = this;
 
             if (rightValue.isFuture()) {
-                return rightValue.derive().next(function (rightValue) {
+                return rightValue.next(function (rightValue) {
                     return leftValue.isEqualTo(rightValue);
                 });
             }
@@ -772,7 +777,7 @@ module.exports = require('pauser')([
          * Determines whether this value is loosely equal to the provided array value
          *
          * @param {ArrayValue} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isEqualToArray: function (rightValue) {
             return this.isEqualTo(rightValue);
@@ -782,7 +787,7 @@ module.exports = require('pauser')([
          * Determines whether this value is loosely equal to the provided boolean value
          *
          * @param {BooleanValue} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isEqualToBoolean: function (rightValue) {
             return this.isEqualTo(rightValue);
@@ -792,7 +797,7 @@ module.exports = require('pauser')([
          * Determines whether this value is loosely equal to the provided float value
          *
          * @param {FloatValue} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isEqualToFloat: function (rightValue) {
             return this.isEqualTo(rightValue);
@@ -802,7 +807,7 @@ module.exports = require('pauser')([
          * Determines whether this value is loosely equal to the provided integer value
          *
          * @param {IntegerValue} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isEqualToInteger: function (rightValue) {
             return this.isEqualTo(rightValue);
@@ -812,7 +817,7 @@ module.exports = require('pauser')([
          * Determines whether this value is loosely equal to the provided null value
          *
          * @param {NullValue} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isEqualToNull: function (rightValue) {
             return this.isEqualTo(rightValue);
@@ -822,7 +827,7 @@ module.exports = require('pauser')([
          * Determines whether this value is loosely equal to the provided object value
          *
          * @param {ObjectValue} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isEqualToObject: function (rightValue) {
             return this.isEqualTo(rightValue);
@@ -832,7 +837,7 @@ module.exports = require('pauser')([
          * Determines whether this value is loosely equal to the provided string value
          *
          * @param {StringValue} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isEqualToString: function (rightValue) {
             return this.isEqualTo(rightValue);
@@ -843,11 +848,17 @@ module.exports = require('pauser')([
          * if this value is greater than the other and false otherwise
          *
          * @param {Value} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isGreaterThan: function (rightValue) {
             var leftValue = this,
                 factory = leftValue.factory;
+
+            if (rightValue.isFuture()) {
+                return rightValue.next(function (rightValue) {
+                    return leftValue.isGreaterThan(rightValue);
+                });
+            }
 
             return factory.createBoolean(
                 leftValue.coerceToNumber().getNative() > rightValue.coerceToNumber().getNative()
@@ -859,11 +870,17 @@ module.exports = require('pauser')([
          * if this value is greater than or equal to the other and false otherwise
          *
          * @param {Value} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isGreaterThanOrEqual: function (rightValue) {
             var leftValue = this,
                 factory = leftValue.factory;
+
+            if (rightValue.isFuture()) {
+                return rightValue.next(function (rightValue) {
+                    return leftValue.isGreaterThanOrEqual(rightValue);
+                });
+            }
 
             return factory.createBoolean(
                 leftValue.coerceToNumber().getNative() >= rightValue.coerceToNumber().getNative()
@@ -875,10 +892,16 @@ module.exports = require('pauser')([
          * to the provided other value
          *
          * @param {Value} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isIdenticalTo: function (rightValue) {
             var leftValue = this;
+
+            if (rightValue.isFuture()) {
+                return rightValue.next(function (rightValue) {
+                    return leftValue.isIdenticalTo(rightValue);
+                });
+            }
 
             return leftValue.factory.createBoolean(
                 rightValue.type === leftValue.type &&
@@ -891,7 +914,7 @@ module.exports = require('pauser')([
          * to the provided array value
          *
          * @param {ArrayValue} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isIdenticalToArray: function (rightValue) {
             return this.isIdenticalTo(rightValue);
@@ -902,7 +925,7 @@ module.exports = require('pauser')([
          * to the provided object value
          *
          * @param {ObjectValue} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isIdenticalToObject: function (rightValue) {
             return this.isIdenticalTo(rightValue);
@@ -913,11 +936,17 @@ module.exports = require('pauser')([
          * if this value is less than the other and false otherwise
          *
          * @param {Value} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isLessThan: function (rightValue) {
             var leftValue = this,
                 factory = leftValue.factory;
+
+            if (rightValue.isFuture()) {
+                return rightValue.next(function (rightValue) {
+                    return leftValue.isLessThan(rightValue);
+                });
+            }
 
             return factory.createBoolean(
                 leftValue.coerceToNumber().getNative() < rightValue.coerceToNumber().getNative()
@@ -929,11 +958,17 @@ module.exports = require('pauser')([
          * if this value is less than or equal to the other and false otherwise
          *
          * @param {Value} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isLessThanOrEqual: function (rightValue) {
             var leftValue = this,
                 factory = leftValue.factory;
+
+            if (rightValue.isFuture()) {
+                return rightValue.next(function (rightValue) {
+                    return leftValue.isLessThanOrEqual(rightValue);
+                });
+            }
 
             return factory.createBoolean(
                 leftValue.coerceToNumber().getNative() <= rightValue.coerceToNumber().getNative()
@@ -945,12 +980,14 @@ module.exports = require('pauser')([
          * returning true if they are not equal and false otherwise
          *
          * @param {Reference|Value} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isNotEqualTo: function (rightValue) {
             var leftValue = this;
 
-            return leftValue.factory.createBoolean(!leftValue.isEqualTo(rightValue).getNative());
+            return leftValue.isEqualTo(rightValue).next(function (isEqualValue) {
+                return !isEqualValue.getNative();
+            });
         },
 
         /**
@@ -960,12 +997,14 @@ module.exports = require('pauser')([
          * and false otherwise
          *
          * @param {Reference|Value} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isNotIdenticalTo: function (rightValue) {
             var leftValue = this;
 
-            return leftValue.factory.createBoolean(!leftValue.isIdenticalTo(rightValue).getNative());
+            return leftValue.isIdenticalTo(rightValue).next(function (isIdenticalValue) {
+                return !isIdenticalValue.getNative();
+            });
         },
 
         /**
@@ -989,10 +1028,16 @@ module.exports = require('pauser')([
          * Performs a logical-AND of this value and the other value given
          *
          * @param {Reference|Value} rightValue
-         * @returns {BooleanValue}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         logicalAnd: function (rightValue) {
             var leftValue = this;
+
+            if (rightValue.isFuture()) {
+                return rightValue.next(function (rightValue) {
+                    return leftValue.logicalAnd(rightValue);
+                });
+            }
 
             return leftValue.factory.createBoolean(
                 leftValue.coerceToBoolean().getNative() &&
@@ -1017,21 +1062,29 @@ module.exports = require('pauser')([
          * Calculates the modulo (remainder of an integer division) of this value with another
          *
          * @param {Value} rightValue
-         * @returns {IntegerValue}
+         * @returns {FutureValue<IntegerValue>|IntegerValue}
          */
         modulo: function (rightValue) {
-            var value = this,
+            var leftValue = this,
                 // Coerce both operands to integers first, to ensure an integer division
-                dividend = value.coerceToInteger().getNative(),
-                divisor = rightValue.coerceToInteger().getNative();
+                dividend = leftValue.coerceToInteger().getNative(),
+                divisor;
 
-            if (divisor === 0) {
-                value.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
-
-                return value.factory.createBoolean(false);
+            if (rightValue.isFuture()) {
+                return rightValue.next(function (rightValue) {
+                    return leftValue.modulo(rightValue);
+                });
             }
 
-            return value.factory.createInteger(dividend % divisor);
+            divisor = rightValue.coerceToInteger().getNative();
+
+            if (divisor === 0) {
+                leftValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
+
+                return leftValue.factory.createBoolean(false);
+            }
+
+            return leftValue.factory.createInteger(dividend % divisor);
         },
 
         /**
@@ -1047,7 +1100,7 @@ module.exports = require('pauser')([
                 product;
 
             if (multiplierValue.isFuture()) {
-                return multiplierValue.derive().next(function (multiplierValue) {
+                return multiplierValue.next(function (multiplierValue) {
                     return multiplicandValue.multiplyBy(multiplierValue);
                 });
             }
@@ -1083,15 +1136,15 @@ module.exports = require('pauser')([
          * Note that the FutureValue class will override this method with support
          * for the catch handler parameter.
          *
-         * @param {Function} resumeHandler
+         * @param {Function} resolveHandler
          * @returns {FutureValue|Value}
          */
-        next: function (resumeHandler) {
+        next: function (resolveHandler) {
             var value = this,
                 result;
 
             try {
-                result = resumeHandler(value);
+                result = resolveHandler(value);
             } catch (error) {
                 return value.factory.createRejection(error);
             }
@@ -1115,7 +1168,7 @@ module.exports = require('pauser')([
                 coercedLeftValue = leftValue.coerceToInteger();
 
             if (rightValue.isFuture()) {
-                return rightValue.derive().next(function (rightValue) {
+                return rightValue.next(function (rightValue) {
                     return leftValue.shiftLeft(rightValue);
                 });
             }
@@ -1137,7 +1190,7 @@ module.exports = require('pauser')([
                 coercedLeftValue = leftValue.coerceToInteger();
 
             if (rightValue.isFuture()) {
-                return rightValue.derive().next(function (rightValue) {
+                return rightValue.next(function (rightValue) {
                     return leftValue.shiftRight(rightValue);
                 });
             }
@@ -1157,7 +1210,7 @@ module.exports = require('pauser')([
                 coercedRightValue = rightValue.coerceToNumber();
 
             if (rightValue.isFuture()) {
-                return rightValue.derive().next(function (rightValue) {
+                return rightValue.next(function (rightValue) {
                     return leftValue.subtract(rightValue);
                 });
             }

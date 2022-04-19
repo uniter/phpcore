@@ -22,6 +22,7 @@ describe('FFIFactory', function () {
     var AsyncObjectValue,
         callStack,
         factory,
+        flow,
         futureFactory,
         nativeCaller,
         PHPObject,
@@ -37,6 +38,7 @@ describe('FFIFactory', function () {
         state = tools.createIsolatedState(null, {
             'call_stack': callStack
         });
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         nativeCaller = sinon.createStubInstance(NativeCaller);
         PHPObject = sinon.stub();
@@ -52,6 +54,7 @@ describe('FFIFactory', function () {
             valueFactory,
             referenceFactory,
             futureFactory,
+            flow,
             callStack,
             nativeCaller,
             valueCaller
@@ -113,32 +116,30 @@ describe('FFIFactory', function () {
                 factory.createValueCoercer(true);
 
                 expect(ValueCoercer).to.have.been.calledOnce;
-                expect(ValueCoercer).to.have.been.calledWith(true);
+                expect(ValueCoercer).to.have.been.calledWith(sinon.match.same(flow), true);
             });
 
             it('should return the created ValueCoercer instance', function () {
                 var coercer = sinon.createStubInstance(ValueCoercer);
                 ValueCoercer
-                    .withArgs(true)
+                    .withArgs(sinon.match.same(flow), true)
                     .returns(coercer);
 
                 expect(factory.createValueCoercer(true)).to.equal(coercer);
             });
 
             it('should cache the created ValueCoercer instance', function () {
-                var coercer1 = sinon.createStubInstance(ValueCoercer),
-                    coercer2 = sinon.createStubInstance(ValueCoercer);
+                var coercer = sinon.createStubInstance(ValueCoercer);
                 ValueCoercer
-                    .withArgs(true)
+                    .withArgs(sinon.match.same(flow), true)
                     .onFirstCall()
-                    .returns(coercer1);
-                ValueCoercer
-                    .withArgs(true)
-                    .onSecondCall()
-                    .returns(coercer2);
+                    .callsFake(function () {
+                        return coercer;
+                    });
                 factory.createValueCoercer(true); // First fetch
 
-                expect(factory.createValueCoercer(true)).to.equal(coercer1);
+                expect(factory.createValueCoercer(true)).to.equal(coercer);
+                expect(ValueCoercer).to.have.been.calledOnce;
             });
         });
 
@@ -147,32 +148,28 @@ describe('FFIFactory', function () {
                 factory.createValueCoercer(false);
 
                 expect(ValueCoercer).to.have.been.calledOnce;
-                expect(ValueCoercer).to.have.been.calledWith(false);
+                expect(ValueCoercer).to.have.been.calledWith(sinon.match.same(flow), false);
             });
 
             it('should return the created ValueCoercer instance', function () {
                 var coercer = sinon.createStubInstance(ValueCoercer);
                 ValueCoercer
-                    .withArgs(false)
+                    .withArgs(sinon.match.same(flow), false)
                     .returns(coercer);
 
                 expect(factory.createValueCoercer(false)).to.equal(coercer);
             });
 
             it('should cache the created ValueCoercer instance', function () {
-                var coercer1 = sinon.createStubInstance(ValueCoercer),
-                    coercer2 = sinon.createStubInstance(ValueCoercer);
+                var coercer = sinon.createStubInstance(ValueCoercer);
                 ValueCoercer
-                    .withArgs(false)
+                    .withArgs(sinon.match.same(flow), false)
                     .onFirstCall()
-                    .returns(coercer1);
-                ValueCoercer
-                    .withArgs(false)
-                    .onSecondCall()
-                    .returns(coercer2);
+                    .returns(coercer);
                 factory.createValueCoercer(false); // First fetch
 
-                expect(factory.createValueCoercer(false)).to.equal(coercer1);
+                expect(factory.createValueCoercer(false)).to.equal(coercer);
+                expect(ValueCoercer).to.have.been.calledOnce;
             });
         });
     });

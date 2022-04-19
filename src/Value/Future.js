@@ -14,7 +14,6 @@ var _ = require('microdash'),
     util = require('util'),
     Exception = phpCommon.Exception,
     Promise = require('lie'),
-    Sequence = require('../Control/Sequence'),
     Value = require('../Value').sync();
 
 /**
@@ -49,7 +48,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     add: function (rightValue) {
-        return this.derive().next(function (leftValue) {
+        return this.next(function (leftValue) {
             return leftValue.add(rightValue);
         });
     },
@@ -58,7 +57,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     asEventualNative: function () {
-        return this.future.derive().next(function (resultValue) {
+        return this.future.next(function (resultValue) {
             return resultValue.getNative();
         });
     },
@@ -74,7 +73,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     bitwiseAnd: function (rightValue) {
-        return this.derive().next(function (leftValue) {
+        return this.next(function (leftValue) {
             return leftValue.bitwiseAnd(rightValue);
         });
     },
@@ -83,7 +82,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     bitwiseOr: function (rightValue) {
-        return this.derive().next(function (leftValue) {
+        return this.next(function (leftValue) {
             return leftValue.bitwiseOr(rightValue);
         });
     },
@@ -92,7 +91,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     bitwiseXor: function (rightValue) {
-        return this.derive().next(function (leftValue) {
+        return this.next(function (leftValue) {
             return leftValue.bitwiseXor(rightValue);
         });
     },
@@ -101,10 +100,21 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     call: function (argReferences) {
-        return this.derive()
-            .asFuture() // Do not wrap result as a value, we expect to resolve with a property reference.
-            .next(function (leftValue) {
-                return leftValue.call(argReferences);
+        return this
+            .asFuture() // Do not wrap result as a value, we may resolve with a reference.
+            .next(function (presentValue) {
+                return presentValue.call(argReferences);
+            });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    callMethod: function (name, argReferences) {
+        return this
+            .asFuture() // Do not wrap result as a value, we may resolve with a reference.
+            .next(function (presentValue) {
+                return presentValue.callMethod(name, argReferences);
             });
     },
 
@@ -115,18 +125,32 @@ _.extend(FutureValue.prototype, {
      * @returns {Future}
      */
     catch: function (rejectHandler) {
-        var value = this;
+        return this.next(null, rejectHandler);
+    },
 
-        value.future.catch(rejectHandler);
+    /**
+     * {@inheritdoc}
+     */
+    clone: function () {
+        return this.next(function (presentValue) {
+            return presentValue.clone();
+        });
+    },
 
-        return value; // Fluent interface
+    /**
+     * {@inheritdoc}
+     */
+    coerceToArray: function () {
+        return this.next(function (presentValue) {
+            return presentValue.coerceToArray();
+        });
     },
 
     /**
      * {@inheritdoc}
      */
     coerceToBoolean: function () {
-        return this.derive().next(function (presentValue) {
+        return this.next(function (presentValue) {
             return presentValue.coerceToBoolean();
         });
     },
@@ -134,8 +158,17 @@ _.extend(FutureValue.prototype, {
     /**
      * {@inheritdoc}
      */
+    coerceToFloat: function () {
+        return this.next(function (presentValue) {
+            return presentValue.coerceToFloat();
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     coerceToInteger: function () {
-        return this.derive().next(function (presentValue) {
+        return this.next(function (presentValue) {
             return presentValue.coerceToInteger();
         });
     },
@@ -144,7 +177,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     coerceToKey: function () {
-        return this.derive().next(function (presentValue) {
+        return this.next(function (presentValue) {
             return presentValue.coerceToKey();
         });
     },
@@ -152,8 +185,17 @@ _.extend(FutureValue.prototype, {
     /**
      * {@inheritdoc}
      */
+    coerceToObject: function () {
+        return this.next(function (presentValue) {
+            return presentValue.coerceToObject();
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     coerceToString: function () {
-        return this.derive().next(function (presentValue) {
+        return this.next(function (presentValue) {
             return presentValue.coerceToString();
         });
     },
@@ -162,7 +204,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     concat: function (rightValue) {
-        return this.derive().next(function (leftValue) {
+        return this.next(function (leftValue) {
             return leftValue.concat(rightValue);
         });
     },
@@ -174,7 +216,7 @@ _.extend(FutureValue.prototype, {
      * @returns {FutureValue<StringValue>}
      */
     concatString: function (text) {
-        return this.derive().next(function (presentValue) {
+        return this.next(function (presentValue) {
             return presentValue.getNative() + text;
         });
     },
@@ -183,7 +225,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     convertForBooleanType: function () {
-        return this.derive().next(function (presentValue) {
+        return this.next(function (presentValue) {
             return presentValue.convertForBooleanType();
         });
     },
@@ -192,7 +234,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     convertForFloatType: function () {
-        return this.derive().next(function (presentValue) {
+        return this.next(function (presentValue) {
             return presentValue.convertForFloatType();
         });
     },
@@ -201,7 +243,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     convertForIntegerType: function () {
-        return this.derive().next(function (presentValue) {
+        return this.next(function (presentValue) {
             return presentValue.convertForIntegerType();
         });
     },
@@ -210,7 +252,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     convertForStringType: function () {
-        return this.derive().next(function (presentValue) {
+        return this.next(function (presentValue) {
             return presentValue.convertForStringType();
         });
     },
@@ -219,7 +261,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     decrement: function () {
-        return this.derive().next(function (presentValue) {
+        return this.next(function (presentValue) {
             return presentValue.decrement();
         });
     },
@@ -227,17 +269,8 @@ _.extend(FutureValue.prototype, {
     /**
      * {@inheritdoc}
      */
-    derive: function () {
-        var value = this;
-
-        return value.factory.deriveFuture(value.future);
-    },
-
-    /**
-     * {@inheritdoc}
-     */
     divideBy: function (rightValue) {
-        return this.derive().next(function (leftValue) {
+        return this.next(function (leftValue) {
             return leftValue.divideBy(rightValue);
         });
     },
@@ -248,9 +281,7 @@ _.extend(FutureValue.prototype, {
     finally: function (finallyHandler) {
         var value = this;
 
-        value.future.finally(finallyHandler);
-
-        return value;
+        return value.factory.deriveFuture(value.future.finally(finallyHandler));
     },
 
     /**
@@ -258,9 +289,40 @@ _.extend(FutureValue.prototype, {
      */
     formatAsString: function () {
         // TODO: Note that returning this placeholder string may not be very useful, as any context
-        //       where this value should be formatted as string should probably have waited for it to be complete.
+        //       where this value should be formatted as string should probably have waited for it to be settled.
         //       Consider throwing an exception as for .getNative().
         return '(Future)';
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    getConstantByName: function (name) {
+        return this.next(function (presentValue) {
+            return presentValue.getConstantByName(name);
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    getElementByKey: function (keyValue) {
+        return this
+            .asFuture() // Do not wrap result as a value, we expect to resolve with an element reference.
+            .next(function (presentValue) {
+                return presentValue.getElementByKey(keyValue);
+            });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    getIterator: function () {
+        return this
+            .asFuture() // Do not wrap result as a value, we may resolve with an ArrayIterator.
+            .next(function (leftValue) {
+                return leftValue.getIterator();
+            });
     },
 
     /**
@@ -274,7 +336,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     getPushElement: function () {
-        return this.derive()
+        return this
             .asFuture() // Do not wrap result as a value, we expect to resolve with an (object)element reference.
             .next(function (presentValue) {
                 return presentValue.getPushElement();
@@ -285,7 +347,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     getStaticPropertyByName: function (nameValue) {
-        return this.derive()
+        return this
             .asFuture() // Do not wrap result as a value, we expect to resolve with a property reference.
             .next(function (leftValue) {
                 return leftValue.getStaticPropertyByName(nameValue);
@@ -296,7 +358,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     increment: function () {
-        return this.derive().next(function (presentValue) {
+        return this.next(function (presentValue) {
             return presentValue.increment();
         });
     },
@@ -305,7 +367,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     instantiate: function (argReferences) {
-        return this.derive().next(function (presentValue) {
+        return this.next(function (presentValue) {
             return presentValue.instantiate(argReferences);
         });
     },
@@ -313,8 +375,17 @@ _.extend(FutureValue.prototype, {
     /**
      * {@inheritdoc}
      */
+    isAnInstanceOf: function (classNameReference) {
+        return this.next(function (presentValue) {
+            return presentValue.isAnInstanceOf(classNameReference);
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     isCallable: function () {
-        return this.derive()
+        return this
             .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
             .next(function (resultValue) {
                 return resultValue.isCallable();
@@ -322,28 +393,19 @@ _.extend(FutureValue.prototype, {
     },
 
     /**
-     * Determines whether this future has completed (been resolved or rejected).
-     *
-     * @returns {boolean}
-     */
-    isCompleted: function () {
-        return this.future.isCompleted();
-    },
-
-    /**
-     * Determines whether this future is pending (not yet completed by being resolved or rejected).
+     * Determines whether this future is pending (not yet settled by being resolved or rejected).
      *
      * @returns {boolean}
      */
     isPending: function () {
-        return !this.isCompleted();
+        return !this.isSettled();
     },
 
     /**
      * {@inheritdoc}
      */
     isEmpty: function () {
-        return this.derive()
+        return this
             .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
             .next(function (resultValue) {
                 return resultValue.isEmpty();
@@ -354,7 +416,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     isEqualTo: function (rightValue) {
-        return this.derive().next(function (leftValue) {
+        return this.next(function (leftValue) {
             return leftValue.isEqualTo(rightValue);
         });
     },
@@ -369,8 +431,71 @@ _.extend(FutureValue.prototype, {
     /**
      * {@inheritdoc}
      */
+    isGreaterThan: function (rightValue) {
+        return this.next(function (leftValue) {
+            return leftValue.isGreaterThan(rightValue);
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    isGreaterThanOrEqual: function (rightValue) {
+        return this.next(function (leftValue) {
+            return leftValue.isGreaterThanOrEqual(rightValue);
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    isIdenticalTo: function (rightValue) {
+        return this.next(function (leftValue) {
+            return leftValue.isIdenticalTo(rightValue);
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    isLessThan: function (rightValue) {
+        return this.next(function (leftValue) {
+            return leftValue.isLessThan(rightValue);
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    isLessThanOrEqual: function (rightValue) {
+        return this.next(function (leftValue) {
+            return leftValue.isLessThanOrEqual(rightValue);
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    isNotEqualTo: function (rightValue) {
+        return this.next(function (leftValue) {
+            return leftValue.isNotEqualTo(rightValue);
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    isNotIdenticalTo: function (rightValue) {
+        return this.next(function (leftValue) {
+            return leftValue.isNotIdenticalTo(rightValue);
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     isSet: function () {
-        return this.derive()
+        return this
             .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
             .next(function (resultValue) {
                 return resultValue.isSet();
@@ -378,10 +503,37 @@ _.extend(FutureValue.prototype, {
     },
 
     /**
+     * Determines whether this future has settled (been resolved or rejected).
+     *
+     * @returns {boolean}
+     */
+    isSettled: function () {
+        return this.future.isSettled();
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    logicalAnd: function (rightValue) {
+        return this.next(function (leftValue) {
+            return leftValue.logicalAnd(rightValue);
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    modulo: function (rightValue) {
+        return this.next(function (leftValue) {
+            return leftValue.modulo(rightValue);
+        });
+    },
+
+    /**
      * {@inheritdoc}
      */
     multiplyBy: function (rightValue) {
-        return this.derive().next(function (leftValue) {
+        return this.next(function (leftValue) {
             return leftValue.multiplyBy(rightValue);
         });
     },
@@ -389,34 +541,51 @@ _.extend(FutureValue.prototype, {
     /**
      * {@inheritdoc}
      */
-    next: function (resumeHandler, catchHandler) {
+    next: function (resolveHandler, catchHandler) {
         var value = this;
 
-        value.future
-            .next(
-                function (resultValue) {
-                    // Make sure the resolved result of a FutureValue is always a Value.
-                    resultValue = resumeHandler(resultValue);
+        return value.factory.createFuture(function (resolve, reject) {
+            var doReject = catchHandler ?
+                    function (error) {
+                        var subsequentResult;
 
-                    // Note that as Sequence will await a Future(Value), the result of the resume handler
-                    // may itself be a Sequence, which we don't want to try to coerce.
-                    if (!(resultValue instanceof Sequence)) {
-                        resultValue = value.factory.coerce(resultValue);
-                    }
+                        try {
+                            subsequentResult = catchHandler(error);
+                        } catch (subsequentError) {
+                            reject(subsequentError);
+                            return;
+                        }
 
-                    return resultValue;
-                },
-                catchHandler
-            );
+                        resolve(subsequentResult);
+                    } :
+                    reject,
+                doResolve = resolveHandler ?
+                    function (result) {
+                        var subsequentResult;
 
-        return value;
+                        try {
+                            subsequentResult = resolveHandler(result);
+                        } catch (subsequentError) {
+                            reject(subsequentError);
+                            return;
+                        }
+
+                        // Always use the subsequent result as the overall one
+                        // (note that it can be another Future which will then be chained onto)
+                        // unlike .finally(...).
+                        resolve(subsequentResult);
+                    } :
+                    resolve;
+
+            value.future.next(doResolve, doReject);
+        });
     },
 
     /**
      * {@inheritdoc}
      */
     shiftLeft: function (rightValue) {
-        return this.derive().next(function (leftValue) {
+        return this.next(function (leftValue) {
             return leftValue.shiftLeft(rightValue);
         });
     },
@@ -425,7 +594,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     shiftRight: function (rightValue) {
-        return this.derive().next(function (leftValue) {
+        return this.next(function (leftValue) {
             return leftValue.shiftRight(rightValue);
         });
     },
@@ -434,7 +603,7 @@ _.extend(FutureValue.prototype, {
      * {@inheritdoc}
      */
     subtract: function (rightValue) {
-        return this.derive().next(function (leftValue) {
+        return this.next(function (leftValue) {
             return leftValue.subtract(rightValue);
         });
     },
@@ -446,7 +615,7 @@ _.extend(FutureValue.prototype, {
         var value = this;
 
         return new Promise(function (resolve, reject) {
-            value.derive().next(resolve, reject);
+            value.next(resolve, reject);
         });
     },
 
@@ -458,7 +627,7 @@ _.extend(FutureValue.prototype, {
     },
 
     /**
-     * Fetches the present value synchronously, which is not possible for an incomplete future
+     * Fetches the present value synchronously, which is not possible for an unsettled future.
      *
      * @returns {Value} When the future was resolved
      * @throws {Error} When the future was rejected

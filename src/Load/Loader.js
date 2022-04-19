@@ -69,7 +69,7 @@ module.exports = require('pauser')([
                 subOptions;
 
             // Always return a FutureValue, for a consistent interface regardless of synchronicity mode
-            return loader.valueFactory.createFuture(function (resolveFuture, rejectFuture/*, restoreCallStack*/) {
+            return loader.valueFactory.createFuture(function (resolveFuture, rejectFuture) {
                 /**
                  * Completes an unsuccessful module load
                  *
@@ -109,12 +109,6 @@ module.exports = require('pauser')([
 
                     // Handle wrapper function being returned from loader for module
                     if (_.isFunction(valueOrModule)) {
-                        // if (pause) {
-                        //     // Restore the paused stack frames before invoking the load, so that
-                        //     // any errors raised during will have access to the complete call stack
-                        //     pause.restoreCallStack();
-                        // }
-
                         executeResult = valueOrModule(subOptions, environment, enclosingScope).execute();
 
                         if (loader.mode !== 'async') {

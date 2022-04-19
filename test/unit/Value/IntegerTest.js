@@ -34,7 +34,7 @@ describe('Integer', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
-        state = tools.createIsolatedState(null, {
+        state = tools.createIsolatedState('async', {
             'call_stack': callStack
         });
         factory = state.getValueFactory();
@@ -181,6 +181,12 @@ describe('Integer', function () {
                 expect(resultValue.getType()).to.equal('int');
                 expect(resultValue.getNative()).to.equal(8);
             });
+        });
+    });
+
+    describe('asArrayElement()', function () {
+        it('should return the value itself', function () {
+            expect(value.asArrayElement()).to.equal(value);
         });
     });
 
@@ -661,28 +667,28 @@ describe('Integer', function () {
     });
 
     describe('isGreaterThan()', function () {
-        it('should return true for two integers when left is greater than right', function () {
+        it('should return true for two integers when left is greater than right', async function () {
             var lhs = createValue(21),
-                rhs = createValue(15),
-                result = lhs.isGreaterThan(rhs);
+                rhs = factory.createAsyncPresent(createValue(15)), // Test async/Future handling.
+                result = await lhs.isGreaterThan(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
             expect(result.getNative()).to.be.true;
         });
 
-        it('should return false for two integers when left is equal to right', function () {
+        it('should return false for two integers when left is equal to right', async function () {
             var lhs = createValue(21),
-                rhs = createValue(21),
-                result = lhs.isGreaterThan(rhs);
+                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                result = await lhs.isGreaterThan(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
             expect(result.getNative()).to.be.false;
         });
 
-        it('should return false for two integers when left is less than right', function () {
+        it('should return false for two integers when left is less than right', async function () {
             var lhs = createValue(15),
-                rhs = createValue(21),
-                result = lhs.isGreaterThan(rhs);
+                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                result = await lhs.isGreaterThan(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
             expect(result.getNative()).to.be.false;
@@ -690,28 +696,48 @@ describe('Integer', function () {
     });
 
     describe('isGreaterThanOrEqual()', function () {
-        it('should return true for two integers when left is greater than right', function () {
+        it('should return true for two integers when left is greater than right', async function () {
             var lhs = createValue(21),
-                rhs = createValue(15),
-                result = lhs.isGreaterThanOrEqual(rhs);
+                rhs = factory.createAsyncPresent(createValue(15)), // Test async/Future handling.
+                result = await lhs.isGreaterThanOrEqual(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
             expect(result.getNative()).to.be.true;
         });
 
-        it('should return true for two integers when left is equal to right', function () {
+        it('should return true for two integers when left is equal to right', async function () {
             var lhs = createValue(21),
-                rhs = createValue(21),
-                result = lhs.isGreaterThanOrEqual(rhs);
+                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                result = await lhs.isGreaterThanOrEqual(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
             expect(result.getNative()).to.be.true;
         });
 
-        it('should return false for two integers when left is less than right', function () {
+        it('should return false for two integers when left is less than right', async function () {
             var lhs = createValue(15),
-                rhs = createValue(21),
-                result = lhs.isGreaterThanOrEqual(rhs);
+                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                result = await lhs.isGreaterThanOrEqual(rhs).toPromise();
+
+            expect(result.getType()).to.equal('boolean');
+            expect(result.getNative()).to.be.false;
+        });
+    });
+
+    describe('isIdenticalTo()', function () {
+        it('should return true for two equal integers', async function () {
+            var lhs = createValue(21),
+                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                result = await lhs.isIdenticalTo(rhs).toPromise();
+
+            expect(result.getType()).to.equal('boolean');
+            expect(result.getNative()).to.be.true;
+        });
+
+        it('should return false for two values of same value but different type', async function () {
+            var lhs = createValue(21),
+                rhs = factory.createAsyncPresent(factory.createFloat(21)), // Test async/Future handling.
+                result = await lhs.isIdenticalTo(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
             expect(result.getNative()).to.be.false;
@@ -725,28 +751,28 @@ describe('Integer', function () {
     });
 
     describe('isLessThan()', function () {
-        it('should return false for two integers when left is greater than right', function () {
+        it('should return false for two integers when left is greater than right', async function () {
             var lhs = createValue(21),
-                rhs = createValue(15),
-                result = lhs.isLessThan(rhs);
+                rhs = factory.createAsyncPresent(createValue(15)), // Test async/Future handling.
+                result = await lhs.isLessThan(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
             expect(result.getNative()).to.be.false;
         });
 
-        it('should return false for two integers when left is equal to right', function () {
+        it('should return false for two integers when left is equal to right', async function () {
             var lhs = createValue(21),
-                rhs = createValue(21),
-                result = lhs.isLessThan(rhs);
+                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                result = await lhs.isLessThan(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
             expect(result.getNative()).to.be.false;
         });
 
-        it('should return true for two integers when left is less than right', function () {
+        it('should return true for two integers when left is less than right', async function () {
             var lhs = createValue(15),
-                rhs = createValue(21),
-                result = lhs.isLessThan(rhs);
+                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                result = await lhs.isLessThan(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
             expect(result.getNative()).to.be.true;
@@ -754,31 +780,89 @@ describe('Integer', function () {
     });
 
     describe('isLessThanOrEqual()', function () {
-        it('should return false for two integers when left is greater than right', function () {
+        it('should return false for two integers when left is greater than right', async function () {
             var lhs = createValue(21),
-                rhs = createValue(15),
-                result = lhs.isLessThanOrEqual(rhs);
+                rhs = factory.createAsyncPresent(createValue(15)), // Test async/Future handling.
+                result = await lhs.isLessThanOrEqual(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
             expect(result.getNative()).to.be.false;
         });
 
-        it('should return true for two integers when left is equal to right', function () {
+        it('should return true for two integers when left is equal to right', async function () {
             var lhs = createValue(21),
-                rhs = createValue(21),
-                result = lhs.isLessThanOrEqual(rhs);
+                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                result = await lhs.isLessThanOrEqual(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
             expect(result.getNative()).to.be.true;
         });
 
-        it('should return true for two integers when left is less than right', function () {
+        it('should return true for two integers when left is less than right', async function () {
             var lhs = createValue(15),
-                rhs = createValue(21),
-                result = lhs.isLessThanOrEqual(rhs);
+                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                result = await lhs.isLessThanOrEqual(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
             expect(result.getNative()).to.be.true;
+        });
+    });
+
+    describe('isNotEqualTo()', function () {
+        it('should return true for two unequal integers', async function () {
+            var lhs = createValue(21),
+                rhs = factory.createAsyncPresent(createValue(101)), // Test async/Future handling.
+                result = await lhs.isNotEqualTo(rhs).toPromise();
+
+            expect(result.getType()).to.equal('boolean');
+            expect(result.getNative()).to.be.true;
+        });
+
+        it('should return false for two equal integers', async function () {
+            var lhs = createValue(21),
+                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                result = await lhs.isNotEqualTo(rhs).toPromise();
+
+            expect(result.getType()).to.equal('boolean');
+            expect(result.getNative()).to.be.false;
+        });
+
+        it('should return false for two values of same value but different type', async function () {
+            var lhs = createValue(21),
+                rhs = factory.createAsyncPresent(factory.createFloat(21)), // Test async/Future handling.
+                result = await lhs.isNotEqualTo(rhs).toPromise();
+
+            expect(result.getType()).to.equal('boolean');
+            expect(result.getNative()).to.be.false;
+        });
+    });
+
+    describe('isNotIdenticalTo()', function () {
+        it('should return true for two unequal integers', async function () {
+            var lhs = createValue(21),
+                rhs = factory.createAsyncPresent(createValue(101)), // Test async/Future handling.
+                result = await lhs.isNotIdenticalTo(rhs).toPromise();
+
+            expect(result.getType()).to.equal('boolean');
+            expect(result.getNative()).to.be.true;
+        });
+
+        it('should return true for two values of same value but different type', async function () {
+            var lhs = createValue(21),
+                rhs = factory.createAsyncPresent(factory.createFloat(21)), // Test async/Future handling.
+                result = await lhs.isNotIdenticalTo(rhs).toPromise();
+
+            expect(result.getType()).to.equal('boolean');
+            expect(result.getNative()).to.be.true;
+        });
+
+        it('should return false for two equal integers', async function () {
+            var lhs = createValue(21),
+                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                result = await lhs.isNotIdenticalTo(rhs).toPromise();
+
+            expect(result.getType()).to.equal('boolean');
+            expect(result.getNative()).to.be.false;
         });
     });
 
@@ -878,35 +962,73 @@ describe('Integer', function () {
         });
     });
 
+    describe('logicalAnd()', function () {
+        it('should return true for two truthy values', async function () {
+            var lhs = createValue(21),
+                rhs = factory.createAsyncPresent(factory.createString('hello')), // Test async/Future handling.
+                result = await lhs.logicalAnd(rhs).toPromise();
+
+            expect(result.getType()).to.equal('boolean');
+            expect(result.getNative()).to.be.true;
+        });
+
+        it('should return false for two falsy values', async function () {
+            var lhs = createValue(0),
+                rhs = factory.createAsyncPresent(factory.createString('')), // Test async/Future handling.
+                result = await lhs.logicalAnd(rhs).toPromise();
+
+            expect(result.getType()).to.equal('boolean');
+            expect(result.getNative()).to.be.false;
+        });
+
+        it('should return false when left operand is falsy', async function () {
+            var lhs = createValue(0),
+                rhs = factory.createAsyncPresent(factory.createString('hello')), // Test async/Future handling.
+                result = await lhs.logicalAnd(rhs).toPromise();
+
+            expect(result.getType()).to.equal('boolean');
+            expect(result.getNative()).to.be.false;
+        });
+
+        it('should return false when right operand is falsy', async function () {
+            var lhs = createValue(15),
+                rhs = factory.createAsyncPresent(factory.createString('')), // Test async/Future handling.
+                result = await lhs.logicalAnd(rhs).toPromise();
+
+            expect(result.getType()).to.equal('boolean');
+            expect(result.getNative()).to.be.false;
+        });
+    });
+
     describe('modulo()', function () {
-        it('should return the correct remainder of 3 for 23 mod 5', function () {
+        it('should return the correct remainder of 3 for 23 mod 5', async function () {
             var result,
-                rightValue = factory.createInteger(5);
+                rightValue = factory.createAsyncPresent(factory.createInteger(5));
             createValue(23);
 
-            result = value.modulo(rightValue);
+            result = await value.modulo(rightValue).toPromise();
 
             expect(result.getType()).to.equal('int');
             expect(result.getNative()).to.equal(3);
         });
 
-        it('should return the correct remainder of 0 for 10 mod 2', function () {
+        it('should return the correct remainder of 0 for 10 mod 2', async function () {
             var result,
-                rightValue = factory.createInteger(2);
+                rightValue = factory.createAsyncPresent(factory.createInteger(2));
             createValue(10);
 
-            result = value.modulo(rightValue);
+            result = await value.modulo(rightValue).toPromise();
 
             expect(result.getType()).to.equal('int');
             expect(result.getNative()).to.equal(0);
         });
 
-        it('should return the correct remainder of 4 for 24 mod 5', function () {
+        it('should return the correct remainder of 4 for 24 mod 5', async function () {
             var result,
-                rightValue = factory.createInteger(5);
+                rightValue = factory.createAsyncPresent(factory.createInteger(5));
             createValue(24);
 
-            result = value.modulo(rightValue);
+            result = await value.modulo(rightValue).toPromise();
 
             expect(result.getType()).to.equal('int');
             expect(result.getNative()).to.equal(4);

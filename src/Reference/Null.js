@@ -82,12 +82,14 @@ _.extend(NullReference.prototype, {
     /**
      * {@inheritdoc}
      */
-    setValue: function () {
+    setValue: function (value) {
         var reference = this;
 
         if (reference.onSet) {
             reference.onSet();
         }
+
+        return value;
     }
 });
 

@@ -107,15 +107,13 @@ _.extend(FunctionSpec.prototype, {
      * Coerces the given set of arguments for this function as needed
      *
      * @param {Reference[]|Value[]|Variable[]} argumentReferenceList
-     * @returns {Value[]} Returns all arguments resolved to values
+     * @returns {Future<Value[]>} Returns all arguments resolved to values
      */
     coerceArguments: function (argumentReferenceList) {
         var coercedArguments = argumentReferenceList.slice(),
             spec = this;
 
-        _.each(spec.parameterList, function (parameter, index) {
-            var coercedArgument;
-
+        return spec.flow.eachAsync(spec.parameterList, function (parameter, index) {
             if (!parameter) {
                 // Parameter is omitted due to bundle-size optimisations or similar, ignore
                 return;
@@ -133,18 +131,19 @@ _.extend(FunctionSpec.prototype, {
              * For by-reference parameters in weak-type checking mode, the coerced value will be written back
              * to the reference, ie. <reference>.setValue(<coerced value>).
              */
-            coercedArgument = parameter.coerceArgument(argumentReferenceList[index]);
+            return parameter.coerceArgument(argumentReferenceList[index])
+                .next(function (coercedArgument) {
+                    coercedArguments[index] = coercedArgument;
 
-            coercedArguments[index] = coercedArgument;
-
-            if (!parameter.isPassedByReference()) {
-                // Arguments for this parameter are passed by value, so also
-                // overwrite with the coerced argument in the reference list passed to the function.
-                argumentReferenceList[index] = coercedArgument;
-            }
+                    if (!parameter.isPassedByReference()) {
+                        // Arguments for this parameter are passed by value, so also
+                        // overwrite with the coerced argument in the reference list passed to the function.
+                        argumentReferenceList[index] = coercedArgument;
+                    }
+                });
+        }).next(function () {
+            return coercedArguments;
         });
-
-        return coercedArguments;
     },
 
     /**
@@ -183,7 +182,7 @@ _.extend(FunctionSpec.prototype, {
                 coercedValue !== presentValue &&
                 !(returnReference instanceof Value)
             ) {
-                returnReference.setValue(coercedValue);
+                return returnReference.setValue(coercedValue);
             }
 
             return coercedValue;

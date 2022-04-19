@@ -9,7 +9,9 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    phpCommon = require('phpcommon'),
+    Exception = phpCommon.Exception;
 
 /**
  * Encapsulates execution of userland code when no tracing is desired,
@@ -23,16 +25,25 @@ function IsolatedOpcode() {
 
 _.extend(IsolatedOpcode.prototype, {
     /**
-     * Calls the wrapped handler for this opcode
+     * Calls the wrapped handler for this opcode.
      *
      * @returns {*}
      */
     handle: function () {
-        return null; // TODO: Throw instead, as this should not be called for this class?
+        throw new Exception('IsolatedOpcode.handle() should not be called');
     },
 
     /**
-     * Releases this opcode back into the pool to be reused
+     * Fetches whether this opcode's result (or error) is traced.
+     *
+     * @returns {boolean}
+     */
+    isTraced: function () {
+        return false;
+    },
+
+    /**
+     * Releases this opcode back into the pool to be reused.
      *
      * @param {OpcodePool} opcodePool
      */
@@ -48,21 +59,21 @@ _.extend(IsolatedOpcode.prototype, {
      * @returns {*}
      */
     resume: function () {
-        return null; // TODO: Throw instead, as this should not be called for this class?
+        throw new Exception('IsolatedOpcode.resume() should not be called');
     },
 
     /**
-     * Tracing is intentionally not performed for isolated opcodes
+     * Tracing is intentionally not performed for isolated opcodes.
      */
     traceResult: function () {
-        // Nothing to record
+        throw new Exception('IsolatedOpcode.traceResult() should not be called');
     },
 
     /**
-     * Tracing is intentionally not performed for isolated opcodes
+     * Tracing is intentionally not performed for isolated opcodes.
      */
     traceThrow: function () {
-        // Nothing to record
+        throw new Exception('IsolatedOpcode.traceThrow() should not be called');
     }
 });
 

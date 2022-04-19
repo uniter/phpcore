@@ -19,7 +19,7 @@ describe('LoadFailedException', function () {
         this.exception = new LoadFailedException(this.previousError);
     });
 
-    describe('constructor', function () {
+    describe('constructor()', function () {
         it('should set the public <Error>.message property correctly', function () {
             expect(this.exception.message).to.equal(
                 'Load failed :: My previous error that caused the load to fail'

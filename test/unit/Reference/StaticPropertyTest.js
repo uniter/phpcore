@@ -62,6 +62,14 @@ describe('StaticPropertyReference', function () {
         property.setValue(propertyValue);
     });
 
+    describe('asArrayElement()', function () {
+        it('should return the value of the property', function () {
+            property.setValue(propertyValue);
+
+            expect(property.asArrayElement()).to.equal(propertyValue);
+        });
+    });
+
     describe('formatAsString()', function () {
         it('should return the correct string', function () {
             expect(property.formatAsString()).to.equal('\'the value of my...\'');
@@ -176,6 +184,31 @@ describe('StaticPropertyReference', function () {
             propertyValue.isSet.returns(false);
 
             expect(property.isSet()).to.be.false;
+        });
+    });
+
+    describe('setValue()', function () {
+        it('should return the value assigned when the property is not defined with a reference', async function () {
+            var value = valueFactory.createString('my value'),
+                resultValue = await property.setValue(value).toPromise();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('my value');
+        });
+
+        it('should return the value assigned when the property is defined with a reference', async function () {
+            var reference = sinon.createStubInstance(Reference),
+                resultValue,
+                value = valueFactory.createString('my val for reference');
+            reference.setValue.returns(value);
+            property.setReference(reference);
+
+            resultValue = await property.setValue(value).toPromise();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('my val for reference');
+            expect(reference.setValue).to.have.been.calledOnce;
+            expect(reference.setValue).to.have.been.calledWith(sinon.match.same(value));
         });
     });
 

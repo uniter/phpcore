@@ -103,20 +103,23 @@ _.extend(NativeDefinitionBuilder.prototype, {
                 // if auto-coercion is enabled, otherwise use the ObjectValue
                 unwrappedThisObject = autoCoercionEnabled ?
                     objectValue.getObject() :
-                    objectValue,
-                unwrappedArgs = valueCoercer.coerceArguments(args);
+                    objectValue;
 
-            // Call the original native constructor
-            definition.apply(unwrappedThisObject, unwrappedArgs);
+            return valueCoercer.coerceArguments(args)
+                .next(function (unwrappedArgs) {
+                    // Call the original native constructor
+                    definition.apply(unwrappedThisObject, unwrappedArgs);
 
-            // Call magic __construct method if defined for the original native class.
-            if (hasMagicConstructor) {
-                // Note that although constructors' return values are discarded, it may pause, in which case
-                // a FutureValue or Future would be returned, which we then need to return in order to await.
-                return objectValue.callMethod(ORIGINAL_MAGIC_CONSTRUCTOR, args);
-            }
+                    // Call magic __construct method if defined for the original native class.
+                    if (hasMagicConstructor) {
+                        // Note that although constructors' return values are discarded, it may pause, in which case
+                        // a FutureValue or Future would be returned, which we then need to return in order to await.
+                        return objectValue.callMethod(ORIGINAL_MAGIC_CONSTRUCTOR, args);
+                    }
 
-            return builder.valueFactory.createNull();
+                    return builder.valueFactory.createNull();
+                })
+                .asValue();
         };
         proxyConstructor.data = methodData;
         InternalClass.prototype[MAGIC_CONSTRUCT] = proxyConstructor;

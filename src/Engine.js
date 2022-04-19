@@ -336,20 +336,10 @@ _.extend(Engine.prototype, {
         /**
          * Top-level entrypoint passed to Userland for all synchronicity modes.
          *
-         * @returns {Value}
-         * @throws {Pause} When the result is an unresolved FutureValue.
+         * @returns {Reference|Value|Variable}
          */
         function topLevel() {
-            var result = wrapper(core),
-                // Resolve the result to a value (which may be a FutureValue, eg. if returned from an accessor).
-                resultValue = result ?
-                    // Module may return a reference (eg. a variable), so always extract the value.
-                    result.getValue() :
-                    // Program returns null rather than undefined if nothing is returned.
-                    valueFactory.createNull();
-
-            // Yield the value, which will raise a pause if an unresolved FutureValue in async mode.
-            return resultValue.yield();
+            return wrapper(core);
         }
 
         // Asynchronous mode

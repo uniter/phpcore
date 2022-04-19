@@ -43,6 +43,15 @@ _.extend(ReferenceSlot.prototype, {
     /**
      * {@inheritdoc}
      */
+    asArrayElement: function () {
+        // Unlike other reference types, return ReferenceSlots unchanged as they represent
+        // an actual PHP reference and not a value.
+        return this;
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     getForAssignment: function () {
         return this.getValue();
     },

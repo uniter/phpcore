@@ -29,7 +29,6 @@ module.exports = require('pauser')([
     require('./Control/Pause'),
     require('./FFI/Value/PHPObject'),
     require('./Reference/Reference'),
-    require('./Control/Sequence'),
     require('./Value/String'),
     require('./Value'),
     require('./FFI/Value/ValueStorage'),
@@ -54,13 +53,19 @@ module.exports = require('pauser')([
     Pause,
     PHPObject,
     Reference,
-    Sequence,
     StringValue,
     Value,
     ValueStorage,
     Variable
 ) {
-    var Exception = phpCommon.Exception;
+    var Exception = phpCommon.Exception,
+        queueMacrotask = typeof requestIdleCallback !== 'undefined' ?
+            function (callback) {
+                requestIdleCallback(callback);
+            } :
+            function (callback) {
+                setTimeout(callback, 1);
+            };
 
     /**
      * Creates Value and related objects
@@ -103,6 +108,10 @@ module.exports = require('pauser')([
          * @type {ElementProvider}
          */
         this.elementProvider = new ElementProvider();
+        /**
+         * @type {Flow|null}
+         */
+        this.flow = null;
         /**
          * @type {FutureFactory|null}
          */
@@ -171,9 +180,6 @@ module.exports = require('pauser')([
                 // have been handled by the guard above
                 return factory.deriveFuture(value);
             }
-
-            // Note that we check a Sequence is never passed in, but the check is performed
-            // from .createFromNativeObject() rather than this hotter code path.
 
             if (value instanceof FFIResult) {
                 // An FFI Result was returned, so we need to handle it as appropriate
@@ -274,6 +280,7 @@ module.exports = require('pauser')([
                 factory.referenceFactory,
                 factory.futureFactory,
                 factory.callStack,
+                factory.flow,
                 value,
                 elementProvider || factory.elementProvider
             );
@@ -287,6 +294,55 @@ module.exports = require('pauser')([
          */
         createArrayIterator: function (arrayLikeValue) {
             return new ArrayIterator(arrayLikeValue);
+        },
+
+        /**
+         * Creates a new FutureValue whose executor is always called asynchronously in a macrotask
+         * (macrotasks wait for the _next_ event loop tick, allowing DOM events to fire etc.).
+         *
+         * @param {Function} executor
+         * @returns {FutureValue}
+         */
+        createAsyncMacrotaskFuture: function (executor) {
+            return this.createFuture(function (resolve, reject) {
+                queueMacrotask(function () {
+                    try {
+                        executor(resolve, reject);
+                    } catch (error) {
+                        if (error instanceof Pause) {
+                            throw new Exception('Unexpected Pause raised by Future executor');
+                        }
+
+                        // Any errors raised during evaluation of the Future executor should reject the Future.
+                        reject(error);
+                    }
+                });
+            });
+        },
+
+        /**
+         * Creates a new FutureValue whose executor is always called asynchronously in a microtask
+         * (microtasks are called at the end of the _current_ event loop tick, so any DOM events etc.
+         * will not be fired in between).
+         *
+         * @param {Function} executor
+         * @returns {FutureValue}
+         */
+        createAsyncMicrotaskFuture: function (executor) {
+            return this.createFuture(function (resolve, reject) {
+                queueMicrotask(function () {
+                    try {
+                        executor(resolve, reject);
+                    } catch (error) {
+                        if (error instanceof Pause) {
+                            throw new Exception('Unexpected Pause raised by Future executor');
+                        }
+
+                        // Any errors raised during evaluation of the Future executor should reject the Future.
+                        reject(error);
+                    }
+                });
+            });
         },
 
         /**
@@ -545,10 +601,6 @@ module.exports = require('pauser')([
                 return nativeObject.getObjectValue();
             }
 
-            if (nativeObject instanceof Sequence) {
-                throw new Exception('Sequences should not be used as values');
-            }
-
             if (factory.valueStorage.hasObjectValueForExport(nativeObject)) {
                 // Objects exported with .getNative() are mapped back to their original ObjectValue
                 return factory.valueStorage.getObjectValueForExport(nativeObject);
@@ -630,6 +682,20 @@ module.exports = require('pauser')([
                 factory.callStack,
                 future
             );
+        },
+
+        /**
+         * Creates a FutureValue as the start of a chain, allowing for the initial result
+         * to be returned rather than having to call resolve().
+         *
+         * @param {Function} executor
+         * @returns {FutureValue}
+         */
+        createFutureChain: function (executor) {
+            // Use .createFuture() rather than .createPresent() to include the try..catch handling.
+            return this.createFuture(function (resolve) {
+                resolve(executor());
+            });
         },
 
         /**
@@ -833,23 +899,16 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Derives a new FutureValue from an existing Future
+         * Derives a new FutureValue from an existing Future.
          *
          * @param {Future} future
          * @returns {FutureValue}
          */
         deriveFuture: function (future) {
-            var factory = this;
-
-            return new FutureValue(
-                factory,
-                factory.referenceFactory,
-                factory.futureFactory,
-                factory.callStack,
-                future.derive().next(function (value) {
-                    return factory.coerce(value); // Make sure the resolved value is always a Value.
-                })
-            );
+            // Note that .createFuture(...) will coerce the result (if resolved) to a Value.
+            return this.createFuture(function (resolve, reject) {
+                future.next(resolve, reject);
+            });
         },
 
         /**
@@ -969,6 +1028,15 @@ module.exports = require('pauser')([
          */
         setElementProvider: function (elementProvider) {
             this.elementProvider = elementProvider;
+        },
+
+        /**
+         * Sets the Flow service.
+         *
+         * @param {Flow} flow
+         */
+        setFlow: function (flow) {
+            this.flow = flow;
         },
 
         /**

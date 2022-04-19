@@ -29,8 +29,14 @@ describe('ReferenceSlot', function () {
         reference = new ReferenceSlot(valueFactory, referenceFactory);
     });
 
+    describe('asArrayElement()', function () {
+        it('should return the ReferenceSlot itself', function () {
+            expect(reference.asArrayElement()).to.equal(reference);
+        });
+    });
+
     describe('getForAssignment()', function () {
-        it('should return the value of the variable', function () {
+        it('should return the value of the slot', function () {
             var result = sinon.createStubInstance(Value);
             reference.setValue(result);
 
@@ -75,7 +81,7 @@ describe('ReferenceSlot', function () {
     });
 
     describe('setValue()', function () {
-        it('should set the value of the variable to the new value', function () {
+        it('should set the value of the slot to the new value', function () {
             var newValue = sinon.createStubInstance(Value);
 
             reference.setValue(newValue);

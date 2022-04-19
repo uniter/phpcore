@@ -105,23 +105,31 @@ describe('Parameter', function () {
         it('should return the coerced argument when the parameter is passed by reference', async function () {
             var originalValue = valueFactory.createString('original value'),
                 coercedValue = valueFactory.createString('coerced value'),
+                setValue = valueFactory.createString('set value'),
                 variable = sinon.createStubInstance(Variable);
             typeObject.coerceValue
                 .withArgs(sinon.match.same(originalValue))
                 .returns(coercedValue);
             variable.getValueOrNull.returns(originalValue);
+            variable.setValue
+                .withArgs(sinon.match.same(coercedValue))
+                .returns(setValue);
 
-            expect(await parameter.coerceArgument(variable).toPromise()).to.equal(coercedValue);
+            expect(await parameter.coerceArgument(variable).toPromise()).to.equal(setValue);
         });
 
         it('should write the coerced argument back to the reference when the parameter is passed by reference', async function () {
             var originalValue = valueFactory.createString('original value'),
                 coercedValue = valueFactory.createString('coerced value'),
+                setValue = valueFactory.createString('set value'),
                 variable = sinon.createStubInstance(Variable);
             typeObject.coerceValue
                 .withArgs(sinon.match.same(originalValue))
                 .returns(coercedValue);
             variable.getValueOrNull.returns(originalValue);
+            variable.setValue
+                .withArgs(sinon.match.same(coercedValue))
+                .returns(setValue);
 
             await parameter.coerceArgument(variable).toPromise();
 

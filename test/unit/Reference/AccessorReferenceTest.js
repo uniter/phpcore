@@ -39,6 +39,18 @@ describe('AccessorReference', function () {
         );
     });
 
+    describe('asArrayElement()', function () {
+        it('should return the result of the getter coerced to a PHP value', function () {
+            var value;
+            valueGetter.returns(101);
+
+            value = reference.asArrayElement();
+
+            expect(value.getType()).to.equal('int');
+            expect(value.getNative()).to.equal(101);
+        });
+    });
+
     describe('formatAsString()', function () {
         it('should return the native result of the getter, formatted', function () {
             valueGetter.returns('My native result');
@@ -121,16 +133,17 @@ describe('AccessorReference', function () {
     });
 
     describe('setValue()', function () {
-        it('should call the setter with the value unwrapped for native JS', async function () {
+        it('should call the setter with the value', async function () {
             var newValue = valueFactory.createInteger(27);
 
             await reference.setValue(newValue).toPromise();
 
             expect(valueSetter).to.have.been.calledOnce;
-            expect(valueSetter).to.have.been.calledWith(27);
+            expect(valueSetter.args[0][0].getType()).to.equal('int');
+            expect(valueSetter.args[0][0].getNative()).to.equal(27);
         });
 
-        it('should return the new value', async function () {
+        it('should return a Future that eventually resolves to the new value', async function () {
             var newValue = valueFactory.createString('my new value');
 
             expect(await reference.setValue(newValue).toPromise()).to.equal(newValue);

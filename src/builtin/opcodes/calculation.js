@@ -38,7 +38,8 @@ module.exports = function (internals) {
         optionSet = internals.optionSet,
         output = internals.output,
         referenceFactory = internals.referenceFactory,
-        valueFactory = internals.valueFactory;
+        valueFactory = internals.valueFactory,
+        valueProvider = internals.valueProvider;
 
     internals.setOpcodeFetcher('calculation');
 
@@ -315,8 +316,14 @@ module.exports = function (internals) {
             return targetReference.setValue(targetReference.getValue().concat(sourceReference.getValue()));
         },
 
+        /**
+         * Creates an ArrayValue with the given elements.
+         *
+         * @param {KeyReferencePair[]|KeyValuePair[]|Reference[]|Value[]|Variable[]} elements
+         * @returns {FutureValue<ArrayValue>}
+         */
         createArray: function (elements) {
-            return valueFactory.createArray(elements);
+            return valueProvider.createFutureArray(elements);
         },
 
         createBareword: function (nativeValue) {
@@ -395,7 +402,7 @@ module.exports = function (internals) {
          * @returns {List}
          */
         createList: function (elements) {
-            return new List(valueFactory, elements);
+            return new List(valueFactory, flow, elements);
         },
 
         createString: function (nativeValue) {
@@ -593,11 +600,11 @@ module.exports = function (internals) {
             // TODO: Remove need for this to be wrapped as a Value
             var keyValue = valueFactory.coerce(nativeKey);
 
-            return internals.implyArray(arrayReference).next(function () {
-                return arrayReference.getValue();
-            }).next(function (presentValue) {
-                return presentValue.getElementByKey(keyValue);
-            });
+            return internals.implyArray(arrayReference)
+                .asFuture() // Do not wrap result as a value, we expect to resolve with an (object)element reference.
+                .next(function (arrayValue) {
+                    return arrayValue.getElementByKey(keyValue);
+                });
         },
 
         /**
@@ -739,13 +746,19 @@ module.exports = function (internals) {
          * Fetches an array element where the key is fetched dynamically.
          *
          * @param {Reference|Value|Variable} arrayReference
-         * @param {Reference|Value|Variable} keyValue
+         * @param {Reference|Value|Variable} keyReference
          * @returns {Future<ElementReference>}
          */
-        getVariableElement: function (arrayReference, keyValue) {
-            return internals.implyArray(arrayReference).next(function () {
-                return arrayReference.getValue().getElementByKey(keyValue.getValue());
-            });
+        getVariableElement: function (arrayReference, keyReference) {
+            return internals.implyArray(arrayReference)
+                .asFuture() // Do not wrap result as a value, we expect to resolve with an (object)element reference.
+                .next(function (arrayValue) {
+                    return keyReference.getValue()
+                        .asFuture() // Do not wrap result as a value, we expect to resolve with an (object)element reference.
+                        .next(function (keyValue) {
+                            return arrayValue.getElementByKey(keyValue);
+                        });
+                });
         },
 
         /**
@@ -1376,11 +1389,11 @@ module.exports = function (internals) {
          * @returns {Future<ElementReference>}
          */
         pushElement: function (arrayReference) {
-            return internals.implyArray(arrayReference).next(function () {
-                return arrayReference.getValue();
-            }).next(function (presentArrayValue) {
-                return presentArrayValue.getPushElement();
-            });
+            return internals.implyArray(arrayReference)
+                .asFuture() // Do not wrap result as a value, we expect to resolve with an (object)element reference.
+                .next(function (arrayValue) {
+                    return arrayValue.getPushElement();
+                });
         },
 
         /**
@@ -1586,13 +1599,14 @@ module.exports = function (internals) {
         },
 
         /**
-         * Unsets all the given references (except static properties, for which it is illegal)
+         * Unsets all the given references (except static properties, for which it is illegal).
          *
          * @param {Reference[]|Value[]|Variable[]} references
+         * @returns {Future}
          */
         unset: function (references) {
-            _.each(references, function (reference) {
-                reference.unset();
+            return flow.eachAsync(references, function (reference) {
+                return reference.unset();
             });
         }
     };

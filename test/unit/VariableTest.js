@@ -14,6 +14,7 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('./tools'),
     CallStack = require('../../src/CallStack'),
+    Future = require('../../src/Control/Future'),
     PHPError = phpCommon.PHPError,
     Reference = require('../../src/Reference/Reference'),
     ReferenceSlot = require('../../src/Reference/ReferenceSlot'),
@@ -46,6 +47,18 @@ describe('Variable', function () {
             });
 
         variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'myVar');
+    });
+
+    describe('asArrayElement()', function () {
+        it('should return the value of the variable', function () {
+            var value;
+            variable.setValue(valueFactory.createInteger(1234));
+
+            value = variable.asArrayElement();
+
+            expect(value.getType()).to.equal('int');
+            expect(value.getNative()).to.equal(1234);
+        });
     });
 
     describe('formatAsString()', function () {
@@ -259,13 +272,47 @@ describe('Variable', function () {
             return expect(variable.setValue(valueFactory.createNull()).toPromise()).not.to.be.rejected;
         });
 
-        it('should return the assigned present value', async function () {
-            var resultValue = await variable
-                .setValue(valueFactory.createAsyncPresent('my assigned value'))
-                .toPromise();
+        describe('when the variable has no reference assigned', function () {
+            it('should return the assigned present value', async function () {
+                var resultValue = await variable
+                    .setValue(valueFactory.createAsyncPresent('my assigned value'))
+                    .toPromise();
 
-            expect(resultValue.getType()).to.equal('string');
-            expect(resultValue.getNative()).to.equal('my assigned value');
+                expect(resultValue.getType()).to.equal('string');
+                expect(resultValue.getNative()).to.equal('my assigned value');
+            });
+        });
+
+        describe('when the variable has a reference assigned', function () {
+            var reference;
+
+            beforeEach(function () {
+                reference = sinon.createStubInstance(Variable);
+
+                variable.setReference(reference);
+                reference.setValue.callsFake(function (value) {
+                    return valueFactory.createAsyncPresent(value);
+                });
+            });
+
+            it('should return the assigned present value', async function () {
+                var resultValue = await variable
+                    .setValue(valueFactory.createAsyncPresent('my assigned value'))
+                    .toPromise();
+
+                expect(resultValue.getType()).to.equal('string');
+                expect(resultValue.getNative()).to.equal('my assigned value');
+            });
+
+            it('should assign the value to the reference', async function () {
+                await variable
+                    .setValue(valueFactory.createAsyncPresent('my assigned value'))
+                    .toPromise();
+
+                expect(reference.setValue).to.have.been.calledOnce;
+                expect(reference.setValue.args[0][0].getType()).to.equal('string');
+                expect(reference.setValue.args[0][0].getNative()).to.equal('my assigned value');
+            });
         });
 
         it('should unset $this when setting to null', async function () {
@@ -283,6 +330,38 @@ describe('Variable', function () {
             value = await variable.setValue(valueFactory.createNull()).toPromise();
 
             expect(value.getType()).to.equal('null');
+        });
+    });
+
+    describe('unset()', function () {
+        it('should leave the variable no longer set', async function () {
+            variable.setValue(valueFactory.createInteger(1234));
+
+            await variable.unset().toPromise();
+
+            expect(await variable.isSet().toPromise()).to.be.false;
+        });
+
+        it('should leave the variable empty', async function () {
+            variable.setValue(valueFactory.createInteger(1234));
+
+            await variable.unset().toPromise();
+
+            expect(await variable.isEmpty().toPromise()).to.be.true;
+        });
+
+        it('should leave the variable undefined', async function () {
+            variable.setValue(valueFactory.createInteger(1234));
+
+            await variable.unset().toPromise();
+
+            expect(variable.isDefined()).to.be.false;
+        });
+
+        it('should return an unwrapped Future', async function () {
+            variable.setValue(valueFactory.createInteger(1234));
+
+            expect(variable.unset()).to.be.an.instanceOf(Future);
         });
     });
 });

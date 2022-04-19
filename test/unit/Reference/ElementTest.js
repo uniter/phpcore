@@ -62,6 +62,12 @@ describe('ElementReference', function () {
         );
     });
 
+    describe('asArrayElement()', function () {
+        it('should return the element\'s value', function () {
+            expect(element.asArrayElement()).to.equal(value);
+        });
+    });
+
     describe('formatAsString()', function () {
         it('should return "NULL" for an unset element', function () {
             element.unset();
@@ -384,19 +390,21 @@ describe('ElementReference', function () {
 
     describe('setValue()', function () {
         describe('when the element is not a reference', function () {
-            it('should define the element in its array', function () {
+            it('should define the element in its array', async function () {
                 var newValue = valueFactory.createString('my new value');
 
-                element.setValue(newValue);
+                await element.setValue(newValue).toPromise();
 
                 expect(arrayValue.defineElement).to.have.been.calledOnce;
                 expect(arrayValue.defineElement).to.have.been.calledWith(sinon.match.same(element));
             });
 
-            it('should return the value assigned', function () {
-                var newValue = valueFactory.createString('my new value');
+            it('should return the value assigned', async function () {
+                var newValue = valueFactory.createString('my new value'),
+                    resultValue = await element.setValue(newValue).toPromise();
 
-                expect(element.setValue(newValue)).to.equal(newValue);
+                expect(resultValue.getType()).to.equal('string');
+                expect(resultValue.getNative()).to.equal('my new value');
             });
         });
 
@@ -408,19 +416,27 @@ describe('ElementReference', function () {
                 element.setReference(reference);
             });
 
-            it('should define the element in its array', function () {
+            it('should define the element in its array', async function () {
                 var newValue = valueFactory.createString('my new value');
 
-                element.setValue(newValue);
+                await element.setValue(newValue).toPromise();
 
                 expect(arrayValue.defineElement).to.have.been.calledOnce;
                 expect(arrayValue.defineElement).to.have.been.calledWith(sinon.match.same(element));
             });
 
-            it('should return the value assigned', function () {
-                var newValue = valueFactory.createString('my new value');
+            it('should return the value assigned', async function () {
+                var newValue = valueFactory.createString('my new value'),
+                    resultValue,
+                    setValue = valueFactory.createString('my set value');
+                reference.setValue
+                    .withArgs(sinon.match.same(newValue))
+                    .returns(setValue);
 
-                expect(element.setValue(newValue)).to.equal(newValue);
+                resultValue = await element.setValue(newValue).toPromise();
+
+                expect(resultValue.getType()).to.equal('string');
+                expect(resultValue.getNative()).to.equal('my set value');
             });
         });
 
@@ -429,10 +445,10 @@ describe('ElementReference', function () {
                 arrayValue.getLength.returns(0);
             });
 
-            it('should change the array pointer to point to this element', function () {
+            it('should change the array pointer to point to this element', async function () {
                 var newValue = valueFactory.createString('my new value');
 
-                element.setValue(newValue);
+                await element.setValue(newValue).toPromise();
 
                 expect(arrayValue.pointToElement).to.have.been.calledOnce;
                 expect(arrayValue.pointToElement).to.have.been.calledWith(sinon.match.same(element));
@@ -444,10 +460,10 @@ describe('ElementReference', function () {
                 arrayValue.getLength.returns(1);
             });
 
-            it('should not change the array pointer', function () {
+            it('should not change the array pointer', async function () {
                 var newValue = valueFactory.createString('my new value');
 
-                element.setValue(newValue);
+                await element.setValue(newValue).toPromise();
 
                 expect(arrayValue.pointToElement).not.to.have.been.called;
             });
@@ -459,6 +475,10 @@ describe('ElementReference', function () {
             element.unset();
 
             expect(await element.isSet().toPromise()).to.be.false;
+        });
+
+        it('should return a Future that resolves to null', async function () {
+            expect(await element.unset().toPromise()).to.be.null;
         });
     });
 });

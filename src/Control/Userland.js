@@ -118,14 +118,48 @@ _.extend(Userland.prototype, {
             reject(error);
         }
 
+        function doEnter() {
+            var result = executor();
+
+            if (result) {
+                /*
+                 * Module may return a reference (eg. a variable), so always extract the value.
+                 * Note that this may be a FutureValue, eg. if returned from an accessor,
+                 * in which case it will be yielded to below.
+                 */
+                result = result.getValue();
+            } else {
+                // Program returns null rather than undefined if nothing is returned.
+                result = userland.valueFactory.createNull();
+            }
+
+            return result;
+        }
+
         if (userland.mode === 'async') {
             return new Promise(function (resolve, reject) {
+                /**
+                 * Performs the userland execution, allowing it to be re-entered
+                 * by handlePauseOrError(...) if there is a pause.
+                 */
                 function run() {
+                    var result;
+
                     try {
-                        resolve(executor());
+                        result = doEnter();
                     } catch (error) {
                         handlePauseOrError(error, reject, run);
+                        return;
                     }
+
+                    /*
+                     * Await the result value, resolving or rejecting the promise as appropriate.
+                     *
+                     * - If the result is a resolved FutureValue, this will resolve the promise.
+                     * - If the result is a rejected FutureValue, this will reject the promise.
+                     * - If the result is any other Value, this will resolve the promise.
+                     */
+                    result.next(resolve, reject);
                 }
 
                 run();
@@ -133,7 +167,7 @@ _.extend(Userland.prototype, {
         }
 
         try {
-            return executor();
+            return doEnter().yieldSync();
         } catch (error) {
             handlePauseOrError(error, function (error) {
                 throw error;

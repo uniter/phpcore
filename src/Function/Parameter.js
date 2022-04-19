@@ -146,7 +146,7 @@ _.extend(Parameter.prototype, {
                 coercedValue !== presentValue &&
                 !(argumentReference instanceof Value)
             ) {
-                argumentReference.setValue(coercedValue);
+                return argumentReference.setValue(coercedValue);
             }
 
             return coercedValue;

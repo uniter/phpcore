@@ -37,6 +37,7 @@ module.exports = require('pauser')([
     var FUNCTION_NAME_MUST_BE_STRING = 'core.function_name_must_be_string',
         UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types',
         hasOwn = {}.hasOwnProperty,
+        Exception = phpCommon.Exception,
         PHPError = phpCommon.PHPError,
         /**
          * Prefixes any key called `length` with an underscore to avoid collisions
@@ -59,12 +60,13 @@ module.exports = require('pauser')([
         };
 
     /**
-     * Represents a PHP array value
+     * Represents a PHP array value.
      *
      * @param {ValueFactory} factory
      * @param {ReferenceFactory} referenceFactory
      * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
+     * @param {Flow} flow
      * @param {Array} orderedElements
      * @param {ElementProvider|HookableElementProvider} elementProvider
      * @constructor
@@ -74,6 +76,7 @@ module.exports = require('pauser')([
         referenceFactory,
         futureFactory,
         callStack,
+        flow,
         orderedElements,
         elementProvider
     ) {
@@ -101,14 +104,12 @@ module.exports = require('pauser')([
 
                 if (orderedElement instanceof ReferenceSlot) {
                     // A reference was explicitly provided: the resulting array element
-                    // should be a reference
+                    // should be a reference.
                     elementReference = orderedElement;
                 } else if (orderedElement instanceof Reference || orderedElement instanceof Variable) {
-                    // For other storage types, the value contained should be extracted
-                    // and used as the array element value
-                    elementReference = orderedElement.getValue().getForAssignment();
+                    throw new Exception('Unwrapped elements should be ReferenceSlots or Values');
                 } else {
-                    // Otherwise, value is either native or already a Value object: coerce to Value
+                    // Otherwise, value is either native or already a Value object: coerce to Value.
                     elementValue = factory.coerce(orderedElement);
                 }
             }
@@ -129,6 +130,10 @@ module.exports = require('pauser')([
          * @type {ElementProvider|HookableElementProvider}
          */
         this.elementProvider = elementProvider;
+        /**
+         * @type {Flow}
+         */
+        this.flow = flow;
         /**
          * @type {Object.<string, ElementReference>}
          */
@@ -161,13 +166,16 @@ module.exports = require('pauser')([
 
             resultArray = leftValue.getForAssignment();
 
-            _.forOwn(rightValue.keysToElements, function (element, key) {
-                if (!hasOwn.call(resultArray.keysToElements, key)) {
-                    resultArray.getElementByKey(element.getKey()).setValue(element.getValue());
-                }
-            });
-
-            return resultArray;
+            return leftValue.flow
+                .forOwnAsync(rightValue.keysToElements, function (element, key) {
+                    if (!hasOwn.call(resultArray.keysToElements, key)) {
+                        return resultArray.getElementByKey(element.getKey()).setValue(element.getValue());
+                    }
+                })
+                .next(function () {
+                    return resultArray;
+                })
+                .asValue();
         },
 
         /**
@@ -234,11 +242,11 @@ module.exports = require('pauser')([
             var value = this;
 
             return value.factory.createStdClassObject().next(function (objectValue) {
-                _.each(value.value, function (element) {
-                    objectValue.getInstancePropertyByName(element.getKey()).setValue(element.getValue());
+                return value.flow.eachAsync(value.value, function (element) {
+                    return objectValue.getInstancePropertyByName(element.getKey()).setValue(element.getValue());
+                }).next(function () {
+                    return objectValue;
                 });
-
-                return objectValue;
             });
         },
 
@@ -653,9 +661,9 @@ module.exports = require('pauser')([
             var value = this,
                 index = value.factory.createInteger(value.keysToElements.length);
 
-            value.getElementByKey(index).setValue(otherValue);
-
-            return value;
+            return value.getElementByKey(index).setValue(otherValue).next(function () {
+                return value;
+            });
         },
 
         /**

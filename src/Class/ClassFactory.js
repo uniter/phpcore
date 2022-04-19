@@ -14,6 +14,7 @@ var _ = require('microdash'),
 
 /**
  * @param {ValueFactory} valueFactory
+ * @param {ValueProvider} valueProvider
  * @param {ReferenceFactory} referenceFactory
  * @param {FunctionFactory} functionFactory
  * @param {CallStack} callStack
@@ -26,6 +27,7 @@ var _ = require('microdash'),
  */
 function ClassFactory(
     valueFactory,
+    valueProvider,
     referenceFactory,
     functionFactory,
     callStack,
@@ -71,6 +73,10 @@ function ClassFactory(
      * @type {ValueFactory}
      */
     this.valueFactory = valueFactory;
+    /**
+     * @type {ValueProvider}
+     */
+    this.valueProvider = valueProvider;
 }
 
 _.extend(ClassFactory.prototype, {
@@ -109,6 +115,7 @@ _.extend(ClassFactory.prototype, {
 
         return new Class(
             factory.valueFactory,
+            factory.valueProvider,
             factory.referenceFactory,
             factory.functionFactory,
             factory.callStack,

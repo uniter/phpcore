@@ -17,6 +17,7 @@ var _ = require('microdash'),
 
 module.exports = function (internals) {
     var callStack = internals.callStack,
+        flow = internals.flow,
         globalNamespace = internals.globalNamespace,
         valueFactory = internals.valueFactory,
         nativeArrayToObjectValueMap = new WeakMap(),
@@ -97,21 +98,23 @@ module.exports = function (internals) {
          * @returns {*}
          */
         '__invoke': function () {
-            var nativeArguments,
-                nativeObject = this.getObject(),
-                result;
+            var nativeObject = this.getObject();
 
             if (!_.isFunction(nativeObject)) {
                 throw new Error('Attempted to invoke a non-function JS object');
             }
 
-            nativeArguments = _.map(arguments, function (argument) {
-                return argument.getNative();
+            return flow.mapAsync(arguments, function (argument) {
+                return argument.getValue()
+                    .asFuture() // Don't re-box the native value extracted just below.
+                    .next(function (value) {
+                        return value.getNative();
+                    });
+            }).next(function (nativeArguments) {
+                var result = nativeObject.apply(null, nativeArguments);
+
+                return coerce(result);
             });
-
-            result = nativeObject.apply(null, nativeArguments);
-
-            return coerce(result);
         },
 
         /**

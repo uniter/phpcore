@@ -22,6 +22,7 @@ var expect = require('chai').expect,
 
 describe('NativeMethodDefinitionBuilder', function () {
     var builder,
+        futureFactory,
         signatureParser,
         state,
         valueCoercer,
@@ -29,10 +30,18 @@ describe('NativeMethodDefinitionBuilder', function () {
 
     beforeEach(function () {
         state = tools.createIsolatedState();
+        futureFactory = state.getFutureFactory();
         signatureParser = sinon.createStubInstance(SignatureParser);
         valueCoercer = sinon.createStubInstance(ValueCoercer);
         valueFactory = state.getValueFactory();
 
+        valueCoercer.coerceArguments.callsFake(function (argReferences) {
+            return futureFactory.createAsyncPresent(
+                argReferences.map(function (argReference) {
+                    return argReference.getNative();
+                })
+            );
+        });
         valueCoercer.isAutoCoercionEnabled.returns(false);
 
         builder = new NativeMethodDefinitionBuilder(signatureParser);
@@ -109,35 +118,30 @@ describe('NativeMethodDefinitionBuilder', function () {
                     };
                 });
 
-                it('should call the wrapped method on the this object when non-coercing', function () {
+                it('should call the wrapped method on the this object when non-coercing', async function () {
                     var method = callBuildMethod();
 
-                    method.apply(scope, [arg1, arg2]);
+                    await method.apply(scope, [arg1, arg2]).toPromise();
 
                     expect(func).to.have.been.calledOnce;
                     expect(func).to.have.been.calledOn(sinon.match.same(thisObject));
                 });
 
-                it('should call the wrapped method on the native object when auto-coercing', function () {
+                it('should call the wrapped method on the native object when auto-coercing', async function () {
                     var method;
                     valueCoercer.isAutoCoercionEnabled.returns(true);
                     method = callBuildMethod();
 
-                    method.apply(scope, [arg1, arg2]);
+                    await method.apply(scope, [arg1, arg2]).toPromise();
 
                     expect(func).to.have.been.calledOnce;
                     expect(func).to.have.been.calledOn(sinon.match.same(nativeThisObject));
                 });
 
-                it('should coerce the arguments via ValueCoercer', function () {
+                it('should coerce the arguments via ValueCoercer', async function () {
                     var method = callBuildMethod();
-                    valueCoercer.coerceArguments.callsFake(function (argReferences) {
-                        return argReferences.map(function (argReference) {
-                            return argReference.getNative();
-                        });
-                    });
 
-                    method.apply(scope, [arg1, arg2]);
+                    await method.apply(scope, [arg1, arg2]).toPromise();
 
                     expect(func).to.have.been.calledOnce;
                     expect(func).to.have.been.calledWith('first arg', 'second arg');
@@ -203,35 +207,30 @@ describe('NativeMethodDefinitionBuilder', function () {
                     };
                 });
 
-                it('should call the wrapped method on the this object when non-coercing', function () {
+                it('should call the wrapped method on the this object when non-coercing', async function () {
                     var method = callBuildMethod();
 
-                    method.apply(scope, [arg1, arg2]);
+                    await method.apply(scope, [arg1, arg2]).toPromise();
 
                     expect(func).to.have.been.calledOnce;
                     expect(func).to.have.been.calledOn(sinon.match.same(thisObject));
                 });
 
-                it('should call the wrapped method on the native object when auto-coercing', function () {
+                it('should call the wrapped method on the native object when auto-coercing', async function () {
                     var method;
                     valueCoercer.isAutoCoercionEnabled.returns(true);
                     method = callBuildMethod();
 
-                    method.apply(scope, [arg1, arg2]);
+                    await method.apply(scope, [arg1, arg2]).toPromise();
 
                     expect(func).to.have.been.calledOnce;
                     expect(func).to.have.been.calledOn(sinon.match.same(nativeThisObject));
                 });
 
-                it('should coerce the arguments via ValueCoercer', function () {
+                it('should coerce the arguments via ValueCoercer', async function () {
                     var method = callBuildMethod();
-                    valueCoercer.coerceArguments.callsFake(function (argReferences) {
-                        return argReferences.map(function (argReference) {
-                            return argReference.getNative();
-                        });
-                    });
 
-                    method.apply(scope, [arg1, arg2]);
+                    await method.apply(scope, [arg1, arg2]).toPromise();
 
                     expect(func).to.have.been.calledOnce;
                     expect(func).to.have.been.calledWith('first arg', 'second arg');

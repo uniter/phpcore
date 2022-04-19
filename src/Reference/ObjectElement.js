@@ -119,16 +119,28 @@ _.extend(ObjectElement.prototype, {
             });
     },
 
+    /**
+     * {@inheritdoc}
+     */
     setValue: function (value) {
-        var element = this;
+        var element = this,
+            assignedValue = value.getForAssignment();
 
-        element.objectValue.callMethod('offsetSet', [element.keyValue, value]);
+        return element.objectValue.callMethod('offsetSet', [element.keyValue, assignedValue])
+            // Discard the result of ->offsetSet(...) but still await any FutureValue it may return.
+            .next(function () {
+                return assignedValue;
+            });
     },
 
+    /**
+     * {@inheritdoc}
+     */
     unset: function () {
         var element = this;
 
-        element.objectValue.callMethod('offsetUnset', [element.keyValue]);
+        return element.objectValue.callMethod('offsetUnset', [element.keyValue])
+            .asFuture();
     }
 });
 

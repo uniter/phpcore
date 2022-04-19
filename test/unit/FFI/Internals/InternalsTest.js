@@ -26,6 +26,7 @@ var expect = require('chai').expect,
     Flow = require('../../../../src/Control/Flow'),
     Future = require('../../../../src/Control/Future'),
     FutureFactory = require('../../../../src/Control/FutureFactory'),
+    FutureValue = require('../../../../src/Value/Future'),
     Namespace = require('../../../../src/Namespace').sync(),
     Includer = require('../../../../src/Load/Includer').sync(),
     INIState = require('../../../../src/INIState'),
@@ -46,7 +47,8 @@ var expect = require('chai').expect,
     Userland = require('../../../../src/Control/Userland'),
     Value = require('../../../../src/Value').sync(),
     ValueFactory = require('../../../../src/ValueFactory').sync(),
-    ValueHelper = require('../../../../src/FFI/Value/ValueHelper');
+    ValueHelper = require('../../../../src/FFI/Value/ValueHelper'),
+    ValueProvider = require('../../../../src/Value/ValueProvider');
 
 describe('FFI Internals', function () {
     var callFactory,
@@ -81,7 +83,8 @@ describe('FFI Internals', function () {
         translator,
         userland,
         valueFactory,
-        valueHelper;
+        valueHelper,
+        valueProvider;
 
     beforeEach(function () {
         callFactory = sinon.createStubInstance(CallFactory);
@@ -117,6 +120,7 @@ describe('FFI Internals', function () {
         userland = sinon.createStubInstance(Userland);
         valueFactory = sinon.createStubInstance(ValueFactory);
         valueHelper = sinon.createStubInstance(ValueHelper);
+        valueProvider = sinon.createStubInstance(ValueProvider);
 
         createInternals = function (mode) {
             internals = new Internals(
@@ -128,6 +132,7 @@ describe('FFI Internals', function () {
                 onceIncluder,
                 evaluator,
                 valueFactory,
+                valueProvider,
                 referenceFactory,
                 controlFactory,
                 pauseFactory,
@@ -270,6 +275,82 @@ describe('FFI Internals', function () {
         it('should expose the ValueHelper publicly', function () {
             expect(internals.valueHelper).to.equal(valueHelper);
         });
+
+        it('should expose the ValueProvider publicly', function () {
+            expect(internals.valueProvider).to.equal(valueProvider);
+        });
+    });
+
+    describe('createAsyncMacrotaskFutureValue()', function () {
+        it('should return a FutureValue created via the ValueFactory', function () {
+            var executor = sinon.stub(),
+                futureValue = sinon.createStubInstance(FutureValue);
+            valueFactory.createAsyncMacrotaskFuture
+                .withArgs(sinon.match.same(executor))
+                .returns(futureValue);
+
+            expect(internals.createAsyncMacrotaskFutureValue(executor)).to.equal(futureValue);
+        });
+    });
+
+    describe('createAsyncMicrotaskFutureValue()', function () {
+        it('should return a FutureValue created via the ValueFactory', function () {
+            var executor = sinon.stub(),
+                futureValue = sinon.createStubInstance(FutureValue);
+            valueFactory.createAsyncMicrotaskFuture
+                .withArgs(sinon.match.same(executor))
+                .returns(futureValue);
+
+            expect(internals.createAsyncMicrotaskFutureValue(executor)).to.equal(futureValue);
+        });
+    });
+
+    describe('createAsyncPresent()', function () {
+        it('should return an async Future created via the FutureFactory', function () {
+            var future = sinon.createStubInstance(Future),
+                value = 'my value';
+            futureFactory.createAsyncPresent
+                .withArgs(value)
+                .returns(future);
+
+            expect(internals.createAsyncPresent(value)).to.equal(future);
+        });
+    });
+
+    describe('createAsyncPresentValue()', function () {
+        it('should return an async FutureValue created via the ValueFactory', function () {
+            var futureValue = sinon.createStubInstance(FutureValue),
+                value = realValueFactory.createString('my value');
+            valueFactory.createAsyncPresent
+                .withArgs(sinon.match.same(value))
+                .returns(futureValue);
+
+            expect(internals.createAsyncPresentValue(value)).to.equal(futureValue);
+        });
+    });
+
+    describe('createAsyncRejection()', function () {
+        it('should return an async Future created via the FutureFactory', function () {
+            var future = sinon.createStubInstance(Future),
+                error = new Error('Bang!');
+            futureFactory.createAsyncRejection
+                .withArgs(error)
+                .returns(future);
+
+            expect(internals.createAsyncRejection(error)).to.equal(future);
+        });
+    });
+
+    describe('createAsyncRejectionValue()', function () {
+        it('should return an async FutureValue created via the ValueFactory', function () {
+            var futureValue = sinon.createStubInstance(FutureValue),
+                error = new Error('Bang!');
+            valueFactory.createAsyncRejection
+                .withArgs(sinon.match.same(error))
+                .returns(futureValue);
+
+            expect(internals.createAsyncRejectionValue(error)).to.equal(futureValue);
+        });
     });
 
     describe('createFFIResult()', function () {
@@ -294,6 +375,18 @@ describe('FFI Internals', function () {
                 .returns(future);
 
             expect(internals.createFuture(executor)).to.equal(future);
+        });
+    });
+
+    describe('createFutureValue()', function () {
+        it('should return a FutureValue created via the ValueFactory', function () {
+            var executor = sinon.stub(),
+                futureValue = sinon.createStubInstance(FutureValue);
+            valueFactory.createFuture
+                .withArgs(sinon.match.same(executor))
+                .returns(futureValue);
+
+            expect(internals.createFutureValue(executor)).to.equal(futureValue);
         });
     });
 
@@ -434,6 +527,52 @@ describe('FFI Internals', function () {
             await internals.implyArray(reference).toPromise();
 
             expect(reference.setValue).not.to.have.been.called;
+        });
+
+        it('should return the value of a defined reference containing an array', async function () {
+            var resultValue;
+            reference.getValue.returns(realValueFactory.createArray([21]));
+            reference.isDefined.returns(true);
+
+            resultValue = await internals.implyArray(reference).toPromise();
+
+            expect(resultValue.getType()).to.equal('array');
+            expect(resultValue.getNative()).to.deep.equal([21]);
+        });
+
+        it('should return the value of a defined reference containing a non-array such as integer', async function () {
+            var resultValue;
+            reference.getValue.returns(realValueFactory.createInteger(21));
+            reference.isDefined.returns(true);
+
+            resultValue = await internals.implyArray(reference).toPromise();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(21);
+        });
+
+        it('should return the empty array assigned to a defined reference with value null', async function () {
+            var resultValue;
+            reference.getValue.returns(realValueFactory.createNull());
+            reference.isDefined.returns(true);
+
+            resultValue = await internals.implyArray(reference).toPromise();
+
+            expect(resultValue.getType()).to.equal('array');
+            expect(resultValue.getNative()).to.deep.equal([]);
+        });
+
+        // Note that if the reference is not defined, it may still be non-empty,
+        // if for example it is a virtual property fetched with ->__get().
+        it('should return the value of an undefined but non-empty reference', async function () {
+            var resultValue;
+            reference.getValue.returns(realValueFactory.createString('my value'));
+            reference.isEmpty.returns(realFutureFactory.createAsyncPresent(false));
+
+            resultValue = await internals.implyArray(reference).toPromise();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('my value');
         });
     });
 

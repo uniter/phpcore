@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP list(...) construct integration', function () {
-    it('should correctly handle assigning an array to a list with elements skipped', function () {
+    it('should correctly handle assigning an array to a list with elements skipped', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -25,17 +25,57 @@ list(, $val2, , $val4) = $array;
 return [$val2, $val4];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             'hello',
             'world'
         ]);
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should correctly handle assigning an integer to a list by nulling the target variables', function () {
+    it('should correctly handle assigning an array with elements using accessor references', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$array = ['initial'];
+$array[] =& $firstReadAccessor;
+$array[] =& $secondReadAccessor;
+
+list($val1, $val2, $writeAccessor) = $array;
+
+return [$val1, $val2, $writeAccessor];
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module(),
+            myValue = null;
+        engine.defineGlobalAccessor('firstReadAccessor', function () {
+            return this.createAsyncPresentValue('first');
+        });
+        engine.defineGlobalAccessor('secondReadAccessor', function () {
+            return this.createAsyncPresentValue('second');
+        });
+        engine.defineGlobalAccessor('writeAccessor', function () {
+            return this.createAsyncPresentValue(myValue);
+        }, function (newValue) {
+            // Defer the assignment to ensure futures are handled.
+            return this.createAsyncMacrotaskFutureValue(function (resolve) {
+                myValue = newValue;
+                resolve(newValue);
+            });
+        });
+
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            'initial',
+            'first',
+            'second'
+        ]);
+        expect(engine.getStderr().readAll()).to.equal('');
+    });
+
+    it('should correctly handle assigning an integer to a list by nulling the target variables', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -47,10 +87,10 @@ list(, $val1, , $val2) = 21;
 return [$val1, $val2];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             null,
             null
         ]);

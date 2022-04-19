@@ -278,6 +278,15 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Fetches the synchronicity mode for this runtime.
+         *
+         * @returns {string}
+         */
+        getMode: function () {
+            return this.mode;
+        },
+
+        /**
          * Installs a new set of builtins, to be available to all modules
          * compiled and executed by this runtime.
          * All fields are optional - for example, this method can be used
