@@ -119,6 +119,17 @@ describe('Array', function () {
         createValue();
     });
 
+    describe('asEventualNative()', function () {
+        it('should return a Future that resolves to the native array', async function () {
+            var nativeArray = await value.asEventualNative().toPromise();
+
+            expect(nativeArray).to.deep.equal({
+                'firstEl': 'value of first el',
+                'secondEl': 'value of second el'
+            });
+        });
+    });
+
     describe('constructor()', function () {
         it('should throw when a non-ReferenceSlot reference is given as an ordered element', function () {
             var reference = sinon.createStubInstance(Reference);

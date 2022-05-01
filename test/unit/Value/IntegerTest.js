@@ -190,6 +190,14 @@ describe('Integer', function () {
         });
     });
 
+    describe('asEventualNative()', function () {
+        it('should return a Future that resolves to the native number', async function () {
+            var nativeNumber = await value.asEventualNative().toPromise();
+
+            expect(nativeNumber).to.equal(1);
+        });
+    });
+
     describe('asFuture()', function () {
         it('should return a Present that resolves to this value', function () {
             return expect(value.asFuture().toPromise()).to.eventually.equal(value);

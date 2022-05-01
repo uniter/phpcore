@@ -189,6 +189,14 @@ describe('Null', function () {
         });
     });
 
+    describe('asEventualNative()', function () {
+        it('should return a Future that resolves to null', async function () {
+            var nativeNull = await value.asEventualNative().toPromise();
+
+            expect(nativeNull).to.be.null;
+        });
+    });
+
     describe('asFuture()', function () {
         it('should return a Present that resolves to this value', function () {
             return expect(value.asFuture().toPromise()).to.eventually.equal(value);

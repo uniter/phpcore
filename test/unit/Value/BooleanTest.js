@@ -83,6 +83,23 @@ describe('Boolean', function () {
         });
     });
 
+    describe('asEventualNative()', function () {
+        it('should return a Future that resolves to the native boolean when true', async function () {
+            var nativeBoolean = await value.asEventualNative().toPromise();
+
+            expect(nativeBoolean).to.be.true;
+        });
+
+        it('should return a Future that resolves to the native boolean when false', async function () {
+            var nativeBoolean;
+            createValue(false);
+
+            nativeBoolean = await value.asEventualNative().toPromise();
+
+            expect(nativeBoolean).to.be.false;
+        });
+    });
+
     describe('asFuture()', function () {
         it('should return a Present that resolves to this value', function () {
             return expect(value.asFuture().toPromise()).to.eventually.equal(value);

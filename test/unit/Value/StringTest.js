@@ -240,6 +240,17 @@ describe('String', function () {
         });
     });
 
+    describe('asEventualNative()', function () {
+        it('should return a Future that resolves to the native string', async function () {
+            var nativeString;
+            createValue('my string');
+
+            nativeString = await value.asEventualNative().toPromise();
+
+            expect(nativeString).to.equal('my string');
+        });
+    });
+
     describe('asFuture()', function () {
         it('should return a Present that resolves to this value', function () {
             createValue('my string');

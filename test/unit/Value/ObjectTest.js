@@ -349,6 +349,21 @@ describe('Object', function () {
         });
     });
 
+    describe('asEventualNative()', function () {
+        beforeEach(function () {
+            classObject.exportInstanceForJS
+                .withArgs(sinon.match.same(value))
+                .returns(nativeObject);
+            classObject.getName.returns('JSObject');
+        });
+
+        it('should return a Future that resolves to the exported native object', async function () {
+            var nativeResultObject = await value.asEventualNative().toPromise();
+
+            expect(nativeResultObject).to.equal(nativeObject);
+        });
+    });
+
     describe('asFuture()', function () {
         it('should return a Present that resolves to this value', function () {
             return expect(value.asFuture().toPromise()).to.eventually.equal(value);
@@ -2290,28 +2305,28 @@ describe('Object', function () {
                 classObject.is.returns(false);
             });
 
-            it('should return true when ->valid() does', function () {
+            it('should return true when ->valid() does', async function () {
                 classObject.callMethod.withArgs('valid').returns(factory.createBoolean(true));
 
-                expect(value.isNotFinished()).to.be.true;
+                expect(await value.isNotFinished().toPromise()).to.be.true;
             });
 
-            it('should return false when ->valid() does', function () {
+            it('should return false when ->valid() does', async function () {
                 classObject.callMethod.withArgs('valid').returns(factory.createBoolean(false));
 
-                expect(value.isNotFinished()).to.be.false;
+                expect(await value.isNotFinished().toPromise()).to.be.false;
             });
 
-            it('should return true when ->valid() returns a truthy value', function () {
+            it('should return true when ->valid() returns a truthy value', async function () {
                 classObject.callMethod.withArgs('valid').returns(factory.createString('yep'));
 
-                expect(value.isNotFinished()).to.be.true;
+                expect(await value.isNotFinished().toPromise()).to.be.true;
             });
 
-            it('should return false when ->valid() returns a falsy value', function () {
+            it('should return false when ->valid() returns a falsy value', async function () {
                 classObject.callMethod.withArgs('valid').returns(factory.createFloat(0.0));
 
-                expect(value.isNotFinished()).to.be.false;
+                expect(await value.isNotFinished().toPromise()).to.be.false;
             });
         });
 

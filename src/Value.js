@@ -126,12 +126,14 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Returns either a native or a Future-wrapped native for this value.
+         * Returns a Future that will resolve to the native value of this value.
          *
-         * @returns {Future<*>|*}
+         * @returns {Future<*>}
          */
         asEventualNative: function () {
-            return this.getNative();
+            var value = this;
+
+            return value.futureFactory.createPresent(value.getNative());
         },
 
         /**
