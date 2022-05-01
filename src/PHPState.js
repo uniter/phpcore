@@ -304,6 +304,15 @@ module.exports = require('pauser')([
             }
 
             /**
+             * Runs the given initialiser group.
+             *
+             * @param {Function} initialiserGroup
+             */
+            function runInitialiserGroup(initialiserGroup) {
+                initialiserGroup(state.ffiInternals);
+            }
+
+            /**
              * Installs a set of opcode handlers
              *
              * @param {Function} groupFactory
@@ -350,6 +359,8 @@ module.exports = require('pauser')([
                 _.forOwn(builtinTypes.classes, installClass);
             }
 
+            _.each(builtinTypes.initialiserGroups, runInitialiserGroup);
+
             // Optional installed builtins
             _.each(optionGroups, installOptionGroup);
             state.bindings = {};
@@ -363,6 +374,7 @@ module.exports = require('pauser')([
             _.each(installedBuiltinTypes.functionGroups, installFunctionGroup);
             _.each(installedBuiltinTypes.classGroups, installClassGroup);
             _.forOwn(installedBuiltinTypes.classes, installClass);
+            _.each(installedBuiltinTypes.initialiserGroups, runInitialiserGroup);
         },
         Exception = phpCommon.Exception;
 
@@ -1224,6 +1236,15 @@ module.exports = require('pauser')([
          */
         getErrorReporting: function () {
             return this.errorReporting;
+        },
+
+        /**
+         * Fetches the FFI Internals service.
+         *
+         * @returns {FFIInternals}
+         */
+        getFFIInternals: function () {
+            return this.ffiInternals;
         },
 
         /**

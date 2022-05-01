@@ -373,6 +373,7 @@ describe('Runtime', function () {
                     constantGroups: [],
                     defaultINIGroups: [],
                     functionGroups: [],
+                    initialiserGroups: [],
                     opcodeGroups: [],
                     serviceGroups: [],
                     translationCatalogues: []
@@ -393,6 +394,7 @@ describe('Runtime', function () {
                 constantGroup = sinon.stub(),
                 defaultINIGroup = sinon.stub(),
                 functionGroup = sinon.stub(),
+                initialiserGroup = sinon.stub(),
                 opcodeGroup = sinon.stub(),
                 optionGroup = sinon.stub(),
                 serviceGroup = sinon.stub(),
@@ -414,6 +416,7 @@ describe('Runtime', function () {
                     return {
                         defaultINIGroups: [defaultINIGroup],
                         functionGroups: [functionGroup],
+                        initialiserGroups: [initialiserGroup],
                         opcodeGroups: [opcodeGroup],
                         optionGroups: [optionGroup],
                         serviceGroups: [serviceGroup],
@@ -433,6 +436,7 @@ describe('Runtime', function () {
                     constantGroups: [constantGroup],
                     defaultINIGroups: [defaultINIGroup],
                     functionGroups: [functionGroup],
+                    initialiserGroups: [initialiserGroup],
                     opcodeGroups: [opcodeGroup],
                     serviceGroups: [serviceGroup],
                     translationCatalogues: [translationCatalogue]
@@ -478,6 +482,7 @@ describe('Runtime', function () {
                     constantGroups: [],
                     defaultINIGroups: [],
                     functionGroups: [],
+                    initialiserGroups: [],
                     opcodeGroups: [],
                     serviceGroups: [],
                     translationCatalogues: []
@@ -553,6 +558,7 @@ describe('Runtime', function () {
                     constantGroups: [],
                     defaultINIGroups: [],
                     functionGroups: [],
+                    initialiserGroups: [],
                     opcodeGroups: [],
                     serviceGroups: [],
                     translationCatalogues: []
@@ -581,6 +587,7 @@ describe('Runtime', function () {
                     constantGroups: [],
                     defaultINIGroups: [],
                     functionGroups: [],
+                    initialiserGroups: [],
                     opcodeGroups: [],
                     serviceGroups: [],
                     translationCatalogues: []
@@ -618,6 +625,7 @@ describe('Runtime', function () {
                     constantGroups: [],
                     defaultINIGroups: [],
                     functionGroups: [],
+                    initialiserGroups: [],
                     opcodeGroups: [],
                     serviceGroups: [],
                     translationCatalogues: []
@@ -648,6 +656,7 @@ describe('Runtime', function () {
                     classes: {},
                     defaultINIGroups: [],
                     functionGroups: [],
+                    initialiserGroups: [],
                     opcodeGroups: [],
                     serviceGroups: [],
                     translationCatalogues: []
@@ -678,6 +687,38 @@ describe('Runtime', function () {
                         sinon.match.same(defaultINIGroupFactory)
                     ],
                     functionGroups: [],
+                    initialiserGroups: [],
+                    opcodeGroups: [],
+                    serviceGroups: [],
+                    translationCatalogues: []
+                }
+            );
+        });
+
+        it('should cause created environments to have the provided initialiser groups', function () {
+            var initialiserGroup = sinon.stub();
+
+            runtime.install({
+                initialiserGroups: [
+                    initialiserGroup
+                ]
+            });
+            runtime.createEnvironment();
+
+            expect(PHPState).to.have.been.calledOnce;
+            expect(PHPState).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                {
+                    bindingGroups: [],
+                    constantGroups: [],
+                    classGroups: [],
+                    classes: {},
+                    defaultINIGroups: [],
+                    functionGroups: [],
+                    initialiserGroups: [
+                        sinon.match.same(initialiserGroup)
+                    ],
                     opcodeGroups: [],
                     serviceGroups: [],
                     translationCatalogues: []
@@ -706,6 +747,7 @@ describe('Runtime', function () {
                     classes: {},
                     defaultINIGroups: [],
                     functionGroups: [],
+                    initialiserGroups: [],
                     opcodeGroups: [
                         sinon.match.same(opcodeGroupFactory)
                     ],
@@ -736,6 +778,7 @@ describe('Runtime', function () {
                     classes: {},
                     defaultINIGroups: [],
                     functionGroups: [],
+                    initialiserGroups: [],
                     opcodeGroups: [],
                     serviceGroups: [
                         sinon.match.same(serviceGroupFactory)
@@ -772,6 +815,7 @@ describe('Runtime', function () {
                     classes: {},
                     defaultINIGroups: [],
                     functionGroups: [],
+                    initialiserGroups: [],
                     opcodeGroups: [],
                     serviceGroups: [],
                     translationCatalogues: [
@@ -806,6 +850,7 @@ describe('Runtime', function () {
                     constantGroups: [],
                     defaultINIGroups: [],
                     functionGroups: [],
+                    initialiserGroups: [],
                     opcodeGroups: [],
                     serviceGroups: [],
                     translationCatalogues: []

@@ -54,6 +54,7 @@ module.exports = require('pauser')([
             constantGroups: [],
             defaultINIGroups: [],
             functionGroups: [],
+            initialiserGroups: [],
             opcodeGroups: [],
             serviceGroups: [],
             translationCatalogues: []
@@ -251,6 +252,7 @@ module.exports = require('pauser')([
                 }
 
                 allBuiltins.translationCatalogues = allBuiltins.translationCatalogues.concat(addon.translationCatalogues || []);
+                allBuiltins.initialiserGroups = allBuiltins.initialiserGroups.concat(addon.initialiserGroups || []);
                 allBuiltins.opcodeGroups = allBuiltins.opcodeGroups.concat(addon.opcodeGroups || []);
                 allBuiltins.serviceGroups = allBuiltins.serviceGroups.concat(addon.serviceGroups || []);
                 allBuiltins.functionGroups = allBuiltins.functionGroups.concat(addon.functionGroups || []);
@@ -303,6 +305,7 @@ module.exports = require('pauser')([
             }
 
             [].push.apply(builtins.translationCatalogues, newBuiltins.translationCatalogues);
+            [].push.apply(builtins.initialiserGroups, newBuiltins.initialiserGroups);
             [].push.apply(builtins.opcodeGroups, newBuiltins.opcodeGroups);
             [].push.apply(builtins.serviceGroups, newBuiltins.serviceGroups);
             [].push.apply(builtins.functionGroups, newBuiltins.functionGroups);

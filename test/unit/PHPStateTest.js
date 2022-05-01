@@ -18,6 +18,7 @@ var expect = require('chai').expect,
     ControlScope = require('../../src/Control/ControlScope'),
     ErrorReporting = require('../../src/Error/ErrorReporting'),
     Exception = phpCommon.Exception,
+    FFIInternals = require('../../src/FFI/Internals/Internals'),
     FFIResult = require('../../src/FFI/Result'),
     GlobalStackHooker = require('../../src/FFI/Stack/GlobalStackHooker'),
     Loader = require('../../src/Load/Loader').sync(),
@@ -344,6 +345,29 @@ describe('PHPState', function () {
             );
 
             expect(state.getINIOption('my_ini_setting')).to.equal(212);
+        });
+
+        it('should run any initialisers', function () {
+            var initialiser1 = sinon.stub(),
+                initialiser2 = sinon.stub(),
+                internals;
+            state = new PHPState(
+                runtime,
+                globalStackHooker,
+                {
+                    initialiserGroups: [initialiser1, initialiser2]
+                },
+                stdin,
+                stdout,
+                stderr,
+                'sync'
+            );
+            internals = state.getFFIInternals();
+
+            expect(initialiser1).to.have.been.calledOnce;
+            expect(initialiser1).to.have.been.calledWith(sinon.match.same(internals));
+            expect(initialiser2).to.have.been.calledOnce;
+            expect(initialiser2).to.have.been.calledWith(sinon.match.same(internals));
         });
 
         it('should install any opcode handlers', function () {
@@ -860,6 +884,12 @@ describe('PHPState', function () {
     describe('getErrorReporting()', function () {
         it('should return the ErrorReporting service', function () {
             expect(state.getErrorReporting()).to.be.an.instanceOf(ErrorReporting);
+        });
+    });
+
+    describe('getFFIInternals()', function () {
+        it('should return the FFI Internals service', function () {
+            expect(state.getFFIInternals()).to.be.an.instanceOf(FFIInternals);
         });
     });
 
