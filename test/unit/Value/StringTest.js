@@ -631,6 +631,92 @@ describe('String', function () {
         });
     });
 
+    describe('compareWithString()', function () {
+        it('should return 0 when two numeric strings are equal', function () {
+            var leftValue = new StringValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                '21',
+                globalNamespace
+            );
+            createValue('21');
+
+            expect(value.compareWithString(leftValue)).to.equal(0);
+        });
+
+        it('should return -1 when left of two numeric strings is less', function () {
+            var leftValue = new StringValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                '4',
+                globalNamespace
+            );
+            createValue('6');
+
+            expect(value.compareWithString(leftValue)).to.equal(-1);
+        });
+
+        it('should return 1 when left of two numeric strings is greater', function () {
+            var leftValue = new StringValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                '14',
+                globalNamespace
+            );
+            createValue('12');
+
+            expect(value.compareWithString(leftValue)).to.equal(1);
+        });
+
+        it('should return 0 when two non-numeric strings are lexically equal', function () {
+            var leftValue = new StringValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                'my string',
+                globalNamespace
+            );
+            createValue('my string');
+
+            expect(value.compareWithString(leftValue)).to.equal(0);
+        });
+
+        it('should return -1 when left of two non-numeric strings is lexically less', function () {
+            var leftValue = new StringValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                'X my string',
+                globalNamespace
+            );
+            createValue('Y my string');
+
+            expect(value.compareWithString(leftValue)).to.equal(-1);
+        });
+
+        it('should return 1 when left of two non-numeric strings is lexically greater', function () {
+            var leftValue = new StringValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                'F my string',
+                globalNamespace
+            );
+            createValue('E my string');
+
+            expect(value.compareWithString(leftValue)).to.equal(1);
+        });
+    });
+
     describe('concat()', function () {
         it('should be able to concatenate another string', function () {
             var resultValue;

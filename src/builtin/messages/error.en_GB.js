@@ -36,6 +36,7 @@ module.exports = {
             'invalid_value_for_type_builtin': '${func}() expects parameter ${index} to be ${expectedType}, ${actualType} given',
             'invalid_value_for_type_userland': 'Argument ${index} passed to ${func}() must be ${expectedType}, ${actualType} given, called in ${callerFile} on line ${callerLine} and defined in ${definitionFile}:${definitionLine}',
             'method_called_on_non_object': '${method} method called on non-object',
+            'nesting_level_too_deep': 'Nesting level too deep - recursive dependency?',
             'no_parent_class': 'Cannot access parent:: when current class scope has no parent',
             'non_object_method_call': 'Call to a member function ${name}() on ${type}',
             'object_from_get_iterator_must_be_traversable': 'Objects returned by ${className}::getIterator() must be traversable or implement interface Iterator',

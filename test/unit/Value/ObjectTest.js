@@ -724,6 +724,26 @@ describe('Object', function () {
         });
     });
 
+    describe('coerceToFloat()', function () {
+        it('should raise a warning', function () {
+            classObject.getName.returns('MyClass');
+            value.coerceToFloat();
+
+            expect(callStack.raiseError).to.have.been.calledOnce;
+            expect(callStack.raiseError).to.have.been.calledWith(
+                PHPError.E_WARNING,
+                'Object of class MyClass could not be converted to float'
+            );
+        });
+
+        it('should return float one', function () {
+            var result = value.coerceToFloat();
+
+            expect(result.getType()).to.equal('float');
+            expect(result.getNative()).to.equal(1);
+        });
+    });
+
     describe('coerceToInteger()', function () {
         it('should raise a notice', function () {
             classObject.getName.returns('MyClass');
@@ -795,6 +815,148 @@ describe('Object', function () {
             var coercedValue = value.coerceToObject();
 
             expect(coercedValue).to.equal(value);
+        });
+    });
+
+    describe('compareWithObject()', function () {
+        var anotherClass;
+
+        beforeEach(function () {
+            anotherClass = sinon.createStubInstance(Class);
+        });
+
+        it('should return 0 when given the same object', function () {
+            expect(value.compareWithObject(value)).to.equal(0);
+        });
+
+        it('should return 0 when given another object with identical properties and of the same class', function () {
+            var otherObject = new ObjectValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                translator,
+                {},
+                classObject,
+                22
+            );
+            otherObject.declareProperty('firstProp', classObject, 'public').initialise(prop1);
+            otherObject.declareProperty('secondProp', classObject, 'public').initialise(prop2);
+
+            expect(value.compareWithObject(otherObject)).to.equal(0);
+        });
+
+        it('should return null when given another object with identical properties but of another class', function () {
+            var otherObject = new ObjectValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                translator,
+                {},
+                anotherClass,
+                22
+            );
+            otherObject.declareProperty('firstProp', classObject, 'public').initialise(prop1);
+            otherObject.declareProperty('secondProp', classObject, 'public').initialise(prop2);
+
+            expect(value.compareWithObject(otherObject)).to.be.null;
+        });
+
+        // Note that for these methods the argument given is the left operand.
+        it('should return -1 when given another object of the same class but with one fewer property', function () {
+            var otherObject = new ObjectValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                translator,
+                {},
+                classObject,
+                22
+            );
+            otherObject.declareProperty('firstProp', classObject, 'public').initialise(prop1);
+
+            expect(value.compareWithObject(otherObject)).to.equal(-1);
+        });
+
+        // Note that for these methods the argument given is the left operand.
+        it('should return 1 when given another object of the same class but with one more property', function () {
+            var otherObject = new ObjectValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                translator,
+                {},
+                classObject,
+                22
+            );
+            otherObject.declareProperty('firstProp', classObject, 'public').initialise(prop1);
+            otherObject.declareProperty('secondProp', classObject, 'public').initialise(prop2);
+            otherObject.declareProperty('thirdProp', classObject, 'public')
+                .initialise(factory.createString('my third value'));
+
+            expect(value.compareWithObject(otherObject)).to.equal(1);
+        });
+
+        // Note that for these methods the argument given is the left operand.
+        it('should return -1 when given another object of the same class but with one property value lower', function () {
+            var otherObject = new ObjectValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                translator,
+                {},
+                classObject,
+                22
+            );
+            otherObject.declareProperty('firstProp', classObject, 'public').initialise(prop1);
+            otherObject.declareProperty('secondProp', classObject, 'public')
+                .initialise(factory.createString('s the value of secondProp'));
+
+            expect(value.compareWithObject(otherObject)).to.equal(-1);
+        });
+
+        // Note that for these methods the argument given is the left operand.
+        it('should return 1 when given another object of the same class but with one property value higher', function () {
+            var otherObject = new ObjectValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                translator,
+                {},
+                classObject,
+                22
+            );
+            otherObject.declareProperty('firstProp', classObject, 'public').initialise(prop1);
+            otherObject.declareProperty('secondProp', classObject, 'public')
+                .initialise(factory.createString('u the value of secondProp'));
+
+            expect(value.compareWithObject(otherObject)).to.equal(1);
+        });
+
+        // Note that for these methods the argument given is the left operand.
+        it('should raise an error when comparing recursive structures', function () {
+            var otherObject = new ObjectValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                translator,
+                {},
+                classObject,
+                22
+            );
+            otherObject.declareProperty('firstProp', classObject, 'public').initialise(value);
+            otherObject.declareProperty('secondProp', classObject, 'public').initialise(prop2);
+            value.getInstancePropertyByName(factory.createString('firstProp')).initialise(otherObject);
+
+            expect(function () {
+                value.compareWithObject(otherObject);
+            }).to.throw('Fake PHP Fatal error for #core.nesting_level_too_deep with {}');
         });
     });
 
@@ -2199,70 +2361,6 @@ describe('Object', function () {
     describe('isEmpty()', function () {
         it('should return false', async function () {
             expect(await value.isEmpty().toPromise()).to.be.false;
-        });
-    });
-
-    describe('isEqualToObject()', function () {
-        var anotherClass;
-
-        beforeEach(function () {
-            anotherClass = sinon.createStubInstance(Class);
-        });
-
-        it('should return true when given the same object', function () {
-            expect(value.isEqualToObject(value).getNative()).to.be.true;
-        });
-
-        it('should return true when given another object with identical properties and of the same class', function () {
-            var otherObject = new ObjectValue(
-                factory,
-                referenceFactory,
-                futureFactory,
-                callStack,
-                translator,
-                {},
-                classObject,
-                22
-            );
-            otherObject.declareProperty('firstProp', classObject, 'public').initialise(prop1);
-            otherObject.declareProperty('secondProp', classObject, 'public').initialise(prop2);
-
-            expect(value.isEqualToObject(otherObject).getNative()).to.be.true;
-        });
-
-        it('should return false when given another object with identical properties but of another class', function () {
-            var otherObject = new ObjectValue(
-                factory,
-                referenceFactory,
-                futureFactory,
-                callStack,
-                translator,
-                {},
-                anotherClass,
-                22
-            );
-            otherObject.declareProperty('firstProp', classObject, 'public').initialise(prop1);
-            otherObject.declareProperty('secondProp', classObject, 'public').initialise(prop2);
-
-            expect(value.isEqualToObject(otherObject).getNative()).to.be.false;
-        });
-
-        it('should return false when given another object with different properties but of the same class', function () {
-            var otherObject = new ObjectValue(
-                factory,
-                referenceFactory,
-                futureFactory,
-                callStack,
-                translator,
-                {},
-                classObject,
-                22
-            );
-            otherObject.declareProperty('firstProp', classObject, 'public').initialise(prop1);
-            otherObject.declareProperty('secondProp', classObject, 'public')
-                .initialise(factory.createInteger(1001));
-
-            expect(value.isEqualToObject(otherObject).getNative()).to.be.false;
         });
     });
 

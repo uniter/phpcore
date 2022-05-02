@@ -11,10 +11,12 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../../tools');
+    phpCommon = require('phpcommon'),
+    tools = require('../../tools'),
+    PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP object comparison integration', function () {
-    it('should compare objects for equality based on all of their properties', function () {
+    it('should compare objects for equality based on all of their properties', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -42,17 +44,17 @@ $result[] = $object4 == $object1; // Protected property has different values
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             true,  // When private property has the same value
             false, // When private property has different values
             false  // When protected property has different values
         ]);
     });
 
-    it('should only treat two references to the same object as being identical', function () {
+    it('should only treat two references to the same object as being identical', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -75,12 +77,37 @@ $result[] = $object2 === $object1; // Different instances of the same class, ide
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             true, // When the same instance is being compared with itself
             false // When compared with an instance of the same class with identical properties
         ]);
+    });
+
+    it('should raise an error when attempting to compare a recursive structure loosely', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass {}
+
+$firstObject = new MyClass;
+$secondObject = new MyClass;
+
+$firstObject->myProp = $secondObject;
+$secondObject->myProp = $firstObject;
+
+// Use loose equality as it will be recursive.
+return $firstObject == $secondObject;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Error: Nesting level too deep - recursive dependency? in /path/to/my_module.php on line 12'
+        );
     });
 });

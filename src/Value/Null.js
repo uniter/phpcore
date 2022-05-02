@@ -46,6 +46,9 @@ module.exports = require('pauser')([
             return this.factory.createArray();
         },
 
+        /**
+         * {@inheritdoc}
+         */
         coerceToBoolean: function () {
             return this.factory.createBoolean(false);
         },
@@ -56,6 +59,84 @@ module.exports = require('pauser')([
 
         coerceToString: function () {
             return this.factory.createString('');
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithArray: function (leftValue) {
+            var arrayLength = leftValue.getLength();
+
+            // Empty arrays are equal to null.
+            return arrayLength > 0 ? 1 : 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithBoolean: function (leftValue) {
+            var leftBoolean = leftValue.getNative();
+
+            // False is equal to null, true is greater.
+            return leftBoolean ? 1 : 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithFloat: function (leftValue) {
+            var leftFloatIsEmpty = leftValue.getNative() === 0;
+
+            // Zero is equal to null, any negative or positive float is greater.
+            return leftFloatIsEmpty ? 0 : 1;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithInteger: function (leftValue) {
+            var leftIntegerIsEmpty = leftValue.getNative() === 0;
+
+            // Zero is equal to null, any negative or positive integer is greater.
+            return leftIntegerIsEmpty ? 0 : 1;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithNull: function () {
+            return 0; // Null is equal to itself.
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithObject: function () {
+            return 1; // Objects (even empty ones) are always greater than null.
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithPresent: function (rightValue) {
+            return rightValue.compareWithNull(this);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithResource: function () {
+            return 1; // Resources (even closed ones) are always greater than null.
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithString: function (leftValue) {
+            var leftStringIsEmpty = leftValue.getNative() === '';
+
+            // The empty string is equal to null, any other string is greater.
+            return leftStringIsEmpty ? 0 : 1;
         },
 
         /**
@@ -101,26 +182,6 @@ module.exports = require('pauser')([
          */
         isEmpty: function () {
             return this.futureFactory.createPresent(true);
-        },
-
-        isEqualTo: function (rightValue) {
-            return rightValue.isEqualToNull(this);
-        },
-
-        isEqualToFloat: function (floatValue) {
-            return floatValue.isEqualToNull();
-        },
-
-        isEqualToNull: function () {
-            return this.factory.createBoolean(true);
-        },
-
-        isEqualToObject: function (objectValue) {
-            return objectValue.isEqualToNull();
-        },
-
-        isEqualToString: function (stringValue) {
-            return stringValue.isEqualToNull();
         },
 
         /**

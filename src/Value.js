@@ -288,6 +288,13 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Coerces this value to a BooleanValue.
+         *
+         * @returns {BooleanValue}
+         */
+        coerceToBoolean: throwUnimplemented('coerceToBoolean'),
+
+        /**
          * Coerces this value to a number as a FloatValue
          *
          * @returns {FloatValue}
@@ -369,6 +376,110 @@ module.exports = require('pauser')([
          * @returns {FutureValue<StringValue>|StringValue}
          */
         coerceToString: throwUnimplemented('coerceToString'),
+
+        /**
+         * Loosely compares this value with the given other value (which may be a FutureValue).
+         * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
+         * Returns null if the values cannot be compared.
+         *
+         * @param {Value} rightValue
+         * @returns {Future<number|null>}
+         */
+        compareWith: function (rightValue) {
+            /*jshint eqeqeq:false */
+            var leftValue = this;
+
+            if (rightValue.isFuture()) {
+                return rightValue
+                    .asFuture()
+                    .next(function (rightValue) {
+                        return leftValue.compareWithPresent(rightValue);
+                    });
+            }
+
+            return leftValue.futureFactory.createPresent(leftValue.compareWithPresent(rightValue));
+        },
+
+        /**
+         * Loosely compares this value with the given present ArrayValue.
+         * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
+         *
+         * @param {ArrayValue} leftValue
+         * @returns {number}
+         */
+        compareWithArray: throwUnimplemented('compareWithArray'),
+
+        /**
+         * Loosely compares this value with the given present BooleanValue.
+         * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
+         *
+         * @param {BooleanValue} leftValue
+         * @returns {number}
+         */
+        compareWithBoolean: throwUnimplemented('compareWithBoolean'),
+
+        /**
+         * Loosely compares this value with the given present FloatValue.
+         * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
+         *
+         * @param {FloatValue} leftValue
+         * @returns {number}
+         */
+        compareWithFloat: throwUnimplemented('compareWithFloat'),
+
+        /**
+         * Loosely compares this value with the given present IntegerValue.
+         * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
+         *
+         * @param {IntegerValue} leftValue
+         * @returns {number}
+         */
+        compareWithInteger: throwUnimplemented('compareWithInteger'),
+
+        /**
+         * Loosely compares this value with the given present NullValue.
+         * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
+         *
+         * @param {NullValue} leftValue
+         * @returns {number}
+         */
+        compareWithNull: throwUnimplemented('compareWithNull'),
+
+        /**
+         * Loosely compares this value with the given present ObjectValue.
+         * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
+         *
+         * @param {ObjectValue} leftValue
+         * @returns {number}
+         */
+        compareWithObject: throwUnimplemented('compareWithObject'),
+
+        /**
+         * Loosely compares this value with the given other present value.
+         * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
+         *
+         * @param {Value} rightValue
+         * @returns {number}
+         */
+        compareWithPresent: throwUnimplemented('compareWithPresent'),
+
+        /**
+         * Loosely compares this value with the given present ResourceValue.
+         * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
+         *
+         * @param {ResourceValue} leftValue
+         * @returns {number}
+         */
+        compareWithResource: throwUnimplemented('compareWithResource'),
+
+        /**
+         * Loosely compares this value with the given present StringValue.
+         * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
+         *
+         * @param {StringValue} leftValue
+         * @returns {number}
+         */
+        compareWithString: throwUnimplemented('compareWithString'),
 
         /**
          * Concatenates this value's string representation with the provided other value's
@@ -531,6 +642,14 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Fetches an element of this value.
+         *
+         * @param {number} index
+         * @returns {Reference}
+         */
+        getElementByIndex: throwUnimplemented('getElementByIndex'),
+
+        /**
          * Fetches an element of this value, as used by the array element dereference syntax $value[$element].
          *
          * @returns {ElementReference|ObjectElement}
@@ -557,6 +676,14 @@ module.exports = require('pauser')([
          * @returns {Future<ArrayIterator>|FutureValue<ObjectValue>}
          */
         getIterator: throwUnimplemented('getIterator'),
+
+        /**
+         * Fetches an element or property of this value by its index.
+         *
+         * @param {number} index
+         * @returns {Value|null}
+         */
+        getKeyByIndex: throwUnimplemented('getKeyByIndex'),
 
         getLength: function () {
             return this.coerceToString().getLength();
@@ -756,137 +883,48 @@ module.exports = require('pauser')([
         isEmpty: throwUnimplemented('isEmpty'),
 
         /**
-         * Determines whether this value is loosely equal to the provided other value
+         * Determines whether this value is loosely equal to the provided other value.
          *
          * @param {Value} rightValue
          * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isEqualTo: function (rightValue) {
-            /*jshint eqeqeq:false */
-            var leftValue = this;
-
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.isEqualTo(rightValue);
-                });
-            }
-
-            // TODO: Investigate whether JS and PHP loose equality semantics are close enough (eg. octal?)
-            return leftValue.factory.createBoolean(rightValue.value == leftValue.value);
-        },
-
-        /**
-         * Determines whether this value is loosely equal to the provided array value
-         *
-         * @param {ArrayValue} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
-         */
-        isEqualToArray: function (rightValue) {
-            return this.isEqualTo(rightValue);
-        },
-
-        /**
-         * Determines whether this value is loosely equal to the provided boolean value
-         *
-         * @param {BooleanValue} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
-         */
-        isEqualToBoolean: function (rightValue) {
-            return this.isEqualTo(rightValue);
-        },
-
-        /**
-         * Determines whether this value is loosely equal to the provided float value
-         *
-         * @param {FloatValue} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
-         */
-        isEqualToFloat: function (rightValue) {
-            return this.isEqualTo(rightValue);
-        },
-
-        /**
-         * Determines whether this value is loosely equal to the provided integer value
-         *
-         * @param {IntegerValue} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
-         */
-        isEqualToInteger: function (rightValue) {
-            return this.isEqualTo(rightValue);
-        },
-
-        /**
-         * Determines whether this value is loosely equal to the provided null value
-         *
-         * @param {NullValue} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
-         */
-        isEqualToNull: function (rightValue) {
-            return this.isEqualTo(rightValue);
-        },
-
-        /**
-         * Determines whether this value is loosely equal to the provided object value
-         *
-         * @param {ObjectValue} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
-         */
-        isEqualToObject: function (rightValue) {
-            return this.isEqualTo(rightValue);
-        },
-
-        /**
-         * Determines whether this value is loosely equal to the provided string value
-         *
-         * @param {StringValue} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
-         */
-        isEqualToString: function (rightValue) {
-            return this.isEqualTo(rightValue);
+            return this.compareWith(rightValue)
+                .next(function (comparisonResult) {
+                    return comparisonResult === 0;
+                })
+                .asValue();
         },
 
         /**
          * Compares this value to another value, returning bool(true)
-         * if this value is greater than the other and false otherwise
+         * if this value is greater than the other and false otherwise.
          *
          * @param {Value} rightValue
          * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isGreaterThan: function (rightValue) {
-            var leftValue = this,
-                factory = leftValue.factory;
-
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.isGreaterThan(rightValue);
-                });
-            }
-
-            return factory.createBoolean(
-                leftValue.coerceToNumber().getNative() > rightValue.coerceToNumber().getNative()
-            );
+            return this.compareWith(rightValue)
+                .next(function (comparisonResult) {
+                    return comparisonResult === 1;
+                })
+                .asValue();
         },
 
         /**
          * Compares this value to another value, returning bool(true)
-         * if this value is greater than or equal to the other and false otherwise
+         * if this value is greater than or equal to the other and false otherwise.
          *
          * @param {Value} rightValue
          * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isGreaterThanOrEqual: function (rightValue) {
-            var leftValue = this,
-                factory = leftValue.factory;
-
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.isGreaterThanOrEqual(rightValue);
-                });
-            }
-
-            return factory.createBoolean(
-                leftValue.coerceToNumber().getNative() >= rightValue.coerceToNumber().getNative()
-            );
+            return this.compareWith(rightValue)
+                .next(function (comparisonResult) {
+                    // Don't allow the null case.
+                    return comparisonResult === 1 || comparisonResult === 0;
+                })
+                .asValue();
         },
 
         /**
@@ -935,61 +973,49 @@ module.exports = require('pauser')([
 
         /**
          * Compares this value to another value, returning bool(true)
-         * if this value is less than the other and false otherwise
+         * if this value is less than the other and false otherwise.
          *
          * @param {Value} rightValue
          * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isLessThan: function (rightValue) {
-            var leftValue = this,
-                factory = leftValue.factory;
-
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.isLessThan(rightValue);
-                });
-            }
-
-            return factory.createBoolean(
-                leftValue.coerceToNumber().getNative() < rightValue.coerceToNumber().getNative()
-            );
+            return this.compareWith(rightValue)
+                .next(function (comparisonResult) {
+                    return comparisonResult === -1;
+                })
+                .asValue();
         },
 
         /**
          * Compares this value to another value, returning bool(true)
-         * if this value is less than or equal to the other and false otherwise
+         * if this value is less than or equal to the other and false otherwise.
          *
          * @param {Value} rightValue
          * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isLessThanOrEqual: function (rightValue) {
-            var leftValue = this,
-                factory = leftValue.factory;
-
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.isLessThanOrEqual(rightValue);
-                });
-            }
-
-            return factory.createBoolean(
-                leftValue.coerceToNumber().getNative() <= rightValue.coerceToNumber().getNative()
-            );
+            return this.compareWith(rightValue)
+                .next(function (comparisonResult) {
+                    // Don't allow the null case.
+                    return comparisonResult === -1 || comparisonResult === 0;
+                })
+                .asValue();
         },
 
         /**
          * Loosely compares this value to the provided other value,
-         * returning true if they are not equal and false otherwise
+         * returning true if they are not equal and false otherwise.
          *
          * @param {Reference|Value} rightValue
          * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         isNotEqualTo: function (rightValue) {
-            var leftValue = this;
-
-            return leftValue.isEqualTo(rightValue).next(function (isEqualValue) {
-                return !isEqualValue.getNative();
-            });
+            return this.compareWith(rightValue)
+                .next(function (comparisonResult) {
+                    // Don't allow the null case.
+                    return comparisonResult === -1 || comparisonResult === 1;
+                })
+                .asValue();
         },
 
         /**

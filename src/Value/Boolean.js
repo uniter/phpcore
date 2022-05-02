@@ -46,6 +46,9 @@ module.exports = require('pauser')([
     util.inherits(BooleanValue, Value);
 
     _.extend(BooleanValue.prototype, {
+        /**
+         * {@inheritdoc}
+         */
         coerceToBoolean: function () {
             return this;
         },
@@ -64,6 +67,128 @@ module.exports = require('pauser')([
             var value = this;
 
             return value.factory.createString(value.value ? '1' : '');
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithArray: function () {
+            return 1; // Arrays (even empty ones) are always greater (except for objects).
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithBoolean: function (leftValue) {
+            var rightValue = this,
+                leftBoolean = leftValue.getNative(),
+                rightBoolean = rightValue.getNative();
+
+            if (!leftBoolean && rightBoolean) {
+                return -1;
+            }
+
+            if (leftBoolean && !rightBoolean) {
+                return 1;
+            }
+
+            return 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithFloat: function (leftValue) {
+            var rightValue = this,
+                // Both positive and negative floats coerce to true, only zero coerces to false.
+                leftBoolean = leftValue.getNative() !== 0,
+                rightBoolean = rightValue.getNative();
+
+            if (!leftBoolean && rightBoolean) {
+                return -1;
+            }
+
+            if (leftBoolean && !rightBoolean) {
+                return 1;
+            }
+
+            return 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithInteger: function (leftValue) {
+            var rightValue = this,
+                // Both positive and negative floats coerce to true, only zero coerces to false.
+                leftBoolean = leftValue.getNative() !== 0,
+                rightBoolean = rightValue.getNative();
+
+            if (!leftBoolean && rightBoolean) {
+                return -1;
+            }
+
+            if (leftBoolean && !rightBoolean) {
+                return 1;
+            }
+
+            return 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithNull: function () {
+            var rightValue = this,
+                boolean = rightValue.getNative();
+
+            return boolean ? -1 : 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithObject: function () {
+            var rightValue = this,
+                boolean = rightValue.getNative();
+
+            return boolean ? 0 : 1;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithPresent: function (rightValue) {
+            return rightValue.compareWithBoolean(this);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithResource: function () {
+            var rightValue = this,
+                boolean = rightValue.getNative();
+
+            return boolean ? 0 : 1;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithString: function (leftValue) {
+            var rightValue = this,
+                leftBoolean = leftValue.coerceToBoolean().getNative(),
+                rightBoolean = rightValue.getNative();
+
+            if (!leftBoolean && rightBoolean) {
+                return -1;
+            }
+
+            if (leftBoolean && !rightBoolean) {
+                return 1;
+            }
+
+            return 0;
         },
 
         /**
@@ -133,25 +258,6 @@ module.exports = require('pauser')([
             var value = this;
 
             return value.futureFactory.createPresent(value.value === false);
-        },
-
-        isEqualTo: function (rightValue) {
-            var leftValue = this,
-                factory = leftValue.factory;
-
-            return factory.createBoolean(rightValue.coerceToBoolean().value === leftValue.value);
-        },
-
-        isEqualToObject: function () {
-            return this;
-        },
-
-        isEqualToString: function (stringValue) {
-            var booleanValue = this;
-
-            return stringValue.factory.createBoolean(
-                stringValue.coerceToBoolean().getNative() === booleanValue.getNative()
-            );
         },
 
         /**

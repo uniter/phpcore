@@ -203,6 +203,17 @@ _.extend(FutureValue.prototype, {
     /**
      * {@inheritdoc}
      */
+    compareWith: function (rightValue) {
+        return this
+            .asFuture() // Do not wrap result as a value, we may resolve with a number or null.
+            .next(function (leftValue) {
+                return leftValue.compareWith(rightValue);
+            });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     concat: function (rightValue) {
         return this.next(function (leftValue) {
             return leftValue.concat(rightValue);
@@ -415,35 +426,8 @@ _.extend(FutureValue.prototype, {
     /**
      * {@inheritdoc}
      */
-    isEqualTo: function (rightValue) {
-        return this.next(function (leftValue) {
-            return leftValue.isEqualTo(rightValue);
-        });
-    },
-
-    /**
-     * {@inheritdoc}
-     */
     isFuture: function () {
         return true;
-    },
-
-    /**
-     * {@inheritdoc}
-     */
-    isGreaterThan: function (rightValue) {
-        return this.next(function (leftValue) {
-            return leftValue.isGreaterThan(rightValue);
-        });
-    },
-
-    /**
-     * {@inheritdoc}
-     */
-    isGreaterThanOrEqual: function (rightValue) {
-        return this.next(function (leftValue) {
-            return leftValue.isGreaterThanOrEqual(rightValue);
-        });
     },
 
     /**
@@ -452,33 +436,6 @@ _.extend(FutureValue.prototype, {
     isIdenticalTo: function (rightValue) {
         return this.next(function (leftValue) {
             return leftValue.isIdenticalTo(rightValue);
-        });
-    },
-
-    /**
-     * {@inheritdoc}
-     */
-    isLessThan: function (rightValue) {
-        return this.next(function (leftValue) {
-            return leftValue.isLessThan(rightValue);
-        });
-    },
-
-    /**
-     * {@inheritdoc}
-     */
-    isLessThanOrEqual: function (rightValue) {
-        return this.next(function (leftValue) {
-            return leftValue.isLessThanOrEqual(rightValue);
-        });
-    },
-
-    /**
-     * {@inheritdoc}
-     */
-    isNotEqualTo: function (rightValue) {
-        return this.next(function (leftValue) {
-            return leftValue.isNotEqualTo(rightValue);
         });
     },
 

@@ -472,6 +472,108 @@ describe('Array', function () {
         });
     });
 
+    describe('compareWithArray()', function () {
+        it('should return 0 when the arrays are equal', function () {
+            var leftValue = new ArrayValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                flow,
+                [
+                    createKeyValuePair(factory.createString('firstEl'), factory.createString('value of first el')),
+                    createKeyValuePair(factory.createString('secondEl'), factory.createString('value of second el'))
+                ],
+                elementProvider
+            );
+
+            expect(value.compareWithArray(leftValue)).to.equal(0);
+        });
+
+        it('should return -1 when the left value has fewer elements than the right', function () {
+            var leftValue = new ArrayValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                flow,
+                [createKeyValuePair(factory.createString('firstEl'), factory.createString('value of first el'))],
+                elementProvider
+            );
+
+            expect(value.compareWithArray(leftValue)).to.equal(-1);
+        });
+
+        it('should return 1 when the left value has more elements than the right', function () {
+            var leftValue = new ArrayValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                flow,
+                [
+                    createKeyValuePair(factory.createString('firstEl'), factory.createString('value of first el')),
+                    createKeyValuePair(factory.createString('secondEl'), factory.createString('value of second el')),
+                    createKeyValuePair(factory.createString('thirdEl'), factory.createString('value of third el'))
+                ],
+                elementProvider
+            );
+
+            expect(value.compareWithArray(leftValue)).to.equal(1);
+        });
+
+        it('should return 1 when the left value contains an element the right does not', function () {
+            var leftValue = new ArrayValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                flow,
+                [
+                    createKeyValuePair(factory.createString('firstEl'), factory.createString('value of first el')),
+                    createKeyValuePair(factory.createString('differentEl'), factory.createString('value of second el'))
+                ],
+                elementProvider
+            );
+
+            expect(value.compareWithArray(leftValue)).to.equal(1);
+        });
+
+        it('should return -1 when value of one element of left array is smaller', function () {
+            var leftValue = new ArrayValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                flow,
+                [
+                    createKeyValuePair(factory.createString('firstEl'), factory.createString('value of first el')),
+                    createKeyValuePair(factory.createString('secondEl'), factory.createString('u value of second el'))
+                ],
+                elementProvider
+            );
+
+            expect(value.compareWithArray(leftValue)).to.equal(-1);
+        });
+
+        it('should return 1 when value of one element of left array is greater', function () {
+            var leftValue = new ArrayValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                flow,
+                [
+                    createKeyValuePair(factory.createString('firstEl'), factory.createString('value of first el')),
+                    createKeyValuePair(factory.createString('secondEl'), factory.createString('w value of second el'))
+                ],
+                elementProvider
+            );
+
+            expect(value.compareWithArray(leftValue)).to.equal(1);
+        });
+    });
+
     describe('convertForBooleanType()', function () {
         it('should just return this value as no conversion is possible', function () {
             expect(value.convertForBooleanType()).to.equal(value);

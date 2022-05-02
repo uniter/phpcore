@@ -37,6 +37,9 @@ module.exports = require('pauser')([
     util.inherits(FloatValue, Value);
 
     _.extend(FloatValue.prototype, {
+        /**
+         * {@inheritdoc}
+         */
         coerceToBoolean: function () {
             var value = this;
 
@@ -71,6 +74,144 @@ module.exports = require('pauser')([
             var value = this;
 
             return value.factory.createString(value.value + '');
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithArray: function () {
+            return 1; // Arrays (even empty ones) are always greater (except for objects).
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithBoolean: function (leftValue) {
+            var rightValue = this,
+                leftBoolean = leftValue.getNative(),
+                rightBoolean = rightValue.coerceToBoolean().getNative();
+
+            if (!leftBoolean && rightBoolean) {
+                return -1;
+            }
+
+            if (leftBoolean && !rightBoolean) {
+                return 1;
+            }
+
+            return 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithFloat: function (leftValue) {
+            var rightValue = this,
+                leftFloat = leftValue.getNative(),
+                rightFloat = rightValue.getNative();
+
+            if (leftFloat < rightFloat) {
+                return -1;
+            }
+
+            if (leftFloat > rightFloat) {
+                return 1;
+            }
+
+            return 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithInteger: function (leftValue) {
+            var rightValue = this,
+                leftInteger = leftValue.getNative(),
+                rightFloat = rightValue.getNative();
+
+            if (leftInteger < rightFloat) {
+                return -1;
+            }
+
+            if (leftInteger > rightFloat) {
+                return 1;
+            }
+
+            return 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithNull: function () {
+            var rightValue = this,
+                boolean = rightValue.coerceToBoolean().getNative();
+
+            return boolean ? -1 : 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithObject: function (leftValue) {
+            var rightValue = this,
+                leftFloat = leftValue.coerceToFloat().getNative(),
+                rightFloat = rightValue.getNative();
+
+            if (leftFloat < rightFloat) {
+                return -1;
+            }
+
+            if (leftFloat > rightFloat) {
+                return 1;
+            }
+
+            return 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithPresent: function (rightValue) {
+            return rightValue.compareWithFloat(this);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithResource: function (leftValue) {
+            var rightValue = this,
+                leftInteger = leftValue.getID(),
+                rightFloat = rightValue.getNative();
+
+            if (leftInteger < rightFloat) {
+                return -1;
+            }
+
+            if (leftInteger > rightFloat) {
+                return 1;
+            }
+
+            return 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithString: function (leftValue) {
+            var rightValue = this,
+                leftNumber = leftValue.coerceToNumber().getNative(),
+                rightFloat = rightValue.getNative();
+
+            if (leftNumber < rightFloat) {
+                return -1;
+            }
+
+            if (leftNumber > rightFloat) {
+                return 1;
+            }
+
+            return 0;
         },
 
         /**
@@ -142,38 +283,6 @@ module.exports = require('pauser')([
             var value = this;
 
             return value.futureFactory.createPresent(value.value === 0);
-        },
-
-        isEqualTo: function (rightValue) {
-            return rightValue.isEqualToFloat(this);
-        },
-
-        isEqualToFloat: function (rightValue) {
-            var leftValue = this;
-
-            return leftValue.factory.createBoolean(rightValue.value === leftValue.value);
-        },
-
-        isEqualToInteger: function (rightValue) {
-            var leftValue = this;
-
-            return leftValue.factory.createBoolean(rightValue.coerceToFloat().value === leftValue.value);
-        },
-
-        isEqualToNull: function () {
-            var leftValue = this;
-
-            return leftValue.factory.createBoolean(leftValue.value === 0);
-        },
-
-        isEqualToObject: function (objectValue) {
-            return objectValue.isEqualToFloat(this);
-        },
-
-        isEqualToString: function (stringValue) {
-            var floatValue = this;
-
-            return floatValue.factory.createBoolean(floatValue.value === stringValue.coerceToFloat().value);
         },
 
         /**

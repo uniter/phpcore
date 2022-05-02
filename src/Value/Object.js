@@ -68,6 +68,7 @@ module.exports = require('pauser')([
         CANNOT_ACCESS_PROPERTY = 'core.cannot_access_property',
         CANNOT_CONVERT_OBJECT = 'core.cannot_convert_object',
         CANNOT_USE_WRONG_TYPE_AS = 'core.cannot_use_wrong_type_as',
+        NESTING_LEVEL_TOO_DEEP = 'core.nesting_level_too_deep',
         OBJECT_FROM_GET_ITERATOR_MUST_BE_TRAVERSABLE = 'core.object_from_get_iterator_must_be_traversable',
         UNDEFINED_PROPERTY = 'core.undefined_property';
 
@@ -113,6 +114,12 @@ module.exports = require('pauser')([
          * @type {Object.<string, *>}
          */
         this.internalProperties = {};
+        /**
+         * Used for recursive loose comparison detection.
+         *
+         * @type {boolean}
+         */
+        this.isBeingCompared = false;
         /**
          * @type {number}
          */
@@ -318,10 +325,30 @@ module.exports = require('pauser')([
             return value.factory.createArray(elements);
         },
 
+        /**
+         * {@inheritdoc}
+         */
         coerceToBoolean: function () {
             return this.factory.createBoolean(true);
         },
 
+        /**
+         * {@inheritdoc}
+         */
+        coerceToFloat: function () {
+            var value = this;
+
+            value.callStack.raiseError(
+                PHPError.E_WARNING,
+                'Object of class ' + value.classObject.getName() + ' could not be converted to float'
+            );
+
+            return value.factory.createFloat(1);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
         coerceToInteger: function () {
             var value = this;
 
@@ -388,6 +415,189 @@ module.exports = require('pauser')([
             }
 
             return value.callMethod(MAGIC_TO_STRING);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithArray: function () {
+            return -1; // Arrays (even non-empty ones) are always smaller than objects.
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithBoolean: function (leftValue) {
+            var booleanValue = leftValue.getNative();
+
+            return booleanValue ? 0 : -1;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithFloat: function (leftValue) {
+            var rightValue = this,
+                leftFloat = leftValue.getNative(),
+                rightFloat = rightValue.coerceToFloat().getNative();
+
+            if (leftFloat < rightFloat) {
+                return -1;
+            }
+
+            if (leftFloat > rightFloat) {
+                return 1;
+            }
+
+            return 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithInteger: function (leftValue) {
+            var rightValue = this,
+                leftInteger = leftValue.getNative(),
+                rightFloat = rightValue.coerceToFloat().getNative();
+
+            if (leftInteger < rightFloat) {
+                return -1;
+            }
+
+            if (leftInteger > rightFloat) {
+                return 1;
+            }
+
+            return 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithNull: function () {
+            return -1; // Null is always smaller than an object.
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithObject: function (leftValue) {
+            var comparisonResult = 0,
+                rightValue = this;
+
+            if (rightValue.getClassName() !== leftValue.getClassName()) {
+                /*
+                 * Objects of different classes cannot be compared.
+                 * Note that this null result will cause ==, !=, < and > to all return false,
+                 * but the spaceship operator will return 1.
+                 */
+                return null;
+            }
+
+            if (leftValue.getLength() < rightValue.getLength()) {
+                // With fewer properties, left value will always be considered smaller,
+                // even if its corresponding properties are themselves larger.
+                return -1;
+            }
+
+            if (leftValue.getLength() > rightValue.getLength()) {
+                // See above.
+                return 1;
+            }
+
+            if (rightValue.isBeingCompared) {
+                // This object is being compared recursively, which will never complete.
+                rightValue.callStack.raiseTranslatedError(PHPError.E_ERROR, NESTING_LEVEL_TOO_DEEP);
+            }
+
+            // Set a flag to allow detection of recursion.
+            rightValue.isBeingCompared = true;
+
+            try {
+                // Check public and protected properties.
+                _.forOwn(leftValue.nonPrivateProperties, function (propertyReference, propertyName) {
+                    var propertyComparisonResult;
+
+                    if (!hasOwn.call(rightValue.nonPrivateProperties, propertyName)) {
+                        // Left object contains a property that the right does not: consider left object greater.
+                        comparisonResult = 1;
+                        return false;
+                    }
+
+                    // Note that defined properties' values should always be present, so there should be no need
+                    // for async/Futures handling here.
+                    propertyComparisonResult = propertyReference.getValue().compareWithPresent(
+                        rightValue.nonPrivateProperties[propertyName].getValue()
+                    );
+
+                    if (propertyComparisonResult !== 0) {
+                        // Property has a different value in left object than the right:
+                        // use comparison result (will be either -1 or 1).
+                        comparisonResult = propertyComparisonResult;
+                        return false;
+                    }
+                });
+
+                if (comparisonResult !== 0) {
+                    // We have already found a difference, no need to now check private properties.
+                    return comparisonResult;
+                }
+
+                // Check private properties.
+                _.forOwn(leftValue.privatePropertiesByFQCN, function (propertyReferences, fqcn) {
+                    _.forOwn(propertyReferences, function (propertyReference, propertyName) {
+                        var propertyComparisonResult;
+
+                        if (
+                            !hasOwn.call(rightValue.privatePropertiesByFQCN, fqcn) ||
+                            !hasOwn.call(rightValue.privatePropertiesByFQCN[fqcn], propertyName)
+                        ) {
+                            // Left object contains a property that the right does not: consider left object greater.
+                            comparisonResult = 1;
+                            return false;
+                        }
+
+                        // Note that defined properties' values should always be present, so there should be no need
+                        // for async/Futures handling here.
+                        propertyComparisonResult = propertyReference.getValue().compareWithPresent(
+                            rightValue.privatePropertiesByFQCN[fqcn][propertyName].getValue()
+                        );
+
+                        if (propertyComparisonResult !== 0) {
+                            // Property has a different value in left object than the right:
+                            // use comparison result (will be either -1 or 1).
+                            comparisonResult = propertyComparisonResult;
+                            return false;
+                        }
+                    });
+                });
+            } finally {
+                // Clear recursion detection flag.
+                rightValue.isBeingCompared = false;
+            }
+
+            return comparisonResult;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithPresent: function (rightValue) {
+            return rightValue.compareWithObject(this);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithResource: function () {
+            return -1; // Objects (even empty ones) are always greater.
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithString: function () {
+            return -1; // Objects (even empty ones) are always greater.
         },
 
         /**
@@ -1128,79 +1338,6 @@ module.exports = require('pauser')([
             return this.futureFactory.createPresent(false);
         },
 
-        isEqualTo: function (rightValue) {
-            return rightValue.isEqualToObject(this);
-        },
-
-        isEqualToArray: function () {
-            return this.factory.createBoolean(false);
-        },
-
-        isEqualToFloat: function (floatValue) {
-            return this.factory.createBoolean(floatValue.getNative() === 1);
-        },
-
-        isEqualToInteger: function (integerValue) {
-            return this.factory.createBoolean(integerValue.getNative() === 1);
-        },
-
-        isEqualToNull: function () {
-            return this.factory.createBoolean(false);
-        },
-
-        /**
-         * Determines whether this object is equal (but not necessarily identical) to another
-         *
-         * @param {ObjectValue} rightValue
-         * @returns {BooleanValue}
-         */
-        isEqualToObject: function (rightValue) {
-            var equal = true,
-                leftValue = this,
-                factory = leftValue.factory;
-
-            if (
-                rightValue.getLength() !== leftValue.getLength() ||
-                rightValue.getClassName() !== leftValue.getClassName()
-            ) {
-                return factory.createBoolean(false);
-            }
-
-            // Check public and protected properties
-            _.forOwn(rightValue.nonPrivateProperties, function (propertyReference, propertyName) {
-                if (
-                    !hasOwn.call(leftValue.nonPrivateProperties, propertyName) ||
-                    propertyReference.getValue().isNotEqualTo(
-                        leftValue.nonPrivateProperties[propertyName].getValue()
-                    ).getNative()
-                ) {
-                    equal = false;
-                    return false;
-                }
-            });
-            // Check private properties
-            _.forOwn(rightValue.privatePropertiesByFQCN, function (propertyReferences, fqcn) {
-                _.forOwn(propertyReferences, function (propertyReference, propertyName) {
-                    if (
-                        !hasOwn.call(leftValue.privatePropertiesByFQCN, fqcn) ||
-                        !hasOwn.call(leftValue.privatePropertiesByFQCN[fqcn], propertyName) ||
-                        propertyReference.getValue().isNotEqualTo(
-                            leftValue.privatePropertiesByFQCN[fqcn][propertyName].getValue()
-                        ).getNative()
-                    ) {
-                        equal = false;
-                        return false;
-                    }
-                });
-            });
-
-            return factory.createBoolean(equal);
-        },
-
-        isEqualToString: function () {
-            return this.factory.createBoolean(false);
-        },
-
         isIdenticalTo: function (rightValue) {
             return rightValue.isIdenticalToObject(this);
         },
@@ -1237,7 +1374,7 @@ module.exports = require('pauser')([
          * Determines whether this iterator has finished iterating or not.
          * Used by transpiled foreach loops over objects implementing Iterator.
          *
-         * @returns {Future<boolean>|boolean}
+         * @returns {Future<boolean>}
          */
         isNotFinished: function () {
             var value = this;

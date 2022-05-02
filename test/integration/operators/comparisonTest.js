@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP comparison operators integration', function () {
-    it('should support all PHP comparison operators', function () {
+    it('should support all PHP comparison operators', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -54,10 +54,10 @@ $result[] = 15 >= 15;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             false,
             true,
 

@@ -215,6 +215,9 @@ module.exports = require('pauser')([
             return this;
         },
 
+        /**
+         * {@inheritdoc}
+         */
         coerceToBoolean: function () {
             var value = this;
 
@@ -252,6 +255,118 @@ module.exports = require('pauser')([
 
         coerceToString: function () {
             return this.factory.createString('Array');
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithArray: function (leftValue) {
+            var comparisonResult = 0, // Consider arrays equal until proven unequal by the loop below.
+                rightValue = this;
+
+            if (leftValue.value.length < rightValue.value.length) {
+                // Left array contains fewer elements than the right: consider left array smaller.
+                return -1;
+            }
+
+            if (leftValue.value.length > rightValue.value.length) {
+                // Left array contains more elements than the right: consider left array greater.
+                return 1;
+            }
+
+            _.forOwn(leftValue.keysToElements, function (element, nativeKey) {
+                var elementComparisonResult;
+
+                if (!hasOwn.call(rightValue.keysToElements, nativeKey)) {
+                    // Left array contains an element that the right does not: consider left array greater.
+                    comparisonResult = 1;
+                    return false;
+                }
+
+                elementComparisonResult = element.getValue().compareWithPresent(
+                    rightValue.keysToElements[nativeKey].getValue()
+                );
+
+                if (elementComparisonResult !== 0) {
+                    // Element has a different value in left array than the right:
+                    // use comparison result (will be either -1 or 1).
+                    comparisonResult = elementComparisonResult;
+                    return false;
+                }
+            });
+
+            return comparisonResult;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithBoolean: function (leftValue) {
+            var rightValue = this,
+                booleanValue = leftValue.getNative(),
+                arrayIsNotEmpty = rightValue.value.length > 0;
+
+            if (!booleanValue && arrayIsNotEmpty) {
+                return -1;
+            }
+
+            if (booleanValue && !arrayIsNotEmpty) {
+                return 1;
+            }
+
+            return 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithFloat: function () {
+            return -1; // Arrays (even empty ones) are always greater (except for objects, see .compareWithObject()).
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithInteger: function () {
+            return -1; // Arrays (even empty ones) are always greater (except for objects, see .compareWithObject()).
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithNull: function () {
+            var rightValue = this,
+                arrayLength = rightValue.getLength();
+
+            return arrayLength > 0 ? -1 : 0;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithObject: function () {
+            return 1; // Objects are always greater than arrays.
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithPresent: function (rightValue) {
+            return rightValue.compareWithArray(this);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithResource: function () {
+            return -1; // Arrays (even empty ones) are always greater (except for objects, see .compareWithObject()).
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        compareWithString: function () {
+            return -1; // Arrays (even empty ones) are always greater (except for objects, see .compareWithObject()).
         },
 
         /**
@@ -519,57 +634,6 @@ module.exports = require('pauser')([
             return value.futureFactory.createPresent(value.value.length === 0);
         },
 
-        isEqualTo: function (rightValue) {
-            return rightValue.isEqualToArray(this);
-        },
-
-        isEqualToNull: function () {
-            var value = this;
-
-            return value.factory.createBoolean(value.value.length === 0);
-        },
-
-        isEqualToArray: function (rightValue) {
-            var equal = true,
-                leftValue = this,
-                factory = leftValue.factory;
-
-            if (rightValue.value.length !== leftValue.value.length) {
-                return factory.createBoolean(false);
-            }
-
-            _.forOwn(rightValue.keysToElements, function (element, nativeKey) {
-                if (!hasOwn.call(leftValue.keysToElements, nativeKey) || element.getValue().isNotEqualTo(leftValue.keysToElements[nativeKey].getValue()).getNative()) {
-                    equal = false;
-                    return false;
-                }
-            });
-
-            return factory.createBoolean(equal);
-        },
-
-        isEqualToBoolean: function (rightValue) {
-            var leftValue = this;
-
-            return leftValue.factory.createBoolean(rightValue.getNative() === (leftValue.value.length > 0));
-        },
-
-        isEqualToFloat: function () {
-            return this.factory.createBoolean(false);
-        },
-
-        isEqualToInteger: function () {
-            return this.factory.createBoolean(false);
-        },
-
-        isEqualToObject: function () {
-            return this.factory.createBoolean(false);
-        },
-
-        isEqualToString: function () {
-            return this.factory.createBoolean(false);
-        },
-
         isIdenticalTo: function (rightValue) {
             return rightValue.isIdenticalToArray(this);
         },
@@ -623,7 +687,7 @@ module.exports = require('pauser')([
             var value = this;
 
             _.each(value.value, function (element, index) {
-                if (element.getKey().isEqualTo(elementReference.getKey()).getNative()) {
+                if (element.getKey().compareWithPresent(elementReference.getKey()) === 0) {
                     value.setPointer(index);
                 }
             });
