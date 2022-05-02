@@ -46,15 +46,30 @@ _.extend(LoadScope.prototype, {
      * @param {NamespaceScope} namespaceScope
      * @param {Function} func
      * @param {Array=} parametersSpecData
+     * @param {Array=} bindingsSpecData
+     * @param {Object.<string, ReferenceSlot>=} referenceBindings
+     * @param {Object.<string, Value>=} valueBindings
      * @param {boolean=} isStatic
      * @param {number|null=} lineNumber
      * @returns {Closure}
      */
-    createClosure: function (namespaceScope, func, parametersSpecData, isStatic, lineNumber) {
+    createClosure: function (
+        namespaceScope,
+        func,
+        parametersSpecData,
+        bindingsSpecData,
+        referenceBindings,
+        valueBindings,
+        isStatic,
+        lineNumber
+    ) {
         return this.effectiveScope.createClosure(
             namespaceScope,
             func,
             parametersSpecData,
+            bindingsSpecData,
+            referenceBindings,
+            valueBindings,
             isStatic,
             lineNumber
         );

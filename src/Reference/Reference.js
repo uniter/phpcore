@@ -133,6 +133,13 @@ _.extend(Reference.prototype, {
     isSet: throwUnimplemented('isSet'),
 
     /**
+     * Sets a new reference for this reference.
+     *
+     * @param {Reference} reference
+     */
+    setReference: throwUnimplemented('setReference'),
+
+    /**
      * Sets the value of this reference. If it was already assigned a value it will be overwritten,
      * otherwise if it was already assigned a sub-reference then that reference will be assigned the value
      *

@@ -64,23 +64,26 @@ describe('ReferenceFactory', function () {
     });
 
     describe('createAccessor()', function () {
-        var valueGetter,
+        var referenceSetter,
+            valueGetter,
             valueSetter;
 
         beforeEach(function () {
+            referenceSetter = sinon.stub();
             valueGetter = sinon.stub();
             valueSetter = sinon.stub();
         });
 
         it('should create the AccessorReference correctly', function () {
-            factory.createAccessor(valueGetter, valueSetter);
+            factory.createAccessor(valueGetter, valueSetter, referenceSetter);
 
             expect(AccessorReference).to.have.been.calledOnce;
             expect(AccessorReference).to.have.been.calledWith(
                 sinon.match.same(valueFactory),
                 sinon.match.same(factory),
                 sinon.match.same(valueGetter),
-                sinon.match.same(valueSetter)
+                sinon.match.same(valueSetter),
+                sinon.match.same(referenceSetter)
             );
         });
 
@@ -89,7 +92,7 @@ describe('ReferenceFactory', function () {
             AccessorReference.returns(reference);
 
             expect(
-                factory.createAccessor(valueGetter, valueSetter)
+                factory.createAccessor(valueGetter, valueSetter, referenceSetter)
             ).to.equal(reference);
         });
     });

@@ -157,6 +157,8 @@ asyncRuntime.install({
                                 return valueFactory.createAsyncMicrotaskFuture(function (resolve, reject) {
                                     result.setValue(value).next(resolve, reject);
                                 });
+                            }, function (reference) {
+                                return result.setReference(reference);
                             });
                         }
 

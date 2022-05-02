@@ -236,4 +236,66 @@ EOS
         expect(engine.getStderr().readAll()).to.equal('');
         expect(engine.getStdout().readAll()).to.equal('');
     });
+
+    it('should take a copy of the value of a by-value closure binding at definition time', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+$myClosures = [];
+
+foreach (['first', 'second', 'third'] as $suffix) {
+    $myClosure = function ($message) use ($suffix) {
+        return $message . ' ' . $suffix;
+    };
+
+    $myClosures[] = $myClosure;
+}
+
+$result['first closure'] = $myClosures[0]('my');
+$result['second closure'] = $myClosures[1]('your');
+$result['third closure'] = $myClosures[2]('our');
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/some/module/path.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'first closure': 'my first',
+            'second closure': 'your second',
+            'third closure': 'our third'
+        });
+    });
+
+    it('should not take a copy of the value of a by-reference closure binding at definition time', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+$myClosures = [];
+
+foreach (['first', 'second', 'third'] as $suffix) {
+    $myClosure = function ($message) use (&$suffix) {
+        return $message . ' ' . $suffix;
+    };
+
+    $myClosures[] = $myClosure;
+}
+
+$result['first closure'] = $myClosures[0]('my');
+$result['second closure'] = $myClosures[1]('your');
+$result['third closure'] = $myClosures[2]('our');
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/some/module/path.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'first closure': 'my third',
+            'second closure': 'your third',
+            'third closure': 'our third'
+        });
+    });
 });

@@ -10,14 +10,18 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('../tools'),
-    AccessorReference = require('../../../src/Reference/AccessorReference');
+    AccessorReference = require('../../../src/Reference/AccessorReference'),
+    Exception = phpCommon.Exception,
+    Reference = require('../../../src/Reference/Reference');
 
 describe('AccessorReference', function () {
     var futureFactory,
         reference,
         referenceFactory,
+        referenceSetter,
         state,
         valueFactory,
         valueGetter,
@@ -27,6 +31,7 @@ describe('AccessorReference', function () {
         state = tools.createIsolatedState();
         futureFactory = state.getFutureFactory();
         referenceFactory = state.getReferenceFactory();
+        referenceSetter = sinon.spy();
         valueFactory = state.getValueFactory();
         valueGetter = sinon.stub();
         valueSetter = sinon.spy();
@@ -35,7 +40,8 @@ describe('AccessorReference', function () {
             valueFactory,
             referenceFactory,
             valueGetter,
-            valueSetter
+            valueSetter,
+            referenceSetter
         );
     });
 
@@ -129,6 +135,34 @@ describe('AccessorReference', function () {
             valueGetter.returns(valueFactory.createPresent(null));
 
             expect(await reference.isSet().toPromise()).to.be.false;
+        });
+    });
+
+    describe('setReference()', function () {
+        it('should call the setter with the reference', function () {
+            var newReference = sinon.createStubInstance(Reference);
+
+            reference.setReference(newReference);
+
+            expect(referenceSetter).to.have.been.calledOnce;
+            expect(referenceSetter).to.have.been.calledWith(sinon.match.same(newReference));
+        });
+
+        it('should throw when no reference setter is defined', function () {
+            var newReference = sinon.createStubInstance(Reference);
+            reference = new AccessorReference(
+                valueFactory,
+                referenceFactory,
+                valueGetter,
+                valueSetter
+            );
+
+            expect(function () {
+                reference.setReference(newReference);
+            }).to.throw(
+                Exception,
+                'Accessor cannot have a reference set'
+            );
         });
     });
 

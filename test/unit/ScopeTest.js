@@ -17,6 +17,7 @@ var expect = require('chai').expect,
     Class = require('../../src/Class').sync(),
     Closure = require('../../src/Closure').sync(),
     ClosureFactory = require('../../src/ClosureFactory').sync(),
+    Exception = phpCommon.Exception,
     FunctionSpec = require('../../src/Function/FunctionSpec'),
     FunctionSpecFactory = require('../../src/Function/FunctionSpecFactory'),
     Namespace = require('../../src/Namespace').sync(),
@@ -24,6 +25,7 @@ var expect = require('chai').expect,
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
     Reference = require('../../src/Reference/Reference'),
+    ReferenceSlot = require('../../src/Reference/ReferenceSlot'),
     Scope = require('../../src/Scope').sync(),
     StringValue = require('../../src/Value/String').sync(),
     SuperGlobalScope = require('../../src/SuperGlobalScope').sync(),
@@ -197,7 +199,7 @@ describe('Scope', function () {
         });
 
         it('should not bind the closure to an object when it is static', function () {
-            scope.createClosure(namespaceScope, func, [], true);
+            scope.createClosure(namespaceScope, func, [], {}, {}, {}, true);
 
             expect(closureFactory.create).to.have.been.calledWith(
                 sinon.match.any,
@@ -209,7 +211,9 @@ describe('Scope', function () {
         });
 
         it('should pass a correctly constructed closure FunctionSpec to the ClosureFactory', function () {
-            var closureFunctionSpec = sinon.createStubInstance(FunctionSpec);
+            var closureFunctionSpec = sinon.createStubInstance(FunctionSpec),
+                referenceBinding = sinon.createStubInstance(ReferenceSlot),
+                valueBinding = valueFactory.createString('my string');
             functionSpecFactory.createClosureSpec
                 .withArgs(
                     sinon.match.same(namespaceScope),
@@ -218,12 +222,23 @@ describe('Scope', function () {
                     [],
                     null, // TODO: Implement userland return types.
                     false, // TODO: Implement userland return-by-reference.
+                    {'myRefBinding': sinon.match.same(referenceBinding)},
+                    {'myValueBinding': sinon.match.same(valueBinding)},
                     '/path/to/my_module.php',
                     1234
                 )
                 .returns(closureFunctionSpec);
 
-            scope.createClosure(namespaceScope, func, [], false, 1234);
+            scope.createClosure(
+                namespaceScope,
+                func,
+                [],
+                {},
+                {'myRefBinding': referenceBinding},
+                {'myValueBinding': valueBinding},
+                false,
+                1234
+            );
 
             expect(closureFactory.create).to.have.been.calledWith(
                 sinon.match.any,
@@ -463,6 +478,30 @@ describe('Scope', function () {
         });
     });
 
+    describe('getReferenceBinding()', function () {
+        it('should return a reference binding from the current function\'s FunctionSpec', function () {
+            var referenceBinding = sinon.createStubInstance(ReferenceSlot);
+            whenCurrentFunction();
+            currentFunction.functionSpec.getReferenceBinding
+                .withArgs('myRefBinding')
+                .returns(referenceBinding);
+            createScope();
+
+            expect(scope.getReferenceBinding('myRefBinding')).to.equal(referenceBinding);
+        });
+
+        it('should throw when there is no current function', function () {
+            createScope();
+
+            expect(function () {
+                scope.getReferenceBinding('invalidRefBinding');
+            }).to.throw(
+                Exception,
+                'Scope.getReferenceBinding() :: No current function'
+            );
+        });
+    });
+
     describe('getStaticClassNameOrThrow()', function () {
         it('should return the name of the current static class when present', function () {
             var staticClass = sinon.createStubInstance(Class);
@@ -528,6 +567,30 @@ describe('Scope', function () {
             createScope();
 
             expect(scope.getTraceFrameName()).to.equal('');
+        });
+    });
+
+    describe('getValueBinding()', function () {
+        it('should return a value binding from the current function\'s FunctionSpec', function () {
+            var valueBinding = valueFactory.createString('my value');
+            whenCurrentFunction();
+            currentFunction.functionSpec.getValueBinding
+                .withArgs('myValueBinding')
+                .returns(valueBinding);
+            createScope();
+
+            expect(scope.getValueBinding('myValueBinding')).to.equal(valueBinding);
+        });
+
+        it('should throw when there is no current function', function () {
+            createScope();
+
+            expect(function () {
+                scope.getValueBinding('invalidValueBinding');
+            }).to.throw(
+                Exception,
+                'Scope.getValueBinding() :: No current function'
+            );
         });
     });
 

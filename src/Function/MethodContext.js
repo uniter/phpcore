@@ -10,7 +10,9 @@
 'use strict';
 
 var _ = require('microdash'),
+    phpCommon = require('phpcommon'),
     util = require('util'),
+    Exception = phpCommon.Exception,
     FunctionContextInterface = require('./FunctionContextInterface');
 
 /**
@@ -48,6 +50,13 @@ _.extend(MethodContext.prototype, {
     },
 
     /**
+     * {@inheritdoc}
+     */
+    getReferenceBinding: function () {
+        throw new Exception('MethodContext.getReferenceBinding() :: Unsupported');
+    },
+
+    /**
      * Fetches the name of the method as required for stack traces
      *
      * @param {boolean=} isStaticCall
@@ -65,6 +74,13 @@ _.extend(MethodContext.prototype, {
      */
     getUnprefixedName: function () {
         return this.name;
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    getValueBinding: function () {
+        throw new Exception('MethodContext.getValueBinding() :: Unsupported');
     }
 });
 

@@ -89,20 +89,22 @@ module.exports = require('pauser')([
 
     _.extend(ReferenceFactory.prototype, {
         /**
-         * Creates an AccessorReference
+         * Creates an AccessorReference.
          *
          * @param {Function} valueGetter
          * @param {Function=} valueSetter
+         * @param {Function=} referenceSetter
          * @returns {AccessorReference}
          */
-        createAccessor: function (valueGetter, valueSetter) {
+        createAccessor: function (valueGetter, valueSetter, referenceSetter) {
             var factory = this;
 
             return new factory.AccessorReference(
                 factory.valueFactory,
                 factory,
                 valueGetter,
-                valueSetter || null
+                valueSetter || null,
+                referenceSetter || null
             );
         },
 

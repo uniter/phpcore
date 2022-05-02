@@ -275,6 +275,16 @@ _.extend(FunctionSpec.prototype, {
     },
 
     /**
+     * Fetches a bound variable reference for the function.
+     *
+     * @param {string} name
+     * @returns {ReferenceSlot}
+     */
+    getReferenceBinding: function (name) {
+        return this.context.getReferenceBinding(name);
+    },
+
+    /**
      * Fetches the number of required parameters.
      * Note that if an optional parameter appears before a required one, the optional one
      * is effectively required as its argument cannot validly be omitted.
@@ -301,6 +311,16 @@ _.extend(FunctionSpec.prototype, {
      */
     getUnprefixedFunctionName: function () {
         return this.context.getUnprefixedName();
+    },
+
+    /**
+     * Fetches a bound variable value for the function.
+     *
+     * @param {string} name
+     * @returns {Value}
+     */
+    getValueBinding: function (name) {
+        return this.context.getValueBinding(name);
     },
 
     /**

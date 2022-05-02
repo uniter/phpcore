@@ -342,23 +342,42 @@ module.exports = function (internals) {
          *
          * @param {Function} func
          * @param {Array=} parametersSpecData
+         * @param {Array=} bindingsSpecData
          * @param {boolean=} isStatic
          * @param {number=} lineNumber
          * @returns {ObjectValue}
          */
-        createClosure: function (func, parametersSpecData, isStatic, lineNumber) {
+        createClosure: function (func, parametersSpecData, bindingsSpecData, isStatic, lineNumber) {
             var namespaceScope = callStack.getCurrentNamespaceScope(),
-                scope = callStack.getCurrentScope();
+                referenceBindings = {},
+                scope = callStack.getCurrentScope(),
+                valueBindings = {};
 
-            return valueFactory.createClosureObject(
-                scope.createClosure(
-                    namespaceScope,
-                    func,
-                    parametersSpecData || [],
-                    !!isStatic,
-                    lineNumber || null
-                )
-            );
+            return flow.eachAsync(bindingsSpecData || [], function (bindingSpecData) {
+                var variable = scope.getVariable(bindingSpecData.name);
+
+                if (!bindingSpecData.ref) {
+                    return variable.getValue().next(function (presentValue) {
+                        valueBindings[bindingSpecData.name] = presentValue;
+                    });
+                }
+
+                referenceBindings[bindingSpecData.name] = variable.getReference();
+            })
+                .next(function () {
+                    return valueFactory.createClosureObject(
+                        scope.createClosure(
+                            namespaceScope,
+                            func,
+                            parametersSpecData || [],
+                            bindingsSpecData || [],
+                            referenceBindings,
+                            valueBindings,
+                            !!isStatic,
+                            lineNumber || null
+                        )
+                    );
+                });
         },
 
         createFloat: function (nativeValue) {
@@ -684,6 +703,21 @@ module.exports = function (internals) {
         },
 
         /**
+         * Fetches a bound variable reference for the current Closure.
+         *
+         * Used by transpiled Closure functions with reference bindings,
+         *     eg. "function (...) use (&$myVar) {...}".
+         *
+         * @param {string} name
+         * @returns {ReferenceSlot}
+         */
+        getReferenceBinding: function (name) {
+            var scope = callStack.getCurrentScope();
+
+            return scope.getReferenceBinding(name);
+        },
+
+        /**
          * Fetches the name of the current static class scope, which may be different
          * from the class in which its function is defined (eg. after a forward_static_call(...))
          *
@@ -736,6 +770,21 @@ module.exports = function (internals) {
          */
         getSuperClassNameOrThrow: function () {
             return callStack.getCurrentScope().getParentClassNameOrThrow();
+        },
+
+        /**
+         * Fetches a bound variable value for the current Closure.
+         *
+         * Used by transpiled Closure functions with value bindings,
+         *     eg. "function (...) use ($myVar) {...}".
+         *
+         * @param {string} name
+         * @returns {Value}
+         */
+        getValueBinding: function (name) {
+            var scope = callStack.getCurrentScope();
+
+            return scope.getValueBinding(name);
         },
 
         getVariable: function (name) {

@@ -10,7 +10,10 @@
 'use strict';
 
 var _ = require('microdash'),
+    hasOwn = {}.hasOwnProperty,
+    phpCommon = require('phpcommon'),
     util = require('util'),
+    Exception = phpCommon.Exception,
     FunctionContextInterface = require('./FunctionContextInterface');
 
 /**
@@ -19,10 +22,18 @@ var _ = require('microdash'),
  * @param {NamespaceScope} namespaceScope
  * @param {Class|null} classObject Used when the closure is defined inside a class
  * @param {ObjectValue|null} enclosingObject Used when the closure is defined inside an instance method
+ * @param {Object.<string, ReferenceSlot>} referenceBindings
+ * @param {Object.<string, Value>} valueBindings
  * @constructor
  * @implements {FunctionContextInterface}
  */
-function ClosureContext(namespaceScope, classObject, enclosingObject) {
+function ClosureContext(
+    namespaceScope,
+    classObject,
+    enclosingObject,
+    referenceBindings,
+    valueBindings
+) {
     /**
      * @type {Class|null}
      */
@@ -35,6 +46,14 @@ function ClosureContext(namespaceScope, classObject, enclosingObject) {
      * @type {NamespaceScope}
      */
     this.namespaceScope = namespaceScope;
+    /**
+     * @type {Object<string, ReferenceSlot>}
+     */
+    this.referenceBindings = referenceBindings;
+    /**
+     * @type {Object<string, Value>}
+     */
+    this.valueBindings = valueBindings;
 }
 
 util.inherits(ClosureContext, FunctionContextInterface);
@@ -47,6 +66,21 @@ _.extend(ClosureContext.prototype, {
      */
     getName: function () {
         return this.namespaceScope.getNamespacePrefix() + '{closure}';
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    getReferenceBinding: function (name) {
+        var context = this;
+
+        if (!hasOwn.call(context.referenceBindings, name)) {
+            throw new Exception(
+                'ClosureContext.getReferenceBinding() :: Closure has no reference binding for $' + name
+            );
+        }
+
+        return context.referenceBindings[name];
     },
 
     /**
@@ -77,6 +111,21 @@ _.extend(ClosureContext.prototype, {
      */
     getUnprefixedName: function () {
         return this.namespaceScope.getNamespacePrefix() + '{closure}';
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    getValueBinding: function (name) {
+        var context = this;
+
+        if (!hasOwn.call(context.valueBindings, name)) {
+            throw new Exception(
+                'ClosureContext.getValueBinding() :: Closure has no value binding for $' + name
+            );
+        }
+
+        return context.valueBindings[name];
     }
 });
 

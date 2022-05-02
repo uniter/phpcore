@@ -33,6 +33,14 @@ _.extend(FunctionContextInterface.prototype, {
     getName: throwUnimplemented('getName'),
 
     /**
+     * Fetches a bound variable reference for the function.
+     *
+     * @param {string} name
+     * @returns {ReferenceSlot}
+     */
+    getReferenceBinding: throwUnimplemented('getReferenceBinding'),
+
+    /**
      * Fetches the name of the function as required for stack traces
      *
      * @param {boolean=} isStaticCall
@@ -46,7 +54,15 @@ _.extend(FunctionContextInterface.prototype, {
      *
      * @returns {string}
      */
-    getUnprefixedName: throwUnimplemented('getUnprefixedName')
+    getUnprefixedName: throwUnimplemented('getUnprefixedName'),
+
+    /**
+     * Fetches a bound variable value for the function.
+     *
+     * @param {string} name
+     * @returns {Value}
+     */
+    getValueBinding: throwUnimplemented('getValueBinding')
 });
 
 module.exports = FunctionContextInterface;

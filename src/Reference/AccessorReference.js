@@ -22,16 +22,22 @@ var _ = require('microdash'),
  * @param {ReferenceFactory} referenceFactory
  * @param {Function} valueGetter
  * @param {Function|null} valueSetter
+ * @param {Function|null} referenceSetter
  * @constructor
  */
 function AccessorReference(
     valueFactory,
     referenceFactory,
     valueGetter,
-    valueSetter
+    valueSetter,
+    referenceSetter
 ) {
     Reference.call(this, referenceFactory);
 
+    /**
+     * @type {Function|null}
+     */
+    this.referenceSetter = referenceSetter;
     /**
      * @type {ValueFactory}
      */
@@ -41,7 +47,7 @@ function AccessorReference(
      */
     this.valueGetter = valueGetter;
     /**
-     * @type {Function}
+     * @type {Function|null}
      */
     this.valueSetter = valueSetter;
 }
@@ -92,6 +98,19 @@ _.extend(AccessorReference.prototype, {
             .next(function (resultValue) {
                 return resultValue.isSet();
             });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    setReference: function (newReference) {
+        var reference = this;
+
+        if (!reference.referenceSetter) {
+            throw new Exception('Accessor cannot have a reference set');
+        }
+
+        reference.referenceSetter(newReference);
     },
 
     /**

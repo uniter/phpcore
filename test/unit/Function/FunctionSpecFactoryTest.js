@@ -21,6 +21,7 @@ var expect = require('chai').expect,
     ObjectValue = require('../../../src/Value/Object').sync(),
     Parameter = require('../../../src/Function/Parameter'),
     ParameterListFactory = require('../../../src/Function/ParameterListFactory'),
+    ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
     ReturnTypeProvider = require('../../../src/Function/ReturnTypeProvider'),
     Translator = phpCommon.Translator,
     TypeFactory = require('../../../src/Type/TypeFactory'),
@@ -127,16 +128,20 @@ describe('FunctionSpecFactory', function () {
             parameter1,
             parameter2,
             parametersSpecData,
+            referenceBinding,
             returnType,
-            returnTypeSpecData;
+            returnTypeSpecData,
+            valueBinding;
 
         beforeEach(function () {
             closureContext = sinon.createStubInstance(ClosureContext);
             functionSpec = sinon.createStubInstance(FunctionSpec);
             parameter1 = sinon.createStubInstance(Parameter);
             parameter2 = sinon.createStubInstance(Parameter);
+            referenceBinding = sinon.createStubInstance(ReferenceSlot);
             returnType = sinon.createStubInstance(TypeInterface);
             returnTypeSpecData = {type: 'array'};
+            valueBinding = valueFactory.createString('my value');
 
             returnTypeProvider.createReturnType
                 .withArgs(returnTypeSpecData, sinon.match.same(namespaceScope))
@@ -168,7 +173,13 @@ describe('FunctionSpecFactory', function () {
             var classObject = sinon.createStubInstance(Class),
                 enclosingObject = sinon.createStubInstance(ObjectValue);
             ClosureContext
-                .withArgs(sinon.match.same(namespaceScope), sinon.match.same(classObject), sinon.match.same(enclosingObject))
+                .withArgs(
+                    sinon.match.same(namespaceScope),
+                    sinon.match.same(classObject),
+                    sinon.match.same(enclosingObject),
+                    {'myRefBinding': sinon.match.same(referenceBinding)},
+                    {'myValueBinding': sinon.match.same(valueBinding)}
+                )
                 .returns(closureContext);
             FunctionSpec
                 .withArgs(
@@ -194,6 +205,8 @@ describe('FunctionSpecFactory', function () {
                 parametersSpecData,
                 returnTypeSpecData,
                 false,
+                {'myRefBinding': referenceBinding},
+                {'myValueBinding': valueBinding},
                 '/path/to/my/module.php',
                 123
             )).to.equal(functionSpec);
@@ -202,7 +215,13 @@ describe('FunctionSpecFactory', function () {
         it('should return a correctly constructed FunctionSpec when there is a current class but no object', function () {
             var classObject = sinon.createStubInstance(Class);
             ClosureContext
-                .withArgs(sinon.match.same(namespaceScope), sinon.match.same(classObject), null)
+                .withArgs(
+                    sinon.match.same(namespaceScope),
+                    sinon.match.same(classObject),
+                    null,
+                    {'myRefBinding': sinon.match.same(referenceBinding)},
+                    {'myValueBinding': sinon.match.same(valueBinding)}
+                )
                 .returns(closureContext);
             FunctionSpec
                 .withArgs(
@@ -228,6 +247,8 @@ describe('FunctionSpecFactory', function () {
                 parametersSpecData,
                 returnTypeSpecData,
                 false,
+                {'myRefBinding': referenceBinding},
+                {'myValueBinding': valueBinding},
                 '/path/to/my/module.php',
                 123
             )).to.equal(functionSpec);
@@ -235,7 +256,13 @@ describe('FunctionSpecFactory', function () {
 
         it('should return a correctly constructed FunctionSpec when there is no current class or object', function () {
             ClosureContext
-                .withArgs(sinon.match.same(namespaceScope), null, null)
+                .withArgs(
+                    sinon.match.same(namespaceScope),
+                    null,
+                    null,
+                    {'myRefBinding': sinon.match.same(referenceBinding)},
+                    {'myValueBinding': sinon.match.same(valueBinding)}
+                )
                 .returns(closureContext);
             FunctionSpec
                 .withArgs(
@@ -261,6 +288,8 @@ describe('FunctionSpecFactory', function () {
                 parametersSpecData,
                 returnTypeSpecData,
                 true,
+                {'myRefBinding': referenceBinding},
+                {'myValueBinding': valueBinding},
                 '/path/to/my/module.php',
                 123
             )).to.equal(functionSpec);

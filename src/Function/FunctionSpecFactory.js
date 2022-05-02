@@ -136,6 +136,8 @@ _.extend(FunctionSpecFactory.prototype, {
      * @param {Array} parametersSpecData
      * @param {Object|null} returnTypeSpecData
      * @param {boolean} returnByReference
+     * @param {Object.<string, ReferenceSlot>} referenceBindings
+     * @param {Object.<string, Value>} valueBindings
      * @param {string|null} filePath
      * @param {number|null} lineNumber
      * @returns {FunctionSpec}
@@ -147,11 +149,19 @@ _.extend(FunctionSpecFactory.prototype, {
         parametersSpecData,
         returnTypeSpecData,
         returnByReference,
+        referenceBindings,
+        valueBindings,
         filePath,
         lineNumber
     ) {
         var factory = this,
-            context = new factory.ClosureContext(namespaceScope, classObject, enclosingObject),
+            context = new factory.ClosureContext(
+                namespaceScope,
+                classObject,
+                enclosingObject,
+                referenceBindings,
+                valueBindings
+            ),
             parameters = factory.parameterListFactory.createParameterList(
                 context,
                 parametersSpecData,

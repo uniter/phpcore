@@ -18,6 +18,7 @@ module.exports = require('pauser')([
 ) {
     var hasOwn = {}.hasOwnProperty,
         IS_STATIC = 'isStatic',
+        Exception = phpCommon.Exception,
         PHPError = phpCommon.PHPError,
 
         CANNOT_ACCESS_WHEN_NO_ACTIVE_CLASS = 'core.cannot_access_when_no_active_class',
@@ -61,6 +62,9 @@ module.exports = require('pauser')([
          * @type {Class|null}
          */
         this.currentClass = currentClass;
+        /**
+         * @type {Function|null}
+         */
         this.currentFunction = currentFunction;
         this.errorsSuppressed = false;
         this.functionSpecFactory = functionSpecFactory;
@@ -90,11 +94,23 @@ module.exports = require('pauser')([
          * @param {NamespaceScope} namespaceScope
          * @param {Function} func
          * @param {Array=} parametersSpecData
+         * @param {Array=} bindingsSpecData
+         * @param {Object.<string, ReferenceSlot>=} referenceBindings
+         * @param {Object.<string, Value>=} valueBindings
          * @param {boolean=} isStatic
          * @param {number|null=} lineNumber
          * @returns {Closure}
          */
-        createClosure: function (namespaceScope, func, parametersSpecData, isStatic, lineNumber) {
+        createClosure: function (
+            namespaceScope,
+            func,
+            parametersSpecData,
+            bindingsSpecData,
+            referenceBindings,
+            valueBindings,
+            isStatic,
+            lineNumber
+        ) {
             var functionSpec,
                 scope = this,
                 thisObject = null;
@@ -113,6 +129,8 @@ module.exports = require('pauser')([
                 parametersSpecData || [],
                 null, // TODO: Implement userland return types.
                 false, // TODO: Implement userland return-by-reference.
+                referenceBindings,
+                valueBindings,
                 namespaceScope.getFilePath(),
                 lineNumber
             );
@@ -313,6 +331,22 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Fetches a bound variable reference for the current Closure (if any).
+         *
+         * @param {string} name
+         * @returns {ReferenceSlot}
+         */
+        getReferenceBinding: function (name) {
+            var scope = this;
+
+            if (!scope.currentFunction) {
+                throw new Exception('Scope.getReferenceBinding() :: No current function');
+            }
+
+            return scope.currentFunction.functionSpec.getReferenceBinding(name);
+        },
+
+        /**
          * Fetches the name of the current static class scope, which may be different
          * from the class in which its function is defined (eg. after a forward_static_call(...))
          *
@@ -359,6 +393,22 @@ module.exports = require('pauser')([
             }
 
             return functionName;
+        },
+
+        /**
+         * Fetches a bound variable value for the current Closure (if any).
+         *
+         * @param {string} name
+         * @returns {Value}
+         */
+        getValueBinding: function (name) {
+            var scope = this;
+
+            if (!scope.currentFunction) {
+                throw new Exception('Scope.getValueBinding() :: No current function');
+            }
+
+            return scope.currentFunction.functionSpec.getValueBinding(name);
         },
 
         /**

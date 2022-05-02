@@ -25,6 +25,7 @@ var expect = require('chai').expect,
     ObjectValue = require('../../../src/Value/Object').sync(),
     Parameter = require('../../../src/Function/Parameter'),
     PHPError = phpCommon.PHPError,
+    ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
     TypeInterface = require('../../../src/Type/TypeInterface'),
     Translator = phpCommon.Translator,
     Variable = require('../../../src/Variable').sync();
@@ -381,6 +382,17 @@ describe('FunctionSpec', function () {
         });
     });
 
+    describe('getReferenceBinding()', function () {
+        it('should fetch the reference binding from the context', function () {
+            var referenceBinding = sinon.createStubInstance(ReferenceSlot);
+            context.getReferenceBinding
+                .withArgs('myRefBinding')
+                .returns(referenceBinding);
+
+            expect(spec.getReferenceBinding('myRefBinding')).to.equal(referenceBinding);
+        });
+    });
+
     describe('getRequiredParameterCount()', function () {
         it('should return the number of required parameters when there is a final optional one', function () {
             expect(spec.getRequiredParameterCount()).to.equal(1);
@@ -406,6 +418,17 @@ describe('FunctionSpec', function () {
                 .returns('myFunction');
 
             expect(spec.getUnprefixedFunctionName()).to.equal('myFunction');
+        });
+    });
+
+    describe('getValueBinding()', function () {
+        it('should fetch the value binding from the context', function () {
+            var valueBinding = valueFactory.createString('my value');
+            context.getValueBinding
+                .withArgs('myValueBinding')
+                .returns(valueBinding);
+
+            expect(spec.getValueBinding('myValueBinding')).to.equal(valueBinding);
         });
     });
 
