@@ -972,6 +972,17 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Determines whether this value is strictly equal
+         * to the provided resource value
+         *
+         * @param {ResourceValue} rightValue
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
+         */
+        isIdenticalToResource: function (rightValue) {
+            return this.isIdenticalTo(rightValue);
+        },
+
+        /**
          * Compares this value to another value, returning bool(true)
          * if this value is less than the other and false otherwise.
          *

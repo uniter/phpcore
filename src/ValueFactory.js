@@ -29,6 +29,7 @@ module.exports = require('pauser')([
     require('./Control/Pause'),
     require('./FFI/Value/PHPObject'),
     require('./Reference/Reference'),
+    require('./Value/Resource'),
     require('./Value/String'),
     require('./Value'),
     require('./FFI/Value/ValueStorage'),
@@ -53,6 +54,7 @@ module.exports = require('pauser')([
     Pause,
     PHPObject,
     Reference,
+    ResourceValue,
     StringValue,
     Value,
     ValueStorage,
@@ -118,11 +120,18 @@ module.exports = require('pauser')([
         this.futureFactory = null;
         /**
          * Used for generating a unique ID for the next ObjectValue that is created
-         * (shown in the output of var_dump(...), for example)
+         * (shown in the output of var_dump(...), for example).
          *
          * @type {number}
          */
         this.nextObjectID = 1;
+        /**
+         * Used for generating a unique ID for the next ResourceValue that is created
+         * (shown in the output of var_dump(...), for example).
+         *
+         * @type {number}
+         */
+        this.nextResourceID = 1;
         /**
          * @type {ErrorPromoter}
          */
@@ -802,6 +811,27 @@ module.exports = require('pauser')([
             return this.createFuture(function (resolve, reject) {
                 reject(error);
             });
+        },
+
+        /**
+         * Creates a ResourceValue for a given type and inner resource data object.
+         *
+         * @param {string} type
+         * @param {Object} resource
+         * @returns {ResourceValue}
+         */
+        createResource: function (type, resource) {
+            var factory = this;
+
+            return new ResourceValue(
+                factory,
+                factory.referenceFactory,
+                factory.futureFactory,
+                factory.callStack,
+                resource,
+                type,
+                factory.nextResourceID++
+            );
         },
 
         /**

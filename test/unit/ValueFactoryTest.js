@@ -739,6 +739,29 @@ describe('ValueFactory', function () {
         });
     });
 
+    describe('createResource()', function () {
+        it('should return a correctly constructed ResourceValue', function () {
+            var resource = {my: 'resource'},
+                value;
+
+            value = factory.createResource('my_resource_type', resource);
+
+            expect(value.getType()).to.equal('resource');
+            expect(value.getResource()).to.equal(resource);
+            expect(value.getResourceType()).to.equal('my_resource_type');
+            expect(value.getID()).to.equal(1);
+        });
+
+        it('should give each ResourceValue a unique ID', function () {
+            var value;
+            factory.createResource('my_resource_type', {my: 'first resource'});
+
+            value = factory.createResource('my_resource_type', {my: 'second resource'});
+
+            expect(value.getID()).to.equal(2);
+        });
+    });
+
     describe('createStdClassObject()', function () {
         it('should return an ObjectValue wrapping the created stdClass instance', function () {
             var value = sinon.createStubInstance(ObjectValue),

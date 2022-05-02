@@ -22,6 +22,8 @@ module.exports = {
             'cannot_access_when_no_active_class': 'Cannot access ${className}:: when no class scope is active',
             'cannot_convert_object': 'Object of class ${className} could not be converted to ${type}',
             'cannot_declare_class_as_name_already_in_use': 'Cannot declare class ${className} because the name is already in use',
+            'cannot_decrement': 'Cannot decrement ${type}',
+            'cannot_increment': 'Cannot increment ${type}',
             // NB: This translation is in fact different to the above, by a comma
             'cannot_redeclare_class_as_name_already_in_use': 'Cannot declare class ${className}, because the name is already in use',
             'cannot_implement_throwable': 'Class ${className} cannot implement interface Throwable, extend Exception or Error instead',
@@ -51,7 +53,8 @@ module.exports = {
             'undefined_method': 'Call to undefined method ${className}::${methodName}()',
             'undefined_property': 'Undefined property: ${className}::$${propertyName}',
             'unsupported_operand_types': 'Unsupported operand types',
-            'used_this_outside_object_context': 'Using $this when not in object context'
+            'used_this_outside_object_context': 'Using $this when not in object context',
+            'value_not_callable': 'Value of type ${type} is not callable'
         }
     }
 };

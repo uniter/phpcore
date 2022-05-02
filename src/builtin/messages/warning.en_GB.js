@@ -15,6 +15,9 @@
 module.exports = {
     'en_GB': {
         'core': {
+            'attempt_to_read_property': 'Attempt to read property "${name}" on ${type}',
+            'invalid_foreach_argument': 'foreach() argument must be of type array|object, ${type} given',
+            'trying_to_access_array_offset': 'Trying to access array offset on value of type ${type}'
         }
     }
 };
