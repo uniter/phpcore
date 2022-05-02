@@ -152,7 +152,7 @@ _.extend(SignatureParser.prototype, {
         while (remainingSignature.length > 0 && !/^\s*:/.test(remainingSignature)) {
             // TODO: Support non-empty array literals as default values.
             match = remainingSignature.match(
-                /^\s*(?:(\?)\s*)?([\w\\]+)\s*(?:(&)\s*)?\$(\w+)(?:\s*=\s*(?:(\d*\.\d+)|(\d+)|(true|false)|(null)|"((?:[^\\"]|\\[\s\S])*)"|\[()]))?\s*(?:,\s*)?/i
+                /^\s*(?:(\?)\s*)?([\w\\]+)\s*(?:(&)\s*)?\$(\w+)(?:\s*=\s*(?:(-?\d*\.\d+)|(-?\d+)|(true|false)|(null)|"((?:[^\\"]|\\[\s\S])*)"|\[()]))?\s*(?:,\s*)?/i
             );
 
             if (!match) {

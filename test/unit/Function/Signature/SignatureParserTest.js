@@ -60,7 +60,7 @@ describe('SignatureParser', function () {
         it('should be able to parse a single by-reference optional mixed parameter', function () {
             var defaultValue,
                 parameterSpecData,
-                signature = parser.parseSignature('mixed $myParam = 21');
+                signature = parser.parseSignature('mixed &$myParam = 21');
 
             expect(signature).to.be.an.instanceOf(Signature);
             expect(signature.getParameterCount()).to.equal(1);
@@ -68,7 +68,7 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
             expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.name).to.equal('myParam');
-            expect(parameterSpecData.ref).to.be.false;
+            expect(parameterSpecData.ref).to.be.true;
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('int');
             expect(defaultValue.getNative()).to.equal(21);
@@ -182,6 +182,23 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('int');
             expect(defaultValue.getNative()).to.equal(5678);
+        });
+
+        it('should be able to parse a single by-value optional default-negative-integer mixed parameter', function () {
+            var defaultValue,
+                parameterSpecData,
+                signature = parser.parseSignature('mixed $myParam = -5678');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(1);
+            parameterSpecData = signature.getParametersSpecData()[0];
+            expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
+            expect(parameterSpecData.nullable).to.be.true;
+            expect(parameterSpecData.name).to.equal('myParam');
+            expect(parameterSpecData.ref).to.be.false;
+            defaultValue = parameterSpecData.value();
+            expect(defaultValue.getType()).to.equal('int');
+            expect(defaultValue.getNative()).to.equal(-5678);
         });
 
         it('should be able to parse a single by-value optional nullable boolean scalar parameter', function () {
