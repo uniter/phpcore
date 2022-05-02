@@ -12,7 +12,7 @@
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
     Exception = phpCommon.Exception,
-    MAX_OPCODE_HANDLER_ARITY = 4;
+    MAX_OPCODE_HANDLER_ARITY = 5;
 
 /**
  * @param {ControlBridge} controlBridge
@@ -73,10 +73,10 @@ _.extend(OpcodeHandlerFactory.prototype, {
             );
         }
 
-        return function tracedOpcodeHandler(arg1, arg2, arg3, arg4) {
+        return function tracedOpcodeHandler(arg1, arg2, arg3, arg4, arg5) {
             var trace = wrapper.callStack.getCurrentTrace(),
                 // Note that this limit on arity must match MAX_OPCODE_HANDLER_ARITY.
-                args = [arg1, arg2, arg3, arg4],
+                args = [arg1, arg2, arg3, arg4, arg5],
                 // Note that Opcode objects are pooled to minimise GC pressure.
                 opcode = trace.fetchOpcode(opcodeFetcher, opcodeHandler, args),
                 resumeValue = opcode.resume(),

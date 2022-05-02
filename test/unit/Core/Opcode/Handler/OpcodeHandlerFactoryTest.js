@@ -76,7 +76,7 @@ describe('OpcodeHandlerFactory', function () {
                 .withArgs(
                     sinon.match.same(opcodeFetcher),
                     sinon.match.same(opcodeHandler),
-                    ['arg 1', 'arg 2', undefined, undefined]
+                    ['arg 1', 'arg 2', undefined, undefined, undefined]
                 )
                 .returns(opcode);
 
@@ -87,13 +87,13 @@ describe('OpcodeHandlerFactory', function () {
 
         it('should throw when the arity limit is exceeded', function () {
             /* jshint unused:false */
-            opcodeHandler = function (one, two, three, four, five) {};
+            opcodeHandler = function (one, two, three, four, five, six) {};
 
             expect(function () {
                 callCreate();
             }).to.throw(
                 Exception,
-                'Opcode handler arity of 5 exceeds max of 4'
+                'Opcode handler arity of 6 exceeds max of 5'
             );
         });
 
