@@ -23,6 +23,7 @@ module.exports = require('pauser')([
     require('./messages/misc.en_GB'),
     require('./messages/notice.en_GB'),
     require('./constants/reserved'),
+    require('./ini/resource'),
     require('./functions/spl'),
     require('./classes/stdClass'),
     require('./messages/warning.en_GB'),
@@ -54,6 +55,7 @@ module.exports = require('pauser')([
     miscellaneousMessages,
     noticeMessages,
     reservedConstants,
+    resourceDefaultINIOptions,
     splFunctions,
     stdClass,
     warningMessages,
@@ -99,7 +101,8 @@ module.exports = require('pauser')([
             splFunctions
         ],
         defaultINIGroups: [
-            errorHandlingDefaultINIOptions
+            errorHandlingDefaultINIOptions,
+            resourceDefaultINIOptions
         ],
         opcodeGroups: [
             calculationOpcodeGroup,
