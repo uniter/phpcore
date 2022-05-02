@@ -110,28 +110,35 @@ module.exports = require('pauser')([
          * Removes the given callable autoloader function from the SPL stack.
          *
          * @param {Value} autoloadCallableValue
-         * @returns {boolean}
+         * @returns {FutureValue<BooleanValue>|BooleanValue}
          */
         removeAutoloadCallable: function (autoloadCallableValue) {
-            var found = false,
-                splStack = this.splStack;
+            var autoloader = this,
+                found = false,
+                splStack = autoloader.splStack;
 
             if (!splStack) {
                 // SPL stack has not been enabled: nothing to do
-                return false;
+                return autoloader.valueFactory.createBoolean(false);
             }
 
-            _.each(splStack, function (existingAutoloadCallable, index) {
+            return autoloader.flow.eachAsync(splStack, function (existingAutoloadCallable, index) {
                 // Callables may be different value types or different objects,
-                // so compare using the *Value API
-                if (existingAutoloadCallable.isEqualTo(autoloadCallableValue).getNative()) {
-                    found = true;
-                    splStack.splice(index, 1);
-                    return false;
-                }
-            });
-
-            return found;
+                // so compare using the *Value API.
+                return existingAutoloadCallable.isEqualTo(autoloadCallableValue)
+                    .asEventualNative()
+                    .next(function (isEqual) {
+                        if (isEqual) {
+                            found = true;
+                            splStack.splice(index, 1);
+                            return false;
+                        }
+                    });
+            })
+                .next(function () {
+                    return found;
+                })
+                .asValue();
         },
 
         /**

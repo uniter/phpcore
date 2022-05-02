@@ -133,7 +133,7 @@ describe('ClassAutoloader', function () {
             classAutoloader.appendAutoloadCallable(firstAutoloadCallableValue);
             classAutoloader.appendAutoloadCallable(secondAutoloadCallableValue);
 
-            classAutoloader.removeAutoloadCallable(firstAutoloadCallableValue);
+            await classAutoloader.removeAutoloadCallable(firstAutoloadCallableValue);
             await classAutoloader.autoloadClass('My\\Stuff\\MyClass').toPromise();
 
             expect(firstAutoloadCallableValue.call).not.to.have.been.called;

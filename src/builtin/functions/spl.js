@@ -15,8 +15,7 @@ module.exports = require('pauser')([
     Variable
 ) {
     return function (internals) {
-        var classAutoloader = internals.classAutoloader,
-            valueFactory = internals.valueFactory;
+        var classAutoloader = internals.classAutoloader;
 
         return {
             'spl_autoload_register': function (callableReference) {
@@ -29,9 +28,7 @@ module.exports = require('pauser')([
                 var isReference = (callableReference instanceof Variable),
                     callableValue = isReference ? callableReference.getValue() : callableReference;
 
-                return valueFactory.createBoolean(
-                    classAutoloader.removeAutoloadCallable(callableValue)
-                );
+                return classAutoloader.removeAutoloadCallable(callableValue);
             }
         };
     };
