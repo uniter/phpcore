@@ -469,6 +469,17 @@ describe('FFI Internals', function () {
         });
     });
 
+    describe('getService()', function () {
+        it('should fetch the specified service from the state', function () {
+            var myService = {my: 'service'};
+            state.getService
+                .withArgs('my_service')
+                .returns(myService);
+
+            expect(internals.getService('my_service')).to.equal(myService);
+        });
+    });
+
     describe('implyArray()', function () {
         var reference;
 

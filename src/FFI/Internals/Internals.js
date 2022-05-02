@@ -392,6 +392,16 @@ _.extend(Internals.prototype, {
     },
 
     /**
+     * Fetches a defined service by its ID.
+     *
+     * @param {string} id
+     * @returns {*}
+     */
+    getService: function (id) {
+        return this.state.getService(id);
+    },
+
+    /**
      * Implicitly converts undefined variables/references and those containing null to arrays.
      *
      * @param {Reference|Value|Variable} arrayReference
