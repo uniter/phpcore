@@ -47,7 +47,7 @@ module.exports = function (internals) {
          * Used by transpiled logical AND and OR expressions to implement short-circuiting.
          *
          * @param {Reference|Value|Variable} reference
-         * @returns {Future<boolean>|boolean}
+         * @returns {Future<boolean>}
          */
         logicalTerm: function (reference) {
             return reference.getValue().coerceToBoolean().asEventualNative();
@@ -57,7 +57,7 @@ module.exports = function (internals) {
          * Handles the condition expression of a ternary, evaluating and coercing it to a native boolean.
          *
          * @param {Reference|Value|Variable} conditionReference
-         * @returns {Future<boolean>|boolean}
+         * @returns {Future<boolean>}
          */
         ternary: function (conditionReference) {
             return conditionReference.getValue().coerceToBoolean().asEventualNative();

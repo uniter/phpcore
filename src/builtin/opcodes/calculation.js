@@ -1017,7 +1017,7 @@ module.exports = function (internals) {
          *
          * @param {Reference|Value|Variable} leftReference
          * @param {Reference|Value|Variable} rightReference
-         * @returns {BooleanValue}
+         * @returns {BooleanValue|FutureValue<BooleanValue>}
          */
         isEqual: function (leftReference, rightReference) {
             return leftReference.getValue().isEqualTo(rightReference.getValue());
