@@ -15,7 +15,6 @@ var _ = require('microdash');
  * @param {class} CalculationOpcode
  * @param {class} ControlExpressionOpcode
  * @param {class} ControlStructureOpcode
- * @param {class} IsolatedOpcode
  * @param {class} LoopStructureOpcode
  * @param {class} UntracedOpcode
  * @constructor
@@ -24,7 +23,6 @@ function OpcodeFactory(
     CalculationOpcode,
     ControlExpressionOpcode,
     ControlStructureOpcode,
-    IsolatedOpcode,
     LoopStructureOpcode,
     UntracedOpcode
 ) {
@@ -40,10 +38,6 @@ function OpcodeFactory(
      * @type {class}
      */
     this.ControlStructureOpcode = ControlStructureOpcode;
-    /**
-     * @type {class}
-     */
-    this.IsolatedOpcode = IsolatedOpcode;
     /**
      * @type {class}
      */
@@ -94,15 +88,6 @@ _.extend(OpcodeFactory.prototype, {
         var factory = this;
 
         return new factory.ControlStructureOpcode(trace, opIndex, handler, args);
-    },
-
-    /**
-     * Creates a new IsolatedOpcode
-     *
-     * @returns {IsolatedOpcode}
-     */
-    createIsolatedOpcode: function () {
-        return new this.IsolatedOpcode();
     },
 
     /**

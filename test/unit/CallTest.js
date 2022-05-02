@@ -181,6 +181,22 @@ describe('Call', function () {
         });
     });
 
+    describe('setTrace()', function () {
+        it('should set the Trace of this call to the provided one', function () {
+            var newTrace = sinon.createStubInstance(Trace);
+
+            call.setTrace(newTrace);
+
+            expect(call.getTrace()).to.equal(newTrace);
+        });
+
+        it('should return the original Trace', function () {
+            var newTrace = sinon.createStubInstance(Trace);
+
+            expect( call.setTrace(newTrace)).to.equal(trace);
+        });
+    });
+
     describe('throwInto()', function () {
         it('should throw into this call\'s trace with the given result error', function () {
             var error = new Error('My error');

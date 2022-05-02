@@ -179,4 +179,80 @@ EOS
             'modified prop': 'new value'
         });
     });
+
+    it('should support pauses in a userland __construct() method called from another', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+class FirstClass
+{
+    public $firstProp;
+
+    public function __construct()
+    {
+        $this->firstProp = new SecondClass;
+    }
+}
+
+class SecondClass
+{
+    public $secondProp = 'original value in SecondClass';
+
+    public function __construct()
+    {
+        $this->secondProp = get_async('new value in SecondClass');
+    }
+}
+
+$myObject = new FirstClass;
+
+$result['prop from SecondClass via FirstClass'] = $myObject->firstProp->secondProp;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineCoercingFunction('get_async', function (value) {
+            return this.createAsyncPresentValue(value);
+        });
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'prop from SecondClass via FirstClass': 'new value in SecondClass'
+        });
+    });
+
+    it('should support default parameter values being used for non-provided arguments', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+class MyClass
+{
+    public $myProp = 'original value';
+
+    public function __construct($myString = 'new value')
+    {
+        $this->myProp = get_async($myString);
+    }
+}
+
+$myObject = new MyClass;
+
+$result['prop from MyClass'] = $myObject->myProp;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineCoercingFunction('get_async', function (value) {
+            return this.createAsyncPresentValue(value);
+        });
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'prop from MyClass': 'new value'
+        });
+    });
 });

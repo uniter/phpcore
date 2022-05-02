@@ -93,18 +93,6 @@ _.extend(OpcodePool.prototype, {
     },
 
     /**
-     * Creates a new IsolatedOpcode.
-     *
-     * TODO: Investigate and pool these if needed.
-     *
-     * @returns {IsolatedOpcode}
-     */
-    provideIsolatedOpcode: function () {
-        // TODO: Always return the same single instance of this class?
-        return this.opcodeFactory.createIsolatedOpcode();
-    },
-
-    /**
      * Creates a new LoopStructureOpcode.
      *
      * TODO: Investigate and pool these if needed.

@@ -491,7 +491,7 @@ module.exports = require('pauser')([
             )),
             callStack = get('call_stack'),
             pauseFactory = new PauseFactory(Pause, callStack, controlScope, mode),
-            userland = new Userland(callStack, controlBridge, controlScope, valueFactory, opcodePool, mode),
+            userland = new Userland(callStack, controlFactory, controlBridge, controlScope, valueFactory, opcodePool, mode),
             futureFactory = set('future_factory', new FutureFactory(
                 pauseFactory,
                 valueFactory,

@@ -70,6 +70,68 @@ EOS
         });
     });
 
+    it('should correctly handle a constant expression with multiple asynchronously autoloaded classes as default argument value', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace Our\Stuff
+{
+    spl_autoload_register(function ($className) {
+        // Note that the asynchronous call here will cause a pause to occur during autoloading
+        switch (get_async($className)) {
+            case 'Our\Stuff\MyClass':
+                class MyClass
+                {
+                    const MY_CONST = 21;
+                }
+                break;
+            case 'Our\Stuff\YourClass':
+                class YourClass
+                {
+                    const YOUR_CONST = 10;
+                }
+                break;
+            default:
+                throw new \Exception('Unexpected class: "' . $className . '"');
+        }
+    });
+
+    function myFunc($myVar = MyClass::MY_CONST + YourClass::YOUR_CONST) {
+        return $myVar;
+    }
+}
+
+namespace
+{
+    $result = [];
+
+    $result['with arg omitted'] = Our\Stuff\myFunc();
+
+    return $result;
+}
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineFunction('get_async', function (internals) {
+            return function (value) {
+                return internals.createFutureValue(function (resolve) {
+                    setImmediate(function () {
+                        resolve(value);
+                    });
+                });
+            };
+        });
+
+        return engine.execute().then(function (resultValue) {
+            expect(resultValue.getNative()).to.deep.equal({
+                'with arg omitted': 31
+            });
+            expect(engine.getStderr().readAll()).to.equal('');
+            expect(engine.getStdout().readAll()).to.equal('');
+        });
+    });
+
     it('should correctly handle an undefined constant being used as a default argument value', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

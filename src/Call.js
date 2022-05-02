@@ -210,6 +210,21 @@ _.extend(Call.prototype, {
     },
 
     /**
+     * Overrides the Trace for this call. Returns the original Trace.
+     *
+     * @param {Trace} trace
+     * @returns {Trace}
+     */
+    setTrace: function (trace) {
+        var call = this,
+            originalTrace = call.trace;
+
+        call.trace = trace;
+
+        return originalTrace;
+    },
+
+    /**
      * Determines whether all errors should be suppressed for this call
      *
      * @returns {boolean}

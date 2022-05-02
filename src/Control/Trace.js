@@ -222,7 +222,9 @@ _.extend(Trace.prototype, {
 
         trace.currentOpcode.release(trace.opcodePool);
 
-        trace.currentOpcode = trace.opcodeStack.pop();
+        trace.currentOpcode = trace.opcodeStack.length > 0 ?
+            trace.opcodeStack.pop() :
+            null; // Use null rather than undefined when there is no current opcode.
     },
 
     resume: function (resumeValue) {

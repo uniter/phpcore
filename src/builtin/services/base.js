@@ -24,7 +24,6 @@ var phpCommon = require('phpcommon'),
     FFICall = require('../../FFI/Call'),
     Future = require('../../Control/Future'),
     FutureValue = require('../../Value/Future'),
-    IsolatedOpcode = require('../../Core/Opcode/Opcode/IsolatedOpcode'),
     LoopStructureOpcode = require('../../Core/Opcode/Opcode/LoopStructureOpcode'),
     LoopStructureOpcodeFetcher = require('../../Core/Opcode/Fetcher/LoopStructureOpcodeFetcher'),
     MethodPromoter = require('../../Class/MethodPromoter'),
@@ -127,7 +126,6 @@ module.exports = function (internals) {
                 CalculationOpcode,
                 ControlExpressionOpcode,
                 ControlStructureOpcode,
-                IsolatedOpcode,
                 LoopStructureOpcode,
                 UntracedOpcode
             );

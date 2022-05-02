@@ -17,6 +17,7 @@ var _ = require('microdash'),
 
 /**
  * @param {CallStack} callStack
+ * @param {ControlFactory} controlFactory
  * @param {ControlBridge} controlBridge
  * @param {ControlScope} controlScope
  * @param {ValueFactory} valueFactory
@@ -26,6 +27,7 @@ var _ = require('microdash'),
  */
 function Userland(
     callStack,
+    controlFactory,
     controlBridge,
     controlScope,
     valueFactory,
@@ -40,6 +42,10 @@ function Userland(
      * @type {ControlBridge}
      */
     this.controlBridge = controlBridge;
+    /**
+     * @type {ControlFactory}
+     */
+    this.controlFactory = controlFactory;
     /**
      * @type {ControlScope}
      */
@@ -187,18 +193,52 @@ _.extend(Userland.prototype, {
      */
     enterIsolated: function (executor, namespaceScope) {
         var userland = this,
-            trace = userland.callStack.getCurrentTrace(),
-            isolatedOpcode = userland.opcodePool.provideIsolatedOpcode();
+            call = userland.callStack.getCurrent(),
+            isolatedTrace = userland.controlFactory.createTrace(),
+            originalTrace;
 
         if (namespaceScope) {
             namespaceScope.enter();
         }
 
-        trace.enterOpcode(isolatedOpcode);
+        originalTrace = call.setTrace(isolatedTrace);
 
-        return userland.valueFactory.maybeFuturise(executor)
+        function doCall() {
+            return userland.valueFactory.maybeFuturise(
+                executor,
+                function (pause) {
+                    pause.next(
+                        function (/* result */) {
+                            /*
+                             * Note that the result passed here for the opcode we are about to resume
+                             * by re-calling the userland function has already been provided (see Pause),
+                             * so the result argument passed to this callback may be ignored.
+                             *
+                             * If the pause resulted in an error, then we also want to re-call
+                             * the function in order to resume with a throwInto at the correct opcode
+                             * (see catch handler below).
+                             */
+                            return doCall();
+                        },
+                        function (/* error */) {
+                            /*
+                             * Note that the error passed here for the opcode we are about to throwInto
+                             * by re-calling the userland function has already been provided (see Pause),
+                             * so the error argument passed to this callback may be ignored.
+                             *
+                             * Similar to the above, we want to re-call the function in order to resume
+                             * with a throwInto at the correct opcode.
+                             */
+                            return doCall();
+                        }
+                    );
+                }
+            );
+        }
+
+        return doCall()
             .finally(function () {
-                trace.leaveOpcode(isolatedOpcode);
+                call.setTrace(originalTrace);
 
                 if (namespaceScope) {
                     namespaceScope.leave();
