@@ -49,6 +49,7 @@ module.exports = require('pauser')([
     require('./FFI/Value/Proxy/ProxyFactory'),
     require('./FFI/Value/Proxy/ProxyMemberFactory'),
     require('./FFI/Result'),
+    require('./FFI/Value/ResultValue'),
     require('./FFI/Stack/StackHooker'),
     require('./FFI/Export/UnwrapperRepository'),
     require('./FFI/Call/ValueCaller'),
@@ -148,6 +149,7 @@ module.exports = require('pauser')([
     FFIProxyFactory,
     FFIProxyMemberFactory,
     FFIResult,
+    FFIResultValue,
     FFIStackHooker,
     FFIUnwrapperRepository,
     FFIValueCaller,
@@ -528,6 +530,7 @@ module.exports = require('pauser')([
             ffiFactory = set('ffi_factory', new FFIFactory(
                 FFIAsyncObjectValue,
                 FFIPHPObject,
+                FFIResultValue,
                 FFIValueCoercer,
                 valueFactory,
                 referenceFactory,

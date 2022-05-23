@@ -455,7 +455,7 @@ describe('FutureValue', function () {
 
     describe('getNative()', function () {
         it('should throw even when the future is already resolved', function () {
-            createValue(futureFactory.createAsyncPresent(factory.createString('my result')));
+            createValue(futureFactory.createPresent(factory.createString('my result')));
 
             expect(function () {
                 value.getNative();
@@ -505,7 +505,7 @@ describe('FutureValue', function () {
 
     describe('getType()', function () {
         it('should return "future" even when the future is already resolved', function () {
-            createValue(futureFactory.createAsyncPresent(factory.createString('my result')));
+            createValue(futureFactory.createPresent(factory.createString('my result')));
 
             expect(value.getType()).to.equal('future');
         });

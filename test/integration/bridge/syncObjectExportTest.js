@@ -223,7 +223,7 @@ EOS
             resultValue = phpEngine.execute();
 
         expect(resultValue.getType()).to.equal('object');
-        expect(resultValue.getClassName()).to.equal('MyClass');
+        expect(resultValue.getInternalValue().getClassName()).to.equal('MyClass');
         // Deliberately unwrap the object twice
         expect(resultValue.getNative()).to.equal(resultValue.getNative());
     });

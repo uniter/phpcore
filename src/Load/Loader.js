@@ -13,14 +13,12 @@ module.exports = require('pauser')([
     require('microdash'),
     require('path'),
     require('phpcommon'),
-    require('../Value/Exit'),
     require('../Exception/LoadFailedException'),
     require('../Value')
 ], function (
     _,
     path,
     phpCommon,
-    ExitValue,
     LoadFailedException,
     Value
 ) {
@@ -89,7 +87,7 @@ module.exports = require('pauser')([
                 function succeedWith(moduleResult) {
                     done = true;
 
-                    if (moduleResult instanceof ExitValue) {
+                    if (moduleResult.getType() === 'exit') {
                         // When including a module, Engine.js will have resolved with an ExitValue
                         // rather than rejecting with it
                         failWith(moduleResult);

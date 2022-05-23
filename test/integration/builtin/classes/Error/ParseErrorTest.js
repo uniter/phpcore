@@ -41,7 +41,7 @@ EOS
         resultValue = engine.execute();
 
         expect(resultValue.getType()).to.equal('object');
-        expect(resultValue.getClassName()).to.equal('ParseError');
+        expect(resultValue.getInternalValue().getClassName()).to.equal('ParseError');
         resultNativeError = resultValue.getNative();
         // Note that this coercion is defined by a custom unwrapper in src/builtin/classes/Error/ParseError.js
         expect(resultNativeError).to.be.an.instanceOf(PHPParseError);

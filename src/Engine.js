@@ -210,18 +210,17 @@ _.extend(Engine.prototype, {
             options = engine.options,
             path = options[PATH],
             isMainProgram = engine.topLevelScope === null,
-            output,
             phpCommon = engine.phpCommon,
             PHPError = phpCommon.PHPError,
             PHPParseError = phpCommon.PHPParseError,
             resultValue,
             scopeFactory,
             state,
-            valueFactory,
             wrapper = engine.wrapper,
             userland,
             topLevelNamespaceScope,
-            topLevelScope;
+            topLevelScope,
+            valueProvider;
 
         state = environment.getState();
         callFactory = state.getCallFactory();
@@ -232,9 +231,8 @@ _.extend(Engine.prototype, {
         globalNamespace = state.getGlobalNamespace();
         callStack = state.getCallStack();
         globalScope = state.getGlobalScope();
-        output = state.getOutput();
         userland = state.getUserland();
-        valueFactory = state.getValueFactory();
+        valueProvider = state.getValueProvider();
         // Use the provided top-level scope if specified, otherwise use the global scope
         // (used eg. when an `include(...)` is used inside a function)
         topLevelScope = engine.topLevelScope || globalScope;
@@ -342,6 +340,18 @@ _.extend(Engine.prototype, {
             return wrapper(core);
         }
 
+        /**
+         * Wraps the main program's result in a public FFI ResultValue.
+         *
+         * @param {Value} internalResultValue
+         * @returns {ResultValue|Value}
+         */
+        function createResultValue(internalResultValue) {
+            return isMainProgram ?
+                valueProvider.createResultValue(internalResultValue) :
+                internalResultValue;
+        }
+
         // Asynchronous mode
         if (mode === 'async') {
             return new Promise(function (resolve, reject) {
@@ -352,7 +362,8 @@ _.extend(Engine.prototype, {
                         // regardless of whether an error occurred
                         callStack.pop();
 
-                        resolve(resultValue);
+                        createResultValue(resultValue)
+                            .next(resolve, reject);
                     })
                     .catch(function (error) {
                         var result;
@@ -364,7 +375,8 @@ _.extend(Engine.prototype, {
                         result = handleError(error, reject);
 
                         if (result) {
-                            resolve(result);
+                            createResultValue(result)
+                                .next(resolve, reject);
                         }
                     });
             });
@@ -374,7 +386,8 @@ _.extend(Engine.prototype, {
         // TODO: Improve Userland for sync behavior to avoid branching here?
         try {
             try {
-                resultValue = userland.enterTopLevel(topLevel);
+                resultValue = createResultValue(userland.enterTopLevel(topLevel))
+                    .yieldSync();
 
                 return mode === 'psync' && isMainProgram ?
                     // Promise-sync mode - return a promise resolved with the result
@@ -399,7 +412,10 @@ _.extend(Engine.prototype, {
 
                     // Otherwise if it was a special ExitValue, resolve with it
                     if (resultValue) {
-                        resolve(resultValue);
+                        resolve(
+                            createResultValue(resultValue)
+                                .yieldSync()
+                        );
                     }
                 });
             }

@@ -14,6 +14,7 @@ var _ = require('microdash');
 /**
  * @param {class} AsyncObjectValue
  * @param {class} PHPObject
+ * @param {class} ResultValue
  * @param {class} ValueCoercer
  * @param {ValueFactory} valueFactory
  * @param {ReferenceFactory} referenceFactory
@@ -27,6 +28,7 @@ var _ = require('microdash');
 function FFIFactory(
     AsyncObjectValue,
     PHPObject,
+    ResultValue,
     ValueCoercer,
     valueFactory,
     referenceFactory,
@@ -68,6 +70,10 @@ function FFIFactory(
      * @type {ReferenceFactory}
      */
     this.referenceFactory = referenceFactory;
+    /**
+     * @type {ResultValue}
+     */
+    this.ResultValue = ResultValue;
     /**
      * @type {ValueCaller}
      */
@@ -114,6 +120,19 @@ _.extend(FFIFactory.prototype, {
         var factory = this;
 
         return new factory.PHPObject(factory.valueFactory, factory.nativeCaller, objectValue);
+    },
+
+    /**
+     * Creates a ResultValue, which wraps an internal Value with its native value already resolved.
+     *
+     * @param {Value} internalValue
+     * @param {*} nativeValue
+     * @returns {ResultValue}
+     */
+    createResultValue: function (internalValue, nativeValue) {
+        var factory = this;
+
+        return new factory.ResultValue(internalValue, nativeValue);
     },
 
     /**

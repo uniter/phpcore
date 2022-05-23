@@ -18,9 +18,6 @@ var _ = require('microdash'),
  * a result that may be fetched asynchronously to be used in async mode
  * while also providing a way to fetch it synchronously in sync mode.
  *
- * TODO: Consider getting rid of this class and just creating & returning a FutureValue
- *       directly from PHPState.createFFIResult()?
- *
  * @param {Function} syncCallback
  * @param {Function=} asyncCallback
  * @param {ValueFactory} valueFactory

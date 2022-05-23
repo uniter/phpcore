@@ -13,10 +13,15 @@ var _ = require('microdash');
 
 /**
  * @param {ValueFactory} valueFactory
+ * @param {FFIFactory} ffiFactory
  * @param {Flow} flow
  * @constructor
  */
-function ValueProvider(valueFactory, flow) {
+function ValueProvider(valueFactory, ffiFactory, flow) {
+    /**
+     * @type {FFIFactory}
+     */
+    this.ffiFactory = ffiFactory;
     /**
      * @type {Flow}
      */
@@ -42,9 +47,13 @@ _.extend(ValueProvider.prototype, {
         return provider.flow
             .mapAsync(elements || [], function (element) {
                 /*
-                 * Note that for KeyReferencePair, KeyValuePair and ReferenceSlot
-                 * the element will be returned unchanged. For all other types
-                 * its value will be extracted - if this is a FutureValue then it will be awaited by Flow.
+                 * Note that for KeyReferencePair and KeyValuePair
+                 * the element will be returned unchanged.
+                 *
+                 * ReferenceSlots will be wrapped in a ReferenceElement.
+                 *
+                 * For all other types its value will be extracted -
+                 * if this is a FutureValue then it will be awaited by Flow.
                  */
                 return element.asArrayElement();
             })
@@ -52,6 +61,21 @@ _.extend(ValueProvider.prototype, {
                 return provider.valueFactory.createArray(presentElements);
             })
             .asValue();
+    },
+
+    /**
+     * Creates an FFI ResultValue for the given internal Value.
+     *
+     * @param {Value} internalValue
+     * @returns {Future<ResultValue>}
+     */
+    createResultValue: function (internalValue) {
+        var provider = this;
+
+        return internalValue.asEventualNative()
+            .next(function (nativeValue) {
+                return provider.ffiFactory.createResultValue(internalValue, nativeValue);
+            });
     }
 });
 

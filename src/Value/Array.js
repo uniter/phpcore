@@ -18,6 +18,7 @@ module.exports = require('pauser')([
     require('../KeyValuePair'),
     require('../Reference/Null'),
     require('../Reference/Reference'),
+    require('../Element/ReferenceElement'),
     require('../Reference/ReferenceSlot'),
     require('../Value'),
     require('../Variable')
@@ -30,6 +31,7 @@ module.exports = require('pauser')([
     KeyValuePair,
     NullReference,
     Reference,
+    ReferenceElement,
     ReferenceSlot,
     Value,
     Variable
@@ -102,12 +104,12 @@ module.exports = require('pauser')([
                     key = factory.createFromNative(key);
                 }
 
-                if (orderedElement instanceof ReferenceSlot) {
+                if (orderedElement instanceof ReferenceElement) {
                     // A reference was explicitly provided: the resulting array element
                     // should be a reference.
-                    elementReference = orderedElement;
+                    elementReference = orderedElement.getReference();
                 } else if (orderedElement instanceof Reference || orderedElement instanceof Variable) {
-                    throw new Exception('Unwrapped elements should be ReferenceSlots or Values');
+                    throw new Exception('Unwrapped elements should be ReferenceElements or Values');
                 } else {
                     // Otherwise, value is either native or already a Value object: coerce to Value.
                     elementValue = factory.coerce(orderedElement);
@@ -176,6 +178,38 @@ module.exports = require('pauser')([
                     return resultArray;
                 })
                 .asValue();
+        },
+
+        /**
+         * Exports a wrapped PHP indexed array to a native array, or
+         * an associative array to a plain JS object, wrapped as a Future.
+         *
+         * @returns {Future<Array|object>}
+         */
+        asEventualNative: function () {
+            var hasNonNumericKey = false,
+                result,
+                value = this;
+
+            return value.flow
+                .eachAsync(value.value, function (element) {
+                    // Treat string keys that have a numeric value as numeric
+                    if (!isFinite(element.getKey().getNative())) {
+                        hasNonNumericKey = true;
+                    }
+                })
+                .next(function () {
+                    result = hasNonNumericKey ? {} : [];
+
+                    return value.flow.eachAsync(value.value, function (element) {
+                        return element.getValue().next(function (presentValue) {
+                            result[element.getKey().getNative()] = presentValue.getNative();
+                        });
+                    });
+                })
+                .next(function () {
+                    return result;
+                });
         },
 
         /**
@@ -420,29 +454,14 @@ module.exports = require('pauser')([
 
         /**
          * Exports a wrapped PHP indexed array to a native array, or
-         * an associative array to a plain JS object
+         * an associative array to a plain JS object.
          *
          * @returns {Array|object}
          */
         getNative: function () {
-            var hasNonNumericKey = false,
-                result = [],
-                value = this;
-
-            _.each(value.value, function (element) {
-                // Treat string keys that have a numeric value as numeric
-                if (!isFinite(element.getKey().getNative())) {
-                    hasNonNumericKey = true;
-                }
-            });
-
-            result = hasNonNumericKey ? {} : [];
-
-            _.each(value.value, function (element) {
-                result[element.getKey().getNative()] = element.getValue().getNative();
-            });
-
-            return result;
+            // Note that if this value contains any references that return Future(Values),
+            // an error will be raised.
+            return this.asEventualNative().yieldSync();
         },
 
         /**

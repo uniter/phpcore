@@ -30,8 +30,16 @@ describe('ReferenceSlot', function () {
     });
 
     describe('asArrayElement()', function () {
-        it('should return the ReferenceSlot itself', function () {
-            expect(reference.asArrayElement()).to.equal(reference);
+        it('should return the value of the slot for assignment', function () {
+            var result,
+                resultValue = sinon.createStubInstance(Value);
+            resultValue.getForAssignment.returns(valueFactory.createString('my value for assignment'));
+            reference.setValue(resultValue);
+
+            result = reference.asArrayElement();
+
+            expect(result.getType()).to.equal('string');
+            expect(result.getNative()).to.equal('my value for assignment');
         });
     });
 

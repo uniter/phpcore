@@ -16,6 +16,7 @@ var expect = require('chai').expect,
     FFIFactory = require('../../../src/FFI/FFIFactory'),
     NativeCaller = require('../../../src/FFI/Call/NativeCaller').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
+    Value = require('../../../src/Value').sync(),
     ValueCaller = require('../../../src/FFI/Call/ValueCaller').sync();
 
 describe('FFIFactory', function () {
@@ -27,6 +28,7 @@ describe('FFIFactory', function () {
         nativeCaller,
         PHPObject,
         referenceFactory,
+        ResultValue,
         state,
         valueCaller,
         ValueCoercer,
@@ -43,6 +45,7 @@ describe('FFIFactory', function () {
         nativeCaller = sinon.createStubInstance(NativeCaller);
         PHPObject = sinon.stub();
         referenceFactory = state.getReferenceFactory();
+        ResultValue = sinon.stub();
         valueCaller = sinon.createStubInstance(ValueCaller);
         ValueCoercer = sinon.stub();
         valueFactory = state.getValueFactory();
@@ -50,6 +53,7 @@ describe('FFIFactory', function () {
         factory = new FFIFactory(
             AsyncObjectValue,
             PHPObject,
+            ResultValue,
             ValueCoercer,
             valueFactory,
             referenceFactory,
@@ -107,6 +111,31 @@ describe('FFIFactory', function () {
             PHPObject.returns(phpObject);
 
             expect(factory.createPHPObject(objectValue)).to.equal(phpObject);
+        });
+    });
+
+    describe('createResultValue()', function () {
+        var internalValue;
+
+        beforeEach(function () {
+            internalValue = sinon.createStubInstance(Value);
+        });
+
+        it('should correctly construct the new ResultValue instance', function () {
+            factory.createResultValue(internalValue, 'my native value');
+
+            expect(ResultValue).to.have.been.calledOnce;
+            expect(ResultValue).to.have.been.calledWith(
+                sinon.match.same(internalValue),
+                'my native value'
+            );
+        });
+
+        it('should return the created ResultValue instance', function () {
+            var resultValue = sinon.createStubInstance(ResultValue);
+            ResultValue.returns(resultValue);
+
+            expect(factory.createResultValue(internalValue, 'my native value')).to.equal(resultValue);
         });
     });
 

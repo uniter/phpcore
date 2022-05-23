@@ -29,6 +29,7 @@ var expect = require('chai').expect,
     ObjectValue = require('../../../src/Value/Object').sync(),
     PropertyReference = require('../../../src/Reference/Property'),
     Reference = require('../../../src/Reference/Reference'),
+    ReferenceElement = require('../../../src/Element/ReferenceElement'),
     StringValue = require('../../../src/Value/String').sync(),
     Value = require('../../../src/Value').sync(),
     Variable = require('../../../src/Variable').sync();
@@ -128,16 +129,35 @@ describe('Array', function () {
                 'secondEl': 'value of second el'
             });
         });
+
+        it('should resolve any elements that have references set to values', async function () {
+            var result;
+            elements.push(
+                createKeyReferencePair(
+                    factory.createString('my_key'),
+                    factory.createAsyncPresent('my value')
+                )
+            );
+            createValue();
+
+            result = await value.asEventualNative().toPromise();
+
+            expect(result).to.deep.equal({
+                'firstEl': 'value of first el',
+                'secondEl': 'value of second el',
+                'my_key': 'my value'
+            });
+        });
     });
 
     describe('constructor()', function () {
-        it('should throw when a non-ReferenceSlot reference is given as an ordered element', function () {
+        it('should throw when a non-ReferenceElement is given as an ordered element', function () {
             var reference = sinon.createStubInstance(Reference);
             elements.push(reference);
 
             expect(function () {
                 createValue();
-            }).to.throw(Exception, 'Unwrapped elements should be ReferenceSlots or Values');
+            }).to.throw(Exception, 'Unwrapped elements should be ReferenceElements or Values');
         });
 
         it('should throw when a Variable is given as an ordered element', function () {
@@ -146,7 +166,54 @@ describe('Array', function () {
 
             expect(function () {
                 createValue();
-            }).to.throw(Exception, 'Unwrapped elements should be ReferenceSlots or Values');
+            }).to.throw(Exception, 'Unwrapped elements should be ReferenceElements or Values');
+        });
+
+        describe('when created with ReferenceElements', function () {
+            it('should correctly load them as ordered elements', function () {
+                var reference = sinon.createStubInstance(Reference),
+                    referenceElement = sinon.createStubInstance(ReferenceElement);
+                reference.getValue.returns(factory.createString('my value'));
+                referenceElement.getReference.returns(reference);
+                elements.push(referenceElement);
+                createValue();
+
+                expect(value.getLength()).to.equal(3);
+                expect(value.getElementByIndex(0).getKey().getNative()).to.equal('firstEl');
+                expect(value.getElementByIndex(0).getValue().getNative()).to.equal('value of first el');
+                expect(value.getElementByIndex(1).getKey().getNative()).to.equal('secondEl');
+                expect(value.getElementByIndex(1).getValue().getNative()).to.equal('value of second el');
+                expect(value.getElementByIndex(2).getKey().getNative()).to.equal(0);
+                expect(value.getElementByIndex(2).getValue().getNative()).to.equal('my value');
+            });
+        });
+
+        describe('when created with a KeyReferencePair used for an element', function () {
+            var element3,
+                element3Reference;
+
+            beforeEach(function () {
+                element3Reference = sinon.createStubInstance(Reference);
+                element3Reference.getValue.returns(factory.createInteger(21));
+                element3 = createKeyReferencePair(
+                    factory.createString('thirdEl'),
+                    element3Reference
+                );
+            });
+
+            it('should set the reference for the element', function () {
+                value = new ArrayValue(
+                    factory,
+                    referenceFactory,
+                    futureFactory,
+                    callStack,
+                    flow,
+                    [element1, element2, element3],
+                    elementProvider
+                );
+
+                expect(value.getElementByIndex(2).getValue().getNative()).to.equal(21);
+            });
         });
     });
 
@@ -1509,34 +1576,6 @@ describe('Array', function () {
             }).to.throw(
                 'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
             );
-        });
-    });
-
-    describe('when created with a reference used for an element', function () {
-        var element3,
-            element3Reference;
-
-        beforeEach(function () {
-            element3Reference = sinon.createStubInstance(Reference);
-            element3Reference.getValue.returns(factory.createInteger(21));
-            element3 = createKeyReferencePair(
-                factory.createString('thirdEl'),
-                element3Reference
-            );
-        });
-
-        it('should set the reference for the element', function () {
-            value = new ArrayValue(
-                factory,
-                referenceFactory,
-                futureFactory,
-                callStack,
-                flow,
-                [element1, element2, element3],
-                elementProvider
-            );
-
-            expect(value.getElementByIndex(2).getValue().getNative()).to.equal(21);
         });
     });
 });

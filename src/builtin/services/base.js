@@ -179,6 +179,7 @@ module.exports = function (internals) {
         'value_provider': function () {
             return new ValueProvider(
                 get(VALUE_FACTORY),
+                get(FFI_FACTORY),
                 get(FLOW)
             );
         }
