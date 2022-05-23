@@ -35,7 +35,7 @@ EOS
         resultValue = engine.execute();
 
         expect(resultValue.getType()).to.equal('object');
-        expect(resultValue.getClassName()).to.equal('Error');
+        expect(resultValue.getInternalValue().getClassName()).to.equal('Error');
         resultNativeError = resultValue.getNative();
         // Note that this coercion is defined by a custom unwrapper in src/builtin/interfaces/Throwable.js
         expect(resultNativeError).to.be.an.instanceOf(PHPFatalError);

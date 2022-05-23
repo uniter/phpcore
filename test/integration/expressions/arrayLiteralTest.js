@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP array literal integration', function () {
-    it('should allow indexed elements to be defined with a reference to a variable', function () {
+    it('should allow indexed elements to be defined with a reference to a variable', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $myVar = 4;
@@ -25,9 +25,9 @@ $myVar = 27;
 return $myArray;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php);
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await module().execute()).getNative()).to.deep.equal([
             21,
             4,
             27
@@ -58,7 +58,7 @@ EOS
         ]);
     });
 
-    it('should allow associative elements to be defined with a reference to a variable', function () {
+    it('should allow associative elements to be defined with a reference to a variable', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $myVar = 4;
@@ -69,16 +69,16 @@ $myVar = 27;
 return $myArray;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php);
 
-        expect(module().execute().getNative()).to.deep.equal({
+        expect((await module().execute()).getNative()).to.deep.equal({
             0: 21,
             1: 4,
             'myRef': 27
         });
     });
 
-    it('should allow elements to be defined with the value of a property', function () {
+    it('should allow elements to be defined with the value of a property', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyClass {
@@ -91,15 +91,15 @@ $myArray = [21, $myObject->myProp];
 return $myArray;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php);
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await module().execute()).getNative()).to.deep.equal([
             21,
             101
         ]);
     });
 
-    it('should allow elements to be defined with the key "length"', function () {
+    it('should allow elements to be defined with the key "length"', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -108,9 +108,9 @@ $myArray = ['length' => 21, 101];
 return $myArray;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php);
 
-        expect(module().execute().getNative()).to.deep.equal({
+        expect((await module().execute()).getNative()).to.deep.equal({
             length: 21,
             0: 101
         });

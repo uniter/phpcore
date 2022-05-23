@@ -690,7 +690,10 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches a native representation of this value
+         * Fetches a native representation of this value. Note that if this value
+         * contains any references that return Future(Values), an error will be raised.
+         *
+         * @see .asEventualNative() if any descendant of this value may return any Future(Value)s.
          *
          * @returns {*}
          */
@@ -728,6 +731,13 @@ module.exports = require('pauser')([
         getStaticPropertyByName: function () {
             this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
         },
+
+        /**
+         * Fetches the exit code for an exit value, if any, otherwise 0.
+         *
+         * @returns {number}
+         */
+        getStatus: throwUnimplemented('getStatus'),
 
         getType: function () {
             return this.type;

@@ -186,15 +186,16 @@ EOS
 */;}), //jshint ignore:line
             module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module(),
-            value = engine.execute();
+            value = engine.execute(),
+            internalValue = value.getInternalValue();
 
-        expect(value.getElementByIndex(0).getValue().getType()).to.equal('object');
-        expect(value.getElementByIndex(0).getValue().getClassName()).to.equal('stdClass');
-        expect(value.getElementByIndex(0).getValue().getNative().scalar).to.equal(21);
-        expect(value.getElementByIndex(1).getValue().getType()).to.equal('object');
-        expect(value.getElementByIndex(1).getValue().getClassName()).to.equal('stdClass');
-        expect(value.getElementByIndex(1).getValue().getNative().myEl).to.equal('my value');
-        expect(value.getElementByIndex(2).getValue().getClassName()).to.equal('MyClass');
+        expect(internalValue.getElementByIndex(0).getValue().getType()).to.equal('object');
+        expect(internalValue.getElementByIndex(0).getValue().getClassName()).to.equal('stdClass');
+        expect(internalValue.getElementByIndex(0).getValue().getNative().scalar).to.equal(21);
+        expect(internalValue.getElementByIndex(1).getValue().getType()).to.equal('object');
+        expect(internalValue.getElementByIndex(1).getValue().getClassName()).to.equal('stdClass');
+        expect(internalValue.getElementByIndex(1).getValue().getNative().myEl).to.equal('my value');
+        expect(internalValue.getElementByIndex(2).getValue().getClassName()).to.equal('MyClass');
     });
 
     it('should support the (string) cast', function () {

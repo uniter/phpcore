@@ -16,6 +16,7 @@ var _ = require('microdash'),
     KeyReferencePair = require('../../KeyReferencePair'),
     KeyValuePair = require('../../KeyValuePair'),
     List = require('../../List'),
+    ReferenceElement = require('../../Element/ReferenceElement'),
 
     NO_PARENT_CLASS = 'core.no_parent_class',
     TICK_OPTION = 'tick';
@@ -157,11 +158,11 @@ module.exports = function (internals) {
 
         /**
          * Calls a PHP function where the name is known statically, returning its result
-         * as a Value if it returns by-value or as a ReferenceSlot if it returns by-reference.
+         * as a Value if it returns by-value or as a Reference if it returns by-reference.
          *
          * @param {string} name
          * @param {Reference[]|Value[]|Variable[]} argReferences
-         * @returns {ReferenceSlot|Value}
+         * @returns {Reference|Value}
          */
         callFunction: function (name, argReferences) {
             var namespaceScope = callStack.getCurrentNamespaceScope(),
@@ -172,12 +173,12 @@ module.exports = function (internals) {
 
         /**
          * Calls a PHP instance method where the name is known statically, returning its result
-         * as a Value if it returns by-value or as a ReferenceSlot if it returns by-reference.
+         * as a Value if it returns by-value or as a Reference if it returns by-reference.
          *
          * @param {Reference|Value|Variable} objectReference
          * @param {string} methodName
          * @param {Reference[]|Value[]|Variable[]} argReferences
-         * @returns {ReferenceSlot|Value}
+         * @returns {Reference|Value}
          */
         callInstanceMethod: function (objectReference, methodName, argReferences) {
             var objectValue = objectReference.getValue();
@@ -204,11 +205,11 @@ module.exports = function (internals) {
 
         /**
          * Calls a PHP function where the name is fetched dynamically, returning its result
-         * as a Value if it returns by-value or as a ReferenceSlot if it returns by-reference.
+         * as a Value if it returns by-value or as a Reference if it returns by-reference.
          *
          * @param {Reference|Value|Variable} nameReference
          * @param {Reference[]|Value[]|Variable[]} argReferences
-         * @returns {ReferenceSlot|Value}
+         * @returns {Reference|Value}
          */
         callVariableFunction: function (nameReference, argReferences) {
             // NB: Make sure we do not coerce argument references to their values,
@@ -218,12 +219,12 @@ module.exports = function (internals) {
 
         /**
          * Calls a method of an object where the name is fetched dynamically, returning its result
-         * as a Value if it returns by-value or as a ReferenceSlot if it returns by-reference.
+         * as a Value if it returns by-value or as a Reference if it returns by-reference.
          *
          * @param {Reference|Value|Variable} objectReference
          * @param {Reference|Value|Variable} methodNameReference
          * @param {Reference[]|Value[]|Variable[]} argReferences
-         * @returns {ReferenceSlot|Value}
+         * @returns {Reference|Value}
          */
         callVariableInstanceMethod: function (objectReference, methodNameReference, argReferences) {
             var objectValue = objectReference.getValue();
@@ -239,12 +240,12 @@ module.exports = function (internals) {
 
         /**
          * Calls a static method of a class where the name is fetched dynamically, returning its result
-         * as a Value if it returns by-value or as a ReferenceSlot if it returns by-reference.
+         * as a Value if it returns by-value or as a Reference if it returns by-reference.
          *
          * @param {Reference|Value|Variable} classNameReference
          * @param {Reference|Value|Variable} methodNameReference
          * @param {Reference[]|Value[]|Variable[]} argReferences
-         * @returns {ReferenceSlot|Value}
+         * @returns {Reference|Value}
          */
         callVariableStaticMethod: function (classNameReference, methodNameReference, argReferences) {
             var classNameValue = classNameReference.getValue(),
@@ -404,7 +405,7 @@ module.exports = function (internals) {
         createKeyReferencePair: function (keyReference, reference) {
             return new KeyReferencePair(
                 keyReference.getValue(),
-                // Reference may not be a ReferenceSlot, so we must ensure it like this
+                // Reference may not be a ReferenceSlot (if applicable), so we must ensure it like this
                 reference.getReference()
             );
         },
@@ -422,6 +423,20 @@ module.exports = function (internals) {
          */
         createList: function (elements) {
             return new List(valueFactory, flow, elements);
+        },
+
+        /**
+         * Fetches a ReferenceElement for the given reference. Note that if a value is given
+         * instead, an error will be thrown.
+         *
+         * Also note that an internal ReferenceSlot will be created if applicable.
+         *
+         * @param {Reference|Value|Variable} valueOrReference
+         * @returns {ReferenceElement}
+         * @throws {Error} Throws when a value is given instead of a reference
+         */
+        createReferenceElement: function (valueOrReference) {
+            return new ReferenceElement(valueOrReference.getReference());
         },
 
         createString: function (nativeValue) {
@@ -691,11 +706,11 @@ module.exports = function (internals) {
         },
 
         /**
-         * Fetches a ReferenceSlot for the given reference. Note that if a value is given
+         * Fetches a ReferenceSlot (if applicable) for the given reference. Note that if a value is given
          * instead, an error will be thrown.
          *
          * @param {Reference|Value|Variable} valueOrReference
-         * @returns {ReferenceSlot}
+         * @returns {Reference|ReferenceSlot}
          * @throws {Error} Throws when a value is given instead of a reference
          */
         getReference: function (valueOrReference) {
