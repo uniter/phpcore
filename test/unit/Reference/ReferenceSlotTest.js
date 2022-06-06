@@ -43,6 +43,14 @@ describe('ReferenceSlot', function () {
         });
     });
 
+    describe('asEventualNative()', function () {
+        it('should return a Future that resolves to the native value of the slot', async function () {
+            reference.setValue(valueFactory.createString('my value'));
+
+            expect(await reference.asEventualNative().toPromise()).to.equal('my value');
+        });
+    });
+
     describe('getForAssignment()', function () {
         it('should return the value of the slot', function () {
             var result = sinon.createStubInstance(Value);
@@ -82,6 +90,12 @@ describe('ReferenceSlot', function () {
         });
     });
 
+    describe('hasReferenceSetter()', function () {
+        it('should return false', function () {
+            expect(reference.hasReferenceSetter()).to.be.false;
+        });
+    });
+
     describe('isReferenceable()', function () {
         it('should return true', function () {
             expect(reference.isReferenceable()).to.be.true;
@@ -101,6 +115,18 @@ describe('ReferenceSlot', function () {
             var newValue = sinon.createStubInstance(Value);
 
             expect(reference.setValue(newValue)).to.equal(newValue);
+        });
+    });
+
+    describe('toPromise()', function () {
+        it('should return a Promise that resolves with the Value of the slot', async function () {
+            var resultValue;
+            reference.setValue(valueFactory.createString('my value'));
+
+            resultValue = await reference.toPromise();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('my value');
         });
     });
 });

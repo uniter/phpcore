@@ -61,6 +61,14 @@ describe('Variable', function () {
         });
     });
 
+    describe('asEventualNative()', function () {
+        it('should return the native value of the variable', async function () {
+            variable.setValue(valueFactory.createPresent(1234));
+
+            expect(await variable.asEventualNative().toPromise()).to.equal(1234);
+        });
+    });
+
     describe('formatAsString()', function () {
         it('should format the value when the variable is defined with a value', function () {
             variable.setValue(valueFactory.createString('my value'));
@@ -260,10 +268,27 @@ describe('Variable', function () {
     });
 
     describe('setReference()', function () {
-        it('should return the variable', function () {
-            var reference = sinon.createStubInstance(Reference);
+        var reference;
 
+        beforeEach(function () {
+            reference = sinon.createStubInstance(Reference);
+        });
+
+        it('should return the variable', function () {
             expect(variable.setReference(reference)).to.equal(variable);
+        });
+
+        it('should invoke an existing reference when it has a reference setter', function () {
+            var existingReference = sinon.createStubInstance(Reference);
+            existingReference.hasReferenceSetter.returns(true);
+            variable.setReference(existingReference);
+
+            variable.setReference(reference);
+
+            expect(existingReference.setReference).to.have.been.calledOnce;
+            expect(existingReference.setReference).to.have.been.calledWith(
+                sinon.match.same(reference)
+            );
         });
     });
 
@@ -330,6 +355,18 @@ describe('Variable', function () {
             value = await variable.setValue(valueFactory.createNull()).toPromise();
 
             expect(value.getType()).to.equal('null');
+        });
+    });
+
+    describe('toPromise()', function () {
+        it('should return a Promise resolved with the value of the variable', async function () {
+            var value;
+            variable.setValue(valueFactory.createInteger(1234));
+
+            value = await variable.toPromise();
+
+            expect(value.getType()).to.equal('int');
+            expect(value.getNative()).to.equal(1234);
         });
     });
 

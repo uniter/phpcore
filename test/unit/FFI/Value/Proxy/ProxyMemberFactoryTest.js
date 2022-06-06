@@ -12,13 +12,15 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('../../../tools'),
+    ControlScope = require('../../../../../src/Control/ControlScope'),
     NativeCaller = require('../../../../../src/FFI/Call/NativeCaller').sync(),
     ObjectValue = require('../../../../../src/Value/Object').sync(),
     ProxyMemberFactory = require('../../../../../src/FFI/Value/Proxy/ProxyMemberFactory'),
     ValueStorage = require('../../../../../src/FFI/Value/ValueStorage');
 
 describe('FFI ProxyMemberFactory', function () {
-    var factory,
+    var controlScope,
+        factory,
         nativeCaller,
         objectValue,
         state,
@@ -26,16 +28,22 @@ describe('FFI ProxyMemberFactory', function () {
         valueStorage;
 
     beforeEach(function () {
-        state = tools.createIsolatedState();
+        controlScope = sinon.createStubInstance(ControlScope);
+        state = tools.createIsolatedState('async', {
+            'control_scope': controlScope
+        });
         objectValue = sinon.createStubInstance(ObjectValue);
         nativeCaller = sinon.createStubInstance(NativeCaller);
         valueStorage = sinon.createStubInstance(ValueStorage);
         valueFactory = state.getValueFactory();
 
+        controlScope.enterCoroutine.resetHistory();
+
         factory = new ProxyMemberFactory(
             valueFactory,
             valueStorage,
-            nativeCaller
+            nativeCaller,
+            controlScope
         );
     });
 
@@ -62,6 +70,19 @@ describe('FFI ProxyMemberFactory', function () {
 
             it('should have the inbound stack marker as its name for stack cleaning', function () {
                 expect(proxyMethod.name).to.equal('__uniterInboundStackMarker__');
+            });
+
+            it('should enter a new Coroutine', function () {
+                proxyMethod.call(nativeProxy, 'first arg', 'second arg');
+
+                expect(controlScope.enterCoroutine).to.have.been.calledOnce;
+            });
+
+            it('should enter a new Coroutine before invoking NativeCaller', function () {
+                proxyMethod.call(nativeProxy, 'first arg', 'second arg');
+
+                expect(controlScope.enterCoroutine)
+                    .to.have.been.calledBefore(factory.nativeCaller.callMethod);
             });
 
             it('should call the method via the NativeCaller with args coerced when useSyncApiAlthoughPsync=true', function () {

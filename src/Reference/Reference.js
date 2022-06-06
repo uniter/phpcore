@@ -43,6 +43,15 @@ _.extend(Reference.prototype, {
     },
 
     /**
+     * Returns a Future that will resolve to the native value of the PHP value being referred to.
+     *
+     * @returns {Future<*>}
+     */
+    asEventualNative: function () {
+        return this.getValue().asEventualNative();
+    },
+
+    /**
      * Formats the reference (which may not be defined) for display in stack traces etc.
      *
      * @returns {string}
@@ -103,6 +112,15 @@ _.extend(Reference.prototype, {
     },
 
     /**
+     * Determines whether this reference itself intercepts further reference assignments.
+     *
+     * @returns {boolean}
+     */
+    hasReferenceSetter: function () {
+        return false;
+    },
+
+    /**
      * Determines whether this reference is defined
      *
      * @returns {boolean}
@@ -147,6 +165,15 @@ _.extend(Reference.prototype, {
      * @returns {Value} Returns the value that was set
      */
     setValue: throwUnimplemented('setValue'),
+
+    /**
+     * Derives a promise of the PHP value being referred to (shared interface with Future).
+     *
+     * @returns {Promise<Value>}
+     */
+    toPromise: function () {
+        return this.getValue().toPromise();
+    },
 
     /**
      * Unsets the value of this reference.

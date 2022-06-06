@@ -82,7 +82,6 @@ module.exports = require('pauser')([
 
                 return autoloader.flow.eachAsync(splStack, function (autoloadCallable) {
                     return autoloadCallable.call([autoloader.valueFactory.createString(name)], globalNamespace)
-                        .getValue()
                         .asFuture() // We must switch to a future, because we sometimes resolve with a scalar just below
                         .next(function () {
                             if (globalNamespace.hasClass(name)) {

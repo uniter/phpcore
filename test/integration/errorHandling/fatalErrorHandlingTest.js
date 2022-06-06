@@ -87,8 +87,10 @@ EOS
             module = tools.asyncTranspile('/my/php_module.php', php),
             engine = module();
         engine.defineCoercingFunction('call_async', function (callback) {
-            return this.createFutureValue(function (resolve, reject) {
+            return this.createFutureValue(function (resolve, reject, nestCoroutine) {
                 setImmediate(function () {
+                    nestCoroutine(); // As this is a nested call.
+
                     callback().then(resolve, reject);
                 });
             });

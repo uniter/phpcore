@@ -154,9 +154,10 @@ _.extend(Engine.prototype, {
      * @param {string} name
      * @param {Function} valueGetter
      * @param {Function=} valueSetter
+     * @param {Function=} referenceSetter
      */
-    defineGlobalAccessor: function (name, valueGetter, valueSetter) {
-        this.environment.defineGlobalAccessor(name, valueGetter, valueSetter);
+    defineGlobalAccessor: function (name, valueGetter, valueSetter, referenceSetter) {
+        this.environment.defineGlobalAccessor(name, valueGetter, valueSetter, referenceSetter);
     },
 
     /**
@@ -235,18 +236,21 @@ _.extend(Engine.prototype, {
         valueProvider = state.getValueProvider();
         // Use the provided top-level scope if specified, otherwise use the global scope
         // (used eg. when an `include(...)` is used inside a function)
-        topLevelScope = engine.topLevelScope || globalScope;
+        topLevelScope = scopeFactory.createEngineScope(engine.topLevelScope || globalScope);
         module = moduleFactory.create(path);
         topLevelNamespaceScope = scopeFactory.createNamespaceScope(globalNamespace, module);
         module.setScope(scopeFactory.createModuleScope(module, topLevelNamespaceScope, environment));
 
         core = coreFactory.createCore(topLevelScope);
 
+        // We are entering PHP-land from JS-land.
+        topLevelScope.enterCoroutine();
+
         // Push the call for this scope onto the stack (the "main" top-level one initially,
         // then for a load such as include or eval it will be its top-level scope)
         callStack.push(callFactory.create(topLevelScope, topLevelNamespaceScope));
 
-        function handleError(error, reject) {
+        function handleError(error) {
             var errorValue,
                 trace;
 
@@ -257,9 +261,7 @@ _.extend(Engine.prototype, {
             if (error instanceof Value && error.getType() === 'object') {
                 if (!isMainProgram) {
                     // For included files/eval etc., just pass the Throwable up the call stack
-                    reject(error);
-
-                    return;
+                    throw error;
                 }
 
                 errorValue = error;
@@ -289,9 +291,7 @@ _.extend(Engine.prototype, {
                     );
                 }
 
-                reject(error);
-
-                return;
+                throw error;
             }
 
             if (error instanceof PHPError) {
@@ -308,8 +308,7 @@ _.extend(Engine.prototype, {
                     );
                 }
 
-                reject(error);
-                return;
+                throw error;
             }
 
             // Otherwise it must be a native/internal JS error
@@ -328,7 +327,7 @@ _.extend(Engine.prototype, {
                 );
             }
 
-            reject(error);
+            throw error;
         }
 
         /**
@@ -354,32 +353,26 @@ _.extend(Engine.prototype, {
 
         // Asynchronous mode
         if (mode === 'async') {
-            return new Promise(function (resolve, reject) {
-                userland
-                    .enterTopLevel(topLevel)
-                    .then(function (resultValue) {
-                        // Pop the top-level scope (of the include, if this module was included) off the stack
-                        // regardless of whether an error occurred
-                        callStack.pop();
+            return userland
+                .enterTopLevel(topLevel)
+                .then(function (resultValue) {
+                    // Pop the top-level scope (of the include, if this module was included) off the stack
+                    // regardless of whether an error occurred
+                    callStack.pop();
 
-                        createResultValue(resultValue)
-                            .next(resolve, reject);
-                    })
-                    .catch(function (error) {
-                        var result;
+                    return createResultValue(resultValue).toPromise();
+                })
+                .catch(function (error) {
+                    var result;
 
-                        // Pop the top-level scope (of the include, if this module was included) off the stack
-                        // regardless of whether an error occurred
-                        callStack.pop();
+                    // Pop the top-level scope (of the include, if this module was included) off the stack
+                    // regardless of whether an error occurred
+                    callStack.pop();
 
-                        result = handleError(error, reject);
+                    result = handleError(error);
 
-                        if (result) {
-                            createResultValue(result)
-                                .next(resolve, reject);
-                        }
-                    });
-            });
+                    return createResultValue(result).toPromise();
+                });
         }
 
         // Otherwise load the module synchronously
@@ -404,28 +397,29 @@ _.extend(Engine.prototype, {
             if (mode === 'psync' && isMainProgram) {
                 // Promise-sync mode - return a promise...
 
-                return new Promise(function (resolve, reject) {
-                    var resultValue = handleError(error, function (error) {
-                        // ... rejected with the error if applicable
-                        reject(error);
-                    });
+                return new Promise(function (resolve) {
+                    var resultValue = handleError(error);
 
                     // Otherwise if it was a special ExitValue, resolve with it
-                    if (resultValue) {
-                        resolve(
-                            createResultValue(resultValue)
-                                .yieldSync()
-                        );
-                    }
+                    resolve(
+                        createResultValue(resultValue)
+                            .yieldSync()
+                    );
                 });
             }
 
-            return handleError(error, function (error) {
-                throw error;
-            });
+            return handleError(error);
         }
     },
 
+    /**
+     * Exposes a JS object as a global PHP variable.
+     *
+     * @deprecated Use .defineGlobal(...) or .defineGlobalAccessor(...) instead.
+     *
+     * @param {object} object
+     * @param {string} name
+     */
     expose: function (object, name) {
         this.environment.expose(object, name);
     },

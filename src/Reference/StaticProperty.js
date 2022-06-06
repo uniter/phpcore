@@ -92,7 +92,7 @@ _.extend(StaticPropertyReference.prototype, {
         property.reference = property.referenceFactory.createReferenceSlot();
 
         if (property.value) {
-            property.reference.setValue(property.value);
+            property.reference.setValue(property.value).yieldSync();
             property.value = null; // This property now has a reference (to the slot) and not a value
         }
 

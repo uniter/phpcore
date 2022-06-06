@@ -57,6 +57,14 @@ describe('AccessorReference', function () {
         });
     });
 
+    describe('asEventualNative()', function () {
+        it('should return a Future that resolves to the native value returned by the getter', async function () {
+            valueGetter.returns(101);
+
+            expect(await reference.asEventualNative().toPromise()).to.equal(101);
+        });
+    });
+
     describe('formatAsString()', function () {
         it('should return the native result of the getter, formatted', function () {
             valueGetter.returns('My native result');
@@ -95,6 +103,24 @@ describe('AccessorReference', function () {
 
         it('should return a NullValue when the getter returns no value', function () {
             expect(reference.getValueOrNull().getType()).to.equal('null');
+        });
+    });
+
+    describe('hasReferenceSetter()', function () {
+        it('should return true when a reference setter was given', function () {
+            expect(reference.hasReferenceSetter()).to.be.true;
+        });
+
+        it('should return false when a reference setter was not given', function () {
+            reference = new AccessorReference(
+                valueFactory,
+                referenceFactory,
+                valueGetter,
+                valueSetter,
+                null
+            );
+
+            expect(reference.hasReferenceSetter()).to.be.false;
         });
     });
 
@@ -181,6 +207,18 @@ describe('AccessorReference', function () {
             var newValue = valueFactory.createString('my new value');
 
             expect(await reference.setValue(newValue).toPromise()).to.equal(newValue);
+        });
+    });
+
+    describe('toPromise()', function () {
+        it('should return a Promise that resolves with the eventual Value from the getter', async function () {
+            var resultValue;
+            valueGetter.returns(101);
+
+            resultValue = await reference.toPromise();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(101);
         });
     });
 });

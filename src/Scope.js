@@ -35,6 +35,8 @@ module.exports = require('pauser')([
      * @param {ValueFactory} valueFactory
      * @param {VariableFactory} variableFactory
      * @param {ReferenceFactory} referenceFactory
+     * @param {ControlScope} controlScope
+     * @param {Coroutine|null} coroutine
      * @param {Class|null} currentClass
      * @param {Function|null} currentFunction
      * @param {ObjectValue|null} thisObject
@@ -50,6 +52,8 @@ module.exports = require('pauser')([
         valueFactory,
         variableFactory,
         referenceFactory,
+        controlScope,
+        coroutine,
         currentClass,
         currentFunction,
         thisObject
@@ -58,6 +62,16 @@ module.exports = require('pauser')([
 
         this.callStack = callStack;
         this.closureFactory = closureFactory;
+        /**
+         * @type {ControlScope}
+         */
+        this.controlScope = controlScope;
+        /**
+         * Current Coroutine within this Scope (except for the global scope, where there will be none).
+         *
+         * @type {Coroutine|null}
+         */
+        this.coroutine = coroutine;
         /**
          * @type {Class|null}
          */
@@ -83,7 +97,8 @@ module.exports = require('pauser')([
         };
 
         if (thisObject && (!currentFunction || !currentFunction[IS_STATIC])) {
-            thisObjectVariable.setValue(thisObject);
+            // Ensure the value is set synchronously.
+            thisObjectVariable.setValue(thisObject).yieldSync();
         }
     }
 
@@ -183,6 +198,19 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Restores the coroutine this scope was created during, or creates a new one if none.
+         */
+        enterCoroutine: function () {
+            var scope = this;
+
+            if (scope.coroutine) {
+                scope.controlScope.resumeCoroutine(scope.coroutine);
+            } else {
+                scope.coroutine = scope.controlScope.enterCoroutine();
+            }
+        },
+
+        /**
          * Returns a hash with the values of all variables defined
          * for this scope, including all superglobals
          *
@@ -211,7 +239,7 @@ module.exports = require('pauser')([
             var scope = this,
                 valueFactory = scope.valueFactory;
 
-            scope.defineVariable(name).setValue(valueFactory.coerce(value));
+            scope.defineVariable(name).setValue(valueFactory.coerce(value)).yieldSync();
         },
 
         /**
@@ -244,6 +272,15 @@ module.exports = require('pauser')([
             }
 
             return scope.valueFactory.createString(scope.currentClass.getName());
+        },
+
+        /**
+         * Fetches the current coroutine of this scope, if any.
+         *
+         * @returns {Coroutine|null}
+         */
+        getCoroutine: function () {
+            return this.coroutine;
         },
 
         /**
@@ -436,7 +473,7 @@ module.exports = require('pauser')([
                 scope.variables[name] = variable;
 
                 if (scope.errorsSuppressed) {
-                    variable.setValue(scope.valueFactory.createNull());
+                    variable.setValue(scope.valueFactory.createNull()).yieldSync();
                 }
             }
 
@@ -500,7 +537,7 @@ module.exports = require('pauser')([
 
                     if (initialValue) {
                         // Initialiser is optional
-                        staticVariables[variableName].setValue(initialValue);
+                        staticVariables[variableName].setValue(initialValue).yieldSync();
                     }
                 }
 
@@ -510,7 +547,7 @@ module.exports = require('pauser')([
                 // to the static variable stored against either the current function or the global scope if none
                 scope.getVariable(variableName).setReference(staticVariable.getReference());
             } else {
-                scope.getVariable(variableName).setValue(initialValue);
+                scope.getVariable(variableName).setValue(initialValue).yieldSync();
             }
         },
 
@@ -612,6 +649,15 @@ module.exports = require('pauser')([
          */
         unsuppressOwnErrors: function () {
             this.ownErrorsSuppressed = false;
+        },
+
+        /**
+         * Updates the coroutine for this scope.
+         *
+         * @param {Coroutine} coroutine
+         */
+        updateCoroutine: function (coroutine) {
+            this.coroutine = coroutine;
         }
     });
 

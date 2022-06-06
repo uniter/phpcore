@@ -39,6 +39,12 @@ describe('NullReference', function () {
         });
     });
 
+    describe('asEventualNative()', function () {
+        it('should return a Future that resolves to null', async function () {
+            expect(await reference.asEventualNative().toPromise()).to.be.null;
+        });
+    });
+
     describe('formatAsString()', function () {
         it('should return "NULL"', function () {
             expect(reference.formatAsString()).to.equal('NULL');
@@ -60,6 +66,12 @@ describe('NullReference', function () {
     describe('getValueOrNull()', function () {
         it('should return a NullValue', function () {
             expect(reference.getValueOrNull().getType()).to.equal('null');
+        });
+    });
+
+    describe('hasReferenceSetter()', function () {
+        it('should return false', function () {
+            expect(reference.hasReferenceSetter()).to.be.false;
         });
     });
 
@@ -98,6 +110,14 @@ describe('NullReference', function () {
             var value = sinon.createStubInstance(Value);
 
             expect(reference.setValue(value)).to.equal(value);
+        });
+    });
+
+    describe('toPromise()', function () {
+        it('should return a Promise that resolves to a NullValue', async function () {
+            var resultValue = await reference.toPromise();
+
+            expect(resultValue.getType()).to.equal('null');
         });
     });
 });

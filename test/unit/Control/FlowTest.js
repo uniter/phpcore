@@ -12,16 +12,20 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('../tools'),
-    Flow = require('../../../src/Control/Flow');
+    FFIResult = require('../../../src/FFI/Result'),
+    Flow = require('../../../src/Control/Flow'),
+    Future = require('../../../src/Control/Future');
 
 describe('Flow', function () {
     var flow,
         futureFactory,
-        state;
+        state,
+        valueFactory;
 
     beforeEach(function () {
         state = tools.createIsolatedState();
         futureFactory = state.getFutureFactory();
+        valueFactory = state.getValueFactory();
 
         flow = new Flow(
             state.getControlFactory(),
@@ -30,6 +34,35 @@ describe('Flow', function () {
             futureFactory,
             'async'
         );
+    });
+
+    describe('chainify()', function () {
+        it('should return a Future untouched', function () {
+            var future = futureFactory.createPresent(21);
+
+            expect(flow.chainify(future)).to.equal(future);
+        });
+
+        it('should return a Value untouched', function () {
+            var value = valueFactory.createString('my chainable');
+
+            expect(flow.chainify(value)).to.equal(value);
+        });
+
+        it('should resolve an FFIResult', function () {
+            var ffiResult = sinon.createStubInstance(FFIResult),
+                future = futureFactory.createPresent('my resolved result');
+            ffiResult.resolve.returns(future);
+
+            expect(flow.chainify(ffiResult)).to.equal(future);
+        });
+
+        it('should wrap other native values in a Future', async function () {
+            var future = flow.chainify('my string');
+
+            expect(future).to.be.an.instanceOf(Future);
+            expect(await future.toPromise()).to.equal('my string');
+        });
     });
 
     describe('createPresent()', function () {

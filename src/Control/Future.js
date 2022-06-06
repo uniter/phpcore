@@ -23,10 +23,17 @@ var _ = require('microdash'),
      * @param {Function} executor
      */
     execute = function (future, executor) {
-        var reject = function (error) {
+        var resumeCoroutine = function () {
+                // Restore the call stack if applicable (if we were paused in async mode).
+                future.controlScope.resumeCoroutine(future.coroutine);
+            },
+            reject = function (error) {
                 if (future.settled) {
                     throw new Exception('Cannot reject an already-settled Future');
                 }
+
+                // Restore the call stack if applicable (if we were paused in async mode).
+                resumeCoroutine();
 
                 if (future.controlBridge.isFuture(error)) {
                     // Evaluate any futures to the eventual error before continuing
@@ -38,18 +45,23 @@ var _ = require('microdash'),
                 future.eventualError = error;
                 future.settled = true;
 
-                future.onReject.forEach(function (callback) {
+                // TODO: Check for future.onRejectCallbacks.length === 0 and throw "Uncaught Future rejection" error?
+
+                future.onRejectCallbacks.forEach(function (callback) {
                     callback(error);
                 });
 
                 // Clear both lists to free memory.
-                future.onReject.length = 0;
-                future.onResolve.length = 0;
+                future.onRejectCallbacks.length = 0;
+                future.onResolveCallbacks.length = 0;
             },
             resolve = function (result) {
                 if (future.settled) {
                     throw new Exception('Cannot resolve an already-settled Future');
                 }
+
+                // Restore the call stack if applicable (if we were paused in async mode).
+                resumeCoroutine();
 
                 if (future.controlBridge.isFuture(result)) {
                     // Resolve any result that is itself a Future before continuing.
@@ -60,17 +72,22 @@ var _ = require('microdash'),
                 future.eventualResult = result;
                 future.settled = true;
 
-                future.onResolve.forEach(function (callback) {
+                // TODO: Check for future.onResolveCallbacks.length === 0 and throw "Unhandled Future resolve" error?
+
+                future.onResolveCallbacks.forEach(function (callback) {
                     callback(result);
                 });
 
                 // Clear both lists to free memory.
-                future.onReject.length = 0;
-                future.onResolve.length = 0;
+                future.onRejectCallbacks.length = 0;
+                future.onResolveCallbacks.length = 0;
+            },
+            nestCoroutine = function () {
+                future.controlScope.nestCoroutine();
             };
 
         try {
-            executor(resolve, reject);
+            executor(resolve, reject, nestCoroutine);
         } catch (error) {
             if (error instanceof Pause) {
                 throw new Exception('Unexpected Pause raised by Future executor');
@@ -92,8 +109,9 @@ var _ = require('microdash'),
  * @param {PauseFactory} pauseFactory
  * @param {ValueFactory} valueFactory
  * @param {ControlBridge} controlBridge
+ * @param {ControlScope} controlScope
  * @param {Function} executor
- * @param {Future|null} parent
+ * @param {Coroutine} coroutine
  * @constructor
  */
 function Future(
@@ -101,13 +119,22 @@ function Future(
     pauseFactory,
     valueFactory,
     controlBridge,
+    controlScope,
     executor,
-    parent
+    coroutine
 ) {
     /**
      * @type {ControlBridge}
      */
     this.controlBridge = controlBridge;
+    /**
+     * @type {ControlScope}
+     */
+    this.controlScope = controlScope;
+    /**
+     * @type {Coroutine}
+     */
+    this.coroutine = coroutine;
     /**
      * The error that the future resolved to, if any.
      *
@@ -127,15 +154,11 @@ function Future(
     /**
      * @type {Function[]}
      */
-    this.onReject = [];
+    this.onRejectCallbacks = [];
     /**
      * @type {Function[]}
      */
-    this.onResolve = [];
-    /**
-     * @type {Future|null}
-     */
-    this.parent = parent;
+    this.onResolveCallbacks = [];
     /**
      * @type {PauseFactory}
      */
@@ -154,6 +177,15 @@ function Future(
 
 _.extend(Future.prototype, {
     /**
+     * Coerces to a Future (shared interface with Value).
+     *
+     * @returns {Future}
+     */
+    asFuture: function () {
+        return this;
+    },
+
+    /**
      * Derives a FutureValue from this future.
      *
      * @returns {FutureValue}
@@ -165,7 +197,8 @@ _.extend(Future.prototype, {
     },
 
     /**
-     * Attaches a callback to be called when the value evaluation resulted in an error.
+     * Attaches a callback to be called when the value evaluation resulted in an error,
+     * returning a new Future to be settled as appropriate.
      *
      * @param {Function} catchHandler
      * @returns {Future}
@@ -187,7 +220,8 @@ _.extend(Future.prototype, {
     },
 
     /**
-     * Attaches a callback to be called when the value has been evaluated regardless of result or error.
+     * Attaches a callback to be called when the value has been evaluated regardless of result or error,
+     * returning a new Future to be settled as appropriate.
      *
      * @param {Function} finallyHandler
      * @returns {Future}
@@ -256,8 +290,8 @@ _.extend(Future.prototype, {
                     return;
                 }
 
-                future.onReject.push(doReject);
-                future.onResolve.push(doResolve);
+                future.onRejectCallbacks.push(doReject);
+                future.onResolveCallbacks.push(doResolve);
             },
             future
         );
@@ -282,7 +316,8 @@ _.extend(Future.prototype, {
     },
 
     /**
-     * Attaches callbacks for when the value has been evaluated to either a result or error.
+     * Attaches callbacks for when the value has been evaluated to either a result or error,
+     * returning a new Future to be settled as appropriate.
      *
      * @param {Function} resolveHandler
      * @returns {Future}
@@ -335,11 +370,33 @@ _.extend(Future.prototype, {
                     return;
                 }
 
-                future.onReject.push(doReject);
-                future.onResolve.push(doResolve);
+                future.onRejectCallbacks.push(doReject);
+                future.onResolveCallbacks.push(doResolve);
             },
             future
         );
+    },
+
+    /**
+     * Attaches a callback for if/when this future is rejected.
+     * Note that .next()/.catch()/.finally() should usually be used for chaining,
+     * this is a low-level function.
+     *
+     * @param {Function} callback
+     */
+    onReject: function (callback) {
+        this.onRejectCallbacks.push(callback);
+    },
+
+    /**
+     * Attaches a callback for if/when this future is resolved.
+     * Note that .next()/.catch()/.finally() should usually be used for chaining,
+     * this is a low-level function.
+     *
+     * @param {Function} callback
+     */
+    onResolve: function (callback) {
+        this.onResolveCallbacks.push(callback);
     },
 
     /**

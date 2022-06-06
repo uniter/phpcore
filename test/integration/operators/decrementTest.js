@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP decrement "--" operator integration', function () {
-    it('should be able to decrement a variable or variable reference', function () {
+    it('should be able to decrement a variable or variable reference', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -34,10 +34,10 @@ $result['final ref'] = $myRef;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'initial number': 21,
             'initial ref': 21,
             'number post-dec': 21, // Post-decrement won't have been able to update the property yet
@@ -49,7 +49,7 @@ EOS
         });
     });
 
-    it('should be able to decrement an instance property', function () {
+    it('should be able to decrement an instance property', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -69,10 +69,10 @@ $result[] = $object->myProp;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             21, // Post-decrement won't have been able to update the property yet
             19, // Previous post-decrement plus this pre-decrement
@@ -80,7 +80,7 @@ EOS
         ]);
     });
 
-    it('should be able to decrement a static property', function () {
+    it('should be able to decrement a static property', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -99,10 +99,10 @@ $result[] = MyClass::$myStaticProp;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             21, // Post-decrement won't have been able to update the property yet
             19, // Previous post-decrement plus this pre-decrement

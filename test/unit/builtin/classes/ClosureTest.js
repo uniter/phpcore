@@ -18,6 +18,7 @@ var _ = require('microdash'),
     CallStack = require('../../../../src/CallStack'),
     Class = require('../../../../src/Class').sync(),
     Closure = require('../../../../src/Closure').sync(),
+    ControlScope = require('../../../../src/Control/ControlScope'),
     ErrorPromoter = require('../../../../src/Error/ErrorPromoter'),
     FFICall = require('../../../../src/FFI/Call'),
     Namespace = require('../../../../src/Namespace').sync(),
@@ -28,6 +29,7 @@ describe('PHP builtin Closure class', function () {
     var callFactory,
         callStack,
         closureClass,
+        controlScope,
         disableAutoCoercion,
         errorPromoter,
         futureFactory,
@@ -44,10 +46,12 @@ describe('PHP builtin Closure class', function () {
             return sinon.createStubInstance(FFICall);
         });
         callStack = sinon.createStubInstance(CallStack);
+        controlScope = sinon.createStubInstance(ControlScope);
         errorPromoter = sinon.createStubInstance(ErrorPromoter);
         state = tools.createIsolatedState(null, {
             'call_factory': callFactory,
             'call_stack': callStack,
+            'control_scope': controlScope,
             'error_promoter': errorPromoter
         });
         futureFactory = state.getFutureFactory();
@@ -57,6 +61,7 @@ describe('PHP builtin Closure class', function () {
         internals = {
             callFactory: callFactory,
             callStack: callStack,
+            controlScope: controlScope,
             createPresent: futureFactory.createPresent.bind(futureFactory),
             defineUnwrapper: sinon.stub(),
             disableAutoCoercion: disableAutoCoercion,
@@ -92,6 +97,8 @@ describe('PHP builtin Closure class', function () {
         globalNamespace.getClass.withArgs('stdClass')
             .returns(futureFactory.createPresent(stdClassClass));
         valueFactory.setGlobalNamespace(globalNamespace);
+
+        controlScope.enterCoroutine.resetHistory();
     });
 
     describe('static ::bind()', function () {
@@ -302,7 +309,7 @@ describe('PHP builtin Closure class', function () {
         beforeEach(function () {
             coercedThisObject = {};
             closure = sinon.createStubInstance(Closure);
-            closureReturnValue = valueFactory.createString('my result native');
+            closureReturnValue = valueFactory.createAsyncPresent('my result native');
             closure.invoke.returns(closureReturnValue);
             nativeThisObject = {};
             sinon.stub(valueFactory, 'coerceObject')
@@ -414,6 +421,15 @@ describe('PHP builtin Closure class', function () {
                 return unwrappedClosure().then(function () {
                     expect(closure.invoke).to.have.been.calledOnce; // Ensure the assertions above have run
                 });
+            });
+
+            it('should enter a new Coroutine before the closure is called', async function () {
+                callUnwrapper();
+
+                await unwrappedClosure();
+
+                expect(controlScope.enterCoroutine).to.have.been.calledOnce;
+                expect(controlScope.enterCoroutine).to.have.been.calledBefore(closure.invoke);
             });
 
             it('should pop the FFICall off the stack after the closure returns', function () {

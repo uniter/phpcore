@@ -19,7 +19,6 @@ var _ = require('microdash'),
     INVALID_FOREACH_ARGUMENT = 'core.invalid_foreach_argument',
     TRYING_TO_ACCESS_ARRAY_OFFSET = 'core.trying_to_access_array_offset',
     UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types',
-    VALUE_NOT_CALLABLE = 'core.value_not_callable',
     Value = require('../Value').sync();
 
 /**
@@ -63,15 +62,6 @@ _.extend(ResourceValue.prototype, {
      */
     add: function () {
         this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-    },
-
-    /**
-     * {@inheritdoc}
-     */
-    call: function () {
-        this.callStack.raiseTranslatedError(PHPError.E_ERROR, VALUE_NOT_CALLABLE, {
-            'type': 'resource'
-        });
     },
 
     /**

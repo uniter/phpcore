@@ -672,7 +672,7 @@ module.exports = require('pauser')([
          */
         createFuture: function (executor) {
             var factory = this,
-                future = factory.futureFactory.createFuture(function (resolveFuture, rejectFuture) {
+                future = factory.futureFactory.createFuture(function (resolveFuture, rejectFuture, nestCoroutine) {
                     executor(
                         function resolve(result) {
                             // For FutureValues, we always want to coerce the eventual result to a Value
@@ -680,7 +680,8 @@ module.exports = require('pauser')([
                         },
                         function reject(error) {
                             return rejectFuture(error);
-                        }
+                        },
+                        nestCoroutine
                     );
                 });
 

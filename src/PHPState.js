@@ -29,6 +29,7 @@ module.exports = require('pauser')([
     require('./Core/CoreFactory'),
     require('./Reference/Element/ElementProviderFactory'),
     require('./Reference/Element'),
+    require('./Engine/EngineScope'),
     require('./Error/ErrorConfiguration'),
     require('./Error/ErrorConverter'),
     require('./Error/ErrorPromoter'),
@@ -129,6 +130,7 @@ module.exports = require('pauser')([
     CoreFactory,
     ElementProviderFactory,
     ElementReference,
+    EngineScope,
     ErrorConfiguration,
     ErrorConverter,
     ErrorPromoter,
@@ -498,6 +500,7 @@ module.exports = require('pauser')([
                 pauseFactory,
                 valueFactory,
                 controlBridge,
+                controlScope,
                 Future
             )),
             flow = set('flow', new Flow(controlFactory, controlBridge, controlScope, futureFactory, mode)),
@@ -543,7 +546,8 @@ module.exports = require('pauser')([
             ffiProxyMemberFactory = new FFIProxyMemberFactory(
                 valueFactory,
                 ffiValueStorage,
-                ffiNativeCaller
+                ffiNativeCaller,
+                controlScope
             ),
             ffiProxyClassFactory = new FFIProxyClassFactory(ffiValueStorage, ffiProxyMemberFactory),
             ffiProxyClassRepository = new FFIProxyClassRepository(ffiProxyClassFactory),
@@ -573,10 +577,12 @@ module.exports = require('pauser')([
             superGlobalScope = new SuperGlobalScope(variableFactory),
             scopeFactory = new ScopeFactory(
                 ModuleScope,
+                EngineScope,
                 LoadScope,
                 Scope,
                 NamespaceScope,
                 callStack,
+                controlScope,
                 translator,
                 superGlobalScope,
                 functionSpecFactory,
@@ -656,11 +662,14 @@ module.exports = require('pauser')([
             optionSet,
             output = new Output(new OutputFactory(OutputBuffer), new StdoutBuffer(stdout)),
             state = this,
+            hostScheduler = get('host_scheduler'),
             opcodeHandlerFactory = get('opcode_handler_factory'),
+            coroutineFactory = get('coroutine_factory'),
             coreBinder = new CoreBinder(),
             coreFactory;
 
         callFactory.setControlFactory(controlFactory);
+        controlScope.setCoroutineFactory(coroutineFactory);
         pauseFactory.setFutureFactory(futureFactory);
         scopeFactory.setClosureFactory(closureFactory);
         globalScope = scopeFactory.create();
@@ -844,6 +853,10 @@ module.exports = require('pauser')([
         this.globalNamespace = globalNamespace;
         this.globalNamespaceScope = globalNamespaceScope;
         this.globalScope = globalScope;
+        /**
+         * @type {HostScheduler}
+         */
+        this.hostScheduler = hostScheduler;
         this.iniState = iniState;
         this.OpcodeInternals = opcodeInternalsClassFactory.create();
         this.options = options;
@@ -872,6 +885,10 @@ module.exports = require('pauser')([
         this.translator = translator;
         this.userland = userland;
         this.valueFactory = valueFactory;
+
+        // Load builtins (which involves entering JS-land as far as any Futures are concerned)
+        // inside a Coroutine.
+        controlScope.enterCoroutine();
 
         setUpState(this, installedBuiltinTypes, optionGroups || []);
 
@@ -998,11 +1015,11 @@ module.exports = require('pauser')([
         /**
          * Defines a global variable and gives it the provided value,
          * if not already defined. If the variable is already defined
-         * in this scope then an error will be thrown
+         * in this scope then an error will be thrown.
          *
          * @param {string} name
          * @param {Value|*} value Value object or native value to be coerced
-         * @returns {Value} Returns the value assigned, which may be a FutureValue
+         * @returns {Value} Returns the value assigned, which may have been a FutureValue, settled synchronously
          * @throws {Error} Throws when the global scope already defines the specified variable
          */
         defineGlobal: function (name, value) {
@@ -1014,7 +1031,7 @@ module.exports = require('pauser')([
                 );
             }
 
-            return state.globalScope.defineVariable(name).setValue(state.valueFactory.coerce(value));
+            return state.globalScope.defineVariable(name).setValue(state.valueFactory.coerce(value)).yieldSync();
         },
 
         /**
@@ -1023,12 +1040,14 @@ module.exports = require('pauser')([
          * @param {string} name
          * @param {Function} valueGetter
          * @param {Function=} valueSetter
+         * @param {Function=} referenceSetter
          */
-        defineGlobalAccessor: function (name, valueGetter, valueSetter) {
+        defineGlobalAccessor: function (name, valueGetter, valueSetter, referenceSetter) {
             var state = this,
                 accessorReference = state.referenceFactory.createAccessor(
                     valueGetter.bind(state.ffiInternals),
-                    valueSetter ? valueSetter.bind(state.ffiInternals) : null
+                    valueSetter ? valueSetter.bind(state.ffiInternals) : null,
+                    referenceSetter ? referenceSetter.bind(state.ffiInternals) : null
                 );
 
             state.globalScope.defineVariable(name).setReference(accessorReference);
@@ -1309,6 +1328,15 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Fetches the HostScheduler service.
+         *
+         * @returns {HostScheduler}
+         */
+        getHostScheduler: function () {
+            return this.hostScheduler;
+        },
+
+        /**
          * Fetches the native value of an INI option
          *
          * @param {string} name
@@ -1431,6 +1459,27 @@ module.exports = require('pauser')([
          */
         getValueProvider: function () {
             return this.container.getService('value_provider');
+        },
+
+        /**
+         * Schedules a callback to run asynchronously in a macrotask
+         * (macrotasks wait for the _next_ event loop tick, allowing DOM events to fire etc.).
+         *
+         * @param {Function} callback
+         */
+        queueMacrotask: function (callback) {
+            return this.hostScheduler.queueMacrotask(callback);
+        },
+
+        /**
+         * Schedules a callback to run asynchronously in a microtask
+         * (microtasks are called at the end of the _current_ event loop tick, so any DOM events etc.
+         * will not be fired in between).
+         *
+         * @param {Function} callback
+         */
+        queueMicrotask: function (callback) {
+            return this.hostScheduler.queueMicrotask(callback);
         },
 
         /**

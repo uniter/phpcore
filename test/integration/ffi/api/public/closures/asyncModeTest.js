@@ -11,7 +11,9 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
+    phpCommon = require('phpcommon'),
     tools = require('../../../../tools'),
+    PHPFatalError = phpCommon.PHPFatalError,
     Promise = require('lie');
 
 describe('PHP public FFI closure asynchronous mode integration', function () {
@@ -92,5 +94,23 @@ EOS
                 )
             ).to.eventually.equal(27);
         });
+    });
+
+    it('should support calling an exported closure that throws an exception', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return function ($myFailure) {
+    throw new Exception('My failure is: ' . $myFailure);
+};
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module(),
+            myClosure = (await engine.execute()).getNative();
+
+        await expect(myClosure('Bang!')).to.eventually.be.rejectedWith(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught Exception: My failure is: Bang! in /path/to/my_module.php on line 3'
+        );
     });
 });

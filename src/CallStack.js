@@ -41,6 +41,13 @@ function CallStack(valueFactory, translator, errorReporting) {
 
 _.extend(CallStack.prototype, {
     /**
+     * Clears the current stack state.
+     */
+    clear: function () {
+        this.calls.length = 0;
+    },
+
+    /**
      * Fetches the previous Call near the top of the stack, or null if none
      *
      * @returns {Call|null}
@@ -159,10 +166,12 @@ _.extend(CallStack.prototype, {
     /**
      * Fetches the scope of the current call
      *
-     * @returns {Scope}
+     * @returns {Scope|null}
      */
     getCurrentScope: function () {
-        return this.getCurrent().getScope();
+        var currentCall = this.getCurrent();
+
+        return currentCall ? currentCall.getScope() : null;
     },
 
     /**
@@ -563,18 +572,12 @@ _.extend(CallStack.prototype, {
         var stack = this;
 
         if (stack.calls.length > 0) {
-            throw new Error('Cannot restore when not paused');
+            stack.calls.length = 0;
         }
 
-        [].push.apply(stack.calls, savedCalls);
-
-        // var stack = this;
-        //
-        // if (stack.calls.length > 0 && savedCalls.length > 0) {
-        //     stack.calls.length = 0;
-        // }
-        //
-        // [].push.apply(stack.calls, savedCalls);
+        if (savedCalls.length > 0) {
+            [].push.apply(stack.calls, savedCalls);
+        }
     },
 
     /**
@@ -594,19 +597,12 @@ _.extend(CallStack.prototype, {
     },
 
     /**
-     * Pauses the current call stack, returning the current stack state
-     * and clearing the stack contents
+     * Fetches a copy of the current stack state without clearing it.
      *
      * @returns {Call[]}
      */
     save: function () {
-        var stack = this,
-            calls = stack.calls.slice();
-
-        // Clear the current call stack
-        stack.calls.length = 0;
-
-        return calls;
+        return this.calls.slice();
     },
 
     /**

@@ -58,7 +58,7 @@ module.exports = require('pauser')([
          * Calls the function this bareword references.
          *
          * @param {Reference[]|Value[]|Variable[]} args
-         * @returns {Value}
+         * @returns {Future<Reference|Value>|Reference|Value}
          */
         call: function (args) {
             var value = this,
@@ -68,24 +68,21 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Calls a static method of the class this string refers to
+         * Calls a static method of the class this string refers to.
          *
          * @param {StringValue} nameValue
          * @param {Value[]} args
          * @param {bool} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
-         * @returns {FutureValue}
+         * @returns {Future<Reference|Value>}
          */
         callStaticMethod: function (nameValue, args, isForwarding) {
             var value = this;
 
-            // Note that this may pause due to autoloading
-            return value.factory.createFuture(function (resolve, reject) {
-                value.namespaceScope.getClass(value.value)
-                    .next(function (classObject) {
-                        classObject.callMethod(nameValue.getNative(), args, null, null, null, !!isForwarding)
-                            .next(resolve, reject);
-                    }, reject);
-            });
+            // Note that this may pause due to autoloading.
+            return value.namespaceScope.getClass(value.value)
+                .next(function (classObject) {
+                    return classObject.callMethod(nameValue.getNative(), args, null, null, null, !!isForwarding);
+                });
         },
 
         /**
@@ -101,21 +98,20 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches the value of a constant from the class this string refers to
+         * Fetches the value of a constant from the class this string refers to.
          *
          * @param {string} name
-         * @returns {FutureValue}
+         * @returns {Value}
          */
         getConstantByName: function (name) {
             var value = this;
 
-            // Note that this may pause due to autoloading
-            return value.factory.createFuture(function (resolve, reject) {
-                value.namespaceScope.getClass(value.value)
-                    .next(function (classObject) {
-                        resolve(classObject.getConstantByName(name));
-                    }, reject);
-            });
+            // Note that this may pause due to autoloading.
+            return value.namespaceScope.getClass(value.value)
+                .next(function (classObject) {
+                    return classObject.getConstantByName(name);
+                })
+                .asValue();
         },
 
         /**
@@ -138,7 +134,7 @@ module.exports = require('pauser')([
          * relative to the current namespace
          *
          * @param {Value[]} args
-         * @returns {FutureValue<ObjectValue>}
+         * @returns {FutureValue<ObjectValue>|ObjectValue}
          */
         instantiate: function (args) {
             var value = this;

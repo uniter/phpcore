@@ -10,16 +10,43 @@
 'use strict';
 
 var expect = require('chai').expect,
+    sinon = require('sinon'),
     tools = require('../tools'),
-    Future = require('../../../src/Control/Future');
+    ControlScope = require('../../../src/Control/ControlScope'),
+    Coroutine = require('../../../src/Control/Coroutine'),
+    FutureFactory = require('../../../src/Control/FutureFactory'),
+    RealFuture = require('../../../src/Control/Future');
 
 describe('FutureFactory', function () {
-    var futureFactory,
-        state;
+    var controlBridge,
+        controlScope,
+        coroutine,
+        Future,
+        futureFactory,
+        pauseFactory,
+        state,
+        valueFactory;
 
     beforeEach(function () {
-        state = tools.createIsolatedState();
-        futureFactory = state.getFutureFactory();
+        controlScope = sinon.createStubInstance(ControlScope);
+        state = tools.createIsolatedState('async', {
+            'control_scope': controlScope
+        });
+        Future = sinon.spy(RealFuture);
+        controlBridge = state.getControlBridge();
+        coroutine = sinon.createStubInstance(Coroutine);
+        pauseFactory = state.getPauseFactory();
+        valueFactory = state.getValueFactory();
+
+        controlScope.getCoroutine.returns(coroutine);
+
+        futureFactory = new FutureFactory(
+            pauseFactory,
+            valueFactory,
+            controlBridge,
+            controlScope,
+            Future
+        );
     });
 
     describe('createAsyncPresent()', function () {
@@ -50,6 +77,25 @@ describe('FutureFactory', function () {
                 future = futureFactory.createAsyncRejection(error);
 
             return expect(future.toPromise()).to.eventually.be.rejectedWith(error);
+        });
+    });
+
+    describe('createFuture()', function () {
+        it('should return a correctly constructed Future', function () {
+            var executor = sinon.stub(),
+                future = futureFactory.createFuture(executor);
+
+            expect(future).to.be.an.instanceOf(Future);
+            expect(Future).to.have.been.calledOnce;
+            expect(Future).to.have.been.calledWith(
+                sinon.match.same(futureFactory),
+                sinon.match.same(pauseFactory),
+                sinon.match.same(valueFactory),
+                sinon.match.same(controlBridge),
+                sinon.match.same(controlScope),
+                sinon.match.same(executor),
+                sinon.match.same(coroutine)
+            );
         });
     });
 });

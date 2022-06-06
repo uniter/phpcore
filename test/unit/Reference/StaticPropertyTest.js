@@ -22,6 +22,7 @@ var expect = require('chai').expect,
 describe('StaticPropertyReference', function () {
     var callStack,
         classObject,
+        futureFactory,
         propertyValue,
         property,
         state,
@@ -32,6 +33,7 @@ describe('StaticPropertyReference', function () {
         state = tools.createIsolatedState(null, {
             'call_stack': callStack
         });
+        futureFactory = state.getFutureFactory();
         valueFactory = state.getValueFactory();
         classObject = sinon.createStubInstance(Class);
         propertyValue = sinon.createStubInstance(StringValue);
@@ -44,10 +46,12 @@ describe('StaticPropertyReference', function () {
 
         classObject.getName.returns('My\\Namespaced\\ClassName');
 
+        propertyValue.asEventualNative.returns(futureFactory.createPresent('the value of my property'));
         propertyValue.formatAsString.returns('\'the value of my...\'');
         propertyValue.getForAssignment.returns(propertyValue);
         propertyValue.getNative.returns('the value of my property');
         propertyValue.getType.returns('string');
+        propertyValue.toPromise.returns(Promise.resolve(propertyValue));
 
         property = new StaticPropertyReference(
             valueFactory,
@@ -67,6 +71,14 @@ describe('StaticPropertyReference', function () {
             property.setValue(propertyValue);
 
             expect(property.asArrayElement()).to.equal(propertyValue);
+        });
+    });
+
+    describe('asEventualNative()', function () {
+        it('should return a Future that resolves to the native value of the property', async function () {
+            property.setValue(propertyValue);
+
+            expect(await property.asEventualNative().toPromise()).to.equal('the value of my property');
         });
     });
 
@@ -147,6 +159,12 @@ describe('StaticPropertyReference', function () {
         });
     });
 
+    describe('hasReferenceSetter()', function () {
+        it('should return false', function () {
+            expect(property.hasReferenceSetter()).to.be.false;
+        });
+    });
+
     describe('isDefined()', function () {
         it('should return true', function () {
             expect(property.isDefined()).to.be.true;
@@ -209,6 +227,15 @@ describe('StaticPropertyReference', function () {
             expect(resultValue.getNative()).to.equal('my val for reference');
             expect(reference.setValue).to.have.been.calledOnce;
             expect(reference.setValue).to.have.been.calledWith(sinon.match.same(value));
+        });
+    });
+
+    describe('toPromise()', function () {
+        it('should return a Promise that resolves with the Value of the property', async function () {
+            var resultValue = await property.toPromise();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('the value of my property');
         });
     });
 

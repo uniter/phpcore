@@ -353,4 +353,78 @@ EOS
 */;}) //jshint ignore:line
         );
     });
+
+    it('should raise a fatal error on uncallable values', function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+$myBooleanFuncName = true;
+
+try {
+    $myBooleanFuncName(21);
+} catch (Throwable $throwable) {
+    $result['boolean value'] = $throwable::class .
+        ': ' .
+        $throwable->getMessage() .
+        ' @ ' .
+        $throwable->getFile() .
+        ':' .
+        $throwable->getLine();
+}
+
+$myFloatFuncName = 123.456;
+
+try {
+    $myFloatFuncName(21);
+} catch (Throwable $throwable) {
+    $result['float value'] = $throwable::class .
+        ': ' .
+        $throwable->getMessage() .
+        ' @ ' .
+        $throwable->getFile() .
+        ':' .
+        $throwable->getLine();
+}
+
+$myIntFuncName = 27;
+
+try {
+    $myIntFuncName(21);
+} catch (Throwable $throwable) {
+    $result['int value'] = $throwable::class .
+        ': ' .
+        $throwable->getMessage() .
+        ' @ ' .
+        $throwable->getFile() .
+        ':' .
+        $throwable->getLine();
+}
+
+$myNullFuncName = null;
+
+try {
+    $myNullFuncName(21);
+} catch (Throwable $throwable) {
+    $result['null value'] = $throwable::class .
+        ': ' .
+        $throwable->getMessage() .
+        ' @ ' .
+        $throwable->getFile() .
+        ':' .
+        $throwable->getLine();
+}
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.syncTranspile('/path/to/my_module.php', php);
+
+        expect(module().execute().getNative()).to.deep.equal({
+            'boolean value': 'Error: Value of type boolean is not callable @ /path/to/my_module.php:7',
+            'float value': 'Error: Value of type float is not callable @ /path/to/my_module.php:21',
+            'int value': 'Error: Value of type int is not callable @ /path/to/my_module.php:35',
+            'null value': 'Error: Value of type null is not callable @ /path/to/my_module.php:49'
+        });
+    });
 });

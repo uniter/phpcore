@@ -47,10 +47,10 @@ module.exports = require('pauser')([
 
     _.extend(StringValue.prototype, {
         /**
-         * Calls a function or static method based on the contents of the string
+         * Calls a function or static method based on the contents of the string.
          *
          * @param {Value[]} args
-         * @returns {Value}
+         * @returns {Future<Reference|Value>|Reference|Value}
          */
         call: function (args) {
             var classNameValue,
@@ -79,24 +79,21 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Calls a static method of the class this string refers to
+         * Calls a static method of the class this string refers to.
          *
          * @param {StringValue} nameValue
          * @param {Value[]} args
          * @param {bool=} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
-         * @returns {FutureValue}
+         * @returns {Future<Reference|Value>}
          */
         callStaticMethod: function (nameValue, args, isForwarding) {
             var value = this;
 
-            // Note that this may pause due to autoloading
-            return value.factory.createFuture(function (resolve, reject) {
-                value.globalNamespace.getClass(value.value)
-                    .next(function (classObject) {
-                        classObject.callMethod(nameValue.getNative(), args, null, null, null, !!isForwarding)
-                            .next(resolve, reject);
-                    }, reject);
-            });
+            // Note that this may pause due to autoloading.
+            return value.globalNamespace.getClass(value.value)
+                .next(function (classObject) {
+                    return classObject.callMethod(nameValue.getNative(), args, null, null, null, !!isForwarding);
+                });
         },
 
         /**
@@ -359,18 +356,17 @@ module.exports = require('pauser')([
          * Fetches the value of a constant from the class this string refers to
          *
          * @param {string} name
-         * @returns {FutureValue}
+         * @returns {Value}
          */
         getConstantByName: function (name) {
             var value = this;
 
             // Note that this may pause due to autoloading
-            return value.factory.createFuture(function (resolve, reject) {
-                value.globalNamespace.getClass(value.value)
-                    .next(function (classObject) {
-                        resolve(classObject.getConstantByName(name));
-                    }, reject);
-            });
+            return value.globalNamespace.getClass(value.value)
+                .next(function (classObject) {
+                    return classObject.getConstantByName(name);
+                })
+                .asValue();
         },
 
         /**

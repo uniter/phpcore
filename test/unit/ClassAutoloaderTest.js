@@ -10,6 +10,7 @@
 'use strict';
 
 var expect = require('chai').expect,
+    queueMicrotask = require('core-js-pure/actual/queue-microtask'),
     sinon = require('sinon'),
     tools = require('./tools'),
     ClassAutoloader = require('../../src/ClassAutoloader').sync(),
@@ -38,12 +39,12 @@ describe('ClassAutoloader', function () {
     });
 
     describe('autoloadClass()', function () {
-        it('should await an autoloader function if it returns a FutureValue', async function () {
+        it('should await an autoloader function if it returns a Future', async function () {
             var autoloadCallableValue = sinon.createStubInstance(Value),
                 otherAutoloadCallableValue = sinon.createStubInstance(Value);
             autoloadCallableValue.call
-                .returns(valueFactory.createFuture(function (resolve) {
-                    setImmediate(function () {
+                .returns(futureFactory.createFuture(function (resolve) {
+                    queueMicrotask(function () {
                         globalNamespace.hasClass
                             .withArgs('My\\Stuff\\MyClass')
                             .returns(true);
@@ -66,8 +67,8 @@ describe('ClassAutoloader', function () {
             var firstAutoloadCallableValue = sinon.createStubInstance(Value),
                 secondAutoloadCallableValue = sinon.createStubInstance(Value);
             firstAutoloadCallableValue.call
-                .returns(valueFactory.createFuture(function (resolve) {
-                    setImmediate(function () {
+                .returns(futureFactory.createFuture(function (resolve) {
+                    queueMicrotask(function () {
                         globalNamespace.hasClass
                             .withArgs('My\\Stuff\\MyClass')
                             .returns(true);
@@ -99,7 +100,7 @@ describe('ClassAutoloader', function () {
 
             resultValue = classAutoloader.autoloadClass('My\\Stuff\\MyClass');
 
-            // Note that the result of an autoloader function is not checked, however if a FutureValue
+            // Note that the result of an autoloader function is not checked, however if a Future(Value)
             // is returned then we will need to await it.
             expect(resultValue.getType()).to.equal('string');
             expect(resultValue.getNative()).to.equal('my result');

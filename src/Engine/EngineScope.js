@@ -12,34 +12,32 @@
 var _ = require('microdash');
 
 /**
- * Wraps a Scope having a load (eval, include etc.) performed from inside it
+ * Wraps the top-level scope of an Engine instance.
  *
- * @param {ValueFactory} valueFactory
+ * Allows a Coroutine to be stored for a module, when the current Scope is inherited
+ * from another module or is the shared global Scope.
+ *
  * @param {Scope} effectiveScope
- * @param {string} callerFilePath
- * @param {string} type The type of load, eg. `eval` or `include`
+ * @param {ControlScope} controlScope
+ * @param {Coroutine|null} coroutine
  * @constructor
  */
-function LoadScope(valueFactory, effectiveScope, callerFilePath, type) {
+function EngineScope(effectiveScope, controlScope, coroutine) {
     /**
-     * @type {string}
+     * @type {ControlScope}
      */
-    this.callerFilePath = callerFilePath;
+    this.controlScope = controlScope;
+    /**
+     * @type {Coroutine|null}
+     */
+    this.coroutine = coroutine;
     /**
      * @type {Scope}
      */
     this.effectiveScope = effectiveScope;
-    /**
-     * @type {string}
-     */
-    this.type = type;
-    /**
-     * @type {ValueFactory}
-     */
-    this.valueFactory = valueFactory;
 }
 
-_.extend(LoadScope.prototype, {
+_.extend(EngineScope.prototype, {
     /**
      * Creates a closure, either static (with no `$this` object bound) or non-static
      *
@@ -95,10 +93,16 @@ _.extend(LoadScope.prototype, {
     },
 
     /**
-     * Restores the coroutine this scope was created during, or creates a new one if none.
+     * Resumes the Coroutine this Scope was created during, or creates a new one if none.
      */
     enterCoroutine: function () {
-        this.effectiveScope.enterCoroutine();
+        var scope = this;
+
+        if (scope.coroutine) {
+            scope.controlScope.resumeCoroutine(scope.coroutine);
+        } else {
+            scope.coroutine = scope.controlScope.enterCoroutine();
+        }
     },
 
     /**
@@ -141,12 +145,12 @@ _.extend(LoadScope.prototype, {
     },
 
     /**
-     * Fetches the current coroutine of this scope, if any.
+     * Fetches the current Coroutine of this scope, if any.
      *
      * @returns {Coroutine|null}
      */
     getCoroutine: function () {
-        return this.effectiveScope.getCoroutine();
+        return this.coroutine;
     },
 
     /**
@@ -165,7 +169,7 @@ _.extend(LoadScope.prototype, {
      * @returns {string|null}
      */
     getFilePath: function (filePath) {
-        return filePath !== null ? filePath : this.callerFilePath;
+        return this.effectiveScope.getFilePath(filePath);
     },
 
     /**
@@ -174,8 +178,7 @@ _.extend(LoadScope.prototype, {
      * @returns {StringValue}
      */
     getFunctionName: function () {
-        // Eval/include contexts do not report the calling function, if any
-        return this.valueFactory.createString('');
+        return this.effectiveScope.getFunctionName();
     },
 
     /**
@@ -183,11 +186,11 @@ _.extend(LoadScope.prototype, {
      *
      * Note that this differs from .getFunctionName() when the current function is a method
      *
+     * @param {boolean=} isStaticCall
      * @returns {StringValue}
      */
-    getMethodName: function () {
-        // Eval/include contexts do not report the calling method, if any
-        return this.valueFactory.createString('');
+    getMethodName: function (isStaticCall) {
+        return this.effectiveScope.getMethodName(isStaticCall);
     },
 
     /**
@@ -228,7 +231,7 @@ _.extend(LoadScope.prototype, {
      * @returns {string}
      */
     getTraceFrameName: function () {
-        return this.type;
+        return this.effectiveScope.getTraceFrameName();
     },
 
     /**
@@ -354,13 +357,13 @@ _.extend(LoadScope.prototype, {
     },
 
     /**
-     * Updates the coroutine for this scope.
+     * Updates the Coroutine for this Scope.
      *
      * @param {Coroutine} coroutine
      */
     updateCoroutine: function (coroutine) {
-        this.effectiveScope.updateCoroutine(coroutine);
+        this.coroutine = coroutine;
     }
 });
 
-module.exports = LoadScope;
+module.exports = EngineScope;

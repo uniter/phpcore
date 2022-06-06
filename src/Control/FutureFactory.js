@@ -16,6 +16,7 @@ var _ = require('microdash'),
  * @param {PauseFactory} pauseFactory
  * @param {ValueFactory} valueFactory
  * @param {ControlBridge} controlBridge
+ * @param {ControlScope} controlScope
  * @param {class} Future
  * @constructor
  */
@@ -23,12 +24,17 @@ function FutureFactory(
     pauseFactory,
     valueFactory,
     controlBridge,
+    controlScope,
     Future
 ) {
     /**
      * @type {ControlBridge}
      */
     this.controlBridge = controlBridge;
+    /**
+     * @type {ControlScope}
+     */
+    this.controlScope = controlScope;
     /**
      * @type {class}
      */
@@ -76,10 +82,9 @@ _.extend(FutureFactory.prototype, {
      * Creates a new Future
      *
      * @param {Function} executor
-     * @param {Future=} parent
      * @returns {Future}
      */
-    createFuture: function (executor, parent) {
+    createFuture: function (executor) {
         var factory = this;
 
         return new factory.Future(
@@ -87,16 +92,14 @@ _.extend(FutureFactory.prototype, {
             factory.pauseFactory,
             factory.valueFactory,
             factory.controlBridge,
+            factory.controlScope,
             executor,
-            parent || null
+            factory.controlScope.getCoroutine()
         );
     },
 
     /**
      * Creates a new present Future for the given value
-     *
-     * TODO: Reinstate an actual lightweight Present class to avoid the complexity of Futures when unnecessary,
-     *       however now that Sequence is defunct, perhaps less of an issue?
      *
      * @param {*} value
      * @returns {Future}

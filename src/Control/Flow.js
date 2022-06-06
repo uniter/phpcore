@@ -10,6 +10,7 @@
 'use strict';
 
 var _ = require('microdash'),
+    FFIResult = require('../FFI/Result'),
     Pause = require('./Pause');
 
 /**
@@ -57,9 +58,15 @@ _.extend(Flow.prototype, {
     chainify: function (value) {
         var flow = this;
 
-        return flow.controlBridge.isChainable(value) ?
-            value :
-            flow.futureFactory.createPresent(value);
+        if (flow.controlBridge.isChainable(value)) {
+            return value;
+        }
+
+        if (value instanceof FFIResult) {
+            return value.resolve();
+        }
+
+        return flow.futureFactory.createPresent(value);
     },
 
     /**

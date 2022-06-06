@@ -13,10 +13,12 @@ var _ = require('microdash');
 
 /**
  * @param {class} ModuleScope
+ * @param {class} EngineScope
  * @param {class} LoadScope
  * @param {class} Scope
  * @param {class} NamespaceScope
  * @param {CallStack} callStack
+ * @param {ControlScope} controlScope
  * @param {Translator} translator
  * @param {SuperGlobalScope} superGlobalScope
  * @param {FunctionSpecFactory} functionSpecFactory
@@ -27,10 +29,12 @@ var _ = require('microdash');
  */
 function ScopeFactory(
     ModuleScope,
+    EngineScope,
     LoadScope,
     Scope,
     NamespaceScope,
     callStack,
+    controlScope,
     translator,
     superGlobalScope,
     functionSpecFactory,
@@ -46,6 +50,14 @@ function ScopeFactory(
      * @type {ClosureFactory}
      */
     this.closureFactory = null;
+    /**
+     * @type {ControlScope}
+     */
+    this.controlScope = controlScope;
+    /**
+     * @type {class}
+     */
+    this.EngineScope = EngineScope;
     /**
      * @type {FunctionSpecFactory}
      */
@@ -118,9 +130,27 @@ _.extend(ScopeFactory.prototype, {
             factory.valueFactory,
             factory.variableFactory,
             factory.referenceFactory,
+            factory.controlScope,
+            factory.controlScope.inCoroutine() ? factory.controlScope.getCoroutine() : null,
             currentClass || null,
             currentFunction || null,
             thisObject || null
+        );
+    },
+
+    /**
+     * Creates a new EngineScope.
+     *
+     * @param {Scope} effectiveScope
+     * @returns {EngineScope}
+     */
+    createEngineScope: function (effectiveScope) {
+        var factory = this;
+
+        return new factory.EngineScope(
+            effectiveScope,
+            factory.controlScope,
+            effectiveScope.getCoroutine()
         );
     },
 

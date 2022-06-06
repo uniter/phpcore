@@ -16,21 +16,42 @@ var expect = require('chai').expect,
     Variable = require('../../../../../src/Variable').sync();
 
 describe('PHP operator opcode handlers', function () {
-    var internals,
+    var hostScheduler,
+        internals,
         opcodeGroup,
+        referenceFactory,
         sourceReference,
         state,
         targetReference,
+        targetReferenceValue,
         valueFactory;
 
     beforeEach(function () {
         internals = {
             setOpcodeFetcher: sinon.stub()
         };
-        sourceReference = new Variable();
-        targetReference = new Variable();
         state = tools.createIsolatedState();
+        hostScheduler = state.getHostScheduler();
+        referenceFactory = state.getReferenceFactory();
         valueFactory = state.getValueFactory();
+
+        sourceReference = new Variable();
+
+        targetReferenceValue = valueFactory.createNull();
+        targetReference = referenceFactory.createAccessor(
+            function () {
+                return valueFactory.createAsyncPresent(targetReferenceValue);
+            },
+            function (newValue) {
+                return valueFactory.createFuture(function (resolve) {
+                    // Defer in a macrotask to ensure we are correctly awaiting setter-returned Future(Value)s.
+                    hostScheduler.queueMacrotask(function () {
+                        targetReferenceValue = newValue;
+                        resolve();
+                    });
+                });
+            }
+        );
 
         opcodeGroup = calculationOpcodeGroup(internals);
     });
@@ -47,14 +68,14 @@ describe('PHP operator opcode handlers', function () {
             concatWith = opcodeGroup.concatWith;
         });
 
-        it('should append the source value to the target value and assign it back to the target', function () {
-            targetReference.setValue(valueFactory.createString('value for my target'));
-            sourceReference.setValue(valueFactory.createString(' with world on the end'));
+        it('should append the source value to the target value and assign it back to the target', async function () {
+            await targetReference.setValue(valueFactory.createString('value for my target')).toPromise();
+            await sourceReference.setValue(valueFactory.createString(' with world on the end')).toPromise();
 
-            concatWith(targetReference, sourceReference);
+            await concatWith(targetReference, sourceReference).toPromise();
 
-            expect(targetReference.getNative()).to.equal('value for my target with world on the end');
-            expect(sourceReference.getNative()).to.equal(' with world on the end'); // Should be left untouched.
+            expect(await targetReference.asEventualNative().toPromise()).to.equal('value for my target with world on the end');
+            expect(await sourceReference.asEventualNative().toPromise()).to.equal(' with world on the end'); // Should be left untouched.
         });
     });
 
@@ -65,14 +86,14 @@ describe('PHP operator opcode handlers', function () {
             decrementBy = opcodeGroup.decrementBy;
         });
 
-        it('should subtract the source value from the target value and assign it back to the target', function () {
-            targetReference.setValue(valueFactory.createInteger(100));
-            sourceReference.setValue(valueFactory.createInteger(20));
+        it('should subtract the source value from the target value and assign it back to the target', async function () {
+            await targetReference.setValue(valueFactory.createInteger(100)).toPromise();
+            await sourceReference.setValue(valueFactory.createInteger(20)).toPromise();
 
-            decrementBy(targetReference, sourceReference);
+            await decrementBy(targetReference, sourceReference).toPromise();
 
-            expect(targetReference.getNative()).to.equal(80);
-            expect(sourceReference.getNative()).to.equal(20); // Should be left untouched.
+            expect(await targetReference.asEventualNative().toPromise()).to.equal(80);
+            expect(await sourceReference.asEventualNative().toPromise()).to.equal(20); // Should be left untouched.
         });
     });
 
@@ -83,14 +104,14 @@ describe('PHP operator opcode handlers', function () {
             divideBy = opcodeGroup.divideBy;
         });
 
-        it('should divide the target value by the source value and assign it back to the target', function () {
-            targetReference.setValue(valueFactory.createInteger(100));
-            sourceReference.setValue(valueFactory.createInteger(20));
+        it('should divide the target value by the source value and assign it back to the target', async function () {
+            await targetReference.setValue(valueFactory.createInteger(100)).toPromise();
+            await sourceReference.setValue(valueFactory.createInteger(20)).toPromise();
 
-            divideBy(targetReference, sourceReference);
+            await divideBy(targetReference, sourceReference).toPromise();
 
-            expect(targetReference.getNative()).to.equal(5);
-            expect(sourceReference.getNative()).to.equal(20); // Should be left untouched.
+            expect(await targetReference.asEventualNative().toPromise()).to.equal(5);
+            expect(await sourceReference.asEventualNative().toPromise()).to.equal(20); // Should be left untouched.
         });
     });
 
@@ -101,14 +122,14 @@ describe('PHP operator opcode handlers', function () {
             incrementBy = opcodeGroup.incrementBy;
         });
 
-        it('should add the target value to the source value and assign it back to the target', function () {
-            targetReference.setValue(valueFactory.createInteger(10));
-            sourceReference.setValue(valueFactory.createInteger(5));
+        it('should add the target value to the source value and assign it back to the target', async function () {
+            await targetReference.setValue(valueFactory.createInteger(10)).toPromise();
+            await sourceReference.setValue(valueFactory.createInteger(5)).toPromise();
 
-            incrementBy(targetReference, sourceReference);
+            await incrementBy(targetReference, sourceReference).toPromise();
 
-            expect(targetReference.getNative()).to.equal(15);
-            expect(sourceReference.getNative()).to.equal(5); // Should be left untouched.
+            expect(await targetReference.asEventualNative().toPromise()).to.equal(15);
+            expect(await sourceReference.asEventualNative().toPromise()).to.equal(5); // Should be left untouched.
         });
     });
 
@@ -119,14 +140,14 @@ describe('PHP operator opcode handlers', function () {
             multiplyBy = opcodeGroup.multiplyBy;
         });
 
-        it('should multiply the target value by the source value and assign it back to the target', function () {
-            targetReference.setValue(valueFactory.createInteger(10));
-            sourceReference.setValue(valueFactory.createFloat(1.5));
+        it('should multiply the target value by the source value and assign it back to the target', async function () {
+            await targetReference.setValue(valueFactory.createInteger(10)).toPromise();
+            await sourceReference.setValue(valueFactory.createFloat(1.5)).toPromise();
 
-            multiplyBy(targetReference, sourceReference);
+            await multiplyBy(targetReference, sourceReference).toPromise();
 
-            expect(targetReference.getNative()).to.equal(15);
-            expect(sourceReference.getNative()).to.equal(1.5); // Should be left untouched.
+            expect(await targetReference.asEventualNative().toPromise()).to.equal(15);
+            expect(await sourceReference.asEventualNative().toPromise()).to.equal(1.5); // Should be left untouched.
         });
     });
 
@@ -137,21 +158,21 @@ describe('PHP operator opcode handlers', function () {
             postDecrement = opcodeGroup.postDecrement;
         });
 
-        it('should decrement the target value and assign it back to the target', function () {
-            targetReference.setValue(valueFactory.createInteger(10));
+        it('should decrement the target value and assign it back to the target', async function () {
+            await targetReference.setValue(valueFactory.createInteger(10)).toPromise();
 
-            postDecrement(targetReference);
+            await postDecrement(targetReference).toPromise();
 
-            expect(targetReference.getNative()).to.equal(9);
+            expect(await targetReference.asEventualNative().toPromise()).to.equal(9);
         });
 
-        it('should return the original value', function () {
-            var resultValue = this;
-            targetReference.setValue(valueFactory.createInteger(10));
+        it('should return the original value', async function () {
+            var resultValue;
+            await targetReference.setValue(valueFactory.createInteger(10)).toPromise();
 
-            resultValue = postDecrement(targetReference);
+            resultValue = await postDecrement(targetReference).toPromise();
 
-            expect(resultValue.getNative()).to.equal(10);
+            expect(await resultValue.asEventualNative().toPromise()).to.equal(10);
         });
     });
 
@@ -162,21 +183,21 @@ describe('PHP operator opcode handlers', function () {
             postIncrement = opcodeGroup.postIncrement;
         });
 
-        it('should increment the target value and assign it back to the target', function () {
-            targetReference.setValue(valueFactory.createInteger(10));
+        it('should increment the target value and assign it back to the target', async function () {
+            await targetReference.setValue(valueFactory.createInteger(10)).toPromise();
 
-            postIncrement(targetReference);
+            await postIncrement(targetReference).toPromise();
 
-            expect(targetReference.getNative()).to.equal(11);
+            expect(await targetReference.asEventualNative().toPromise()).to.equal(11);
         });
 
-        it('should return the original value', function () {
-            var resultValue = this;
-            targetReference.setValue(valueFactory.createInteger(10));
+        it('should return the original value', async function () {
+            var resultValue;
+            await targetReference.setValue(valueFactory.createInteger(10)).toPromise();
 
-            resultValue = postIncrement(targetReference);
+            resultValue = await postIncrement(targetReference).toPromise();
 
-            expect(resultValue.getNative()).to.equal(10);
+            expect(await resultValue.asEventualNative().toPromise()).to.equal(10);
         });
     });
 
@@ -187,21 +208,21 @@ describe('PHP operator opcode handlers', function () {
             preDecrement = opcodeGroup.preDecrement;
         });
 
-        it('should decrement the target value and assign it back to the target', function () {
-            targetReference.setValue(valueFactory.createInteger(10));
+        it('should decrement the target value and assign it back to the target', async function () {
+            await targetReference.setValue(valueFactory.createInteger(10)).toPromise();
 
-            preDecrement(targetReference);
+            await preDecrement(targetReference).toPromise();
 
-            expect(targetReference.getNative()).to.equal(9);
+            expect(await targetReference.asEventualNative().toPromise()).to.equal(9);
         });
 
-        it('should return the decremented value', function () {
-            var resultValue = this;
-            targetReference.setValue(valueFactory.createInteger(10));
+        it('should return the decremented value', async function () {
+            var resultValue;
+            await targetReference.setValue(valueFactory.createInteger(10)).toPromise();
 
-            resultValue = preDecrement(targetReference);
+            resultValue = await preDecrement(targetReference).toPromise();
 
-            expect(resultValue.getNative()).to.equal(9);
+            expect(await resultValue.asEventualNative().toPromise()).to.equal(9);
         });
     });
 
@@ -212,21 +233,21 @@ describe('PHP operator opcode handlers', function () {
             preIncrement = opcodeGroup.preIncrement;
         });
 
-        it('should increment the target value and assign it back to the target', function () {
-            targetReference.setValue(valueFactory.createInteger(10));
+        it('should increment the target value and assign it back to the target', async function () {
+            await targetReference.setValue(valueFactory.createInteger(10)).toPromise();
 
-            preIncrement(targetReference);
+            await preIncrement(targetReference).toPromise();
 
-            expect(targetReference.getNative()).to.equal(11);
+            expect(await targetReference.asEventualNative().toPromise()).to.equal(11);
         });
 
-        it('should return the incremented value', function () {
-            var resultValue = this;
-            targetReference.setValue(valueFactory.createInteger(10));
+        it('should return the incremented value', async function () {
+            var resultValue;
+            await targetReference.setValue(valueFactory.createInteger(10)).toPromise();
 
-            resultValue = preIncrement(targetReference);
+            resultValue = await preIncrement(targetReference).toPromise();
 
-            expect(resultValue.getNative()).to.equal(11);
+            expect(await resultValue.asEventualNative().toPromise()).to.equal(11);
         });
     });
 });

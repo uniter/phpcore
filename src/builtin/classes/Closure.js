@@ -15,6 +15,7 @@ var _ = require('microdash'),
 module.exports = function (internals) {
     var callFactory = internals.callFactory,
         callStack = internals.callStack,
+        controlScope = internals.controlScope,
         errorPromoter = internals.errorPromoter,
         globalNamespace = internals.globalNamespace,
         valueFactory = internals.valueFactory,
@@ -135,6 +136,9 @@ module.exports = function (internals) {
                 // Wrap all native JS values in *Value objects
                 args = valueFactory.coerceList(arguments);
 
+            // We are entering PHP-land from JS-land.
+            controlScope.enterCoroutine();
+
             // Push an FFI call onto the stack, representing the call from JavaScript-land
             callStack.push(callFactory.createFFICall(args));
 
@@ -159,15 +163,15 @@ module.exports = function (internals) {
                 });
 
             if (internals.mode === 'async') {
-                return new Promise(function (resolve, reject) {
-                    maybeFuture.next(
+                return maybeFuture
+                    .asFuture() // Avoid re-boxing the result as a Value.
+                    .next(
                         function (resultValue) {
-                            // Make sure we resolve the promise with the native result value
-                            resolve(resultValue.getNative());
-                        },
-                        reject
-                    );
-                });
+                            // Make sure we resolve the promise with the native result value.
+                            return resultValue.getNative();
+                        }
+                    )
+                    .toPromise();
             }
 
             if (internals.mode === 'psync') {

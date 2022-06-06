@@ -46,9 +46,11 @@ describe('ElementReference', function () {
         value = sinon.createStubInstance(Value);
 
         value.formatAsString.returns('\'the value of my...\'');
+        value.asEventualNative.returns(futureFactory.createPresent('the value of my element'));
         value.getForAssignment.returns(value);
         value.getNative.returns('the value of my element');
         value.getType.returns('string');
+        value.toPromise.returns(Promise.resolve(value));
 
         element = new ElementReference(
             valueFactory,
@@ -65,6 +67,12 @@ describe('ElementReference', function () {
     describe('asArrayElement()', function () {
         it('should return the element\'s value', function () {
             expect(element.asArrayElement()).to.equal(value);
+        });
+    });
+
+    describe('asEventualNative()', function () {
+        it('should return a Future that resolves to the native value of the element', async function () {
+            expect(await element.asEventualNative().toPromise()).to.equal('the value of my element');
         });
     });
 
@@ -258,6 +266,12 @@ describe('ElementReference', function () {
             );
 
             expect(element.getValueReference()).to.be.null;
+        });
+    });
+
+    describe('hasReferenceSetter()', function () {
+        it('should return false', function () {
+            expect(element.hasReferenceSetter()).to.be.false;
         });
     });
 
@@ -467,6 +481,15 @@ describe('ElementReference', function () {
 
                 expect(arrayValue.pointToElement).not.to.have.been.called;
             });
+        });
+    });
+
+    describe('toPromise()', function () {
+        it('should return a Promise that resolves with the Value of the element', async function () {
+            var resultValue = await element.toPromise();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('the value of my element');
         });
     });
 

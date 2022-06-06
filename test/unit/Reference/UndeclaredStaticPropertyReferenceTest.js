@@ -64,6 +64,16 @@ describe('UndeclaredStaticPropertyReference', function () {
         });
     });
 
+    describe('asEventualNative()', function () {
+        it('should raise an error', function () {
+            expect(function () {
+                reference.asEventualNative();
+            }).to.throw(
+                'Fake PHP Fatal error for #core.undeclared_static_property with {"propertyName":"myProperty"}'
+            );
+        });
+    });
+
     describe('formatAsString()', function () {
         it('should return "NULL"', function () {
             expect(reference.formatAsString()).to.equal('NULL');
@@ -83,6 +93,12 @@ describe('UndeclaredStaticPropertyReference', function () {
     describe('getValueOrNull()', function () {
         it('should return a NullValue', function () {
             expect(reference.getValueOrNull().getType()).to.equal('null');
+        });
+    });
+
+    describe('hasReferenceSetter()', function () {
+        it('should return false', function () {
+            expect(reference.hasReferenceSetter()).to.be.false;
         });
     });
 
@@ -114,6 +130,16 @@ describe('UndeclaredStaticPropertyReference', function () {
         it('should raise an error', function () {
             expect(function () {
                 reference.setValue(sinon.createStubInstance(Value));
+            }).to.throw(
+                'Fake PHP Fatal error for #core.undeclared_static_property with {"propertyName":"myProperty"}'
+            );
+        });
+    });
+
+    describe('toPromise()', function () {
+        it('should raise an error', function () {
+            expect(function () {
+                reference.toPromise();
             }).to.throw(
                 'Fake PHP Fatal error for #core.undeclared_static_property with {"propertyName":"myProperty"}'
             );

@@ -12,21 +12,42 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../tools'),
+    Coroutine = require('../../../src/Control/Coroutine'),
     LoadScope = require('../../../src/Load/LoadScope'),
     PHPError = phpCommon.PHPError,
-    Scope = require('../../../src/Scope').sync(),
-    ValueFactory = require('../../../src/ValueFactory').sync();
+    Scope = require('../../../src/Scope').sync();
 
 describe('LoadScope', function () {
-    var effectiveScope,
+    var coroutine,
+        effectiveScope,
         loadScope,
+        state,
         valueFactory;
 
     beforeEach(function () {
-        valueFactory = new ValueFactory();
+        state = tools.createIsolatedState();
+        coroutine = sinon.createStubInstance(Coroutine);
+        valueFactory = state.getValueFactory();
         effectiveScope = sinon.createStubInstance(Scope);
 
+        effectiveScope.getCoroutine.returns(coroutine);
+
         loadScope = new LoadScope(valueFactory, effectiveScope, '/path/to/my/caller.php', 'eval');
+    });
+
+    describe('enterCoroutine()', function () {
+        it('should enter a new Coroutine via the effective scope', function () {
+            loadScope.enterCoroutine();
+
+            expect(effectiveScope.enterCoroutine).to.have.been.calledOnce;
+        });
+    });
+
+    describe('getCoroutine()', function () {
+        it('should fetch the current Coroutine from the effective scope', function () {
+            expect(loadScope.getCoroutine()).to.equal(coroutine);
+        });
     });
 
     describe('getFilePath()', function () {
@@ -90,6 +111,19 @@ describe('LoadScope', function () {
                 true,
                 '/path/to/my_module.php',
                 123
+            );
+        });
+    });
+
+    describe('updateCoroutine()', function () {
+        it('should update the effective scope with the new Coroutine', function () {
+            var newCoroutine = sinon.createStubInstance(Coroutine);
+
+            loadScope.updateCoroutine(newCoroutine);
+
+            expect(effectiveScope.updateCoroutine).to.have.been.calledOnce;
+            expect(effectiveScope.updateCoroutine).to.have.been.calledWith(
+                sinon.match.same(newCoroutine)
             );
         });
     });

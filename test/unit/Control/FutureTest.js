@@ -13,15 +13,19 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('../tools'),
     CallStack = require('../../../src/CallStack'),
+    ControlScope = require('../../../src/Control/ControlScope'),
+    Coroutine = require('../../../src/Control/Coroutine'),
     Future = require('../../../src/Control/Future'),
     Pause = require('../../../src/Control/Pause');
 
 describe('Future', function () {
     var callStack,
         controlBridge,
+        controlScope,
+        coroutine,
         future,
         futureFactory,
-        parent,
+        nestCoroutineForFuture,
         pauseFactory,
         rejectFuture,
         resolveFuture,
@@ -30,12 +34,14 @@ describe('Future', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        controlScope = sinon.createStubInstance(ControlScope);
         state = tools.createIsolatedState('async', {
-            'call_stack': callStack
+            'call_stack': callStack,
+            'control_scope': controlScope
         });
         controlBridge = state.getControlBridge();
+        coroutine = sinon.createStubInstance(Coroutine);
         futureFactory = state.getFutureFactory();
-        parent = sinon.createStubInstance(Future);
         pauseFactory = state.getPauseFactory();
         valueFactory = state.getValueFactory();
 
@@ -44,12 +50,58 @@ describe('Future', function () {
             pauseFactory,
             valueFactory,
             controlBridge,
-            function (resolve, reject) {
+            controlScope,
+            function (resolve, reject, nestCoroutine) {
                 rejectFuture = reject;
                 resolveFuture = resolve;
+                nestCoroutineForFuture = nestCoroutine;
             },
-            parent
+            coroutine
         );
+    });
+
+    describe('constructor()', function () {
+        it('should resume the Future\'s coroutine on resolve before calling handlers', function () {
+            var onResolve = sinon.spy();
+            future.onResolve(onResolve);
+            controlScope.resumeCoroutine.resetHistory();
+
+            resolveFuture();
+
+            expect(controlScope.resumeCoroutine).to.have.been.calledOnce;
+            expect(controlScope.resumeCoroutine).to.have.been.calledWith(sinon.match.same(coroutine));
+            expect(onResolve).to.have.been.calledOnce;
+            expect(controlScope.resumeCoroutine).to.have.been.calledBefore(onResolve);
+        });
+
+        it('should resume the Future\'s coroutine on rejection before calling handlers', function () {
+            var onReject = sinon.spy();
+            future.onReject(onReject);
+            controlScope.resumeCoroutine.resetHistory();
+
+            rejectFuture(new Error('Bang!'));
+
+            expect(controlScope.resumeCoroutine).to.have.been.calledOnce;
+            expect(controlScope.resumeCoroutine).to.have.been.calledWith(sinon.match.same(coroutine));
+            expect(onReject).to.have.been.calledOnce;
+            expect(controlScope.resumeCoroutine).to.have.been.calledBefore(onReject);
+        });
+
+        it('should expose a callback for nesting the next Coroutine', function () {
+            nestCoroutineForFuture();
+
+            expect(controlScope.nestCoroutine).to.have.been.calledOnce;
+        });
+
+        it('should not nest the next Coroutine by default', function () {
+            expect(controlScope.nestCoroutine).not.to.have.been.called;
+        });
+    });
+
+    describe('asFuture()', function () {
+        it('should return the Future', function () {
+            expect(future.asFuture()).to.equal(future);
+        });
     });
 
     describe('asValue()', function () {

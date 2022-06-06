@@ -143,15 +143,17 @@ describe('Environment', function () {
 
     describe('defineGlobalAccessor()', function () {
         it('should define the global on the state', function () {
-            var valueGetter = sinon.stub(),
+            var referenceSetter = sinon.stub(),
+                valueGetter = sinon.stub(),
                 valueSetter = sinon.spy();
-            environment.defineGlobalAccessor('myGlobal', valueGetter, valueSetter);
+            environment.defineGlobalAccessor('myGlobal', valueGetter, valueSetter, referenceSetter);
 
             expect(state.defineGlobalAccessor).to.have.been.calledOnce;
             expect(state.defineGlobalAccessor).to.have.been.calledWith(
                 'myGlobal',
                 sinon.match.same(valueGetter),
-                sinon.match.same(valueSetter)
+                sinon.match.same(valueSetter),
+                sinon.match.same(referenceSetter)
             );
         });
     });
