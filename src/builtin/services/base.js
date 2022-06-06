@@ -21,9 +21,12 @@ var phpCommon = require('phpcommon'),
     ControlScope = require('../../Control/ControlScope'),
     ControlStructureOpcode = require('../../Core/Opcode/Opcode/ControlStructureOpcode'),
     ControlStructureOpcodeFetcher = require('../../Core/Opcode/Fetcher/ControlStructureOpcodeFetcher'),
+    Coroutine = require('../../Control/Coroutine'),
+    CoroutineFactory = require('../../Control/CoroutineFactory'),
     FFICall = require('../../FFI/Call'),
     Future = require('../../Control/Future'),
     FutureValue = require('../../Value/Future'),
+    HostScheduler = require('../../Control/HostScheduler'),
     LoopStructureOpcode = require('../../Core/Opcode/Opcode/LoopStructureOpcode'),
     LoopStructureOpcodeFetcher = require('../../Core/Opcode/Fetcher/LoopStructureOpcodeFetcher'),
     MethodPromoter = require('../../Class/MethodPromoter'),
@@ -97,8 +100,16 @@ module.exports = function (internals) {
             return new ControlScope();
         },
 
+        'coroutine_factory': function () {
+            return new CoroutineFactory(Coroutine, get(CALL_STACK));
+        },
+
         'function_signature_parser': function () {
             return new SignatureParser(get(VALUE_FACTORY));
+        },
+
+        'host_scheduler': function () {
+            return new HostScheduler();
         },
 
         'method_promoter': function () {

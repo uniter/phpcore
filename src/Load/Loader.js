@@ -67,7 +67,7 @@ module.exports = require('pauser')([
                 subOptions;
 
             // Always return a FutureValue, for a consistent interface regardless of synchronicity mode
-            return loader.valueFactory.createFuture(function (resolveFuture, rejectFuture) {
+            return loader.valueFactory.createFuture(function (resolveFuture, rejectFuture, nestCoroutine) {
                 /**
                  * Completes an unsuccessful module load
                  *
@@ -192,7 +192,8 @@ module.exports = require('pauser')([
                 try {
                     load(filePath, {
                         reject: reject,
-                        resolve: resolve
+                        resolve: resolve,
+                        nestCoroutine: nestCoroutine
                     }, module.getFilePath(), loader.valueFactory);
                 } catch (error) {
                     reject(error);

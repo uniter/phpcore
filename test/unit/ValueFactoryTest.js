@@ -37,6 +37,7 @@ var expect = require('chai').expect,
 describe('ValueFactory', function () {
     var callFactory,
         callStack,
+        controlScope,
         elementProvider,
         errorPromoter,
         factory,
@@ -49,10 +50,11 @@ describe('ValueFactory', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
-        state = tools.createIsolatedState(null, {
+        state = tools.createIsolatedState('async', {
             'call_stack': callStack
         });
         callFactory = sinon.createStubInstance(CallFactory);
+        controlScope = state.getControlScope();
         elementProvider = new ElementProvider();
         errorPromoter = sinon.createStubInstance(ErrorPromoter);
         futureFactory = state.getFutureFactory();
@@ -637,6 +639,35 @@ describe('ValueFactory', function () {
             phpObject.getObjectValue.returns(objectValue);
 
             expect(factory.createFromNativeObject(phpObject)).to.equal(objectValue);
+        });
+    });
+
+    describe('createFuture()', function () {
+        it('should return a FutureValue that coerces any native async result to a Value', async function () {
+            var resolvedValue,
+                value = factory.createFuture(function (resolve) {
+                    state.queueMicrotask(function () {
+                        resolve(21);
+                    });
+                });
+
+            resolvedValue = await value.toPromise();
+
+            expect(resolvedValue.getType()).to.equal('int');
+            expect(resolvedValue.getNative()).to.equal(21);
+        });
+
+        it('should allow the next Coroutine to be nested', async function () {
+            var value = factory.createFuture(function (resolve, reject, nestCoroutine) {
+                state.queueMicrotask(function () {
+                    nestCoroutine();
+                    resolve(21);
+                });
+            });
+
+            await value.toPromise();
+
+            expect(controlScope.isNestingCoroutine()).to.be.true;
         });
     });
 

@@ -298,4 +298,63 @@ EOS
             'third closure': 'our third'
         });
     });
+
+    it('should support a by-reference closure binding being assigned null', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+$myVar = 21;
+
+$myClosure = function () use (&$myVar) {
+    $myVar = null;
+};
+
+$result['before call'] = $myVar;
+$myClosure();
+$result['after call'] = $myVar;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/some/module/path.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'before call': 21,
+            'after call': null
+        });
+    });
+
+    it('should handle an exception being thrown inside a closure', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+$myClosure = function ($myFailure) {
+    throw new Exception('My failure is: ' . $myFailure);
+};
+
+try {
+    $myClosure('Bang!');
+} catch (Throwable $throwable) {
+    $result['standard Exception'] = $throwable::class .
+        ': ' .
+        $throwable->getMessage() .
+        ' @ ' .
+        $throwable->getFile() .
+        ':' .
+        $throwable->getLine();
+}
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/some/module/path.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'standard Exception': 'Exception: My failure is: Bang! @ /some/module/path.php:5'
+        });
+    });
 });

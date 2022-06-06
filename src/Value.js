@@ -23,6 +23,7 @@ module.exports = require('pauser')([
         CLASS_NAME_NOT_VALID = 'core.class_name_not_valid',
         METHOD_CALLED_ON_NON_OBJECT = 'core.method_called_on_non_object',
         NON_OBJECT_METHOD_CALL = 'core.non_object_method_call',
+        VALUE_NOT_CALLABLE = 'core.value_not_callable',
 
         createNullReference = function (value) {
             var callStack = value.callStack;
@@ -226,12 +227,16 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Calls this value, if it is callable
+         * Calls this value, if it is callable.
          *
          * @param {Reference[]|Value[]|Variable[]} args
          * @returns {Reference|Value}
          */
-        call: throwUnimplemented('call'),
+        call: function () {
+            this.callStack.raiseTranslatedError(PHPError.E_ERROR, VALUE_NOT_CALLABLE, {
+                'type': this.type
+            });
+        },
 
         /**
          * Calls a method on an object
@@ -364,9 +369,13 @@ module.exports = require('pauser')([
                  *   int(21)
                  * }
                  */
-                objectValue.getInstancePropertyByName(value.factory.createString('scalar')).setValue(value);
-
-                return objectValue;
+                return objectValue.getInstancePropertyByName(value.factory.createString('scalar'))
+                    .setValue(value)
+                    .next(function () {
+                        // Discard the result of the setter, we have awaited it if needed,
+                        // and return the created ObjectValue.
+                        return objectValue;
+                    });
             });
         },
 

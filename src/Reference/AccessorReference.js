@@ -74,6 +74,13 @@ _.extend(AccessorReference.prototype, {
     /**
      * {@inheritdoc}
      */
+    hasReferenceSetter: function () {
+        return this.referenceSetter !== null;
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     isDefined: function () {
         return true;
     },

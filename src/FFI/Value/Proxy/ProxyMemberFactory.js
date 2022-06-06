@@ -17,13 +17,19 @@ var _ = require('microdash');
  * @param {ValueFactory} valueFactory
  * @param {ValueStorage} valueStorage
  * @param {NativeCaller} nativeCaller
+ * @param {ControlScope} controlScope
  * @constructor
  */
 function ProxyMemberFactory(
     valueFactory,
     valueStorage,
-    nativeCaller
+    nativeCaller,
+    controlScope
 ) {
+    /**
+     * @type {ControlScope}
+     */
+    this.controlScope = controlScope;
     /**
      * @type {NativeCaller}
      */
@@ -56,6 +62,9 @@ _.extend(ProxyMemberFactory.prototype, {
                 privates = factory.valueStorage.getPrivatesForNativeProxy(this),
                 objectValue = privates.objectValue,
                 useSyncApiAlthoughPsync = privates.useSyncApiAlthoughPsync;
+
+            // We are entering PHP-land from JS-land.
+            factory.controlScope.enterCoroutine();
 
             return factory.nativeCaller.callMethod(objectValue, methodName, args, useSyncApiAlthoughPsync);
         };

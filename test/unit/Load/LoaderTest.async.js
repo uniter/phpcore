@@ -27,7 +27,8 @@ var expect = require('chai').expect,
     Value = require('../../../src/Value').sync();
 
 describe('Loader (async mode)', function () {
-    var elements,
+    var controlScope,
+        elements,
         enclosingScope,
         environment,
         futureFactory,
@@ -39,6 +40,7 @@ describe('Loader (async mode)', function () {
 
     beforeEach(function () {
         state = tools.createIsolatedState('async');
+        controlScope = state.getControlScope();
         futureFactory = state.getFutureFactory();
         valueFactory = state.getValueFactory();
         elements = [];
@@ -76,10 +78,10 @@ describe('Loader (async mode)', function () {
                         var stubModule = sinon.stub();
                         stubModule.returns(subEngine);
 
-                        // Pause before resolving, to test async behaviour
-                        setTimeout(function () {
+                        // Pause before resolving, to test async behaviour.
+                        state.queueMicrotask(function () {
                             promise.resolve(stubModule);
-                        }, 1);
+                        });
                     }
                 )
                 .toPromise();
@@ -87,6 +89,35 @@ describe('Loader (async mode)', function () {
             expect(resultValue).to.be.an.instanceOf(Value);
             expect(resultValue.getType()).to.equal('string');
             expect(resultValue.getNative()).to.equal('my async module result');
+        });
+
+        it('should allow the load callback to nest the next Coroutine', async function () {
+            await loader.load(
+                'include',
+                '/path/to/my/module.php',
+                {},
+                environment,
+                module,
+                enclosingScope,
+                function (path, promise) {
+                    var stubModule = sinon.stub();
+                    stubModule.returns(subEngine);
+
+                    // Pause before resolving, to test async behaviour.
+                    state.queueMicrotask(function () {
+                        var stubModule = sinon.stub();
+                        stubModule.returns(subEngine);
+
+                        // Mark the next coroutine as nested.
+                        promise.nestCoroutine();
+
+                        promise.resolve(stubModule);
+                    });
+                }
+            )
+                .toPromise();
+
+            expect(controlScope.isNestingCoroutine()).to.be.true;
         });
 
         it('should throw an error with the error when the load callback rejects with a normal JS error', function () {
@@ -99,10 +130,10 @@ describe('Loader (async mode)', function () {
                     module,
                     enclosingScope,
                     function (path, promise) {
-                        // Pause before resolving, to test async behaviour
-                        setTimeout(function () {
+                        // Pause before resolving, to test async behaviour.
+                        state.queueMicrotask(function () {
                             promise.reject(new Error('There was some issue with the include'));
-                        }, 1);
+                        });
                     }
                 )
                 .toPromise()
@@ -127,12 +158,12 @@ describe('Loader (async mode)', function () {
                 module,
                 enclosingScope,
                 function (path, promise) {
-                    // Pause before resolving, to test async behaviour
-                    setTimeout(function () {
+                    // Pause before resolving, to test async behaviour.
+                    state.queueMicrotask(function () {
                         promise.reject(
                             new PHPParseError('There was a problem parsing', '/path/to/my_module.php', 123)
                         );
-                    }, 1);
+                    });
                 }
             )
                 .catch(function (caughtError) {
@@ -158,10 +189,10 @@ describe('Loader (async mode)', function () {
                     module,
                     enclosingScope,
                     function (path, promise) {
-                        // Pause before resolving, to test async behaviour
-                        setTimeout(function () {
+                        // Pause before resolving, to test async behaviour.
+                        state.queueMicrotask(function () {
                             promise.reject(fatalError);
-                        }, 1);
+                        });
                     }
                 )
                 .toPromise()

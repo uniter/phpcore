@@ -47,6 +47,18 @@ describe('CallStack', function () {
         callStack = new CallStack(valueFactory, translator, errorReporting);
     });
 
+    describe('clear()', function () {
+        it('should delete all frames from the call stack', function () {
+            callStack.push(sinon.createStubInstance(Call));
+            callStack.push(sinon.createStubInstance(Call));
+            callStack.push(sinon.createStubInstance(Call));
+
+            callStack.clear();
+
+            expect(callStack.getLength()).to.equal(0);
+        });
+    });
+
     describe('getCaller()', function () {
         it('should return the caller call when there is one', function () {
             var callerCall = sinon.createStubInstance(Call),
@@ -152,6 +164,23 @@ describe('CallStack', function () {
 
         it('should return null when there is no call on the stack', function () {
             expect(callStack.getCurrentClass()).to.equal(null);
+        });
+    });
+
+    describe('getCurrentScope()', function () {
+        it('should return the current Scope for the current Call when there are 3 on the stack', function () {
+            var currentCall = sinon.createStubInstance(Call),
+                currentScope = sinon.createStubInstance(Scope);
+            currentCall.getScope.returns(currentScope);
+            callStack.push(sinon.createStubInstance(Call));
+            callStack.push(sinon.createStubInstance(Call));
+            callStack.push(currentCall);
+
+            expect(callStack.getCurrentScope()).to.equal(currentScope);
+        });
+
+        it('should return null when there is no call on the stack', function () {
+            expect(callStack.getCurrentScope()).to.equal(null);
         });
     });
 
@@ -915,6 +944,74 @@ describe('CallStack', function () {
                 // Context should be the userland caller when the current function is a builtin
                 'PHP Fatal error: My translated error message! in /my/userland/module.php on line 101'
             );
+        });
+    });
+
+    describe('restore()', function () {
+        it('should add the given calls to an empty CallStack', function () {
+            var callerCall = sinon.createStubInstance(Call),
+                currentCall = sinon.createStubInstance(Call);
+
+            callStack.restore([callerCall, currentCall]);
+
+            expect(callStack.getLength()).to.equal(2);
+            expect(callStack.getCurrent()).to.equal(currentCall);
+            expect(callStack.getCaller()).to.equal(callerCall);
+        });
+
+        it('should clear the CallStack before adding the given calls', function () {
+            var previousCallerCall = sinon.createStubInstance(Call),
+                previousCurrentCall = sinon.createStubInstance(Call),
+                newCallerCall = sinon.createStubInstance(Call),
+                newCurrentCall = sinon.createStubInstance(Call);
+            callStack.push(previousCallerCall);
+            callStack.push(previousCurrentCall);
+
+            callStack.restore([newCallerCall, newCurrentCall]);
+
+            expect(callStack.getLength()).to.equal(2);
+            expect(callStack.getCurrent()).to.equal(newCurrentCall);
+            expect(callStack.getCaller()).to.equal(newCallerCall);
+        });
+
+        it('should be able to restore an empty set of frames', function () {
+            var previousCallerCall = sinon.createStubInstance(Call),
+                previousCurrentCall = sinon.createStubInstance(Call);
+            callStack.push(previousCallerCall);
+            callStack.push(previousCurrentCall);
+
+            callStack.restore([]);
+
+            expect(callStack.getLength()).to.equal(0);
+        });
+    });
+
+    describe('save()', function () {
+        it('should return the frames', function () {
+            var callerCall = sinon.createStubInstance(Call),
+                currentCall = sinon.createStubInstance(Call),
+                result;
+            callStack.push(callerCall);
+            callStack.push(currentCall);
+
+            result = callStack.save();
+
+            expect(result).to.have.length(2);
+            expect(result[0]).to.equal(callerCall);
+            expect(result[1]).to.equal(currentCall);
+        });
+
+        it('should not clear the frames', function () {
+            var callerCall = sinon.createStubInstance(Call),
+                currentCall = sinon.createStubInstance(Call);
+            callStack.push(callerCall);
+            callStack.push(currentCall);
+
+            callStack.save();
+
+            expect(callStack.getLength()).to.equal(2);
+            expect(callStack.getCurrent()).to.equal(currentCall);
+            expect(callStack.getCaller()).to.equal(callerCall);
         });
     });
 });

@@ -21,11 +21,13 @@ var expect = require('chai').expect,
     FFIInternals = require('../../src/FFI/Internals/Internals'),
     FFIResult = require('../../src/FFI/Result'),
     GlobalStackHooker = require('../../src/FFI/Stack/GlobalStackHooker'),
+    HostScheduler = require('../../src/Control/HostScheduler'),
     Loader = require('../../src/Load/Loader').sync(),
     OptionSet = require('../../src/OptionSet'),
     Output = require('../../src/Output/Output'),
     PauseFactory = require('../../src/Control/PauseFactory'),
     PHPState = require('../../src/PHPState').sync(),
+    Reference = require('../../src/Reference/Reference'),
     Runtime = require('../../src/Runtime').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
     Stream = require('../../src/Stream'),
@@ -370,6 +372,26 @@ describe('PHPState', function () {
             expect(initialiser2).to.have.been.calledWith(sinon.match.same(internals));
         });
 
+        it('should load the state inside a Coroutine', function (done) {
+            state = new PHPState(
+                runtime,
+                globalStackHooker,
+                {
+                    initialiserGroups: [
+                        function () {
+                            expect(state.getControlScope().inCoroutine()).to.be.true;
+
+                            done();
+                        }
+                    ]
+                },
+                stdin,
+                stdout,
+                stderr,
+                'async'
+            );
+        });
+
         it('should install any opcode handlers', function () {
             var opcodeHandler = sinon.stub();
             state = new PHPState(
@@ -684,6 +706,13 @@ describe('PHPState', function () {
             expect(resultValue.getNative()).to.equal(1001);
         });
 
+        it('should return an assigned FutureValue yielded synchronously', function () {
+            var resultValue = state.defineGlobal('myGlobal', valueFactory.createPresent(1234));
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(1234);
+        });
+
         it('should throw when the global is already defined', function () {
             state.defineGlobal('myGlobal', 21);
 
@@ -715,8 +744,23 @@ describe('PHPState', function () {
             state.getGlobalScope().getVariable('MY_GLOB').setValue(value);
 
             expect(valueSetter).to.have.been.calledOnce;
+            expect(valueSetter).to.have.been.calledOn(state.getFFIInternals());
             expect(valueSetter.args[0][0].getType()).to.equal('int');
             expect(valueSetter.args[0][0].getNative()).to.equal(27);
+        });
+
+        it('should install a reference setter for the global', function () {
+            var reference = sinon.createStubInstance(Reference),
+                referenceSetter = sinon.spy(),
+                valueGetter = sinon.stub(),
+                valueSetter = sinon.spy();
+
+            state.defineGlobalAccessor('MY_GLOB', valueGetter, valueSetter, referenceSetter);
+            state.getGlobalScope().getVariable('MY_GLOB').setReference(reference);
+
+            expect(referenceSetter).to.have.been.calledOnce;
+            expect(referenceSetter).to.have.been.calledOn(state.getFFIInternals());
+            expect(referenceSetter).to.have.been.calledWith(sinon.match.same(reference));
         });
     });
 
@@ -928,6 +972,12 @@ describe('PHPState', function () {
         });
     });
 
+    describe('getHostScheduler()', function () {
+        it('should return the HostScheduler service', function () {
+            expect(state.getHostScheduler()).to.be.an.instanceOf(HostScheduler);
+        });
+    });
+
     describe('getLoader()', function () {
         it('should return a Loader', function () {
             expect(state.getLoader()).to.be.an.instanceOf(Loader);
@@ -968,6 +1018,32 @@ describe('PHPState', function () {
     describe('getValueProvider()', function () {
         it('should return the ValueProvider service', function () {
             expect(state.getValueProvider()).to.be.an.instanceOf(ValueProvider);
+        });
+    });
+
+    describe('queueMacrotask()', function () {
+        it('should resolve the callback in the next event loop tick', function (done) {
+            var callback = sinon.spy(done);
+
+            state.queueMacrotask(callback);
+
+            expect(callback).not.to.have.been.called;
+            state.queueMicrotask(function () {
+                expect(callback).not.to.have.been.called;
+            });
+        });
+    });
+
+    describe('queueMicrotask()', function () {
+        it('should resolve the callback at the end of the current event loop tick', function (done) {
+            var callback = sinon.spy(done);
+
+            state.queueMicrotask(callback);
+
+            expect(callback).not.to.have.been.called;
+            state.queueMicrotask(function () {
+                expect(callback).to.have.been.calledOnce;
+            });
         });
     });
 

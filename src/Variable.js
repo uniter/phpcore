@@ -79,6 +79,15 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Returns a Future that will resolve to the native value of this variable.
+         *
+         * @returns {Future<*>}
+         */
+        asEventualNative: function () {
+            return this.getValue().asEventualNative();
+        },
+
+        /**
          * Formats the variable (which may not be defined) for display in stack traces etc.
          *
          * @returns {string}
@@ -170,7 +179,7 @@ module.exports = require('pauser')([
             variable.reference = variable.referenceFactory.createReferenceSlot();
 
             if (variable.value) {
-                variable.reference.setValue(variable.value);
+                variable.reference.setValue(variable.value).yieldSync();
                 variable.value = null; // This variable now has a reference (to the slot) and not a value
             }
 
@@ -281,13 +290,36 @@ module.exports = require('pauser')([
                 .asValue();
         },
 
+        /**
+         * Changes this variable to refer to a reference rather than contain a value itself,
+         * or changes the target reference if it already has one.
+         *
+         * @param {Reference} reference
+         * @returns {Variable}
+         */
         setReference: function (reference) {
             var variable = this;
+
+            if (variable.reference && variable.reference.hasReferenceSetter()) {
+                // Current reference itself intercepts further reference assignments.
+                variable.reference.setReference(reference);
+
+                return variable;
+            }
 
             variable.reference = reference;
             variable.value = null;
 
             return variable;
+        },
+
+        /**
+         * Derives a promise of this variable (shared interface with Future).
+         *
+         * @returns {Promise<Value>}
+         */
+        toPromise: function () {
+            return this.getValue().toPromise();
         },
 
         /**

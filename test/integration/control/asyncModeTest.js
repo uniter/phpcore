@@ -19,6 +19,7 @@ describe('Async control integration', function () {
     var call,
         callStack,
         controlFactory,
+        controlScope,
         environment,
         futureFactory,
         state;
@@ -28,6 +29,7 @@ describe('Async control integration', function () {
         state = environment.getState();
         callStack = state.getCallStack();
         controlFactory = state.getControlFactory();
+        controlScope = state.getControlScope();
         futureFactory = state.getFutureFactory();
 
         call = sinon.createStubInstance(Call);
@@ -375,6 +377,7 @@ describe('Async control integration', function () {
                 error.next(function () {
                     done();
                 });
+                controlScope.markPaused(error);
             }
 
             doResolve(21);

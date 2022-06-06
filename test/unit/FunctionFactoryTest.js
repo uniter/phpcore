@@ -16,7 +16,6 @@ var expect = require('chai').expect,
     CallFactory = require('../../src/CallFactory'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
-    ControlBridge = require('../../src/Control/ControlBridge'),
     ControlScope = require('../../src/Control/ControlScope'),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     FunctionSpec = require('../../src/Function/FunctionSpec'),
@@ -46,12 +45,16 @@ describe('FunctionFactory', function () {
         valueFactory;
 
     beforeEach(function () {
-        state = tools.createIsolatedState();
-        call = sinon.createStubInstance(Call);
+        controlScope = sinon.createStubInstance(ControlScope);
         callFactory = sinon.createStubInstance(CallFactory);
         callStack = sinon.createStubInstance(CallStack);
-        controlBridge = sinon.createStubInstance(ControlBridge);
-        controlScope = sinon.createStubInstance(ControlScope);
+        state = tools.createIsolatedState('async', {
+            'call_factory': callFactory,
+            'call_stack': callStack,
+            'control_scope': controlScope
+        });
+        call = sinon.createStubInstance(Call);
+        controlBridge = state.getControlBridge();
         currentClass = sinon.createStubInstance(Class);
         flow = state.getFlow();
         futureFactory = state.getFutureFactory();

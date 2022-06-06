@@ -15,6 +15,8 @@ var expect = require('chai').expect,
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     ClosureFactory = require('../../src/ClosureFactory').sync(),
+    ControlScope = require('../../src/Control/ControlScope'),
+    Coroutine = require('../../src/Control/Coroutine'),
     Environment = require('../../src/Environment'),
     FunctionSpecFactory = require('../../src/Function/FunctionSpecFactory'),
     Module = require('../../src/Module'),
@@ -30,6 +32,8 @@ var expect = require('chai').expect,
 describe('ScopeFactory', function () {
     var callStack,
         closureFactory,
+        controlScope,
+        EngineScope,
         factory,
         functionSpecFactory,
         globalNamespace,
@@ -47,7 +51,9 @@ describe('ScopeFactory', function () {
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
         closureFactory = sinon.createStubInstance(ClosureFactory);
+        controlScope = sinon.createStubInstance(ControlScope);
         functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
+        EngineScope = sinon.stub();
         LoadScope = sinon.stub();
         ModuleScope = sinon.stub();
         NamespaceScope = sinon.stub();
@@ -62,10 +68,12 @@ describe('ScopeFactory', function () {
 
         factory = new ScopeFactory(
             ModuleScope,
+            EngineScope,
             LoadScope,
             Scope,
             NamespaceScope,
             callStack,
+            controlScope,
             translator,
             superGlobalScope,
             functionSpecFactory,
@@ -215,10 +223,71 @@ describe('ScopeFactory', function () {
             );
         });
 
+        it('should pass the ControlScope to the scope', function () {
+            callCreate();
+
+            expect(Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(controlScope)
+            );
+        });
+
+        it('should pass the current Coroutine to the scope when inside one', function () {
+            var coroutine = sinon.createStubInstance(Coroutine);
+            controlScope.getCoroutine.returns(coroutine);
+            controlScope.inCoroutine.returns(true);
+
+            callCreate();
+
+            expect(Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(coroutine)
+            );
+        });
+
+        it('should pass null as the current Coroutine to the scope when not inside one', function () {
+            controlScope.inCoroutine.returns(false);
+
+            callCreate();
+
+            expect(Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                null
+            );
+        });
+
         it('should pass the current class to the scope when specified', function () {
             callCreate();
 
             expect(Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -247,6 +316,8 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
                 null
             );
         });
@@ -255,6 +326,8 @@ describe('ScopeFactory', function () {
             callCreate();
 
             expect(Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -285,6 +358,8 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
                 null
             );
         });
@@ -293,6 +368,8 @@ describe('ScopeFactory', function () {
             callCreate();
 
             expect(Scope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -325,7 +402,60 @@ describe('ScopeFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
                 null
+            );
+        });
+    });
+
+    describe('createEngineScope()', function () {
+        var callCreateEngineScope,
+            effectiveScope,
+            effectiveScopeCoroutine;
+
+        beforeEach(function () {
+            effectiveScope = sinon.createStubInstance(Scope);
+            effectiveScopeCoroutine = sinon.createStubInstance(Coroutine);
+
+            effectiveScope.getCoroutine = sinon.stub().returns(effectiveScopeCoroutine);
+
+            callCreateEngineScope = function () {
+                return factory.createEngineScope(effectiveScope);
+            };
+        });
+
+        it('should return an instance of EngineScope', function () {
+            expect(callCreateEngineScope()).to.be.an.instanceOf(EngineScope);
+        });
+
+        it('should pass the effective Scope to the scope', function () {
+            callCreateEngineScope();
+
+            expect(EngineScope).to.have.been.calledOnce;
+            expect(EngineScope).to.have.been.calledWith(
+                sinon.match.same(effectiveScope)
+            );
+        });
+
+        it('should pass the ControlScope to the scope', function () {
+            callCreateEngineScope();
+
+            expect(EngineScope).to.have.been.calledOnce;
+            expect(EngineScope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.same(controlScope)
+            );
+        });
+
+        it('should pass the current Coroutine of the effective Scope to the scope', function () {
+            callCreateEngineScope();
+
+            expect(EngineScope).to.have.been.calledOnce;
+            expect(EngineScope).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(effectiveScopeCoroutine)
             );
         });
     });

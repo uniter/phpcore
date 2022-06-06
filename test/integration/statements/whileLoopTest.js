@@ -78,7 +78,7 @@ EOS
         ]);
     });
 
-    it('should be able to loop in async mode with pauses', function () {
+    it('should be able to loop in async mode with pauses', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -106,16 +106,14 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                '[5]',
-                '[4]',
-                '[3]'
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            '[5]',
+            '[4]',
+            '[3]'
+        ]);
     });
 
-    it('should be able to nest loops in async mode with pauses', function () {
+    it('should be able to nest loops in async mode with pauses', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -151,19 +149,17 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                '[5]',
-                '[[3]]',
-                '[[2]]',
-                '[4]',
-                '[[3]]',
-                '[[2]]',
-                '[3]',
-                '[[3]]',
-                '[[2]]'
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            '[5]',
+            '[[3]]',
+            '[[2]]',
+            '[4]',
+            '[[3]]',
+            '[[2]]',
+            '[3]',
+            '[[3]]',
+            '[[2]]'
+        ]);
     });
 
     it('should support fetching the condition from accessor returning future in async mode', async function () {

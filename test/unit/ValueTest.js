@@ -108,6 +108,8 @@ describe('Value', function () {
 
                 propertyRef.setValue.callsFake(function (value) {
                     nativeStdClassObject[nameValue.getNative()] = value.getNative();
+
+                    return value;
                 });
 
                 return propertyRef;

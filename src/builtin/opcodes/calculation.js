@@ -1352,9 +1352,11 @@ module.exports = function (internals) {
             var originalValue = reference.getValue(),
                 decrementedValue = originalValue.decrement();
 
-            reference.setValue(decrementedValue);
-
-            return originalValue;
+            return reference.setValue(decrementedValue)
+                .next(function () {
+                    return originalValue;
+                })
+                .asValue();
         },
 
         /**
@@ -1367,9 +1369,11 @@ module.exports = function (internals) {
             var originalValue = reference.getValue(),
                 incrementedValue = originalValue.increment();
 
-            reference.setValue(incrementedValue);
-
-            return originalValue;
+            return reference.setValue(incrementedValue)
+                .next(function () {
+                    return originalValue;
+                })
+                .asValue();
         },
 
         /**
@@ -1381,9 +1385,11 @@ module.exports = function (internals) {
         preDecrement: function (reference) {
             var decrementedValue = reference.getValue().decrement();
 
-            reference.setValue(decrementedValue);
-
-            return decrementedValue;
+            return reference.setValue(decrementedValue)
+                .next(function () {
+                    return decrementedValue;
+                })
+                .asValue();
         },
 
         /**
@@ -1395,9 +1401,11 @@ module.exports = function (internals) {
         preIncrement: function (reference) {
             var incrementedValue = reference.getValue().increment();
 
-            reference.setValue(incrementedValue);
-
-            return incrementedValue;
+            return reference.setValue(incrementedValue)
+                .next(function () {
+                    return incrementedValue;
+                })
+                .asValue();
         },
 
         /**

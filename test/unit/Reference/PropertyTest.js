@@ -53,10 +53,12 @@ describe('PropertyReference', function () {
         classObject.getName.returns('My\\AwesomeClass');
         keyValue.getNative.returns('my_property');
         keyValue.getType.returns('string');
+        propertyValue.asEventualNative.returns(futureFactory.createPresent('value for my prop'));
         propertyValue.formatAsString.returns('\'the value of my...\'');
         propertyValue.getForAssignment.returns(propertyValue);
         propertyValue.getNative.returns('value for my prop');
         propertyValue.getType.returns('string');
+        propertyValue.toPromise.returns(Promise.resolve(propertyValue));
 
         createProperty = function (visibility) {
             property = new PropertyReference(
@@ -79,6 +81,14 @@ describe('PropertyReference', function () {
             property.initialise(propertyValue);
 
             expect(property.asArrayElement()).to.equal(propertyValue);
+        });
+    });
+
+    describe('asEventualNative()', function () {
+        it('should return a Future that resolves to the native value of the property', async function () {
+            property.initialise(propertyValue);
+
+            expect(await property.asEventualNative().toPromise()).to.equal('value for my prop');
         });
     });
 
@@ -300,6 +310,12 @@ describe('PropertyReference', function () {
         });
     });
 
+    describe('hasReferenceSetter()', function () {
+        it('should return false', function () {
+            expect(property.hasReferenceSetter()).to.be.false;
+        });
+    });
+
     describe('initialise()', function () {
         it('should set the value of the property', function () {
             property.initialise(propertyValue);
@@ -518,6 +534,18 @@ describe('PropertyReference', function () {
                     expect(resultValue.getNative()).to.equal('my new value');
                 });
             });
+        });
+    });
+
+    describe('toPromise()', function () {
+        it('should return a Promise that resolves with the Value of the property', async function () {
+            var resultValue;
+            property.initialise(propertyValue);
+
+            resultValue = await property.toPromise();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('value for my prop');
         });
     });
 

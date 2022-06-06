@@ -58,6 +58,17 @@ describe('ObjectElementReference', function () {
         });
     });
 
+    describe('asEventualNative()', function () {
+        it('should return a Future that resolves to the native value from ArrayAccess::offsetGet(...)', async function () {
+            objectValue.callMethod.withArgs(
+                'offsetGet',
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createString('my value'));
+
+            expect(await element.asEventualNative().toPromise()).to.equal('my value');
+        });
+    });
+
     describe('getNative()', function () {
         it('should return the native value of the result from ArrayAccess::offsetGet(...)', function () {
             expect(element.getNative()).to.equal('hello');
@@ -73,6 +84,12 @@ describe('ObjectElementReference', function () {
             ).returns(value);
 
             expect(element.getValueOrNull()).to.equal(value);
+        });
+    });
+
+    describe('hasReferenceSetter()', function () {
+        it('should return false', function () {
+            expect(element.hasReferenceSetter()).to.be.false;
         });
     });
 
@@ -201,6 +218,21 @@ describe('ObjectElementReference', function () {
 
             expect(resultPresent.getType()).to.equal('string');
             expect(resultPresent.getNative()).to.equal('my final assigned value');
+        });
+    });
+
+    describe('toPromise()', function () {
+        it('should return a Promise that resolves with the Value from ArrayAccess::offsetGet(...)', async function () {
+            var resultValue;
+            objectValue.callMethod.withArgs(
+                'offsetGet',
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createString('my value'));
+
+            resultValue = await element.toPromise();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('my value');
         });
     });
 

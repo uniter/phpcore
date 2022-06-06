@@ -17,6 +17,8 @@ var expect = require('chai').expect,
     Class = require('../../src/Class').sync(),
     Closure = require('../../src/Closure').sync(),
     ClosureFactory = require('../../src/ClosureFactory').sync(),
+    ControlScope = require('../../src/Control/ControlScope'),
+    Coroutine = require('../../src/Control/Coroutine'),
     Exception = phpCommon.Exception,
     FunctionSpec = require('../../src/Function/FunctionSpec'),
     FunctionSpecFactory = require('../../src/Function/FunctionSpecFactory'),
@@ -38,6 +40,8 @@ describe('Scope', function () {
     var callStack,
         closure,
         closureFactory,
+        controlScope,
+        coroutine,
         createScope,
         currentClass,
         currentFunction,
@@ -59,10 +63,13 @@ describe('Scope', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        controlScope = sinon.createStubInstance(ControlScope);
         state = tools.createIsolatedState(null, {
-            'call_stack': callStack
+            'call_stack': callStack,
+            'control_scope': controlScope
         });
         closure = sinon.createStubInstance(Closure);
+        coroutine = sinon.createStubInstance(Coroutine);
         currentClass = null;
         currentFunction = null;
         closureFactory = sinon.createStubInstance(ClosureFactory);
@@ -89,6 +96,9 @@ describe('Scope', function () {
             return new Variable(callStack, valueFactory, referenceFactory, futureFactory, variableName);
         });
 
+        controlScope.enterCoroutine.resetHistory();
+        controlScope.resumeCoroutine.resetHistory();
+
         whenCurrentClass = function () {
             currentClass = sinon.createStubInstance(Class);
             currentClass.getSuperClass.returns(null);
@@ -101,7 +111,7 @@ describe('Scope', function () {
             parentClass = sinon.createStubInstance(Class);
             currentClass.getSuperClass.returns(parentClass);
         };
-        createScope = function (thisObject, givenGlobalScope) {
+        createScope = function (thisObject, givenGlobalScope, givenCoroutine) {
             scope = new Scope(
                 callStack,
                 translator,
@@ -112,11 +122,28 @@ describe('Scope', function () {
                 valueFactory,
                 variableFactory,
                 referenceFactory,
+                controlScope,
+                givenCoroutine !== undefined ? givenCoroutine : coroutine,
                 currentClass,
                 currentFunction,
                 thisObject || null
             );
         };
+    });
+
+    describe('constructor()', function () {
+        it('should throw when an unresolved FutureValue is given as `$this`', function () {
+            expect(function () {
+                var thisObject = valueFactory.createFuture(function () {
+                    // (Do not resolve so the Future remains pending...)
+                });
+
+                createScope(thisObject);
+            }).to.throw(
+                Exception,
+                'Cannot synchronously yield a pending Future - did you mean to chain with .next(...)?'
+            );
+        });
     });
 
     describe('createClosure()', function () {
@@ -128,6 +155,7 @@ describe('Scope', function () {
             func = sinon.stub();
             namespaceScope = sinon.createStubInstance(NamespaceScope);
             thisObject = sinon.createStubInstance(ObjectValue);
+            thisObject.asValue.returns(thisObject);
             thisObject.getForAssignment.returns(thisObject);
             thisObject.next.yields(thisObject);
 
@@ -282,6 +310,42 @@ describe('Scope', function () {
         });
     });
 
+    describe('enterCoroutine()', function () {
+        it('should resume the current Coroutine for the Scope when it has one', function () {
+            createScope();
+
+            scope.enterCoroutine();
+
+            expect(controlScope.resumeCoroutine).to.have.been.calledOnce;
+            expect(controlScope.resumeCoroutine).to.have.been.calledWith(
+                sinon.match.same(coroutine)
+            );
+        });
+
+        describe('when the Scope has no current Coroutine', function () {
+            var newCoroutine;
+
+            beforeEach(function () {
+                newCoroutine = sinon.createStubInstance(Coroutine);
+
+                controlScope.enterCoroutine.returns(newCoroutine);
+                createScope(null, null, null);
+            });
+
+            it('should enter a new current Coroutine for the Scope', function () {
+                scope.enterCoroutine();
+
+                expect(controlScope.enterCoroutine).to.have.been.calledOnce;
+            });
+
+            it('should update the Scope with the new Coroutine', function () {
+                scope.enterCoroutine();
+
+                expect(scope.getCoroutine()).to.equal(newCoroutine);
+            });
+        });
+    });
+
     describe('exportVariables()', function () {
         it('should export all defined variables in addition to the super globals', function () {
             var superGlobalValue = sinon.createStubInstance(Value),
@@ -330,6 +394,19 @@ describe('Scope', function () {
             expect(value.getType()).to.equal('int');
             expect(value.getNative()).to.equal(4567);
         });
+
+        it('should throw when an unresolved FutureValue is given', function () {
+            expect(function () {
+                var futureValue = valueFactory.createFuture(function () {
+                    // (Do not resolve so the Future remains pending...)
+                });
+
+                scope.expose(futureValue, 'myVar');
+            }).to.throw(
+                Exception,
+                'Cannot synchronously yield a pending Future - did you mean to chain with .next(...)?'
+            );
+        });
     });
 
     describe('getClassName()', function () {
@@ -365,6 +442,14 @@ describe('Scope', function () {
             expect(function () {
                 scope.getClassNameOrThrow();
             }).to.throw('PHP Fatal error: [core.cannot_access_when_no_active_class] {"className":"self"}');
+        });
+    });
+
+    describe('getCoroutine()', function () {
+        it('should return the current Coroutine for the Scope', function () {
+            createScope();
+
+            expect(scope.getCoroutine()).to.equal(coroutine);
         });
     });
 
@@ -547,6 +632,7 @@ describe('Scope', function () {
             currentFunction.functionSpec.getFunctionTraceFrameName
                 .withArgs(false)
                 .returns('My\\Stuff\\MyClass->myMethod');
+            thisObject.asValue.returns(thisObject);
             thisObject.getForAssignment.returns(thisObject);
             thisObject.next.yields(thisObject);
             createScope(thisObject);
@@ -677,32 +763,66 @@ describe('Scope', function () {
     });
 
     describe('importStatic()', function () {
-        beforeEach(function () {
-            whenCurrentFunction();
+        describe('when there is a current function', function () {
+            beforeEach(function () {
+                whenCurrentFunction();
+            });
+
+            it('should define variable in current scope as reference to new static variable on first call', function () {
+                var staticVariable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'myVar'),
+                    value = valueFactory.createString('my string');
+                variableFactory.createVariable.withArgs('myVar').returns(staticVariable);
+                staticVariable.setValue(value);
+                createScope();
+
+                scope.importStatic('myVar');
+
+                expect(scope.getVariable('myVar').getValue()).to.equal(value);
+            });
+
+            it('should define variable in current scope as reference to same static variable on second call', function () {
+                var existingStaticVariable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'myVar'),
+                    value = valueFactory.createString('my string');
+                existingStaticVariable.setValue(value);
+                currentFunction.staticVariables = {myVar: existingStaticVariable};
+                createScope();
+
+                scope.importStatic('myVar');
+
+                expect(scope.getVariable('myVar').getValue()).to.equal(value);
+            });
+
+            it('should throw when an unresolved FutureValue is given as initial value', function () {
+                createScope();
+
+                expect(function () {
+                    var futureValue = valueFactory.createFuture(function () {
+                        // (Do not resolve so the Future remains pending...)
+                    });
+
+                    scope.importStatic('myVar', futureValue);
+                }).to.throw(
+                    Exception,
+                    'Cannot synchronously yield a pending Future - did you mean to chain with .next(...)?'
+                );
+            });
         });
 
-        it('should define variable in current scope as reference to new static variable on first call', function () {
-            var staticVariable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'myVar'),
-                value = valueFactory.createString('my string');
-            variableFactory.createVariable.withArgs('myVar').returns(staticVariable);
-            staticVariable.setValue(value);
-            createScope();
+        describe('when there is no current function', function () {
+            it('should throw when an unresolved FutureValue is given as initial value', function () {
+                createScope();
 
-            scope.importStatic('myVar');
+                expect(function () {
+                    var futureValue = valueFactory.createFuture(function () {
+                        // (Do not resolve so the Future remains pending...)
+                    });
 
-            expect(scope.getVariable('myVar').getValue()).to.equal(value);
-        });
-
-        it('should define variable in current scope as reference to same static variable on second call', function () {
-            var existingStaticVariable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'myVar'),
-                value = valueFactory.createString('my string');
-            existingStaticVariable.setValue(value);
-            currentFunction.staticVariables = {myVar: existingStaticVariable};
-            createScope();
-
-            scope.importStatic('myVar');
-
-            expect(scope.getVariable('myVar').getValue()).to.equal(value);
+                    scope.importStatic('myVar', futureValue);
+                }).to.throw(
+                    Exception,
+                    'Cannot synchronously yield a pending Future - did you mean to chain with .next(...)?'
+                );
+            });
         });
     });
 
@@ -715,6 +835,7 @@ describe('Scope', function () {
 
         it('should return false when the scope is a non-static context', function () {
             var thisObject = sinon.createStubInstance(ObjectValue);
+            thisObject.asValue.returns(thisObject);
             thisObject.getForAssignment.returns(thisObject);
             thisObject.next.yields(thisObject);
 
@@ -815,6 +936,17 @@ describe('Scope', function () {
                 'MySubError',
                 false
             );
+        });
+    });
+
+    describe('updateCoroutine()', function () {
+        it('should update the current Coroutine for the Scope', function () {
+            var newCoroutine = sinon.createStubInstance(Coroutine);
+            createScope();
+
+            scope.updateCoroutine(newCoroutine);
+
+            expect(scope.getCoroutine()).to.equal(newCoroutine);
         });
     });
 });

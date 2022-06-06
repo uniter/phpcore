@@ -172,17 +172,19 @@ describe('Engine', function () {
 
     describe('defineGlobalAccessor()', function () {
         it('should define a global accessor on the environment', function () {
-            var valueGetter = sinon.stub(),
+            var referenceSetter = sinon.stub(),
+                valueGetter = sinon.stub(),
                 valueSetter = sinon.stub();
             createEngine();
 
-            engine.defineGlobalAccessor('my_global', valueGetter, valueSetter);
+            engine.defineGlobalAccessor('my_global', valueGetter, valueSetter, referenceSetter);
 
             expect(environment.defineGlobalAccessor).to.have.been.calledOnce;
             expect(environment.defineGlobalAccessor).to.have.been.calledWith(
                 'my_global',
                 sinon.match.same(valueGetter),
-                sinon.match.same(valueSetter)
+                sinon.match.same(valueSetter),
+                sinon.match.same(referenceSetter)
             );
         });
     });

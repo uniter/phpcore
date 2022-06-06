@@ -128,7 +128,7 @@ _.extend(ElementReference.prototype, {
         element.reference = element.referenceFactory.createReferenceSlot();
 
         if (element.value) {
-            element.reference.setValue(element.value);
+            element.reference.setValue(element.value).yieldSync();
             element.value = null; // This element now has a reference (to the slot) and not a value
         }
 
