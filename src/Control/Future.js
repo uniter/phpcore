@@ -52,8 +52,8 @@ var _ = require('microdash'),
                 });
 
                 // Clear both lists to free memory.
-                future.onRejectCallbacks.length = 0;
-                future.onResolveCallbacks.length = 0;
+                future.onRejectCallbacks = [];
+                future.onResolveCallbacks = [];
             },
             resolve = function (result) {
                 if (future.settled) {
@@ -79,8 +79,8 @@ var _ = require('microdash'),
                 });
 
                 // Clear both lists to free memory.
-                future.onRejectCallbacks.length = 0;
-                future.onResolveCallbacks.length = 0;
+                future.onRejectCallbacks = [];
+                future.onResolveCallbacks = [];
             },
             nestCoroutine = function () {
                 future.controlScope.nestCoroutine();
