@@ -337,6 +337,25 @@ describe('ValueFactory', function () {
 
             expect(factory.createClosureObject(closure)).to.equal(objectValue);
         });
+
+        it('should cache the internal Class instance for Closure for efficiency', function () {
+            var closureClassObject = sinon.createStubInstance(Class),
+                closure = sinon.createStubInstance(Closure),
+                objectValue = sinon.createStubInstance(ObjectValue);
+            globalNamespace.getClass
+                .withArgs('Closure')
+                .returns(futureFactory.createPresent(closureClassObject));
+            closureClassObject.instantiateWithInternals
+                .withArgs(sinon.match.any, {
+                    closure: sinon.match.same(closure)
+                })
+                .returns(objectValue);
+
+            factory.createClosureObject(closure);
+            factory.createClosureObject(closure);
+
+            expect(globalNamespace.getClass).to.have.been.calledOnce;
+        });
     });
 
     describe('createErrorObject()', function () {
