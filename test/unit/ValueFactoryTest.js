@@ -321,6 +321,44 @@ describe('ValueFactory', function () {
         });
     });
 
+    describe('createBoxedJSObject()', function () {
+        it('should always return the same JSObject instance for a given native object', function () {
+            var firstJSObjectInstance,
+                secondJSObjectInstance,
+                jsObjectClassObject = sinon.createStubInstance(Class),
+                nativeObject = {my: 'native object'};
+            globalNamespace.getClass
+                .withArgs('JSObject')
+                .returns(futureFactory.createPresent(jsObjectClassObject));
+
+            firstJSObjectInstance = factory.createBoxedJSObject(nativeObject);
+            secondJSObjectInstance = factory.createBoxedJSObject(nativeObject);
+
+            expect(firstJSObjectInstance.getType()).to.equal('object');
+            expect(secondJSObjectInstance.getType()).to.equal('object');
+            expect(secondJSObjectInstance).to.equal(firstJSObjectInstance);
+        });
+
+        it('should cache the internal Class instance for JSObject for efficiency', function () {
+            var firstJSObjectInstance,
+                secondJSObjectInstance,
+                jsObjectClassObject = sinon.createStubInstance(Class),
+                firstNativeObject = {my: 'first native object'},
+                secondNativeObject = {my: 'second native object'};
+            globalNamespace.getClass
+                .withArgs('JSObject')
+                .returns(futureFactory.createPresent(jsObjectClassObject));
+
+            firstJSObjectInstance = factory.createBoxedJSObject(firstNativeObject);
+            secondJSObjectInstance = factory.createBoxedJSObject(secondNativeObject);
+
+            expect(globalNamespace.getClass).to.have.been.calledOnce;
+            expect(firstJSObjectInstance.getClass()).to.equal(jsObjectClassObject);
+            expect(secondJSObjectInstance.getClass()).to.equal(jsObjectClassObject);
+            expect(secondJSObjectInstance).not.to.equal(firstJSObjectInstance);
+        });
+    });
+
     describe('createClosureObject()', function () {
         it('should create an ObjectValue of class Closure with the given internal Closure', function () {
             var closureClassObject = sinon.createStubInstance(Class),

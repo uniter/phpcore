@@ -141,6 +141,12 @@ module.exports = require('pauser')([
          */
         this.futureFactory = null;
         /**
+         * Cache for the resolved JSObject Class object, for FFI to save on expensive lookups.
+         *
+         * @type {Class|null}
+         */
+        this.jsObjectClass = null;
+        /**
          * Used for generating a unique ID for the next ObjectValue that is created
          * (shown in the output of var_dump(...), for example).
          *
@@ -466,17 +472,23 @@ module.exports = require('pauser')([
          */
         createBoxedJSObject: function (nativeObject) {
             var factory = this,
+                jsObjectClass,
                 objectValue;
 
             // TODO: Improve integration test coverage for this?
             if (factory.valueStorage.hasObjectValueForExport(nativeObject)) {
                 objectValue = factory.valueStorage.getObjectValueForExport(nativeObject);
             } else {
-                objectValue = factory.createObject(
-                    nativeObject,
-                    // JSObject class should have been installed as a builtin
-                    factory.globalNamespace.getClass('JSObject').yieldSync()
-                );
+                jsObjectClass = factory.jsObjectClass;
+
+                // Cache the built-in JSObject Class instance for future lookups.
+                if (!jsObjectClass) {
+                    jsObjectClass = factory.globalNamespace.getClass('JSObject').yieldSync();
+
+                    factory.jsObjectClass = jsObjectClass;
+                }
+
+                objectValue = factory.createObject(nativeObject, jsObjectClass);
                 factory.valueStorage.setObjectValueForExport(nativeObject, objectValue);
             }
 
