@@ -108,6 +108,12 @@ module.exports = require('pauser')([
          */
         this.callStack = null;
         /**
+         * Cache for the resolved Closure Class object, for FFI to save on expensive lookups.
+         *
+         * @type {Class|null}
+         */
+        this.closureClass = null;
+        /**
          * @type {ControlBridge}
          */
         this.controlBridge = controlBridge;
@@ -485,7 +491,14 @@ module.exports = require('pauser')([
          */
         createClosureObject: function (closure) {
             var factory = this,
+                closureClass = factory.closureClass;
+
+            // Cache the built-in Closure Class instance for future lookups.
+            if (!closureClass) {
                 closureClass = factory.globalNamespace.getClass('Closure').yieldSync();
+
+                factory.closureClass = closureClass;
+            }
 
             return closureClass.instantiateWithInternals([], {
                 'closure': closure
