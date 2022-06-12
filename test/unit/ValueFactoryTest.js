@@ -295,11 +295,29 @@ describe('ValueFactory', function () {
             expect(value.getNative()).to.be.true;
         });
 
+        it('should always return the same BooleanValue<true> for efficiency', function () {
+            var firstTrueBooleanValue = factory.createBoolean(true),
+                secondTrueBooleanValue = factory.createBoolean(true);
+
+            expect(firstTrueBooleanValue.getType()).to.equal('boolean');
+            expect(firstTrueBooleanValue.getNative()).to.be.true;
+            expect(secondTrueBooleanValue).to.equal(firstTrueBooleanValue);
+        });
+
         it('should be able to create a BooleanValue with value false', function () {
             var value = factory.createBoolean(false);
 
             expect(value.getType()).to.equal('boolean');
             expect(value.getNative()).to.be.false;
+        });
+
+        it('should always return the same BooleanValue<false> for efficiency', function () {
+            var firstFalseBooleanValue = factory.createBoolean(false),
+                secondFalseBooleanValue = factory.createBoolean(false);
+
+            expect(firstFalseBooleanValue.getType()).to.equal('boolean');
+            expect(firstFalseBooleanValue.getNative()).to.be.false;
+            expect(secondFalseBooleanValue).to.equal(firstFalseBooleanValue);
         });
     });
 

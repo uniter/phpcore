@@ -61,6 +61,15 @@ module.exports = require('pauser')([
     Variable
 ) {
     var Exception = phpCommon.Exception,
+        createBoolean = function (factory, value) {
+            return new BooleanValue(
+                factory,
+                factory.referenceFactory,
+                factory.futureFactory,
+                factory.callStack,
+                value
+            );
+        },
         queueMacrotask = typeof requestIdleCallback !== 'undefined' ?
             function (callback) {
                 requestIdleCallback(callback);
@@ -110,6 +119,13 @@ module.exports = require('pauser')([
          * @type {ElementProvider}
          */
         this.elementProvider = new ElementProvider();
+        /**
+         * The single BooleanValue<false> for efficiency, created lazily in .createBoolean(...).
+         * See notes for .nullValue.
+         *
+         * @type {BooleanValue|null}
+         */
+        this.falseValue = null;
         /**
          * @type {Flow|null}
          */
@@ -161,6 +177,13 @@ module.exports = require('pauser')([
          * @type {Translator}
          */
         this.translator = translator;
+        /**
+         * The single BooleanValue<true> for efficiency, created lazily in .createBoolean(...).
+         * See notes for .nullValue.
+         *
+         * @type {BooleanValue|null}
+         */
+        this.trueValue = null;
         /**
          * @type {ValueStorage}
          */
@@ -404,10 +427,9 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates a BooleanValue
+         * Creates a BooleanValue.
          *
-         * TODO: Consider having only two instances of BooleanValue, one for true and one for false,
-         *       to save on memory usage
+         * Note that there are only ever two instances of BooleanValue, to save on memory usage.
          *
          * @param {boolean} value
          * @return {BooleanValue}
@@ -415,13 +437,19 @@ module.exports = require('pauser')([
         createBoolean: function (value) {
             var factory = this;
 
-            return new BooleanValue(
-                factory,
-                factory.referenceFactory,
-                factory.futureFactory,
-                factory.callStack,
-                value
-            );
+            if (value) {
+                if (factory.trueValue === null) {
+                    factory.trueValue = createBoolean(factory, true);
+                }
+
+                return factory.trueValue;
+            }
+
+            if (factory.falseValue === null) {
+                factory.falseValue = createBoolean(factory, false);
+            }
+
+            return factory.falseValue;
         },
 
         /**
