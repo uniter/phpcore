@@ -64,9 +64,11 @@ module.exports = {
                     internals.allowServiceOverride();
 
                     _.forOwn(serviceOverrides, function (service, id) {
-                        serviceProviders[id] = function () {
-                            return service;
-                        };
+                        serviceProviders[id] = typeof service === 'function' ?
+                            service :
+                            function () {
+                                return service;
+                            };
                     });
 
                     return serviceProviders;

@@ -22,6 +22,10 @@ var _ = require('microdash'),
  */
 function Container(services) {
     /**
+     * @type {Function}
+     */
+    this.serviceFetcher = this.getService.bind(this);
+    /**
      * @type {string[]}
      */
     this.serviceIdsLoadingList = [];
@@ -102,7 +106,7 @@ _.extend(Container.prototype, {
         container.serviceIdsLoadingMap[id] = true;
 
         // Perform the actual loading of the service via its defined provider.
-        container.services[id] = container.serviceProviders[id]();
+        container.services[id] = container.serviceProviders[id](container.serviceFetcher);
 
         delete container.serviceIdsLoadingMap[id];
 
@@ -126,7 +130,7 @@ _.extend(Container.prototype, {
     getServiceFetcher: function () {
         var container = this;
 
-        return container.getService.bind(container);
+        return container.serviceFetcher;
     },
 
     /**

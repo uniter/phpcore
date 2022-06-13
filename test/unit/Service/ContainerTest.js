@@ -82,6 +82,17 @@ describe('Service Container', function () {
             expect(container.getService('my.service')).to.equal(service);
         });
 
+        it('should pass the service fetcher to the provider', function () {
+            var service = {my: 'service'},
+                provider = sinon.stub().returns(service);
+            container.defineService('my.service', provider);
+
+            container.getService('my.service');
+
+            expect(provider).to.have.been.calledOnce;
+            expect(provider).to.have.been.calledWith(sinon.match.same(container.getServiceFetcher()));
+        });
+
         describe('on subsequent calls', function () {
             it('should cache and return the same service object', function () {
                 container.defineService('my.service', sinon.stub());
@@ -172,6 +183,14 @@ describe('Service Container', function () {
             fetcher = container.getServiceFetcher();
 
             expect(fetcher('my.service')).to.equal(service);
+        });
+
+        it('should always return the same fetcher function', function () {
+            var service = {my: 'service'},
+                provider = sinon.stub().returns(service);
+            container.defineService('my.service', provider);
+
+            expect(container.getServiceFetcher()).to.equal(container.getServiceFetcher());
         });
     });
 

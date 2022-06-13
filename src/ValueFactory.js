@@ -748,17 +748,23 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates a FutureValue as the start of a chain, allowing for the initial result
-         * to be returned rather than having to call resolve().
+         * Creates a FutureValue (if required) as the start of a chain,
+         * allowing for the initial result to be returned rather than having to call resolve().
          *
          * @param {Function} executor
-         * @returns {FutureValue}
+         * @returns {FutureValue|Value}
          */
         createFutureChain: function (executor) {
-            // Use .createFuture() rather than .createPresent() to include the try..catch handling.
-            return this.createFuture(function (resolve) {
-                resolve(executor());
-            });
+            var factory = this,
+                result;
+
+            try {
+                result = executor();
+            } catch (error) {
+                return factory.createRejection(error);
+            }
+
+            return factory.coerce(result);
         },
 
         /**
@@ -991,7 +997,8 @@ module.exports = require('pauser')([
         deriveFuture: function (future) {
             // Note that .createFuture(...) will coerce the result (if resolved) to a Value.
             return this.createFuture(function (resolve, reject) {
-                future.next(resolve, reject);
+                // Use .nextIsolated() rather than .next() to avoid creating a further Future just for chaining.
+                future.nextIsolated(resolve, reject);
             });
         },
 
