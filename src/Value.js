@@ -270,6 +270,19 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Attaches a callback for when the value has resulted in an error. As present values
+         * are already a present value, this simply ignores the given catch handler and does nothing.
+         *
+         * Note that this does not return a Value for chaining.
+         *
+         * Note that .next()/.catch()/.finally() should usually be used for chaining,
+         * this is a low-level function.
+         */
+        catchIsolated: function () {
+            // Nothing to do, no handler to call and chaining is not possible.
+        },
+
+        /**
          * Returns a clone of this value, or throws an Error if not supported
          *
          * @throws {ObjectValue}

@@ -62,8 +62,6 @@ module.exports = require('pauser')([
     require('./FunctionFactory'),
     require('./Function/FunctionSpec'),
     require('./Function/FunctionSpecFactory'),
-    require('./Control/Future'),
-    require('./Control/FutureFactory'),
     require('./Value/Future'),
     require('./Load/Includer'),
     require('./INIState'),
@@ -163,8 +161,6 @@ module.exports = require('pauser')([
     FunctionFactory,
     FunctionSpec,
     FunctionSpecFactory,
-    Future,
-    FutureFactory,
     FutureValue,
     Includer,
     INIState,
@@ -494,15 +490,9 @@ module.exports = require('pauser')([
                 controlScope
             )),
             callStack = get('call_stack'),
-            pauseFactory = new PauseFactory(Pause, callStack, controlScope, mode),
+            pauseFactory = set('pause_factory', new PauseFactory(Pause, callStack, controlScope, mode)),
             userland = new Userland(callStack, controlFactory, controlBridge, controlScope, valueFactory, opcodePool, mode),
-            futureFactory = set('future_factory', new FutureFactory(
-                pauseFactory,
-                valueFactory,
-                controlBridge,
-                controlScope,
-                Future
-            )),
+            futureFactory = get('future_factory'),
             flow = set('flow', new Flow(controlFactory, controlBridge, controlScope, futureFactory, mode)),
             referenceFactory = set('reference_factory', new ReferenceFactory(
                 AccessorReference,

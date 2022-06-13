@@ -12,10 +12,12 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('../tools'),
+    util = require('util'),
     CallStack = require('../../../src/CallStack'),
     ControlScope = require('../../../src/Control/ControlScope'),
     Coroutine = require('../../../src/Control/Coroutine'),
     Future = require('../../../src/Control/Future'),
+    FutureFactory = require('../../../src/Control/FutureFactory'),
     Pause = require('../../../src/Control/Pause');
 
 describe('Future', function () {
@@ -25,6 +27,7 @@ describe('Future', function () {
         coroutine,
         future,
         futureFactory,
+        futuresCreated,
         nestCoroutineForFuture,
         pauseFactory,
         rejectFuture,
@@ -35,9 +38,27 @@ describe('Future', function () {
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
         controlScope = sinon.createStubInstance(ControlScope);
+        futuresCreated = 0;
         state = tools.createIsolatedState('async', {
             'call_stack': callStack,
-            'control_scope': controlScope
+            'control_scope': controlScope,
+            'future_factory': function (get) {
+                function TrackedFuture() {
+                    Future.apply(this, arguments);
+
+                    futuresCreated++;
+                }
+
+                util.inherits(TrackedFuture, Future);
+
+                return new FutureFactory(
+                    get('pause_factory'),
+                    get('value_factory'),
+                    get('control_bridge'),
+                    get('control_scope'),
+                    TrackedFuture
+                );
+            }
         });
         controlBridge = state.getControlBridge();
         coroutine = sinon.createStubInstance(Coroutine);
@@ -63,7 +84,7 @@ describe('Future', function () {
     describe('constructor()', function () {
         it('should resume the Future\'s coroutine on resolve before calling handlers', function () {
             var onResolve = sinon.spy();
-            future.onResolve(onResolve);
+            future.nextIsolated(onResolve);
             controlScope.resumeCoroutine.resetHistory();
 
             resolveFuture();
@@ -76,7 +97,7 @@ describe('Future', function () {
 
         it('should resume the Future\'s coroutine on rejection before calling handlers', function () {
             var onReject = sinon.spy();
-            future.onReject(onReject);
+            future.catchIsolated(onReject);
             controlScope.resumeCoroutine.resetHistory();
 
             rejectFuture(new Error('Bang!'));
@@ -151,6 +172,34 @@ describe('Future', function () {
 
             expect(await derivedFuture.toPromise()).to.be.undefined;
             await expect(future.toPromise()).to.be.rejectedWith('Bang!');
+        });
+    });
+
+    describe('catchIsolated()', function () {
+        it('should add a handler that calls the rejection handler when rejected', async function () {
+            var error = new Error('Bang!'),
+                rejectHandler = sinon.stub();
+
+            future.catchIsolated(rejectHandler);
+
+            rejectFuture(error);
+
+            await expect(future.toPromise()).to.be.rejectedWith('Bang!');
+            expect(rejectHandler).to.have.been.calledOnce;
+            expect(rejectHandler).to.have.been.calledWith(sinon.match.same(error));
+        });
+
+        it('should swallow any further errors raised by the rejection handler when rejected', async function () {
+            var error = new Error('Bang!'),
+                rejectHandler = sinon.stub().throws(new Error('A further bang!'));
+
+            future.catchIsolated(rejectHandler);
+
+            rejectFuture(error);
+
+            await expect(future.toPromise()).to.be.rejectedWith('Bang!');
+            expect(rejectHandler).to.have.been.calledOnce;
+            expect(rejectHandler).to.have.been.calledWith(sinon.match.same(error));
         });
     });
 
@@ -279,6 +328,66 @@ describe('Future', function () {
         });
     });
 
+    describe('nextIsolated()', function () {
+        it('should add a handler that calls the resolve handler when fulfilled', async function () {
+            var resolveHandler = sinon.stub();
+
+            future.nextIsolated(resolveHandler, function (error) {
+                throw new Error('rejected with: ' + error.message + ', but should have been rejected');
+            });
+
+            resolveFuture('my result');
+
+            expect(await future.toPromise()).to.equal('my result', 'should be left untouched');
+            expect(resolveHandler).to.have.been.calledOnce;
+            expect(resolveHandler).to.have.been.calledWith('my result');
+        });
+
+        it('should add a handler that calls the rejection handler when rejected', async function () {
+            var error = new Error('Bang!'),
+                rejectHandler = sinon.stub();
+
+            future.nextIsolated(function (result) {
+                throw new Error('resolved with: ' + result + ', but should have been rejected');
+            }, rejectHandler);
+
+            rejectFuture(error);
+
+            await expect(future.toPromise()).to.be.rejectedWith('Bang!');
+            expect(rejectHandler).to.have.been.calledOnce;
+            expect(rejectHandler).to.have.been.calledWith(sinon.match.same(error));
+        });
+
+        it('should swallow any errors raised by the resolve handler when resolved', async function () {
+            var resolveHandler = sinon.stub().throws(new Error('Bang!'));
+
+            future.nextIsolated(resolveHandler, function (error) {
+                throw new Error('rejected with: ' + error.message + ', but should have been rejected');
+            });
+
+            resolveFuture('my result');
+
+            await expect(future.toPromise()).not.to.be.rejected;
+            expect(resolveHandler).to.have.been.calledOnce;
+            expect(resolveHandler).to.have.been.calledWith('my result');
+        });
+
+        it('should swallow any further errors raised by the rejection handler when rejected', async function () {
+            var error = new Error('Bang!'),
+                rejectHandler = sinon.stub().throws(new Error('A further bang!'));
+
+            future.nextIsolated(function (result) {
+                throw new Error('resolved with: ' + result + ', but should have been rejected');
+            }, rejectHandler);
+
+            rejectFuture(error);
+
+            await expect(future.toPromise()).to.be.rejectedWith('Bang!');
+            expect(rejectHandler).to.have.been.calledOnce;
+            expect(rejectHandler).to.have.been.calledWith(sinon.match.same(error));
+        });
+    });
+
     describe('toPromise()', function () {
         it('should return a Promise to be resolved if this Future is', async function () {
             var promise = future.toPromise();
@@ -294,6 +403,17 @@ describe('Future', function () {
             rejectFuture(new Error('my error'));
 
             await expect(promise).to.have.been.rejectedWith('my error');
+        });
+
+        it('should create no Future instances when not required', async function () {
+            var promise;
+            futuresCreated = 0;
+
+            promise = future.toPromise();
+            resolveFuture('my result');
+            await promise;
+
+            expect(futuresCreated).to.equal(0);
         });
     });
 

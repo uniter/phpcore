@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('./tools'),
+    util = require('util'),
     BarewordStringValue = require('../../src/Value/BarewordString').sync(),
     CallFactory = require('../../src/CallFactory'),
     CallStack = require('../../src/CallStack'),
@@ -24,6 +25,8 @@ var expect = require('chai').expect,
     ErrorPromoter = require('../../src/Error/ErrorPromoter'),
     Exception = phpCommon.Exception,
     FFIResult = require('../../src/FFI/Result'),
+    Future = require('../../src/Control/Future'),
+    FutureFactory = require('../../src/Control/FutureFactory'),
     IntegerValue = require('../../src/Value/Integer').sync(),
     Namespace = require('../../src/Namespace').sync(),
     NullValue = require('../../src/Value/Null').sync(),
@@ -42,6 +45,7 @@ describe('ValueFactory', function () {
         errorPromoter,
         factory,
         futureFactory,
+        futuresCreated,
         globalNamespace,
         referenceFactory,
         state,
@@ -50,8 +54,26 @@ describe('ValueFactory', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        futuresCreated = 0;
         state = tools.createIsolatedState('async', {
-            'call_stack': callStack
+            'call_stack': callStack,
+            'future_factory': function (get) {
+                function TrackedFuture() {
+                    Future.apply(this, arguments);
+
+                    futuresCreated++;
+                }
+
+                util.inherits(TrackedFuture, Future);
+
+                return new FutureFactory(
+                    get('pause_factory'),
+                    get('value_factory'),
+                    get('control_bridge'),
+                    get('control_scope'),
+                    TrackedFuture
+                );
+            }
         });
         callFactory = sinon.createStubInstance(CallFactory);
         controlScope = state.getControlScope();
@@ -69,7 +91,7 @@ describe('ValueFactory', function () {
             });
 
         factory = new ValueFactory(
-            'sync',
+            'async',
             translator,
             callFactory,
             errorPromoter,
@@ -773,6 +795,18 @@ describe('ValueFactory', function () {
 
             await expect(value.toPromise()).to.eventually.be.rejectedWith(error);
         });
+
+        it('should create no Future instances when not required', async function () {
+            futuresCreated = 0;
+
+            await factory
+                .createFutureChain(function () {
+                    return 'my result';
+                })
+                .toPromise();
+
+            expect(futuresCreated).to.equal(0);
+        });
     });
 
     describe('createInteger()', function () {
@@ -1095,6 +1129,16 @@ describe('ValueFactory', function () {
             expect(derivedFuture.isSettled()).to.be.false;
             await expect(derivedFuture.toPromise()).to.eventually.be.rejectedWith(error);
             expect(derivedFuture.isSettled()).to.be.true;
+        });
+
+        it('should create no more Future instances than required', async function () {
+            futuresCreated = 0;
+
+            await factory
+                .deriveFuture(futureFactory.createAsyncPresent('my value'))
+                .toPromise();
+
+            expect(futuresCreated).to.equal(2);
         });
     });
 

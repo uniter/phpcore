@@ -11,6 +11,7 @@
 'use strict';
 
 var _ = require('microdash'),
+    noop = function () {},
     phpCommon = require('phpcommon'),
     Exception = phpCommon.Exception,
     Pause = require('./Pause'),
@@ -36,9 +37,13 @@ var _ = require('microdash'),
                 resumeCoroutine();
 
                 if (future.controlBridge.isFuture(error)) {
-                    // Evaluate any futures to the eventual error before continuing
-                    // (note that we call reject() with the resolved error, unlike the logic in resolve()).
-                    error.next(reject, reject);
+                    /*
+                     * Evaluate any futures to the eventual error before continuing
+                     * (note that we call reject() with the resolved error, unlike the logic in resolve()).
+                     *
+                     * Use .nextIsolated() rather than .next() to avoid creating a further Future just for chaining.
+                     */
+                    error.nextIsolated(reject, reject);
                     return;
                 }
 
@@ -64,8 +69,12 @@ var _ = require('microdash'),
                 resumeCoroutine();
 
                 if (future.controlBridge.isFuture(result)) {
-                    // Resolve any result that is itself a Future before continuing.
-                    result.next(resolve, reject);
+                    /*
+                     * Resolve any result that is itself a Future before continuing.
+                     *
+                     * Use .nextIsolated() rather than .next() to avoid creating a further Future just for chaining.
+                     */
+                    result.nextIsolated(resolve, reject);
                     return;
                 }
 
@@ -208,6 +217,19 @@ _.extend(Future.prototype, {
     },
 
     /**
+     * Attaches a callback to be called when the value evaluation resulted in an error,
+     * but does not return a new Future for chaining.
+     *
+     * Note that .next()/.catch()/.finally() should usually be used for chaining,
+     * this is a low-level function.
+     *
+     * @param {Function} catchHandler
+     */
+    catchIsolated: function (catchHandler) {
+        this.nextIsolated(null, catchHandler);
+    },
+
+    /**
      * Returns a new Future that will have the given text appended to its resolved value.
      *
      * @param {string} text
@@ -319,7 +341,8 @@ _.extend(Future.prototype, {
      * Attaches callbacks for when the value has been evaluated to either a result or error,
      * returning a new Future to be settled as appropriate.
      *
-     * @param {Function} resolveHandler
+     * @param {Function=} resolveHandler
+     * @param {Function=} catchHandler
      * @returns {Future}
      */
     next: function (resolveHandler, catchHandler) {
@@ -378,25 +401,64 @@ _.extend(Future.prototype, {
     },
 
     /**
-     * Attaches a callback for if/when this future is rejected.
+     * Attaches callbacks for when the value has been evaluated to either a result or error,
+     * but does not return a new Future for chaining.
+     *
      * Note that .next()/.catch()/.finally() should usually be used for chaining,
      * this is a low-level function.
      *
-     * @param {Function} callback
+     * @param {Function=} resolveHandler
+     * @param {Function=} catchHandler
      */
-    onReject: function (callback) {
-        this.onRejectCallbacks.push(callback);
-    },
+    nextIsolated: function (resolveHandler, catchHandler) {
+        var future = this,
+            /*
+             * Note that the below functions swallow errors - if a subsequent Future had been returned for chaining,
+             * it would have been rejected with this error. As there is no subsequent Future
+             * there is nowhere to handle the error (and we cannot throw it up to the caller
+             * as the caller will be expecting a Future-esque interface).
+             *
+             * TODO: If we implement "Uncaught Future rejection", raise that in the catch {} blocks below.
+             */
+            doResolve = resolveHandler ?
+                function (result) {
+                    try {
+                        resolveHandler(result);
+                    } catch (error) {
+                        // Swallow the error - see above.
+                    }
+                } :
+                noop,
+            doReject = catchHandler ?
+                function (error) {
+                    try {
+                        catchHandler(error);
+                    } catch (error) {
+                        // Swallow the error - see above.
+                    }
+                } :
+                noop;
 
-    /**
-     * Attaches a callback for if/when this future is resolved.
-     * Note that .next()/.catch()/.finally() should usually be used for chaining,
-     * this is a low-level function.
-     *
-     * @param {Function} callback
-     */
-    onResolve: function (callback) {
-        this.onResolveCallbacks.push(callback);
+        if (future.settled) {
+            if (future.eventualError) {
+                doReject(future.eventualError);
+
+                // Note that the return value is deliberately discarded, unlike .catch().
+            } else {
+                doResolve(future.eventualResult);
+
+                // Note that the return value is deliberately discarded, unlike .catch().
+            }
+        } else {
+            // Check the original args to avoid pushing noop()s onto the lists.
+            if (catchHandler) {
+                future.onRejectCallbacks.push(doReject);
+            }
+
+            if (resolveHandler) {
+                future.onResolveCallbacks.push(doResolve);
+            }
+        }
     },
 
     /**
@@ -408,7 +470,8 @@ _.extend(Future.prototype, {
         var future = this;
 
         return new Promise(function (resolve, reject) {
-            future.next(resolve, reject);
+            // Use .nextIsolated() rather than .next() to avoid creating a further Future just for chaining.
+            future.nextIsolated(resolve, reject);
         });
     },
 
@@ -433,7 +496,8 @@ _.extend(Future.prototype, {
         }
 
         pause = future.pauseFactory.createPause(function (resume, throwInto) {
-            future.next(
+            // Use .nextIsolated() rather than .next() to avoid creating a further Future just for chaining.
+            future.nextIsolated(
                 function (resultValue) {
                     resume(resultValue);
 

@@ -25,6 +25,7 @@ var phpCommon = require('phpcommon'),
     CoroutineFactory = require('../../Control/CoroutineFactory'),
     FFICall = require('../../FFI/Call'),
     Future = require('../../Control/Future'),
+    FutureFactory = require('../../Control/FutureFactory'),
     FutureValue = require('../../Value/Future'),
     HostScheduler = require('../../Control/HostScheduler'),
     LoopStructureOpcode = require('../../Core/Opcode/Opcode/LoopStructureOpcode'),
@@ -49,6 +50,7 @@ var phpCommon = require('phpcommon'),
 
     CALL_STACK = 'call_stack',
     CONTROL_BRIDGE = 'control_bridge',
+    CONTROL_SCOPE = 'control_scope',
     ERROR_REPORTING = 'error_reporting',
     FFI_FACTORY = 'ffi_factory',
     FLOW = 'flow',
@@ -62,6 +64,7 @@ var phpCommon = require('phpcommon'),
     OPCODE_FETCHER_REPOSITORY = 'opcode_fetcher_repository',
     OPCODE_POOL = 'opcode_pool',
     OPCODE_RESCUER = 'opcode_rescuer',
+    PAUSE_FACTORY = 'pause_factory',
     SPEC_TYPE_PROVIDER = 'spec_type_provider',
     STDERR = 'stderr',
     TRANSLATOR = 'translator',
@@ -106,6 +109,16 @@ module.exports = function (internals) {
 
         'function_signature_parser': function () {
             return new SignatureParser(get(VALUE_FACTORY));
+        },
+
+        'future_factory': function () {
+            return new FutureFactory(
+                get(PAUSE_FACTORY),
+                get(VALUE_FACTORY),
+                get(CONTROL_BRIDGE),
+                get(CONTROL_SCOPE),
+                Future
+            );
         },
 
         'host_scheduler': function () {
