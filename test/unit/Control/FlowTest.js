@@ -36,6 +36,22 @@ describe('Flow', function () {
         );
     });
 
+    describe('all()', function () {
+        it('should wrap an array of native values in a Future', async function () {
+            expect(await flow.all([21, 101, 'hello']).toPromise()).to.deep.equal([21, 101, 'hello']);
+        });
+
+        it('should settle any element that is a Future to be fulfilled', async function () {
+            expect(await flow.all([21, futureFactory.createAsyncPresent(101), 'hello']).toPromise())
+                .to.deep.equal([21, 101, 'hello']);
+        });
+
+        it('should settle any element that is a Future to be rejected', async function () {
+            await expect(flow.all([21, futureFactory.createAsyncRejection(new Error('Bang!')), 'hello']).toPromise())
+                .to.eventually.be.rejectedWith('Bang!');
+        });
+    });
+
     describe('chainify()', function () {
         it('should return a Future untouched', function () {
             var future = futureFactory.createPresent(21);
