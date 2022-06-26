@@ -56,7 +56,6 @@ _.extend(UserlandDefinitionBuilder.prototype, {
      * @param {Namespace} namespace
      * @param {NamespaceScope} namespaceScope
      * @param {Class[]} interfaces
-     * @param {boolean} autoCoercionEnabled Whether the class should be auto-coercing
      * @returns {ClassDefinition}
      */
     buildDefinition: function (
@@ -65,8 +64,7 @@ _.extend(UserlandDefinitionBuilder.prototype, {
         superClass,
         namespace,
         namespaceScope,
-        interfaces,
-        autoCoercionEnabled
+        interfaces
     ) {
         var builder = this,
             constants,
@@ -82,7 +80,7 @@ _.extend(UserlandDefinitionBuilder.prototype, {
             throw new Exception('UserlandDefinitionBuilder :: Expected a plain object');
         }
 
-        valueCoercer = builder.ffiFactory.createValueCoercer(autoCoercionEnabled);
+        valueCoercer = builder.ffiFactory.createValueCoercer(false);
 
         // Ensure the class does not attempt to implement Throwable directly
         _.each(interfaces, function (interfaceObject) {
@@ -145,7 +143,8 @@ _.extend(UserlandDefinitionBuilder.prototype, {
             rootInternalPrototype,
             instanceProperties,
             staticProperties,
-            valueCoercer
+            valueCoercer,
+            false
         );
     }
 });
