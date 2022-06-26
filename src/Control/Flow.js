@@ -140,20 +140,20 @@ _.extend(Flow.prototype, {
         var flow = this,
             inputIndex = 0,
             lastHandlerResult,
-            pendingInputs = [].slice.call(inputs);
+            totalInputs = inputs.length;
 
         function checkNext() {
             var future = flow.futureFactory.createPresent();
 
-            if (pendingInputs.length === 0) {
+            if (inputIndex >= totalInputs) {
                 // We've finished iterating over all the inputs.
                 return future;
             }
 
             return future
                 .next(function () {
-                    var input = pendingInputs.shift(),
-                        index = inputIndex++;
+                    var index = inputIndex++,
+                        input = inputs[index];
 
                     if (flow.controlBridge.isFuture(input)) {
                         // Input is itself a future, so settle it first.
@@ -225,20 +225,21 @@ _.extend(Flow.prototype, {
      */
     mapAsync: function (inputs, handler) {
         var flow = this,
-            pendingInputs = [].slice.call(inputs),
+            inputIndex = 0,
+            totalInputs = inputs.length,
             results = [];
 
         function checkNext() {
             var future = flow.futureFactory.createPresent();
 
-            if (pendingInputs.length === 0) {
+            if (inputIndex >= totalInputs) {
                 // We've finished iterating over all the inputs.
                 return future;
             }
 
             return future
                 .next(function () {
-                    var input = pendingInputs.shift();
+                    var input = inputs[inputIndex++];
 
                     if (flow.controlBridge.isFuture(input)) {
                         // Input is itself a future, so settle it first.
