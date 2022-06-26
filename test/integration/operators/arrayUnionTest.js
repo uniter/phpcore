@@ -55,8 +55,8 @@ $result = [];
 $indexedArray1 = get_async(['first', 'second']);
 $indexedArray2 = get_async(['third', 'fourth', 'fifth']);
 
-$associativeArray1 = ['a' => 'one', 'b' => 'two'];
-$associativeArray2 = ['b' => 'three', 'a' => 'four', 'c' => 'five'];
+$associativeArray1 = get_async(['a' => 'one', 'b' => 'two']);
+$associativeArray2 = get_async(['b' => 'three', 'a' => 'four', 'c' => 'five']);
 
 $result['two indexed arrays'] = get_async($indexedArray1) + get_async($indexedArray2);
 $result['two associative arrays'] = get_async($associativeArray1) + get_async($associativeArray2);
