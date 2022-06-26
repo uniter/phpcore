@@ -248,42 +248,61 @@ _.extend(Flow.prototype, {
     mapAsync: function (inputs, handler) {
         var flow = this,
             inputIndex = 0,
-            totalInputs = inputs.length,
-            results = [];
+            results = [],
+            totalInputs = inputs.length;
 
-        function checkNext() {
-            var future = flow.futureFactory.createPresent();
+        return flow.futureFactory.createFuture(function (resolve, reject) {
+            /*jshint latedef: false */
 
-            if (inputIndex >= totalInputs) {
-                // We've finished iterating over all the inputs.
-                return future;
+            function onFulfilledResult(result) {
+                if (flow.controlBridge.isFuture(result)) {
+                    // Result is a future, so settle it first.
+                    result.nextIsolated(onFulfilledResult, reject);
+                    return;
+                }
+
+                results.push(result);
+
+                checkNext();
             }
 
-            return future
-                .next(function () {
-                    var input = inputs[inputIndex++];
+            function onFulfilledInput(presentInput) {
+                var result = handler(presentInput, inputIndex - 1);
+
+                onFulfilledResult(result);
+            }
+
+            function checkNext() {
+                var input,
+                    result;
+
+                // Handle any run of non-Future(Value) values in a loop for speed.
+                while (inputIndex < totalInputs) {
+                    input = inputs[inputIndex++];
 
                     if (flow.controlBridge.isFuture(input)) {
                         // Input is itself a future, so settle it first.
-                        return input.next(function (presentInput) {
-                            return handler(presentInput);
-                        });
+                        input.nextIsolated(onFulfilledInput, reject);
+                        return;
                     }
 
-                    return handler(input);
-                })
-                .next(function (result) {
+                    result = handler(input, inputIndex - 1);
+
+                    if (flow.controlBridge.isFuture(result)) {
+                        // Result is a future, so settle it first.
+                        result.nextIsolated(onFulfilledResult, reject);
+                        return;
+                    }
+
                     results.push(result);
+                }
 
-                    return checkNext();
-                });
-        }
-
-        return checkNext()
-            .next(function () {
                 // Pass the final array of all results through to the next handler in the sequence.
-                return results;
-            });
+                resolve(results);
+            }
+
+            checkNext();
+        });
     },
 
     /**
