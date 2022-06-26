@@ -103,15 +103,14 @@ describe('UserlandDefinitionBuilder', function () {
 
             superClass.getInternalClass.returns(function () {});
 
-            callBuildDefinition = function (name, autoCoercionEnabled) {
+            callBuildDefinition = function (name) {
                 definition = builder.buildDefinition(
                     name || 'MyClass',
                     definitionStructure,
                     superClass,
                     namespace,
                     namespaceScope,
-                    interfaces,
-                    Boolean(autoCoercionEnabled)
+                    interfaces
                 );
             };
         });
@@ -230,14 +229,8 @@ describe('UserlandDefinitionBuilder', function () {
                 });
             });
 
-            it('should have an auto-coercing ValueCoercer when auto-coercion is enabled', function () {
-                callBuildDefinition('MyClass', true);
-
-                expect(definition.getValueCoercer().isAutoCoercionEnabled()).to.be.true;
-            });
-
-            it('should have a non-coercing ValueCoercer when auto-coercion is disabled', function () {
-                callBuildDefinition('MyClass', false);
+            it('should have a non-coercing ValueCoercer', function () {
+                callBuildDefinition();
 
                 expect(definition.getValueCoercer().isAutoCoercionEnabled()).to.be.false;
             });
