@@ -64,6 +64,23 @@ _.extend(ValueProvider.prototype, {
     },
 
     /**
+     * Creates a Future-wrapped native array with the elements.
+     * Allows creation of an array from a reference & value list to values,
+     * where any FutureValues have been resolved.
+     *
+     * @param {KeyReferencePair[]|KeyValuePair[]|Reference[]|Value[]|Variable[]} elements
+     * @returns {Future<Value[]>}
+     */
+    createFutureList: function (elements) {
+        var provider = this;
+
+        return provider.flow
+            .mapAsync(elements || [], function (element) {
+                return element.getValue();
+            });
+    },
+
+    /**
      * Creates an FFI ResultValue for the given internal Value.
      *
      * @param {Value} internalValue
