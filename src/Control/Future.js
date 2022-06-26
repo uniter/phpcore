@@ -425,7 +425,8 @@ _.extend(Future.prototype, {
                     try {
                         resolveHandler(result);
                     } catch (error) {
-                        // Swallow the error - see above.
+                        // Fulfillments (resolves) may eventually end in a rejection.
+                        doReject(error);
                     }
                 } :
                 noop,

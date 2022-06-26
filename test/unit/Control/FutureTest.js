@@ -358,18 +358,20 @@ describe('Future', function () {
             expect(rejectHandler).to.have.been.calledWith(sinon.match.same(error));
         });
 
-        it('should swallow any errors raised by the resolve handler when resolved', async function () {
-            var resolveHandler = sinon.stub().throws(new Error('Bang!'));
+        it('should cause any errors raised by the resolve handler to reject', async function () {
+            var error = new Error('Bang!'),
+                rejectHandler = sinon.spy(),
+                resolveHandler = sinon.stub().throws(error);
 
-            future.nextIsolated(resolveHandler, function (error) {
-                throw new Error('rejected with: ' + error.message + ', but should have been rejected');
-            });
+            future.nextIsolated(resolveHandler, rejectHandler);
 
             resolveFuture('my result');
 
             await expect(future.toPromise()).not.to.be.rejected;
             expect(resolveHandler).to.have.been.calledOnce;
             expect(resolveHandler).to.have.been.calledWith('my result');
+            expect(rejectHandler).to.have.been.calledOnce;
+            expect(rejectHandler).to.have.been.calledWith(sinon.match.same(error));
         });
 
         it('should swallow any further errors raised by the rejection handler when rejected', async function () {
