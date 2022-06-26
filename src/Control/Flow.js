@@ -139,48 +139,72 @@ _.extend(Flow.prototype, {
     eachAsync: function (inputs, handler) {
         var flow = this,
             inputIndex = 0,
+            // Use the result from the last handler invocation as the overall result.
             lastHandlerResult,
             totalInputs = inputs.length;
 
-        function checkNext() {
-            var future = flow.futureFactory.createPresent();
+        return flow.futureFactory.createFuture(function (resolve, reject) {
+            /*jshint latedef: false */
 
-            if (inputIndex >= totalInputs) {
-                // We've finished iterating over all the inputs.
-                return future;
+            function onFulfilledResult(result) {
+                if (result === false) {
+                    // Returning false from a handler stops iteration early.
+                    resolve(lastHandlerResult);
+                    return;
+                }
+
+                if (flow.controlBridge.isFuture(result)) {
+                    // Result is a future, so settle it first.
+                    result.nextIsolated(onFulfilledResult, reject);
+                    return;
+                }
+
+                lastHandlerResult = result;
+
+                checkNext();
             }
 
-            return future
-                .next(function () {
-                    var index = inputIndex++,
-                        input = inputs[index];
+            function onFulfilledInput(presentInput) {
+                var result = handler(presentInput, inputIndex - 1);
+
+                onFulfilledResult(result);
+            }
+
+            function checkNext() {
+                var input,
+                    result;
+
+                // Handle any run of non-Future(Value) values in a loop for speed.
+                while (inputIndex < totalInputs) {
+                    input = inputs[inputIndex++];
 
                     if (flow.controlBridge.isFuture(input)) {
                         // Input is itself a future, so settle it first.
-                        return input.next(function (presentInput) {
-                            return handler(presentInput, index);
-                        });
+                        input.nextIsolated(onFulfilledInput, reject);
+                        return;
                     }
 
-                    return handler(input, index);
-                })
-                .next(function (handlerResult) {
-                    if (handlerResult === false) {
-                        // The handler returned false either synchronously or asynchronously, stop iteration.
-                        return handlerResult;
+                    result = handler(input, inputIndex - 1);
+
+                    if (result === false) {
+                        // Returning false from a handler stops iteration early.
+                        break;
                     }
 
-                    lastHandlerResult = handlerResult;
+                    if (flow.controlBridge.isFuture(result)) {
+                        // Result is a future, so settle it first.
+                        result.nextIsolated(onFulfilledResult, reject);
+                        return;
+                    }
 
-                    return checkNext();
-                });
-        }
+                    lastHandlerResult = result;
+                }
 
-        return checkNext()
-            .next(function () {
-                // Use the result from the last handler invocation as the overall result.
-                return lastHandlerResult;
-            });
+                resolve(lastHandlerResult);
+            }
+
+            checkNext();
+        });
     },
 
     /**

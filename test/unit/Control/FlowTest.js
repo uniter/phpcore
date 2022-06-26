@@ -133,6 +133,62 @@ describe('Flow', function () {
             });
         });
 
+        describe('when there are multiple inputs handled successfully and one returns false synchronously to stop iteration', function () {
+            var handler,
+                inputs;
+
+            beforeEach(function () {
+                handler = sinon.stub();
+                inputs = [21, 101, 76, 78];
+
+                handler.onFirstCall().returns('first result');
+                handler.onSecondCall().returns('second result');
+                handler.onThirdCall().returns(false);
+                handler.onCall(3).returns('fourth result');
+            });
+
+            it('should call the handler once per input only prior to the false', async function () {
+                await flow.eachAsync(inputs, handler).toPromise();
+
+                expect(handler).to.have.been.calledThrice;
+                expect(handler).to.have.been.calledWith(21);
+                expect(handler).to.have.been.calledWith(101);
+                expect(handler).to.have.been.calledWith(76);
+            });
+
+            it('should resolve the future with the result from the last handler invocation before stopping', async function () {
+                expect(await flow.eachAsync(inputs, handler).toPromise()).to.equal('second result');
+            });
+        });
+
+        describe('when there are multiple inputs handled successfully and one returns false asynchronously to stop iteration', function () {
+            var handler,
+                inputs;
+
+            beforeEach(function () {
+                handler = sinon.stub();
+                inputs = [21, 101, 76, 78];
+
+                handler.onFirstCall().returns('first result');
+                handler.onSecondCall().returns('second result');
+                handler.onThirdCall().returns(futureFactory.createAsyncPresent(false));
+                handler.onCall(3).returns('fourth result');
+            });
+
+            it('should call the handler once per input only prior to the false', async function () {
+                await flow.eachAsync(inputs, handler).toPromise();
+
+                expect(handler).to.have.been.calledThrice;
+                expect(handler).to.have.been.calledWith(21);
+                expect(handler).to.have.been.calledWith(101);
+                expect(handler).to.have.been.calledWith(76);
+            });
+
+            it('should resolve the future with the result from the last handler invocation before stopping', async function () {
+                expect(await flow.eachAsync(inputs, handler).toPromise()).to.equal('second result');
+            });
+        });
+
         describe('when an input is itself a Future', function () {
             var handler,
                 inputs;
