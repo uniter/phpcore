@@ -49,6 +49,49 @@ function Flow(controlFactory, controlBridge, controlScope, futureFactory, mode) 
 
 _.extend(Flow.prototype, {
     /**
+     * Takes the given array of values and settles any Future(Values).
+     *
+     * @param {Future[]|Value[]|*[]} values
+     * @returns {Future<Value[]|*[]>}
+     */
+    all: function (values) {
+        var flow = this,
+            settledValues = [],
+            totalValues = values.length,
+            valueIndex = 0;
+
+        return flow.futureFactory.createFuture(function (resolve, reject) {
+            /*jshint latedef: false */
+
+            function onFulfill(resolvedResult) {
+                settledValues.push(resolvedResult);
+
+                checkNext();
+            }
+
+            function checkNext() {
+                var value;
+
+                // Handle any run of non-Future(Value) values in a loop for speed.
+                while (valueIndex < totalValues) {
+                    value = values[valueIndex++];
+
+                    if (flow.controlBridge.isFuture(value)) {
+                        value.nextIsolated(onFulfill, reject);
+                        return;
+                    }
+
+                    settledValues.push(value);
+                }
+
+                resolve(settledValues);
+            }
+
+            checkNext();
+        });
+    },
+
+    /**
      * Returns the provided Future(Value) or wraps any other value in a Future to provide
      * a consistent chainable interface.
      *
