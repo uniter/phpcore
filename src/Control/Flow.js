@@ -176,13 +176,11 @@ _.extend(Flow.prototype, {
                 });
         }
 
-        return flow.futureFactory.createFuture(function (resolve, reject) {
-            checkNext()
-                .next(function () {
-                    // Use the result from the last handler invocation as the overall result.
-                    resolve(lastHandlerResult);
-                }, reject);
-        });
+        return checkNext()
+            .next(function () {
+                // Use the result from the last handler invocation as the overall result.
+                return lastHandlerResult;
+            });
     },
 
     /**
@@ -257,13 +255,11 @@ _.extend(Flow.prototype, {
                 });
         }
 
-        return flow.futureFactory.createFuture(function (resolve, reject) {
-            checkNext()
-                .next(function () {
-                    // Pass the final array of all results through to the next handler in the sequence.
-                    resolve(results);
-                }, reject);
-        });
+        return checkNext()
+            .next(function () {
+                // Pass the final array of all results through to the next handler in the sequence.
+                return results;
+            });
     },
 
     /**
