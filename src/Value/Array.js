@@ -191,20 +191,19 @@ module.exports = require('pauser')([
                 result,
                 value = this;
 
+            _.each(value.value, function (element) {
+                // Treat string keys that have a numeric value as numeric
+                if (!isFinite(element.getKey().getNative())) {
+                    hasNonNumericKey = true;
+                }
+            });
+
+            result = hasNonNumericKey ? {} : [];
+
             return value.flow
                 .eachAsync(value.value, function (element) {
-                    // Treat string keys that have a numeric value as numeric
-                    if (!isFinite(element.getKey().getNative())) {
-                        hasNonNumericKey = true;
-                    }
-                })
-                .next(function () {
-                    result = hasNonNumericKey ? {} : [];
-
-                    return value.flow.eachAsync(value.value, function (element) {
-                        return element.getValue().next(function (presentValue) {
-                            result[element.getKey().getNative()] = presentValue.getNative();
-                        });
+                    return element.getValue().next(function (presentValue) {
+                        result[element.getKey().getNative()] = presentValue.getNative();
                     });
                 })
                 .next(function () {
