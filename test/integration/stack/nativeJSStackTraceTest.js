@@ -59,8 +59,8 @@ EOS
                 nowdoc(function () {/*<<<EOS
 Error: Oh dear! What will we do?
     at FunctionInternals.myErroringJSFunc (/path/to/phpcore/test/integration/stack/nativeJSStackTraceTest.js:41:19)
-    at Scope._mySecondPHPFunc (/path/to/my_module.php:4:4)
-    at Scope._myFirstPHPFunc (/path/to/my_module.php:8:4)
+    at _mySecondPHPFunc (/path/to/my_module.php:4:4)
+    at _myFirstPHPFunc (/path/to/my_module.php:8:4)
     at __uniter_php_module__ (/path/to/my_module.php:11:0)
     at Context.<anonymous> (/path/to/phpcore/test/integration/stack/nativeJSStackTraceTest.js:45:20)
     at [Mocha internals]
@@ -122,8 +122,8 @@ EOS
                 nowdoc(function () {/*<<<EOS
 Error: Oh dear! What will we do?
     at FunctionInternals.myErroringJSFunc (/path/to/phpcore/test/integration/stack/nativeJSStackTraceTest.js:104:19)
-    at Scope._myStaticMethod (/path/to/my_module.php:7:15)
-    at Scope._myInstanceMethod (/path/to/my_module.php:12:15)
+    at _myStaticMethod (/path/to/my_module.php:7:15)
+    at _myInstanceMethod (/path/to/my_module.php:12:15)
     at __uniter_php_module__ (/path/to/my_module.php:17:0)
     at Context.<anonymous> (/path/to/phpcore/test/integration/stack/nativeJSStackTraceTest.js:108:20)
     at [Mocha internals]
@@ -192,13 +192,13 @@ EOS
                 nowdoc(function () {/*<<<EOS
 Error: Oh dear! What will we do?
     at FunctionInternals.myErroringJSFunc (/path/to/phpcore/test/integration/stack/nativeJSStackTraceTest.js:168:19)
-    at Scope._mySecondPHPFunc (/path/to/my_module.php:5:8)
-    at Scope._myFirstPHPFunc (/path/to/my_module.php:12:4)
-    at Scope.__uniter_php_closure__ (/path/to/my_module.php:16:11)
+    at _mySecondPHPFunc (/path/to/my_module.php:5:8)
+    at _myFirstPHPFunc (/path/to/my_module.php:12:4)
+    at __uniter_php_closure__ (/path/to/my_module.php:16:11)
     at FunctionInternals.myReenteringJSFunc (/path/to/phpcore/test/integration/stack/nativeJSStackTraceTest.js:172:13)
-    at Scope._mySecondPHPFunc (/path/to/my_module.php:7:8)
-    at Scope._myFirstPHPFunc (/path/to/my_module.php:12:4)
-    at Scope.__uniter_php_closure__ (/path/to/my_module.php:16:11)
+    at _mySecondPHPFunc (/path/to/my_module.php:7:8)
+    at _myFirstPHPFunc (/path/to/my_module.php:12:4)
+    at __uniter_php_closure__ (/path/to/my_module.php:16:11)
     at Context.<anonymous> (/path/to/phpcore/test/integration/stack/nativeJSStackTraceTest.js:178:13)
     at [Mocha internals]
     at [Node.js internals]
@@ -256,8 +256,8 @@ EOS
                 nowdoc(function () {/*<<<EOS
 Error: Oh dear! What will we do?
     at FunctionInternals.myErroringJSFunc (/path/to/phpcore/test/integration/stack/nativeJSStackTraceTest.js:235:19)
-    at Scope._mySecondPHPFunc (/path/to/my_module.php:4:4)
-    at Scope._myFirstPHPFunc (/path/to/my_module.php:8:4)
+    at _mySecondPHPFunc (/path/to/my_module.php:4:4)
+    at _myFirstPHPFunc (/path/to/my_module.php:8:4)
     at __uniter_php_module__ (/path/to/my_module.php:11:0)
     at Context.<anonymous> (/path/to/phpcore/test/integration/stack/nativeJSStackTraceTest.js:242:20)
 EOS

@@ -358,6 +358,20 @@ _.extend(FunctionSpec.prototype, {
     },
 
     /**
+     * Declares a variable in the call scope for each parameter with the value or reference given as its argument.
+     *
+     * @param {Reference[]|Value[]|Variable[]} argumentReferenceList
+     * @param {Scope} scope
+     */
+    loadArguments: function (argumentReferenceList, scope) {
+        var spec = this;
+
+        _.each(spec.parameterList, function (parameter, index) {
+            parameter.loadArgument(argumentReferenceList[index], scope);
+        });
+    },
+
+    /**
      * Populates any unspecified arguments with their default values from parameters
      *
      * @param {Reference[]|Value[]|Variable[]} argumentReferenceList

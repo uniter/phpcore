@@ -20,6 +20,7 @@ var expect = require('chai').expect,
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     FunctionSpec = require('../../src/Function/FunctionSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
+    Reference = require('../../src/Reference/Reference'),
     Scope = require('../../src/Scope').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
     Value = require('../../src/Value').sync(),
@@ -91,12 +92,8 @@ describe('FunctionFactory', function () {
             functionSpec.coerceArguments
                 .callsFake(function (argumentReferences) {
                     return futureFactory.createAsyncPresent(
-                        argumentReferences.map(function (argumentReference, index) {
-                            var argumentValue = valueFactory.coerce(argumentReference);
-
-                            argumentReferences[index] = argumentValue;
-
-                            return argumentValue;
+                        argumentReferences.map(function (argumentReference) {
+                            return valueFactory.coerce(argumentReference);
                         })
                     );
                 });
@@ -104,6 +101,7 @@ describe('FunctionFactory', function () {
             functionSpec.populateDefaultArguments.returnsArg(0);
             functionSpec.getFunctionName.returns(name);
             functionSpec.isReturnByReference.returns(false);
+            functionSpec.isUserland.returns(false);
 
             functionSpec.validateArguments
                 .callsFake(function () {
@@ -382,7 +380,7 @@ describe('FunctionFactory', function () {
                 expect(originalFunc).to.have.been.calledOn(sinon.match.same(scope));
             });
 
-            it('should pass arguments through to the wrapped function', async function () {
+            it('should pass arguments through to a wrapped native function', async function () {
                 var argValue1 = valueFactory.createInteger(123),
                     argValue2 = valueFactory.createString('second'),
                     argValue3 = valueFactory.createString('another');
@@ -394,6 +392,24 @@ describe('FunctionFactory', function () {
                     sinon.match.same(argValue1),
                     sinon.match.same(argValue2),
                     sinon.match.same(argValue3)
+                );
+            });
+
+            it('should load arguments via the FunctionSpec for a userland PHP function', async function () {
+                var argValue1 = valueFactory.createString('my first arg'),
+                    argReference2 = sinon.createStubInstance(Reference);
+                functionSpec.isUserland.returns(true);
+                argReference2.getValue.returns(valueFactory.createString('my second arg'));
+
+                await callCreate()(argValue1, argReference2).toPromise();
+
+                expect(originalFunc).to.have.been.calledOnce;
+                expect(originalFunc.args[0]).to.deep.equal([]);
+                expect(originalFunc).to.have.been.calledOn(undefined);
+                expect(functionSpec.loadArguments).to.have.been.calledOnce;
+                expect(functionSpec.loadArguments).to.have.been.calledWith(
+                    [sinon.match.same(argValue1), sinon.match.same(argReference2)],
+                    sinon.match.same(scope)
                 );
             });
 
