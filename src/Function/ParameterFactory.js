@@ -14,6 +14,7 @@ var _ = require('microdash');
 /**
  * @param {class} Parameter
  * @param {CallStack} callStack
+ * @param {ValueFactory} valueFactory
  * @param {Translator} translator
  * @param {FutureFactory} futureFactory
  * @param {Flow} flow
@@ -23,6 +24,7 @@ var _ = require('microdash');
 function ParameterFactory(
     Parameter,
     callStack,
+    valueFactory,
     translator,
     futureFactory,
     flow,
@@ -52,13 +54,17 @@ function ParameterFactory(
      * @type {Userland}
      */
     this.userland = userland;
+    /**
+     * @type {ValueFactory}
+     */
+    this.valueFactory = valueFactory;
 }
 
 _.extend(ParameterFactory.prototype, {
     /**
      * Creates a Parameter from the given spec data
      *
-     * @param {string|null} name
+     * @param {string} name
      * @param {number} index
      * @param {TypeInterface} typeObject
      * @param {FunctionContextInterface} context
@@ -84,6 +90,7 @@ _.extend(ParameterFactory.prototype, {
 
         return new factory.Parameter(
             factory.callStack,
+            factory.valueFactory,
             factory.translator,
             factory.futureFactory,
             factory.flow,

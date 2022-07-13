@@ -21,14 +21,15 @@ var _ = require('microdash'),
     UNKNOWN = 'core.unknown';
 
 /**
- * Represents a parameter to a PHP function
+ * Represents a parameter to a PHP function.
  *
  * @param {CallStack} callStack
+ * @param {ValueFactory} valueFactory
  * @param {Translator} translator
  * @param {FutureFactory} futureFactory
  * @param {Flow} flow
  * @param {Userland} userland
- * @param {string|null} name
+ * @param {string} name
  * @param {number} index
  * @param {TypeInterface} typeObject
  * @param {FunctionContextInterface} context
@@ -41,6 +42,7 @@ var _ = require('microdash'),
  */
 function Parameter(
     callStack,
+    valueFactory,
     translator,
     futureFactory,
     flow,
@@ -88,7 +90,7 @@ function Parameter(
      */
     this.lineNumber = lineNumber;
     /**
-     * @type {string|null}
+     * @type {string}
      */
     this.name = name;
     /**
@@ -111,6 +113,10 @@ function Parameter(
      * @type {Userland}
      */
     this.userland = userland;
+    /**
+     * @type {ValueFactory}
+     */
+    this.valueFactory = valueFactory;
 }
 
 _.extend(Parameter.prototype, {
@@ -167,7 +173,7 @@ _.extend(Parameter.prototype, {
     /**
      * Fetches the name of this parameter, if known.
      *
-     * @returns {string|null}
+     * @returns {string}
      */
     getName: function () {
         return this.name;
@@ -199,6 +205,38 @@ _.extend(Parameter.prototype, {
      */
     isRequired: function () {
         return this.defaultValueProvider === null;
+    },
+
+    /**
+     * Declares a variable in the call scope for the parameter with the value or reference given as its argument.
+     *
+     * @param {Reference[]|Value[]|Variable[]} argumentReferenceList
+     * @param {Scope} scope
+     */
+    loadArgument: function (argumentReference, scope) {
+        var spec = this,
+            localVariable = scope.getVariable(spec.name);
+
+        if (!spec.passedByReference) {
+            // Most common case: argument is not provided by reference.
+            localVariable.setValue(argumentReference.getValue());
+            return;
+        }
+
+        if (!spec.defaultValueProvider) {
+            // Argument is passed by reference, and has no default so must have had a reference provided.
+            localVariable.setReference(argumentReference.getReference());
+            return;
+        }
+
+        if (spec.valueFactory.isValue(argumentReference)) {
+            // Argument is passed by reference, but we're relying on its default value.
+            localVariable.setValue(argumentReference);
+            return;
+        }
+
+        // Argument is passed by reference and a reference was passed.
+        localVariable.setReference(argumentReference.getReference());
     },
 
     /**

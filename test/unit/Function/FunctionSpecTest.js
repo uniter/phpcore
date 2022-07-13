@@ -25,7 +25,9 @@ var expect = require('chai').expect,
     ObjectValue = require('../../../src/Value/Object').sync(),
     Parameter = require('../../../src/Function/Parameter'),
     PHPError = phpCommon.PHPError,
+    Reference = require('../../../src/Reference/Reference'),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
+    Scope = require('../../../src/Scope').sync(),
     TypeInterface = require('../../../src/Type/TypeInterface'),
     Translator = phpCommon.Translator,
     Variable = require('../../../src/Variable').sync();
@@ -266,6 +268,32 @@ describe('FunctionSpec', function () {
                     functionFactory
                 )
             ).to.equal(aliasFunction);
+        });
+    });
+
+    describe('loadArguments()', function () {
+        var scope;
+
+        beforeEach(function () {
+            scope = sinon.createStubInstance(Scope);
+        });
+
+        it('should correctly load the arguments for all parameters', function () {
+            var argumentReference1 = sinon.createStubInstance(Reference),
+                argumentReference2 = sinon.createStubInstance(Reference);
+
+            spec.loadArguments([argumentReference1, argumentReference2], scope);
+
+            expect(parameter1.loadArgument).to.have.been.calledOnce;
+            expect(parameter1.loadArgument).to.have.been.calledWith(
+                sinon.match.same(argumentReference1),
+                sinon.match.same(scope)
+            );
+            expect(parameter2.loadArgument).to.have.been.calledOnce;
+            expect(parameter2.loadArgument).to.have.been.calledWith(
+                sinon.match.same(argumentReference2),
+                sinon.match.same(scope)
+            );
         });
     });
 

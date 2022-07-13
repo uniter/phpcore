@@ -10,18 +10,15 @@
 'use strict';
 
 var expect = require('chai').expect,
-    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
+    tools = require('../tools'),
     CallStack = require('../../../src/CallStack'),
     Flow = require('../../../src/Control/Flow'),
     FunctionContextInterface = require('../../../src/Function/FunctionContextInterface'),
-    FutureFactory = require('../../../src/Control/FutureFactory'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     Parameter = require('../../../src/Function/Parameter'),
     ParameterFactory = require('../../../src/Function/ParameterFactory'),
-    Translator = phpCommon.Translator,
-    TypeInterface = require('../../../src/Type/TypeInterface'),
-    Userland = require('../../../src/Control/Userland');
+    TypeInterface = require('../../../src/Type/TypeInterface');
 
 describe('ParameterFactory', function () {
     var callStack,
@@ -30,21 +27,28 @@ describe('ParameterFactory', function () {
         flow,
         futureFactory,
         namespaceScope,
+        state,
         translator,
-        userland;
+        userland,
+        valueFactory;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        state = tools.createIsolatedState('async', {
+            'call_stack': callStack
+        });
         FakeParameter = sinon.stub();
         flow = sinon.createStubInstance(Flow);
-        futureFactory = sinon.createStubInstance(FutureFactory);
+        futureFactory = state.getFutureFactory();
         namespaceScope = sinon.createStubInstance(NamespaceScope);
-        translator = sinon.createStubInstance(Translator);
-        userland = sinon.createStubInstance(Userland);
+        translator = state.getTranslator();
+        userland = state.getUserland();
+        valueFactory = state.getValueFactory();
 
         factory = new ParameterFactory(
             FakeParameter,
             callStack,
+            valueFactory,
             translator,
             futureFactory,
             flow,
@@ -68,6 +72,7 @@ describe('ParameterFactory', function () {
             FakeParameter
                 .withArgs(
                     sinon.match.same(callStack),
+                    sinon.match.same(valueFactory),
                     sinon.match.same(translator),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),

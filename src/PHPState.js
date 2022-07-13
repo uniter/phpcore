@@ -547,7 +547,15 @@ module.exports = require('pauser')([
             ffiExportRepository = new FFIExportRepository(ffiExportFactory, ffiValueStorage),
             ffiValueHelper = new FFIValueHelper(ffiProxyFactory, ffiFactory, ffiValueStorage, mode),
 
-            parameterFactory = new ParameterFactory(Parameter, callStack, translator, futureFactory, flow, userland),
+            parameterFactory = new ParameterFactory(
+                Parameter,
+                callStack,
+                valueFactory,
+                translator,
+                futureFactory,
+                flow,
+                userland
+            ),
             parameterTypeFactory = new ParameterTypeFactory(get('spec_type_provider')),
             parameterListFactory = new ParameterListFactory(parameterFactory, parameterTypeFactory),
             functionSpecFactory = set('function_spec_factory', new FunctionSpecFactory(

@@ -158,6 +158,15 @@ module.exports = require('pauser')([
                         return factory.flow
                             .maybeFuturise(
                                 function () {
+                                    if (functionSpec.isUserland()) {
+                                        // Userland functions' parameter arguments have variables declared
+                                        // in the function call's scope and then references or values loaded.
+                                        functionSpec.loadArguments(argReferences, scope);
+
+                                        return func();
+                                    }
+
+                                    // Native functions expect arguments to be provided natively as normal.
                                     return func.apply(scope, argReferences);
                                 },
                                 function (pause) {

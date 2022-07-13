@@ -18,6 +18,9 @@ var expect = require('chai').expect,
     FunctionContextInterface = require('../../../src/Function/FunctionContextInterface'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     Parameter = require('../../../src/Function/Parameter'),
+    Reference = require('../../../src/Reference/Reference'),
+    ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
+    Scope = require('../../../src/Scope').sync(),
     Translator = phpCommon.Translator,
     TypeInterface = require('../../../src/Type/TypeInterface'),
     Userland = require('../../../src/Control/Userland'),
@@ -83,6 +86,7 @@ describe('Parameter', function () {
         createParameter = function (passedByReference) {
             parameter = new Parameter(
                 callStack,
+                valueFactory,
                 translator,
                 futureFactory,
                 flow,
@@ -144,6 +148,7 @@ describe('Parameter', function () {
             variable.getValue.returns(value);
             parameter = new Parameter(
                 callStack,
+                valueFactory,
                 translator,
                 futureFactory,
                 flow,
@@ -193,6 +198,140 @@ describe('Parameter', function () {
         });
     });
 
+    describe('loadArgument()', function () {
+        var argumentReference,
+            argumentReferenceSlot,
+            argumentValue,
+            localVariable,
+            scope;
+
+        beforeEach(function () {
+            scope = sinon.createStubInstance(Scope);
+            argumentReference = sinon.createStubInstance(Reference);
+            argumentReferenceSlot = sinon.createStubInstance(ReferenceSlot);
+            argumentValue = valueFactory.createString('my argument');
+
+            argumentReference.getReference.returns(argumentReferenceSlot);
+            argumentReference.getValue.returns(argumentValue);
+
+            scope.getVariable.callsFake(function (name) {
+                localVariable = sinon.createStubInstance(Variable);
+                localVariable.getName.returns(name);
+
+                return localVariable;
+            });
+        });
+
+        describe('when passed by value', function () {
+            beforeEach(function () {
+                createParameter(false);
+            });
+
+            it('should declare the local variable', function () {
+                parameter.loadArgument(argumentReference, scope);
+
+                expect(scope.getVariable).to.have.been.calledOnce;
+                expect(scope.getVariable).to.have.been.calledWith('myParam');
+            });
+
+            it('should set the value of the local variable to the value of the reference', function () {
+                parameter.loadArgument(argumentReference, scope);
+
+                expect(localVariable.setValue).to.have.been.calledOnce;
+                expect(localVariable.setValue.args[0][0].getNative()).to.equal('my argument');
+            });
+
+            it('should not set the reference of the local variable', function () {
+                parameter.loadArgument(argumentReference, scope);
+
+                expect(localVariable.setReference).not.to.have.been.called;
+            });
+        });
+
+        describe('when passed by reference with no default value', function () {
+            beforeEach(function () {
+                defaultValueProvider = null;
+                createParameter(true);
+            });
+
+            it('should declare the local variable', function () {
+                parameter.loadArgument(argumentReference, scope);
+
+                expect(scope.getVariable).to.have.been.calledOnce;
+                expect(scope.getVariable).to.have.been.calledWith('myParam');
+            });
+
+            it('should set the reference of the local variable to the reference slot', function () {
+                parameter.loadArgument(argumentReference, scope);
+
+                expect(localVariable.setReference).to.have.been.calledOnce;
+                expect(localVariable.setReference).to.have.been.calledWith(
+                    sinon.match.same(argumentReferenceSlot)
+                );
+            });
+
+            it('should not set the value of the local variable', function () {
+                parameter.loadArgument(argumentReference, scope);
+
+                expect(localVariable.setValue).not.to.have.been.called;
+            });
+        });
+
+        describe('when passed by reference with a default value, value given', function () {
+            beforeEach(function () {
+                createParameter(true);
+            });
+
+            it('should declare the local variable', function () {
+                parameter.loadArgument(argumentValue, scope);
+
+                expect(scope.getVariable).to.have.been.calledOnce;
+                expect(scope.getVariable).to.have.been.calledWith('myParam');
+            });
+
+            it('should set the value of the local variable to the value', function () {
+                parameter.loadArgument(argumentValue, scope);
+
+                expect(localVariable.setValue).to.have.been.calledOnce;
+                expect(localVariable.setValue.args[0][0].getNative()).to.equal('my argument');
+            });
+
+            it('should not set the reference of the local variable', function () {
+                parameter.loadArgument(argumentValue, scope);
+
+                expect(localVariable.setReference).not.to.have.been.called;
+            });
+        });
+
+        describe('when passed by reference with a default value, reference given', function () {
+            beforeEach(function () {
+                createParameter(true);
+            });
+
+            it('should declare the local variable', function () {
+                parameter.loadArgument(argumentReference, scope);
+
+                expect(scope.getVariable).to.have.been.calledOnce;
+                expect(scope.getVariable).to.have.been.calledWith('myParam');
+            });
+
+            it('should set the reference of the local variable to the reference slot', function () {
+                parameter.loadArgument(argumentReference, scope);
+
+                expect(localVariable.setReference).to.have.been.calledOnce;
+                expect(localVariable.setReference).to.have.been.calledWith(
+                    sinon.match.same(argumentReferenceSlot)
+                );
+            });
+
+            it('should not set the value of the local variable', function () {
+                parameter.loadArgument(argumentReference, scope);
+
+                expect(localVariable.setValue).not.to.have.been.called;
+            });
+        });
+    });
+
     describe('populateDefaultArgument()', function () {
         it('should return the given argument reference when valid', async function () {
             var argumentReference = sinon.createStubInstance(Variable),
@@ -233,6 +372,7 @@ describe('Parameter', function () {
         it('should return true when the parameter has no default value provider defined', function () {
             parameter = new Parameter(
                 callStack,
+                valueFactory,
                 translator,
                 futureFactory,
                 flow,
@@ -326,6 +466,7 @@ describe('Parameter', function () {
                 defaultValue = valueFactory.createNull();
             parameter = new Parameter(
                 callStack,
+                valueFactory,
                 translator,
                 futureFactory,
                 flow,
@@ -373,6 +514,7 @@ describe('Parameter', function () {
             callStack.getCallerLastLine.returns(12345);
             parameter = new Parameter(
                 callStack,
+                valueFactory,
                 translator,
                 futureFactory,
                 flow,
@@ -431,6 +573,7 @@ describe('Parameter', function () {
         it('should throw when parameter is required but no argument is given', function () {
             parameter = new Parameter(
                 callStack,
+                valueFactory,
                 translator,
                 futureFactory,
                 flow,
