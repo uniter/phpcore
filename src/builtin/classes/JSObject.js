@@ -11,13 +11,13 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
+    Exception = phpCommon.Exception,
     PHPError = phpCommon.PHPError,
     WeakMap = require('es6-weak-map'),
     UNDEFINED_METHOD = 'core.undefined_method';
 
 module.exports = function (internals) {
     var callStack = internals.callStack,
-        flow = internals.flow,
         globalNamespace = internals.globalNamespace,
         valueFactory = internals.valueFactory,
         nativeArrayToObjectValueMap = new WeakMap(),
@@ -41,6 +41,11 @@ module.exports = function (internals) {
             }
 
             return arrayObjectValue;
+        },
+        throwMethodCallerExpected = function (methodName) {
+            return function () {
+                throw new Exception('JSObject->' + methodName + '(...) :: Should be handled by custom method caller');
+            };
         };
 
     function JSObject() {
@@ -48,108 +53,76 @@ module.exports = function (internals) {
     }
 
     _.extend(JSObject.prototype, {
-        /**
-         * JSObject needs to implement its own way of calling out to native JS methods,
-         * because the method property lookup needs to be case-sensitive, unlike PHP
-         *
-         * @param {Value} methodNameValue
-         * @param {Value} argumentArrayValue An ArrayValue provided with method arguments
-         * @returns {*}
-         */
-        '__call': function __uniterOutboundStackMarker__(methodNameValue, argumentArrayValue) {
-            var nativeArguments,
-                nativeObject = this.getObject(),
-                methodName = methodNameValue.getNative(),
-                result;
+        '__call': throwMethodCallerExpected('__call'),
 
-            if (!_.isFunction(nativeObject[methodName])) {
-                callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_METHOD, {
-                    className: 'JSObject',
-                    methodName: methodName
-                });
-            }
+        '__get': throwMethodCallerExpected('__get'),
 
-            // Coerce the ArrayValue of arguments to a native array to pass to .apply(...)
-            nativeArguments = argumentArrayValue.getNative();
+        '__invoke': throwMethodCallerExpected('__invoke'),
 
-            result = nativeObject[methodName].apply(nativeObject, nativeArguments);
+        '__set': throwMethodCallerExpected('__set'),
 
-            return coerce(result);
-        },
-
-        /**
-         * Fetches a property from the native JS object
-         *
-         * @param {Value} propertyNameValue
-         * @returns {*}
-         */
-        '__get': function (propertyNameValue) {
-            var nativeObject = this.getObject(),
-                propertyName = propertyNameValue.getNative();
-
-            return coerce(nativeObject[propertyName]);
-        },
-
-        /**
-         * In JavaScript, objects cannot normally be made callable, only functions
-         * (and Proxies with the "apply" trap) -
-         * this magic method is implemented to allow imported JS functions to be callable.
-         *
-         * @returns {*}
-         */
-        '__invoke': function () {
-            var nativeObject = this.getObject();
-
-            if (!_.isFunction(nativeObject)) {
-                throw new Error('Attempted to invoke a non-function JS object');
-            }
-
-            return flow.mapAsync(arguments, function (argument) {
-                return argument.getValue()
-                    .asFuture() // Don't re-box the native value extracted just below.
-                    .next(function (value) {
-                        return value.getNative();
-                    });
-            }).next(function (nativeArguments) {
-                var result = nativeObject.apply(null, nativeArguments);
-
-                return coerce(result);
-            });
-        },
-
-        /**
-         * Sets a property on the native JS object
-         *
-         * @param {Value} propertyNameValue
-         * @param {Value} propertyValue
-         */
-        '__set': function (propertyNameValue, propertyValue) {
-            var nativeObject = this.getObject(),
-                propertyName = propertyNameValue.getNative();
-
-            // Ensure we write the native value to properties on native JS objects
-            nativeObject[propertyName] = propertyValue.getNative();
-        },
-
-        /**
-         * Deletes a property from the native JS object when `unset($jsObject->prop)` is called from PHP-land
-         *
-         * @param {Value} propertyNameValue
-         */
-        '__unset': function (propertyNameValue) {
-            var nativeObject = this.getObject(),
-                propertyName = propertyNameValue.getNative();
-
-            delete nativeObject[propertyName];
-        }
+        '__unset': throwMethodCallerExpected('__unset')
     });
 
     internals.defineUnwrapper(function (objectValue) {
         /*
          * JSObjects are objects that originate from JS-land and were subsequently passed into PHP-land -
-         * when we want to unwrap them to pass back to JS-land, simply return the original native object
+         * when we want to unwrap them to pass back to JS-land, simply return the original native object.
          */
         return objectValue.getObject();
+    });
+
+    /**
+     * JSObject needs to implement its own way of calling out to native JS methods,
+     * because the method property lookup needs to be case-sensitive, unlike PHP.
+     */
+    internals.defineMethodCaller(function __uniterOutboundStackMarker__(methodName, argValues) {
+        // Coerce the argument Values to natives to pass to .apply(...).
+        var unwrapArguments = function () {
+                return argValues.map(function (argValue) {
+                    return argValue.getNative();
+                });
+            },
+            objectValue = this,
+            nativeObject = objectValue.getObject();
+
+        switch (methodName) {
+            case '__call':
+                // Calls a method of the native JS object.
+                return coerce(objectValue.callMethod(methodName, argValues));
+            case '__get':
+                // Fetches a property from the native JS object.
+                return coerce(nativeObject[argValues[0].getNative()]);
+            case '__invoke':
+                /**
+                 * In JavaScript, objects cannot normally be made callable, only functions
+                 * (and Proxies with the "apply" trap) -
+                 * this magic method is implemented to allow imported JS functions to be callable.
+                 */
+                if (!_.isFunction(nativeObject)) {
+                    throw new Error('Attempted to invoke a non-function JS object');
+                }
+
+                return coerce(nativeObject.apply(null, unwrapArguments()));
+            case '__set':
+                // Sets a property on the native JS object.
+                nativeObject[argValues[0].getNative()] = argValues[1].getNative();
+                break;
+            case '__unset':
+                // Deletes a property from the native JS object
+                // when `unset($jsObject->prop)` is called from PHP-land.
+                delete nativeObject[argValues[0].getNative()];
+                break;
+            default:
+                if (!_.isFunction(nativeObject[methodName])) {
+                    callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_METHOD, {
+                        className: 'JSObject',
+                        methodName: methodName
+                    });
+                }
+
+                return nativeObject[methodName].apply(nativeObject, unwrapArguments());
+        }
     });
 
     internals.disableAutoCoercion();

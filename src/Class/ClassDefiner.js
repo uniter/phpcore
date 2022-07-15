@@ -58,6 +58,7 @@ _.extend(ClassDefiner.prototype, {
      * @param {Namespace} namespace
      * @param {NamespaceScope} namespaceScope
      * @param {boolean} autoCoercionEnabled Whether the class should be auto-coercing
+     * @param {Function|null} methodCaller Custom method call handler
      * @returns {Future<Class>} Returns the internal Class instance created
      */
     defineClass: function (
@@ -65,7 +66,8 @@ _.extend(ClassDefiner.prototype, {
         definition,
         namespace,
         namespaceScope,
-        autoCoercionEnabled
+        autoCoercionEnabled,
+        methodCaller
     ) {
         var definer = this;
 
@@ -87,7 +89,8 @@ _.extend(ClassDefiner.prototype, {
                         namespace,
                         namespaceScope,
                         interfaceObjects,
-                        autoCoercionEnabled
+                        autoCoercionEnabled,
+                        methodCaller
                     );
                 }
 
@@ -111,8 +114,7 @@ _.extend(ClassDefiner.prototype, {
                         superClass,
                         namespace,
                         namespaceScope,
-                        interfaceObjects,
-                        autoCoercionEnabled
+                        interfaceObjects
                     );
                 });
             })

@@ -280,6 +280,35 @@ describe('FFI ClassInternalsClassFactory', function () {
                     );
                 });
 
+                it('should provide the custom method caller when defined', function () {
+                    var methodCaller = sinon.stub();
+                    classInternals.defineMethodCaller(methodCaller);
+
+                    classInternals.defineClass(definitionFactory);
+
+                    expect(myStuffNamespace.defineClass).to.have.been.calledOnce;
+                    expect(myStuffNamespace.defineClass).to.have.been.calledWith(
+                        sinon.match.any,
+                        sinon.match.any,
+                        sinon.match.any,
+                        sinon.match.any,
+                        sinon.match.same(methodCaller)
+                    );
+                });
+
+                it('should provide null as the method caller when none defined', function () {
+                    classInternals.defineClass(definitionFactory);
+
+                    expect(myStuffNamespace.defineClass).to.have.been.calledOnce;
+                    expect(myStuffNamespace.defineClass).to.have.been.calledWith(
+                        sinon.match.any,
+                        sinon.match.any,
+                        sinon.match.any,
+                        sinon.match.any,
+                        null
+                    );
+                });
+
                 it('should return the Class instance from the Namespace', async function () {
                     expect(await classInternals.defineClass(definitionFactory).toPromise()).to.equal(classObject);
                 });

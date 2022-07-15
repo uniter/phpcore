@@ -67,6 +67,10 @@ _.extend(ClassInternalsClassFactory.prototype, {
          */
         function ClassInternals(fqcn) {
             /**
+             * @type {boolean}
+             */
+            this.autoCoercionEnabled = true;
+            /**
              * @type {Object.<string, Function>}
              */
             this.definedConstantProviders = {};
@@ -75,13 +79,13 @@ _.extend(ClassInternalsClassFactory.prototype, {
              */
             this.definedInterfaceNames = [];
             /**
-             * @type {boolean}
-             */
-            this.enableAutoCoercion = true;
-            /**
              * @type {string}
              */
             this.fqcn = fqcn;
+            /**
+             * @type {Function|null}
+             */
+            this.methodCaller = null;
             /**
              * @type {Class|null}
              */
@@ -127,7 +131,7 @@ _.extend(ClassInternalsClassFactory.prototype, {
                  * to make sure it is an ObjectValue as expected by Class.prototype.construct(...).
                  * The same applies to the arguments list.
                  */
-                if (internals.enableAutoCoercion) {
+                if (internals.autoCoercionEnabled) {
                     instanceValue = factory.valueFactory.coerce(instance);
 
                     argValues = _.map(args, function (nativeArg) {
@@ -181,7 +185,8 @@ _.extend(ClassInternalsClassFactory.prototype, {
                     name,
                     Class,
                     factory.globalNamespaceScope,
-                    internals.enableAutoCoercion
+                    internals.autoCoercionEnabled,
+                    internals.methodCaller
                 ).next(function (classObject) {
                     if (internals.unwrapper) {
                         // Custom unwrappers may be used to eg. unwrap a PHP \DateTime object to a JS Date object
@@ -205,6 +210,17 @@ _.extend(ClassInternalsClassFactory.prototype, {
             },
 
             /**
+             * Defines a custom method caller for this class. When an instance of this class
+             * has a method called on it, the given caller will be used to handle the call
+             * rather than using the usual method lookup and calling magic handling.
+             *
+             * @param {Function} caller
+             */
+            defineMethodCaller: function (caller) {
+                this.methodCaller = caller;
+            },
+
+            /**
              * Defines a custom unwrapper for this class. When an instance of this class
              * is exported to JS-land, the unwrapper will be used to produce the unwrapped value
              *
@@ -218,7 +234,7 @@ _.extend(ClassInternalsClassFactory.prototype, {
              * Disables auto-coercion for the class
              */
             disableAutoCoercion: function () {
-                this.enableAutoCoercion = false;
+                this.autoCoercionEnabled = false;
             },
 
             /**

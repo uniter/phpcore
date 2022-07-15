@@ -95,6 +95,7 @@ _.extend(ClassFactory.prototype, {
      * @param {Class|null} superClass Parent class, if any
      * @param {Class[]} interfaces Interfaces implemented by this class
      * @param {ValueCoercer} valueCoercer
+     * @param {Function|null} methodCaller Custom method call handler
      * @returns {Class} Returns the internal Class instance created
      */
     createClass: function (
@@ -109,7 +110,8 @@ _.extend(ClassFactory.prototype, {
         constants,
         superClass,
         interfaces,
-        valueCoercer
+        valueCoercer,
+        methodCaller
     ) {
         var factory = this;
 
@@ -134,7 +136,8 @@ _.extend(ClassFactory.prototype, {
             namespaceScope,
             factory.exportRepository,
             valueCoercer,
-            factory.ffiFactory
+            factory.ffiFactory,
+            methodCaller
         );
     }
 });

@@ -16,13 +16,16 @@ var expect = require('chai').expect,
 
 describe('PHP builtin JSObject class', function () {
     var callStack,
+        defineMethodCaller,
         InternalJSObjectClass,
         internals;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        defineMethodCaller = sinon.stub();
         internals = {
             callStack: callStack,
+            defineMethodCaller: defineMethodCaller,
             defineUnwrapper: sinon.stub(),
             disableAutoCoercion: sinon.stub()
         };
@@ -30,9 +33,9 @@ describe('PHP builtin JSObject class', function () {
         InternalJSObjectClass = jsObjectClassFactory(internals);
     });
 
-    describe('__call()', function () {
+    describe('custom method caller via .defineMethodCaller(...)', function () {
         it('should have the outbound stack marker as its name for stack cleaning', function () {
-            expect(InternalJSObjectClass.prototype.__call.name).to.equal('__uniterOutboundStackMarker__');
+            expect(defineMethodCaller.args[0][0].name).to.equal('__uniterOutboundStackMarker__');
         });
     });
 });

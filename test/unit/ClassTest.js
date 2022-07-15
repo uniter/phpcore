@@ -23,6 +23,7 @@ var _ = require('microdash'),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPObject = require('../../src/FFI/Value/PHPObject').sync(),
     PropertyReference = require('../../src/Reference/Property'),
+    Reference = require('../../src/Reference/Reference'),
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     StaticPropertyReference = require('../../src/Reference/StaticProperty'),
     UndeclaredStaticPropertyReference = require('../../src/Reference/UndeclaredStaticProperty'),
@@ -41,6 +42,7 @@ describe('Class', function () {
         functionFactory,
         futureFactory,
         interfaceObject,
+        methodCaller,
         namespaceScope,
         referenceFactory,
         state,
@@ -59,6 +61,7 @@ describe('Class', function () {
         flow = state.getFlow();
         functionFactory = sinon.createStubInstance(FunctionFactory);
         futureFactory = state.getFutureFactory();
+        methodCaller = null;
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         referenceFactory = sinon.createStubInstance(ReferenceFactory);
         superClass = sinon.createStubInstance(Class);
@@ -173,7 +176,8 @@ describe('Class', function () {
                 namespaceScope,
                 exportRepository,
                 valueCoercer,
-                ffiFactory
+                ffiFactory,
+                methodCaller
             );
         };
         createClass('__construct', null);
@@ -486,6 +490,35 @@ describe('Class', function () {
                         'Fake PHP Fatal error for #core.undefined_method with {"className":"My\\\\Class\\\\Path\\\\Here","methodName":"myMissingMethod"}'
                     );
                 });
+            });
+        });
+
+        describe('when a custom method caller is given', function () {
+            var argReference1,
+                argFutureValue2,
+                objectValue;
+
+            beforeEach(function () {
+                methodCaller = sinon.stub();
+                createClass('__construct', null);
+
+                objectValue = sinon.createStubInstance(ObjectValue);
+                argReference1 = sinon.createStubInstance(Reference);
+                argReference1.getValue.returns(valueFactory.createAsyncPresent('my first future arg'));
+                argFutureValue2 = valueFactory.createAsyncPresent('my second future arg');
+            });
+
+            it('should invoke the method caller with arguments resolved to present values', async function () {
+                await classObject.callMethod('myMethod', [argReference1, argFutureValue2], objectValue).toPromise();
+
+                expect(methodCaller).to.have.been.calledOnce;
+                expect(methodCaller).to.have.been.calledOn(objectValue);
+                expect(methodCaller).to.have.been.calledWith('myMethod');
+                expect(methodCaller.args[0][1]).to.have.length(2);
+                expect(methodCaller.args[0][1][0].getType()).to.equal('string');
+                expect(methodCaller.args[0][1][0].getNative()).to.equal('my first future arg');
+                expect(methodCaller.args[0][1][1].getType()).to.equal('string');
+                expect(methodCaller.args[0][1][1].getNative()).to.equal('my second future arg');
             });
         });
     });

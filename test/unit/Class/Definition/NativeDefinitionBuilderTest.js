@@ -53,6 +53,7 @@ describe('NativeDefinitionBuilder', function () {
             definitionFunction,
             firstInterface,
             interfaces,
+            methodCaller,
             myConstantFactoryFunction,
             namespace,
             namespaceScope,
@@ -69,6 +70,7 @@ describe('NativeDefinitionBuilder', function () {
             firstInterface = sinon.createStubInstance(Class);
             secondInterface = sinon.createStubInstance(Class);
             interfaces = [firstInterface, secondInterface];
+            methodCaller = sinon.stub();
             namespace = sinon.createStubInstance(Namespace);
             namespaceScope = sinon.createStubInstance(NamespaceScope);
             superClass = sinon.createStubInstance(Class);
@@ -85,7 +87,8 @@ describe('NativeDefinitionBuilder', function () {
                     namespace,
                     namespaceScope,
                     interfaces,
-                    Boolean(autoCoercionEnabled)
+                    Boolean(autoCoercionEnabled),
+                    methodCaller
                 );
             };
         });
@@ -282,6 +285,12 @@ describe('NativeDefinitionBuilder', function () {
                 callBuildDefinition('MyClass', false);
 
                 expect(definition.getValueCoercer().isAutoCoercionEnabled()).to.be.false;
+            });
+
+            it('should have the given method caller when one is specified', function () {
+                callBuildDefinition('MyClass');
+
+                expect(definition.getMethodCaller()).to.equal(methodCaller);
             });
         });
     });
