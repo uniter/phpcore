@@ -26,6 +26,7 @@ var _ = require('microdash');
  * @param {Object} instanceProperties
  * @param {Object} staticProperties
  * @param {ValueCoercer} valueCoercer
+ * @param {Function|null} methodCaller Custom method call handler
  * @constructor
  */
 function ClassDefinition(
@@ -42,7 +43,8 @@ function ClassDefinition(
     rootInternalPrototype,
     instanceProperties,
     staticProperties,
-    valueCoercer
+    valueCoercer,
+    methodCaller
 ) {
     /**
      * @type {Object<string, Function>}
@@ -64,6 +66,10 @@ function ClassDefinition(
      * @type {Function}
      */
     this.InternalClass = InternalClass;
+    /**
+     * @type {Function|null}
+     */
+    this.methodCaller = methodCaller;
     /**
      * @type {Object}
      */
@@ -147,6 +153,15 @@ _.extend(ClassDefinition.prototype, {
      */
     getInternalClass: function () {
         return this.InternalClass;
+    },
+
+    /**
+     * Fetches the custom method call handler defined for the class, if any.
+     *
+     * @returns {Function|null}
+     */
+    getMethodCaller: function () {
+        return this.methodCaller;
     },
 
     /**

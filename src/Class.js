@@ -85,6 +85,7 @@ module.exports = require('pauser')([
      * @param {ExportRepository} exportRepository
      * @param {ValueCoercer} valueCoercer Value coercer configured specifically for this class
      * @param {FFIFactory} ffiFactory
+     * @param {Function|null} methodCaller Custom method call handler
      * @constructor
      */
     function Class(
@@ -108,7 +109,8 @@ module.exports = require('pauser')([
         namespaceScope,
         exportRepository,
         valueCoercer,
-        ffiFactory
+        ffiFactory,
+        methodCaller
     ) {
         var classObject = this,
             staticProperties = {};
@@ -177,6 +179,10 @@ module.exports = require('pauser')([
          * @type {Function}
          */
         this.InternalClass = InternalClass;
+        /**
+         * @type {Function|null}
+         */
+        this.methodCaller = methodCaller;
         /**
          * Looked up method specs, indexed by lowercase name to handle case-insensitivity
          *
@@ -255,7 +261,7 @@ module.exports = require('pauser')([
          * Omit both `objectValue` and `currentNativeObject` for a static call.
          *
          * @param {string} methodName The name of the method to call
-         * @param {Value[]} args The wrapped value objects to pass as arguments to the method
+         * @param {Reference[]|Value[]} args The wrapped value objects or references to pass as arguments to the method
          * @param {ObjectValue|null} objectValue The wrapped ObjectValue for this instance
          * @param {object|null} currentNativeObject The current native JS object on the prototype chain to search for the method
          * @param {Class|null} currentClass The original called class (this function is called recursively for inherited methods)
@@ -332,6 +338,25 @@ module.exports = require('pauser')([
                 return callMethod(currentObject, methodName, args);
             }
 
+            if (classObject.methodCaller) {
+                // A custom method caller/accelerator is installed, call it directly instead.
+                // Used by e.g. JSObject to avoid additional magic method calls per native call.
+                return classObject.valueProvider.createFutureList(args)
+                    .next(function (presentArgs) {
+                        return classObject.methodCaller.call(
+                            objectValue,
+                            methodName,
+                            /*
+                             * Arguments will have been resolved to present Value objects by this point.
+                             * Note that this prevents by-reference parameters, but those are not supported
+                             * natively by JavaScript anyway.
+                             */
+                            presentArgs
+                        );
+                    })
+                    .asValue();
+            }
+
             isForwardingStaticCall = !!isForwardingStaticCall;
 
             if (!currentNativeObject) {
@@ -360,7 +385,12 @@ module.exports = require('pauser')([
                 return result;
             }
 
-            // Method was not found on object or its prototype chain: try the magic method(s).
+            /*
+             * Method was not found on object or its prototype chain: try the magic method(s).
+             *
+             * Resolve all arguments (references or values) to present values and wrap them in an ArrayValue
+             * so that we can pass it in as the second argument to the magic method.
+             */
             return classObject.valueProvider.createFutureArray(args)
                 .asFuture() // Allow for non-Value results.
                 .next(function (argsArray) {
@@ -390,7 +420,7 @@ module.exports = require('pauser')([
                         return result;
                     }
 
-                    // Method was not found and no magic __call method is defined.
+                    // Method was not found and no magic __call(Static) method is defined.
                     classObject.callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_METHOD, {
                         className: classObject.name,
                         methodName: methodName

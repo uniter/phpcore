@@ -154,13 +154,15 @@ module.exports = require('pauser')([
          * @param {Function|object} definition Either a Function for a native JS class or a transpiled definition object
          * @param {NamespaceScope} namespaceScope
          * @param {boolean=} autoCoercionEnabled Whether the class should be auto-coercing
+         * @param {Function=} methodCaller Custom method call handler
          * @returns {Future<Class>}
          */
         defineClass: function (
             name,
             definition,
             namespaceScope,
-            autoCoercionEnabled
+            autoCoercionEnabled,
+            methodCaller
         ) {
             var
                 // TODO: Should we parse the name here to allow for nested namespace paths?
@@ -168,6 +170,7 @@ module.exports = require('pauser')([
                 namespace = this;
 
             autoCoercionEnabled = Boolean(autoCoercionEnabled);
+            methodCaller = methodCaller || null;
 
             if (namespaceScope.hasClass(name)) {
                 namespace.callStack.raiseUncatchableFatalError(
@@ -185,7 +188,8 @@ module.exports = require('pauser')([
                 definition,
                 namespace,
                 namespaceScope,
-                autoCoercionEnabled
+                autoCoercionEnabled,
+                methodCaller
             )
                 .next(function (classObject) {
                     // TODO: What happens if during this class/interface load it is requested again? Add integration test

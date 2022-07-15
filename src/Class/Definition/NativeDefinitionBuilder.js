@@ -53,6 +53,7 @@ _.extend(NativeDefinitionBuilder.prototype, {
      * @param {NamespaceScope} namespaceScope
      * @param {Class[]} interfaces
      * @param {boolean} autoCoercionEnabled Whether the class should be auto-coercing
+     * @param {Function|null} methodCaller Custom method call handler
      * @returns {ClassDefinition}
      */
     buildDefinition: function (
@@ -62,7 +63,8 @@ _.extend(NativeDefinitionBuilder.prototype, {
         namespace,
         namespaceScope,
         interfaces,
-        autoCoercionEnabled
+        autoCoercionEnabled,
+        methodCaller
     ) {
         var builder = this,
             constants,
@@ -176,7 +178,8 @@ _.extend(NativeDefinitionBuilder.prototype, {
             rootInternalPrototype,
             {},
             {},
-            valueCoercer
+            valueCoercer,
+            methodCaller
         );
     }
 });

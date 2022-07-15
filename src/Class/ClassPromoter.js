@@ -56,7 +56,8 @@ _.extend(ClassPromoter.prototype, {
                 classDefinition.getConstants(),
                 classDefinition.getSuperClass(),
                 classDefinition.getInterfaces(),
-                classDefinition.getValueCoercer()
+                classDefinition.getValueCoercer(),
+                classDefinition.getMethodCaller()
             );
 
         _.forOwn(classDefinition.getMethods(), function (methodDefinition, methodName) {

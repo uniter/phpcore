@@ -99,6 +99,32 @@ _.extend(FutureFactory.prototype, {
     },
 
     /**
+     * Creates a Future (if required) as the start of a chain,
+     * allowing for the initial result to be returned rather than having to call resolve().
+     *
+     * @param {Function} executor
+     * @returns {Future}
+     */
+    createFutureChain: function (executor) {
+        var factory = this,
+            result;
+
+        try {
+            result = executor();
+        } catch (error) {
+            return factory.createRejection(error);
+        }
+
+        if (factory.controlBridge.isFuture(result)) {
+            // Executor returned a Future, so we can return that one and avoid wrapping it in another.
+            return result.asFuture();
+        }
+
+        // Otherwise we'll have to wrap the result in a new Future.
+        return factory.createPresent(result);
+    },
+
+    /**
      * Creates a new present Future for the given value
      *
      * @param {*} value

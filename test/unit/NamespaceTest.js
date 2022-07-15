@@ -219,12 +219,12 @@ describe('Namespace', function () {
             );
         });
 
-        it('should invoke the ClassDefiner correctly', function () {
+        it('should invoke the ClassDefiner correctly when no custom method caller is given', function () {
             var definition = {
-                interfaces: ['Throwable'],
-                properties: {},
-                methods: []
-            };
+                    interfaces: ['Throwable'],
+                    properties: {},
+                    methods: []
+                };
 
             namespace.defineClass('MyInvalidThrowable', definition, namespaceScope, true);
 
@@ -234,7 +234,29 @@ describe('Namespace', function () {
                 sinon.match.same(definition),
                 sinon.match.same(namespace),
                 sinon.match.same(namespaceScope),
-                true // Auto-coercion enabled
+                true, // Auto-coercion enabled
+                null // Note it should be null and not undefined.
+            );
+        });
+
+        it('should invoke the ClassDefiner correctly when a custom method caller is given', function () {
+            var definition = {
+                    interfaces: ['Throwable'],
+                    properties: {},
+                    methods: []
+                },
+                methodCaller = sinon.stub();
+
+            namespace.defineClass('MyInvalidThrowable', definition, namespaceScope, true, methodCaller);
+
+            expect(classDefiner.defineClass).to.have.been.calledOnce;
+            expect(classDefiner.defineClass).to.have.been.calledWith(
+                'MyInvalidThrowable',
+                sinon.match.same(definition),
+                sinon.match.same(namespace),
+                sinon.match.same(namespaceScope),
+                true, // Auto-coercion enabled.
+                sinon.match.same(methodCaller)
             );
         });
 
