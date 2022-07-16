@@ -210,6 +210,22 @@ describe('FutureValue', function () {
         });
     });
 
+    describe('catchIsolated()', function () {
+        it('should invoke .nextIsolated(...) on the inner Future', function () {
+            var future = sinon.createStubInstance(Future),
+                catchHandler = sinon.stub();
+            createValue(future);
+
+            value.catchIsolated(catchHandler);
+
+            expect(future.nextIsolated).to.have.been.calledOnce;
+            expect(future.nextIsolated).to.have.been.calledWith(
+                null, // No resolve handler should be provided.
+                sinon.match.same(catchHandler)
+            );
+        });
+    });
+
     describe('coerceToArray()', function () {
         it('should be able to coerce a value to an array', async function () {
             var result;

@@ -129,6 +129,19 @@ _.extend(FutureValue.prototype, {
     },
 
     /**
+     * Attaches a callback to be called when the value evaluation resulted in an error,
+     * but does not return a new Future for chaining.
+     *
+     * Note that .next()/.catch()/.finally() should usually be used for chaining,
+     * this is a low-level function.
+     *
+     * @param {Function} catchHandler
+     */
+    catchIsolated: function (catchHandler) {
+        this.nextIsolated(null, catchHandler);
+    },
+
+    /**
      * {@inheritdoc}
      */
     clone: function () {
