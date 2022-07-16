@@ -311,12 +311,16 @@ describe('BarewordString', function () {
 
     describe('isNumeric()', function () {
         it('should return false', function () {
+            createValue('mybarewordstring');
+
             expect(value.isNumeric()).to.be.false;
         });
     });
 
     describe('isReferenceable()', function () {
         it('should return false', function () {
+            createValue('mybarewordstring');
+
             expect(value.isReferenceable()).to.be.false;
         });
     });
