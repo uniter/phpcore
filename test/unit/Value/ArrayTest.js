@@ -1398,6 +1398,23 @@ describe('Array', function () {
         });
     });
 
+    describe('nextIsolated()', function () {
+        it('should invoke the given callback with the value', function () {
+            var callback = sinon.stub();
+
+            value.nextIsolated(callback);
+
+            expect(callback).to.have.been.calledOnce;
+            expect(callback).to.have.been.calledWith(sinon.match.same(value));
+        });
+
+        it('should do nothing when no callback is given', function () {
+            expect(function () {
+                value.nextIsolated();
+            }).not.to.throw();
+        });
+    });
+
     describe('onesComplement()', function () {
         it('should throw an "Unsupported operand" error', function () {
             expect(function () {

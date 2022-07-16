@@ -164,8 +164,10 @@ _.extend(Userland.prototype, {
                      * - If the result is a resolved FutureValue, this will resolve the promise.
                      * - If the result is a rejected FutureValue, this will reject the promise.
                      * - If the result is any other Value, this will resolve the promise.
+                     *
+                     * Use .nextIsolated() rather than .next() to avoid creating a further Future just for chaining.
                      */
-                    result.next(resolve, reject);
+                    result.nextIsolated(resolve, reject);
                 }
 
                 run();

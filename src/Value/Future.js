@@ -534,8 +534,16 @@ _.extend(FutureValue.prototype, {
                     } :
                     resolve;
 
-            value.future.next(doResolve, doReject);
+            // Use .nextIsolated() rather than .next() to avoid creating a further Future just for chaining.
+            value.future.nextIsolated(doResolve, doReject);
         });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    nextIsolated: function (resolveHandler, catchHandler) {
+        this.future.nextIsolated(resolveHandler, catchHandler);
     },
 
     /**
@@ -572,7 +580,9 @@ _.extend(FutureValue.prototype, {
         var value = this;
 
         return new Promise(function (resolve, reject) {
-            value.next(resolve, reject);
+            // Use .nextIsolated() rather than .next()
+            // to avoid creating a further FutureValue & Future just for chaining.
+            value.nextIsolated(resolve, reject);
         });
     },
 
