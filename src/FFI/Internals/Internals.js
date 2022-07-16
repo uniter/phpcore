@@ -409,6 +409,7 @@ _.extend(Internals.prototype, {
      */
     implyArray: function (arrayReference) {
         var internals = this,
+            maybePresentValue,
             needsArrayAssignmentFuture;
 
         if (!arrayReference.isDefined()) {
@@ -416,7 +417,14 @@ _.extend(Internals.prototype, {
             // if for example it is a virtual property fetched with ->__get().
             needsArrayAssignmentFuture = arrayReference.isEmpty();
         } else {
-            needsArrayAssignmentFuture = arrayReference.getValue()
+            maybePresentValue = arrayReference.getValue();
+
+            if (maybePresentValue.getType() === 'array') {
+                // Fastest case: value is present and already an array, just return.
+                return maybePresentValue;
+            }
+
+            needsArrayAssignmentFuture = maybePresentValue
                 .asFuture()
                 .next(function (presentValue) {
                     return presentValue.getType() === 'null';
