@@ -990,6 +990,23 @@ describe('FutureValue', function () {
         });
     });
 
+    describe('nextIsolated()', function () {
+        it('should invoke .nextIsolated on the inner Future', function () {
+            var future = sinon.createStubInstance(Future),
+                catchHandler = sinon.stub(),
+                resolveHandler = sinon.stub();
+            createValue(future);
+
+            value.nextIsolated(resolveHandler, catchHandler);
+
+            expect(future.nextIsolated).to.have.been.calledOnce;
+            expect(future.nextIsolated).to.have.been.calledWith(
+                sinon.match.same(resolveHandler),
+                sinon.match.same(catchHandler)
+            );
+        });
+    });
+
     describe('shiftLeft()', function () {
         it('should be able to shift left by an IntegerValue', async function () {
             var result;
