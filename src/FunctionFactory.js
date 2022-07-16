@@ -107,7 +107,6 @@ module.exports = require('pauser')([
                     var argReferences = slice.call(arguments),
                         thisObject = currentObject || this,
                         scope,
-                        call,
                         newStaticClass = null,
                         result;
 
@@ -229,6 +228,8 @@ module.exports = require('pauser')([
                      */
                     result = functionSpec.coerceArguments(argReferences)
                         .next(function (argValues) {
+                            var call;
+
                             scope = factory.scopeFactory.create(currentClass, wrapperFunc, thisObject);
                             call = factory.callFactory.create(
                                 scope,
