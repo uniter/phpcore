@@ -1202,17 +1202,21 @@ module.exports = require('pauser')([
 
         /**
          * Attaches a callback for when the value has been evaluated. As present values
-         * are already, this simply calls the resume handler synchronously and ignores
+         * are already, this simply calls the resolve handler synchronously and ignores
          * the catch handler as there will never be an error involved here.
          * Note that the FutureValue class will override this method with support
          * for the catch handler parameter.
          *
-         * @param {Function} resolveHandler
+         * @param {Function=} resolveHandler
          * @returns {FutureValue|Value}
          */
         next: function (resolveHandler) {
             var value = this,
                 result;
+
+            if (!resolveHandler) {
+                return value;
+            }
 
             try {
                 result = resolveHandler(value);

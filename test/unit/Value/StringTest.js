@@ -1793,6 +1793,38 @@ describe('String', function () {
         });
     });
 
+    describe('next()', function () {
+        beforeEach(function () {
+            createValue('my string');
+        });
+
+        it('should just return the value when no callback given', function () {
+            expect(value.next()).to.equal(value);
+        });
+
+        it('should invoke the callback with the value and return the coerced result', function () {
+            var callback = sinon.stub(),
+                resultValue;
+            callback.withArgs(sinon.match.same(value)).returns('my result');
+
+            resultValue = value.next(callback);
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('my result');
+        });
+
+        it('should return a rejected FutureValue when the callback raises an error', async function () {
+            var callback = sinon.stub(),
+                resultValue;
+            callback.withArgs(sinon.match.same(value)).throws(new Error('Bang!'));
+
+            resultValue = value.next(callback);
+
+            expect(resultValue.getType()).to.equal('future');
+            await expect(resultValue.toPromise()).to.eventually.be.rejectedWith('Bang!');
+        });
+    });
+
     describe('nextIsolated()', function () {
         beforeEach(function () {
             createValue('my string');
