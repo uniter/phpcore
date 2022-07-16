@@ -15,6 +15,7 @@ var expect = require('chai').expect,
     tools = require('../tools'),
     Call = require('../../../src/Call'),
     CallStack = require('../../../src/CallStack'),
+    Exception = phpCommon.Exception,
     FunctionContextInterface = require('../../../src/Function/FunctionContextInterface'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     Parameter = require('../../../src/Function/Parameter'),
@@ -591,6 +592,7 @@ describe('Parameter', function () {
 
             return expect(parameter.validateArgument(null).toPromise())
                 .to.eventually.be.rejectedWith(
+                    Exception,
                     'Missing argument for required parameter "myParam"'
                 );
         });

@@ -131,7 +131,7 @@ describe('FutureFactory', function () {
             expect(resultValue).to.equal('my result with suffix');
         });
 
-        it('should create a FutureValue rejected with any error of the executor', async function () {
+        it('should create a Future rejected with any error of the executor', async function () {
             var error = new Error('Oh dear!'),
                 value = futureFactory
                     .createFutureChain(function () {

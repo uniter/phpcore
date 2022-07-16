@@ -11,6 +11,7 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
+    Exception = phpCommon.Exception,
     PHPError = phpCommon.PHPError,
     Value = require('../Value').sync(),
 
@@ -251,7 +252,7 @@ _.extend(Parameter.prototype, {
         if (!argumentReference) {
             if (parameter.isRequired()) {
                 // This should never happen - the scenario is captured within FunctionSpec
-                throw new Error('Missing argument for required parameter "' + parameter.name + '"');
+                throw new Exception('Missing argument for required parameter "' + parameter.name + '"');
             }
 
             // Note that the result could be a FutureValue, eg. if a constant of an asynchronously autoloaded class
@@ -276,7 +277,7 @@ _.extend(Parameter.prototype, {
     validateArgument: function (argumentReference, argumentValue) {
         var parameter = this;
 
-        return parameter.futureFactory.createFuture(function (resolve, reject) {
+        return parameter.futureFactory.createFutureChain(function () {
             if (parameter.passedByReference && argumentReference instanceof Value) {
                 // Parameter expects a reference but was given a value - error
                 parameter.callStack.raiseTranslatedError(
@@ -293,18 +294,16 @@ _.extend(Parameter.prototype, {
             if (!argumentReference) {
                 if (parameter.isRequired()) {
                     // This should never happen - the scenario is captured within FunctionSpec
-                    reject(new Error('Missing argument for required parameter "' + parameter.name + '"'));
-                    return;
+                    throw new Exception('Missing argument for required parameter "' + parameter.name + '"');
                 }
 
                 // Argument was omitted but its parameter is optional: allow it through, we'll use its default value
-                resolve();
                 return;
             }
 
             // Check whether the type allows the given argument (including null,
             // if it is a nullable type) or ...
-            parameter.typeObject.allowsValue(argumentValue)
+            return parameter.typeObject.allowsValue(argumentValue)
                 .next(function (allowsValue) {
                     var actualType,
                         argumentIsValid = allowsValue ||
@@ -379,8 +378,7 @@ _.extend(Parameter.prototype, {
                         isUserland ? definitionFilePath : callerFilePath,
                         isUserland ? definitionLineNumber : callerLineNumber
                     );
-                })
-                .next(resolve, reject);
+                });
         });
     }
 });
