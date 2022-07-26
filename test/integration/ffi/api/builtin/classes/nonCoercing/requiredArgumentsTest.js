@@ -85,15 +85,15 @@ EOS
         expect(engine.execute().getNative()).to.deep.equal({
             'with no args': {
                 'result': null,
-                'throwable': 'MyClass::myStaticMethod() expects exactly 3 parameters, 0 given'
+                'throwable': 'MyClass::myStaticMethod() expects exactly 3 arguments, 0 given'
             },
             'with one arg': {
                 'result': null,
-                'throwable': 'MyClass::myStaticMethod() expects exactly 3 parameters, 1 given'
+                'throwable': 'MyClass::myStaticMethod() expects exactly 3 arguments, 1 given'
             },
             'with two args': {
                 'result': null,
-                'throwable': 'MyClass::myStaticMethod() expects exactly 3 parameters, 2 given'
+                'throwable': 'MyClass::myStaticMethod() expects exactly 3 arguments, 2 given'
             },
             'with three args': {
                 'result': 'All required args were passed, starting with "first"',
@@ -174,11 +174,11 @@ EOS
         expect(engine.execute().getNative()).to.deep.equal({
             'with no args': {
                 'result': null,
-                'throwable': 'MyClass::myStaticMethod() expects at least 2 parameters, 0 given'
+                'throwable': 'MyClass::myStaticMethod() expects at least 2 arguments, 0 given'
             },
             'with one arg': {
                 'result': null,
-                'throwable': 'MyClass::myStaticMethod() expects at least 2 parameters, 1 given'
+                'throwable': 'MyClass::myStaticMethod() expects at least 2 arguments, 1 given'
             },
             'with two args': {
                 'result': 'All required args were passed, starting with "first"',

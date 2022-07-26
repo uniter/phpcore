@@ -162,7 +162,7 @@ EOS
         ]);
         expect(engine.getStderr().readAll()).to.equal(
             nowdoc(function () {/*<<<EOS
-PHP Notice:  Object of class stdClass could not be converted to number in your_module.php on line 7
+PHP Notice:  Object of class stdClass could not be converted to int in your_module.php on line 7
 
 EOS
 */;}) //jshint ignore:line

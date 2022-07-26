@@ -125,7 +125,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -159,7 +159,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -183,7 +183,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -207,7 +207,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -231,7 +231,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -257,7 +257,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -301,7 +301,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -731,7 +731,7 @@ describe('Object', function () {
 
             expect(callStack.raiseError).to.have.been.calledOnce;
             expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_WARNING,
+                PHPError.E_NOTICE,
                 'Object of class MyClass could not be converted to float'
             );
         });
@@ -752,7 +752,7 @@ describe('Object', function () {
             expect(callStack.raiseError).to.have.been.calledOnce;
             expect(callStack.raiseError).to.have.been.calledWith(
                 PHPError.E_NOTICE,
-                'Object of class MyClass could not be converted to number'
+                'Object of class MyClass could not be converted to int'
             );
         });
 
@@ -798,7 +798,7 @@ describe('Object', function () {
             expect(callStack.raiseError).to.have.been.calledOnce;
             expect(callStack.raiseError).to.have.been.calledWith(
                 PHPError.E_NOTICE,
-                'Object of class MyClass could not be converted to number'
+                'Object of class MyClass could not be converted to int'
             );
         });
 
@@ -1094,7 +1094,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -1132,7 +1132,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -1170,7 +1170,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -1218,7 +1218,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -1247,7 +1247,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledTwice;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -1273,7 +1273,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -1331,7 +1331,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -2572,7 +2572,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -2606,7 +2606,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -2630,7 +2630,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -2654,7 +2654,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -2678,7 +2678,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -2704,7 +2704,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -2758,7 +2758,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -2851,7 +2851,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -2885,7 +2885,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -2909,7 +2909,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -2933,7 +2933,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -2957,7 +2957,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -2983,7 +2983,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });
@@ -3027,7 +3027,7 @@ describe('Object', function () {
                 expect(callStack.raiseError).to.have.been.calledOnce;
                 expect(callStack.raiseError).to.have.been.calledWith(
                     PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to number'
+                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
                 );
             });
         });

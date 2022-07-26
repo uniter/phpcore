@@ -317,7 +317,7 @@ describe('Array', function () {
                     value.add(objectValue);
                 } catch (e) {}
 
-                // Would raise "Object of class ... could not be converted to number"
+                // Would raise "Object of class ... could not be converted to int"
                 expect(objectValue.coerceToNumber).to.have.been.calledOnce;
             });
 

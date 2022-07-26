@@ -17,6 +17,7 @@ var _ = require('microdash'),
     ONLY_REFERENCES_RETURNED_BY_REFERENCE = 'core.only_references_returned_by_reference',
     TOO_FEW_ARGS_USERLAND = 'core.too_few_args_userland',
     TOO_FEW_ARGS_BUILTIN = 'core.too_few_args_builtin',
+    TOO_FEW_ARGS_BUILTIN_SINGLE = 'core.too_few_args_builtin_single',
     PHPError = phpCommon.PHPError,
     UNKNOWN = 'core.unknown',
     Value = require('../Value').sync();
@@ -430,7 +431,8 @@ _.extend(FunctionSpec.prototype, {
         var spec = this;
 
         return spec.flow.eachAsync(spec.parameterList, function (parameter, index) {
-            var filePath = null,
+            var expectedCount,
+                filePath = null,
                 lineNumber = null;
 
             if (!parameter) {
@@ -444,6 +446,8 @@ _.extend(FunctionSpec.prototype, {
                     lineNumber = spec.callStack.getCallerLastLine();
                 }
 
+                expectedCount = spec.getRequiredParameterCount();
+
                 // No argument is given for this required parameter - error
                 // TODO: Consider using callStack.raiseTranslatedError(...) instead, as we do in Parameter -
                 //       then remove this .createTranslatedErrorObject() method?
@@ -451,13 +455,13 @@ _.extend(FunctionSpec.prototype, {
                     'ArgumentCountError',
                     spec.callStack.isUserland() ?
                         TOO_FEW_ARGS_USERLAND :
-                        TOO_FEW_ARGS_BUILTIN,
+                        (expectedCount === 1 ? TOO_FEW_ARGS_BUILTIN_SINGLE : TOO_FEW_ARGS_BUILTIN),
                     {
                         func: spec.context.getName(),
                         bound: spec.hasOptionalParameter() ?
                             spec.translator.translate(AT_LEAST) :
                             spec.translator.translate(EXACTLY),
-                        expectedCount: spec.getRequiredParameterCount(),
+                        expectedCount: expectedCount,
                         actualCount: argumentReferenceList.length,
                         callerFile: filePath !== null ? filePath : '(' + spec.translator.translate(UNKNOWN) + ')',
                         callerLine: lineNumber !== null ? lineNumber : '(' + spec.translator.translate(UNKNOWN) + ')'
