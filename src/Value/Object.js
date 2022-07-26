@@ -339,7 +339,7 @@ module.exports = require('pauser')([
             var value = this;
 
             value.callStack.raiseError(
-                PHPError.E_WARNING,
+                PHPError.E_NOTICE,
                 'Object of class ' + value.classObject.getName() + ' could not be converted to float'
             );
 
@@ -354,7 +354,7 @@ module.exports = require('pauser')([
 
             value.callStack.raiseError(
                 PHPError.E_NOTICE,
-                'Object of class ' + value.classObject.getName() + ' could not be converted to number'
+                'Object of class ' + value.classObject.getName() + ' could not be converted to int'
             );
 
             return value.factory.createInteger(1);

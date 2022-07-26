@@ -95,9 +95,9 @@ EOS
             'Error: Unsupported operand types @ /my/php_module.php:32'
         ]);
         expect(this.outputLog).to.deep.equal([
-            '[stderr]PHP Notice:  Object of class stdClass could not be converted to number in /my/php_module.php on line 7\n',
+            '[stderr]PHP Notice:  Object of class stdClass could not be converted to int in /my/php_module.php on line 7\n',
             // NB: Stdout should have a leading newline written out just before the message
-            '[stdout]\nNotice: Object of class stdClass could not be converted to number in /my/php_module.php on line 7\n'
+            '[stdout]\nNotice: Object of class stdClass could not be converted to int in /my/php_module.php on line 7\n'
         ]);
     });
 });

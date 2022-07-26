@@ -178,7 +178,7 @@ EOS
         }).to.throw(
             PHPFatalError,
             'PHP Fatal error: Uncaught ArgumentCountError: i_want_two_args() ' +
-            'expects exactly 2 parameters, 1 given in /path/to/my_module.php on line 2'
+            'expects exactly 2 arguments, 1 given in /path/to/my_module.php on line 2'
         );
     });
 });

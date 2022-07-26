@@ -553,7 +553,7 @@ describe('FunctionSpec', function () {
             expect(caughtError).to.equal(errorValue);
         });
 
-        it('should raise the correct error when a required parameter is missing an argument for a builtin with minimum parameter count', function () {
+        it('should raise the correct error when a required parameter is missing an argument for a builtin with minimum parameter count of 1', function () {
             var caughtError = null,
                 errorClassObject = sinon.createStubInstance(Class),
                 errorValue = sinon.createStubInstance(ObjectValue);
@@ -564,7 +564,7 @@ describe('FunctionSpec', function () {
             errorClassObject.instantiate
                 .withArgs([
                     sinon.match(function (arg) {
-                        return arg.getNative() === '[Translated] core.too_few_args_builtin {' +
+                        return arg.getNative() === '[Translated] core.too_few_args_builtin_single {' +
                             '"func":"myFunction",' +
                             '"bound":"[Translated] core.at_least {}",' +
                             '"expectedCount":1,' +
@@ -581,6 +581,49 @@ describe('FunctionSpec', function () {
                     })
                 ])
                 .returns(errorValue);
+
+            try {
+                spec.validateArguments([], []).yieldSync();
+            } catch (error) {
+                caughtError = error;
+            }
+
+            expect(caughtError).to.equal(errorValue);
+        });
+
+        it('should raise the correct error when a required parameter is missing an argument for a builtin with minimum parameter count of 2', function () {
+            var caughtError = null,
+                errorClassObject = sinon.createStubInstance(Class),
+                errorValue = sinon.createStubInstance(ObjectValue),
+                parameter3 = sinon.createStubInstance(Parameter);
+            callStack.isUserland.returns(false);
+            globalNamespace.getClass
+                .withArgs('ArgumentCountError')
+                .returns(futureFactory.createPresent(errorClassObject));
+            errorClassObject.instantiate
+                .withArgs([
+                    sinon.match(function (arg) {
+                        return arg.getNative() === '[Translated] core.too_few_args_builtin {' +
+                            '"func":"myFunction",' +
+                            '"bound":"[Translated] core.at_least {}",' +
+                            '"expectedCount":2,' +
+                            '"actualCount":0,' +
+                            '"callerFile":"/path/to/my/caller.php",' +
+                            '"callerLine":21' +
+                            '}';
+                    }),
+                    sinon.match(function (arg) {
+                        return arg.getNative() === 0;
+                    }),
+                    sinon.match(function (arg) {
+                        return arg.getNative() === null;
+                    })
+                ])
+                .returns(errorValue);
+            parameter2.isRequired.returns(true);
+            parameter3.isPassedByReference.returns(false);
+            parameter3.isRequired.returns(false);
+            parameterList.push(parameter3);
 
             try {
                 spec.validateArguments([], []).yieldSync();
