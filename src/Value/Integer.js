@@ -141,14 +141,14 @@ module.exports = require('pauser')([
          */
         compareWithObject: function (leftValue) {
             var rightValue = this,
-                leftFloat = leftValue.coerceToFloat().getNative(),
+                leftInteger = leftValue.coerceToInteger().getNative(),
                 rightInteger = rightValue.getNative();
 
-            if (leftFloat < rightInteger) {
+            if (leftInteger < rightInteger) {
                 return -1;
             }
 
-            if (leftFloat > rightInteger) {
+            if (leftInteger > rightInteger) {
                 return 1;
             }
 

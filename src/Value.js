@@ -1055,8 +1055,8 @@ module.exports = require('pauser')([
         isNotEqualTo: function (rightValue) {
             return this.compareWith(rightValue)
                 .next(function (comparisonResult) {
-                    // Don't allow the null case.
-                    return comparisonResult === -1 || comparisonResult === 1;
+                    // Allow the null case.
+                    return comparisonResult !== 0;
                 })
                 .asValue();
         },

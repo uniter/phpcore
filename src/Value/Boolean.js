@@ -72,8 +72,20 @@ module.exports = require('pauser')([
         /**
          * {@inheritdoc}
          */
-        compareWithArray: function () {
-            return 1; // Arrays (even empty ones) are always greater (except for objects).
+        compareWithArray: function (leftValue) {
+            var rightValue = this,
+                booleanValue = rightValue.getNative(),
+                arrayIsNotEmpty = leftValue.getLength() > 0;
+
+            if (!booleanValue && arrayIsNotEmpty) {
+                return -1;
+            }
+
+            if (booleanValue && !arrayIsNotEmpty) {
+                return 1;
+            }
+
+            return 0;
         },
 
         /**

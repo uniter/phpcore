@@ -458,13 +458,13 @@ module.exports = require('pauser')([
         compareWithInteger: function (leftValue) {
             var rightValue = this,
                 leftInteger = leftValue.getNative(),
-                rightFloat = rightValue.coerceToFloat().getNative();
+                rightInteger = rightValue.coerceToInteger().getNative();
 
-            if (leftInteger < rightFloat) {
+            if (leftInteger < rightInteger) {
                 return -1;
             }
 
-            if (leftInteger > rightFloat) {
+            if (leftInteger > rightInteger) {
                 return 1;
             }
 
