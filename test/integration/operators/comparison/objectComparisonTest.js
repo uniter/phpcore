@@ -37,9 +37,9 @@ $object3 = new MyClass('another private', 'one protected');
 $object4 = new MyClass('one private', 'another protected');
 $result = [];
 
-$result[] = $object2 == $object1; // Private property has the same value
-$result[] = $object3 == $object1; // Private property has different values
-$result[] = $object4 == $object1; // Protected property has different values
+$result['private prop has same value'] = $object2 == $object1;
+$result['private prop has different values'] = $object3 == $object1;
+$result['protected prop has different values'] = $object4 == $object1;
 
 return $result;
 EOS
@@ -47,11 +47,42 @@ EOS
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect((await engine.execute()).getNative()).to.deep.equal([
-            true,  // When private property has the same value
-            false, // When private property has different values
-            false  // When protected property has different values
-        ]);
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'private prop has same value': true,
+            'private prop has different values': false,
+            'protected prop has different values': false
+        });
+    });
+
+    it('should always treat instances of different classes as inequal', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass {
+    private $theProp = 'the value';
+}
+class YourClass {
+    private $theProp = 'the value';
+}
+
+$object1 = new MyClass;
+$object2 = new YourClass;
+
+$result = [];
+
+$result['=='] = $object1 == $object2;
+$result['!='] = $object1 != $object2;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            '==': false,
+            '!=': true
+        });
     });
 
     it('should only treat two references to the same object as being identical', async function () {
@@ -71,8 +102,10 @@ $object1 = new MyClass('one value');
 $object2 = new MyClass('one value');
 $result = [];
 
-$result[] = $object1 === $object1; // Same instance
-$result[] = $object2 === $object1; // Different instances of the same class, identical properties
+$result['same instance'] = $object1 === $object1;
+// Different instances of the same class, identical properties
+$result['different instances, identical props'] = $object2 === $object1;
+$result['different classes'] = (new stdClass) === $object1;
 
 return $result;
 EOS
@@ -80,10 +113,14 @@ EOS
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect((await engine.execute()).getNative()).to.deep.equal([
-            true, // When the same instance is being compared with itself
-            false // When compared with an instance of the same class with identical properties
-        ]);
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            // When the same instance is being compared with itself.
+            'same instance': true,
+            // When compared with an instance of the same class with identical properties.
+            'different instances, identical props': false,
+
+            'different classes': false
+        });
     });
 
     it('should raise an error when attempting to compare a recursive structure loosely', async function () {
