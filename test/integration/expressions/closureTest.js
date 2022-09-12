@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP closure/anonymous function integration', function () {
-    it('should allow a normal closure to call itself recursively', function () {
+    it('should allow a normal closure to call itself recursively', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -34,15 +34,16 @@ return [
 ];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'Fib of 6': 8,
             'Fib of 9': 34
         });
     });
 
-    it('should allow a static closure to call itself recursively', function () {
+    it('should allow a static closure to call itself recursively', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -61,15 +62,16 @@ return [
 ];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'Fib of 6': 8,
             'Fib of 9': 34
         });
     });
 
-    it('should allow a normal closure to access $this', function () {
+    it('should allow a normal closure to access $this', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -92,13 +94,13 @@ $object = new MyClass();
 return $object->myMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/some/module/path.php', php),
+            module = tools.asyncTranspile('/some/module/path.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.equal(21);
+        expect((await engine.execute()).getNative()).to.equal(21);
     });
 
-    it('should allow a closure to be called both directly and via ->__invoke(...)', function () {
+    it('should allow a closure to be called both directly and via ->__invoke(...)', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -126,10 +128,10 @@ return [
 ];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/some/module/path.php', php),
+            module = tools.asyncTranspile('/some/module/path.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'called directly': {
                 'result': 31,
                 'trace': nowdoc(function () {/*<<<EOS
@@ -150,7 +152,7 @@ EOS
         });
     });
 
-    it('should not allow a static closure to access $this', function () {
+    it('should not allow a static closure to access $this', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -175,12 +177,10 @@ $object = new MyClass();
 return $object->myMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/some/module/path.php', php),
+            module = tools.asyncTranspile('/some/module/path.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Using $this when not in object context in /some/module/path.php on line 12'
         );
@@ -215,7 +215,7 @@ EOS
         );
     });
 
-    it('should allow a by-reference closure parameter to be passed an undefined variable without notice being raised', function () {
+    it('should allow a by-reference closure parameter to be passed an undefined variable without notice being raised', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL);
@@ -229,10 +229,10 @@ $myClosure($myTarget);
 return $myTarget;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/some/module/path.php', php),
+            module = tools.asyncTranspile('/some/module/path.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.equal(21);
+        expect((await engine.execute()).getNative()).to.equal(21);
         expect(engine.getStderr().readAll()).to.equal('');
         expect(engine.getStdout().readAll()).to.equal('');
     });

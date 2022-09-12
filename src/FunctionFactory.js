@@ -158,10 +158,6 @@ module.exports = require('pauser')([
                             .maybeFuturise(
                                 function () {
                                     if (functionSpec.isUserland()) {
-                                        // Userland functions' parameter arguments have variables declared
-                                        // in the function call's scope and then references or values loaded.
-                                        functionSpec.loadArguments(argReferences, scope);
-
                                         return func();
                                     }
 
@@ -264,6 +260,12 @@ module.exports = require('pauser')([
                             // Note that by this point all arguments will have been resolved to present values
                             // (ie. any FutureValues will have been awaited and resolved).
                             argReferences = populatedArguments;
+
+                            if (functionSpec.isUserland()) {
+                                // Userland functions' parameter arguments have variables declared
+                                // in the function call's scope and then references or values loaded.
+                                functionSpec.loadArguments(argReferences, scope);
+                            }
 
                             return doCall();
                         })

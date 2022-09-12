@@ -10,11 +10,9 @@
 'use strict';
 
 var expect = require('chai').expect,
-    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     CallStack = require('../../../../../src/CallStack'),
     ControlBridge = require('../../../../../src/Control/ControlBridge'),
-    Exception = phpCommon.Exception,
     Future = require('../../../../../src/Control/Future'),
     OpcodeExecutor = require('../../../../../src/Core/Opcode/Handler/OpcodeExecutor'),
     OpcodeFetcherRepository = require('../../../../../src/Core/Opcode/Fetcher/OpcodeFetcherRepository'),
@@ -76,7 +74,7 @@ describe('OpcodeHandlerFactory', function () {
                 .withArgs(
                     sinon.match.same(opcodeFetcher),
                     sinon.match.same(opcodeHandler),
-                    ['arg 1', 'arg 2', undefined, undefined, undefined]
+                    ['arg 1', 'arg 2']
                 )
                 .returns(opcode);
 
@@ -85,19 +83,13 @@ describe('OpcodeHandlerFactory', function () {
             };
         });
 
-        it('should throw when the arity limit is exceeded', function () {
-            /* jshint unused:false */
-            opcodeHandler = function (one, two, three, four, five, six) {};
-
-            expect(function () {
-                callCreate();
-            }).to.throw(
-                Exception,
-                'Opcode handler arity of 6 exceeds max of 5'
-            );
-        });
-
         describe('the function returned', function () {
+            it('should provide a reference back to the wrapped handler function', function () {
+                callCreate();
+
+                expect(tracedOpcodeHandler.opcodeHandler).to.equal(opcodeHandler);
+            });
+
             describe('when resuming from a pause', function () {
                 beforeEach(function () {
                     opcode.resume.returns('my resume result');

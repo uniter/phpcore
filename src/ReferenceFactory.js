@@ -21,6 +21,7 @@ module.exports = require('pauser')([
      * @param {class} ObjectElement
      * @param {class} PropertyReference
      * @param {class} ReferenceSlot
+     * @param {class} ReferenceSnapshot
      * @param {class} StaticPropertyReference
      * @param {class} UndeclaredStaticPropertyReference
      * @param {ValueFactory} valueFactory
@@ -35,6 +36,7 @@ module.exports = require('pauser')([
         ObjectElement,
         PropertyReference,
         ReferenceSlot,
+        ReferenceSnapshot,
         StaticPropertyReference,
         UndeclaredStaticPropertyReference,
         valueFactory,
@@ -76,6 +78,10 @@ module.exports = require('pauser')([
         /**
          * @type {class}
          */
+        this.ReferenceSnapshot = ReferenceSnapshot;
+        /**
+         * @type {class}
+         */
         this.StaticPropertyReference = StaticPropertyReference;
         /**
          * @type {class}
@@ -93,10 +99,26 @@ module.exports = require('pauser')([
          *
          * @param {Function} valueGetter
          * @param {Function=} valueSetter
+         * @param {Function=} referenceGetter
          * @param {Function=} referenceSetter
+         * @param {Function=} referenceClearer
+         * @param {Function|null} definednessGetter
+         * @param {Function|null} emptinessGetter
+         * @param {Function|null} setnessGetter
+         * @param {Function|null} undefinednessRaiser
          * @returns {AccessorReference}
          */
-        createAccessor: function (valueGetter, valueSetter, referenceSetter) {
+        createAccessor: function (
+            valueGetter,
+            valueSetter,
+            referenceGetter,
+            referenceSetter,
+            referenceClearer,
+            definednessGetter,
+            emptinessGetter,
+            setnessGetter,
+            undefinednessRaiser
+        ) {
             var factory = this;
 
             return new factory.AccessorReference(
@@ -104,7 +126,13 @@ module.exports = require('pauser')([
                 factory,
                 valueGetter,
                 valueSetter || null,
-                referenceSetter || null
+                referenceGetter || null,
+                referenceSetter || null,
+                referenceClearer || null,
+                definednessGetter || null,
+                emptinessGetter || null,
+                setnessGetter || null,
+                undefinednessRaiser || null
             );
         },
 
@@ -208,6 +236,29 @@ module.exports = require('pauser')([
             var factory = this;
 
             return new factory.ReferenceSlot(factory.valueFactory, factory);
+        },
+
+        /**
+         * Creates a ReferenceSnapshot.
+         *
+         * @param {Reference|Variable} wrappedReference Reference that was snapshotted
+         * @param {Value=} value Current snapshotted value of the reference if defined, null if undefined
+         * @returns {ReferenceSnapshot}
+         */
+        createSnapshot: function (
+            wrappedReference,
+            value
+        ) {
+            var factory = this;
+
+            return new factory.ReferenceSnapshot(
+                factory.valueFactory,
+                factory,
+                factory.futureFactory,
+                wrappedReference,
+                value || null,
+                wrappedReference.isReference() ? wrappedReference.getReference() : null
+            );
         },
 
         /**

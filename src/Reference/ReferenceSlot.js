@@ -71,6 +71,20 @@ _.extend(ReferenceSlot.prototype, {
     /**
      * {@inheritdoc}
      */
+    isReference: function () {
+        return false;
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    isSet: function () {
+        return this.value.isSet();
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     setValue: function (value) {
         this.value = value;
 

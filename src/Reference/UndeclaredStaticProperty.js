@@ -114,6 +114,13 @@ _.extend(UndeclaredStaticPropertyReference.prototype, {
     },
 
     /**
+     * {@inheritdoc}
+     */
+    isReference: function () {
+        return false;
+    },
+
+    /**
      * Undeclared properties are classed as unset
      *
      * @returns {Future<boolean>}

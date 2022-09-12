@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('./tools');
 
 describe('PHP string-as-array integration', function () {
-    it('should correctly handle reading a character of a string', function () {
+    it('should correctly handle reading a character of a string', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 return 'my string'[1];
@@ -22,8 +22,6 @@ EOS
 */;}), //jshint ignore:line
             module = tools.asyncTranspile('/path/to/my_module.php', php);
 
-        return module().execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.equal('y');
-        });
+        expect((await module().execute()).getNative()).to.equal('y');
     });
 });

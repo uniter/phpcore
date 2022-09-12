@@ -10,9 +10,7 @@
 'use strict';
 
 var _ = require('microdash'),
-    phpCommon = require('phpcommon'),
-    Exception = phpCommon.Exception,
-    MAX_OPCODE_HANDLER_ARITY = 5;
+    slice = [].slice;
 
 /**
  * @param {ControlBridge} controlBridge
@@ -61,22 +59,12 @@ _.extend(OpcodeHandlerFactory.prototype, {
      */
     createTracedHandler: function (opcodeHandler, opcodeFetcherType) {
         var wrapper = this,
-            opcodeFetcher = wrapper.opcodeFetcherRepository.getFetcher(opcodeFetcherType);
+            opcodeFetcher = wrapper.opcodeFetcherRepository.getFetcher(opcodeFetcherType),
+            tracedOpcodeHandler;
 
-        // Check max handler arity is not exceeded.
-        if (opcodeHandler.length > MAX_OPCODE_HANDLER_ARITY) {
-            throw new Exception(
-                'Opcode handler arity of ' +
-                opcodeHandler.length +
-                ' exceeds max of ' +
-                MAX_OPCODE_HANDLER_ARITY
-            );
-        }
-
-        return function tracedOpcodeHandler(arg1, arg2, arg3, arg4, arg5) {
+        tracedOpcodeHandler = function () {
             var trace = wrapper.callStack.getCurrentTrace(),
-                // Note that this limit on arity must match MAX_OPCODE_HANDLER_ARITY.
-                args = [arg1, arg2, arg3, arg4, arg5],
+                args = slice.call(arguments),
                 // Note that Opcode objects are pooled to minimise GC pressure.
                 opcode = trace.fetchOpcode(opcodeFetcher, opcodeHandler, args),
                 resumeValue = opcode.resume(),
@@ -107,6 +95,11 @@ _.extend(OpcodeHandlerFactory.prototype, {
 
             return result;
         };
+
+        // Provide a reference back to the wrapped opcode handler for any override to use.
+        tracedOpcodeHandler.opcodeHandler = opcodeHandler;
+
+        return tracedOpcodeHandler;
     }
 });
 

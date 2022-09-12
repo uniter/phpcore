@@ -42,13 +42,6 @@ _.extend(NullReference.prototype, {
     /**
      * {@inheritdoc}
      */
-    getReference: function () {
-        return this;
-    },
-
-    /**
-     * {@inheritdoc}
-     */
     getValue: function () {
         return this.valueFactory.createNull();
     },
@@ -70,6 +63,13 @@ _.extend(NullReference.prototype, {
      */
     isEmpty: function () {
         return this.futureFactory.createPresent(true); // PHP NULL is classed as empty
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    isReference: function () {
+        return false;
     },
 
     /**

@@ -92,6 +92,7 @@ module.exports = require('pauser')([
     require('./Reference/Property'),
     require('./ReferenceFactory'),
     require('./Reference/ReferenceSlot'),
+    require('./Reference/ReferenceSnapshot'),
     require('./Scope'),
     require('./ScopeFactory'),
     require('./Service/ServiceInternals'),
@@ -191,6 +192,7 @@ module.exports = require('pauser')([
     PropertyReference,
     ReferenceFactory,
     ReferenceSlot,
+    ReferenceSnapshot,
     Scope,
     ScopeFactory,
     ServiceInternals,
@@ -501,6 +503,7 @@ module.exports = require('pauser')([
                 ObjectElement,
                 PropertyReference,
                 ReferenceSlot,
+                ReferenceSnapshot,
                 StaticPropertyReference,
                 UndeclaredStaticPropertyReference,
                 valueFactory,
@@ -759,7 +762,8 @@ module.exports = require('pauser')([
         );
         opcodeInternalsClassFactory = new OpcodeInternalsClassFactory(
             ffiInternals,
-            opcodeHandlerFactory
+            opcodeHandlerFactory,
+            get('opcode_handler_typer')
         );
 
         // Set up the $GLOBALS superglobal
@@ -779,7 +783,7 @@ module.exports = require('pauser')([
                     // without using the decorator pattern
                     globalsArray = valueFactory.createArray(globalValues, hookableElementProvider);
 
-                    // $GLOBALS should have a recursive reference to itself
+                    // $GLOBALS should have a recursive reference to itself.
                     globalsArray.getElementByKey(valueFactory.createString('GLOBALS'))
                         .setReference(globalsSuperGlobal.getReference());
 
@@ -1038,14 +1042,37 @@ module.exports = require('pauser')([
          * @param {string} name
          * @param {Function} valueGetter
          * @param {Function=} valueSetter
+         * @param {Function=} referenceGetter
          * @param {Function=} referenceSetter
+         * @param {Function=} referenceClearer
+         * @param {Function=} definednessGetter
+         * @param {Function=} emptinessGetter
+         * @param {Function=} setnessGetter
+         * @param {Function=} undefinednessRaiser
          */
-        defineGlobalAccessor: function (name, valueGetter, valueSetter, referenceSetter) {
+        defineGlobalAccessor: function (
+            name,
+            valueGetter,
+            valueSetter,
+            referenceGetter,
+            referenceSetter,
+            referenceClearer,
+            definednessGetter,
+            emptinessGetter,
+            setnessGetter,
+            undefinednessRaiser
+        ) {
             var state = this,
                 accessorReference = state.referenceFactory.createAccessor(
                     valueGetter.bind(state.ffiInternals),
                     valueSetter ? valueSetter.bind(state.ffiInternals) : null,
-                    referenceSetter ? referenceSetter.bind(state.ffiInternals) : null
+                    referenceGetter ? referenceGetter.bind(state.ffiInternals) : null,
+                    referenceSetter ? referenceSetter.bind(state.ffiInternals) : null,
+                    referenceClearer ? referenceClearer.bind(state.ffiInternals) : null,
+                    definednessGetter ? definednessGetter.bind(state.ffiInternals) : null,
+                    emptinessGetter ? emptinessGetter.bind(state.ffiInternals) : null,
+                    setnessGetter ? setnessGetter.bind(state.ffiInternals) : null,
+                    undefinednessRaiser ? undefinednessRaiser.bind(state.ffiInternals) : null
                 );
 
             state.globalScope.defineVariable(name).setReference(accessorReference);

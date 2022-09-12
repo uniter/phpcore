@@ -78,6 +78,10 @@ EOS
             function (newValue) {
                 myReference.setValue(newValue);
             },
+            // Define a reference getter.
+            function () {
+                return myReference;
+            },
             // Define a setter for further reference-assignments.
             function (reference) {
                 myReference = reference;

@@ -118,18 +118,21 @@ EOS
                         return {
                             // Override the standard built-in callFunction() opcode's handler. This opcode
                             // is used every time a function is called, like the three times in our test.
-                            callFunction: function (name, argReferences) {
-                                // Note that for async mode, the result may be a Future or FutureValue.
-                                var previousResult = internals.callPreviousHandler('callFunction', [name, argReferences]);
+                            callFunction: internals.typeHandler(
+                                'string name, snapshot ...argReferences : any',
+                                function (name, argReferences) {
+                                    // Note that for async mode, the result may be a Future or FutureValue.
+                                    var previousResult = internals.callPreviousHandler('callFunction', [name, argReferences]);
 
-                                if (name === 'my_hooked_func') {
-                                    // When calling our target hooked function in PHP-land, do something special
-                                    return previousResult.concat(valueFactory.createString(' [from callFunction hook!]'));
+                                    if (name === 'my_hooked_func') {
+                                        // When calling our target hooked function in PHP-land, do something special
+                                        return previousResult.concat(valueFactory.createString(' [from callFunction hook!]'));
+                                    }
+
+                                    // For all other functions, just return the unhooked result
+                                    return previousResult;
                                 }
-
-                                // For all other functions, just return the unhooked result
-                                return previousResult;
-                            }
+                            )
                         };
                     }
                 }

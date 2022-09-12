@@ -17,11 +17,13 @@ var _ = require('microdash'),
 /**
  * @param {Internals} baseInternals
  * @param {OpcodeHandlerFactory} opcodeHandlerFactory
+ * @param {OpcodeHandlerTyper} opcodeHandlerTyper
  * @constructor
  */
 function OpcodeInternalsClassFactory(
     baseInternals,
-    opcodeHandlerFactory
+    opcodeHandlerFactory,
+    opcodeHandlerTyper
 ) {
     /**
      * @type {Internals}
@@ -31,6 +33,10 @@ function OpcodeInternalsClassFactory(
      * @type {OpcodeHandlerFactory}
      */
     this.opcodeHandlerFactory = opcodeHandlerFactory;
+    /**
+     * @type {OpcodeHandlerTyper}
+     */
+    this.opcodeHandlerTyper = opcodeHandlerTyper;
 }
 
 _.extend(OpcodeInternalsClassFactory.prototype, {
@@ -78,20 +84,29 @@ _.extend(OpcodeInternalsClassFactory.prototype, {
             },
 
             /**
-             * Calls the previous handler for this opcode, if one was defined
+             * Calls the previous handler for this opcode, if one was defined.
+             * Note that the previous handler's signature will not be checked or coerced by.
              *
              * @param {string} name
              * @param {*[]} args
              * @throws {Exception} Throws when opcode overriding has not been allowed for this group
              */
             callPreviousHandler: function (name, args) {
-                var internals = this;
+                var internals = this,
+                    previousHandler;
 
                 if (!internals.hasPreviousHandler(name)) {
                     throw new Exception('Opcode "' + name + '" has no previous handler');
                 }
 
-                return internals.previousOpcodes[name].apply(null, args);
+                previousHandler = internals.previousOpcodes[name];
+
+                // TODO: Check/coerce by the previous opcode signature?
+                if (previousHandler.opcodeHandler && previousHandler.opcodeHandler.typedOpcodeHandler) {
+                    previousHandler = previousHandler.opcodeHandler.typedOpcodeHandler;
+                }
+
+                return previousHandler.apply(null, args);
             },
 
             /**
@@ -179,6 +194,27 @@ _.extend(OpcodeInternalsClassFactory.prototype, {
              */
             setPreviousOpcodes: function (previousOpcodes) {
                 this.previousOpcodes = previousOpcodes;
+            },
+
+            /**
+             * Creates a new opcode handler that handles the given parameter signature.
+             *
+             * @param {string} signature
+             * @param {Function} handler
+             * @returns {Function}
+             */
+            typeHandler: function (signature, handler) {
+                var internals = this;
+
+                if (internals.untraced) {
+                    throw new Exception('Cannot type an untraced opcode handler');
+                }
+
+                if (!internals.opcodeFetcher) {
+                    throw new Exception('Opcode fetcher has not been set');
+                }
+
+                return factory.opcodeHandlerTyper.typeHandler(signature, handler, internals.opcodeFetcher);
             }
         });
 

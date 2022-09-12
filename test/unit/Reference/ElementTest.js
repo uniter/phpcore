@@ -10,6 +10,7 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('../tools'),
     ArrayValue = require('../../../src/Value/Array').sync(),
@@ -17,6 +18,7 @@ var expect = require('chai').expect,
     ElementReference = require('../../../src/Reference/Element'),
     KeyReferencePair = require('../../../src/KeyReferencePair'),
     KeyValuePair = require('../../../src/KeyValuePair'),
+    PHPError = phpCommon.PHPError,
     Reference = require('../../../src/Reference/Reference'),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
     Value = require('../../../src/Value').sync(),
@@ -44,6 +46,10 @@ describe('ElementReference', function () {
         keyValue = valueFactory.createString('my_element');
         referenceFactory = state.getReferenceFactory();
         value = sinon.createStubInstance(Value);
+
+        arrayValue.referToElement
+            .withArgs('my_element')
+            .returns('offset: my_element');
 
         value.formatAsString.returns('\'the value of my...\'');
         value.asEventualNative.returns(futureFactory.createPresent('the value of my element'));
@@ -219,6 +225,30 @@ describe('ElementReference', function () {
         });
     });
 
+    describe('getValueOrNativeNull()', function () {
+        it('should return the value when the element is defined with a value', function () {
+            var value = valueFactory.createString('my value');
+            element.setValue(value);
+
+            expect(element.getValueOrNativeNull()).to.equal(value);
+        });
+
+        it('should return the value of the reference when the element is defined with a reference', function () {
+            var reference = sinon.createStubInstance(Reference),
+                value = valueFactory.createString('my val from reference');
+            reference.getValue.returns(value);
+            element.setReference(reference);
+
+            expect(element.getValueOrNativeNull()).to.equal(value);
+        });
+
+        it('should return native null when the element is not defined', function () {
+            element.unset();
+
+            expect(element.getValueOrNativeNull()).to.be.null;
+        });
+    });
+
     describe('getValueOrNull()', function () {
         it('should return the value when the element is defined with a value', function () {
             var value = valueFactory.createString('my value');
@@ -351,6 +381,25 @@ describe('ElementReference', function () {
         });
     });
 
+    describe('isReference()', function () {
+        it('should return true when a reference has been assigned', function () {
+            var reference = sinon.createStubInstance(Reference);
+            element.setReference(reference);
+
+            expect(element.isReference()).to.be.true;
+        });
+
+        it('should return false when a value has been assigned', function () {
+            element.setValue(valueFactory.createString('my value'));
+
+            expect(element.isReference()).to.be.false;
+        });
+
+        it('should return false when the element is undefined', function () {
+            expect(element.isReference()).to.be.false;
+        });
+    });
+
     describe('isReferenceable()', function () {
         it('should return true', function () {
             expect(element.isReferenceable()).to.be.true;
@@ -368,6 +417,22 @@ describe('ElementReference', function () {
             value.isSet.returns(futureFactory.createPresent(false));
 
             expect(await element.isSet().toPromise()).to.be.false;
+        });
+    });
+
+    describe('raiseUndefined()', function () {
+        it('should raise the correct E_NOTICE', function () {
+            element.raiseUndefined();
+
+            expect(callStack.raiseError).to.have.been.calledOnce;
+            expect(callStack.raiseError).to.have.been.calledWith(
+                PHPError.E_NOTICE,
+                'Undefined offset: my_element'
+            );
+        });
+
+        it('should return null', function () {
+            expect(element.raiseUndefined().getNative()).to.be.null;
         });
     });
 

@@ -18,6 +18,7 @@ var _ = require('microdash'),
     BooleanValue = require('../../../src/Value/Boolean').sync(),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
+    Exception = phpCommon.Exception,
     FloatValue = require('../../../src/Value/Float').sync(),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyValuePair = require('../../../src/KeyValuePair'),
@@ -1206,6 +1207,28 @@ describe('String', function () {
             createValue('my string');
 
             expect(value.getDisplayType()).to.equal('string');
+        });
+    });
+
+    describe('getElementByKey()', function () {
+        it('should allow reading a single character of the string', function () {
+            createValue('my string');
+
+            expect(value.getElementByKey(factory.createInteger(4)).getValue().getNative())
+                .to.equal('t');
+        });
+
+        it('should throw when attempting to set a single character of the string', async function () {
+            var element;
+            createValue('my string');
+
+            element = value.getElementByKey(factory.createInteger(4));
+
+            await expect(element.setValue(factory.createString('x')).toPromise())
+                .to.eventually.be.rejectedWith(
+                    Exception,
+                    'Assigning to a string offset is not yet supported'
+                );
         });
     });
 

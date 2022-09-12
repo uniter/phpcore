@@ -832,7 +832,7 @@ describe('Array', function () {
 
     describe('getIterator()', function () {
         it('should return an ArrayIterator for this array', async function () {
-            var iterator = await value.getIterator().toPromise();
+            var iterator = value.getIterator();
 
             expect(iterator).to.be.an.instanceOf(ArrayIterator);
             expect(iterator.getIteratedValue()).to.equal(value);

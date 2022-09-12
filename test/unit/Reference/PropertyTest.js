@@ -48,6 +48,9 @@ describe('PropertyReference', function () {
         propertyValue = sinon.createStubInstance(Value);
         objectValue = sinon.createStubInstance(ObjectValue);
         objectValue.isMethodDefined.returns(false);
+        objectValue.referToElement
+            .withArgs('my_property')
+            .returns('property: My\\AwesomeClass::$my_property');
         keyValue = sinon.createStubInstance(Value);
 
         classObject.getName.returns('My\\AwesomeClass');
@@ -274,6 +277,30 @@ describe('PropertyReference', function () {
         });
     });
 
+    describe('getValueOrNativeNull()', function () {
+        it('should return the value when the property is defined with a value', function () {
+            var value = valueFactory.createString('my value');
+            property.setValue(value);
+
+            expect(property.getValueOrNativeNull()).to.equal(value);
+        });
+
+        it('should return the value of the reference when the property is defined with a reference', function () {
+            var reference = sinon.createStubInstance(Reference),
+                value = valueFactory.createString('my val from reference');
+            reference.getValue.returns(value);
+            property.setReference(reference);
+
+            expect(property.getValueOrNativeNull()).to.equal(value);
+        });
+
+        it('should return native null when the property is not defined', function () {
+            property.unset();
+
+            expect(property.getValueOrNativeNull()).to.be.null;
+        });
+    });
+
     describe('getValueOrNull()', function () {
         it('should return the value when the property is defined with a value', function () {
             var value = valueFactory.createString('my value');
@@ -365,6 +392,25 @@ describe('PropertyReference', function () {
         });
     });
 
+    describe('isReference()', function () {
+        it('should return true when a reference has been assigned', function () {
+            var reference = sinon.createStubInstance(Reference);
+            property.setReference(reference);
+
+            expect(property.isReference()).to.be.true;
+        });
+
+        it('should return false when a value has been assigned', function () {
+            property.setValue(valueFactory.createString('my value'));
+
+            expect(property.isReference()).to.be.false;
+        });
+
+        it('should return false when the property is undefined', function () {
+            expect(property.isReference()).to.be.false;
+        });
+    });
+
     describe('isReferenceable()', function () {
         it('should return true', function () {
             expect(property.isReferenceable()).to.be.true;
@@ -441,6 +487,22 @@ describe('PropertyReference', function () {
 
                 expect(property.isVisible()).to.be.false;
             });
+        });
+    });
+
+    describe('raiseUndefined()', function () {
+        it('should raise the correct E_NOTICE', function () {
+            property.raiseUndefined();
+
+            expect(callStack.raiseError).to.have.been.calledOnce;
+            expect(callStack.raiseError).to.have.been.calledWith(
+                PHPError.E_NOTICE,
+                'Undefined property: My\\AwesomeClass::$my_property'
+            );
+        });
+
+        it('should return null', function () {
+            expect(property.raiseUndefined().getNative()).to.be.null;
         });
     });
 

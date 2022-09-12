@@ -77,6 +77,17 @@ describe('ReferenceSlot', function () {
         });
     });
 
+    describe('getValueOrNativeNull()', function () {
+        it('should return the value when the slot has one set', function () {
+            var value = valueFactory.createString('my value');
+            reference.setValue(value);
+
+            expect(reference.getValueOrNativeNull()).to.equal(value);
+        });
+
+        // ReferenceSlots are always defined, so native null should never be returned.
+    });
+
     describe('getValueOrNull()', function () {
         it('should return the value when the slot has one set', function () {
             var value = valueFactory.createString('my value');
@@ -96,9 +107,27 @@ describe('ReferenceSlot', function () {
         });
     });
 
+    describe('isReference()', function () {
+        it('should return false as ReferenceSlots cannot themselves have references assigned', function () {
+            expect(reference.isReference()).to.be.false;
+        });
+    });
+
     describe('isReferenceable()', function () {
         it('should return true', function () {
             expect(reference.isReferenceable()).to.be.true;
+        });
+    });
+
+    describe('isSet()', function () {
+        it('should return true when the slot has a set value assigned', async function () {
+            reference.setValue(valueFactory.createString('my value'));
+
+            expect(await reference.isSet().toPromise()).to.be.true;
+        });
+
+        it('should return true when the slot has null assigned', async function () {
+            expect(await reference.isSet().toPromise()).to.be.false;
         });
     });
 

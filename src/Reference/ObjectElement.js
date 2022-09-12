@@ -95,6 +95,13 @@ _.extend(ObjectElement.prototype, {
     },
 
     /**
+     * {@inheritdoc}
+     */
+    isReference: function () {
+        return false; // ObjectElements cannot have references assigned.
+    },
+
+    /**
      * Determines whether an element of an object is classed as set.
      * Objects may only have an element fetched if they can be treated as an array,
      * by implementing ArrayAccess

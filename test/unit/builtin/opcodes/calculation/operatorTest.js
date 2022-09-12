@@ -28,7 +28,8 @@ describe('PHP operator opcode handlers', function () {
 
     beforeEach(function () {
         internals = {
-            setOpcodeFetcher: sinon.stub()
+            setOpcodeFetcher: sinon.stub(),
+            typeHandler: sinon.stub().returnsArg(1)
         };
         state = tools.createIsolatedState();
         hostScheduler = state.getHostScheduler();

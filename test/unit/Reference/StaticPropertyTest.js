@@ -141,6 +141,17 @@ describe('StaticPropertyReference', function () {
         });
     });
 
+    describe('getValueOrNativeNull()', function () {
+        it('should return the value when the property is defined with a value', function () {
+            var value = valueFactory.createString('my value');
+            property.setValue(value);
+
+            expect(property.getValueOrNativeNull()).to.equal(value);
+        });
+
+        // StaticProperties are always defined, so native null should never be returned.
+    });
+
     describe('getValueOrNull()', function () {
         it('should return the value when the property is defined with a value', function () {
             var value = valueFactory.createString('my value');
@@ -182,6 +193,21 @@ describe('StaticPropertyReference', function () {
             propertyValue.isEmpty.returns(false);
 
             expect(property.isEmpty()).to.be.false;
+        });
+    });
+
+    describe('isReference()', function () {
+        it('should return true when a reference has been assigned', function () {
+            var reference = sinon.createStubInstance(Reference);
+            property.setReference(reference);
+
+            expect(property.isReference()).to.be.true;
+        });
+
+        it('should return false when a value has been assigned', function () {
+            property.setValue(valueFactory.createString('my value'));
+
+            expect(property.isReference()).to.be.false;
         });
     });
 
