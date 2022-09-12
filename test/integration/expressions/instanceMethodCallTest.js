@@ -14,8 +14,8 @@ var expect = require('chai').expect,
     tools = require('../tools'),
     PHPFatalError = require('phpcommon').PHPFatalError;
 
-describe('PHP synchronous instance method call integration', function () {
-    it('should correctly handle calling an instance method as static', function () {
+describe('PHP instance method call integration', function () {
+    it('should correctly handle calling an instance method as static', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyClass
@@ -29,12 +29,13 @@ class MyClass
 return MyClass::myMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.equal(21);
+        expect((await engine.execute()).getNative()).to.equal(21);
     });
 
-    it('should treat method names as case-insensitive', function () {
+    it('should treat method names as case-insensitive', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyClass
@@ -48,12 +49,13 @@ class MyClass
 return (new MyClass)->MYMEthod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.equal(21);
+        expect((await engine.execute()).getNative()).to.equal(21);
     });
 
-    it('should allow a variable containing an array to be passed by-reference', function () {
+    it('should allow a variable containing an array to be passed by-reference', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyClass
@@ -70,16 +72,17 @@ $myArray = [21, 101];
 return $myArray;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             101,
             'added'
         ]);
     });
 
-    it('should correctly handle calling a parent instance method statically from a child instance method call', function () {
+    it('should correctly handle calling a parent instance method statically from a child instance method call', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyParent
@@ -110,14 +113,14 @@ $object->myProp = 7;
 return $object->myChildMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.equal(32);
+        expect((await engine.execute()).getNative()).to.equal(32);
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should correctly handle calling a grandparent instance method statically from a child instance method call', function () {
+    it('should correctly handle calling a grandparent instance method statically from a child instance method call', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyGrandparent
@@ -155,14 +158,14 @@ $object->myProp = 7;
 return $object->myChildMethod();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.equal(32);
+        expect((await engine.execute()).getNative()).to.equal(32);
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should correctly handle calling an instance method statically from an unrelated method', function () {
+    it('should correctly handle calling an instance method statically from an unrelated method', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL); // Enable E_STRICT errors
@@ -190,10 +193,10 @@ $object->myProp = 7;
 return $object->methodTwo();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.equal(32);
+        expect((await engine.execute()).getNative()).to.equal(32);
         // TODO: Change for PHP 7 (see https://www.php.net/manual/en/migration70.incompatible.php)
         expect(engine.getStderr().readAll()).to.equal(
             'PHP Strict standards:  Non-static method ClassOne::methodOne() should not be called statically, ' +
@@ -201,7 +204,7 @@ EOS
         );
     });
 
-    it('should correctly handle attempting to reference $this itself from a static method', function () {
+    it('should correctly handle attempting to reference $this itself from a static method', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class ClassOne
@@ -226,12 +229,10 @@ print $object->methodTwo();
 print 'after';
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Using $this when not in object context in /path/to/my_module.php on line 6'
         );
@@ -266,7 +267,7 @@ EOS
         );
     });
 
-    it('should correctly handle attempting to access a member of $this from a static method', function () {
+    it('should correctly handle attempting to access a member of $this from a static method', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class ClassOne
@@ -294,12 +295,10 @@ print $object->methodTwo();
 print 'after';
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/some/module/path.php', php),
+            module = tools.asyncTranspile('/some/module/path.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Using $this when not in object context in /some/module/path.php on line 8'
         );
@@ -334,7 +333,7 @@ EOS
         );
     });
 
-    it('should raise a fatal error on attempting to call a method of an array', function () {
+    it('should raise a fatal error on attempting to call a method of an array', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -344,18 +343,16 @@ $dummy = $myArray->myMethod();
 
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('my_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Call to a member function myMethod() on array in my_module.php on line 5'
         );
     });
 
-    it('should raise a fatal error on attempting to call a method of an integer', function () {
+    it('should raise a fatal error on attempting to call a method of an integer', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -365,12 +362,10 @@ $dummy = $myInt->myMethod();
 
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('my_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Call to a member function myMethod() on int in my_module.php on line 5'
         );

@@ -15,14 +15,22 @@ var expect = require('chai').expect,
     tools = require('../tools'),
     AccessorReference = require('../../../src/Reference/AccessorReference'),
     Exception = phpCommon.Exception,
-    Reference = require('../../../src/Reference/Reference');
+    Reference = require('../../../src/Reference/Reference'),
+    ReferenceSlot = require('../../../src/Reference/ReferenceSlot');
 
 describe('AccessorReference', function () {
-    var futureFactory,
+    var createReference,
+        definednessGetter,
+        emptinessGetter,
+        futureFactory,
         reference,
+        referenceClearer,
         referenceFactory,
+        referenceGetter,
         referenceSetter,
+        setnessGetter,
         state,
+        undefinednessRaiser,
         valueFactory,
         valueGetter,
         valueSetter;
@@ -31,24 +39,39 @@ describe('AccessorReference', function () {
         state = tools.createIsolatedState();
         futureFactory = state.getFutureFactory();
         referenceFactory = state.getReferenceFactory();
-        referenceSetter = sinon.spy();
+        definednessGetter = null;
+        emptinessGetter = null;
+        referenceClearer = sinon.stub();
+        referenceGetter = sinon.stub();
+        referenceSetter = sinon.stub();
+        setnessGetter = null;
+        undefinednessRaiser = null;
         valueFactory = state.getValueFactory();
         valueGetter = sinon.stub();
         valueSetter = sinon.spy();
 
-        reference = new AccessorReference(
-            valueFactory,
-            referenceFactory,
-            valueGetter,
-            valueSetter,
-            referenceSetter
-        );
+        createReference = function () {
+            reference = new AccessorReference(
+                valueFactory,
+                referenceFactory,
+                valueGetter,
+                valueSetter,
+                referenceGetter,
+                referenceSetter,
+                referenceClearer,
+                definednessGetter,
+                emptinessGetter,
+                setnessGetter,
+                undefinednessRaiser
+            );
+        };
     });
 
     describe('asArrayElement()', function () {
         it('should return the result of the getter coerced to a PHP value', function () {
             var value;
             valueGetter.returns(101);
+            createReference();
 
             value = reference.asArrayElement();
 
@@ -60,14 +83,38 @@ describe('AccessorReference', function () {
     describe('asEventualNative()', function () {
         it('should return a Future that resolves to the native value returned by the getter', async function () {
             valueGetter.returns(101);
+            createReference();
 
             expect(await reference.asEventualNative().toPromise()).to.equal(101);
+        });
+    });
+
+    describe('clearReference()', function () {
+        it('should call the clearer', function () {
+            createReference();
+
+            reference.clearReference();
+
+            expect(referenceClearer).to.have.been.calledOnce;
+        });
+
+        it('should throw when no reference clearer is defined', function () {
+            referenceClearer = null;
+            createReference();
+
+            expect(function () {
+                reference.clearReference();
+            }).to.throw(
+                Exception,
+                'Accessor cannot have its reference cleared'
+            );
         });
     });
 
     describe('formatAsString()', function () {
         it('should return the native result of the getter, formatted', function () {
             valueGetter.returns('My native result');
+            createReference();
 
             expect(reference.formatAsString()).to.equal('\'My native resul...\'');
         });
@@ -76,8 +123,26 @@ describe('AccessorReference', function () {
     describe('getNative()', function () {
         it('should return result of the getter coerced to a PHP value', function () {
             valueGetter.returns(21);
+            createReference();
 
             expect(reference.getNative()).to.equal(21);
+        });
+    });
+
+    describe('getReference()', function () {
+        it('should return the accessor reference itself with no reference getter', function () {
+            referenceGetter = null;
+            createReference();
+
+            expect(reference.getReference()).to.equal(reference);
+        });
+
+        it('should return the result with a reference getter', function () {
+            var referenceSlot = sinon.createStubInstance(ReferenceSlot);
+            referenceGetter.returns(referenceSlot);
+            createReference();
+
+            expect(reference.getReference()).to.equal(referenceSlot);
         });
     });
 
@@ -85,6 +150,7 @@ describe('AccessorReference', function () {
         it('should return the result of the getter coerced to a PHP value', function () {
             var value;
             valueGetter.returns(101);
+            createReference();
 
             value = reference.getValue();
 
@@ -93,80 +159,206 @@ describe('AccessorReference', function () {
         });
     });
 
+    describe('getValueOrNativeNull()', function () {
+        beforeEach(function () {
+            definednessGetter = sinon.stub();
+            definednessGetter.returns(true);
+        });
+
+        it('should return the value when the definedness getter returns true', function () {
+            var value = valueFactory.createString('my value');
+            valueGetter.returns(value);
+            createReference();
+
+            expect(reference.getValueOrNativeNull()).to.equal(value);
+        });
+
+        it('should return native null when the definedness getter returns false', function () {
+            definednessGetter.returns(false);
+            createReference();
+
+            expect(reference.getValueOrNativeNull()).to.be.null;
+        });
+    });
+
     describe('getValueOrNull()', function () {
         it('should return the value when the getter returns a value', function () {
             var value = valueFactory.createString('my value');
             valueGetter.returns(value);
+            createReference();
 
             expect(reference.getValueOrNull()).to.equal(value);
         });
 
         it('should return a NullValue when the getter returns no value', function () {
+            createReference();
+
             expect(reference.getValueOrNull().getType()).to.equal('null');
         });
     });
 
     describe('hasReferenceSetter()', function () {
         it('should return true when a reference setter was given', function () {
+            createReference();
+
             expect(reference.hasReferenceSetter()).to.be.true;
         });
 
         it('should return false when a reference setter was not given', function () {
-            reference = new AccessorReference(
-                valueFactory,
-                referenceFactory,
-                valueGetter,
-                valueSetter,
-                null
-            );
+            referenceSetter = null;
+            createReference();
 
             expect(reference.hasReferenceSetter()).to.be.false;
         });
     });
 
     describe('isDefined()', function () {
-        it('should return true', function () {
+        it('should return true when no definedness getter was given', function () {
+            createReference();
+
             expect(reference.isDefined()).to.be.true;
+        });
+
+        it('should return true when a definedness getter was given that returns true', function () {
+            definednessGetter = sinon.stub().returns(true);
+            createReference();
+
+            expect(reference.isDefined()).to.be.true;
+        });
+
+        it('should return true when a definedness getter was given that returns false', function () {
+            definednessGetter = sinon.stub().returns(false);
+            createReference();
+
+            expect(reference.isDefined()).to.be.false;
         });
     });
 
     describe('isEmpty()', function () {
-        it('should return true when the getter\'s result resolves to an empty value', async function () {
-            valueGetter.returns(valueFactory.createPresent(valueFactory.createArray([])));
+        describe('with no emptiness getter', function () {
+            it('should return true when the getter\'s result resolves to an empty value', async function () {
+                valueGetter.returns(valueFactory.createPresent(valueFactory.createArray([])));
+                createReference();
 
-            expect(await reference.isEmpty().toPromise()).to.be.true;
+                expect(await reference.isEmpty().toPromise()).to.be.true;
+            });
+
+            it('should return false when the getter\'s result resolves to a non-empty value', async function () {
+                valueGetter.returns(valueFactory.createPresent(21));
+                createReference();
+
+                expect(await reference.isEmpty().toPromise()).to.be.false;
+            });
         });
 
-        it('should return false when the getter\'s result resolves to a non-empty value', async function () {
-            valueGetter.returns(valueFactory.createPresent(21));
+        describe('with an emptiness getter', function () {
+            beforeEach(function () {
+                emptinessGetter = sinon.stub();
+            });
 
-            expect(await reference.isEmpty().toPromise()).to.be.false;
+            it('should return true when the emptiness getter returns true', async function () {
+                emptinessGetter.returns(futureFactory.createPresent(true));
+                createReference();
+
+                expect(await reference.isEmpty().toPromise()).to.be.true;
+            });
+
+            it('should return true when the emptiness getter returns false', async function () {
+                emptinessGetter.returns(futureFactory.createPresent(false));
+                createReference();
+
+                expect(await reference.isEmpty().toPromise()).to.be.false;
+            });
+        });
+    });
+
+    describe('isReference()', function () {
+        it('should return true when an accessor reference was given', function () {
+            createReference();
+
+            expect(reference.isReference()).to.be.true;
+        });
+
+        it('should return false when no accessor reference was given', function () {
+            referenceGetter = null;
+            createReference();
+
+            expect(reference.isReference()).to.be.false;
         });
     });
 
     describe('isReferenceable()', function () {
         it('should return true', function () {
+            createReference();
+
             expect(reference.isReferenceable()).to.be.true;
         });
     });
 
     describe('isSet()', function () {
-        it('should return true when the getter\'s result resolves to a set value', async function () {
-            valueGetter.returns(valueFactory.createPresent(true));
+        describe('with no setness getter', function () {
+            it('should return true when the getter\'s result resolves to a set value', async function () {
+                valueGetter.returns(valueFactory.createPresent(true));
+                createReference();
 
-            expect(await reference.isSet().toPromise()).to.be.true;
+                expect(await reference.isSet().toPromise()).to.be.true;
+            });
+
+            it('should return false when the getter\'s result resolves to an unset value', async function () {
+                valueGetter.returns(valueFactory.createPresent(null));
+                createReference();
+
+                expect(await reference.isSet().toPromise()).to.be.false;
+            });
         });
 
-        it('should return false when the getter\'s result resolves to an unset value', async function () {
-            valueGetter.returns(valueFactory.createPresent(null));
+        describe('with a setness getter', function () {
+            beforeEach(function () {
+                setnessGetter = sinon.stub();
+            });
 
-            expect(await reference.isSet().toPromise()).to.be.false;
+            it('should return true when the setness getter returns true', async function () {
+                setnessGetter.returns(futureFactory.createPresent(true));
+                createReference();
+
+                expect(await reference.isSet().toPromise()).to.be.true;
+            });
+
+            it('should return true when the setness getter returns false', async function () {
+                setnessGetter.returns(futureFactory.createPresent(false));
+                createReference();
+
+                expect(await reference.isSet().toPromise()).to.be.false;
+            });
+        });
+    });
+
+    describe('raiseUndefined()', function () {
+        it('should return the result with an undefinedness raiser', function () {
+            var result = valueFactory.createString('my value');
+            undefinednessRaiser = sinon.stub();
+            undefinednessRaiser.returns(result);
+            createReference();
+
+            expect(reference.raiseUndefined()).to.equal(result);
+        });
+
+        it('should throw when no undefinedness raiser is given', function () {
+            createReference();
+
+            expect(function () {
+                reference.raiseUndefined();
+            }).to.throw(
+                Exception,
+                'Unable to raise AccessorReference as undefined - did you mean to provide an undefinednessRaiser?'
+            );
         });
     });
 
     describe('setReference()', function () {
         it('should call the setter with the reference', function () {
             var newReference = sinon.createStubInstance(Reference);
+            createReference();
 
             reference.setReference(newReference);
 
@@ -176,12 +368,8 @@ describe('AccessorReference', function () {
 
         it('should throw when no reference setter is defined', function () {
             var newReference = sinon.createStubInstance(Reference);
-            reference = new AccessorReference(
-                valueFactory,
-                referenceFactory,
-                valueGetter,
-                valueSetter
-            );
+            referenceSetter = null;
+            createReference();
 
             expect(function () {
                 reference.setReference(newReference);
@@ -195,6 +383,7 @@ describe('AccessorReference', function () {
     describe('setValue()', function () {
         it('should call the setter with the value', async function () {
             var newValue = valueFactory.createInteger(27);
+            createReference();
 
             await reference.setValue(newValue).toPromise();
 
@@ -205,6 +394,7 @@ describe('AccessorReference', function () {
 
         it('should return a Future that eventually resolves to the new value', async function () {
             var newValue = valueFactory.createString('my new value');
+            createReference();
 
             expect(await reference.setValue(newValue).toPromise()).to.equal(newValue);
         });
@@ -214,6 +404,7 @@ describe('AccessorReference', function () {
         it('should return a Promise that resolves with the eventual Value from the getter', async function () {
             var resultValue;
             valueGetter.returns(101);
+            createReference();
 
             resultValue = await reference.toPromise();
 

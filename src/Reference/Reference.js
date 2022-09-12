@@ -52,6 +52,11 @@ _.extend(Reference.prototype, {
     },
 
     /**
+     * Clears any reference this variable may have assigned.
+     */
+    clearReference: throwUnimplemented('clearReference'),
+
+    /**
      * Formats the reference (which may not be defined) for display in stack traces etc.
      *
      * @returns {string}
@@ -98,6 +103,20 @@ _.extend(Reference.prototype, {
     getValue: throwUnimplemented('getValue'),
 
     /**
+     * Returns this reference's value if defined, null otherwise.
+     * No notice/warning will be raised if the reference has no value defined.
+     *
+     * Note that unlike .getValueOrNull(), native null is returned if not defined.
+     *
+     * @returns {Value|null}
+     */
+    getValueOrNativeNull: function () {
+        var reference = this;
+
+        return reference.isDefined() ? reference.getValue() : null;
+    },
+
+    /**
      * Returns this reference's value if defined, NULL otherwise.
      * No notice/warning will be raised if the reference has no value defined.
      *
@@ -135,6 +154,13 @@ _.extend(Reference.prototype, {
     isEmpty: throwUnimplemented('isEmpty'),
 
     /**
+     * Determines whether this reference has a reference rather than value assigned.
+     *
+     * @return {boolean}
+     */
+    isReference: throwUnimplemented('isReference'),
+
+    /**
      * Determines whether this reference may be referenced (shared interface with Value and Variable).
      *
      * @returns {boolean}
@@ -149,6 +175,13 @@ _.extend(Reference.prototype, {
      * @returns {Future<boolean>}
      */
     isSet: throwUnimplemented('isSet'),
+
+    /**
+     * Raises an error for when this reference is not defined.
+     *
+     * @returns {NullValue}
+     */
+    raiseUndefined: throwUnimplemented('raiseUndefined'),
 
     /**
      * Sets a new reference for this reference.

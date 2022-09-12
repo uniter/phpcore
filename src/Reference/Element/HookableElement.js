@@ -109,7 +109,7 @@ _.extend(HookableElementReference.prototype, {
     },
 
     /**
-     * Determines whether this element has a reference set rather than a value
+     * Determines whether this element has a reference set rather than a value.
      *
      * @returns {boolean}
      */
@@ -136,7 +136,7 @@ _.extend(HookableElementReference.prototype, {
     },
 
     /**
-     * Sets a reference for this element to refer to, clearing any value it may currently have
+     * Sets a reference for this element to refer to, clearing any value it may currently have.
      *
      * @param {Reference} reference
      */

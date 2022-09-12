@@ -69,6 +69,26 @@ describe('Variable', function () {
         });
     });
 
+    describe('clearReference()', function () {
+        var reference;
+
+        beforeEach(function () {
+            reference = sinon.createStubInstance(Reference);
+        });
+
+        it('should allow an existing reference with reference setter to be replaced', function () {
+            var existingReference = sinon.createStubInstance(Reference);
+            existingReference.hasReferenceSetter.returns(true);
+            variable.setReference(existingReference);
+
+            variable.clearReference();
+            variable.setReference(reference);
+
+            expect(existingReference.setReference).not.to.have.been.called;
+            expect(variable.getReference()).to.equal(reference);
+        });
+    });
+
     describe('formatAsString()', function () {
         it('should format the value when the variable is defined with a value', function () {
             variable.setValue(valueFactory.createString('my value'));
@@ -192,6 +212,28 @@ describe('Variable', function () {
         });
     });
 
+    describe('getValueOrNativeNull()', function () {
+        it('should return the value when the variable is defined with a value', function () {
+            var value = valueFactory.createString('my value');
+            variable.setValue(value);
+
+            expect(variable.getValueOrNativeNull()).to.equal(value);
+        });
+
+        it('should return the value of the reference when the variable is defined with a reference', function () {
+            var reference = sinon.createStubInstance(Reference),
+                value = valueFactory.createString('my val from reference');
+            reference.getValue.returns(value);
+            variable.setReference(reference);
+
+            expect(variable.getValueOrNativeNull()).to.equal(value);
+        });
+
+        it('should return native null when the variable is not defined', function () {
+            expect(variable.getValueOrNativeNull()).to.be.null;
+        });
+    });
+
     describe('getValueOrNull()', function () {
         it('should return the value when the variable is defined with a value', function () {
             var value = valueFactory.createString('my value');
@@ -261,9 +303,54 @@ describe('Variable', function () {
         });
     });
 
+    describe('isReference()', function () {
+        it('should return true when a reference has been assigned', function () {
+            var reference = sinon.createStubInstance(Reference);
+            variable.setReference(reference);
+
+            expect(variable.isReference()).to.be.true;
+        });
+
+        it('should return false when a value has been assigned', function () {
+            variable.setValue(valueFactory.createString('my value'));
+
+            expect(variable.isReference()).to.be.false;
+        });
+
+        it('should return false when the variable is undefined', function () {
+            expect(variable.isReference()).to.be.false;
+        });
+    });
+
     describe('isReferenceable()', function () {
         it('should return true', function () {
             expect(variable.isReferenceable()).to.be.true;
+        });
+    });
+
+    describe('raiseUndefined()', function () {
+        it('should raise a "Using $this when not in object context" error when the variable is $this', function () {
+            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'this');
+
+            expect(function () {
+                variable.raiseUndefined();
+            }).to.throw(
+                'Fake PHP Fatal error for #core.used_this_outside_object_context with {}'
+            );
+        });
+
+        it('should raise a notice', function () {
+            variable.raiseUndefined();
+
+            expect(callStack.raiseError).to.have.been.calledOnce;
+            expect(callStack.raiseError).to.have.been.calledWith(
+                PHPError.E_NOTICE,
+                'Undefined variable: myVar'
+            );
+        });
+
+        it('should return null', function () {
+            expect(variable.raiseUndefined().getType()).to.equal('null');
         });
     });
 

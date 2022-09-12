@@ -674,7 +674,7 @@ module.exports = require('pauser')([
         /**
          * Fetches an element of this value, as used by the array element dereference syntax $value[$element].
          *
-         * @returns {ElementReference|ObjectElement}
+         * @returns {AccessorReference|ElementReference|NullReference|ObjectElement}
          */
         getElementByKey: function () {
             return createNullReference(this);
@@ -695,7 +695,7 @@ module.exports = require('pauser')([
         /**
          * Fetches an appropriate iterator for this value, if any.
          *
-         * @returns {Future<ArrayIterator>|FutureValue<ObjectValue>}
+         * @returns {EventualInterface<ArrayIterator|ObjectValue>}
          */
         getIterator: throwUnimplemented('getIterator'),
 
@@ -748,7 +748,9 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches a reference to a static property for a class by its name
+         * Fetches a reference to a static property for a class by its name.
+         *
+         * @returns {Future<StaticPropertyReference>}
          */
         getStaticPropertyByName: function () {
             this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);

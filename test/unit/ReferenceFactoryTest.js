@@ -31,6 +31,7 @@ describe('ReferenceFactory', function () {
         ObjectElementReference,
         PropertyReference,
         ReferenceSlot,
+        ReferenceSnapshot,
         StaticPropertyReference,
         UndeclaredStaticPropertyReference,
         valueFactory;
@@ -44,6 +45,7 @@ describe('ReferenceFactory', function () {
         ObjectElementReference = sinon.stub();
         PropertyReference = sinon.stub();
         ReferenceSlot = sinon.stub();
+        ReferenceSnapshot = sinon.stub();
         StaticPropertyReference = sinon.stub();
         UndeclaredStaticPropertyReference = sinon.stub();
         valueFactory = sinon.createStubInstance(ValueFactory);
@@ -55,6 +57,7 @@ describe('ReferenceFactory', function () {
             ObjectElementReference,
             PropertyReference,
             ReferenceSlot,
+            ReferenceSnapshot,
             StaticPropertyReference,
             UndeclaredStaticPropertyReference,
             valueFactory,
@@ -64,18 +67,40 @@ describe('ReferenceFactory', function () {
     });
 
     describe('createAccessor()', function () {
-        var referenceSetter,
+        var definednessGetter,
+            emptinessGetter,
+            referenceClearer,
+            referenceGetter,
+            referenceSetter,
+            setnessGetter,
+            undefinednessRaiser,
             valueGetter,
             valueSetter;
 
         beforeEach(function () {
+            definednessGetter = sinon.stub();
+            emptinessGetter = sinon.stub();
+            referenceClearer = sinon.stub();
+            referenceGetter = sinon.stub();
             referenceSetter = sinon.stub();
+            setnessGetter = sinon.stub();
+            undefinednessRaiser = sinon.stub();
             valueGetter = sinon.stub();
             valueSetter = sinon.stub();
         });
 
         it('should create the AccessorReference correctly', function () {
-            factory.createAccessor(valueGetter, valueSetter, referenceSetter);
+            factory.createAccessor(
+                valueGetter,
+                valueSetter,
+                referenceGetter,
+                referenceSetter,
+                referenceClearer,
+                definednessGetter,
+                emptinessGetter,
+                setnessGetter,
+                undefinednessRaiser
+            );
 
             expect(AccessorReference).to.have.been.calledOnce;
             expect(AccessorReference).to.have.been.calledWith(
@@ -83,7 +108,13 @@ describe('ReferenceFactory', function () {
                 sinon.match.same(factory),
                 sinon.match.same(valueGetter),
                 sinon.match.same(valueSetter),
-                sinon.match.same(referenceSetter)
+                sinon.match.same(referenceGetter),
+                sinon.match.same(referenceSetter),
+                sinon.match.same(referenceClearer),
+                sinon.match.same(definednessGetter),
+                sinon.match.same(emptinessGetter),
+                sinon.match.same(setnessGetter),
+                sinon.match.same(undefinednessRaiser)
             );
         });
 
@@ -261,6 +292,101 @@ describe('ReferenceFactory', function () {
             ReferenceSlot.returns(reference);
 
             expect(factory.createReferenceSlot()).to.equal(reference);
+        });
+    });
+
+    describe('createSnapshot()', function () {
+        var assignedReference,
+            value,
+            wrappedReference;
+
+        beforeEach(function () {
+            assignedReference = sinon.createStubInstance(ReferenceSlot);
+            value = sinon.createStubInstance(Value);
+            wrappedReference = sinon.createStubInstance(Reference);
+
+            wrappedReference.getReference.returns(assignedReference);
+            wrappedReference.isReference.returns(true);
+        });
+
+        describe('when given the wrapped reference and its current value because it is defined', function () {
+            it('should create the ReferenceSnapshot correctly when a reference was assigned', function () {
+                factory.createSnapshot(wrappedReference, value);
+
+                expect(ReferenceSnapshot).to.have.been.calledOnce;
+                expect(ReferenceSnapshot).to.have.been.calledWith(
+                    sinon.match.same(valueFactory),
+                    sinon.match.same(factory),
+                    sinon.match.same(futureFactory),
+                    sinon.match.same(wrappedReference),
+                    sinon.match.same(value),
+                    sinon.match.same(assignedReference)
+                );
+            });
+
+            it('should create the ReferenceSnapshot correctly when no reference was assigned', function () {
+                wrappedReference.getReference.returns(null);
+                wrappedReference.isReference.returns(false);
+
+                factory.createSnapshot(wrappedReference, value);
+
+                expect(ReferenceSnapshot).to.have.been.calledOnce;
+                expect(ReferenceSnapshot).to.have.been.calledWith(
+                    sinon.match.same(valueFactory),
+                    sinon.match.same(factory),
+                    sinon.match.same(futureFactory),
+                    sinon.match.same(wrappedReference),
+                    sinon.match.same(value),
+                    null
+                );
+            });
+
+            it('should return the created ReferenceSnapshot', function () {
+                var snapshot = sinon.createStubInstance(ReferenceSnapshot);
+                ReferenceSnapshot.returns(snapshot);
+
+                expect(factory.createSnapshot(wrappedReference, value)).to.equal(snapshot);
+            });
+        });
+
+        describe('when given only the wrapped reference because it has no value defined', function () {
+            it('should create the ReferenceSnapshot correctly when a reference was assigned', function () {
+                factory.createSnapshot(wrappedReference);
+
+                expect(ReferenceSnapshot).to.have.been.calledOnce;
+                expect(ReferenceSnapshot).to.have.been.calledWith(
+                    sinon.match.same(valueFactory),
+                    sinon.match.same(factory),
+                    sinon.match.same(futureFactory),
+                    sinon.match.same(wrappedReference),
+                    null,
+                    sinon.match.same(assignedReference)
+                );
+            });
+
+            it('should create the ReferenceSnapshot correctly when no reference was assigned', function () {
+                wrappedReference.getReference.returns(null);
+                wrappedReference.isReference.returns(false);
+
+                factory.createSnapshot(wrappedReference);
+
+                expect(ReferenceSnapshot).to.have.been.calledOnce;
+                expect(ReferenceSnapshot).to.have.been.calledWith(
+                    sinon.match.same(valueFactory),
+                    sinon.match.same(factory),
+                    sinon.match.same(futureFactory),
+                    sinon.match.same(wrappedReference),
+                    null,
+                    null
+                );
+            });
+
+            it('should return the created ReferenceSnapshot', function () {
+                var snapshot = sinon.createStubInstance(ReferenceSnapshot);
+                ReferenceSnapshot.returns(snapshot);
+
+                expect(factory.createSnapshot(wrappedReference)).to.equal(snapshot);
+            });
         });
     });
 

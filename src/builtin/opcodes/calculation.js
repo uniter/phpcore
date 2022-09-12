@@ -46,18 +46,13 @@ module.exports = function (internals) {
 
     return {
         /**
-         * Adds two Values together, returning the result wrapped as a Value
+         * Adds two Values together, returning the result wrapped as a Value.
          *
-         * Used by the `+` operator
-         *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
-         * @returns {Value}
+         * Used by the `+` operator.
          */
-        add: function (leftReference, rightReference) {
-            // Note that either operand could evaluate to a FutureValue, for handling async operation
-            return leftReference.getValue().add(rightReference.getValue());
-        },
+        add: internals.typeHandler('val left, val right : val', function (leftValue, rightValue) {
+            return leftValue.add(rightValue);
+        }),
 
         /**
          * Moves the iterator to the next position
@@ -159,17 +154,16 @@ module.exports = function (internals) {
         /**
          * Calls a PHP function where the name is known statically, returning its result
          * as a Value if it returns by-value or as a Reference if it returns by-reference.
-         *
-         * @param {string} name
-         * @param {Reference[]|Value[]|Variable[]} argReferences
-         * @returns {Reference|Value}
          */
-        callFunction: function (name, argReferences) {
-            var namespaceScope = callStack.getCurrentNamespaceScope(),
-                barewordString = valueFactory.createBarewordString(name, namespaceScope);
+        callFunction: internals.typeHandler(
+            'string name, snapshot ...argReferences : any',
+            function (name, argReferences) {
+                var namespaceScope = callStack.getCurrentNamespaceScope(),
+                    barewordString = valueFactory.createBarewordString(name, namespaceScope);
 
-            return barewordString.call(argReferences);
-        },
+                return barewordString.call(argReferences);
+            }
+        ),
 
         /**
          * Calls a PHP instance method where the name is known statically, returning its result
@@ -206,16 +200,15 @@ module.exports = function (internals) {
         /**
          * Calls a PHP function where the name is fetched dynamically, returning its result
          * as a Value if it returns by-value or as a Reference if it returns by-reference.
-         *
-         * @param {Reference|Value|Variable} nameReference
-         * @param {Reference[]|Value[]|Variable[]} argReferences
-         * @returns {Reference|Value}
          */
-        callVariableFunction: function (nameReference, argReferences) {
-            // NB: Make sure we do not coerce argument references to their values,
-            //     in case any of the parameters are passed by reference
-            return nameReference.getValue().call(argReferences);
-        },
+        callVariableFunction: internals.typeHandler(
+            'val name, snapshot ...argReferences : any',
+            function (nameValue, argReferences) {
+                // NB: Make sure we do not coerce argument references to their values,
+                //     in case any of the parameters are passed by reference
+                return nameValue.call(argReferences);
+            }
+        ),
 
         /**
          * Calls a method of an object where the name is fetched dynamically, returning its result
@@ -628,7 +621,7 @@ module.exports = function (internals) {
          *
          * @param {Reference|Value|Variable} arrayReference
          * @param {number|string} nativeKey
-         * @returns {Future<ElementReference>}
+         * @returns {Future<ElementReference|ReferenceSnapshot>}
          */
         getElement: function (arrayReference, nativeKey) {
             // TODO: Remove need for this to be wrapped as a Value
@@ -650,6 +643,13 @@ module.exports = function (internals) {
             return callStack.getCurrentScope().getFunctionName();
         },
 
+        /**
+         * Fetches an instance property of a class instance.
+         *
+         * @param {Reference|Value|Variable} objectReference
+         * @param {string} propertyName
+         * @returns {Future<Property|ReferenceSnapshot>}
+         */
         getInstanceProperty: function (objectReference, propertyName) {
             // TODO: Remove need for this to be wrapped as a StringValue
             var propertyNameValue = valueFactory.createString(propertyName);
@@ -747,6 +747,13 @@ module.exports = function (internals) {
             return scope.getStaticClassNameOrThrow();
         },
 
+        /**
+         * Fetches a static property of a class.
+         *
+         * @param {Reference|Value|Variable} classReference
+         * @param {string} propertyName
+         * @returns {Future<ReferenceSnapshot|StaticPropertyReference>}
+         */
         getStaticProperty: function (classReference, propertyName) {
             var classValue = classReference.getValue(),
                 // TODO: Remove need for this to be wrapped as a StringValue
@@ -802,6 +809,12 @@ module.exports = function (internals) {
             return scope.getValueBinding(name);
         },
 
+        /**
+         * Fetches a variable with the given name.
+         *
+         * @param {string} name
+         * @returns {Future<Reference|Variable>}
+         */
         getVariable: function (name) {
             return callStack.getCurrentScope().getVariable(name);
         },
@@ -811,7 +824,7 @@ module.exports = function (internals) {
          *
          * @param {Reference|Value|Variable} arrayReference
          * @param {Reference|Value|Variable} keyReference
-         * @returns {Future<ElementReference>}
+         * @returns {Future<ElementReference|ReferenceSnapshot>}
          */
         getVariableElement: function (arrayReference, keyReference) {
             return internals.implyArray(arrayReference)
@@ -831,7 +844,7 @@ module.exports = function (internals) {
          *
          * @param {string} name
          * @param {Scope} scope
-         * @returns {Variable}
+         * @returns {Future<Reference|Variable>}
          */
         getVariableForScope: function (name, scope) {
             return scope.getVariable(name);
@@ -842,14 +855,11 @@ module.exports = function (internals) {
          *
          * @param {Reference|Value|Variable} objectReference
          * @param {Reference|Value|Variable} propertyNameReference
-         * @returns {PropertyReference}
+         * @returns {Future<PropertyReference|ReferenceSnapshot>}
          */
         getVariableInstanceProperty: function (objectReference, propertyNameReference) {
             return objectReference.getValue()
-                .asFuture() // Do not wrap result as a value, we expect to resolve with a property reference.
-                .next(function (presentValue) {
-                    return presentValue.getInstancePropertyByName(propertyNameReference.getValue());
-                });
+                .getInstancePropertyByName(propertyNameReference.getValue());
         },
 
         /**
@@ -857,10 +867,11 @@ module.exports = function (internals) {
          *
          * @param {Reference|Value|Variable} objectReference
          * @param {Reference|Value|Variable} propertyNameReference
-         * @returns {Future<StaticPropertyReference>}
+         * @returns {Future<ReferenceSnapshot|StaticPropertyReference>}
          */
         getVariableStaticProperty: function (objectReference, propertyNameReference) {
-            return objectReference.getValue().getStaticPropertyByName(propertyNameReference.getValue());
+            return objectReference.getValue()
+                .getStaticPropertyByName(propertyNameReference.getValue());
         },
 
         /**
@@ -870,13 +881,14 @@ module.exports = function (internals) {
          * Used by the `$$myVarName` and `${$myVarName}` constructs
          *
          * @param {Reference|Value|Variable} nameReference
-         * @returns {Future<Variable>}
+         * @returns {Future<ReferenceSnapshot|Variable>}
          */
         getVariableVariable: function (nameReference) {
             return nameReference.getValue()
                 .asFuture() // Avoid auto-boxing the Variable result as an ObjectValue.
                 .next(function (nameValue) {
-                    return callStack.getCurrentScope().getVariable(nameValue.getNative());
+                    return callStack.getCurrentScope()
+                        .getVariable(nameValue.getNative());
                 });
         },
 
@@ -1528,6 +1540,11 @@ module.exports = function (internals) {
             });
         },
 
+        /**
+         * Takes a reference to the source reference or variable and assigns it to the target reference.
+         *
+         * Used by the reference assignment operator "=&".
+         */
         setReference: function (targetReference, sourceReference) {
             var reference = sourceReference.getReference();
 

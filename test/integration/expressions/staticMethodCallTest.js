@@ -14,8 +14,8 @@ var expect = require('chai').expect,
     tools = require('../tools'),
     PHPFatalError = require('phpcommon').PHPFatalError;
 
-describe('PHP synchronous static method call integration', function () {
-    it('should be able to call a static method using various mechanisms', function () {
+describe('PHP static method call integration', function () {
+    it('should be able to call a static method using various mechanisms', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -43,10 +43,10 @@ namespace {
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,  // Bareword call (most common)
             101, // Variable (dynamic) call from string, where string has no leading slash
             909, // Variable (dynamic) call from string, where string has a leading slash
@@ -54,7 +54,7 @@ EOS
         ]);
     });
 
-    it('should allow a variable containing an array to be passed by-reference', function () {
+    it('should allow a variable containing an array to be passed by-reference', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyClass
@@ -71,16 +71,17 @@ MyClass::myMethod($myArray);
 return $myArray;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             101,
             'added'
         ]);
     });
 
-    it('should raise a fatal error on attempting to call a static method of an integer', function () {
+    it('should raise a fatal error on attempting to call a static method of an integer', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -90,12 +91,10 @@ $dummy = $myInt::myMethod();
 
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('my_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }.bind(this)).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Class name must be a valid object or a string in my_module.php on line 5'
         );

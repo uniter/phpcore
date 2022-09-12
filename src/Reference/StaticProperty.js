@@ -127,8 +127,11 @@ _.extend(StaticPropertyReference.prototype, {
         return this.getValue().isEmpty();
     },
 
+    /**
+     * {@inheritdoc}
+     */
     isReference: function () {
-        return !!this.reference;
+        return Boolean(this.reference);
     },
 
     /**
@@ -140,6 +143,9 @@ _.extend(StaticPropertyReference.prototype, {
         return this.getValue().isSet();
     },
 
+    /**
+     * {@inheritdoc}
+     */
     setReference: function (reference) {
         var property = this;
 

@@ -164,21 +164,13 @@ _.extend(PropertyReference.prototype, {
     getValue: function () {
         var property = this;
 
-        // Special value of native null (vs. NullValue) represents undefined
         if (!property.isDefined()) {
             if (property.objectValue.isMethodDefined(MAGIC_GET)) {
                 // Magic getter method is defined, so use it
                 return property.objectValue.callMethod(MAGIC_GET, [property.key]);
             }
 
-            property.callStack.raiseError(
-                PHPError.E_NOTICE,
-                'Undefined ' + property.objectValue.referToElement(
-                    property.key.getNative()
-                )
-            );
-
-            return property.valueFactory.createNull();
+            return property.raiseUndefined();
         }
 
         if (property.value) {
@@ -190,6 +182,25 @@ _.extend(PropertyReference.prototype, {
         }
 
         throw new Error('Defined properties should have a value or reference assigned');
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    getValueOrNativeNull: function () {
+        var property = this;
+
+        if (property.isDefined()) {
+            return property.getValue();
+        }
+
+        if (property.objectValue.isMethodDefined(MAGIC_GET)) {
+            // Magic getter method is defined, so use it.
+            return property.objectValue.callMethod(MAGIC_GET, [property.key]);
+        }
+
+        // Special value of native null (vs. NullValue) represents undefined.
+        return null;
     },
 
     /**
@@ -251,8 +262,11 @@ _.extend(PropertyReference.prototype, {
         return property.futureFactory.createPresent(true);
     },
 
+    /**
+     * {@inheritdoc}
+     */
     isReference: function () {
-        return !!this.reference;
+        return Boolean(this.reference);
     },
 
     /**
@@ -306,6 +320,25 @@ _.extend(PropertyReference.prototype, {
         return true;
     },
 
+    /**
+     * {@inheritdoc}
+     */
+    raiseUndefined: function () {
+        var property = this;
+
+        property.callStack.raiseError(
+            PHPError.E_NOTICE,
+            'Undefined ' + property.objectValue.referToElement(
+                property.key.getNative()
+            )
+        );
+
+        return property.valueFactory.createNull();
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     setReference: function (reference) {
         var property = this;
 

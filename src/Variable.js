@@ -88,6 +88,13 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Clears any reference this variable may have assigned.
+         */
+        clearReference: function () {
+            this.reference = null;
+        },
+
+        /**
          * Formats the variable (which may not be defined) for display in stack traces etc.
          *
          * @returns {string}
@@ -129,13 +136,21 @@ module.exports = require('pauser')([
                 return variable.reference.getValue();
             }
 
-            if (variable.name === 'this') {
-                variable.callStack.raiseTranslatedError(PHPError.E_ERROR, USED_THIS_OUTSIDE_OBJECT_CONTEXT);
-            }
+            return variable.raiseUndefined();
+        },
 
-            variable.callStack.raiseError(PHPError.E_NOTICE, 'Undefined variable: ' + variable.name);
+        /**
+         * Returns this variable's value if defined, null otherwise.
+         * No notice/warning will be raised if the variable has no value defined.
+         *
+         * Note that unlike .getValueOrNull(), native null is returned if not defined.
+         *
+         * @returns {Value|null}
+         */
+        getValueOrNativeNull: function () {
+            var variable = this;
 
-            return variable.valueFactory.createNull();
+            return variable.isDefined() ? variable.getValue() : null;
         },
 
         /**
@@ -222,6 +237,15 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Determines whether this variable has a reference rather than value assigned.
+         *
+         * @return {boolean}
+         */
+        isReference: function () {
+            return Boolean(this.reference);
+        },
+
+        /**
          * Determines whether this variable may be referenced (shared interface with Reference and Value).
          *
          * @returns {boolean}
@@ -250,6 +274,23 @@ module.exports = require('pauser')([
 
             // Otherwise the variable is undefined, so it is not set
             return variable.futureFactory.createPresent(false);
+        },
+
+        /**
+         * Raises an error for when this variable is not defined.
+         *
+         * @returns {NullValue}
+         */
+        raiseUndefined: function () {
+            var variable = this;
+
+            if (variable.name === 'this') {
+                variable.callStack.raiseTranslatedError(PHPError.E_ERROR, USED_THIS_OUTSIDE_OBJECT_CONTEXT);
+            }
+
+            variable.callStack.raiseError(PHPError.E_NOTICE, 'Undefined variable: ' + variable.name);
+
+            return variable.valueFactory.createNull();
         },
 
         /**

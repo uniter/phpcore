@@ -341,6 +341,17 @@ _.extend(FutureValue.prototype, {
     /**
      * {@inheritdoc}
      */
+    getInstancePropertyByName: function (nameReference) {
+        return this
+            .asFuture() // Do not wrap result as a value, we expect to resolve with a property reference.
+            .next(function (leftValue) {
+                return leftValue.getInstancePropertyByName(nameReference);
+            });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     getIterator: function () {
         return this
             .asFuture() // Do not wrap result as a value, we may resolve with an ArrayIterator.

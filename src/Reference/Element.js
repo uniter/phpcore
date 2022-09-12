@@ -135,13 +135,15 @@ _.extend(ElementReference.prototype, {
         return element.reference;
     },
 
+    /**
+     * {@inheritdoc}
+     */
     getValue: function () {
         var element = this;
 
-        // Special value of native null (vs. NullValue) represents undefined
+        // Special value of native null (vs. NullValue) represents undefined.
         if (!element.value && !element.reference) {
-            element.callStack.raiseError(PHPError.E_NOTICE, 'Undefined ' + element.arrayValue.referToElement(element.key.getNative()));
-            return element.valueFactory.createNull();
+            return element.raiseUndefined();
         }
 
         return element.value ? element.value : element.reference.getValue();
@@ -183,8 +185,11 @@ _.extend(ElementReference.prototype, {
         return element.futureFactory.createPresent(true); // Undefined elements are empty.
     },
 
+    /**
+     * {@inheritdoc}
+     */
     isReference: function () {
-        return !!this.reference;
+        return Boolean(this.reference);
     },
 
     /**
@@ -205,6 +210,17 @@ _.extend(ElementReference.prototype, {
     },
 
     /**
+     * {@inheritdoc}
+     */
+    raiseUndefined: function () {
+        var element = this;
+
+        element.callStack.raiseError(PHPError.E_NOTICE, 'Undefined ' + element.arrayValue.referToElement(element.key.getNative()));
+
+        return element.valueFactory.createNull();
+    },
+
+    /**
      * Sets the key for this element
      *
      * @param {Value} keyValue
@@ -213,6 +229,9 @@ _.extend(ElementReference.prototype, {
         this.key = keyValue;
     },
 
+    /**
+     * {@inheritdoc}
+     */
     setReference: function (reference) {
         var element = this,
             isFirstElement = (element.arrayValue.getLength() === 0);
@@ -235,6 +254,9 @@ _.extend(ElementReference.prototype, {
         return reference;
     },
 
+    /**
+     * {@inheritdoc}
+     */
     setValue: function (value) {
         var element = this;
 

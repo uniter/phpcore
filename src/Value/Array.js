@@ -509,19 +509,25 @@ module.exports = require('pauser')([
             return value.keysToElements[keyValue];
         },
 
+        /**
+         * {@inheritdoc}
+         */
         getElementByIndex: function (index) {
-            var value = this;
+            var value = this,
+                element = value.value[index];
 
-            return value.value[index] || (function () {
-                    value.callStack.raiseError(PHPError.E_NOTICE, 'Undefined ' + value.referToElement(index));
+            if (element) {
+                return element;
+            }
 
-                    return value.referenceFactory.createNull();
-                }());
+            value.callStack.raiseError(PHPError.E_NOTICE, 'Undefined ' + value.referToElement(index));
+
+            return value.referenceFactory.createNull();
         },
 
         /**
          * Fetches a KeyValuePair or KeyReferencePair for the specified array element,
-         * optionally allowing the key to be overridden
+         * optionally allowing the key to be overridden.
          *
          * @param {Value} key
          * @param {Value|undefined} overrideKey
@@ -534,12 +540,12 @@ module.exports = require('pauser')([
         /**
          * Creates an ArrayIterator for iterating over this array. Used by transpiled foreach loops.
          *
-         * @returns {Future<ArrayIterator>}
+         * @returns {ArrayIterator}
          */
         getIterator: function () {
             var value = this;
 
-            return value.futureFactory.createPresent(value.factory.createArrayIterator(value));
+            return value.factory.createArrayIterator(value);
         },
 
         getValueReferences: function () {
@@ -734,10 +740,10 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Pushes an indexed element onto the array and then returns the array
+         * Pushes an indexed element onto the array and then returns the array.
          *
          * @param {Value} otherValue
-         * @returns {ArrayValue}
+         * @returns {EventualInterface<ArrayValue>}
          */
         push: function (otherValue) {
             var value = this,

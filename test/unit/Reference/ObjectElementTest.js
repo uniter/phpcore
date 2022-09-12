@@ -75,6 +75,20 @@ describe('ObjectElementReference', function () {
         });
     });
 
+    describe('getValueOrNativeNull()', function () {
+        it('should return the value from ArrayAccess::offsetGet(...)', function () {
+            var value = valueFactory.createString('my value');
+            objectValue.callMethod.withArgs(
+                'offsetGet',
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(value);
+
+            expect(element.getValueOrNativeNull()).to.equal(value);
+        });
+
+        // ObjectElements are always defined, so native null should never be returned.
+    });
+
     describe('getValueOrNull()', function () {
         it('should return the value from ArrayAccess::offsetGet(...)', function () {
             var value = valueFactory.createString('my value');
@@ -141,6 +155,12 @@ describe('ObjectElementReference', function () {
     describe('isReferenceable()', function () {
         it('should return true', function () {
             expect(element.isReferenceable()).to.be.true;
+        });
+    });
+
+    describe('isReference()', function () {
+        it('should return false as ObjectElements cannot have references assigned', function () {
+            expect(element.isReference()).to.be.false;
         });
     });
 

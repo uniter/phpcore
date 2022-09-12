@@ -103,15 +103,43 @@ _.extend(Environment.prototype, {
     },
 
     /**
-     * Defines a global variable using a getter/setter pair
+     * Defines a global variable using a getter/setter pair.
      *
      * @param {string} name
      * @param {Function} valueGetter
      * @param {Function=} valueSetter
+     * @param {Function=} referenceGetter
      * @param {Function=} referenceSetter
+     * @param {Function=} referenceClearer
+     * @param {Function=} definednessGetter
+     * @param {Function=} emptinessGetter
+     * @param {Function=} setnessGetter
+     * @param {Function=} undefinednessRaiser
      */
-    defineGlobalAccessor: function (name, valueGetter, valueSetter, referenceSetter) {
-        this.state.defineGlobalAccessor(name, valueGetter, valueSetter, referenceSetter);
+    defineGlobalAccessor: function (
+        name,
+        valueGetter,
+        valueSetter,
+        referenceGetter,
+        referenceSetter,
+        referenceClearer,
+        definednessGetter,
+        emptinessGetter,
+        setnessGetter,
+        undefinednessRaiser
+    ) {
+        this.state.defineGlobalAccessor(
+            name,
+            valueGetter,
+            valueSetter,
+            referenceGetter,
+            referenceSetter,
+            referenceClearer,
+            definednessGetter,
+            emptinessGetter,
+            setnessGetter,
+            undefinednessRaiser
+        );
     },
 
     /**

@@ -22,7 +22,8 @@ module.exports = require('pauser')([
     NullReference,
     Value
 ) {
-    var PHPError = phpCommon.PHPError,
+    var Exception = phpCommon.Exception,
+        PHPError = phpCommon.PHPError,
         NON_WELL_FORMED_NUMERIC_VALUE = 'core.non_well_formed_numeric_value';
 
     /**
@@ -385,7 +386,16 @@ module.exports = require('pauser')([
 
             keyValue = key.getNative();
 
-            return value.factory.createString(value.value.charAt(keyValue));
+            // TODO: String indices should also be writable.
+            //       Consider a copy-on-write StringValueProxy wrapper.
+            return value.referenceFactory.createAccessor(
+                function () {
+                    return value.factory.createString(value.value.charAt(keyValue));
+                },
+                function () {
+                    throw new Exception('Assigning to a string offset is not yet supported');
+                }
+            );
         },
 
         getLength: function () {

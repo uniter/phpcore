@@ -12,7 +12,7 @@
 var _ = require('microdash');
 
 /**
- * Creates FunctionSpec-related objects
+ * Creates FunctionSpec-related objects.
  *
  * @param {class} FunctionSpec
  * @param {class} FunctionContext

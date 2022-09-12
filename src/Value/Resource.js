@@ -234,7 +234,7 @@ _.extend(ResourceValue.prototype, {
 
         value.callStack.raiseTranslatedError(PHPError.E_WARNING, TRYING_TO_ACCESS_ARRAY_OFFSET);
 
-        return value.factory.createNull();
+        return value.referenceFactory.createNull();
     },
 
     /**
@@ -245,7 +245,7 @@ _.extend(ResourceValue.prototype, {
 
         value.callStack.raiseTranslatedError(PHPError.E_WARNING, TRYING_TO_ACCESS_ARRAY_OFFSET);
 
-        return value.factory.createNull();
+        return value.referenceFactory.createNull();
     },
 
     /**
@@ -282,7 +282,7 @@ _.extend(ResourceValue.prototype, {
             'type': 'resource'
         });
 
-        // Create an iterator over an empty array, ie. one that does not iterate.
+        // Create an iterator over an empty array, i.e. one that does not iterate.
         return value.futureFactory.createPresent(value.factory.createArrayIterator(value.factory.createArray([])));
     },
 

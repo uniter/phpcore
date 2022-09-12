@@ -57,9 +57,21 @@ describe('NullReference', function () {
         });
     });
 
+    describe('getReference()', function () {
+        it('should return the reference itself', function () {
+            expect(reference.getReference()).to.equal(reference);
+        });
+    });
+
     describe('getValue()', function () {
         it('should return the value Null', function () {
             expect(reference.getValue().getType()).to.equal('null');
+        });
+    });
+
+    describe('getValueOrNativeNull()', function () {
+        it('should return native null', function () {
+            expect(reference.getValueOrNativeNull()).to.be.null;
         });
     });
 
@@ -84,6 +96,12 @@ describe('NullReference', function () {
     describe('isEmpty()', function () {
         it('should return true', async function () {
             expect(await reference.isEmpty().toPromise()).to.be.true;
+        });
+    });
+
+    describe('isReference()', function () {
+        it('should return false', function () {
+            expect(reference.isReference()).to.be.false;
         });
     });
 

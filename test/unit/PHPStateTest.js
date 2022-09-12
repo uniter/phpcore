@@ -755,7 +755,7 @@ describe('PHPState', function () {
                 valueGetter = sinon.stub(),
                 valueSetter = sinon.spy();
 
-            state.defineGlobalAccessor('MY_GLOB', valueGetter, valueSetter, referenceSetter);
+            state.defineGlobalAccessor('MY_GLOB', valueGetter, valueSetter, null, referenceSetter);
             state.getGlobalScope().getVariable('MY_GLOB').setReference(reference);
 
             expect(referenceSetter).to.have.been.calledOnce;

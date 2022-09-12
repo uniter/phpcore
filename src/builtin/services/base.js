@@ -37,13 +37,20 @@ var phpCommon = require('phpcommon'),
     OpcodeFactory = require('../../Core/Opcode/Opcode/OpcodeFactory'),
     OpcodeFetcherRepository = require('../../Core/Opcode/Fetcher/OpcodeFetcherRepository'),
     OpcodeHandlerFactory = require('../../Core/Opcode/Handler/OpcodeHandlerFactory'),
+    OpcodeHandlerTyper = require('../../Core/Internals/OpcodeHandlerTyper'),
+    OpcodeParameter = require('../../Core/Opcode/Parameter/Parameter'),
+    OpcodeParameterFactory = require('../../Core/Opcode/Parameter/ParameterFactory'),
     OpcodePool = require('../../Core/Opcode/Opcode/OpcodePool'),
     OpcodeRescuer = require('../../Core/Opcode/Handler/OpcodeRescuer'),
+    OpcodeSignatureParser = require('../../Core/Opcode/Signature/SignatureParser'),
+    OpcodeTypeFactory = require('../../Core/Opcode/Type/TypeFactory'),
+    OpcodeTypeProvider = require('../../Core/Opcode/Type/TypeProvider'),
     ReturnTypeProvider = require('../../Function/ReturnTypeProvider'),
     SignatureParser = require('../../Function/Signature/SignatureParser'),
     SpecTypeProvider = require('../../Type/SpecTypeProvider'),
     Translator = phpCommon.Translator,
     TypeFactory = require('../../Type/TypeFactory'),
+    TypedOpcodeHandlerFactory = require('../../Core/Opcode/Handler/TypedOpcodeHandlerFactory'),
     UntracedOpcode = require('../../Core/Opcode/Opcode/UntracedOpcode'),
     Value = require('../../Value').sync(),
     ValueProvider = require('../../Value/ValueProvider'),
@@ -62,13 +69,20 @@ var phpCommon = require('phpcommon'),
     OPCODE_EXECUTOR = 'opcode_executor',
     OPCODE_FACTORY = 'opcode_factory',
     OPCODE_FETCHER_REPOSITORY = 'opcode_fetcher_repository',
+    OPCODE_HANDLER_FACTORY = 'opcode_handler_factory',
+    OPCODE_PARAMETER_FACTORY = 'opcode_parameter_factory',
     OPCODE_POOL = 'opcode_pool',
     OPCODE_RESCUER = 'opcode_rescuer',
+    OPCODE_SIGNATURE_PARSER = 'opcode_signature_parser',
+    OPCODE_TYPE_FACTORY = 'opcode_type_factory',
+    OPCODE_TYPE_PROVIDER = 'opcode_type_provider',
     PAUSE_FACTORY = 'pause_factory',
+    REFERENCE_FACTORY = 'reference_factory',
     SPEC_TYPE_PROVIDER = 'spec_type_provider',
     STDERR = 'stderr',
     TRANSLATOR = 'translator',
     TYPE_FACTORY = 'type_factory',
+    TYPED_OPCODE_HANDLER_FACTORY = 'typed_opcode_handler_factory',
     VALUE_FACTORY = 'value_factory';
 
 /**
@@ -176,12 +190,35 @@ module.exports = function (internals) {
             );
         },
 
+        'opcode_handler_typer': function () {
+            return new OpcodeHandlerTyper(get(OPCODE_SIGNATURE_PARSER), get(TYPED_OPCODE_HANDLER_FACTORY));
+        },
+
+        'opcode_parameter_factory': function () {
+            return new OpcodeParameterFactory(OpcodeParameter);
+        },
+
         'opcode_pool': function () {
             return new OpcodePool(get(OPCODE_FACTORY));
         },
 
         'opcode_rescuer': function () {
             return new OpcodeRescuer(get(CONTROL_BRIDGE));
+        },
+
+        'opcode_signature_parser': function () {
+            return new OpcodeSignatureParser(get(OPCODE_TYPE_PROVIDER), get(OPCODE_PARAMETER_FACTORY));
+        },
+
+        'opcode_type_factory': function () {
+            return new OpcodeTypeFactory(
+                get(VALUE_FACTORY),
+                get(REFERENCE_FACTORY)
+            );
+        },
+
+        'opcode_type_provider': function () {
+            return new OpcodeTypeProvider(get(OPCODE_TYPE_FACTORY));
         },
 
         'return_type_provider': function () {
@@ -198,6 +235,13 @@ module.exports = function (internals) {
 
         'type_factory': function () {
             return new TypeFactory(get(FUTURE_FACTORY));
+        },
+
+        'typed_opcode_handler_factory': function () {
+            return new TypedOpcodeHandlerFactory(
+                get(CONTROL_BRIDGE),
+                get(OPCODE_HANDLER_FACTORY)
+            );
         },
 
         'value_provider': function () {
