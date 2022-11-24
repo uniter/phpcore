@@ -36,7 +36,7 @@ describe('PHP "callable" type integration (async mode)', function () {
         };
     });
 
-    it('should allow arguments for function parameters typed as "callable" to be autoloaded', function () {
+    it('should allow arguments for function parameters typed as "callable" to be autoloaded', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -103,15 +103,13 @@ EOS
             };
         });
 
-        return doRun(engine).then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'static method via single string': 200,
-                'static method via array': 8
-            });
+        expect((await doRun(engine)).getNative()).to.deep.equal({
+            'static method via single string': 200,
+            'static method via array': 8
         });
     });
 
-    it('should allow passing valid callables for function parameters typed as "callable"', function () {
+    it('should allow passing valid callables for function parameters typed as "callable"', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -158,19 +156,17 @@ EOS
             module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        return doRun(engine).then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'closure': 42,
-                'invokable object': 6,
-                'function': 20,
-                'static method via single string': 200,
-                'static method via array': 8,
-                'instance method via array': 24
-            });
+        expect((await doRun(engine)).getNative()).to.deep.equal({
+            'closure': 42,
+            'invokable object': 6,
+            'function': 20,
+            'static method via single string': 200,
+            'static method via array': 8,
+            'instance method via array': 24
         });
     });
 
-    it('should allow passing null for function parameters typed as "callable" with default null', function () {
+    it('should allow passing null for function parameters typed as "callable" with default null', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -193,15 +189,13 @@ EOS
             module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        return doRun(engine).then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'omitted': 'cannot double 21 (it was omitted)',
-                'explicit null': 'cannot double 21 (it was omitted)'
-            });
+        expect((await doRun(engine)).getNative()).to.deep.equal({
+            'omitted': 'cannot double 21 (it was omitted)',
+            'explicit null': 'cannot double 21 (it was omitted)'
         });
     });
 
-    it('should raise an error when a callable-type parameter is given an invalid string callable', function () {
+    it('should raise an error when a callable-type parameter is given an invalid string callable', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -218,7 +212,7 @@ EOS
             module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        return expect(doRun(engine))
+        await expect(doRun(engine))
             .to.eventually.be.rejectedWith(
                 PHPFatalError,
                 'PHP Fatal error: Uncaught TypeError: Argument 1 passed to myFunction() must be callable,' +
@@ -254,7 +248,7 @@ EOS
             });
     });
 
-    it('should raise an error when a callable-type parameter is given an invalid static-method array callable', function () {
+    it('should raise an error when a callable-type parameter is given an invalid static-method array callable', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -271,7 +265,7 @@ EOS
             module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        return expect(doRun(engine))
+        await expect(doRun(engine))
             .to.eventually.be.rejectedWith(
                 PHPFatalError,
                 'PHP Fatal error: Uncaught TypeError: Argument 1 passed to myFunction() must be callable,' +
@@ -307,7 +301,7 @@ EOS
             });
     });
 
-    it('should raise an error when a callable-type parameter is given an invalid instance-method array callable', function () {
+    it('should raise an error when a callable-type parameter is given an invalid instance-method array callable', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -328,7 +322,7 @@ EOS
             module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        return expect(doRun(engine))
+        await expect(doRun(engine))
             .to.eventually.be.rejectedWith(
                 PHPFatalError,
                 'PHP Fatal error: Uncaught TypeError: Argument 1 passed to myFunction() must be callable,' +

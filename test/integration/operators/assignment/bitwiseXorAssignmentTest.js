@@ -15,7 +15,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP bitwise-XOR-assignment operator "^=" integration', function () {
-    it('should support XORing with the number contained in a variable or property', function () {
+    it('should support XORing with the number contained in a variable or property', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -67,13 +67,11 @@ EOS
             accessorValue = newValue;
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'with variable': 1000 ^ 63,
-                'with accessor': 21 ^ 7,
-                'with instance prop': 26 ^ 7,
-                'with static prop': 100 ^ 15
-            });
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'with variable': 1000 ^ 63,
+            'with accessor': 21 ^ 7,
+            'with instance prop': 26 ^ 7,
+            'with static prop': 100 ^ 15
         });
     });
 });

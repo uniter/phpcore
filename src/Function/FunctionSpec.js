@@ -108,7 +108,7 @@ _.extend(FunctionSpec.prototype, {
      * Coerces the given set of arguments for this function as needed
      *
      * @param {Reference[]|Value[]|Variable[]} argumentReferenceList
-     * @returns {Future<Value[]>} Returns all arguments resolved to values
+     * @returns {FutureInterface<Value[]>} Returns all arguments resolved to values
      */
     coerceArguments: function (argumentReferenceList) {
         var coercedArguments = argumentReferenceList.slice(),
@@ -376,7 +376,7 @@ _.extend(FunctionSpec.prototype, {
      * Populates any unspecified arguments with their default values from parameters
      *
      * @param {Reference[]|Value[]|Variable[]} argumentReferenceList
-     * @returns {Future<Reference[]|Value[]|Variable[]>}
+     * @returns {FutureInterface<Reference[]|Value[]|Variable[]>}
      */
     populateDefaultArguments: function (argumentReferenceList) {
         var coercedArguments = argumentReferenceList.slice(),
@@ -425,7 +425,7 @@ _.extend(FunctionSpec.prototype, {
      *
      * @param {Reference[]|Value[]|Variable[]} argumentReferenceList Raw argument values or references as passed in
      * @param {Value[]} argumentValueList Arguments resolved to values from their references
-     * @returns {Future<void>} Resolved if the arguments are valid or rejected with an Error otherwise
+     * @returns {FutureInterface<void>} Resolved if the arguments are valid or rejected with an Error otherwise
      */
     validateArguments: function (argumentReferenceList, argumentValueList) {
         var spec = this;
@@ -484,7 +484,7 @@ _.extend(FunctionSpec.prototype, {
      *
      * @param {Reference|Value|Variable} returnReference
      * @param {Value} returnValue Result resolved to a value
-     * @returns {Future<Reference|Value|Variable>} Resolved with the return value or reference if valid or rejected with an Error otherwise
+     * @returns {ChainableInterface<Reference|Value|Variable>} Resolved with the return value or reference if valid or rejected with an Error otherwise
      */
     validateReturnReference: function (returnReference, returnValue) {
         var spec = this;

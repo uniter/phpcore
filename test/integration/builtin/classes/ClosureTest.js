@@ -15,7 +15,7 @@ var expect = require('chai').expect,
 
 describe('PHP builtin Closure class integration', function () {
     describe('static ::bind()', function () {
-        it('should support duplicating with a specific bound object', function () {
+        it('should support duplicating with a specific bound object', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL);
@@ -43,15 +43,15 @@ $newClosure = Closure::bind($closure, $newThis);
 return $newClosure();
 EOS
 */;}),//jshint ignore:line,
-                module = tools.syncTranspile('/path/to/my_module.php', php),
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
                 engine = module(),
-                result = engine.execute();
+                result = await engine.execute();
 
             expect(engine.getStderr().readAll()).to.equal('');
             expect(result.getNative()).to.equal(28);
         });
 
-        it('should support duplicating with a specific bound class but no object', function () {
+        it('should support duplicating with a specific bound class but no object', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 namespace {
@@ -92,9 +92,9 @@ namespace
 }
 EOS
 */;}),//jshint ignore:line,
-                module = tools.syncTranspile('/path/to/my_module.php', php),
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
                 engine = module(),
-                result = engine.execute();
+                result = await engine.execute();
 
             expect(engine.getStderr().readAll()).to.equal('');
             expect(result.getNative()).to.equal(48);
@@ -102,7 +102,7 @@ EOS
     });
 
     describe('instance ->bindTo()', function () {
-        it('should support duplicating with a specific bound object', function () {
+        it('should support duplicating with a specific bound object', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL);
@@ -130,15 +130,15 @@ $newClosure = $closure->bindTo($newThis);
 return $newClosure();
 EOS
 */;}),//jshint ignore:line,
-                module = tools.syncTranspile('/path/to/my_module.php', php),
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
                 engine = module(),
-                result = engine.execute();
+                result = await engine.execute();
 
             expect(engine.getStderr().readAll()).to.equal('');
             expect(result.getNative()).to.equal(28);
         });
 
-        it('should support duplicating with a specific bound class but no object', function () {
+        it('should support duplicating with a specific bound class but no object', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 namespace {
@@ -178,9 +178,9 @@ namespace
 }
 EOS
 */;}),//jshint ignore:line,
-                module = tools.syncTranspile('/path/to/my_module.php', php),
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
                 engine = module(),
-                result = engine.execute();
+                result = await engine.execute();
 
             expect(engine.getStderr().readAll()).to.equal('');
             expect(result.getNative()).to.equal(24);

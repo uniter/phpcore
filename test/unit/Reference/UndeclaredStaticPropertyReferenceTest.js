@@ -22,6 +22,7 @@ var expect = require('chai').expect,
 describe('UndeclaredStaticPropertyReference', function () {
     var callStack,
         classObject,
+        flow,
         futureFactory,
         reference,
         state,
@@ -33,6 +34,7 @@ describe('UndeclaredStaticPropertyReference', function () {
             'call_stack': callStack
         });
         classObject = sinon.createStubInstance(Class);
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         valueFactory = state.getValueFactory();
 
@@ -49,6 +51,7 @@ describe('UndeclaredStaticPropertyReference', function () {
             state.getReferenceFactory(),
             futureFactory,
             callStack,
+            flow,
             classObject,
             'myProperty'
         );
@@ -74,9 +77,13 @@ describe('UndeclaredStaticPropertyReference', function () {
         });
     });
 
-    describe('formatAsString()', function () {
-        it('should return "NULL"', function () {
-            expect(reference.formatAsString()).to.equal('NULL');
+    describe('asFuture()', function () {
+        it('should raise an error', function () {
+            expect(function () {
+                reference.asValue();
+            }).to.throw(
+                'Fake PHP Fatal error for #core.undeclared_static_property with {"propertyName":"myProperty"}'
+            );
         });
     });
 
@@ -120,6 +127,12 @@ describe('UndeclaredStaticPropertyReference', function () {
         });
     });
 
+    describe('isFuture()', function () {
+        it('should return false', function () {
+            expect(reference.isFuture()).to.be.false;
+        });
+    });
+
     describe('isReference()', function () {
         it('should return false', function () {
             expect(reference.isReference()).to.be.false;
@@ -149,12 +162,14 @@ describe('UndeclaredStaticPropertyReference', function () {
     });
 
     describe('toPromise()', function () {
-        it('should raise an error', function () {
-            expect(function () {
-                reference.toPromise();
-            }).to.throw(
-                'Fake PHP Fatal error for #core.undeclared_static_property with {"propertyName":"myProperty"}'
-            );
+        it('should return a Promise that resolves to the UndeclaredStaticPropertyReference', async function () {
+            expect(await reference.toPromise()).to.equal(reference);
+        });
+    });
+
+    describe('yieldSync()', function () {
+        it('should just return the property', function () {
+            expect(reference.yieldSync()).to.equal(reference);
         });
     });
 });

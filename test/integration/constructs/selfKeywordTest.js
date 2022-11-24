@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP self:: keyword integration', function () {
-    it('should allow referencing class properties from class methods and closures', function () {
+    it('should allow referencing class properties from class methods and closures', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -63,17 +63,17 @@ namespace
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             101,
             202
         ]);
     });
 
-    it('should support rebinding the current class scope of a Closure', function () {
+    it('should support rebinding the current class scope of a Closure', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -127,16 +127,16 @@ namespace
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             101,
             107
         ]);
     });
 
-    it('should support class constants that refer to others via self::', function () {
+    it('should support class constants that refer to others via self::', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -163,15 +163,15 @@ namespace
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21
         ]);
     });
 
-    it('should support instance and static properties that refer to constants via self::', function () {
+    it('should support instance and static properties that refer to constants via self::', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -203,10 +203,10 @@ namespace
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             21
         ]);

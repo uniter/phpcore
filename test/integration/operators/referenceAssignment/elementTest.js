@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP reference assignment operator array element integration', function () {
-    it('should implicitly define both the left and right sides when right side is undefined', function () {
+    it('should implicitly define both the left and right sides when right side is undefined', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL);
@@ -30,10 +30,10 @@ $result = [
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'myRefElement': null,
             'myUndefinedElement': null
         });
@@ -41,7 +41,7 @@ EOS
         expect(engine.getStdout().readAll()).to.equal('');
     });
 
-    it('should correctly handle assigning a reference then assigning a reference to the right side', function () {
+    it('should correctly handle assigning a reference then assigning a reference to the right side', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL);
@@ -66,10 +66,10 @@ $result = [
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'myRefElement1': null,
             'myRefElement2': 101,
             'myElement': 101
@@ -78,7 +78,7 @@ EOS
         expect(engine.getStdout().readAll()).to.equal('');
     });
 
-    it('should correctly handle assigning a reference to an element while keeping another reference to its original value slot', function () {
+    it('should correctly handle assigning a reference to an element while keeping another reference to its original value slot', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL);
@@ -104,10 +104,10 @@ $result = [
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'myRefElement1': 101,
             'myRefElement2': 21,
             'myElement': 101
@@ -116,7 +116,7 @@ EOS
         expect(engine.getStdout().readAll()).to.equal('');
     });
 
-    it('should correctly handle an element with a reference being referenced', function () {
+    it('should correctly handle an element with a reference being referenced', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL);
@@ -141,10 +141,10 @@ $result = [
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'myRefElement1': 101,
             'myRefElement2': 101,
             'myRefElement3': 101

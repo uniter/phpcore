@@ -65,7 +65,7 @@ module.exports = require('pauser')([
 
     _.extend(Caller.prototype, {
         /**
-         * Calls a method in asynchronous mode
+         * Calls a method in asynchronous mode.
          *
          * @param {ObjectValue} objectValue
          * @param {string} methodName
@@ -79,17 +79,17 @@ module.exports = require('pauser')([
                 throw new Exception('Caller.callMethodAsync() :: Must be in async mode');
             }
 
-            // Call the method - note that it may return a FutureValue for async operation
+            // Call the method - note that it may return a Future-wrapped Value for async operation.
             return objectValue.callMethod(methodName, args)
-                // Pop the call off the stack _before_ returning, to mirror sync mode's behaviour
+                // Pop the call off the stack _before_ returning, to mirror sync mode's behaviour.
                 .finally(caller.popFFICall.bind(caller))
                 .catch(function (error) {
                     if (error instanceof Value && error.getType() === 'object') {
-                        // Method threw a PHP Exception, so throw a native JS error for it
+                        // Method threw a PHP Exception, so throw a native JS error for it.
                         throw caller.errorPromoter.promote(error);
                     }
 
-                    // Normal error: just pass it up to the caller
+                    // Normal error: just pass it up to the caller.
                     throw error;
                 })
                 .toPromise();

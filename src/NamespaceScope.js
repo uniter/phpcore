@@ -84,7 +84,7 @@ module.exports = require('pauser')([
          * @param {string} name
          * @param {Function|object} definition Either a Function for a native JS class or a transpiled definition object
          * @param {boolean=} autoCoercionEnabled Whether the class should be auto-coercing
-         * @returns {Future<Class>} Returns a future that resolves to the internal Class instance created
+         * @returns {ChainableInterface<Class>} Returns a future that resolves to the internal Class instance created
          */
         defineClass: function (
             name,
@@ -150,7 +150,7 @@ module.exports = require('pauser')([
          * autoloading if necessary
          *
          * @param {string} name
-         * @returns {Future<Class>}
+         * @returns {ChainableInterface<Class>}
          */
         getClass: function (name) {
             var resolvedClass = this.resolveClass(name);

@@ -16,23 +16,23 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP builtin Error class integration', function () {
-    it('should correctly export a PHP Error instance to JS-land', function () {
+    it('should correctly export a PHP Error instance to JS-land', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
 return new Error('Oh dear');
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module({
                 eval: function (evalPHP, path, promise) {
-                    promise.resolve(tools.syncTranspile(path, evalPHP));
+                    promise.resolve(tools.asyncTranspile(path, evalPHP));
                 }
             }),
             resultNativeError,
             resultValue;
 
-        resultValue = engine.execute();
+        resultValue = await engine.execute();
 
         expect(resultValue.getType()).to.equal('object');
         expect(resultValue.getInternalValue().getClassName()).to.equal('Error');
@@ -48,7 +48,7 @@ EOS
     });
 
     describe('getFile()', function () {
-        it('should return the file path for an Error instance when known', function () {
+        it('should return the file path for an Error instance when known', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -76,16 +76,17 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/my/test/module.php', php);
+                module = tools.asyncTranspile('/my/test/module.php', php),
+                engine = module();
 
-            expect(module().execute().getNative()).to.deep.equal([
+            expect((await engine.execute()).getNative()).to.deep.equal([
                 '/my/test/module.php', // From myFirstThrower
                 '/my/test/module.php', // From mySecondThrower
                 '/my/test/module.php'  // From the top-level scope error
             ]);
         });
 
-        it('should return null as the file path for an Error instance when not known', function () {
+        it('should return null as the file path for an Error instance when not known', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -113,16 +114,17 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile(null, php);
+                module = tools.asyncTranspile(null, php),
+                engine = module();
 
-            expect(module().execute().getNative()).to.deep.equal([
+            expect((await engine.execute()).getNative()).to.deep.equal([
                 null, // From myFirstThrower
                 null, // From mySecondThrower
                 null  // From the top-level scope error
             ]);
         });
 
-        it('should return any custom value set for the protected ->file property', function () {
+        it('should return any custom value set for the protected ->file property', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -143,16 +145,17 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/my/test/module.php', php);
+                module = tools.asyncTranspile('/my/test/module.php', php),
+                engine = module();
 
-            expect(module().execute().getNative()).to.deep.equal([
+            expect((await engine.execute()).getNative()).to.deep.equal([
                 '/my/custom/file/path'
             ]);
         });
     });
 
     describe('getLine()', function () {
-        it('should return the original PHP line number for an Error instance when tracked', function () {
+        it('should return the original PHP line number for an Error instance when tracked', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -180,16 +183,17 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/path/to/my_module.php', php);
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
+                engine = module();
 
-            expect(module().execute().getNative()).to.deep.equal([
+            expect((await engine.execute()).getNative()).to.deep.equal([
                 4,  // From myFirstThrower
                 10, // From mySecondThrower
                 20  // From the top-level scope error
             ]);
         });
 
-        it('should return null for the PHP line number for an Error instance when not tracked', function () {
+        it('should return null for the PHP line number for an Error instance when not tracked', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -217,20 +221,21 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/path/to/my_module.php', php, {
-                    // Turn off line tracking
+                module = tools.asyncTranspile('/path/to/my_module.php', php, {
+                    // Turn off line tracking.
                     phpToAST: {captureAllBounds: false},
                     phpToJS: {lineNumbers: false}
-                });
+                }),
+                engine = module();
 
-            expect(module().execute().getNative()).to.deep.equal([
+            expect((await engine.execute()).getNative()).to.deep.equal([
                 null, // From myFirstThrower
                 null, // From mySecondThrower
                 null  // From the top-level scope error
             ]);
         });
 
-        it('should return the original PHP line number for an Error-derived instance when tracked', function () {
+        it('should return the original PHP line number for an Error-derived instance when tracked', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -266,16 +271,17 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/path/to/my_module.php', php);
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
+                engine = module();
 
-            expect(module().execute().getNative()).to.deep.equal([
+            expect((await engine.execute()).getNative()).to.deep.equal([
                 12, // From myFirstThrower
                 18, // From mySecondThrower
                 28  // From the top-level scope error
             ]);
         });
 
-        it('should return any custom value set for the protected ->line property', function () {
+        it('should return any custom value set for the protected ->line property', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -296,16 +302,17 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/my/test/module.php', php);
+                module = tools.asyncTranspile('/my/test/module.php', php),
+                engine = module();
 
-            expect(module().execute().getNative()).to.deep.equal([
+            expect((await engine.execute()).getNative()).to.deep.equal([
                 4127
             ]);
         });
     });
 
     describe('getMessage()', function () {
-        it('should return the message for the Error', function () {
+        it('should return the message for the Error', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -327,16 +334,17 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/path/to/my_module.php', php);
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
+                engine = module();
 
-            expect(module().execute().getNative()).to.deep.equal([
+            expect((await engine.execute()).getNative()).to.deep.equal([
                 'First bang',
                 '[Custom] Second bang',
                 ''
             ]);
         });
 
-        it('should return any custom value set for the protected ->message property', function () {
+        it('should return any custom value set for the protected ->message property', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -357,16 +365,17 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/my/test/module.php', php);
+                module = tools.asyncTranspile('/my/test/module.php', php),
+                engine = module();
 
-            expect(module().execute().getNative()).to.deep.equal([
+            expect((await engine.execute()).getNative()).to.deep.equal([
                 'My custom message'
             ]);
         });
     });
 
     describe('getTraceAsString()', function () {
-        it('should return the correct file paths and line numbers for an Error instance when tracked', function () {
+        it('should return the correct file paths and line numbers for an Error instance when tracked', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -401,9 +410,10 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('myModule.php', php);
+                module = tools.asyncTranspile('myModule.php', php),
+                engine = module();
 
-            expect(module().execute().getNative()).to.deep.equal([
+            expect((await engine.execute()).getNative()).to.deep.equal([
                 // From myFirstThrower
                 nowdoc(function () {/*<<<EOS
 #0 myModule.php(17): myFirstThrower(Array, true, 21.2, 27, NULL, Object(stdClass), 'my arg')
@@ -443,7 +453,7 @@ EOS
             };
         });
 
-        it('should output the correct message for an empty Error', function () {
+        it('should output the correct message for an empty Error', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -452,12 +462,10 @@ EOS
 throw new Error;
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/my/php_module.php', php),
+                module = tools.asyncTranspile('/my/php_module.php', php),
                 engine = module();
 
-            expect(function () {
-                doRun(engine);
-            }).to.throw(
+            await expect(doRun(engine)).to.eventually.be.rejectedWith(
                 PHPFatalError,
                 'PHP Fatal error: Uncaught Error in /my/php_module.php on line 5'
             );

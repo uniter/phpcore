@@ -25,12 +25,28 @@ function TypeInterface() {
 
 _.extend(TypeInterface.prototype, {
     /**
+     * Determines whether a parameter defined with this type (for example)
+     * would allow the given value.
+     *
+     * @param {*} value
+     * @returns {boolean}
+     */
+    allowsValue: throwUnimplemented('allowsValue'),
+
+    /**
      * Coerces an argument for a parameter defined with this type (for example) to a value of this type.
      *
      * @param {*} value
      * @returns {*}
      */
-    coerceValue: throwUnimplemented('coerceValue')
+    coerceValue: throwUnimplemented('coerceValue'),
+
+    /**
+     * Fetches the display name for this type (e.g. "val" or "ref|val").
+     *
+     * @returns {string}
+     */
+    getDisplayName: throwUnimplemented('getDisplayName')
 });
 
 module.exports = TypeInterface;

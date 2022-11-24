@@ -14,9 +14,10 @@ var _ = require('microdash');
 /**
  * @param {class} Trace
  * @param {OpcodePool} opcodePool
+ * @param {UnpausedSentinel} unpausedSentinel
  * @constructor
  */
-function ControlFactory(Trace, opcodePool) {
+function ControlFactory(Trace, opcodePool, unpausedSentinel) {
     /**
      * @type {OpcodePool}
      */
@@ -25,18 +26,22 @@ function ControlFactory(Trace, opcodePool) {
      * @type {class}
      */
     this.Trace = Trace;
+    /**
+     * @type {UnpausedSentinel}
+     */
+    this.unpausedSentinel = unpausedSentinel;
 }
 
 _.extend(ControlFactory.prototype, {
     /**
-     * Creates a new Trace
+     * Creates a new Trace.
      *
      * @returns {Trace}
      */
     createTrace: function () {
         var factory = this;
 
-        return new factory.Trace(factory.opcodePool);
+        return new factory.Trace(factory.opcodePool, factory.unpausedSentinel);
     }
 });
 

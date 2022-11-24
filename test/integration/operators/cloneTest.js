@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP clone operator integration', function () {
-    it('should support cloning a stdClass instance', function () {
+    it('should support cloning a stdClass instance', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -45,10 +45,10 @@ $result['clone prop2, second'] = $clone->prop2;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'identity': false, // Clone should be a different object instance,
             'original prop1, first': ['one'],
             'original prop2, first': 'two',
@@ -62,7 +62,7 @@ EOS
         });
     });
 
-    it('should support cloning an instance of a custom class implementing __clone defined in PHP-land', function () {
+    it('should support cloning an instance of a custom class implementing __clone defined in PHP-land', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -114,10 +114,10 @@ $result['clone prop3, second'] = $clone->prop3;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'identity': false, // Clone should be a different object instance,
             'original prop1, first': 'one',
             'original prop2, first': 'two',
@@ -135,7 +135,7 @@ EOS
         });
     });
 
-    it('should support cloning an instance of a custom non-coercing JS class implementing __clone defined in JS-land', function () {
+    it('should support cloning an instance of a custom non-coercing JS class implementing __clone defined in JS-land', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -171,7 +171,7 @@ $result['clone prop3, second'] = $clone->prop3;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.defineClass('MyClass', function (internals) {
@@ -205,7 +205,7 @@ EOS
             return MyClass;
         });
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'identity': false, // Clone should be a different object instance,
             'original prop1, first': 'one',
             'original prop2, first': 'two',
@@ -224,7 +224,7 @@ EOS
     });
 
     // Introduced in PHP 7.0.0
-    it('should support accessing a member of a freshly cloned object in a single expression', function () {
+    it('should support accessing a member of a freshly cloned object in a single expression', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -238,15 +238,15 @@ $result['myProp of clone'] = (clone $original)->myProp;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'myProp of clone': 'my value'
         });
     });
 
-    it('should support cloning an imported JS object', function () {
+    it('should support cloning an imported JS object', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -269,7 +269,7 @@ $result['is clone instanceof JSObject'] = $cloneObject instanceof JSObject;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module(),
             myObject = {
                 myProp: 'initial value',
@@ -279,7 +279,7 @@ EOS
             };
         engine.expose(myObject, 'originalObject');
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'myMethod() of original': 21,
             'myMethod() of clone': 21,
             'is original instanceof JSObject': true,
@@ -329,7 +329,7 @@ EOS
         });
     });
 
-    it('should raise a fatal error when trying to clone non-objects', function () {
+    it('should raise a fatal error when trying to clone non-objects', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL);
@@ -411,7 +411,7 @@ try {
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/my/php_module.php', php, {
+            module = tools.asyncTranspile('/my/php_module.php', php, {
                 // Capture offsets of all nodes for line tracking
                 phpToAST: {captureAllOffsets: true},
                 // Record line numbers for statements/expressions
@@ -422,7 +422,7 @@ EOS
             return objectValue.getValue().getClassName();
         });
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'array': 'Error: __clone method called on non-object @ /my/php_module.php:7',
             'boolean': 'Error: __clone method called on non-object @ /my/php_module.php:19',
             'float': 'Error: __clone method called on non-object @ /my/php_module.php:31',

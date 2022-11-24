@@ -17,16 +17,16 @@ describe('Custom addon integration', function () {
     var runtime;
 
     beforeEach(function () {
-        runtime = tools.createSyncRuntime();
+        runtime = tools.createAsyncRuntime();
     });
 
-    it('should support installing an addon with a binding', function () {
+    it('should support installing an addon into the runtime with a binding', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 return get_my_value();
 EOS
 */;}), //jshint ignore:line
-            module = tools.transpile(runtime, null, php),
+            module = tools.transpile(runtime, '/path/to/my_module.php', php),
             engine;
 
         runtime.install({
@@ -55,7 +55,7 @@ EOS
             }
         });
 
-        expect(engine.execute().getNative()).to.equal(21);
+        expect((await engine.execute()).getNative()).to.equal(21);
     });
 
     describe('when installing an addon into an environment (rather than into the entire runtime)', function () {
@@ -96,21 +96,21 @@ EOS
                 ]
             });
 
-            module = tools.transpile(runtime, null, php);
+            module = tools.transpile(runtime, '/path/to/my_module.php', php);
         });
 
-        it('should correctly install the addon', function () {
+        it('should correctly install the addon', async function () {
             var engine = module({}, environment);
 
-            expect(engine.execute().getNative()).to.equal(42);
+            expect((await engine.execute()).getNative()).to.equal(42);
         });
 
-        it('should keep the addon isolated to the environment', function () {
+        it('should keep the addon isolated to the environment', async function () {
             var module2;
-            module({}, environment).execute();
+            await module({}, environment).execute();
             module2 = tools.transpile(runtime, null, '<?php return function_exists("double_it");');
 
-            expect(module2().execute().getNative()).to.be.false;
+            expect((await module2().execute()).getNative()).to.be.false;
         });
     });
 });

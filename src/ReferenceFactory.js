@@ -27,6 +27,7 @@ module.exports = require('pauser')([
      * @param {ValueFactory} valueFactory
      * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
+     * @param {Flow} flow
      * @constructor
      */
     function ReferenceFactory(
@@ -41,7 +42,8 @@ module.exports = require('pauser')([
         UndeclaredStaticPropertyReference,
         valueFactory,
         futureFactory,
-        callStack
+        callStack,
+        flow
     ) {
         /**
          * @type {class}
@@ -55,6 +57,10 @@ module.exports = require('pauser')([
          * @type {class}
          */
         this.ElementReference = ElementReference;
+        /**
+         * @type {Flow}
+         */
+        this.flow = flow;
         /**
          * @type {FutureFactory}
          */
@@ -99,24 +105,30 @@ module.exports = require('pauser')([
          *
          * @param {Function} valueGetter
          * @param {Function=} valueSetter
+         * @param {Function=} unsetter
          * @param {Function=} referenceGetter
          * @param {Function=} referenceSetter
          * @param {Function=} referenceClearer
          * @param {Function|null} definednessGetter
+         * @param {Function|null} readablenessGetter
          * @param {Function|null} emptinessGetter
          * @param {Function|null} setnessGetter
+         * @param {Function|null} referencenessGetter
          * @param {Function|null} undefinednessRaiser
          * @returns {AccessorReference}
          */
         createAccessor: function (
             valueGetter,
             valueSetter,
+            unsetter,
             referenceGetter,
             referenceSetter,
             referenceClearer,
             definednessGetter,
+            readablenessGetter,
             emptinessGetter,
             setnessGetter,
+            referencenessGetter,
             undefinednessRaiser
         ) {
             var factory = this;
@@ -124,14 +136,19 @@ module.exports = require('pauser')([
             return new factory.AccessorReference(
                 factory.valueFactory,
                 factory,
+                factory.futureFactory,
+                factory.flow,
                 valueGetter,
                 valueSetter || null,
+                unsetter || null,
                 referenceGetter || null,
                 referenceSetter || null,
                 referenceClearer || null,
                 definednessGetter || null,
+                readablenessGetter || null,
                 emptinessGetter || null,
                 setnessGetter || null,
+                referencenessGetter || null,
                 undefinednessRaiser || null
             );
         },
@@ -158,6 +175,7 @@ module.exports = require('pauser')([
                 factory,
                 factory.futureFactory,
                 factory.callStack,
+                factory.flow,
                 arrayValue,
                 key,
                 value,
@@ -174,7 +192,13 @@ module.exports = require('pauser')([
         createNull: function (options) {
             var factory = this;
 
-            return new factory.NullReference(factory.valueFactory, factory.futureFactory, options);
+            return new factory.NullReference(
+                factory.valueFactory,
+                factory,
+                factory.futureFactory,
+                factory.flow,
+                options
+            );
         },
 
         /**
@@ -190,6 +214,8 @@ module.exports = require('pauser')([
             return new factory.ObjectElement(
                 factory.valueFactory,
                 factory,
+                factory.futureFactory,
+                factory.flow,
                 objectValue,
                 keyValue
             );
@@ -219,6 +245,7 @@ module.exports = require('pauser')([
                 factory,
                 factory.futureFactory,
                 factory.callStack,
+                factory.flow,
                 objectValue,
                 keyValue,
                 classObject,
@@ -235,7 +262,12 @@ module.exports = require('pauser')([
         createReferenceSlot: function () {
             var factory = this;
 
-            return new factory.ReferenceSlot(factory.valueFactory, factory);
+            return new factory.ReferenceSlot(
+                factory.valueFactory,
+                factory,
+                factory.futureFactory,
+                factory.flow
+            );
         },
 
         /**
@@ -255,6 +287,7 @@ module.exports = require('pauser')([
                 factory.valueFactory,
                 factory,
                 factory.futureFactory,
+                factory.flow,
                 wrappedReference,
                 value || null,
                 wrappedReference.isReference() ? wrappedReference.getReference() : null
@@ -279,7 +312,9 @@ module.exports = require('pauser')([
             return new factory.StaticPropertyReference(
                 factory.valueFactory,
                 factory,
+                factory.futureFactory,
                 factory.callStack,
+                factory.flow,
                 classObject,
                 name,
                 visibility
@@ -301,6 +336,7 @@ module.exports = require('pauser')([
                 factory,
                 factory.futureFactory,
                 factory.callStack,
+                factory.flow,
                 classObject,
                 name
             );

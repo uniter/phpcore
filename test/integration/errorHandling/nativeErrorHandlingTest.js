@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 // TODO: Improve native error handling, see logic in Engine class
-describe('Native/internal error handling integration', function () {
+describe('Native error handling integration', function () {
     var doRun,
         outputLog;
 

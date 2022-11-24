@@ -241,29 +241,31 @@ _.extend(Parameter.prototype, {
     },
 
     /**
-     * Fetches the default value for this parameter if its argument is missing
+     * Fetches the default value for this parameter if its argument is missing.
      *
      * @param {Reference|Value|Variable|null=} argumentReference
-     * @returns {Future<Reference|Variable>|Value}
+     * @returns {ChainableInterface<Reference|Value|Variable>}
      */
     populateDefaultArgument: function (argumentReference) {
         var parameter = this;
 
         if (!argumentReference) {
             if (parameter.isRequired()) {
-                // This should never happen - the scenario is captured within FunctionSpec
+                // This should never happen - the scenario is captured within FunctionSpec.
                 throw new Exception('Missing argument for required parameter "' + parameter.name + '"');
             }
 
-            // Note that the result could be a FutureValue, eg. if a constant of an asynchronously autoloaded class
+            // Note that the result could be a Future, e.g. if a constant of an asynchronously autoloaded class.
             argumentReference = parameter.userland.enterIsolated(function () {
                 return parameter.defaultValueProvider();
-            }); // No need to set NamespaceScope as it will already have been done (see FunctionFactory)
+            });
+
+            // No need to set NamespaceScope as it will already have been done (see FunctionFactory).
         }
 
-        // TODO: For PHP 7, if the caller is in weak mode then we need to coerce if the type is scalar
+        // TODO: For PHP 7, if the caller is in weak mode then we need to coerce if the type is scalar.
 
-        // Make sure we preserve any reference rather than always casting to value
+        // Make sure we preserve any reference rather than always casting to value.
         return parameter.flow.chainify(argumentReference);
     },
 
@@ -272,7 +274,7 @@ _.extend(Parameter.prototype, {
      *
      * @param {Reference|Value|Variable|null} argumentReference Raw reference or value of the argument
      * @param {Value|null} argumentValue Resolved value of the argument
-     * @returns {Future<void>} Resolved if the argument is valid or rejected with an Error otherwise
+     * @returns {FutureInterface<void>} Resolved if the argument is valid or rejected with an Error otherwise
      */
     validateArgument: function (argumentReference, argumentValue) {
         var parameter = this;

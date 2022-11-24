@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP variable instance method call integration', function () {
-    it('should correctly handle calling an instance method dynamically', function () {
+    it('should correctly handle calling an instance method dynamically', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyClass
@@ -34,15 +34,16 @@ return [
 ];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'with dollar only': 23,
             'with braces': 25
         });
     });
 
-    it('should treat method names as case-insensitive', function () {
+    it('should treat method names as case-insensitive', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyClass
@@ -58,12 +59,13 @@ $myMethodName = 'myMethod';
 return (new MyClass)->$myMethodName();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.equal(21);
+        expect((await engine.execute()).getNative()).to.equal(21);
     });
 
-    it('should allow a variable containing an array to be passed by-reference', function () {
+    it('should allow a variable containing an array to be passed by-reference', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyClass
@@ -81,9 +83,10 @@ $myArray = [21, 101];
 return $myArray;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             101,
             'added'
@@ -115,11 +118,7 @@ EOS
         engine.defineGlobalAccessor(
             'myAccessor',
             function () {
-                return this.createFutureValue(function (resolve) {
-                    setImmediate(function () {
-                        resolve('myMethod');
-                    });
-                });
+                return this.createAsyncPresentValue('myMethod');
             }
         );
 

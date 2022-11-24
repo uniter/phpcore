@@ -17,7 +17,6 @@ var expect = require('chai').expect,
     ArrayValue = require('../../../src/Value/Array').sync(),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
-    ElementProvider = require('../../../src/Reference/Element/ElementProvider'),
     ElementReference = require('../../../src/Reference/Element'),
     Exception = phpCommon.Exception,
     IntegerValue = require('../../../src/Value/Integer').sync(),
@@ -58,10 +57,10 @@ describe('Array', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
-        state = tools.createIsolatedState(null, {
+        state = tools.createIsolatedState('async', {
             'call_stack': callStack
         });
-        elementProvider = new ElementProvider();
+        elementProvider = state.getElementProvider();
         factory = state.getValueFactory();
         flow = state.getFlow();
         futureFactory = state.getFutureFactory();
@@ -131,11 +130,13 @@ describe('Array', function () {
         });
 
         it('should resolve any elements that have references set to values', async function () {
-            var result;
+            var result,
+                variable = sinon.createStubInstance(Variable);
+            variable.getValue.returns(factory.createString('my value'));
             elements.push(
                 createKeyReferencePair(
                     factory.createString('my_key'),
-                    factory.createAsyncPresent('my value')
+                    variable
                 )
             );
             createValue();
@@ -540,7 +541,7 @@ describe('Array', function () {
     });
 
     describe('compareWithArray()', function () {
-        it('should return 0 when the arrays are equal', function () {
+        it('should return 0 when the arrays are equal', async function () {
             var leftValue = new ArrayValue(
                 factory,
                 referenceFactory,
@@ -554,10 +555,10 @@ describe('Array', function () {
                 elementProvider
             );
 
-            expect(value.compareWithArray(leftValue)).to.equal(0);
+            expect(await value.compareWithArray(leftValue).toPromise()).to.equal(0);
         });
 
-        it('should return -1 when the left value has fewer elements than the right', function () {
+        it('should return -1 when the left value has fewer elements than the right', async function () {
             var leftValue = new ArrayValue(
                 factory,
                 referenceFactory,
@@ -568,10 +569,10 @@ describe('Array', function () {
                 elementProvider
             );
 
-            expect(value.compareWithArray(leftValue)).to.equal(-1);
+            expect(await value.compareWithArray(leftValue).toPromise()).to.equal(-1);
         });
 
-        it('should return 1 when the left value has more elements than the right', function () {
+        it('should return 1 when the left value has more elements than the right', async function () {
             var leftValue = new ArrayValue(
                 factory,
                 referenceFactory,
@@ -586,10 +587,10 @@ describe('Array', function () {
                 elementProvider
             );
 
-            expect(value.compareWithArray(leftValue)).to.equal(1);
+            expect(await value.compareWithArray(leftValue).toPromise()).to.equal(1);
         });
 
-        it('should return 1 when the left value contains an element the right does not', function () {
+        it('should return 1 when the left value contains an element the right does not', async function () {
             var leftValue = new ArrayValue(
                 factory,
                 referenceFactory,
@@ -603,10 +604,10 @@ describe('Array', function () {
                 elementProvider
             );
 
-            expect(value.compareWithArray(leftValue)).to.equal(1);
+            expect(await value.compareWithArray(leftValue).toPromise()).to.equal(1);
         });
 
-        it('should return -1 when value of one element of left array is smaller', function () {
+        it('should return -1 when value of one element of left array is smaller', async function () {
             var leftValue = new ArrayValue(
                 factory,
                 referenceFactory,
@@ -620,10 +621,10 @@ describe('Array', function () {
                 elementProvider
             );
 
-            expect(value.compareWithArray(leftValue)).to.equal(-1);
+            expect(await value.compareWithArray(leftValue).toPromise()).to.equal(-1);
         });
 
-        it('should return 1 when value of one element of left array is greater', function () {
+        it('should return 1 when value of one element of left array is greater', async function () {
             var leftValue = new ArrayValue(
                 factory,
                 referenceFactory,
@@ -637,7 +638,7 @@ describe('Array', function () {
                 elementProvider
             );
 
-            expect(value.compareWithArray(leftValue)).to.equal(1);
+            expect(await value.compareWithArray(leftValue).toPromise()).to.equal(1);
         });
     });
 
@@ -1403,26 +1404,21 @@ describe('Array', function () {
             expect(value.next()).to.equal(value);
         });
 
-        it('should invoke the callback with the value and return the coerced result', function () {
-            var callback = sinon.stub(),
-                resultValue;
+        it('should invoke the callback with the value and return the chainified result', async function () {
+            var callback = sinon.stub();
             callback.withArgs(sinon.match.same(value)).returns('my result');
 
-            resultValue = value.next(callback);
-
-            expect(resultValue.getType()).to.equal('string');
-            expect(resultValue.getNative()).to.equal('my result');
+            expect(await value.next(callback).toPromise()).to.equal('my result');
         });
 
-        it('should return a rejected FutureValue when the callback raises an error', async function () {
+        it('should return a rejected Future when the callback raises an error', async function () {
             var callback = sinon.stub(),
-                resultValue;
+                result;
             callback.withArgs(sinon.match.same(value)).throws(new Error('Bang!'));
 
-            resultValue = value.next(callback);
+            result = value.next(callback);
 
-            expect(resultValue.getType()).to.equal('future');
-            await expect(resultValue.toPromise()).to.eventually.be.rejectedWith('Bang!');
+            await expect(result.toPromise()).to.eventually.be.rejectedWith('Bang!');
         });
     });
 

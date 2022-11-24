@@ -20,7 +20,7 @@ describe('Custom addon with service definitions integration', function () {
     var runtime;
 
     beforeEach(function () {
-        runtime = tools.createSyncRuntime();
+        runtime = tools.createAsyncRuntime();
     });
 
     it('should support installing independent custom services', function () {
@@ -50,7 +50,7 @@ describe('Custom addon with service definitions integration', function () {
         });
     });
 
-    it('should support installing an addon that decorates a service', function () {
+    it('should support installing an addon that decorates a service', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -110,7 +110,7 @@ EOS
             ]),
             engine = module({}, environment);
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'throwable message': 'Call to undefined function someUndefinedFunction() [my custom suffix]'
         });
     });

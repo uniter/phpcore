@@ -25,9 +25,10 @@ var _ = require('microdash'),
  * Records and controls execution within a Call
  *
  * @param {OpcodePool} opcodePool
+ * @param {UnpausedSentinel} unpausedSentinel
  * @constructor
  */
-function Trace(opcodePool) {
+function Trace(opcodePool, unpausedSentinel) {
     /**
      * Any expression that affects control flow, or control structure condition
      * must have its boolean result cached for the lifetime of the call,
@@ -91,6 +92,10 @@ function Trace(opcodePool) {
      * @type {boolean}
      */
     this.resuming = false;
+    /**
+     * @type {UnpausedSentinel}
+     */
+    this.unpausedSentinel = unpausedSentinel;
 }
 
 _.extend(Trace.prototype, {
@@ -271,7 +276,7 @@ _.extend(Trace.prototype, {
                 throw new Exception('resumeCalculationOpcode() :: invalid state, currentOpIndex > resumeOpIndex');
             }
 
-            // TODO: Does this make sense?
+            // This opcode is no longer in progress as it has been resumed.
             trace.currentOpcode.release(trace.opcodePool);
 
             trace.currentOpcode = null;
@@ -285,7 +290,7 @@ _.extend(Trace.prototype, {
             return resumeValue;
         }
 
-        return null;
+        return trace.unpausedSentinel;
     },
 
     resumeControlFlowOpcode: function (opIndex) {
@@ -320,7 +325,7 @@ _.extend(Trace.prototype, {
                 throw new Exception('resumeControlFlowOpcode() :: invalid state, currentOpIndex > resumeOpIndex');
             }
 
-            // TODO: Does this make sense?
+            // This opcode is no longer in progress as it has been resumed.
             trace.currentOpcode.release(trace.opcodePool);
 
             trace.currentOpcode = null;
@@ -334,7 +339,7 @@ _.extend(Trace.prototype, {
             return result;
         }
 
-        return null;
+        return trace.unpausedSentinel;
     },
 
     throwInto: function (error) {

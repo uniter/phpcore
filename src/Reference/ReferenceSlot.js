@@ -20,13 +20,20 @@ var _ = require('microdash'),
  *
  * @param {ValueFactory} valueFactory
  * @param {ReferenceFactory} referenceFactory
+ * @param {FutureFactory} futureFactory
+ * @param {Flow} flow
  * @constructor
  */
-function ReferenceSlot(valueFactory, referenceFactory) {
-    Reference.call(this, referenceFactory);
+function ReferenceSlot(
+    valueFactory,
+    referenceFactory,
+    futureFactory,
+    flow
+) {
+    Reference.call(this, referenceFactory, futureFactory, flow);
 
     /**
-     * Implicitly define this slot with a value of NULL
+     * Implicitly define this slot with a value of NULL.
      *
      * @type {Value}
      */

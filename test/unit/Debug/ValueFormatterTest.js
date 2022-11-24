@@ -24,10 +24,13 @@ var expect = require('chai').expect,
     ValueFormatter = require('../../../src/Debug/ValueFormatter');
 
 describe('ValueFormatter', function () {
-    beforeEach(function () {
-        this.debugFactory = sinon.createStubInstance(DebugFactory);
+    var debugFactory,
+        formatter;
 
-        this.formatter = new ValueFormatter(this.debugFactory);
+    beforeEach(function () {
+        debugFactory = sinon.createStubInstance(DebugFactory);
+
+        formatter = new ValueFormatter(debugFactory);
     });
 
     describe('format()', function () {
@@ -38,7 +41,7 @@ describe('ValueFormatter', function () {
             value.getNative.returns([]);
             value.getType.returns('array');
 
-            expect(this.formatter.format(value)).to.deep.equal({
+            expect(formatter.format(value)).to.deep.equal({
                 attributes: [
                     {
                         name: 'length',
@@ -91,17 +94,17 @@ describe('ValueFormatter', function () {
             key2.getType.returns('int');
             key3.getNative.returns('byRefElementKey');
             key3.getType.returns('string');
-            this.debugFactory.createValue
+            debugFactory.createValue
                 .withArgs(sinon.match.same(element1Value))
                 .returns({element1: 'first debug val'});
-            this.debugFactory.createValue
+            debugFactory.createValue
                 .withArgs(sinon.match.same(element2Value))
                 .returns({element2: 'second debug val'});
-            this.debugFactory.createValue
+            debugFactory.createValue
                 .withArgs(sinon.match.same(element3Value))
                 .returns({element3: 'third debug val'});
 
-            expect(this.formatter.format(value)).to.deep.equal({
+            expect(formatter.format(value)).to.deep.equal({
                 attributes: [
                     {
                         name: 'length',
@@ -174,7 +177,7 @@ describe('ValueFormatter', function () {
             value.getNative.returns(false);
             value.getType.returns('boolean');
 
-            expect(this.formatter.format(value)).to.deep.equal({
+            expect(formatter.format(value)).to.deep.equal({
                 attributes: [],
                 headingStyle: 'color: blue;',
                 headingValue: false
@@ -186,7 +189,7 @@ describe('ValueFormatter', function () {
             value.getNative.returns(27.412);
             value.getType.returns('float');
 
-            expect(this.formatter.format(value)).to.deep.equal({
+            expect(formatter.format(value)).to.deep.equal({
                 attributes: [],
                 headingStyle: 'color: blue;',
                 headingValue: 27.412
@@ -198,7 +201,7 @@ describe('ValueFormatter', function () {
             value.getNative.returns(21);
             value.getType.returns('int');
 
-            expect(this.formatter.format(value)).to.deep.equal({
+            expect(formatter.format(value)).to.deep.equal({
                 attributes: [],
                 headingStyle: 'color: blue;',
                 headingValue: 21
@@ -210,7 +213,7 @@ describe('ValueFormatter', function () {
             value.getNative.returns(null);
             value.getType.returns('null');
 
-            expect(this.formatter.format(value)).to.deep.equal({
+            expect(formatter.format(value)).to.deep.equal({
                 attributes: [],
                 headingStyle: 'font-weight: bold;',
                 headingValue: '<null>'
@@ -225,7 +228,7 @@ describe('ValueFormatter', function () {
             value.getNative.returns(myObject);
             value.getType.returns('object');
 
-            expect(this.formatter.format(value)).to.deep.equal({
+            expect(formatter.format(value)).to.deep.equal({
                 attributes: [
                     {
                         name: 'PHP class',
@@ -250,7 +253,7 @@ describe('ValueFormatter', function () {
             value.getNative.returns(myObject);
             value.getType.returns('object');
 
-            expect(this.formatter.format(value)).to.deep.equal({
+            expect(formatter.format(value)).to.deep.equal({
                 attributes: [
                     {
                         name: 'PHP class',
@@ -272,7 +275,7 @@ describe('ValueFormatter', function () {
             value.getNative.returns(function myFunc() {});
             value.getType.returns('object');
 
-            expect(this.formatter.format(value)).to.deep.equal({
+            expect(formatter.format(value)).to.deep.equal({
                 attributes: [
                     {
                         name: 'PHP class',
@@ -294,7 +297,7 @@ describe('ValueFormatter', function () {
             value.getNative.returns({});
             value.getType.returns('object');
 
-            expect(this.formatter.format(value)).to.deep.equal({
+            expect(formatter.format(value)).to.deep.equal({
                 attributes: [
                     {
                         name: 'class',
@@ -311,7 +314,7 @@ describe('ValueFormatter', function () {
             value.getNative.returns('this is my string');
             value.getType.returns('string');
 
-            expect(this.formatter.format(value)).to.deep.equal({
+            expect(formatter.format(value)).to.deep.equal({
                 attributes: [],
                 headingStyle: 'color: red;',
                 headingValue: '"this is my string"'

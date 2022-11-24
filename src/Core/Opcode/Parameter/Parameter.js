@@ -16,14 +16,36 @@ var _ = require('microdash');
  *
  * @param {string} name
  * @param {TypeInterface} type
+ * @param {boolean} isInitial
+ * @param {boolean} isRequired
  * @param {boolean} isVariadic
+ * @param {*} defaultArgument
  * @constructor
  */
-function Parameter(name, type, isVariadic) {
+function Parameter(
+    name,
+    type,
+    isInitial,
+    isRequired,
+    isVariadic,
+    defaultArgument
+) {
+    /**
+     * @type {*}
+     */
+    this.defaultArgument = defaultArgument;
+    /**
+     * @type {boolean}
+     */
+    this.initial = isInitial;
     /**
      * @type {string}
      */
     this.name = name;
+    /**
+     * @type {boolean}
+     */
+    this.required = isRequired;
     /**
      * @type {TypeInterface}
      */
@@ -46,6 +68,15 @@ _.extend(Parameter.prototype, {
     },
 
     /**
+     * Fetches the default argument value for this parameter.
+     *
+     * @returns {*}
+     */
+    getDefaultArgument: function () {
+        return this.defaultArgument;
+    },
+
+    /**
      * Fetches the name of this parameter.
      *
      * @returns {string}
@@ -61,6 +92,24 @@ _.extend(Parameter.prototype, {
      */
     getType: function () {
         return this.type;
+    },
+
+    /**
+     * Determines whether this parameter must have its argument specified initially.
+     *
+     * @returns {boolean}
+     */
+    isInitial: function () {
+        return this.initial;
+    },
+
+    /**
+     * Determines whether this parameter is required.
+     *
+     * @returns {boolean}
+     */
+    isRequired: function () {
+        return this.required;
     },
 
     /**

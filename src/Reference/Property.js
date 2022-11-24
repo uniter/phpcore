@@ -23,6 +23,7 @@ var _ = require('microdash'),
  * @param {ReferenceFactory} referenceFactory
  * @param {FutureFactory} futureFactory
  * @param {CallStack} callStack
+ * @param {Flow} flow
  * @param {ObjectValue} objectValue
  * @param {Value} key
  * @param {Class} classObject Class in the hierarchy that defines the property - may be an ancestor
@@ -35,42 +36,39 @@ function PropertyReference(
     referenceFactory,
     futureFactory,
     callStack,
+    flow,
     objectValue,
     key,
     classObject,
     visibility,
     index
 ) {
-    Reference.call(this, referenceFactory);
+    Reference.call(this, referenceFactory, futureFactory, flow);
 
+    /**
+     * @type {CallStack}
+     */
+    this.callStack = callStack;
     /**
      * @type {Class}
      */
     this.classObject = classObject;
     /**
-     * @type {FutureFactory}
-     */
-    this.futureFactory = futureFactory;
-    /**
      * @type {number}
      */
     this.index = index;
-    /**
-     * @type {ObjectValue}
-     */
-    this.objectValue = objectValue;
     /**
      * @type {Value}
      */
     this.key = key;
     /**
+     * @type {ObjectValue}
+     */
+    this.objectValue = objectValue;
+    /**
      * @type {Reference|null}
      */
     this.reference = null;
-    /**
-     * @type {CallStack}
-     */
-    this.callStack = callStack;
     /**
      * Value of this property - a native null value indicates that the property is not defined
      *
@@ -157,9 +155,9 @@ _.extend(PropertyReference.prototype, {
     /**
      * Fetches the value of this property on its object. If it is not defined,
      * and a magic __get getter method is defined, it will be called,
-     * otherwise a notice will be raised and NULL returned
+     * otherwise a notice will be raised and NULL returned.
      *
-     * @returns {Value}
+     * @returns {ChainableInterface<Value>}
      */
     getValue: function () {
         var property = this;
@@ -182,25 +180,6 @@ _.extend(PropertyReference.prototype, {
         }
 
         throw new Error('Defined properties should have a value or reference assigned');
-    },
-
-    /**
-     * {@inheritdoc}
-     */
-    getValueOrNativeNull: function () {
-        var property = this;
-
-        if (property.isDefined()) {
-            return property.getValue();
-        }
-
-        if (property.objectValue.isMethodDefined(MAGIC_GET)) {
-            // Magic getter method is defined, so use it.
-            return property.objectValue.callMethod(MAGIC_GET, [property.key]);
-        }
-
-        // Special value of native null (vs. NullValue) represents undefined.
-        return null;
     },
 
     /**
@@ -242,7 +221,7 @@ _.extend(PropertyReference.prototype, {
     /**
      * Determines whether this object property is "empty" or not
      *
-     * @returns {Future<boolean>}
+     * @returns {ChainableInterface<boolean>}
      */
     isEmpty: function () {
         var property = this;
@@ -254,12 +233,29 @@ _.extend(PropertyReference.prototype, {
         if (property.objectValue.isMethodDefined(MAGIC_GET)) {
             // Magic getter method is defined, so use it to determine the property's value
             // and then check _that_ for being "empty"
-            return property.objectValue.callMethod(MAGIC_GET, [property.key]).isEmpty();
+            return property.objectValue.callMethod(MAGIC_GET, [property.key])
+                .next(function (resultReference) {
+                    return resultReference.isEmpty();
+                });
         }
 
         // Property is not defined and there is no magic getter,
         // so the property must be empty as it is unset and undefined
         return property.futureFactory.createPresent(true);
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    isReadable: function () {
+        var property = this;
+
+        if (property.isDefined()) {
+            return true;
+        }
+
+        // Detect property overloading otherwise.
+        return property.objectValue.isMethodDefined(MAGIC_GET);
     },
 
     /**
@@ -271,9 +267,9 @@ _.extend(PropertyReference.prototype, {
 
     /**
      * Determines whether this property is "set".
-     * A set property must be both defined and have a non-NULL value
+     * A set property must be both defined and have a non-NULL value.
      *
-     * @returns {Future<boolean>}
+     * @returns {ChainableInterface<boolean>}
      */
     isSet: function () {
         var property = this,
@@ -350,42 +346,38 @@ _.extend(PropertyReference.prototype, {
     /**
      * Sets the value of this property on its object. If it is not defined,
      * and a magic __set setter method is defined, it will be called,
-     * otherwise the property will be dynamically defined on the object
+     * otherwise the property will be dynamically defined on the object.
      *
      * @param {Value} value
      * @returns {Value}
      */
     setValue: function (value) {
-        var property = this;
+        var property = this,
+            valueForAssignment;
 
-        return value
-            .next(function (presentValue) {
-                var valueForAssignment;
+        if (property.reference) {
+            // Note that we don't call .getForAssignment() here as the eventual reference will do so.
+            return property.reference.setValue(value);
+        }
 
-                if (property.reference) {
-                    // Note that we don't call .getForAssignment() here as the eventual reference will do so.
-                    return property.reference.setValue(presentValue);
-                }
+        valueForAssignment = value.getForAssignment();
 
-                valueForAssignment = presentValue.getForAssignment();
+        if (!property.isDefined()) {
+            // Property is not defined - attempt to call magic setter method first,
+            // otherwise just dynamically define the new property by setting its value below.
+            if (property.objectValue.isMethodDefined(MAGIC_SET)) {
+                return property.objectValue.callMethod(MAGIC_SET, [property.key, valueForAssignment])
+                    // Ignore the return value of __set(), but still await it as it may return a Future.
+                    .next(function () {
+                        return value;
+                    });
+            }
+        }
 
-                if (!property.isDefined()) {
-                    // Property is not defined - attempt to call magic setter method first,
-                    // otherwise just dynamically define the new property by setting its value below.
-                    if (property.objectValue.isMethodDefined(MAGIC_SET)) {
-                        return property.objectValue.callMethod(MAGIC_SET, [property.key, valueForAssignment])
-                            // Ignore the return value of __set(), but still await it as it may return a FutureValue.
-                            .next(function () {
-                                return presentValue;
-                            });
-                    }
-                }
+        // No magic setter is defined - store the value of this property directly on itself.
+        property.value = valueForAssignment;
 
-                // No magic setter is defined - store the value of this property directly on itself.
-                property.value = valueForAssignment;
-
-                return valueForAssignment;
-            });
+        return valueForAssignment;
     },
 
     /**
@@ -399,8 +391,7 @@ _.extend(PropertyReference.prototype, {
         if (!property.isDefined()) {
             // Property is not defined - call magic unsetter method if defined
             if (property.objectValue.isMethodDefined(MAGIC_UNSET)) {
-                return property.objectValue.callMethod(MAGIC_UNSET, [property.key])
-                    .asFuture();
+                return property.objectValue.callMethod(MAGIC_UNSET, [property.key]);
             }
         }
 

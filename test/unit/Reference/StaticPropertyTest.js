@@ -16,12 +16,12 @@ var expect = require('chai').expect,
     Class = require('../../../src/Class').sync(),
     Reference = require('../../../src/Reference/Reference'),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
-    StaticPropertyReference = require('../../../src/Reference/StaticProperty'),
-    StringValue = require('../../../src/Value/String').sync();
+    StaticPropertyReference = require('../../../src/Reference/StaticProperty');
 
 describe('StaticPropertyReference', function () {
     var callStack,
         classObject,
+        flow,
         futureFactory,
         propertyValue,
         property,
@@ -30,13 +30,14 @@ describe('StaticPropertyReference', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
-        state = tools.createIsolatedState(null, {
+        state = tools.createIsolatedState('async', {
             'call_stack': callStack
         });
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         valueFactory = state.getValueFactory();
         classObject = sinon.createStubInstance(Class);
-        propertyValue = sinon.createStubInstance(StringValue);
+        propertyValue = valueFactory.createString('the value of my property');
 
         callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
             throw new Error(
@@ -46,23 +47,18 @@ describe('StaticPropertyReference', function () {
 
         classObject.getName.returns('My\\Namespaced\\ClassName');
 
-        propertyValue.asEventualNative.returns(futureFactory.createPresent('the value of my property'));
-        propertyValue.formatAsString.returns('\'the value of my...\'');
-        propertyValue.getForAssignment.returns(propertyValue);
-        propertyValue.getNative.returns('the value of my property');
-        propertyValue.getType.returns('string');
-        propertyValue.toPromise.returns(Promise.resolve(propertyValue));
-
         property = new StaticPropertyReference(
             valueFactory,
             state.getReferenceFactory(),
+            futureFactory,
             callStack,
+            flow,
             classObject,
             'myProp',
             'protected'
         );
 
-        // At runtime this is done lazily, see Class.getStaticPropertyByName(...)
+        // At runtime this is done lazily, see Class.getStaticPropertyByName(...).
         property.setValue(propertyValue);
     });
 
@@ -82,9 +78,12 @@ describe('StaticPropertyReference', function () {
         });
     });
 
-    describe('formatAsString()', function () {
-        it('should return the correct string', function () {
-            expect(property.formatAsString()).to.equal('\'the value of my...\'');
+    describe('asValue()', function () {
+        it('should return the value of the property', function () {
+            var value = valueFactory.createString('my value');
+            property.setValue(value);
+
+            expect(property.asValue()).to.equal(value);
         });
     });
 
@@ -183,16 +182,21 @@ describe('StaticPropertyReference', function () {
     });
 
     describe('isEmpty()', function () {
-        it('should return true when the property has an empty value', function () {
-            propertyValue.isEmpty.returns(true);
+        it('should return true when the property has an empty value', async function () {
+            propertyValue = valueFactory.createString('');
+            property.setValue(propertyValue);
 
-            expect(property.isEmpty()).to.be.true;
+            expect(await property.isEmpty().toPromise()).to.be.true;
         });
 
-        it('should return false when the property has a non-empty value', function () {
-            propertyValue.isEmpty.returns(false);
+        it('should return false when the property has a non-empty value', async function () {
+            expect(await property.isEmpty().toPromise()).to.be.false;
+        });
+    });
 
-            expect(property.isEmpty()).to.be.false;
+    describe('isFuture()', function () {
+        it('should return false', function () {
+            expect(property.isFuture()).to.be.false;
         });
     });
 
@@ -218,16 +222,15 @@ describe('StaticPropertyReference', function () {
     });
 
     describe('isSet()', function () {
-        it('should return true when the property is set to a non-null value', function () {
-            propertyValue.isSet.returns(true);
-
-            expect(property.isSet()).to.be.true;
+        it('should return true when the property is set to a non-null value', async function () {
+            expect(await property.isSet().toPromise()).to.be.true;
         });
 
-        it('should return false when the property is set to a null value', function () {
-            propertyValue.isSet.returns(false);
+        it('should return false when the property is set to a null value', async function () {
+            propertyValue = valueFactory.createNull();
+            property.setValue(propertyValue);
 
-            expect(property.isSet()).to.be.false;
+            expect(await property.isSet().toPromise()).to.be.false;
         });
     });
 
@@ -257,11 +260,8 @@ describe('StaticPropertyReference', function () {
     });
 
     describe('toPromise()', function () {
-        it('should return a Promise that resolves with the Value of the property', async function () {
-            var resultValue = await property.toPromise();
-
-            expect(resultValue.getType()).to.equal('string');
-            expect(resultValue.getNative()).to.equal('the value of my property');
+        it('should return a Promise that resolves to the StaticPropertyReference', async function () {
+            expect(await property.toPromise()).to.equal(property);
         });
     });
 
@@ -272,6 +272,12 @@ describe('StaticPropertyReference', function () {
             }).to.throw(
                 'Fake PHP Fatal error for #core.cannot_unset_static_property with {"className":"My\\\\Namespaced\\\\ClassName","propertyName":"myProp"}'
             );
+        });
+    });
+
+    describe('yieldSync()', function () {
+        it('should just return the property', function () {
+            expect(property.yieldSync()).to.equal(property);
         });
     });
 });

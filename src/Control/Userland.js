@@ -78,7 +78,7 @@ _.extend(Userland.prototype, {
          * A pause or error occurred. Note that the error thrown could be a Future(Value),
          * in which case we need to yield to it so that a pause occurs if required.
          *
-         * @param {Error|Future|FutureValue|Pause} error
+         * @param {Error|Future|Pause} error
          * @param {Function} reject
          * @param {Function} run
          */
@@ -129,8 +129,8 @@ _.extend(Userland.prototype, {
 
             if (result) {
                 /*
-                 * Module may return a reference (eg. a variable), so always extract the value.
-                 * Note that this may be a FutureValue, eg. if returned from an accessor,
+                 * Module may return a reference (e.g. a variable), so always extract the value.
+                 * Note that this may be a Future, e.g. if returned from an accessor,
                  * in which case it will be yielded to below.
                  */
                 result = result.getValue();
@@ -161,8 +161,8 @@ _.extend(Userland.prototype, {
                     /*
                      * Await the result value, resolving or rejecting the promise as appropriate.
                      *
-                     * - If the result is a resolved FutureValue, this will resolve the promise.
-                     * - If the result is a rejected FutureValue, this will reject the promise.
+                     * - If the result is a resolved Future, this will resolve the promise.
+                     * - If the result is a rejected Future, this will reject the promise.
                      * - If the result is any other Value, this will resolve the promise.
                      *
                      * Use .nextIsolated() rather than .next() to avoid creating a further Future just for chaining.
@@ -191,7 +191,7 @@ _.extend(Userland.prototype, {
      *
      * @param {Function} executor
      * @param {NamespaceScope=} namespaceScope
-     * @returns {Future|FutureValue|Value}
+     * @returns {ChainableInterface<Value>}
      */
     enterIsolated: function (executor, namespaceScope) {
         var userland = this,

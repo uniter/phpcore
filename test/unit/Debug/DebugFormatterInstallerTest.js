@@ -16,33 +16,38 @@ var expect = require('chai').expect,
     DebugFormatterInstaller = require('../../../src/Debug/DebugFormatterInstaller');
 
 describe('DebugFormatterInstaller', function () {
+    var debugFactory,
+        debugFormatter,
+        formatter,
+        window;
+
     beforeEach(function () {
-        this.debugFormatter = sinon.createStubInstance(DebugFormatter);
-        this.debugFactory = sinon.createStubInstance(DebugFactory);
-        this.window = {};
+        debugFormatter = sinon.createStubInstance(DebugFormatter);
+        debugFactory = sinon.createStubInstance(DebugFactory);
+        window = {};
 
-        this.debugFactory.createDebugFormatter.returns(this.debugFormatter);
+        debugFactory.createDebugFormatter.returns(debugFormatter);
 
-        this.formatter = new DebugFormatterInstaller(this.window, this.debugFactory);
+        formatter = new DebugFormatterInstaller(window, debugFactory);
     });
 
     describe('install()', function () {
         it('should define the devtools formatter global and add formatter if it does not exist', function () {
-            this.formatter.install();
+            formatter.install();
 
-            expect(this.window.devtoolsFormatters).to.be.an('array');
-            expect(this.window.devtoolsFormatters).to.have.length(1);
-            expect(this.window.devtoolsFormatters[0]).to.equal(this.debugFormatter);
+            expect(window.devtoolsFormatters).to.be.an('array');
+            expect(window.devtoolsFormatters).to.have.length(1);
+            expect(window.devtoolsFormatters[0]).to.equal(debugFormatter);
         });
 
         it('should append the formatter to devtools global if it does already exist', function () {
-            this.window.devtoolsFormatters = [{}];
+            window.devtoolsFormatters = [{}];
 
-            this.formatter.install();
+            formatter.install();
 
-            expect(this.window.devtoolsFormatters).to.be.an('array');
-            expect(this.window.devtoolsFormatters).to.have.length(2);
-            expect(this.window.devtoolsFormatters[1]).to.equal(this.debugFormatter);
+            expect(window.devtoolsFormatters).to.be.an('array');
+            expect(window.devtoolsFormatters).to.have.length(2);
+            expect(window.devtoolsFormatters[1]).to.equal(debugFormatter);
         });
     });
 });

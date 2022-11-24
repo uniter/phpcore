@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP heredoc construct integration', function () {
-    it('should support quoted and unquoted heredocs with variables interpolated', function () {
+    it('should support quoted and unquoted heredocs with variables interpolated', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -41,17 +41,17 @@ QUOTED;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             'Hello there\n\nUNQUOTED; <-- Still inside\nGoodbye world!',
             'Hello there\n\nQUOTED; <-- Still inside\n\nGoodbye!'
         ]);
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should correctly handle a heredoc with references to pausing accessor variables', function () {
+    it('should correctly handle a heredoc with references to pausing accessor variables', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -86,16 +86,14 @@ EOS
             }
         );
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.equal(
-                'First, here is My first var\n' +
-                'and here is My second var!'
-            );
-            expect(engine.getStderr().readAll()).to.equal('');
-        });
+        expect((await engine.execute()).getNative()).to.equal(
+            'First, here is My first var\n' +
+            'and here is My second var!'
+        );
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should correctly handle a heredoc with reference to instance of class implementing __toString()', function () {
+    it('should correctly handle a heredoc with reference to instance of class implementing __toString()', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -137,12 +135,10 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.equal(
-                'First, here is Initial [call]\n' +
-                'and here is Initial [call] [call]!' // Note there are two [call]s the second time
-            );
-            expect(engine.getStderr().readAll()).to.equal('');
-        });
+        expect((await engine.execute()).getNative()).to.equal(
+            'First, here is Initial [call]\n' +
+            'and here is Initial [call] [call]!' // Note there are two [call]s the second time
+        );
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 });

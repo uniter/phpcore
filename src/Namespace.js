@@ -155,7 +155,7 @@ module.exports = require('pauser')([
          * @param {NamespaceScope} namespaceScope
          * @param {boolean=} autoCoercionEnabled Whether the class should be auto-coercing
          * @param {Function=} methodCaller Custom method call handler
-         * @returns {Future<Class>}
+         * @returns {ChainableInterface<Class>}
          */
         defineClass: function (
             name,
@@ -288,7 +288,7 @@ module.exports = require('pauser')([
          *
          * @param {string} name
          * @param {boolean} autoload Whether to attempt to autoload the class if it is not defined
-         * @returns {Future<Class>}
+         * @returns {ChainableInterface<Class>}
          */
         getClass: function (name, autoload) {
             var namespace = this,
@@ -296,7 +296,8 @@ module.exports = require('pauser')([
                 lowerName = parsed.name.toLowerCase();
 
             if (hasOwn.call(parsed.namespace.classes, lowerName)) {
-                // Class already exists; just return it
+                // Class already exists; just return it.
+                // TODO: Make Class implement ChainableInterface to avoid always Future-wrapping.
                 return namespace.futureFactory.createPresent(parsed.namespace.classes[lowerName]);
             }
 

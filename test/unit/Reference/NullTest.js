@@ -16,19 +16,23 @@ var expect = require('chai').expect,
     Value = require('../../../src/Value').sync();
 
 describe('NullReference', function () {
-    var futureFactory,
+    var flow,
+        futureFactory,
         onSet,
         reference,
+        referenceFactory,
         state,
         valueFactory;
 
     beforeEach(function () {
         state = tools.createIsolatedState();
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
+        referenceFactory = state.getReferenceFactory();
         valueFactory = state.getValueFactory();
         onSet = sinon.spy();
 
-        reference = new NullReference(valueFactory, futureFactory, {
+        reference = new NullReference(valueFactory, referenceFactory, futureFactory, flow, {
             onSet: onSet
         });
     });
@@ -45,9 +49,9 @@ describe('NullReference', function () {
         });
     });
 
-    describe('formatAsString()', function () {
-        it('should return "NULL"', function () {
-            expect(reference.formatAsString()).to.equal('NULL');
+    describe('asValue()', function () {
+        it('should return the value Null', function () {
+            expect(reference.asValue().getType()).to.equal('null');
         });
     });
 
@@ -99,6 +103,12 @@ describe('NullReference', function () {
         });
     });
 
+    describe('isFuture()', function () {
+        it('should return false', function () {
+            expect(reference.isFuture()).to.be.false;
+        });
+    });
+
     describe('isReference()', function () {
         it('should return false', function () {
             expect(reference.isReference()).to.be.false;
@@ -132,10 +142,14 @@ describe('NullReference', function () {
     });
 
     describe('toPromise()', function () {
-        it('should return a Promise that resolves to a NullValue', async function () {
-            var resultValue = await reference.toPromise();
+        it('should return a Promise that resolves to the NullReference', async function () {
+            expect(await reference.toPromise()).to.equal(reference);
+        });
+    });
 
-            expect(resultValue.getType()).to.equal('null');
+    describe('yieldSync()', function () {
+        it('should just return the reference', function () {
+            expect(reference.yieldSync()).to.equal(reference);
         });
     });
 });

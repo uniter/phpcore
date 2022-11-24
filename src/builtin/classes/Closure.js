@@ -27,7 +27,7 @@ module.exports = function (internals) {
          * @param {ObjectValue} closureValue
          * @param {NullValue|ObjectValue} newThisValue
          * @param {Value} newScopeValue
-         * @returns {Future<ObjectValue>}
+         * @returns {ChainableInterface<ObjectValue>}
          */
         bind = function (closureValue, newThisValue, newScopeValue) {
             var scopeClassFuture,
@@ -164,7 +164,6 @@ module.exports = function (internals) {
 
             if (internals.mode === 'async') {
                 return maybeFuture
-                    .asFuture() // Avoid re-boxing the result as a Value.
                     .next(
                         function (resultValue) {
                             // Make sure we resolve the promise with the native result value.

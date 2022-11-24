@@ -27,20 +27,27 @@ module.exports = require('pauser')([
      * @param {ValueFactory} valueFactory
      * @param {ReferenceFactory} referenceFactory
      * @param {FutureFactory} futureFactory
+     * @param {Flow} flow
      * @param {string} name
      * @constructor
+     * @implements {ChainableInterface}
      */
     function Variable(
         callStack,
         valueFactory,
         referenceFactory,
         futureFactory,
+        flow,
         name
     ) {
         /**
          * @type {CallStack}
          */
         this.callStack = callStack;
+        /**
+         * @type {Flow}
+         */
+        this.flow = flow;
         /**
          * @type {FutureFactory}
          */
@@ -70,9 +77,9 @@ module.exports = require('pauser')([
     _.extend(Variable.prototype, {
         /**
          * Returns the value of this variable, suitable for use as an array element.
-         * Note that FutureValues will be returned unchanged ready to be awaited.
+         * Note that Future-wrapped Values will be returned unchanged ready to be awaited.
          *
-         * @returns {Value}
+         * @returns {ChainableInterface<Value>}
          */
         asArrayElement: function () {
             return this.getValue().getForAssignment();
@@ -81,10 +88,19 @@ module.exports = require('pauser')([
         /**
          * Returns a Future that will resolve to the native value of this variable.
          *
-         * @returns {Future<*>}
+         * @returns {FutureInterface<*>}
          */
         asEventualNative: function () {
-            return this.getValue().asEventualNative();
+            return this.getValue().next(function (value) {
+                return value.asEventualNative();
+            });
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        asValue: function () {
+            return this.getValue();
         },
 
         /**
@@ -92,20 +108,6 @@ module.exports = require('pauser')([
          */
         clearReference: function () {
             this.reference = null;
-        },
-
-        /**
-         * Formats the variable (which may not be defined) for display in stack traces etc.
-         *
-         * @returns {string}
-         */
-        formatAsString: function () {
-            var variable = this;
-
-            return variable.isDefined() ?
-                // TODO: Handle async pause with Flow
-                variable.getValue().formatAsString() :
-                'NULL';
         },
 
         /**
@@ -121,9 +123,9 @@ module.exports = require('pauser')([
          * Fetches the value of this variable. If it holds a value directly
          * this will be returned, otherwise if it is a reference to another
          * variable or reference (array element/object property etc.)
-         * then the value of the reference will be fetched
+         * then the value of the reference will be fetched.
          *
-         * @returns {Value}
+         * @returns {ChainableInterface<Value>}
          */
         getValue: function () {
             var variable = this;
@@ -169,12 +171,12 @@ module.exports = require('pauser')([
 
         /**
          * Fetches the native value for the value or reference of this variable.
-         * Note that if its value is a pending FutureValue, an error will be raised.
+         * Note that if its value is a pending Future, an error will be raised.
          *
          * @returns {*}
          */
         getNative: function () {
-            return this.getValue().getNative();
+            return this.getValue().yieldSync().getNative();
         },
 
         /**
@@ -217,7 +219,7 @@ module.exports = require('pauser')([
         /**
          * Determines whether this variable is classed as "empty" or not
          *
-         * @returns {Future<boolean>}
+         * @returns {FutureInterface<boolean>}
          */
         isEmpty: function () {
             var variable = this;
@@ -234,6 +236,23 @@ module.exports = require('pauser')([
 
             // Otherwise the variable is undefined, so it is empty
             return variable.futureFactory.createPresent(true);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        isFuture: function () {
+            return false;
+        },
+
+        /**
+         * Determines whether this variable is readable.
+         * Some values may be undefined but still readable, e.g. overloaded properties using __get(...).
+         *
+         * @returns {boolean}
+         */
+        isReadable: function () {
+            return this.isDefined();
         },
 
         /**
@@ -257,7 +276,7 @@ module.exports = require('pauser')([
         /**
          * Determines whether this variable is classed as "set" or not
          *
-         * @returns {Future<boolean>}
+         * @returns {FutureInterface<boolean>}
          */
         isSet: function () {
             var variable = this;
@@ -274,6 +293,28 @@ module.exports = require('pauser')([
 
             // Otherwise the variable is undefined, so it is not set
             return variable.futureFactory.createPresent(false);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        next: function (resolveHandler) {
+            var variable = this,
+                result;
+
+            if (!resolveHandler) {
+                return variable;
+            }
+
+            try {
+                result = resolveHandler(variable);
+            } catch (error) {
+                return variable.futureFactory.createRejection(error);
+            }
+
+            result = variable.flow.chainify(result);
+
+            return result;
         },
 
         /**
@@ -298,37 +339,32 @@ module.exports = require('pauser')([
          * this will be overwritten, otherwise if it is a reference to another
          * variable or reference (array element/object property etc.)
          * then the value of the reference will be changed instead.
-         * Returns the value that was assigned
+         * Returns the value that was assigned.
          *
-         * @param {Reference|Value} value
-         * @returns {Value}
+         * @param {Value} value
+         * @returns {ChainableInterface<Value>}
          */
         setValue: function (value) {
-            var variable = this;
+            var assignedValue,
+                variable = this;
 
-            return value
-                .next(function (presentValue) {
-                    var assignedValue;
+            if (variable.name === 'this' && value.getType() === 'null') {
+                // Normalise the value of $this to either be set to an ObjectValue
+                // or be unset
+                variable.value = null;
 
-                    if (variable.name === 'this' && presentValue.getType() === 'null') {
-                        // Normalise the value of $this to either be set to an ObjectValue
-                        // or be unset
-                        variable.value = null;
+                return value;
+            }
 
-                        return presentValue;
-                    }
+            if (variable.reference) {
+                // Note that we don't call .getForAssignment() here as the eventual reference will do so.
+                return variable.reference.setValue(value);
+            }
 
-                    if (variable.reference) {
-                        // Note that we don't call .getForAssignment() here as the eventual reference will do so.
-                        return variable.reference.setValue(presentValue);
-                    }
+            assignedValue = value.getForAssignment();
+            variable.value = assignedValue;
 
-                    assignedValue = presentValue.getForAssignment();
-                    variable.value = assignedValue;
-
-                    return assignedValue;
-                })
-                .asValue();
+            return assignedValue;
         },
 
         /**
@@ -374,6 +410,13 @@ module.exports = require('pauser')([
             variable.value = variable.reference = null;
 
             return variable.futureFactory.createPresent(null);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        yieldSync: function () {
+            return this;
         }
     });
 

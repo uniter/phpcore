@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../../tools');
 
 describe('PHP class static method integration', function () {
-    it('should support classes with a static method called "length"', function () {
+    it('should support classes with a static method called "length"', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyClass
@@ -41,10 +41,10 @@ $result['length'] = MyClass::length();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'prop': 'my value',
             'length': 21
         });

@@ -17,16 +17,20 @@ var _ = require('microdash'),
  * Decorates an ElementReference to allow it to be hooked into
  *
  * @param {ReferenceFactory} referenceFactory
+ * @param {FutureFactory} futureFactory
+ * @param {Flow} flow
  * @param {ElementReference} decoratedElement
  * @param {ElementHookCollection} elementHookCollection
  * @constructor
  */
 function HookableElementReference(
     referenceFactory,
+    futureFactory,
+    flow,
     decoratedElement,
     elementHookCollection
 ) {
-    Reference.call(this, referenceFactory);
+    Reference.call(this, referenceFactory, futureFactory, flow);
 
     /**
      * @type {ElementReference}
@@ -73,9 +77,9 @@ _.extend(HookableElementReference.prototype, {
     },
 
     /**
-     * Fetches the value of this element (or the value of its reference, if set)
+     * Fetches the value of this element (or the value of its reference, if set).
      *
-     * @returns {Value}
+     * @returns {ChainableInterface<Value>}
      */
     getValue: function () {
         return this.decoratedElement.getValue();
@@ -102,7 +106,7 @@ _.extend(HookableElementReference.prototype, {
     /**
      * Determines whether the specified array element is "empty" or not
      *
-     * @returns {Future<boolean>}
+     * @returns {ChainableInterface<boolean>}
      */
     isEmpty: function () {
         return this.decoratedElement.isEmpty();
@@ -120,7 +124,7 @@ _.extend(HookableElementReference.prototype, {
     /**
      * Determines whether this element is defined and if so, whether its value or reference is "set"
      *
-     * @returns {Future<boolean>}
+     * @returns {ChainableInterface<boolean>}
      */
     isSet: function () {
         return this.decoratedElement.isSet();
@@ -151,20 +155,22 @@ _.extend(HookableElementReference.prototype, {
      * Sets a value for this element to have, clearing any reference it may currently have
      *
      * @param {Value} value
-     * @returns {FutureValue}
+     * @returns {ChainableInterface<Value>}
      */
     setValue: function (value) {
         var element = this;
 
         return element.decoratedElement.setValue(value).next(function () {
             element.elementHookCollection.handleElementValueSet(element, value);
+
+            return value;
         });
     },
 
     /**
      * Unsets this element, so that it no longer refers to a reference or holds a value
      *
-     * @returns {Future}
+     * @returns {ChainableInterface}
      */
     unset: function () {
         var element = this;

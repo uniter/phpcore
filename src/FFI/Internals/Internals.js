@@ -230,20 +230,20 @@ function Internals(
 
 _.extend(Internals.prototype, {
     /**
-     * Creates a new FutureValue whose executor is always called asynchronously in a macrotask.
+     * Creates a new Future-wrapped Value whose executor is always called asynchronously in a macrotask.
      *
      * @param {Function} executor
-     * @returns {FutureValue}
+     * @returns {FutureInterface<Value>}
      */
     createAsyncMacrotaskFutureValue: function (executor) {
         return this.valueFactory.createAsyncMacrotaskFuture(executor);
     },
 
     /**
-     * Creates a new FutureValue whose executor is always called asynchronously in a microtask.
+     * Creates a new Future-wrapped Value whose executor is always called asynchronously in a microtask.
      *
      * @param {Function} executor
-     * @returns {FutureValue}
+     * @returns {FutureInterface<Value>}
      */
     createAsyncMicrotaskFutureValue: function (executor) {
         return this.valueFactory.createAsyncMicrotaskFuture(executor);
@@ -253,17 +253,17 @@ _.extend(Internals.prototype, {
      * Creates a new Future to be resolved with the given value after deferring.
      *
      * @param {*} value
-     * @returns {Future}
+     * @returns {FutureInterface}
      */
     createAsyncPresent: function (value) {
         return this.futureFactory.createAsyncPresent(value);
     },
 
     /**
-     * Creates a new FutureValue to be resolved with the given value after deferring.
+     * Creates a new Future-wrapped Value to be resolved with the given value after deferring.
      *
      * @param {*} value
-     * @returns {FutureValue}
+     * @returns {FutureInterface<Value>}
      */
     createAsyncPresentValue: function (value) {
         return this.valueFactory.createAsyncPresent(value);
@@ -273,20 +273,10 @@ _.extend(Internals.prototype, {
      * Creates a new Future to be rejected with the given error after deferring.
      *
      * @param {Error} error
-     * @returns {Future}
+     * @returns {FutureInterface}
      */
     createAsyncRejection: function (error) {
         return this.futureFactory.createAsyncRejection(error);
-    },
-
-    /**
-     * Creates a new FutureValue to be rejected with the given error after deferring.
-     *
-     * @param {Error} error
-     * @returns {FutureValue}
-     */
-    createAsyncRejectionValue: function (error) {
-        return this.valueFactory.createAsyncRejection(error);
     },
 
     /**
@@ -304,17 +294,17 @@ _.extend(Internals.prototype, {
      * Creates a Future.
      *
      * @param {Function} executor
-     * @returns {Future}
+     * @returns {FutureInterface}
      */
     createFuture: function (executor) {
         return this.futureFactory.createFuture(executor);
     },
 
     /**
-     * Creates a FutureValue.
+     * Creates a Future-wrapped Value.
      *
      * @param {Function} executor
-     * @returns {FutureValue}
+     * @returns {FutureInterface<Value>}
      */
     createFutureValue: function (executor) {
         return this.valueFactory.createFuture(executor);
@@ -324,17 +314,18 @@ _.extend(Internals.prototype, {
      * Creates a present Future.
      *
      * @param {*} value
-     * @returns {Future}
+     * @returns {FutureInterface}
      */
     createPresent: function (value) {
         return this.futureFactory.createPresent(value);
     },
 
     /**
-     * Creates a present FutureValue.
+     * Creates a present Future-wrapped Value. Note that this will always result in a Future,
+     * rather than potentially a Value (which is when ChainableInterface<Value> would be typed).
      *
      * @param {Value} value
-     * @returns {FutureValue}
+     * @returns {FutureInterface<Value>}
      */
     createPresentValue: function (value) {
         return this.valueFactory.createPresent(value);
@@ -344,20 +335,10 @@ _.extend(Internals.prototype, {
      * Creates a rejected Future.
      *
      * @param {Error} error
-     * @returns {Future}
+     * @returns {FutureInterface}
      */
     createRejection: function (error) {
         return this.futureFactory.createRejection(error);
-    },
-
-    /**
-     * Creates a rejected FutureValue.
-     *
-     * @param {Error} error
-     * @returns {FutureValue}
-     */
-    createRejectionValue: function (error) {
-        return this.valueFactory.createRejection(error);
     },
 
     /**
@@ -405,7 +386,7 @@ _.extend(Internals.prototype, {
      * Implicitly converts undefined variables/references and those containing null to arrays.
      *
      * @param {Reference|Value|Variable} arrayReference
-     * @returns {FutureValue}
+     * @returns {ChainableInterface<Value>}
      */
     implyArray: function (arrayReference) {
         var internals = this,
@@ -419,13 +400,12 @@ _.extend(Internals.prototype, {
         } else {
             maybePresentValue = arrayReference.getValue();
 
-            if (maybePresentValue.getType() === 'array') {
+            if (internals.valueFactory.isValue(maybePresentValue) && maybePresentValue.getType() === 'array') {
                 // Fastest case: value is present and already an array, just return.
                 return maybePresentValue;
             }
 
             needsArrayAssignmentFuture = maybePresentValue
-                .asFuture()
                 .next(function (presentValue) {
                     return presentValue.getType() === 'null';
                 });
@@ -444,8 +424,7 @@ _.extend(Internals.prototype, {
                 }
 
                 return arrayReference.getValue();
-            })
-            .asValue();
+            });
     },
 
     /**

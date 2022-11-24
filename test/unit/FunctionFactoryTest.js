@@ -138,13 +138,14 @@ describe('FunctionFactory', function () {
                 result = callCreate()();
                 resultValue = await result.toPromise();
 
-                expect(result).to.be.an.instanceOf(Value);
+                expect(resultValue).to.be.an.instanceOf(Value);
                 expect(resultValue.getType()).to.equal('int');
                 expect(resultValue.getNative()).to.equal(123);
             });
 
             it('should return the eventual result from the wrapped function when return-by-reference', async function () {
                 var resultVariable = sinon.createStubInstance(Variable);
+                resultVariable.next.callsArgWith(0, resultVariable);
                 functionSpec.isReturnByReference.returns(true);
                 originalFunc.returns(resultVariable);
 

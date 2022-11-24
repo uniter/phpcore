@@ -11,38 +11,45 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('./tools'),
     CallStack = require('../../src/CallStack'),
-    FutureFactory = require('../../src/Control/FutureFactory'),
     IntegerValue = require('../../src/Value/Integer').sync(),
     NullReference = require('../../src/Reference/Null'),
     ObjectValue = require('../../src/Value/Object').sync(),
     PropertyReference = require('../../src/Reference/Property'),
-    ReferenceFactory = require('../../src/ReferenceFactory').sync(),
-    Value = require('../../src/Value').sync(),
-    ValueFactory = require('../../src/ValueFactory').sync();
+    Value = require('../../src/Value').sync();
 
 // TODO: Merge these tests into the relevant *Value class' tests - this should be considered abstract.
 describe('Value', function () {
     var callStack,
+        createValue,
         factory,
+        flow,
         futureFactory,
         referenceFactory,
-        value;
+        state;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
-        futureFactory = sinon.createStubInstance(FutureFactory);
-        referenceFactory = sinon.createStubInstance(ReferenceFactory);
-        factory = new ValueFactory();
+        state = tools.createIsolatedState('async', {
+            'call_stack': callStack
+        });
+        flow = state.getFlow();
+        futureFactory = state.getFutureFactory();
+        referenceFactory = state.getReferenceFactory();
+        factory = state.getValueFactory();
 
-        value = new Value(
-            factory || factory,
-            referenceFactory,
-            futureFactory,
-            callStack,
-            'my-type',
-            'my value'
-        );
+        createValue = function (type, value) {
+            return new Value(
+                factory || factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                flow,
+                type,
+                value
+            );
+        };
     });
 
     describe('bitwiseAnd()', function () {
@@ -50,8 +57,8 @@ describe('Value', function () {
             var left = parseInt('10101101', 2),
                 right = parseInt('00001011', 2),
                 expectedResult = parseInt('00001001', 2),
-                leftValue = new Value(factory, referenceFactory, futureFactory, callStack, 'first-type', left),
-                rightValue = new Value(factory, referenceFactory, futureFactory, callStack, 'second-type', right),
+                leftValue = createValue('first-type', left),
+                rightValue = createValue('second-type', right),
                 result = leftValue.bitwiseAnd(rightValue);
 
             expect(result).to.be.an.instanceOf(IntegerValue);
@@ -64,8 +71,8 @@ describe('Value', function () {
             var left = parseInt('10101001', 2),
                 right = parseInt('11110000', 2),
                 expectedResult = parseInt('11111001', 2),
-                leftValue = new Value(factory, referenceFactory, futureFactory, callStack, 'first-type', left),
-                rightValue = new Value(factory, referenceFactory, futureFactory, callStack, 'second-type', right),
+                leftValue = createValue('first-type', left),
+                rightValue = createValue('second-type', right),
                 result = leftValue.bitwiseOr(rightValue);
 
             expect(result).to.be.an.instanceOf(IntegerValue);
@@ -75,7 +82,7 @@ describe('Value', function () {
 
     describe('coerceToInteger()', function () {
         it('should coerce the value to an integer', function () {
-            var value = new Value(factory, referenceFactory, futureFactory, callStack, 'my-type', '127.632'),
+            var value = createValue('my-type', '127.632'),
                 result = value.coerceToInteger();
 
             expect(result).to.be.an.instanceOf(IntegerValue);
@@ -85,7 +92,7 @@ describe('Value', function () {
 
     describe('coerceToNumber()', function () {
         it('should coerce the value to an integer', function () {
-            var value = new Value(factory, referenceFactory, futureFactory, callStack, 'my-type', '12'),
+            var value = createValue('my-type', '12'),
                 result = value.coerceToNumber();
 
             expect(result).to.be.an.instanceOf(IntegerValue);
@@ -95,7 +102,8 @@ describe('Value', function () {
 
     describe('coerceToObject()', function () {
         var nativeStdClassObject,
-            stdClassObject;
+            stdClassObject,
+            value;
 
         beforeEach(function () {
             nativeStdClassObject = {};
@@ -114,6 +122,8 @@ describe('Value', function () {
 
                 return propertyRef;
             });
+
+            value = createValue('my-type', 'my value');
         });
 
         it('should return an ObjectValue wrapping the created stdClass instance', function () {
@@ -122,8 +132,8 @@ describe('Value', function () {
             expect(coercedValue).to.equal(stdClassObject);
         });
 
-        it('should store the value as a property of the stdClass object called `scalar`', function () {
-            value.coerceToObject();
+        it('should store the value as a property of the stdClass object called `scalar`', async function () {
+            await value.coerceToObject().toPromise();
 
             expect(nativeStdClassObject.scalar).to.equal('my value');
         });
@@ -131,15 +141,16 @@ describe('Value', function () {
 
     describe('getPushElement()', function () {
         it('should return a NullReference', function () {
-            var nullReference = sinon.createStubInstance(NullReference);
-            referenceFactory.createNull.returns(nullReference);
+            var value = createValue('my-type', 'my value');
 
-            expect(value.getPushElement()).to.equal(nullReference);
+            expect(value.getPushElement()).to.be.an.instanceOf(NullReference);
         });
     });
 
     describe('isReferenceable()', function () {
         it('should return false', function () {
+            var value = createValue('my-type', 'my value');
+
             expect(value.isReferenceable()).to.be.false;
         });
     });

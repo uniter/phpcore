@@ -105,7 +105,7 @@ _.extend(ClassInternalsClassFactory.prototype, {
              *
              * @param {ObjectValue|object} instance Object instance (see below)
              * @param {Value[]|*[]} args Arguments (Value objects if non-coercing, native if coercing)
-             * @returns {FutureValue<ObjectValue>|ObjectValue}
+             * @returns {ChainableInterface<ObjectValue>}
              */
             callSuperConstructor: function (instance, args) {
                 var argValues,
@@ -149,7 +149,7 @@ _.extend(ClassInternalsClassFactory.prototype, {
              * Defines the class
              *
              * @param {Function} definitionFactory
-             * @returns {Future<Class>}
+             * @returns {ChainableInterface<Class>}
              */
             defineClass: function (definitionFactory) {
                 var internals = this,

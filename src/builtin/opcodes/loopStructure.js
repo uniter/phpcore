@@ -23,7 +23,7 @@ module.exports = function (internals) {
          * Determines whether this iterator is pointing past the end of the array being iterated over
          *
          * @param {ArrayIterator|ObjectValue} iterator
-         * @returns {boolean|Future<boolean>}
+         * @returns {ChainableInterface<boolean>}
          */
         isNotFinished: function (iterator) {
             return iterator.isNotFinished();
@@ -31,10 +31,10 @@ module.exports = function (internals) {
 
         /**
          * Handles the condition expression of a loop, evaluating and coercing it to a native boolean.
-         * Note that the condition is sometimes optional, eg. for a "for" loop.
+         * Note that the condition is sometimes optional, e.g. for a "for" loop.
          *
          * @param {Reference|Value|Variable=} conditionReference
-         * @returns {Future<boolean>|boolean}
+         * @returns {ChainableInterface<boolean>}
          */
         loop: function (conditionReference) {
             if (!conditionReference) {
@@ -42,7 +42,9 @@ module.exports = function (internals) {
                 return true;
             }
 
-            return conditionReference.getValue().coerceToBoolean().asEventualNative();
+            return conditionReference.getValue().next(function (value) {
+                return value.coerceToBoolean().getNative();
+            });
         }
     };
 };

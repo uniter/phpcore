@@ -90,7 +90,10 @@ describe('Service Container', function () {
             container.getService('my.service');
 
             expect(provider).to.have.been.calledOnce;
-            expect(provider).to.have.been.calledWith(sinon.match.same(container.getServiceFetcher()));
+            expect(provider).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.same(container.getServiceFetcher())
+            );
         });
 
         describe('on subsequent calls', function () {
@@ -111,6 +114,87 @@ describe('Service Container', function () {
                 container.getService('my.service');
 
                 expect(provider).to.have.been.calledOnce;
+            });
+        });
+
+        describe('set() callback', function () {
+            it('should allow the service to be set by the set() callback', function () {
+                var service = {my: 'service'};
+
+                container.defineService('my.service', function (set) {
+                    set(service);
+                });
+
+                expect(container.getService('my.service')).to.equal(service);
+            });
+
+            it('should allow circular dependencies to be set up via deferred injection', function () {
+                var fetchedService;
+                container.defineService('my.service', function (set, get) {
+                    var service = set({my: 'service'});
+
+                    service.dependency = get('my.dependency');
+                });
+                container.defineService('my.dependency', function (set, get) {
+                    var dependency = {my: 'dependency'};
+
+                    dependency.parent = get('my.service');
+
+                    return dependency;
+                });
+
+                fetchedService = container.getService('my.service');
+
+                expect(fetchedService.my).to.equal('service');
+                expect(fetchedService.dependency.my).to.equal('dependency');
+                expect(fetchedService.dependency.parent).to.equal(fetchedService);
+            });
+
+            it('should throw when the provider subsequently returns a value after calling set()', function () {
+                container.defineService('my.service', function (set) {
+                    set({my: 'service'});
+
+                    return {not: 'my service'};
+                });
+
+                expect(function () {
+                    container.getService('my.service');
+                }).to.throw(
+                    Exception,
+                    'Service "my.service" provider returned a value after calling set()'
+                );
+            });
+
+            it('should throw when the provider calls set() twice', function () {
+                container.defineService('my.service', function (set) {
+                    set({my: 'service'});
+                    set({another: 'service'});
+                });
+
+                expect(function () {
+                    container.getService('my.service');
+                }).to.throw(
+                    Exception,
+                    'Service "my.service" provider called set() multiple times'
+                );
+            });
+
+            it('should throw when the provider calls set() after using the return approach', function () {
+                var doSet;
+
+                container.defineService('my.service', function (set) {
+                    doSet = set;
+
+                    return {my: 'service'};
+                });
+                container.getService('my.service');
+
+                expect(function () {
+                    doSet({another: 'service'});
+                }).to.throw(
+                    Exception,
+                    'Service "my.service" provider already returned a value, but set() was later called'
+                );
             });
         });
 

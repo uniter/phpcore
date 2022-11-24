@@ -23,6 +23,7 @@ module.exports = require('pauser')([
     Value
 ) {
     var Exception = phpCommon.Exception,
+        MAGIC_TO_STRING = '__toString',
         PHPError = phpCommon.PHPError,
         NON_WELL_FORMED_NUMERIC_VALUE = 'core.non_well_formed_numeric_value';
 
@@ -31,12 +32,21 @@ module.exports = require('pauser')([
      * @param {ReferenceFactory} referenceFactory
      * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
+     * @param {Flow} flow
      * @param {string} value
      * @param {Namespace} globalNamespace
      * @constructor
      */
-    function StringValue(factory, referenceFactory, futureFactory, callStack, value, globalNamespace) {
-        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'string', value);
+    function StringValue(
+        factory,
+        referenceFactory,
+        futureFactory,
+        callStack,
+        flow,
+        value,
+        globalNamespace
+    ) {
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, flow, 'string', value);
 
         /**
          * @type {Namespace}
@@ -51,7 +61,7 @@ module.exports = require('pauser')([
          * Calls a function or static method based on the contents of the string.
          *
          * @param {Value[]} args
-         * @returns {Future<Reference|Value>|Reference|Value}
+         * @returns {ChainableInterface<Reference|Value|Variable>}
          */
         call: function (args) {
             var classNameValue,
@@ -71,7 +81,7 @@ module.exports = require('pauser')([
                 classNameValue = value.factory.createString(match[1]);
                 methodNameValue = value.factory.createString(match[2]);
 
-                // Note that this may return a FutureValue due to autoloading.
+                // Note that this may return a Future-wrapped Value due to autoloading.
                 return classNameValue.callStaticMethod(methodNameValue, args);
             }
 
@@ -85,7 +95,7 @@ module.exports = require('pauser')([
          * @param {StringValue} nameValue
          * @param {Value[]} args
          * @param {bool=} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
-         * @returns {Future<Reference|Value>}
+         * @returns {ChainableInterface<Reference|Value|Variable>}
          */
         callStaticMethod: function (nameValue, args, isForwarding) {
             var value = this;
@@ -155,8 +165,16 @@ module.exports = require('pauser')([
         /**
          * {@inheritdoc}
          */
+        compareWith: function (rightValue) {
+            return rightValue.compareWithString(this);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
         compareWithArray: function () {
-            return 1; // Arrays (even empty ones) are always greater (except for objects).
+            // Arrays (even empty ones) are always greater (except for objects).
+            return this.futureFactory.createPresent(1);
         },
 
         /**
@@ -229,15 +247,18 @@ module.exports = require('pauser')([
         /**
          * {@inheritdoc}
          */
-        compareWithObject: function () {
-            return 1; // Objects (even empty ones) are always greater.
-        },
+        compareWithObject: function (leftValue) {
+            var rightValue = this;
 
-        /**
-         * {@inheritdoc}
-         */
-        compareWithPresent: function (rightValue) {
-            return rightValue.compareWithString(this);
+            if (!leftValue.isMethodDefined(MAGIC_TO_STRING)) {
+                // Objects (even empty ones) are always greater.
+                return rightValue.futureFactory.createPresent(1);
+            }
+
+            return leftValue.callMethod(MAGIC_TO_STRING)
+                .next(function (leftStringValue) {
+                    return leftStringValue.compareWithString(rightValue);
+                });
         },
 
         /**
@@ -269,11 +290,13 @@ module.exports = require('pauser')([
 
             if (leftValue.isNumeric() && rightValue.isNumeric()) {
                 // Both operands are numeric strings, so the comparison is done numerically.
-                return rightValue.coerceToFloat().compareWithFloat(leftValue.coerceToFloat());
+                return rightValue.futureFactory.createPresent(
+                    rightValue.coerceToFloat().compareWithFloat(leftValue.coerceToFloat())
+                );
             }
 
             // Otherwise do a lexical comparison.
-            return leftString.localeCompare(rightString);
+            return rightValue.futureFactory.createPresent(leftString.localeCompare(rightString));
         },
 
         /**
@@ -354,10 +377,10 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches the value of a constant from the class this string refers to
+         * Fetches the value of a constant from the class this string refers to.
          *
          * @param {string} name
-         * @returns {Value}
+         * @returns {ChainableInterface<Value>}
          */
         getConstantByName: function (name) {
             var value = this;
@@ -366,8 +389,7 @@ module.exports = require('pauser')([
             return value.globalNamespace.getClass(value.value)
                 .next(function (classObject) {
                     return classObject.getConstantByName(name);
-                })
-                .asValue();
+                });
         },
 
         /**
@@ -403,10 +425,10 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches a reference to a static property of the class this string refers to
+         * Fetches a reference to a static property of the class this string refers to.
          *
          * @param {StringValue} nameValue
-         * @returns {Future<StaticPropertyReference|UndeclaredStaticPropertyReference>}
+         * @returns {ChainableInterface<StaticPropertyReference|UndeclaredStaticPropertyReference>}
          */
         getStaticPropertyByName: function (nameValue) {
             var value = this;
@@ -431,7 +453,7 @@ module.exports = require('pauser')([
          * Creates an instance of the class this string contains the FQCN of
          *
          * @param {Value[]} args
-         * @returns {FutureValue<ObjectValue>}
+         * @returns {ChainableInterface<ObjectValue>}
          */
         instantiate: function (args) {
             var value = this;
@@ -440,8 +462,7 @@ module.exports = require('pauser')([
             return value.globalNamespace.getClass(value.value)
                 .next(function (classObject) {
                     return classObject.instantiate(args);
-                })
-                .asValue();
+                });
         },
 
         isAnInstanceOf: function (classNameValue) {
@@ -489,7 +510,7 @@ module.exports = require('pauser')([
         /**
          * Determines whether this value is classed as "empty" or not
          *
-         * @returns {Future<boolean>}
+         * @returns {ChainableInterface<boolean>}
          */
         isEmpty: function () {
             var value = this;

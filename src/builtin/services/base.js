@@ -10,23 +10,26 @@
 'use strict';
 
 var phpCommon = require('phpcommon'),
+    ArrayChainifier = require('../../Control/Chain/ArrayChainifier'),
     CalculationOpcode = require('../../Core/Opcode/Opcode/CalculationOpcode'),
     CalculationOpcodeFetcher = require('../../Core/Opcode/Fetcher/CalculationOpcodeFetcher'),
     Call = require('../../Call'),
     CallFactory = require('../../CallFactory'),
     CallStack = require('../../CallStack'),
+    Chainifier = require('../../Control/Chain/Chainifier'),
     ControlBridge = require('../../Control/ControlBridge'),
     ControlExpressionOpcode = require('../../Core/Opcode/Opcode/ControlExpressionOpcode'),
     ControlExpressionOpcodeFetcher = require('../../Core/Opcode/Fetcher/ControlExpressionOpcodeFetcher'),
+    ControlFactory = require('../../Control/ControlFactory'),
     ControlScope = require('../../Control/ControlScope'),
     ControlStructureOpcode = require('../../Core/Opcode/Opcode/ControlStructureOpcode'),
     ControlStructureOpcodeFetcher = require('../../Core/Opcode/Fetcher/ControlStructureOpcodeFetcher'),
     Coroutine = require('../../Control/Coroutine'),
     CoroutineFactory = require('../../Control/CoroutineFactory'),
+    ElementProviderFactory = require('../../Reference/Element/ElementProviderFactory'),
     FFICall = require('../../FFI/Call'),
     Future = require('../../Control/Future'),
     FutureFactory = require('../../Control/FutureFactory'),
-    FutureValue = require('../../Value/Future'),
     HostScheduler = require('../../Control/HostScheduler'),
     LoopStructureOpcode = require('../../Core/Opcode/Opcode/LoopStructureOpcode'),
     LoopStructureOpcodeFetcher = require('../../Core/Opcode/Fetcher/LoopStructureOpcodeFetcher'),
@@ -48,16 +51,23 @@ var phpCommon = require('phpcommon'),
     ReturnTypeProvider = require('../../Function/ReturnTypeProvider'),
     SignatureParser = require('../../Function/Signature/SignatureParser'),
     SpecTypeProvider = require('../../Type/SpecTypeProvider'),
+    Trace = require('../../Control/Trace'),
     Translator = phpCommon.Translator,
     TypeFactory = require('../../Type/TypeFactory'),
     TypedOpcodeHandlerFactory = require('../../Core/Opcode/Handler/TypedOpcodeHandlerFactory'),
+    UnpausedSentinel = require('../../Core/Opcode/Handler/UnpausedSentinel'),
     UntracedOpcode = require('../../Core/Opcode/Opcode/UntracedOpcode'),
     Value = require('../../Value').sync(),
     ValueProvider = require('../../Value/ValueProvider'),
+    Variable = require('../../Variable').sync(),
+    VariableFactory = require('../../VariableFactory').sync(),
 
+    ARRAY_CHAINIFIER = 'array_chainifier',
     CALL_STACK = 'call_stack',
+    CHAINIFIER = 'chainifier',
     CONTROL_BRIDGE = 'control_bridge',
     CONTROL_SCOPE = 'control_scope',
+    ELEMENT_PROVIDER_FACTORY = 'element_provider_factory',
     ERROR_REPORTING = 'error_reporting',
     FFI_FACTORY = 'ffi_factory',
     FLOW = 'flow',
@@ -83,6 +93,7 @@ var phpCommon = require('phpcommon'),
     TRANSLATOR = 'translator',
     TYPE_FACTORY = 'type_factory',
     TYPED_OPCODE_HANDLER_FACTORY = 'typed_opcode_handler_factory',
+    UNPAUSED_SENTINEL = 'unpaused_sentinel',
     VALUE_FACTORY = 'value_factory';
 
 /**
@@ -96,6 +107,10 @@ module.exports = function (internals) {
     var get = internals.getServiceFetcher();
 
     return {
+        'array_chainifier': function () {
+            return new ArrayChainifier(get(VALUE_FACTORY), get(FUTURE_FACTORY), get(CHAINIFIER));
+        },
+
         'call_factory': function () {
             return new CallFactory(Call, FFICall);
         },
@@ -109,8 +124,18 @@ module.exports = function (internals) {
             );
         },
 
+        'chainifier': function (set) {
+            var chainifier = set(new Chainifier(get(FUTURE_FACTORY), get(CONTROL_BRIDGE)));
+
+            chainifier.setArrayChainifier(get(ARRAY_CHAINIFIER));
+        },
+
         'control_bridge': function () {
-            return new ControlBridge(Future, FutureValue, Value);
+            return new ControlBridge(Future, Value);
+        },
+
+        'control_factory': function () {
+            return new ControlFactory(Trace, get(OPCODE_POOL), get(UNPAUSED_SENTINEL));
         },
 
         'control_scope': function () {
@@ -119,6 +144,18 @@ module.exports = function (internals) {
 
         'coroutine_factory': function () {
             return new CoroutineFactory(Coroutine, get(CALL_STACK));
+        },
+
+        'element_provider': function () {
+            return get(ELEMENT_PROVIDER_FACTORY).createProvider();
+        },
+
+        'element_provider_factory': function () {
+            return new ElementProviderFactory(
+                get(REFERENCE_FACTORY),
+                get(FUTURE_FACTORY),
+                get(FLOW)
+            );
         },
 
         'function_signature_parser': function () {
@@ -165,7 +202,8 @@ module.exports = function (internals) {
                 ControlExpressionOpcode,
                 ControlStructureOpcode,
                 LoopStructureOpcode,
-                UntracedOpcode
+                UntracedOpcode,
+                get(UNPAUSED_SENTINEL)
             );
         },
 
@@ -186,7 +224,8 @@ module.exports = function (internals) {
                 get(CALL_STACK),
                 get(OPCODE_FETCHER_REPOSITORY),
                 get(OPCODE_EXECUTOR),
-                get(OPCODE_RESCUER)
+                get(OPCODE_RESCUER),
+                get(UNPAUSED_SENTINEL)
             );
         },
 
@@ -244,10 +283,25 @@ module.exports = function (internals) {
             );
         },
 
+        'unpaused_sentinel': function () {
+            return new UnpausedSentinel();
+        },
+
         'value_provider': function () {
             return new ValueProvider(
                 get(VALUE_FACTORY),
                 get(FFI_FACTORY),
+                get(FLOW)
+            );
+        },
+
+        'variable_factory': function () {
+            return new VariableFactory(
+                Variable,
+                get(CALL_STACK),
+                get(VALUE_FACTORY),
+                get(REFERENCE_FACTORY),
+                get(FUTURE_FACTORY),
                 get(FLOW)
             );
         }

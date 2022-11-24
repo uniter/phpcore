@@ -122,6 +122,7 @@ var _ = require('microdash'),
  * @param {Function} executor
  * @param {Coroutine} coroutine
  * @constructor
+ * @implements {FutureInterface}
  */
 function Future(
     futureFactory,
@@ -195,9 +196,7 @@ _.extend(Future.prototype, {
     },
 
     /**
-     * Derives a FutureValue from this future.
-     *
-     * @returns {FutureValue}
+     * {@inheritdoc}
      */
     asValue: function () {
         var future = this;
@@ -233,7 +232,7 @@ _.extend(Future.prototype, {
      * Returns a new Future that will have the given text appended to its resolved value.
      *
      * @param {string} text
-     * @returns {Future<string>}
+     * @returns {ChainableInterface<string>}
      */
     concatString: function (text) {
         return this.next(function (previousText) {
@@ -320,6 +319,13 @@ _.extend(Future.prototype, {
     },
 
     /**
+     * {@inheritdoc}
+     */
+    isFuture: function () {
+        return true;
+    },
+
+    /**
      * Determines whether this future is pending (not yet settled by being resolved or rejected).
      *
      * @returns {boolean}
@@ -338,12 +344,7 @@ _.extend(Future.prototype, {
     },
 
     /**
-     * Attaches callbacks for when the value has been evaluated to either a result or error,
-     * returning a new Future to be settled as appropriate.
-     *
-     * @param {Function=} resolveHandler
-     * @param {Function=} catchHandler
-     * @returns {Future}
+     * {@inheritdoc}
      */
     next: function (resolveHandler, catchHandler) {
         var future = this;
@@ -425,7 +426,15 @@ _.extend(Future.prototype, {
                     try {
                         resolveHandler(result);
                     } catch (error) {
-                        // Fulfillments (resolves) may eventually end in a rejection.
+                        /*
+                         * Fulfillments (resolves) may eventually end in a rejection.
+                         *
+                         * Note that this behaviour is a break from the Promise-compatible API,
+                         * as a rejection during the resolve handler should not be handled
+                         * by a rejection handler attached at the same level.
+                         *
+                         * However, for .nextIsolated(...) there is no other suitable place to route the error.
+                         */
                         doReject(error);
                     }
                 } :
@@ -501,13 +510,9 @@ _.extend(Future.prototype, {
             future.nextIsolated(
                 function (resultValue) {
                     resume(resultValue);
-
-                    return resultValue;
                 },
                 function (error) {
                     throwInto(error);
-
-                    throw error;
                 }
             );
         });
@@ -516,11 +521,7 @@ _.extend(Future.prototype, {
     },
 
     /**
-     * Fetches the present value synchronously, which is not possible for an unsettled future.
-     *
-     * @returns {*} When the future was resolved
-     * @throws {Error} When the future was rejected
-     * @throws {Exception} When the future is still pending
+     * {@inheritdoc}
      */
     yieldSync: function () {
         var future = this;

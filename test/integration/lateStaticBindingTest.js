@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('./tools');
 
 describe('PHP late static binding integration', function () {
-    it('should support forwarding and non-forwarding static calls', function () {
+    it('should support forwarding and non-forwarding static calls', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -50,10 +50,10 @@ class C extends B {
 C::test();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        engine.execute();
+        await engine.execute();
 
         expect(engine.getStdout().readAll()).to.equal(
             nowdoc(function () {/*<<<EOS
@@ -67,7 +67,7 @@ EOS
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should support late-bound static property access from forwarded and non-forwarded contexts', function () {
+    it('should support late-bound static property access from forwarded and non-forwarded contexts', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -112,10 +112,10 @@ C::runTest();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             'from A',
             'from C',
             'from C'

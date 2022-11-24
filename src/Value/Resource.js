@@ -28,6 +28,7 @@ var _ = require('microdash'),
  * @param {ReferenceFactory} referenceFactory
  * @param {FutureFactory} futureFactory
  * @param {CallStack} callStack
+ * @param {Flow} flow
  * @param {Object} resource
  * @param {string} type
  * @param {number} id
@@ -38,11 +39,12 @@ function ResourceValue(
     referenceFactory,
     futureFactory,
     callStack,
+    flow,
     resource,
     type,
     id
 ) {
-    Value.call(this, factory, referenceFactory, futureFactory, callStack, 'resource', id);
+    Value.call(this, factory, referenceFactory, futureFactory, callStack, flow, 'resource', id);
 
     /**
      * @type {Object}
@@ -99,8 +101,18 @@ _.extend(ResourceValue.prototype, {
     /**
      * {@inheritdoc}
      */
+    compareWith: function (rightValue) {
+        var value = this;
+
+        return value.futureFactory.createPresent(rightValue.compareWithResource(value));
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     compareWithArray: function () {
-        return 1; // Arrays (even empty ones) are always greater (except for objects).
+        // Arrays (even empty ones) are always greater (except for objects).
+        return this.futureFactory.createPresent(1);
     },
 
     /**
@@ -171,14 +183,8 @@ _.extend(ResourceValue.prototype, {
      * {@inheritdoc}
      */
     compareWithObject: function () {
-        return 1; // Objects (even empty ones) are always greater.
-    },
-
-    /**
-     * {@inheritdoc}
-     */
-    compareWithPresent: function (rightValue) {
-        return rightValue.compareWithResource(this);
+        // Objects (even empty ones) are always greater.
+        return this.futureFactory.createPresent(1);
     },
 
     /**
@@ -205,7 +211,8 @@ _.extend(ResourceValue.prototype, {
      * {@inheritdoc}
      */
     compareWithString: function () {
-        return -1; // Strings (even empty ones) are always smaller than resources.
+        // Strings (even empty ones) are always smaller than resources.
+        return this.futureFactory.createPresent(-1);
     },
 
     /**

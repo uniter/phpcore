@@ -14,20 +14,14 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('Custom addon with custom opcodes integration', function () {
-    var runtime;
-
-    beforeEach(function () {
-        runtime = tools.createSyncRuntime();
-    });
-
-    it('should support installing an addon with custom syntax that uses a new custom opcode', function () {
+    it('should support installing an addon with custom syntax that uses a new custom opcode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
 log_it 121 * 2; // A custom log statement
 EOS
 */;}), //jshint ignore:line
-            module = tools.transpile(runtime, '/path/to/my_module.php', php, {
+            module = tools.asyncTranspile('/path/to/my_module.php', php, {
                 phpToAST: {
                     rules: {
                         'N_CUSTOM_LOG': {
@@ -54,28 +48,28 @@ EOS
                     }
                 }
             }),
-            environment = runtime.createEnvironment({}, [
+            environment = tools.createAsyncEnvironment({}, [
                 {
                     // Define opcodes
                     opcodeGroups: function (internals) {
                         internals.setOpcodeFetcher('calculation');
 
                         return {
-                            'customLogOpcode': function (myArgReference) {
-                                return internals.output.write('Logged: ' + myArgReference.getValue().getNative());
-                            }
+                            'customLogOpcode': internals.typeHandler('val myArg', function (myArgValue) {
+                                return internals.output.write('Logged: ' + myArgValue.getNative());
+                            })
                         };
                     }
                 }
             ]),
             engine = module({}, environment);
 
-        engine.execute();
+        await engine.execute();
 
         expect(engine.getStdout().readAll()).to.equal('Logged: 242');
     });
 
-    it('should support installing an addon that hooks an opcode', function () {
+    it('should support installing an addon that hooks an opcode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -103,8 +97,8 @@ $result[] = my_unhooked_func('third');
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.transpile(runtime, '/path/to/my_module.php', php),
-            environment = runtime.createEnvironment({}, [
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            environment = tools.createAsyncEnvironment({}, [
                 {
                     opcodeGroups: function (internals) {
                         var valueFactory = internals.valueFactory;
@@ -119,18 +113,19 @@ EOS
                             // Override the standard built-in callFunction() opcode's handler. This opcode
                             // is used every time a function is called, like the three times in our test.
                             callFunction: internals.typeHandler(
-                                'string name, snapshot ...argReferences : any',
+                                'string name, snapshot ...argReferences : ref|val',
                                 function (name, argReferences) {
                                     // Note that for async mode, the result may be a Future or FutureValue.
-                                    var previousResult = internals.callPreviousHandler('callFunction', [name, argReferences]);
+                                    return internals.callPreviousHandler('callFunction', [name, argReferences])
+                                        .next(function (previousResult) {
+                                            if (name === 'my_hooked_func') {
+                                                // When calling our target hooked function in PHP-land, do something special
+                                                return previousResult.concat(valueFactory.createString(' [from callFunction hook!]'));
+                                            }
 
-                                    if (name === 'my_hooked_func') {
-                                        // When calling our target hooked function in PHP-land, do something special
-                                        return previousResult.concat(valueFactory.createString(' [from callFunction hook!]'));
-                                    }
-
-                                    // For all other functions, just return the unhooked result
-                                    return previousResult;
+                                            // For all other functions, just return the unhooked result
+                                            return previousResult;
+                                        });
                                 }
                             )
                         };
@@ -139,7 +134,7 @@ EOS
             ]),
             engine = module({}, environment);
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             // Nothing special should happen here
             'first from my_unhooked_func()',
 

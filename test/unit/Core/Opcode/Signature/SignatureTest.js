@@ -32,13 +32,38 @@ describe('Opcode Signature', function () {
         returnType = sinon.createStubInstance(TypeInterface);
         yourType = sinon.createStubInstance(TypeInterface);
 
+        parameter1.isInitial.returns(false);
         parameter1.isVariadic.returns(false);
+        parameter2.isInitial.returns(false);
         parameter2.isVariadic.returns(false);
         parameters = [parameter1, parameter2];
 
         createSignature = function () {
             signature = new Signature(parameters, returnType);
         };
+    });
+
+    describe('getInitialParameterCount()', function () {
+        it('should return 0 when no parameters are marked as initial', function () {
+            createSignature();
+
+            expect(signature.getInitialParameterCount()).to.equal(0);
+        });
+
+        it('should return two when the second parameter is marked as initial', function () {
+            parameter2.isInitial.returns(true);
+            createSignature();
+
+            expect(signature.getInitialParameterCount()).to.equal(2);
+        });
+
+        it('should return two when both parameters are marked as initial', function () {
+            parameter1.isInitial.returns(true);
+            parameter2.isInitial.returns(true);
+            createSignature();
+
+            expect(signature.getInitialParameterCount()).to.equal(2);
+        });
     });
 
     describe('getParameterCount()', function () {

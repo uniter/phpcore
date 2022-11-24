@@ -25,6 +25,7 @@ describe('Resource', function () {
     var callStack,
         createValue,
         factory,
+        flow,
         futureFactory,
         referenceFactory,
         resource,
@@ -37,6 +38,7 @@ describe('Resource', function () {
             'call_stack': callStack
         });
         factory = state.getValueFactory();
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         referenceFactory = state.getReferenceFactory();
         resource = {my: 'resource'};
@@ -55,6 +57,7 @@ describe('Resource', function () {
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 resource,
                 'my_resource_type',
                 1234
@@ -439,26 +442,21 @@ describe('Resource', function () {
             expect(value.next()).to.equal(value);
         });
 
-        it('should invoke the callback with the value and return the coerced result', function () {
-            var callback = sinon.stub(),
-                resultValue;
+        it('should invoke the callback with the value and return the coerced result', async function () {
+            var callback = sinon.stub();
             callback.withArgs(sinon.match.same(value)).returns('my result');
 
-            resultValue = value.next(callback);
-
-            expect(resultValue.getType()).to.equal('string');
-            expect(resultValue.getNative()).to.equal('my result');
+            expect(await value.next(callback).toPromise()).to.equal('my result');
         });
 
         it('should return a rejected FutureValue when the callback raises an error', async function () {
             var callback = sinon.stub(),
-                resultValue;
+                result;
             callback.withArgs(sinon.match.same(value)).throws(new Error('Bang!'));
 
-            resultValue = value.next(callback);
+            result = value.next(callback);
 
-            expect(resultValue.getType()).to.equal('future');
-            await expect(resultValue.toPromise()).to.eventually.be.rejectedWith('Bang!');
+            await expect(result.toPromise()).to.eventually.be.rejectedWith('Bang!');
         });
     });
 

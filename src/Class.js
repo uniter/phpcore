@@ -266,7 +266,7 @@ module.exports = require('pauser')([
          * @param {object|null} currentNativeObject The current native JS object on the prototype chain to search for the method
          * @param {Class|null} currentClass The original called class (this function is called recursively for inherited methods)
          * @param {bool} isForwardingStaticCall eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
-         * @returns {Future<Reference|Value|Variable>|Value} Returns the result of the method if it is defined
+         * @returns {ChainableInterface<Reference|Value|Variable>} Returns the result of the method if it is defined
          * @throws {PHPFatalError} Throws when the method is not defined
          */
         callMethod: function (methodName, args, objectValue, currentNativeObject, currentClass, isForwardingStaticCall) {
@@ -354,6 +354,7 @@ module.exports = require('pauser')([
                             presentArgs
                         );
                     })
+                    // Note this will mean a Variable or Reference cannot be returned from the method caller.
                     .asValue();
             }
 
@@ -392,7 +393,6 @@ module.exports = require('pauser')([
              * so that we can pass it in as the second argument to the magic method.
              */
             return classObject.valueProvider.createFutureArray(args)
-                .asFuture() // Allow for non-Value results.
                 .next(function (argsArray) {
                     if (!objectValue && thisObject) {
                         // Magic __call(...) should override __callStatic(...)
@@ -429,11 +429,11 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Calls the userland constructor for the provided object
+         * Calls the userland constructor for the provided object.
          *
          * @param {ObjectValue} objectValue
          * @param {Value[]} args
-         * @returns {FutureValue<ObjectValue>|ObjectValue}
+         * @returns {ChainableInterface<ObjectValue>}
          */
         construct: function (objectValue, args) {
             var classObject = this;
@@ -442,7 +442,7 @@ module.exports = require('pauser')([
                 // Class does not define a constructor: call the superclass' constructor
                 // if it has one, otherwise do nothing.
                 if (classObject.superClass) {
-                    // Note that this may return a FutureValue if the constructor paused.
+                    // Note that this may return a Future if the constructor paused.
                     return classObject.superClass.construct(objectValue, args);
                 }
 
@@ -454,7 +454,7 @@ module.exports = require('pauser')([
             return classObject.callMethod(classObject.constructorName, args, objectValue)
                 /*
                  * Discard the result value of the constructor method and return the new ObjectValue.
-                 * Note that if a pause occurs inside the constructor, a FutureValue will
+                 * Note that if a pause occurs inside the constructor, a Future will
                  * be returned.
                  */
                 .next(function () {
@@ -487,10 +487,10 @@ module.exports = require('pauser')([
 
         /**
          * Fetches the value of a constant of this class. Constants may be defined by the current class,
-         * an ancestor or by an interface implemented by this class or an ancestor
+         * an ancestor or by an interface implemented by this class or an ancestor.
          *
          * @param {string} name
-         * @returns {FutureValue|Value}
+         * @returns {ChainableInterface<Value>}
          */
         getConstantByName: function (name) {
             var classObject = this,
@@ -519,7 +519,6 @@ module.exports = require('pauser')([
                     return classObject.flow.eachAsync(classObject.interfaces, function (interfaceObject) {
                         // Note that this lookup may asynchronously raise an error if the constant is not defined
                         return interfaceObject.getConstantByName(name)
-                            .asFuture() // Avoid auto-boxing the boolean result (that stops iteration) as a BooleanValue.
                             .next(function (constantValue) {
                                 value = constantValue;
 
@@ -542,8 +541,7 @@ module.exports = require('pauser')([
                             classObject.callStack.raiseTranslatedError(PHPError.E_ERROR, UNDEFINED_CLASS_CONSTANT, {
                                 name: name
                             });
-                        })
-                        .asValue();
+                        });
                 };
 
             return getValue().next(function (constantValue) {
@@ -672,7 +670,7 @@ module.exports = require('pauser')([
          *
          * @param {string} name
          * @param {Class=} calledClass
-         * @returns {Future<StaticPropertyReference|UndeclaredStaticPropertyReference>}
+         * @returns {ChainableInterface<StaticPropertyReference|UndeclaredStaticPropertyReference>}
          */
         getStaticPropertyByName: function (name, calledClass) {
             var callingClass,
@@ -791,7 +789,7 @@ module.exports = require('pauser')([
             return classObject.flow.eachAsync(
                 Object.keys(classObject.constantToProviderMap),
                 function (name) {
-                    // Note that this could return a FutureValue, eg. if the constant references
+                    // Note that this could return a Future, e.g. if the constant references
                     // a class that needs to be autoloaded asynchronously.
                     return classObject.getConstantByName(name);
                 }
@@ -908,10 +906,10 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates a new instance of this class
+         * Creates a new instance of this class.
          *
          * @param {Value[]=} args
-         * @returns {FutureValue<ObjectValue>|ObjectValue}
+         * @returns {ChainableInterface<ObjectValue>}
          */
         instantiate: function (args) {
             var classObject = this;
@@ -931,10 +929,9 @@ module.exports = require('pauser')([
                     var objectValue = classObject.instantiateBare();
 
                     // Call the userland constructor. Note that the return value of .construct(...)
-                    // may in fact be a FutureValue if there was a pause inside the userland __construct()or.
+                    // may in fact be a Future if there was a pause inside the userland __construct()or.
                     return classObject.construct(objectValue, args);
-                })
-                .asValue();
+                });
         },
 
         /**
@@ -954,11 +951,11 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates a new instance of this class and also sets the given internal properties (shorthand)
+         * Creates a new instance of this class and also sets the given internal properties (shorthand).
          *
          * @param {Value[]} args
          * @param {Object.<string, *>} internals
-         * @return {FutureValue<ObjectValue>|ObjectValue}
+         * @return {ChainableInterface<ObjectValue>}
          */
         instantiateWithInternals: function (args, internals) {
             var classObject = this;

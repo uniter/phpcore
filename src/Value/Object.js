@@ -80,6 +80,7 @@ module.exports = require('pauser')([
      * @param {ReferenceFactory} referenceFactory
      * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
+     * @param {Flow} flow
      * @param {Translator} translator
      * @param {object} object
      * @param {Class} classObject
@@ -91,12 +92,13 @@ module.exports = require('pauser')([
         referenceFactory,
         futureFactory,
         callStack,
+        flow,
         translator,
         object,
         classObject,
         id
     ) {
-        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'object', object);
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, flow, 'object', object);
 
         /**
          * @type {Class}
@@ -154,7 +156,7 @@ module.exports = require('pauser')([
          * Moves the iterator to its next position.
          * Used by transpiled foreach loops over objects implementing Iterator.
          *
-         * @returns {FutureValue}
+         * @returns {ChainableInterface<Value>}
          */
         advance: function () {
             var value = this;
@@ -163,7 +165,7 @@ module.exports = require('pauser')([
                 throw new Exception('Object.advance() :: Object does not implement Iterator');
             }
 
-            // Note that the return value is ignored, but may be a FutureValue which we must yield to.
+            // Note that the return value is ignored, but may be a Future-wrapped Value which we must yield to.
             return value.callMethod('next');
         },
 
@@ -247,9 +249,9 @@ module.exports = require('pauser')([
 
         /**
          * Returns a clone of this object value. Note that the userland __clone() method, if defined,
-         * may pause, in which case a FutureValue will be returned that eventually resolves to the clone.
+         * may pause, in which case a Future-wrapped Value will be returned that eventually resolves to the clone.
          *
-         * @returns {FutureValue<ObjectValue>|ObjectValue}
+         * @returns {ChainableInterface<ObjectValue>}
          */
         clone: function () {
             var value = this,
@@ -284,7 +286,7 @@ module.exports = require('pauser')([
 
             // Call the magic __clone method if defined
             if (cloneObjectValue.isMethodDefined(MAGIC_CLONE)) {
-                // Note that this could pause by returning a FutureValue, which we handle.
+                // Note that this could pause by returning a Future-wrapped Value, which we handle.
                 return cloneObjectValue.callMethod(MAGIC_CLONE).next(function () {
                     return cloneObjectValue;
                 });
@@ -420,8 +422,16 @@ module.exports = require('pauser')([
         /**
          * {@inheritdoc}
          */
+        compareWith: function (rightValue) {
+            return rightValue.compareWithObject(this);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
         compareWithArray: function () {
-            return -1; // Arrays (even non-empty ones) are always smaller than objects.
+            // Arrays (even non-empty ones) are always smaller than objects.
+            return this.futureFactory.createPresent(-1);
         },
 
         /**
@@ -491,18 +501,18 @@ module.exports = require('pauser')([
                  * Note that this null result will cause ==, !=, < and > to all return false,
                  * but the spaceship operator will return 1.
                  */
-                return null;
+                return rightValue.futureFactory.createPresent(null);
             }
 
             if (leftValue.getLength() < rightValue.getLength()) {
                 // With fewer properties, left value will always be considered smaller,
                 // even if its corresponding properties are themselves larger.
-                return -1;
+                return rightValue.futureFactory.createPresent(-1);
             }
 
             if (leftValue.getLength() > rightValue.getLength()) {
                 // See above.
-                return 1;
+                return rightValue.futureFactory.createPresent(1);
             }
 
             if (rightValue.isBeingCompared) {
@@ -513,56 +523,19 @@ module.exports = require('pauser')([
             // Set a flag to allow detection of recursion.
             rightValue.isBeingCompared = true;
 
-            try {
-                // Check public and protected properties.
-                _.forOwn(leftValue.nonPrivateProperties, function (propertyReference, propertyName) {
-                    var propertyComparisonResult;
-
-                    if (!hasOwn.call(rightValue.nonPrivateProperties, propertyName)) {
-                        // Left object contains a property that the right does not: consider left object greater.
-                        comparisonResult = 1;
-                        return false;
-                    }
-
-                    // Note that defined properties' values should always be present, so there should be no need
-                    // for async/Futures handling here.
-                    propertyComparisonResult = propertyReference.getValue().compareWithPresent(
-                        rightValue.nonPrivateProperties[propertyName].getValue()
-                    );
-
-                    if (propertyComparisonResult !== 0) {
-                        // Property has a different value in left object than the right:
-                        // use comparison result (will be either -1 or 1).
-                        comparisonResult = propertyComparisonResult;
-                        return false;
-                    }
-                });
-
-                if (comparisonResult !== 0) {
-                    // We have already found a difference, no need to now check private properties.
-                    return comparisonResult;
+            // Check public and protected properties.
+            return rightValue.flow.forOwnAsync(leftValue.nonPrivateProperties, function (propertyReference, propertyName) {
+                if (!hasOwn.call(rightValue.nonPrivateProperties, propertyName)) {
+                    // Left object contains a property that the right does not: consider left object greater.
+                    comparisonResult = 1;
+                    return false;
                 }
 
-                // Check private properties.
-                _.forOwn(leftValue.privatePropertiesByFQCN, function (propertyReferences, fqcn) {
-                    _.forOwn(propertyReferences, function (propertyReference, propertyName) {
-                        var propertyComparisonResult;
-
-                        if (
-                            !hasOwn.call(rightValue.privatePropertiesByFQCN, fqcn) ||
-                            !hasOwn.call(rightValue.privatePropertiesByFQCN[fqcn], propertyName)
-                        ) {
-                            // Left object contains a property that the right does not: consider left object greater.
-                            comparisonResult = 1;
-                            return false;
-                        }
-
-                        // Note that defined properties' values should always be present, so there should be no need
-                        // for async/Futures handling here.
-                        propertyComparisonResult = propertyReference.getValue().compareWithPresent(
-                            rightValue.privatePropertiesByFQCN[fqcn][propertyName].getValue()
-                        );
-
+                // Note that defined properties' values should always be present, so there should be no need
+                // for async/Futures handling here.
+                return propertyReference.getValue()
+                    .compareWith(rightValue.nonPrivateProperties[propertyName].getValue())
+                    .next(function (propertyComparisonResult) {
                         if (propertyComparisonResult !== 0) {
                             // Property has a different value in left object than the right:
                             // use comparison result (will be either -1 or 1).
@@ -570,20 +543,47 @@ module.exports = require('pauser')([
                             return false;
                         }
                     });
+            })
+                .next(function () {
+                    if (comparisonResult !== 0) {
+                        // We have already found a difference, no need to now check private properties.
+                        return comparisonResult;
+                    }
+
+                    // Check private properties.
+                    return rightValue.flow.forOwnAsync(leftValue.privatePropertiesByFQCN, function (propertyReferences, fqcn) {
+                        return rightValue.flow.forOwnAsync(propertyReferences, function (propertyReference, propertyName) {
+                            if (
+                                !hasOwn.call(rightValue.privatePropertiesByFQCN, fqcn) ||
+                                !hasOwn.call(rightValue.privatePropertiesByFQCN[fqcn], propertyName)
+                            ) {
+                                // Left object contains a property that the right does not: consider left object greater.
+                                comparisonResult = 1;
+                                return false;
+                            }
+
+                            // Note that defined properties' values should always be present, so there should be no need
+                            // for async/Futures handling here.
+                            return propertyReference.getValue()
+                                .compareWith(rightValue.privatePropertiesByFQCN[fqcn][propertyName].getValue())
+                                .next(function (propertyComparisonResult) {
+                                    if (propertyComparisonResult !== 0) {
+                                        // Property has a different value in left object than the right:
+                                        // use comparison result (will be either -1 or 1).
+                                        comparisonResult = propertyComparisonResult;
+                                        return false;
+                                    }
+                                });
+                        });
+                    });
+                })
+                .finally(function () {
+                    // Clear recursion detection flag.
+                    rightValue.isBeingCompared = false;
+                })
+                .next(function () {
+                    return comparisonResult;
                 });
-            } finally {
-                // Clear recursion detection flag.
-                rightValue.isBeingCompared = false;
-            }
-
-            return comparisonResult;
-        },
-
-        /**
-         * {@inheritdoc}
-         */
-        compareWithPresent: function (rightValue) {
-            return rightValue.compareWithObject(this);
         },
 
         /**
@@ -596,8 +596,18 @@ module.exports = require('pauser')([
         /**
          * {@inheritdoc}
          */
-        compareWithString: function () {
-            return -1; // Objects (even empty ones) are always greater.
+        compareWithString: function (leftValue) {
+            var rightValue = this;
+
+            if (!rightValue.isMethodDefined(MAGIC_TO_STRING)) {
+                // Objects (even empty ones) are always greater.
+                return rightValue.futureFactory.createPresent(-1);
+            }
+
+            return rightValue.callMethod(MAGIC_TO_STRING)
+                .next(function (rightStringValue) {
+                    return leftValue.compareWithString(rightStringValue);
+                });
         },
 
         /**
@@ -778,7 +788,11 @@ module.exports = require('pauser')([
                 throw new Exception('Object.getCurrentKey() :: Object does not implement Iterator');
             }
 
-            return value.callMethod('key').coerceToKey();
+            return value.callMethod('key')
+                .asValue()
+                .next(function (value) {
+                    return value.coerceToKey();
+                });
         },
 
         /**
@@ -909,8 +923,8 @@ module.exports = require('pauser')([
                 null;
 
             if (propertyReference) {
-                // Property is private, and we're inside the class that defines it so we're good to go.
-                // Private properties should be the most common, so this is the first case for speed
+                // Property is private, and we're inside the class that defines it, so we're good to go.
+                // Private properties should be the most common, so this is the first case for speed.
                 return propertyReference;
             }
 
@@ -976,7 +990,7 @@ module.exports = require('pauser')([
                  * Property is not yet defined for this object by any of its class hierarchy or dynamically -
                  * define it dynamically as a public property.
                  * This is a relatively slow case as it is only done after the privates-check hierarchy walk above,
-                 * but this _should_ be a rare scenario so it makes sense not to optimise for it
+                 * but this _should_ be a rare scenario, so it makes sense not to optimise for it.
                  */
                 propertyReference = value.declareProperty(name, value.classObject, 'public');
             }
@@ -1061,7 +1075,7 @@ module.exports = require('pauser')([
          * or the object itself if it implements Traversable via Iterator or IteratorAggregate.
          * Used by transpiled foreach loops over objects implementing Iterator.
          *
-         * @returns {Future<ArrayIterator>|FutureValue<ObjectValue>}
+         * @returns {ChainableInterface<ArrayIterator|ObjectValue>}
          */
         getIterator: function () {
             var value = this,
@@ -1216,10 +1230,10 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches a reference to a static property of this object's class by its name
+         * Fetches a reference to a static property of this object's class by its name.
          *
          * @param {Reference|Value} nameValue
-         * @returns {Future<StaticPropertyReference|UndeclaredStaticPropertyReference>}
+         * @returns {ChainableInterface<StaticPropertyReference|UndeclaredStaticPropertyReference>}
          */
         getStaticPropertyByName: function (nameValue) {
             return this.classObject.getStaticPropertyByName(nameValue.getNative());
@@ -1251,7 +1265,7 @@ module.exports = require('pauser')([
          * returning the resulting new JSObject instance
          *
          * @param {Value[]} args
-         * @returns {FutureValue<ObjectValue>|ObjectValue}
+         * @returns {ChainableInterface<ObjectValue>}
          */
         instantiate: function (args) {
             var value = this,
@@ -1330,9 +1344,9 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Objects are never classed as empty
+         * Objects are never classed as empty.
          *
-         * @returns {Future<boolean>}
+         * @returns {ChainableInterface<boolean>}
          */
         isEmpty: function () {
             return this.futureFactory.createPresent(false);
@@ -1374,7 +1388,7 @@ module.exports = require('pauser')([
          * Determines whether this iterator has finished iterating or not.
          * Used by transpiled foreach loops over objects implementing Iterator.
          *
-         * @returns {Future<boolean>}
+         * @returns {ChainableInterface<boolean>}
          */
         isNotFinished: function () {
             var value = this;
@@ -1384,8 +1398,10 @@ module.exports = require('pauser')([
             }
 
             return value.callMethod('valid')
-                .coerceToBoolean()
-                .asEventualNative();
+                .asValue()
+                .next(function (value) {
+                    return value.coerceToBoolean().getNative();
+                });
         },
 
         /**

@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP builtin Throwable interface integration', function () {
-    it('should support catching Exceptions and Errors', function () {
+    it('should support catching Exceptions and Errors', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -48,14 +48,14 @@ try {
 return $result;
 EOS
 */;}),//jshint ignore:line,
-            module = tools.syncTranspile('/path/to/my/module.php', php),
+            module = tools.asyncTranspile('/path/to/my/module.php', php),
             engine = module(),
             result;
         engine.defineNonCoercingFunction('get_my_object_class', function (objectValue) {
             return objectValue.getValue().getClassName();
         });
 
-        result = engine.execute();
+        result = await engine.execute();
 
         expect(result.getNative()).to.deep.equal([
             'Error: Call to undefined function throwAnError() @ /path/to/my/module.php:5',
@@ -65,34 +65,32 @@ EOS
         expect(engine.getStdout().readAll()).to.equal('');
     });
 
-    it('should correctly trap a userland class attempting to implement Throwable', function () {
+    it('should correctly trap a userland class attempting to implement Throwable', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
 namespace My\Awesome\Lib;
 
-class MyThrowable implements \ThrowABLe {} // Use different case to test case-insensitivity
+class MyThrowable implements \ThrowABLe {} // Use different case to test case-insensitivity.
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module({
                 eval: function (evalPHP, path, promise) {
-                    promise.resolve(tools.syncTranspile(path, evalPHP));
+                    promise.resolve(tools.asyncTranspile(path, evalPHP));
                 }
             });
 
         // NB: Unlike other errors, an uncaught compile-time fatal error is displayed as "PHP Fatal error: ..."
-        //     as below, _not_ as eg. "PHP Fatal error: Uncaught Error ..."
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        //     as below, _not_ as e.g. "PHP Fatal error: Uncaught Error ...".
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Class My\\Awesome\\Lib\\MyThrowable cannot implement interface Throwable, extend Exception or Error instead in /path/to/my_module.php on line 5'
         );
         expect(engine.getStderr().readAll()).to.equal(
             'PHP Fatal error:  Class My\\Awesome\\Lib\\MyThrowable cannot implement interface Throwable, extend Exception or Error instead in /path/to/my_module.php on line 5\n'
         );
-        // NB: Stdout should have a leading newline written out just before the message
+        // NB: Stdout should have a leading newline written out just before the message.
         expect(engine.getStdout().readAll()).to.equal(
             '\nFatal error: Class My\\Awesome\\Lib\\MyThrowable cannot implement interface Throwable, extend Exception or Error instead in /path/to/my_module.php on line 5\n'
         );

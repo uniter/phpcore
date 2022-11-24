@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP callable array element "[...]" integration', function () {
-    it('call to callable stored as array element', function () {
+    it('call to callable stored as array element', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -33,28 +33,26 @@ $result[] = $myArray[$myKey](21);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             42
         ]);
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should raise a fatal error when attempting to call an empty array', function () {
+    it('should raise a fatal error when attempting to call an empty array', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $invalidCallableArray = [];
 $invalidCallableArray(123);
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Function name must be a string in /path/to/module.php on line 3'
         );

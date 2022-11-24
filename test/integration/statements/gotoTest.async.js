@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP "goto" statement integration (async mode)', function () {
-    it('should be able to jump forward out of while loop with pauses', function () {
+    it('should be able to jump forward out of while loop with pauses', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
     echo get_async('first');
@@ -50,8 +50,8 @@ EOS
             };
         });
 
-        return engine.execute().then(function () {
-            expect(engine.getStdout().readAll()).to.equal('firstsecondthirdsixthsecondthirdfourtheighth');
-        });
+        await engine.execute();
+
+        expect(engine.getStdout().readAll()).to.equal('firstsecondthirdsixthsecondthirdfourtheighth');
     });
 });

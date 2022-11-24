@@ -15,7 +15,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP bitwise-left-shift-assignment operator "<<=" integration', function () {
-    it('should support shifting by the number contained in a variable or property', function () {
+    it('should support shifting by the number contained in a variable or property', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -44,6 +44,10 @@ $result['shift instance prop'] = $myObject->myInstanceProp;
 MyClass::$myStaticProp <<= 2;
 $result['shift static prop'] = MyClass::$myStaticProp;
 
+// Shift a variable that is then re-assigned within a later operand.
+${($myNumber = 24) && false ?: 'myNumber'} <<= ${($myNumber = 2) && false ?: 'myNumber'};
+$result['assignment within operand'] = $myNumber;
+
 return $result;
 EOS
 */;}), //jshint ignore:line
@@ -67,13 +71,12 @@ EOS
             accessorValue = newValue;
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'shift variable': 1000 << 4,
-                'shift accessor': 21 << 3,
-                'shift instance prop': 26 << 7,
-                'shift static prop': 100 << 2
-            });
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'shift variable': 1000 << 4,
+            'shift accessor': 21 << 3,
+            'shift instance prop': 26 << 7,
+            'shift static prop': 100 << 2,
+            'assignment within operand': 96
         });
     });
 });

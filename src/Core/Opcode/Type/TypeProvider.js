@@ -11,7 +11,29 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
-    Exception = phpCommon.Exception;
+    Exception = phpCommon.Exception,
+    provideSingleType = function (provider, typeName) {
+        switch (typeName) {
+            case 'any':
+                return provider.typeFactory.createAnyType();
+            case 'list':
+                return provider.typeFactory.createListType();
+            case 'ref':
+                return provider.typeFactory.createReferenceType();
+            case 'snapshot':
+                return provider.typeFactory.createSnapshotType();
+            case 'bool':
+                return provider.typeFactory.createNativeType('boolean');
+            case 'null':
+            case 'number':
+            case 'string':
+                return provider.typeFactory.createNativeType(typeName);
+            case 'val':
+                return provider.typeFactory.createValueType();
+            default:
+                throw new Exception('Unsupported type "' + typeName + '"');
+        }
+    };
 
 /**
  * Creates type objects for opcodes.
@@ -39,31 +61,21 @@ _.extend(TypeProvider.prototype, {
     },
 
     /**
-     * Creates a Type of the given type name.
+     * Creates a Type of the given type name. Note that if multiple types are given,
+     * separated by a pipe character "|", a UnionType will be returned.
      *
      * @param {string} typeName
      * @returns {TypeInterface}
      */
     provideType: function (typeName) {
-        var provider = this;
+        var provider = this,
+            subTypes;
 
-        switch (typeName) {
-            case 'any':
-                return provider.typeFactory.createAnyType();
-            case 'ref':
-                return provider.typeFactory.createReferenceType();
-            case 'snapshot':
-                return provider.typeFactory.createSnapshotType();
-            case 'bool':
-                return provider.typeFactory.createNativeType('boolean');
-            case 'number':
-            case 'string':
-                return provider.typeFactory.createNativeType(typeName);
-            case 'val':
-                return provider.typeFactory.createValueType();
-            default:
-                throw new Exception('Unsupported type "' + typeName + '"');
-        }
+        subTypes = typeName.split('|').map(function (subTypeName) {
+            return provideSingleType(provider, subTypeName);
+        });
+
+        return subTypes.length === 1 ? subTypes[0] : provider.typeFactory.createUnionType(subTypes);
     }
 });
 

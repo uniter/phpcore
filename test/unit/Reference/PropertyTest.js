@@ -22,13 +22,13 @@ var expect = require('chai').expect,
     PHPError = phpCommon.PHPError,
     Reference = require('../../../src/Reference/Reference'),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
-    Value = require('../../../src/Value').sync(),
     Variable = require('../../../src/Variable').sync();
 
 describe('PropertyReference', function () {
     var callStack,
         classObject,
         createProperty,
+        flow,
         futureFactory,
         keyValue,
         objectValue,
@@ -43,25 +43,18 @@ describe('PropertyReference', function () {
             'call_stack': callStack
         });
         classObject = sinon.createStubInstance(Class);
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         valueFactory = state.getValueFactory();
-        propertyValue = sinon.createStubInstance(Value);
+        propertyValue = valueFactory.createString('value for my prop');
         objectValue = sinon.createStubInstance(ObjectValue);
         objectValue.isMethodDefined.returns(false);
         objectValue.referToElement
             .withArgs('my_property')
             .returns('property: My\\AwesomeClass::$my_property');
-        keyValue = sinon.createStubInstance(Value);
+        keyValue = valueFactory.createString('my_property');
 
         classObject.getName.returns('My\\AwesomeClass');
-        keyValue.getNative.returns('my_property');
-        keyValue.getType.returns('string');
-        propertyValue.asEventualNative.returns(futureFactory.createPresent('value for my prop'));
-        propertyValue.formatAsString.returns('\'the value of my...\'');
-        propertyValue.getForAssignment.returns(propertyValue);
-        propertyValue.getNative.returns('value for my prop');
-        propertyValue.getType.returns('string');
-        propertyValue.toPromise.returns(Promise.resolve(propertyValue));
 
         createProperty = function (visibility) {
             property = new PropertyReference(
@@ -69,6 +62,7 @@ describe('PropertyReference', function () {
                 state.getReferenceFactory(),
                 state.getFutureFactory(),
                 callStack,
+                flow,
                 objectValue,
                 keyValue,
                 classObject,
@@ -92,46 +86,6 @@ describe('PropertyReference', function () {
             property.initialise(propertyValue);
 
             expect(await property.asEventualNative().toPromise()).to.equal('value for my prop');
-        });
-    });
-
-    describe('formatAsString()', function () {
-        it('should return "NULL" for an unset property', function () {
-            expect(property.formatAsString()).to.equal('NULL');
-        });
-
-        it('should return the correct string when the property has a value that is empty', function () {
-            propertyValue.isEmpty.returns(futureFactory.createPresent(true));
-            property.initialise(propertyValue);
-
-            expect(property.formatAsString()).to.equal('\'the value of my...\'');
-        });
-
-        it('should return the correct string when the property has a value that is not empty', function () {
-            propertyValue.isEmpty.returns(futureFactory.createPresent(false));
-            property.initialise(propertyValue);
-
-            expect(property.formatAsString()).to.equal('\'the value of my...\'');
-        });
-
-        it('should return the correct string when the property has a reference to a value that is empty', function () {
-            var reference = sinon.createStubInstance(Variable);
-            reference.getValue.returns(propertyValue);
-            propertyValue.isEmpty.returns(futureFactory.createPresent(true));
-            property.setReference(reference);
-            property.initialise(propertyValue);
-
-            expect(property.formatAsString()).to.equal('\'the value of my...\'');
-        });
-
-        it('should return the correct string when the property has a reference to a value that is not empty', function () {
-            var reference = sinon.createStubInstance(Variable);
-            reference.getValue.returns(propertyValue);
-            propertyValue.isEmpty.returns(futureFactory.createPresent(false));
-            property.setReference(reference);
-            property.initialise(propertyValue);
-
-            expect(property.formatAsString()).to.equal('\'the value of my...\'');
         });
     });
 
@@ -365,7 +319,8 @@ describe('PropertyReference', function () {
         });
 
         it('should return false when the property is not assigned a value', function () {
-            keyValue.getNative.returns('not_my_property');
+            keyValue = valueFactory.createString('not_my_property');
+            createProperty();
 
             expect(property.isDefined()).to.be.false;
         });
@@ -379,16 +334,34 @@ describe('PropertyReference', function () {
         });
 
         it('should return true when the property is set to an empty value', async function () {
-            propertyValue.isEmpty.returns(futureFactory.createPresent(true));
+            propertyValue = valueFactory.createString('');
+            property.initialise(propertyValue);
 
             expect(await property.isEmpty().toPromise()).to.be.true;
         });
 
         it('should return false when the property is set to a non-empty value', async function () {
             property.initialise(propertyValue);
-            propertyValue.isEmpty.returns(futureFactory.createPresent(false));
 
             expect(await property.isEmpty().toPromise()).to.be.false;
+        });
+    });
+
+    describe('isReadable()', function () {
+        it('should return true when the property is defined', function () {
+            property.initialise(propertyValue);
+
+            expect(property.isReadable()).to.be.true;
+        });
+
+        it('should return true when the class implements magic __get', function () {
+            objectValue.isMethodDefined.withArgs('__get').returns(true);
+
+            expect(property.isReadable()).to.be.true;
+        });
+
+        it('should return false otherwise', function () {
+            expect(property.isReadable()).to.be.false;
         });
     });
 
@@ -429,7 +402,8 @@ describe('PropertyReference', function () {
         });
 
         it('should return false when the property is set to null', async function () {
-            propertyValue.getType.returns('null');
+            propertyValue = valueFactory.createNull();
+            property.initialise(propertyValue);
 
             expect(await property.isSet().toPromise()).to.be.false;
         });
@@ -518,7 +492,7 @@ describe('PropertyReference', function () {
         var newValue;
 
         beforeEach(function () {
-            newValue = valueFactory.createAsyncPresent('my new value');
+            newValue = valueFactory.createString('my new value');
         });
 
         describe('when the property is not a reference', function () {
@@ -572,7 +546,8 @@ describe('PropertyReference', function () {
 
                 objectValue.getLength.returns(0); // Property is the first to be defined
 
-                keyValue.getNative.returns('my_new_property');
+                keyValue = valueFactory.createString('my_new_property');
+                createProperty();
             });
 
             describe('when magic __set is defined', function () {
@@ -600,14 +575,8 @@ describe('PropertyReference', function () {
     });
 
     describe('toPromise()', function () {
-        it('should return a Promise that resolves with the Value of the property', async function () {
-            var resultValue;
-            property.initialise(propertyValue);
-
-            resultValue = await property.toPromise();
-
-            expect(resultValue.getType()).to.equal('string');
-            expect(resultValue.getNative()).to.equal('value for my prop');
+        it('should return a Promise that resolves to the PropertyReference', async function () {
+            expect(await property.toPromise()).to.equal(property);
         });
     });
 

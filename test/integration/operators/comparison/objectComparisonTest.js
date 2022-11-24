@@ -147,4 +147,48 @@ EOS
             'PHP Fatal error: Uncaught Error: Nesting level too deep - recursive dependency? in /path/to/my_module.php on line 12'
         );
     });
+
+    it('should use __toString() if defined when loosely comparing objects to strings', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass {
+    public function __toString()
+    {
+        return 'my string';
+    }
+}
+
+$object = new MyClass;
+
+$result = [];
+
+$result['object == correct string'] = $object == 'my string';
+$result['object != correct string'] = $object != 'my string';
+$result['object == incorrect string'] = $object == 'not my string';
+$result['object != incorrect string'] = $object != 'not my string';
+
+$result['correct string == object'] = 'my string' == $object;
+$result['correct string != object'] = 'my string' != $object;
+$result['incorrect string == object'] = 'not my string' == $object;
+$result['incorrect string != object'] = 'not my string' != $object;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'object == correct string': true,
+            'object != correct string': false,
+            'object == incorrect string': false,
+            'object != incorrect string': true,
+
+            'correct string == object': true,
+            'correct string != object': false,
+            'incorrect string == object': false,
+            'incorrect string != object': true
+        });
+    });
 });

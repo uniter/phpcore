@@ -74,7 +74,9 @@ _.extend(Container.prototype, {
      */
     getService: function (id) {
         var container = this,
-            message;
+            message,
+            providerResult,
+            setCalled = false;
 
         if (hasOwn.call(container.services, id)) {
             // Service has already been instantiated, just return it.
@@ -105,10 +107,57 @@ _.extend(Container.prototype, {
         // when testing for circular dependencies above.
         container.serviceIdsLoadingMap[id] = true;
 
-        // Perform the actual loading of the service via its defined provider.
-        container.services[id] = container.serviceProviders[id](container.serviceFetcher);
+        function setService(service) {
+            container.services[id] = service;
 
-        delete container.serviceIdsLoadingMap[id];
+            delete container.serviceIdsLoadingMap[id];
+        }
+
+        /**
+         * Sets this service before the provider returns, allowing any nested
+         * service fetches to invoke providers that in turn depend on this service.
+         *
+         * This allows circular dependencies to be set up via method injection, for example.
+         *
+         * @param {*} service
+         * @returns {*}
+         */
+        function setCallback(service) {
+            if (setCalled) {
+                throw new Exception(
+                    'Service "' + id + '" provider called set() multiple times'
+                );
+            }
+
+            setCalled = true;
+
+            if (!hasOwn.call(container.serviceIdsLoadingMap, id)) {
+                throw new Exception(
+                    'Service "' + id + '" provider already returned a value, but set() was later called'
+                );
+            }
+
+            setService(service);
+
+            // Return the assigned service to simplify logic in providers.
+            return service;
+        }
+
+        /**
+         * Perform the actual loading of the service via its defined provider.
+         * Note that the service may either be returned or passed to the set() callback.
+         */
+        providerResult = container.serviceProviders[id](setCallback, container.serviceFetcher);
+
+        if (setCalled) {
+            if (typeof providerResult !== 'undefined') {
+                throw new Exception(
+                    'Service "' + id + '" provider returned a value after calling set()'
+                );
+            }
+        } else {
+            setService(providerResult);
+        }
 
         if (container.serviceIdsLoadingList[container.serviceIdsLoadingList.length - 1] !== id) {
             throw new Exception(

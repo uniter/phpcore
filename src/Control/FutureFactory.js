@@ -117,7 +117,7 @@ _.extend(FutureFactory.prototype, {
 
         if (factory.controlBridge.isFuture(result)) {
             // Executor returned a Future, so we can return that one and avoid wrapping it in another.
-            return result.asFuture();
+            return result;
         }
 
         // Otherwise we'll have to wrap the result in a new Future.

@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP function statement default parameter argument value handling integration', function () {
-    it('should correctly handle a constant of asynchronously autoloaded class used as default argument value', function () {
+    it('should correctly handle a constant of asynchronously autoloaded class used as default argument value', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -61,16 +61,14 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'with arg omitted': 21
-            });
-            expect(engine.getStderr().readAll()).to.equal('');
-            expect(engine.getStdout().readAll()).to.equal('');
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'with arg omitted': 21
         });
+        expect(engine.getStderr().readAll()).to.equal('');
+        expect(engine.getStdout().readAll()).to.equal('');
     });
 
-    it('should correctly handle a constant expression with multiple asynchronously autoloaded classes as default argument value', function () {
+    it('should correctly handle a constant expression with multiple asynchronously autoloaded classes as default argument value', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -123,16 +121,14 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'with arg omitted': 31
-            });
-            expect(engine.getStderr().readAll()).to.equal('');
-            expect(engine.getStdout().readAll()).to.equal('');
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'with arg omitted': 31
         });
+        expect(engine.getStderr().readAll()).to.equal('');
+        expect(engine.getStdout().readAll()).to.equal('');
     });
 
-    it('should correctly handle an undefined constant being used as a default argument value', function () {
+    it('should correctly handle an undefined constant being used as a default argument value', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL); // Notices are hidden by default
@@ -148,10 +144,10 @@ $result['undef var'] = myFunc(); // Omit the arg
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'undef var': 'MY_UNDEF_CONST' // Constant's name should be used as a string (alongside the warning)
         });
         expect(engine.getStderr().readAll()).to.equal(

@@ -52,16 +52,19 @@ module.exports = require('pauser')([
      * @param {ReferenceFactory} referenceFactory
      * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
+     * @param {Flow} flow
      * @param {string} type
      * @param {*} value
      * @abstract
      * @constructor
+     * @implements {ChainableInterface}
      */
     function Value(
         factory,
         referenceFactory,
         futureFactory,
         callStack,
+        flow,
         type,
         value
     ) {
@@ -73,6 +76,10 @@ module.exports = require('pauser')([
          * @type {ValueFactory}
          */
         this.factory = factory;
+        /**
+         * @type {Flow}
+         */
+        this.flow = flow;
         /**
          * @type {FutureFactory}
          */
@@ -118,9 +125,8 @@ module.exports = require('pauser')([
 
         /**
          * Returns this value as an array element.
-         * Note that FutureValues will be returned unchanged ready to be awaited.
          *
-         * @returns {Value}
+         * @returns {ChainableInterface<Value>}
          */
         asArrayElement: function () {
             return this.getForAssignment();
@@ -129,7 +135,7 @@ module.exports = require('pauser')([
         /**
          * Returns a Future that will resolve to the native value of this value.
          *
-         * @returns {Future<*>}
+         * @returns {ChainableInterface<*>}
          */
         asEventualNative: function () {
             var value = this;
@@ -149,28 +155,20 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Derives a value from this value (shared interface with Future)
-         *
-         * @returns {Value}
+         * {@inheritdoc}
          */
         asValue: function () {
             return this;
         },
 
         /**
-         * Calculates the bitwise-AND of this and a right-operand
+         * Calculates the bitwise-AND of this and a right-operand.
          *
          * @param {Value} rightValue
-         * @returns {FutureValue<IntegerValue>|IntegerValue}
+         * @returns {IntegerValue}
          */
         bitwiseAnd: function (rightValue) {
             var leftValue = this;
-
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.bitwiseAnd(rightValue);
-                });
-            }
 
             /*jshint bitwise:false */
             return leftValue.factory.createInteger(
@@ -181,19 +179,13 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Calculates the bitwise-OR of this and a right-operand
+         * Calculates the bitwise-OR of this and a right-operand.
          *
          * @param {Value} rightValue
-         * @returns {FutureValue<IntegerValue>|IntegerValue}
+         * @returns {IntegerValue}
          */
         bitwiseOr: function (rightValue) {
             var leftValue = this;
-
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.bitwiseOr(rightValue);
-                });
-            }
 
             /*jshint bitwise:false */
             return leftValue.factory.createInteger(
@@ -204,19 +196,13 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Calculates the bitwise-XOR of this and a right-operand
+         * Calculates the bitwise-XOR of this and a right-operand.
          *
          * @param {Value} rightValue
-         * @returns {FutureValue<IntegerValue>|IntegerValue}
+         * @returns {IntegerValue}
          */
         bitwiseXor: function (rightValue) {
             var leftValue = this;
-
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.bitwiseXor(rightValue);
-                });
-            }
 
             /*jshint bitwise:false */
             return leftValue.factory.createInteger(
@@ -230,7 +216,7 @@ module.exports = require('pauser')([
          * Calls this value, if it is callable.
          *
          * @param {Reference[]|Value[]|Variable[]} args
-         * @returns {Reference|Value}
+         * @returns {ChainableInterface<Reference|Value|Variable>}
          */
         call: function () {
             this.callStack.raiseTranslatedError(PHPError.E_ERROR, VALUE_NOT_CALLABLE, {
@@ -366,7 +352,7 @@ module.exports = require('pauser')([
         /**
          * Coerces this value to an object as an ObjectValue.
          *
-         * @returns {FutureValue<ObjectValue>|ObjectValue}
+         * @returns {ChainableInterface<ObjectValue>}
          */
         coerceToObject: function () {
             var value = this;
@@ -395,44 +381,31 @@ module.exports = require('pauser')([
         /**
          * Coerces this value to a string, if possible.
          *
-         * @returns {FutureValue<StringValue>|StringValue}
+         * @returns {ChainableInterface<StringValue>}
          */
         coerceToString: throwUnimplemented('coerceToString'),
 
         /**
-         * Loosely compares this value with the given other value (which may be a FutureValue).
+         * Loosely compares this value with the given other value.
          * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
          * Returns null if the values cannot be compared.
          *
          * @param {Value} rightValue
-         * @returns {Future<number|null>}
+         * @returns {ChainableInterface<number|null>}
          */
-        compareWith: function (rightValue) {
-            /*jshint eqeqeq:false */
-            var leftValue = this;
-
-            if (rightValue.isFuture()) {
-                return rightValue
-                    .asFuture()
-                    .next(function (rightValue) {
-                        return leftValue.compareWithPresent(rightValue);
-                    });
-            }
-
-            return leftValue.futureFactory.createPresent(leftValue.compareWithPresent(rightValue));
-        },
+        compareWith: throwUnimplemented('compareWith'),
 
         /**
-         * Loosely compares this value with the given present ArrayValue.
+         * Loosely compares this value with the given ArrayValue.
          * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
          *
          * @param {ArrayValue} leftValue
-         * @returns {number}
+         * @returns {ChainableInterface<number>}
          */
         compareWithArray: throwUnimplemented('compareWithArray'),
 
         /**
-         * Loosely compares this value with the given present BooleanValue.
+         * Loosely compares this value with the given BooleanValue.
          * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
          *
          * @param {BooleanValue} leftValue
@@ -441,7 +414,7 @@ module.exports = require('pauser')([
         compareWithBoolean: throwUnimplemented('compareWithBoolean'),
 
         /**
-         * Loosely compares this value with the given present FloatValue.
+         * Loosely compares this value with the given FloatValue.
          * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
          *
          * @param {FloatValue} leftValue
@@ -450,7 +423,7 @@ module.exports = require('pauser')([
         compareWithFloat: throwUnimplemented('compareWithFloat'),
 
         /**
-         * Loosely compares this value with the given present IntegerValue.
+         * Loosely compares this value with the given IntegerValue.
          * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
          *
          * @param {IntegerValue} leftValue
@@ -459,7 +432,7 @@ module.exports = require('pauser')([
         compareWithInteger: throwUnimplemented('compareWithInteger'),
 
         /**
-         * Loosely compares this value with the given present NullValue.
+         * Loosely compares this value with the given NullValue.
          * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
          *
          * @param {NullValue} leftValue
@@ -468,25 +441,18 @@ module.exports = require('pauser')([
         compareWithNull: throwUnimplemented('compareWithNull'),
 
         /**
-         * Loosely compares this value with the given present ObjectValue.
+         * Loosely compares this value with the given ObjectValue.
          * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
          *
+         * Returns null if the objects are of different classes and therefore cannot be compared.
+         *
          * @param {ObjectValue} leftValue
-         * @returns {number}
+         * @returns {ChainableInterface<number|null>}
          */
         compareWithObject: throwUnimplemented('compareWithObject'),
 
         /**
-         * Loosely compares this value with the given other present value.
-         * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
-         *
-         * @param {Value} rightValue
-         * @returns {number}
-         */
-        compareWithPresent: throwUnimplemented('compareWithPresent'),
-
-        /**
-         * Loosely compares this value with the given present ResourceValue.
+         * Loosely compares this value with the given ResourceValue.
          * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
          *
          * @param {ResourceValue} leftValue
@@ -495,11 +461,11 @@ module.exports = require('pauser')([
         compareWithResource: throwUnimplemented('compareWithResource'),
 
         /**
-         * Loosely compares this value with the given present StringValue.
+         * Loosely compares this value with the given StringValue.
          * Returns -1, 0 or 1 if this value is less-than, equal-to or greater-than the other respectively.
          *
          * @param {StringValue} leftValue
-         * @returns {number}
+         * @returns {ChainableInterface<number>}
          */
         compareWithString: throwUnimplemented('compareWithString'),
 
@@ -507,14 +473,14 @@ module.exports = require('pauser')([
          * Concatenates this value's string representation with the provided other value's
          *
          * @param {StringValue} rightValue
-         * @returns {FutureValue<StringValue>|StringValue}
+         * @returns {ChainableInterface<StringValue>}
          */
         concat: function (rightValue) {
             var leftValue = this,
                 coercedLeftValue = leftValue.coerceToString(),
                 coercedRightValue = rightValue.coerceToString();
 
-            // This value could coerce to a future, eg. if an ObjectValue implementing ->__toString().
+            // This value could coerce to a future, e.g. if an ObjectValue implementing ->__toString().
             if (coercedLeftValue.isFuture()) {
                 return coercedLeftValue.next(function (leftValue) {
                     return leftValue.concat(rightValue);
@@ -575,7 +541,7 @@ module.exports = require('pauser')([
         /**
          * Coerces this value to a number and subtracts one from it.
          *
-         * @returns {Value}
+         * @returns {ChainableInterface<Value>}
          */
         decrement: function () {
             var value = this;
@@ -695,7 +661,7 @@ module.exports = require('pauser')([
         /**
          * Fetches an appropriate iterator for this value, if any.
          *
-         * @returns {EventualInterface<ArrayIterator|ObjectValue>}
+         * @returns {ChainableInterface<ArrayIterator|ObjectValue>}
          */
         getIterator: throwUnimplemented('getIterator'),
 
@@ -750,7 +716,7 @@ module.exports = require('pauser')([
         /**
          * Fetches a reference to a static property for a class by its name.
          *
-         * @returns {Future<StaticPropertyReference>}
+         * @returns {ChainableInterface<StaticPropertyReference>}
          */
         getStaticPropertyByName: function () {
             this.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NAME_NOT_VALID);
@@ -819,7 +785,7 @@ module.exports = require('pauser')([
          * Determines whether this value is callable
          *
          * @param {Namespace} globalNamespace
-         * @returns {Future<boolean>}
+         * @returns {ChainableInterface<boolean>}
          */
         isCallable: throwUnimplemented('isCallable'),
 
@@ -912,7 +878,7 @@ module.exports = require('pauser')([
         /**
          * Determines whether the value is classed as "empty" or not
          *
-         * @returns {Future<boolean>}
+         * @returns {ChainableInterface<boolean>}
          */
         isEmpty: throwUnimplemented('isEmpty'),
 
@@ -920,7 +886,7 @@ module.exports = require('pauser')([
          * Determines whether this value is loosely equal to the provided other value.
          *
          * @param {Value} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
+         * @returns {ChainableInterface<BooleanValue>}
          */
         isEqualTo: function (rightValue) {
             return this.compareWith(rightValue)
@@ -935,7 +901,7 @@ module.exports = require('pauser')([
          * if this value is greater than the other and false otherwise.
          *
          * @param {Value} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
+         * @returns {ChainableInterface<BooleanValue>}
          */
         isGreaterThan: function (rightValue) {
             return this.compareWith(rightValue)
@@ -950,7 +916,7 @@ module.exports = require('pauser')([
          * if this value is greater than or equal to the other and false otherwise.
          *
          * @param {Value} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
+         * @returns {ChainableInterface<BooleanValue>}
          */
         isGreaterThanOrEqual: function (rightValue) {
             return this.compareWith(rightValue)
@@ -963,19 +929,13 @@ module.exports = require('pauser')([
 
         /**
          * Determines whether this value is strictly equal
-         * to the provided other value
+         * to the provided other value.
          *
          * @param {Value} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
+         * @returns {ChainableInterface<BooleanValue>}
          */
         isIdenticalTo: function (rightValue) {
             var leftValue = this;
-
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.isIdenticalTo(rightValue);
-                });
-            }
 
             return leftValue.factory.createBoolean(
                 rightValue.type === leftValue.type &&
@@ -985,10 +945,10 @@ module.exports = require('pauser')([
 
         /**
          * Determines whether this value is strictly equal
-         * to the provided array value
+         * to the provided array value.
          *
          * @param {ArrayValue} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
+         * @returns {ChainableInterface<BooleanValue>}
          */
         isIdenticalToArray: function (rightValue) {
             return this.isIdenticalTo(rightValue);
@@ -996,10 +956,10 @@ module.exports = require('pauser')([
 
         /**
          * Determines whether this value is strictly equal
-         * to the provided object value
+         * to the provided object value.
          *
          * @param {ObjectValue} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
+         * @returns {ChainableInterface<BooleanValue>}
          */
         isIdenticalToObject: function (rightValue) {
             return this.isIdenticalTo(rightValue);
@@ -1007,10 +967,10 @@ module.exports = require('pauser')([
 
         /**
          * Determines whether this value is strictly equal
-         * to the provided resource value
+         * to the provided resource value.
          *
          * @param {ResourceValue} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
+         * @returns {ChainableInterface<BooleanValue>}
          */
         isIdenticalToResource: function (rightValue) {
             return this.isIdenticalTo(rightValue);
@@ -1021,7 +981,7 @@ module.exports = require('pauser')([
          * if this value is less than the other and false otherwise.
          *
          * @param {Value} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
+         * @returns {ChainableInterface<BooleanValue>}
          */
         isLessThan: function (rightValue) {
             return this.compareWith(rightValue)
@@ -1036,7 +996,7 @@ module.exports = require('pauser')([
          * if this value is less than or equal to the other and false otherwise.
          *
          * @param {Value} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
+         * @returns {ChainableInterface<BooleanValue>}
          */
         isLessThanOrEqual: function (rightValue) {
             return this.compareWith(rightValue)
@@ -1052,7 +1012,7 @@ module.exports = require('pauser')([
          * returning true if they are not equal and false otherwise.
          *
          * @param {Reference|Value} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
+         * @returns {ChainableInterface<BooleanValue>}
          */
         isNotEqualTo: function (rightValue) {
             return this.compareWith(rightValue)
@@ -1067,17 +1027,19 @@ module.exports = require('pauser')([
          * Strictly compares this value to the provided other value,
          * returning true if they are not of the same type
          * or of the same type but with a different value,
-         * and false otherwise
+         * and false otherwise.
          *
          * @param {Reference|Value} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
+         * @returns {ChainableInterface<BooleanValue>}
          */
         isNotIdenticalTo: function (rightValue) {
             var leftValue = this;
 
-            return leftValue.isIdenticalTo(rightValue).next(function (isIdenticalValue) {
-                return !isIdenticalValue.getNative();
-            });
+            return leftValue.isIdenticalTo(rightValue)
+                .next(function (isIdenticalValue) {
+                    return !isIdenticalValue.getNative();
+                })
+                .asValue();
         },
 
         /**
@@ -1090,7 +1052,7 @@ module.exports = require('pauser')([
         /**
          * Determines whether this value is classed as "set" or not
          *
-         * @returns {Future<boolean>}
+         * @returns {ChainableInterface<boolean>}
          */
         isSet: function () {
             // All values except NULL are classed as 'set'
@@ -1101,16 +1063,10 @@ module.exports = require('pauser')([
          * Performs a logical-AND of this value and the other value given
          *
          * @param {Reference|Value} rightValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
+         * @returns {BooleanValue}
          */
         logicalAnd: function (rightValue) {
             var leftValue = this;
-
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.logicalAnd(rightValue);
-                });
-            }
 
             return leftValue.factory.createBoolean(
                 leftValue.coerceToBoolean().getNative() &&
@@ -1132,24 +1088,16 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Calculates the modulo (remainder of an integer division) of this value with another
+         * Calculates the modulo (remainder of an integer division) of this value with another.
          *
          * @param {Value} rightValue
-         * @returns {FutureValue<IntegerValue>|IntegerValue}
+         * @returns {BooleanValue|IntegerValue}
          */
         modulo: function (rightValue) {
             var leftValue = this,
                 // Coerce both operands to integers first, to ensure an integer division
                 dividend = leftValue.coerceToInteger().getNative(),
-                divisor;
-
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.modulo(rightValue);
-                });
-            }
-
-            divisor = rightValue.coerceToInteger().getNative();
+                divisor = rightValue.coerceToInteger().getNative();
 
             if (divisor === 0) {
                 leftValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
@@ -1206,11 +1154,9 @@ module.exports = require('pauser')([
          * Attaches a callback for when the value has been evaluated. As present values
          * are already, this simply calls the resolve handler synchronously and ignores
          * the catch handler as there will never be an error involved here.
-         * Note that the FutureValue class will override this method with support
-         * for the catch handler parameter.
          *
          * @param {Function=} resolveHandler
-         * @returns {FutureValue|Value}
+         * @returns {ChainableInterface>}
          */
         next: function (resolveHandler) {
             var value = this,
@@ -1226,7 +1172,7 @@ module.exports = require('pauser')([
                 return value.factory.createRejection(error);
             }
 
-            result = value.factory.coerce(result);
+            result = value.flow.chainify(result);
 
             return result;
         },
@@ -1237,8 +1183,6 @@ module.exports = require('pauser')([
          * the catch handler as there will never be an error involved here.
          *
          * Note that:
-         *   - The FutureValue class will override this method with support
-         *     for the catch handler parameter.
          *   - This does not return a Value for chaining.
          *   - .next()/.catch()/.finally() should usually be used for chaining,
          *     this is a low-level function.
@@ -1252,10 +1196,10 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Bitwise-shifts this value left by the given number of bits
+         * Bitwise-shifts this value left by the given number of bits.
          *
          * @param {Value} rightValue
-         * @returns {IntegerValue|FutureValue<IntegerValue>}
+         * @returns {IntegerValue}
          */
         shiftLeft: function (rightValue) {
             /*jshint bitwise: false */
@@ -1264,20 +1208,14 @@ module.exports = require('pauser')([
                 coercedRightValue = rightValue.coerceToInteger(),
                 coercedLeftValue = leftValue.coerceToInteger();
 
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.shiftLeft(rightValue);
-                });
-            }
-
             return factory.createInteger(coercedLeftValue.getNative() << coercedRightValue.getNative());
         },
 
         /**
-         * Bitwise-shifts this value right by the given number of bits
+         * Bitwise-shifts this value right by the given number of bits.
          *
          * @param {Value} rightValue
-         * @returns {IntegerValue|FutureValue<IntegerValue>}
+         * @returns {IntegerValue}
          */
         shiftRight: function (rightValue) {
             /*jshint bitwise: false */
@@ -1285,12 +1223,6 @@ module.exports = require('pauser')([
                 factory = leftValue.factory,
                 coercedRightValue = rightValue.coerceToInteger(),
                 coercedLeftValue = leftValue.coerceToInteger();
-
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.shiftRight(rightValue);
-                });
-            }
 
             return factory.createInteger(coercedLeftValue.getNative() >> coercedRightValue.getNative());
         },

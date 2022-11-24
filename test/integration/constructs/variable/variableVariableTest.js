@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP variable-variable "$$..." integration', function () {
-    it('should allow a variable to be referenced dynamically', function () {
+    it('should allow a variable to be referenced dynamically', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -34,10 +34,10 @@ $result = [
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'with adjacent dollars': 21,
             'bracketed': 21,
             'yourVar assignment': 2000,

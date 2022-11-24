@@ -35,7 +35,7 @@ _.extend(KeyValuePair.prototype, {
     /**
      * Returns this pair with the value resolved to a present if necessary.
      *
-     * @returns {Future<KeyValuePair>|KeyValuePair}
+     * @returns {ChainableInterface<KeyValuePair>}
      */
     asArrayElement: function () {
         var pair = this;
@@ -45,7 +45,6 @@ _.extend(KeyValuePair.prototype, {
         }
 
         return pair.value
-            .asFuture()
             .next(function (presentValue) {
                 return new KeyValuePair(pair.key, presentValue);
             });

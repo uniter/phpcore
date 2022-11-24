@@ -26,6 +26,7 @@ var _ = require('microdash'),
  *
  * @param {ValueFactory} valueFactory
  * @constructor
+ * @implements {TypeInterface}
  */
 function ValueType(valueFactory) {
     /**
@@ -40,6 +41,17 @@ _.extend(ValueType.prototype, {
     /**
      * {@inheritdoc}
      */
+    allowsValue: function (value) {
+        var type = this;
+
+        return type.valueFactory.isValue(value) ||
+            (value instanceof Reference) ||
+            (value instanceof Variable);
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     coerceValue: function (value) {
         var type = this;
 
@@ -48,10 +60,17 @@ _.extend(ValueType.prototype, {
         }
 
         if ((value instanceof Reference) || (value instanceof Variable)) {
-            return value.getValue(); // Note this may return a FutureValue.
+            return value.getValue(); // Note this may return a Future.
         }
 
         throw new Exception('Unexpected value provided for ValueType');
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    getDisplayName: function () {
+        return 'val';
     }
 });
 

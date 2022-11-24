@@ -103,6 +103,7 @@ _.extend(FFIFactory.prototype, {
             factory.referenceFactory,
             factory.futureFactory,
             factory.callStack,
+            factory.flow,
             factory.valueCaller,
             wrappedObjectValue
         );

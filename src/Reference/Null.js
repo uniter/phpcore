@@ -15,21 +15,27 @@ var _ = require('microdash'),
 
 /**
  * @param {ValueFactory} valueFactory
+ * @param {ReferenceFactory} referenceFactory
  * @param {FutureFactory} futureFactory
+ * @param {Flow} flow
  * @param {Object} options
  * @constructor
  */
-function NullReference(valueFactory, futureFactory, options) {
+function NullReference(
+    valueFactory,
+    referenceFactory,
+    futureFactory,
+    flow,
+    options
+) {
     options = options || {};
 
-    /**
-     * @type {FutureFactory}
-     */
-    this.futureFactory = futureFactory;
+    Reference.call(this, referenceFactory, futureFactory, flow);
+
     /**
      * @type {Function|null}
      */
-    this.onSet = options.onSet;
+    this.onSet = options.onSet || null;
     /**
      * @type {ValueFactory}
      */
@@ -47,9 +53,7 @@ _.extend(NullReference.prototype, {
     },
 
     /**
-     * Determines whether this reference is defined
-     *
-     * @returns {boolean}
+     * {@inheritdoc}
      */
     isDefined: function () {
         return false;
@@ -57,12 +61,12 @@ _.extend(NullReference.prototype, {
 
     /**
      * Determines whether this reference is empty or not
-     * (NULL references are always empty)
+     * (NULL references are always empty).
      *
-     * @returns {Future<boolean>}
+     * @returns {ChainableInterface<boolean>}
      */
     isEmpty: function () {
-        return this.futureFactory.createPresent(true); // PHP NULL is classed as empty
+        return this.futureFactory.createPresent(true); // PHP NULL is classed as empty.
     },
 
     /**

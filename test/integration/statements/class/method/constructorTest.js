@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../../tools');
 
 describe('PHP class statement constructor integration', function () {
-    it('should support PHP4-style constructors named the same as the class', function () {
+    it('should support PHP4-style constructors named the same as the class', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -40,16 +40,16 @@ namespace {
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             42
         ]);
-        expect(engine.getStderr().readAll()).to.equal(''); // No warnings or notices expected
+        expect(engine.getStderr().readAll()).to.equal(''); // No warnings or notices expected.
     });
 
-    it('should give precedence to __construct() over PHP4-style constructor', function () {
+    it('should give precedence to __construct() over PHP4-style constructor', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -86,10 +86,10 @@ namespace {
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             42
         ]);
         expect(engine.getStderr().readAll()).to.equal(

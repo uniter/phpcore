@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../../tools');
 
 describe('PHP class static call overloading integration', function () {
-    it('should use the magic __callStatic(...) method when the method is not defined', function () {
+    it('should use the magic __callStatic(...) method when the method is not defined', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -36,9 +36,10 @@ class MyClass
 return MyClass::myUndefinedMethod(20, 3);
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.equal('myUndefinedMethod :: 60');
+        expect((await engine.execute()).getNative()).to.equal('myUndefinedMethod :: 60');
     });
 
     // TODO: Test call from inside a closure that relies on __callStatic

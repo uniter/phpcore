@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP logical "and" operator integration', function () {
-    it('should support short-circuit evaluation in async mode with pauses', function () {
+    it('should support short-circuit evaluation in async mode with pauses', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -69,34 +69,32 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                // falsy && falsy should short-circuit, not evaluating the second returnFalsy()
-                '[in returnFalsy]',
-                false,
-                'done falsy && falsy',
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            // falsy && falsy should short-circuit, not evaluating the second returnFalsy()
+            '[in returnFalsy]',
+            false,
+            'done falsy && falsy',
 
-                // (Ensures that logical term results are stored - see notes above)
-                '[async control]',
+            // (Ensures that logical term results are stored - see notes above)
+            '[async control]',
 
-                // falsy && truthy should short-circuit, not evaluating returnTruthy()
-                '[in returnFalsy]',
-                false,
-                'done falsy && truthy',
+            // falsy && truthy should short-circuit, not evaluating returnTruthy()
+            '[in returnFalsy]',
+            false,
+            'done falsy && truthy',
 
-                // truthy && falsy should not short-circuit, evaluating both
-                '[in returnTruthy]',
-                '[in returnFalsy]',
-                false,
-                'done truthy && falsy',
+            // truthy && falsy should not short-circuit, evaluating both
+            '[in returnTruthy]',
+            '[in returnFalsy]',
+            false,
+            'done truthy && falsy',
 
-                // truthy && truthy should not short-circuit, evaluating both
-                '[in returnTruthy]',
-                '[in returnTruthy]',
-                true,
-                'done truthy && truthy'
-            ]);
-        });
+            // truthy && truthy should not short-circuit, evaluating both
+            '[in returnTruthy]',
+            '[in returnTruthy]',
+            true,
+            'done truthy && truthy'
+        ]);
     });
 
     it('should support fetching an operand from accessor returning future in async mode', async function () {

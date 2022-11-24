@@ -15,6 +15,7 @@ var expect = require('chai').expect,
     tools = require('../../../tools'),
     Exception = phpCommon.Exception,
     Reference = require('../../../../../src/Reference/Reference'),
+    Value = require('../../../../../src/Value').sync(),
     ValueType = require('../../../../../src/Core/Opcode/Type/ValueType'),
     Variable = require('../../../../../src/Variable').sync();
 
@@ -28,6 +29,30 @@ describe('Opcode ValueType', function () {
         valueFactory = state.getValueFactory();
 
         type = new ValueType(valueFactory);
+    });
+
+    describe('allowsValue()', function () {
+        it('should return true for a Reference instance', function () {
+            var value = sinon.createStubInstance(Reference);
+
+            expect(type.allowsValue(value)).to.be.true;
+        });
+
+        it('should return true for a Value instance', function () {
+            var value = sinon.createStubInstance(Value);
+
+            expect(type.allowsValue(value)).to.be.true;
+        });
+
+        it('should return true for a Variable instance', function () {
+            var value = sinon.createStubInstance(Variable);
+
+            expect(type.allowsValue(value)).to.be.true;
+        });
+
+        it('should return false for a native string', function () {
+            expect(type.allowsValue('my string')).to.be.false;
+        });
     });
 
     describe('coerceValue()', function () {
@@ -82,6 +107,12 @@ describe('Opcode ValueType', function () {
                 expect(value.getType()).to.equal('string');
                 expect(value.getNative()).to.equal('my value');
             });
+        });
+    });
+
+    describe('getDisplayName()', function () {
+        it('should return "val"', function () {
+            expect(type.getDisplayName()).to.equal('val');
         });
     });
 });

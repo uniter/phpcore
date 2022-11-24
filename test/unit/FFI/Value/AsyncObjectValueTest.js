@@ -14,38 +14,40 @@ var expect = require('chai').expect,
     tools = require('../../tools'),
     AsyncObjectValue = require('../../../../src/FFI/Value/AsyncObjectValue').sync(),
     CallStack = require('../../../../src/CallStack'),
-    FutureValue = require('../../../../src/Value/Future'),
     ObjectValue = require('../../../../src/Value/Object').sync(),
     Value = require('../../../../src/Value').sync(),
     ValueCaller = require('../../../../src/FFI/Call/ValueCaller').sync();
 
 describe('FFI AsyncObjectValue', function () {
     var callStack,
+        flow,
         state,
         value,
         valueCaller,
         valueFactory,
-        wrappedObjectFutureValue,
-        wrappedObjectPresentValue;
+        wrappedObjectValue;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
         state = tools.createIsolatedState(null, {
             'call_stack': callStack
         });
+        flow = state.getFlow();
         valueCaller = sinon.createStubInstance(ValueCaller);
         valueFactory = state.getValueFactory();
-        wrappedObjectFutureValue = sinon.createStubInstance(FutureValue);
-        wrappedObjectPresentValue = sinon.createStubInstance(ObjectValue);
-        wrappedObjectFutureValue.toPromise.returns(Promise.resolve(wrappedObjectPresentValue));
+        wrappedObjectValue = sinon.createStubInstance(ObjectValue);
+
+        valueCaller.callMethod
+            .returns(Promise.resolve(sinon.createStubInstance(Value)));
 
         value = new AsyncObjectValue(
             valueFactory,
             state.getReferenceFactory(),
             state.getFutureFactory(),
             callStack,
+            flow,
             valueCaller,
-            wrappedObjectFutureValue
+            wrappedObjectValue
         );
     });
 
@@ -71,7 +73,7 @@ describe('FFI AsyncObjectValue', function () {
 
             expect(value.valueCaller.callMethod).to.have.been.calledOnce;
             expect(value.valueCaller.callMethod).to.have.been.calledWith(
-                sinon.match.same(wrappedObjectPresentValue),
+                sinon.match.same(wrappedObjectValue),
                 'myMethod',
                 ['first arg', 101]
             );
@@ -81,11 +83,11 @@ describe('FFI AsyncObjectValue', function () {
             var resultValue = valueFactory.createString('my result');
             value.valueCaller.callMethod
                 .withArgs(
-                    sinon.match.same(wrappedObjectPresentValue),
+                    sinon.match.same(wrappedObjectValue),
                     'myMethod',
                     ['first arg', 101]
                 )
-                .returns(resultValue);
+                .returns(Promise.resolve(resultValue));
 
             expect(await value.callMethod('myMethod', ['first arg', 101])).to.equal(resultValue);
         });

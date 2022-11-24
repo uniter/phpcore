@@ -55,108 +55,93 @@ module.exports = function (internals) {
         }),
 
         /**
-         * Moves the iterator to the next position
+         * Moves the iterator to the next position.
          *
          * @param {ArrayIterator|ObjectValue} iterator
-         * @returns {FutureValue|undefined}
+         * @returns {ChainableInterface<Value>|undefined}
          */
         advance: function (iterator) {
             return iterator.advance();
         },
 
         /**
-         * Bitwise-ANDs two Values together, returning the result wrapped as a Value
+         * Bitwise-ANDs two Values together, returning the result wrapped as a Value.
          *
-         * Used by the `&` operator
-         *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
-         * @returns {Value}
+         * Used by the `&` operator.
          */
-        bitwiseAnd: function (leftReference, rightReference) {
-            // Note that either operand could evaluate to a FutureValue, for handling async operation
-            return leftReference.getValue().bitwiseAnd(rightReference.getValue());
-        },
+        bitwiseAnd: internals.typeHandler('val left, val right : val', function (leftValue, rightValue) {
+            return leftValue.bitwiseAnd(rightValue);
+        }),
 
         /**
-         * Bitwise-ANDs two Values together, writing the result back to the source operand
+         * Bitwise-ANDs two Values together, writing the result back to the source operand.
          *
-         * Used by the `&=` operator
-         *
-         * @param {Reference|Value|Variable} targetReference
-         * @param {Reference|Value|Variable} sourceReference
-         * @returns {Value}
+         * Used by the `&=` operator.
          */
-        bitwiseAndWith: function (targetReference, sourceReference) {
-            // The result of an assignment is the value assigned. Also note that either operand
-            // could evaluate to a FutureValue, for handling async operation
-            return targetReference.setValue(targetReference.getValue().bitwiseAnd(sourceReference.getValue()));
-        },
+        bitwiseAndWith: internals.typeHandler(
+            'snapshot target, val source : val',
+            function (targetReference, sourceValue) {
+                var targetValue = targetReference.getValue();
+
+                // The result of an assignment is the value assigned.
+                return targetReference.setValue(targetValue.bitwiseAnd(sourceValue));
+            }
+        ),
 
         /**
-         * Bitwise-ORs two Values together, returning the result wrapped as a Value
+         * Bitwise-ORs two Values together, returning the result wrapped as a Value.
          *
-         * Used by the `|` operator
-         *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
-         * @returns {Value}
+         * Used by the `|` operator.
          */
-        bitwiseOr: function (leftReference, rightReference) {
-            // Note that either operand could evaluate to a FutureValue, for handling async operation
-            return leftReference.getValue().bitwiseOr(rightReference.getValue());
-        },
+        bitwiseOr: internals.typeHandler('val left, val right : val', function (leftValue, rightValue) {
+            return leftValue.bitwiseOr(rightValue);
+        }),
 
         /**
-         * Bitwise-ORs two Values together, writing the result back to the target operand
+         * Bitwise-ORs two Values together, writing the result back to the target operand.
          *
-         * Used by the `|=` operator
-         *
-         * @param {Reference|Value|Variable} targetReference
-         * @param {Reference|Value|Variable} sourceReference
-         * @returns {Value}
+         * Used by the `|=` operator.
          */
-        bitwiseOrWith: function (targetReference, sourceReference) {
-            // The result of an assignment is the value assigned. Also note that either operand
-            // could evaluate to a FutureValue, for handling async operation
-            return targetReference.setValue(targetReference.getValue().bitwiseOr(sourceReference.getValue()));
-        },
+        bitwiseOrWith: internals.typeHandler(
+            'snapshot target, val source : val',
+            function (targetReference, sourceValue) {
+                var targetValue = targetReference.getValue();
+
+                // The result of an assignment is the value assigned.
+                return targetReference.setValue(targetValue.bitwiseOr(sourceValue));
+            }
+        ),
 
         /**
-         * Bitwise-XORs two Values together, returning the result wrapped as a Value
+         * Bitwise-XORs two Values together, returning the result wrapped as a Value.
          *
-         * Used by the `^` operator
-         *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
-         * @returns {Value}
+         * Used by the `^` operator.
          */
-        bitwiseXor: function (leftReference, rightReference) {
-            // Note that either operand could evaluate to a FutureValue, for handling async operation
-            return leftReference.getValue().bitwiseXor(rightReference.getValue());
-        },
+        bitwiseXor: internals.typeHandler('val left, val right : val', function (leftValue, rightValue) {
+            return leftValue.bitwiseXor(rightValue);
+        }),
 
         /**
-         * Bitwise-XORs two Values together, writing the result back to the target operand
+         * Bitwise-XORs two Values together, writing the result back to the target operand.
          *
-         * Used by the `^=` operator
-         *
-         * @param {Reference|Value|Variable} targetReference
-         * @param {Reference|Value|Variable} sourceReference
-         * @returns {Value}
+         * Used by the `^=` operator.
          */
-        bitwiseXorWith: function (targetReference, sourceReference) {
-            // The result of an assignment is the value assigned. Also note that either operand
-            // could evaluate to a FutureValue, for handling async operation
-            return targetReference.setValue(targetReference.getValue().bitwiseXor(sourceReference.getValue()));
-        },
+        bitwiseXorWith: internals.typeHandler(
+            'snapshot target, val source : val',
+            function (targetReference, sourceValue) {
+                // The result of an assignment is the value assigned.
+                return targetReference.setValue(targetReference.getValue().bitwiseXor(sourceValue));
+            }
+        ),
 
         /**
          * Calls a PHP function where the name is known statically, returning its result
          * as a Value if it returns by-value or as a Reference if it returns by-reference.
+         *
+         * Used by "my_function(...)" syntax.
          */
         callFunction: internals.typeHandler(
-            'string name, snapshot ...argReferences : any',
+            'string name, snapshot ...argReferences : ref|val',
             function (name, argReferences) {
                 var namespaceScope = callStack.getCurrentNamespaceScope(),
                     barewordString = valueFactory.createBarewordString(name, namespaceScope);
@@ -169,43 +154,41 @@ module.exports = function (internals) {
          * Calls a PHP instance method where the name is known statically, returning its result
          * as a Value if it returns by-value or as a Reference if it returns by-reference.
          *
-         * @param {Reference|Value|Variable} objectReference
-         * @param {string} methodName
-         * @param {Reference[]|Value[]|Variable[]} argReferences
-         * @returns {Reference|Value}
+         * Used by "$myObject->myMethod(...)" syntax.
          */
-        callInstanceMethod: function (objectReference, methodName, argReferences) {
-            var objectValue = objectReference.getValue();
-
-            return objectValue.callMethod(methodName, argReferences);
-        },
+        callInstanceMethod: internals.typeHandler(
+            'val object, string method, snapshot ...argReferences : ref|val',
+            function (objectValue, methodName, argReferences) {
+                return objectValue.callMethod(methodName, argReferences);
+            }
+        ),
 
         /**
-         * Calls a static method of a class
+         * Calls a static method of a class.
          *
-         * @param {Reference|Value|Variable} classReference
-         * @param {string} methodName
-         * @param {Reference[]|Value[]|Variable[]} argReferences
-         * @param {bool=} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
-         * @returns {Value}
+         * Used by "MyClass::myMethod(...)" syntax.
          */
-        callStaticMethod: function (classReference, methodName, argReferences, isForwarding) {
-            var classValue = classReference.getValue(),
+        callStaticMethod: internals.typeHandler(
+            'val class, string method, bool isForwarding, snapshot ...argReferences : ref|val',
+            function (classValue, methodName, isForwarding, argReferences) {
                 // TODO: Remove need for wrapping this as a *Value
-                methodValue = valueFactory.createString(methodName);
+                var methodValue = valueFactory.createString(methodName);
 
-            return classValue.callStaticMethod(methodValue, argReferences, isForwarding);
-        },
+                return classValue.callStaticMethod(methodValue, argReferences, isForwarding);
+            }
+        ),
 
         /**
          * Calls a PHP function where the name is fetched dynamically, returning its result
          * as a Value if it returns by-value or as a Reference if it returns by-reference.
+         *
+         * Used by "$myObject->$myMethodName(...)" syntax.
          */
         callVariableFunction: internals.typeHandler(
-            'val name, snapshot ...argReferences : any',
+            'val name, snapshot ...argReferences : ref|val',
             function (nameValue, argReferences) {
                 // NB: Make sure we do not coerce argument references to their values,
-                //     in case any of the parameters are passed by reference
+                //     in case any of the parameters are passed by reference.
                 return nameValue.call(argReferences);
             }
         ),
@@ -214,121 +197,151 @@ module.exports = function (internals) {
          * Calls a method of an object where the name is fetched dynamically, returning its result
          * as a Value if it returns by-value or as a Reference if it returns by-reference.
          *
-         * @param {Reference|Value|Variable} objectReference
-         * @param {Reference|Value|Variable} methodNameReference
-         * @param {Reference[]|Value[]|Variable[]} argReferences
-         * @returns {Reference|Value}
+         * Used by "$myObject->$myMethod(...)" syntax.
          */
-        callVariableInstanceMethod: function (objectReference, methodNameReference, argReferences) {
-            var objectValue = objectReference.getValue();
+        callVariableInstanceMethod: internals.typeHandler(
+            'val object, val methodName, snapshot ...argReferences : ref|val',
+            function (objectValue, methodNameValue, argReferences) {
+                var methodName = methodNameValue.getNative();
 
-            return methodNameReference.getValue()
-                .asFuture() // Do not wrap result as a value, may be return-by-reference.
-                .next(function (methodNameValue) {
-                    var methodName = methodNameValue.getNative(); // Now guaranteed to be present.
-
-                    return objectValue.callMethod(methodName, argReferences);
-                });
-        },
+                return objectValue.callMethod(methodName, argReferences);
+            }
+        ),
 
         /**
          * Calls a static method of a class where the name is fetched dynamically, returning its result
          * as a Value if it returns by-value or as a Reference if it returns by-reference.
          *
-         * @param {Reference|Value|Variable} classNameReference
-         * @param {Reference|Value|Variable} methodNameReference
-         * @param {Reference[]|Value[]|Variable[]} argReferences
-         * @returns {Reference|Value}
+         * Used by "MyClass::$myMethodName(...)" syntax.
          */
-        callVariableStaticMethod: function (classNameReference, methodNameReference, argReferences) {
-            var classNameValue = classNameReference.getValue(),
-                methodNameValue = methodNameReference.getValue();
-
-            return classNameValue.callStaticMethod(methodNameValue, argReferences);
-        },
+        callVariableStaticMethod: internals.typeHandler(
+            'val class, val methodName, bool isForwarding, snapshot ...argReferences : ref|val',
+            function (classNameValue, methodNameValue, isForwarding, argReferences) {
+                return classNameValue.callStaticMethod(methodNameValue, argReferences, isForwarding);
+            }
+        ),
 
         /**
-         * Clones the given ObjectValue
+         * Clones the given ObjectValue.
          *
-         * @param {Reference|Value|Variable} objectReference
-         * @returns {FutureValue<ObjectValue>|ObjectValue}
+         * Used by "clone $myObject" syntax.
          */
-        clone: function (objectReference) {
-            return objectReference.getValue().clone();
-        },
-
-        coerceToArray: function (reference) {
-            return reference.getValue().coerceToArray();
-        },
-
-        coerceToBoolean: function (reference) {
-            return reference.getValue().coerceToBoolean();
-        },
-
-        coerceToFloat: function (reference) {
-            return reference.getValue().coerceToFloat();
-        },
-
-        coerceToInteger: function (reference) {
-            return reference.getValue().coerceToInteger();
-        },
-
-        coerceToObject: function (reference) {
-            return reference.getValue().coerceToObject();
-        },
-
-        coerceToString: function (reference) {
-            return reference.getValue().coerceToString();
-        },
+        clone: internals.typeHandler('val object : val', function (objectValue) {
+            return objectValue.clone();
+        }),
 
         /**
-         * Concatenates two Values together, returning the result wrapped as a Value
+         * Casts the given value to array.
          *
-         * Used by the `.` operator
-         *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
-         * @returns {Value}
+         * Used by "(array) $myVar" syntax.
          */
-        concat: function (leftReference, rightReference) {
-            return leftReference.getValue().concat(rightReference.getValue());
-        },
+        coerceToArray: internals.typeHandler('val value : val', function (value) {
+            return value.coerceToArray();
+        }),
+
+        /**
+         * Casts the given value to boolean.
+         *
+         * Used by "(bool) $myVar" and "(boolean) $myVar" syntax.
+         */
+        coerceToBoolean: internals.typeHandler('val value : val', function (value) {
+            return value.coerceToBoolean();
+        }),
+
+        /**
+         * Casts the given value to float.
+         *
+         * Used by "(double) $myVar", "(float) $myVar" and "(real) $myVar" syntax.
+         */
+        coerceToFloat: internals.typeHandler('val value : val', function (value) {
+            return value.coerceToFloat();
+        }),
+
+        /**
+         * Casts the given value to integer.
+         *
+         * Used by "(int) $myVar" and "(integer) $myVar" syntax.
+         */
+        coerceToInteger: internals.typeHandler('val value : val', function (value) {
+            return value.coerceToInteger();
+        }),
+
+        /**
+         * Casts the given value to object.
+         *
+         * Used by "(object) $myVar" syntax.
+         */
+        coerceToObject: internals.typeHandler('val value : val', function (value) {
+            return value.coerceToObject();
+        }),
+
+        /**
+         * Casts the given value to string.
+         *
+         * Used by "(string) $myVar" syntax.
+         */
+        coerceToString: internals.typeHandler('val value : val', function (value) {
+            return value.coerceToString();
+        }),
+
+        /**
+         * Concatenates two Values together, returning the result wrapped as a Value.
+         *
+         * Used by the "." operator.
+         */
+        concat: internals.typeHandler(
+            'val left, val right : val',
+            function (leftValue, rightValue) {
+                return leftValue.concat(rightValue);
+            }
+        ),
 
         /**
          * Coerces the value from this reference and the specified one to strings,
          * concatenates them together and then assigns the result back to the target operand.
          *
-         * Used by the `.=` operator
-         *
-         * @param {Reference|Value|Variable} targetReference
-         * @param {Reference|Value|Variable} sourceReference
-         * @returns {Value}
+         * Used by the ".=" operator.
          */
-        concatWith: function (targetReference, sourceReference) {
-            // The result of an assignment is the value assigned. Also note that either operand
-            // could evaluate to a FutureValue, for handling async operation
-            return targetReference.setValue(targetReference.getValue().concat(sourceReference.getValue()));
-        },
+        concatWith: internals.typeHandler(
+            'snapshot target, val source : val',
+            function (targetReference, sourceValue) {
+                var targetValue = targetReference.getValue();
+
+                return targetReference.setValue(targetValue.concat(sourceValue));
+            }
+        ),
 
         /**
          * Creates an ArrayValue with the given elements.
          *
-         * @param {KeyReferencePair[]|KeyValuePair[]|Reference[]|Value[]|Variable[]} elements
-         * @returns {FutureValue<ArrayValue>}
+         * Used by array literal syntax "[...]".
          */
-        createArray: function (elements) {
-            return valueProvider.createFutureArray(elements);
-        },
+        createArray: internals.typeHandler(
+            'snapshot ...elements : val',
+            function (elementSnapshots) {
+                return valueProvider.createFutureArray(elementSnapshots);
+            }
+        ),
 
+        /**
+         * Creates a BarewordStringValue.
+         *
+         * Used by bareword syntax, e.g. "MyClass::...".
+         */
         createBareword: function (nativeValue) {
             var namespaceScope = callStack.getCurrentNamespaceScope();
 
             return valueFactory.createBarewordString(nativeValue, namespaceScope);
         },
 
-        createBoolean: function (nativeValue) {
+        /**
+         * Creates a BooleanValue.
+         *
+         * Used by boolean literals, "true" and "false".
+         */
+        createBoolean: internals.typeHandler('bool native : val', function (nativeValue) {
             return valueFactory.createBoolean(nativeValue);
-        },
+        }),
 
         /**
          * Creates an ObjectValue that wraps an instance of the builtin PHP Closure class
@@ -374,49 +387,77 @@ module.exports = function (internals) {
                 });
         },
 
-        createFloat: function (nativeValue) {
+        /**
+         * Creates a FloatValue.
+         *
+         * Used by float literals, e.g. "123.456".
+         */
+        createFloat: internals.typeHandler('number native : val', function (nativeValue) {
             return valueFactory.createFloat(nativeValue);
-        },
+        }),
 
         /**
-         * Used by transpiled PHP `new MyClass(<args>)` expressions
+         * Used by transpiled PHP `new MyClass(<args>)` expressions.
          *
-         * @param {Reference|Value|Variable} classNameReference
-         * @param {Value[]} args Arguments to pass to the constructor
-         * @returns {FutureValue<ObjectValue>|ObjectValue}
+         * @param {Value[]} args Arguments to pass to the constructor.
+         * @returns {ChainableInterface<ObjectValue>}
          */
-        createInstance: function (classNameReference, args) {
-            var classNameValue = classNameReference.getValue();
+        createInstance: internals.typeHandler(
+            'val className, snapshot ...args : val',
+            function (classNameValue, args) {
+                return classNameValue.instantiate(args);
+            }
+        ),
 
-            return classNameValue.instantiate(args);
-        },
-
-        createInteger: function (nativeValue) {
+        /**
+         * Creates an IntegerValue.
+         *
+         * Used by integer literals, e.g. "456".
+         */
+        createInteger: internals.typeHandler('number native : val', function (nativeValue) {
             return valueFactory.createInteger(nativeValue);
-        },
+        }),
 
-        createKeyReferencePair: function (keyReference, reference) {
-            return new KeyReferencePair(
-                keyReference.getValue(),
-                // Reference may not be a ReferenceSlot (if applicable), so we must ensure it like this
-                reference.getReference()
-            );
-        },
+        /**
+         * Creates a KeyReferencePair.
+         *
+         * Used by array literal syntax, e.g. "$myArray = ['my_key' => &$myByRefValue]".
+         */
+        createKeyReferencePair: internals.typeHandler(
+            'val key, ref reference',
+            function (keyValue, reference) {
+                return new KeyReferencePair(
+                    keyValue,
+                    // Reference may not be a ReferenceSlot (if applicable), so we must ensure it like this.
+                    reference.getReference()
+                );
+            }
+        ),
 
-        createKeyValuePair: function (keyReference, valueReference) {
-            return new KeyValuePair(keyReference.getValue(), valueReference.getValue());
-        },
+        /**
+         * Creates a KeyValuePair.
+         *
+         * Used by array literal syntax, e.g. "$myArray = ['my_key' => $myByValValue]".
+         */
+        createKeyValuePair: internals.typeHandler(
+            'val key, val value',
+            function (keyValue, value) {
+                return new KeyValuePair(keyValue, value);
+            }
+        ),
 
         /**
          * Creates a new List, which is a list of references that may be assigned to
          * by assigning them an array, where each list element gets the corresponding array element
          *
-         * @param {Reference[]} elements
-         * @returns {List}
+         * Used by list syntax "list(...) = ...".
          */
-        createList: function (elements) {
-            return new List(valueFactory, flow, elements);
-        },
+        createList: internals.typeHandler(
+            'snapshot ...elements : list',
+            function (elementSnapshots) {
+                return new List(valueFactory, flow, elementSnapshots);
+            }
+        ),
 
         /**
          * Fetches a ReferenceElement for the given reference. Note that if a value is given
@@ -432,9 +473,14 @@ module.exports = function (internals) {
             return new ReferenceElement(valueOrReference.getReference());
         },
 
-        createString: function (nativeValue) {
+        /**
+         * Creates a StringValue.
+         *
+         * Used by string literals, e.g. "'my string'".
+         */
+        createString: internals.typeHandler('string native : val', function (nativeValue) {
             return valueFactory.createString(nativeValue);
-        },
+        }),
 
         /**
          * Creates a NullReference, which discards any value written to it.
@@ -448,95 +494,81 @@ module.exports = function (internals) {
 
         /**
          * Subtracts the value of the source reference from the target reference's value,
-         * then writes the result back to the target reference
+         * then writes the result back to the target reference.
          *
-         * Used by the `-=` operator
-         *
-         * @param {Reference|Value|Variable} targetReference
-         * @param {Reference|Value|Variable} sourceReference
-         * @returns {Value}
+         * Used by the `-=` operator.
          */
-        decrementBy: function (targetReference, sourceReference) {
-            // The result of an assignment is the value assigned. Also note that either operand
-            // could evaluate to a FutureValue, for handling async operation
-            return targetReference.setValue(targetReference.getValue().subtract(sourceReference.getValue()));
-        },
+        decrementBy: internals.typeHandler(
+            'snapshot target, val source : val',
+            function (targetReference, sourceValue) {
+                // The result of an assignment is the value assigned.
+                return targetReference.setValue(targetReference.getValue().subtract(sourceValue));
+            }
+        ),
 
         /**
-         * Divides a Value by another, returning the result wrapped as a Value
+         * Divides a Value by another, returning the result wrapped as a Value.
          *
-         * Used by the `/` operator
-         *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
-         * @returns {Value}
+         * Used by the `/` operator.
          */
-        divide: function (leftReference, rightReference) {
-            // Note that either operand could evaluate to a FutureValue, for handling async operation
-            return leftReference.getValue().divideBy(rightReference.getValue());
-        },
+        divide: internals.typeHandler('val left, val right : val', function (leftValue, rightValue) {
+            return leftValue.divideBy(rightValue);
+        }),
 
         /**
          * Divides the value of the target reference by the source reference's value,
-         * then writes the result back to the target reference
+         * then writes the result back to the target reference.
          *
-         * Used by the `/=` operator
-         *
-         * @param {Reference|Value|Variable} targetReference
-         * @param {Reference|Value|Variable} sourceReference
-         * @returns {Value}
+         * Used by the `/=` operator.
          */
-        divideBy: function (targetReference, sourceReference) {
-            // The result of an assignment is the value assigned. Also note that either operand
-            // could evaluate to a FutureValue, for handling async operation
-            return targetReference.setValue(targetReference.getValue().divideBy(sourceReference.getValue()));
-        },
+        divideBy: internals.typeHandler(
+            'snapshot target, val source : val',
+            function (targetReference, sourceValue) {
+                // The result of an assignment is the value assigned.
+                return targetReference.setValue(targetReference.getValue().divideBy(sourceValue));
+            }
+        ),
 
         /**
          * Writes the given value to output. Note that unlike print() there is no return value.
          *
-         * @param {Reference|Value|Variable} textReference
-         * @returns {FutureValue}
+         * Used by the "echo ...;" statement.
          */
-        echo: function (textReference) {
-            return textReference.getValue().coerceToString().next(function (textValue) {
-                var text = textValue.getNative(); // Guaranteed to be present by this point.
+        echo: internals.typeHandler('val text', function (textValue) {
+            return textValue.coerceToString().next(function (textAsStringValue) {
+                var text = textAsStringValue.getNative(); // Guaranteed to be present by this point.
 
                 output.write(text);
             });
-        },
+        }),
 
         /**
-         * Evaluates the given PHP code using the configured `eval` option
+         * Evaluates the given PHP code using the configured `eval` option.
          *
-         * @param {Reference|Value|Variable} codeReference
-         * @returns {Value}
+         * Used by the `eval(...)` construct.
          */
-        eval: function (codeReference) {
-            return codeReference.getValue().next(function (codeValue) {
-                var code = codeValue.getNative(); // Guaranteed to be present by this point.
+        eval: internals.typeHandler('val code', function (codeValue) {
+            var code = codeValue.getNative();
 
-                return evaluator.eval(code, callStack.getCurrentModuleScope().getEnvironment());
-            });
-        },
+            return evaluator.eval(code, callStack.getCurrentModuleScope().getEnvironment());
+        }),
 
         /**
-         * Fetches a constant of the given class
+         * Fetches a constant of the given class.
          *
-         * Used by "::CLASS_NAME"
-         *
-         * @param {Reference|Value|Variable} classNameReference
-         * @param {string} constantName
-         * @returns {Value}
+         * Used by `::CLASS_NAME`.
          */
-        getClassConstant: function (classNameReference, constantName) {
-            return classNameReference.getValue().getConstantByName(constantName);
-        },
+        getClassConstant: internals.typeHandler(
+            'val className, string constantName : val',
+            function (classNameValue, constantName) {
+                return classNameValue.getConstantByName(constantName);
+            }
+        ),
 
         /**
          * Fetches the name of the current class, or an empty string if there is none
          *
-         * Used by "self::" inside property or constant definitions and by "__CLASS__"
+         * Used by `self::` inside property or constant definitions and by `__CLASS__`.
          *
          * @returns {StringValue}
          */
@@ -547,7 +579,7 @@ module.exports = function (internals) {
         /**
          * Fetches the name of the class in which the current scope's function is defined
          *
-         * Used by "self::" inside methods
+         * Used by `self::` inside methods.
          *
          * @returns {StringValue}
          * @throws {PHPFatalError} When there is no current class scope
@@ -557,29 +589,30 @@ module.exports = function (internals) {
         },
 
         /**
-         * Fetches the value of a constant in the current NamespaceScope
+         * Fetches the value of a constant in the current NamespaceScope.
          *
-         * @param {string} name
-         * @returns {Value}
+         * Used by `BAREWORD_CONSTANT` syntax.
          */
-        getConstant: function (name) {
+        getConstant: internals.typeHandler('string name : val', function (name) {
             var namespaceScope = callStack.getCurrentNamespaceScope();
 
             return namespaceScope.getConstant(name);
-        },
+        }),
 
         /**
-         * Fetches a constant of the current class
+         * Fetches a constant of the current class.
          *
-         * Used by static property initialisers and class constants
+         * Used by static property initialisers and class constants.
          *
          * @param {Class} currentClass
-         * @param {string} constantName
-         * @returns {Value}
          */
-        getCurrentClassConstant: function (currentClass, constantName) {
-            return currentClass.getConstantByName(constantName);
-        },
+        getCurrentClassConstant: internals.typeHandler(
+            // TODO: Add a "Class" opcode parameter type?
+            'any currentClass, string constantName : val',
+            function (currentClass, constantName) {
+                return currentClass.getConstantByName(constantName);
+            }
+        ),
 
         /**
          * Fetches the reference of the element this iterator is currently pointing at.
@@ -621,18 +654,20 @@ module.exports = function (internals) {
          *
          * @param {Reference|Value|Variable} arrayReference
          * @param {number|string} nativeKey
-         * @returns {Future<ElementReference|ReferenceSnapshot>}
+         * @returns {ChainableInterface<ElementReference|ReferenceSnapshot>}
          */
-        getElement: function (arrayReference, nativeKey) {
-            // TODO: Remove need for this to be wrapped as a Value
-            var keyValue = valueFactory.coerce(nativeKey);
+        getElement: internals.typeHandler(
+            'ref|val array, any nativeKey : ref',
+            function (arrayReference, nativeKey) {
+                // TODO: Remove need for this to be wrapped as a Value.
+                var keyValue = valueFactory.coerce(nativeKey);
 
-            return internals.implyArray(arrayReference)
-                .asFuture() // Do not wrap result as a value, we expect to resolve with an (object)element reference.
-                .next(function (arrayValue) {
-                    return arrayValue.getElementByKey(keyValue);
-                });
-        },
+                return internals.implyArray(arrayReference)
+                    .next(function (arrayValue) {
+                        return arrayValue.getElementByKey(keyValue);
+                    });
+            }
+        ),
 
         /**
          * Fetches the name of the current function, or an empty string if there is none
@@ -646,20 +681,19 @@ module.exports = function (internals) {
         /**
          * Fetches an instance property of a class instance.
          *
-         * @param {Reference|Value|Variable} objectReference
-         * @param {string} propertyName
-         * @returns {Future<Property|ReferenceSnapshot>}
+         * Used by `$object->myPropertyName` object access operator.
+         *
+         * @returns {ChainableInterface<Property|ReferenceSnapshot>}
          */
-        getInstanceProperty: function (objectReference, propertyName) {
-            // TODO: Remove need for this to be wrapped as a StringValue
-            var propertyNameValue = valueFactory.createString(propertyName);
+        getInstanceProperty: internals.typeHandler(
+            'val object, string propertyName : ref',
+            function (objectValue, propertyName) {
+                // TODO: Remove need for this to be wrapped as a StringValue.
+                var propertyNameValue = valueFactory.createString(propertyName);
 
-            return objectReference.getValue()
-                .asFuture() // Do not wrap result as a value, we expect to resolve with a property reference.
-                .next(function (presentValue) {
-                    return presentValue.getInstancePropertyByName(propertyNameValue);
-                });
-        },
+                return objectValue.getInstancePropertyByName(propertyNameValue);
+            }
+        ),
 
         /**
          * Fetches the name of the current method, or an empty string if there is none
@@ -671,17 +705,12 @@ module.exports = function (internals) {
         },
 
         /**
-         * Fetches the name of the current namespace
+         * Fetches the name of the current namespace.
          *
-         * @param {NamespaceScope} namespaceScope
          * @returns {StringValue}
          */
         getNamespaceName: function () {
             return callStack.getCurrentNamespaceScope().getNamespaceName();
-        },
-
-        getNative: function (valueReference) {
-            return valueReference.getValue().getNative();
         },
 
         /**
@@ -734,9 +763,9 @@ module.exports = function (internals) {
 
         /**
          * Fetches the name of the current static class scope, which may be different
-         * from the class in which its function is defined (eg. after a forward_static_call(...))
+         * from the class in which its function is defined (e.g. after a forward_static_call(...)).
          *
-         * Used by "static::"
+         * Used by `static::`.
          *
          * @returns {StringValue}
          * @throws {PHPFatalError} When there is no static class scope
@@ -750,22 +779,22 @@ module.exports = function (internals) {
         /**
          * Fetches a static property of a class.
          *
-         * @param {Reference|Value|Variable} classReference
-         * @param {string} propertyName
-         * @returns {Future<ReferenceSnapshot|StaticPropertyReference>}
+         * @returns {ChainableInterface<ReferenceSnapshot|StaticPropertyReference>}
          */
-        getStaticProperty: function (classReference, propertyName) {
-            var classValue = classReference.getValue(),
-                // TODO: Remove need for this to be wrapped as a StringValue
-                propertyNameValue = valueFactory.createString(propertyName);
+        getStaticProperty: internals.typeHandler(
+            'val className, string propertyName : ref',
+            function (classValue, propertyName) {
+                // TODO: Remove need for this to be wrapped as a StringValue.
+                var propertyNameValue = valueFactory.createString(propertyName);
 
-            return classValue.getStaticPropertyByName(propertyNameValue);
-        },
+                return classValue.getStaticPropertyByName(propertyNameValue);
+            }
+        ),
 
         /**
-         * Fetches the name of the parent class
+         * Fetches the name of the parent class.
          *
-         * Used by "parent::" inside property or constant definitions
+         * Used by `parent::` inside property or constant definitions.
          *
          * @param {Class} classObject
          * @returns {StringValue}
@@ -783,9 +812,9 @@ module.exports = function (internals) {
         },
 
         /**
-         * Fetches the name of the parent of the class in which the current scope's function is defined
+         * Fetches the name of the parent of the class in which the current scope's function is defined.
          *
-         * Used by "parent::" inside methods
+         * Used by `parent::` inside methods.
          *
          * @returns {StringValue}
          * @throws {PHPFatalError} When there is no current class scope or current class has no parent
@@ -799,44 +828,41 @@ module.exports = function (internals) {
          *
          * Used by transpiled Closure functions with value bindings,
          *     eg. "function (...) use ($myVar) {...}".
-         *
-         * @param {string} name
-         * @returns {Value}
          */
-        getValueBinding: function (name) {
-            var scope = callStack.getCurrentScope();
+        getValueBinding: internals.typeHandler(
+            'string name : val',
+            function (name) {
+                var scope = callStack.getCurrentScope();
 
-            return scope.getValueBinding(name);
-        },
+                return scope.getValueBinding(name);
+            }
+        ),
 
         /**
          * Fetches a variable with the given name.
          *
-         * @param {string} name
-         * @returns {Future<Reference|Variable>}
+         * @returns {ChainableInterface<Reference|Variable>}
          */
-        getVariable: function (name) {
+        getVariable: internals.typeHandler('string name', function (name) {
             return callStack.getCurrentScope().getVariable(name);
-        },
+        }),
 
         /**
-         * Fetches an array element where the key is fetched dynamically.
+         * Fetches an array element where the key is calculated dynamically.
          *
-         * @param {Reference|Value|Variable} arrayReference
-         * @param {Reference|Value|Variable} keyReference
-         * @returns {Future<ElementReference|ReferenceSnapshot>}
+         * Used by `$myArray[$myVar * 21]` syntax.
+         *
+         * @returns {ChainableInterface<ElementReference>}
          */
-        getVariableElement: function (arrayReference, keyReference) {
-            return internals.implyArray(arrayReference)
-                .asFuture() // Do not wrap result as a value, we expect to resolve with an (object)element reference.
-                .next(function (arrayValue) {
-                    return keyReference.getValue()
-                        .asFuture() // Do not wrap result as a value, we expect to resolve with an (object)element reference.
-                        .next(function (keyValue) {
-                            return arrayValue.getElementByKey(keyValue);
-                        });
-                });
-        },
+        getVariableElement: internals.typeHandler(
+            'snapshot array, val key : ref',
+            function (arrayReference, keyValue) {
+                return internals.implyArray(arrayReference)
+                    .next(function (arrayValue) {
+                        return arrayValue.getElementByKey(keyValue);
+                    });
+            }
+        ),
 
         /**
          * Fetches a variable from the enclosing scope. Used by closures when binding variables
@@ -844,75 +870,74 @@ module.exports = function (internals) {
          *
          * @param {string} name
          * @param {Scope} scope
-         * @returns {Future<Reference|Variable>}
+         * @returns {ChainableInterface<Reference|Variable>}
          */
         getVariableForScope: function (name, scope) {
             return scope.getVariable(name);
         },
 
         /**
-         * Fetches an instance property of the given reference's value (assuming it contains an object) by its name
+         * Fetches an instance property of the given reference's value
+         * (assuming it contains an object) by its name.
          *
-         * @param {Reference|Value|Variable} objectReference
-         * @param {Reference|Value|Variable} propertyNameReference
-         * @returns {Future<PropertyReference|ReferenceSnapshot>}
+         * Used by `$myObject->{$myVar . 'suffix'}` syntax.
+         *
+         * @returns {ChainableInterface<PropertyReference>}
          */
-        getVariableInstanceProperty: function (objectReference, propertyNameReference) {
-            return objectReference.getValue()
-                .getInstancePropertyByName(propertyNameReference.getValue());
-        },
+        getVariableInstanceProperty: internals.typeHandler(
+            'val object, val propertyName : ref',
+            function (objectValue, propertyNameValue) {
+                return objectValue.getInstancePropertyByName(propertyNameValue);
+            }
+        ),
 
         /**
          * Fetches a static property of the given reference's value (assuming it contains an object or FQCN string) by its name
          *
-         * @param {Reference|Value|Variable} objectReference
-         * @param {Reference|Value|Variable} propertyNameReference
-         * @returns {Future<ReferenceSnapshot|StaticPropertyReference>}
+         * Used by `$myObject::{$myVar . 'suffix'}` syntax.
+         *
+         * @returns {ChainableInterface<StaticPropertyReference>}
          */
-        getVariableStaticProperty: function (objectReference, propertyNameReference) {
-            return objectReference.getValue()
-                .getStaticPropertyByName(propertyNameReference.getValue());
-        },
+        getVariableStaticProperty: internals.typeHandler(
+            'val object, val propertyName : ref',
+            function (objectValue, propertyNameValue) {
+                return objectValue.getStaticPropertyByName(propertyNameValue);
+            }
+        ),
 
         /**
          * Fetches a variable from the current scope with the name specified by the given variable
-         * (note this is a dynamic lookup)
+         * (note this is a dynamic lookup).
          *
-         * Used by the `$$myVarName` and `${$myVarName}` constructs
+         * Used by the `$$myVarName` and `${$myVarName}` constructs.
          *
-         * @param {Reference|Value|Variable} nameReference
-         * @returns {Future<ReferenceSnapshot|Variable>}
+         * @returns {ChainableInterface<Variable>}
          */
-        getVariableVariable: function (nameReference) {
-            return nameReference.getValue()
-                .asFuture() // Avoid auto-boxing the Variable result as an ObjectValue.
-                .next(function (nameValue) {
-                    return callStack.getCurrentScope()
-                        .getVariable(nameValue.getNative());
-                });
-        },
+        getVariableVariable: internals.typeHandler(
+            'val name',
+            function (nameValue) {
+                return callStack.getCurrentScope()
+                    .getVariable(nameValue.getNative());
+            }
+        ),
 
         /**
-         * Coerces the value to a float or int as appropriate
+         * Coerces the value to a float or int as appropriate.
          *
-         * Used by the `+$val` operator
-         *
-         * @param {Reference|Value|Variable} reference
-         * @returns {FloatValue|IntegerValue}
+         * Used by the `+$val` operator.
          */
-        identity: function (reference) {
-            return reference.getValue().coerceToNumber();
-        },
+        identity: internals.typeHandler('val value', function (value) {
+            return value.coerceToNumber();
+        }),
 
         /**
          * Imports a global variable into the current scope.
-         * Used by the "global $myVar;" statement.
          *
-         * @param {string} name
+         * Used by the "global $myVar;" statement.
          */
-        importGlobal: function (name) {
+        importGlobal: internals.typeHandler('string name', function (name) {
             callStack.getCurrentScope().importGlobal(name);
-        },
+        }),
 
         /**
          * Imports a static variable into the current scope, so that it will retain its value between calls.
@@ -930,29 +955,26 @@ module.exports = function (internals) {
          * Throws if no include transport has been configured.
          * Raises a warning and returns false if the module cannot be found.
          *
-         * @param {Reference|Value|Variable} includedPathReference
-         * @returns {Value}
+         * Used by `$export = include 'my_script.php';` syntax.
+         *
          * @throws {Exception} When no include transport has been configured
          * @throws {Error} When the loader throws a generic error
          */
-        include: function (includedPathReference) {
+        include: internals.typeHandler('val path : val', function (includedPathValue) {
             var enclosingScope = callStack.getCurrentScope(),
-                moduleScope = callStack.getCurrentModuleScope();
+                moduleScope = callStack.getCurrentModuleScope(),
+                includedPath = includedPathValue.getNative();
 
-            return includedPathReference.getValue().next(function (includedPathValue) {
-                var includedPath = includedPathValue.getNative(); // Guaranteed to be present by this point.
-
-                return includer.include(
-                    'include',
-                    PHPError.E_WARNING, // For includes, only a warning is raised on failure
-                    moduleScope.getEnvironment(),
-                    moduleScope.getModule(),
-                    includedPath,
-                    enclosingScope,
-                    optionSet.getOptions()
-                );
-            });
-        },
+            return includer.include(
+                'include',
+                PHPError.E_WARNING, // For includes, only a warning is raised on failure.
+                moduleScope.getEnvironment(),
+                moduleScope.getModule(),
+                includedPath,
+                enclosingScope,
+                optionSet.getOptions()
+            );
+        }),
 
         /**
          * Includes the specified module if it has not been included yet.
@@ -960,54 +982,55 @@ module.exports = function (internals) {
          * otherwise boolean true will be returned.
          * Throws if no include transport has been configured.
          *
-         * @param {Reference|Value|Variable} includedPathReference
-         * @returns {Value}
+         * Used by `$export = include_once 'my_script.php';` syntax.
+         *
          * @throws {Exception} When no include transport has been configured
          * @throws {Error} When the loader throws a generic error
          */
-        includeOnce: function (includedPathReference) {
+        includeOnce: internals.typeHandler('val path : val', function (includedPathValue) {
             var enclosingScope = callStack.getCurrentScope(),
-                moduleScope = callStack.getCurrentModuleScope();
+                moduleScope = callStack.getCurrentModuleScope(),
+                includedPath = includedPathValue.getNative(); // Guaranteed to be present by this point.
 
-            return includedPathReference.getValue().next(function (includedPathValue) {
-                var includedPath = includedPathValue.getNative(); // Guaranteed to be present by this point.
-
-                return onceIncluder.includeOnce(
-                    'include_once',
-                    PHPError.E_WARNING, // For includes, only a warning is raised on failure
-                    moduleScope.getEnvironment(),
-                    moduleScope.getModule(),
-                    includedPath,
-                    enclosingScope,
-                    optionSet.getOptions()
-                );
-            });
-        },
+            return onceIncluder.includeOnce(
+                'include_once',
+                PHPError.E_WARNING, // For includes, only a warning is raised on failure.
+                moduleScope.getEnvironment(),
+                moduleScope.getModule(),
+                includedPath,
+                enclosingScope,
+                optionSet.getOptions()
+            );
+        }),
 
         /**
-         * Adds the value of the target reference by the source reference's value,
-         * then writes the result back to the target reference
+         * Adds the value of the source reference to the target reference's value,
+         * then writes the result back to the target reference.
          *
-         * @param {Reference|Value|Variable} targetReference
-         * @param {Reference|Value|Variable} sourceReference
-         * @returns {Value}
+         * Used by `$myVar += 21` syntax.
          */
-        incrementBy: function (targetReference, sourceReference) {
-            // The result of an assignment is the value assigned. Also note that either operand
-            // could evaluate to a FutureValue, for handling async operation
-            return targetReference.setValue(targetReference.getValue().add(sourceReference.getValue()));
-        },
+        incrementBy: internals.typeHandler(
+            'snapshot target, val source : val',
+            function (targetReference, sourceValue) {
+                // The result of an assignment is the value assigned. Also note that either operand
+                // could evaluate to a Future, for handling async operation.
+                return targetReference.setValue(targetReference.getValue().add(sourceValue));
+            }
+        ),
 
         /**
-         * Determines whether the object is an instance of the given class
+         * Determines whether the object is an instance of the given class.
          *
-         * @param {Reference|Value|Variable} objectReference
-         * @param {Reference|Value|Variable} classNameReference
+         * Used by `$myObject instanceof $myClassName` syntax.
+         *
          * @returns {BooleanValue}
          */
-        instanceOf: function (objectReference, classNameReference) {
-            return objectReference.getValue().isAnInstanceOf(classNameReference.getValue());
-        },
+        instanceOf: internals.typeHandler(
+            'val object, val className : val',
+            function (objectValue, classNameValue) {
+                return objectValue.isAnInstanceOf(classNameValue);
+            }
+        ),
 
         /**
          * Combines parts of a string containing reference interpolations.
@@ -1015,38 +1038,44 @@ module.exports = function (internals) {
          * Used by both string interpolations ("my string $here") and heredocs.
          *
          * @param {Reference[]|Value[]|Variable[]} references
-         * @returns {FutureValue<StringValue>}
+         * @returns {ChainableInterface<StringValue>}
          */
-        interpolate: function (references) {
-            return flow.mapAsync(
-                references,
-                function (reference) {
-                    if (typeof reference === 'string') {
-                        return reference;
-                    }
+        interpolate: internals.typeHandler(
+            'any references : val',
+            function (references) {
+                return flow.mapAsync(
+                    references,
+                    function (reference) {
+                        if (typeof reference === 'string') {
+                            return reference;
+                        }
 
-                    // Fetch value from reference:
-                    return reference
-                        // ... allowing for pauses (eg. AccessorReference)
-                        .getValue()
-                        // ... and coerce to string values, allowing for pauses (eg. __toString() methods that pause)
-                        .coerceToString();
-                }
-            ).next(function (stringParts) {
-                // Convert all values to native strings, concatenate everything together
-                // and build the final string value
-                return valueFactory.createString(
-                    _.map(stringParts, function (stringPart) {
-                        // We handle the common case of string literal fragments specially,
-                        // by embedding the primitive string literal, to save on bundle size
-                        return typeof stringPart === 'string' ?
-                            stringPart :
-                            stringPart.getNative();
-                    })
-                        .join('')
-                );
-            }).asValue();
-        },
+                        // Fetch value from reference:
+                        return reference
+                            // ... allowing for pauses (eg. AccessorReference)
+                            .getValue()
+                            .next(function (value) {
+                                // ... and coerce to string values, allowing for pauses
+                                //     (eg. __toString() methods that pause).
+                                return value.coerceToString();
+                            });
+                    }
+                ).next(function (stringParts) {
+                    // Convert all values to native strings, concatenate everything together
+                    // and build the final string value.
+                    return valueFactory.createString(
+                        _.map(stringParts, function (stringPart) {
+                            // We handle the common case of string literal fragments specially,
+                            // by embedding the primitive string literal, to save on bundle size.
+                            return typeof stringPart === 'string' ?
+                                stringPart :
+                                stringPart.getNative();
+                        })
+                            .join('')
+                    );
+                });
+            }
+        ),
 
         /**
          * Returns a special opcode handler function that is then passed the reference to test.
@@ -1069,13 +1098,13 @@ module.exports = function (internals) {
                  * Return a function that accepts the reference while we have errors suppressed (see above)
                  *
                  * @param {Reference|Value|Variable} reference
-                 * @returns {FutureValue|Value}
+                 * @returns {ChainableInterface<Value>}
                  */
                 function (reference) {
                     var isEmpty = reference.isEmpty();
 
                     // Note that .isEmpty() could return a Future, in which case
-                    // .coerce() will wrap it as a FutureValue
+                    // .coerce() will wrap it to a Future-wrapped Value.
                     return valueFactory.coerce(isEmpty)
                         .next(function (resultValue) {
                             scope.unsuppressOwnErrors();
@@ -1091,97 +1120,121 @@ module.exports = function (internals) {
          * Determines whether two operands are equal.
          * The result will be wrapped as a BooleanValue.
          *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
-         * @returns {BooleanValue|FutureValue<BooleanValue>}
+         * Used by `$var1 == $var2` expressions.
+         *
+         * @returns {ChainableInterface<BooleanValue>}
          */
-        isEqual: function (leftReference, rightReference) {
-            return leftReference.getValue().isEqualTo(rightReference.getValue());
-        },
+        isEqual: internals.typeHandler(
+            'val left, val right : val',
+            function (leftValue, rightValue) {
+                return leftValue.isEqualTo(rightValue);
+            }
+        ),
 
         /**
          * Determines whether the left operand is greater than the right one.
          * The result will be wrapped as a BooleanValue.
          *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
+         * Used by `$var1 > $var2` expressions.
+         *
          * @returns {BooleanValue}
          */
-        isGreaterThan: function (leftReference, rightReference) {
-            return leftReference.getValue().isGreaterThan(rightReference.getValue());
-        },
+        isGreaterThan: internals.typeHandler(
+            'val left, val right : val',
+            function (leftValue, rightValue) {
+                return leftValue.isGreaterThan(rightValue);
+            }
+        ),
 
         /**
          * Determines whether the left operand is greater than or equal to the right one.
          * The result will be wrapped as a BooleanValue.
          *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
+         * Used by `$var1 >= $var2` expressions.
+         *
          * @returns {BooleanValue}
          */
-        isGreaterThanOrEqual: function (leftReference, rightReference) {
-            return leftReference.getValue().isGreaterThanOrEqual(rightReference.getValue());
-        },
+        isGreaterThanOrEqual: internals.typeHandler(
+            'val left, val right : val',
+            function (leftValue, rightValue) {
+                return leftValue.isGreaterThanOrEqual(rightValue);
+            }
+        ),
 
         /**
          * Determines whether two operands are identical (same type and value).
          * The result will be wrapped as a BooleanValue.
          *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
+         * Used by `$var1 === $var2` expressions.
+         *
          * @returns {BooleanValue}
          */
-        isIdentical: function (leftReference, rightReference) {
-            return leftReference.getValue().isIdenticalTo(rightReference.getValue());
-        },
+        isIdentical: internals.typeHandler(
+            'val left, val right : val',
+            function (leftValue, rightValue) {
+                return leftValue.isIdenticalTo(rightValue);
+            }
+        ),
 
         /**
          * Determines whether the left operand is less than the right one.
          * The result will be wrapped as a BooleanValue.
          *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
+         * Used by `$var1 < $var2` expressions.
+         *
          * @returns {BooleanValue}
          */
-        isLessThan: function (leftReference, rightReference) {
-            return leftReference.getValue().isLessThan(rightReference.getValue());
-        },
+        isLessThan: internals.typeHandler(
+            'val left, val right : val',
+            function (leftValue, rightValue) {
+                return leftValue.isLessThan(rightValue);
+            }
+        ),
 
         /**
          * Determines whether the left operand is less than or equal to the right one.
          * The result will be wrapped as a BooleanValue.
          *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
+         * Used by `$var1 <= $var2` expressions.
+         *
          * @returns {BooleanValue}
          */
-        isLessThanOrEqual: function (leftReference, rightReference) {
-            return leftReference.getValue().isLessThanOrEqual(rightReference.getValue());
-        },
+        isLessThanOrEqual: internals.typeHandler(
+            'val left, val right : val',
+            function (leftValue, rightValue) {
+                return leftValue.isLessThanOrEqual(rightValue);
+            }
+        ),
 
         /**
          * Determines whether two operands are not equal.
          * The result will be wrapped as a BooleanValue.
          *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
+         * Used by `$var1 != $var2` expressions.
+         *
          * @returns {BooleanValue}
          */
-        isNotEqual: function (leftReference, rightReference) {
-            return leftReference.getValue().isNotEqualTo(rightReference.getValue());
-        },
+        isNotEqual: internals.typeHandler(
+            'val left, val right : val',
+            function (leftValue, rightValue) {
+                return leftValue.isNotEqualTo(rightValue);
+            }
+        ),
 
         /**
          * Determines whether two operands are not identical (differ in type and/or value).
          * The result will be wrapped as a BooleanValue.
          *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
+         * Used by `$var1 !== $var2` expressions.
+         *
          * @returns {BooleanValue}
          */
-        isNotIdentical: function (leftReference, rightReference) {
-            return leftReference.getValue().isNotIdenticalTo(rightReference.getValue());
-        },
+        isNotIdentical: internals.typeHandler(
+            'val left, val right : val',
+            function (leftValue, rightValue) {
+                return leftValue.isNotIdenticalTo(rightValue);
+            }
+        ),
 
         /**
          * Returns a special opcode handler function that is then passed the reference(s) to test.
@@ -1210,11 +1263,10 @@ module.exports = function (internals) {
                     var allAreSet = true;
 
                     return flow.eachAsync(references, function (reference) {
-                        // This may return a FutureValue if the reference has an accessor that pauses,
-                        // eg. an AccessorReference, a reference to an instance property
-                        // that is handled by a magic __get() method or an ArrayAccess element
+                        // This may return a Future if the reference has an accessor that pauses,
+                        // e.g. an AccessorReference, a reference to an instance property
+                        // that is handled by a magic __get() method or an ArrayAccess element.
                         return valueFactory.coerce(reference.isSet())
-                            .asFuture()
                             .next(function (isSetValue) {
                                 var isSet = isSetValue.getNative();
 
@@ -1236,76 +1288,87 @@ module.exports = function (internals) {
         },
 
         /**
-         * Coerces to boolean and then inverts the given reference's value
+         * Coerces to boolean and then inverts the given reference's value.
          *
-         * @param {Reference|Value|Variable} reference
+         * Used by `!$myVar` expressions.
+         *
          * @returns {BooleanValue}
          */
-        logicalNot: function (reference) {
-            // Note that the operand could evaluate to a FutureValue, for handling async operation
-            return reference.getValue().logicalNot();
-        },
+        logicalNot: internals.typeHandler('val value : val', function (value) {
+            return value.logicalNot();
+        }),
 
         /**
          * Xor should be true if LHS is not equal to RHS:
-         * coerce to booleans then compare for inequality
+         * coerce to booleans then compare for inequality.
          *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
+         * Used by `$left xor $right` expressions.
+         *
          * @returns {BooleanValue}
          */
-        logicalXor: function (leftReference, rightReference) {
-            return leftReference.getValue().logicalXor(rightReference.getValue());
-        },
-
-        modulo: function (leftReference, rightReference) {
-            // Note that either operand could evaluate to a FutureValue, for handling async operation
-            return leftReference.getValue().modulo(rightReference.getValue());
-        },
-
-        moduloWith: function (targetReference, sourceReference) {
-            targetReference.moduloWith(sourceReference.getValue());
-        },
+        logicalXor: internals.typeHandler(
+            'val left, val right : val',
+            function (leftValue, rightValue) {
+                // FIXME: Implement Value.logicalXor(...)!
+                return leftValue.logicalXor(rightValue);
+            }
+        ),
 
         /**
-         * Multiplies two Values together, returning the result wrapped as a Value
+         * Calculates the modulo of two values.
          *
-         * Used by the `*` operator
-         *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
-         * @returns {Value}
+         * Used by the `%` operator.
          */
-        multiply: function (leftReference, rightReference) {
-            return leftReference.getValue().multiplyBy(rightReference.getValue());
-        },
+        modulo: internals.typeHandler('val left, val right : val', function (leftValue, rightValue) {
+            return leftValue.modulo(rightValue);
+        }),
+
+        /**
+         * Calculates the modulo of two values, writing the result to the target.
+         *
+         * Used by the `%=` operator.
+         */
+        moduloWith: internals.typeHandler(
+            'snapshot target, val source',
+            function (targetReference, sourceValue) {
+                return targetReference.setValue(targetReference.getValue().modulo(sourceValue));
+            }
+        ),
+
+        /**
+         * Multiplies two Values together, returning the result wrapped as a Value.
+         *
+         * Used by the `*` operator.
+         */
+        multiply: internals.typeHandler(
+            'val left, val right : val',
+            function (leftValue, rightValue) {
+                return leftValue.multiplyBy(rightValue);
+            }
+        ),
 
         /**
          * Multiplies the value of the target reference by the source reference's value,
-         * then writes the result back to the target reference
+         * then writes the result back to the target reference.
          *
-         * Used by the `*=` operator
-         *
-         * @param {Reference|Value|Variable} targetReference
-         * @param {Reference|Value|Variable} sourceReference
-         * @returns {Value}
+         * Used by the `*=` operator.
          */
-        multiplyBy: function (targetReference, sourceReference) {
-            // The result of an assignment is the value assigned. Also note that either operand
-            // could evaluate to a FutureValue, for handling async operation
-            return targetReference.setValue(targetReference.getValue().multiplyBy(sourceReference.getValue()));
-        },
+        multiplyBy: internals.typeHandler(
+            'snapshot target, val source : val',
+            function (targetReference, sourceValue) {
+                return targetReference.setValue(targetReference.getValue().multiplyBy(sourceValue));
+            }
+        ),
 
         /**
          * Negates the current value arithmetically, inverting its sign and returning
-         * either a FloatValue or IntegerValue as appropriate
+         * either a FloatValue or IntegerValue as appropriate.
          *
-         * @param {Reference|Value|Variable} reference
-         * @returns {FloatValue|FutureValue|IntegerValue}
+         * Used by `-$myVar` expressions.
          */
-        negate: function (reference) {
-            return reference.getValue().negate();
-        },
+        negate: internals.typeHandler('val value: val', function (value) {
+            return value.negate();
+        }),
 
         /**
          * Returns a special opcode handler function that is then passed the reference to return if set
@@ -1323,19 +1386,19 @@ module.exports = function (internals) {
             scope.suppressOwnErrors();
 
             // The returned function must be treated as a separate opcode, as if there is a pause
-            // its result must be stored in the trace and not applied to the parent opcode (eg. setValue)
+            // its result must be stored in the trace and not applied to the parent opcode (eg. setValue).
             return opcodeHandlerFactory.createTracedHandler(
                 /**
-                 * Return a function that accepts the references while we have errors suppressed (see above)
+                 * Return a function that accepts the references while we have errors suppressed (see above).
                  *
                  * @param {Reference|Value|Variable} leftReference
                  * @param {Reference|Value|Variable} rightReference
-                 * @returns {FutureValue|Value}
+                 * @returns {ChainableInterface<Value>}
                  */
                 function (leftReference, rightReference) {
-                    // This may return a FutureValue if the reference has an accessor that pauses,
-                    // eg. an AccessorReference, a reference to an instance property
-                    // that is handled by a magic __get() method or an ArrayAccess element
+                    // This may return a Future if the reference has an accessor that pauses,
+                    // e.g. an AccessorReference, a reference to an instance property
+                    // that is handled by a magic __get() method or an ArrayAccess element.
                     return valueFactory.coerce(leftReference.isSet())
                         .next(function (leftIsSetValue) {
                             var leftIsSet = leftIsSetValue.getNative();
@@ -1349,92 +1412,89 @@ module.exports = function (internals) {
             );
         },
 
-        onesComplement: function (reference) {
-            /*jshint bitwise: false */
-            return reference.getValue().onesComplement();
-        },
+        /**
+         * Returns the ones' complement of the given value.
+         *
+         * Used by `~$myVar` expressions.
+         */
+        onesComplement: internals.typeHandler('val value : val', function (value) {
+            return value.onesComplement();
+        }),
 
         /**
          * Decrements the stored value, returning its original value.
          *
-         * @param {Reference} reference
-         * @returns {Value}
+         * Used by `$myVar--` expressions.
          */
-        postDecrement: function (reference) {
+        postDecrement: internals.typeHandler('snapshot value : val', function (reference) {
             var originalValue = reference.getValue(),
                 decrementedValue = originalValue.decrement();
 
             return reference.setValue(decrementedValue)
                 .next(function () {
                     return originalValue;
-                })
-                .asValue();
-        },
+                });
+        }),
 
         /**
          * Increments the stored value, returning its original value.
          *
-         * @param {Reference} reference
-         * @returns {Value}
+         * Used by `$myVar++` expressions.
          */
-        postIncrement: function (reference) {
+        postIncrement: internals.typeHandler('snapshot value : val', function (reference) {
             var originalValue = reference.getValue(),
                 incrementedValue = originalValue.increment();
 
             return reference.setValue(incrementedValue)
                 .next(function () {
                     return originalValue;
-                })
-                .asValue();
-        },
+                });
+        }),
 
         /**
          * Decrements the stored value, returning its new value.
          *
-         * @param {Reference} reference
-         * @returns {Value}
+         * Used by `--$myVar` expressions.
          */
-        preDecrement: function (reference) {
+        preDecrement: internals.typeHandler('snapshot value : val', function (reference) {
             var decrementedValue = reference.getValue().decrement();
 
             return reference.setValue(decrementedValue)
                 .next(function () {
                     return decrementedValue;
-                })
-                .asValue();
-        },
+                });
+        }),
 
         /**
-         * Increments the stored value, returning its new value
+         * Increments the stored value, returning its new value.
          *
-         * @param {Reference} reference
-         * @returns {Value}
+         * Used by `++$myVar` expressions.
          */
-        preIncrement: function (reference) {
+        preIncrement: internals.typeHandler('snapshot value : val', function (reference) {
             var incrementedValue = reference.getValue().increment();
 
             return reference.setValue(incrementedValue)
                 .next(function () {
                     return incrementedValue;
-                })
-                .asValue();
-        },
+                });
+        }),
 
         /**
          * Writes the given value to output.
          *
-         * @param {Reference|Value|Variable} textReference
-         * @returns {FutureValue<IntegerValue>} Print statements always return int(1)
+         * Used by `print $myText` expressions.
+         *
+         * @returns {ChainableInterface<IntegerValue>} Print statements always return int(1).
          */
-        print: function (textReference) {
-            return textReference.getValue().coerceToString().next(function (textValue) {
-                var text = textValue.getNative();
+        print: internals.typeHandler('val text : val', function (textValue) {
+            return textValue.coerceToString().next(function (textStringValue) {
+                var text = textStringValue.getNative();
 
                 output.write(text);
 
                 return valueFactory.createInteger(1); // Print statements always return int(1).
             });
-        },
+        }),
 
         /**
          * Writes the given string to output. Used by transpiled inline HTML snippets.
@@ -1445,69 +1505,50 @@ module.exports = function (internals) {
             output.write(text);
         },
 
-        // /**
-        //  * Pushes a value or reference onto the given array. Returns the pushed value
-        //  * (even if a reference was pushed).
-        //  *
-        //  * @param {Reference|Value|Variable} arrayReference
-        //  * @param {Reference|Value|Variable} valueReference
-        //  * @returns {Value}
-        //  */
-        // push: function (arrayReference, valueReference) {
-        //     var pushElement;
-        //
-        //     // Undefined variables/references and those containing null may be implicitly converted to arrays
-        //     if (!arrayReference.isDefined() || arrayReference.getValue().getType() === 'null') {
-        //         arrayReference.setValue(valueFactory.createArray([]));
-        //     }
-        //
-        //     pushElement = arrayReference.getValue().getPushElement();
-        //
-        //     return valueReference.setAsValueOrReferenceOf(pushElement);
-        // },
-
         /**
          * Fetches a push element for the given array, so that a value or reference may be pushed onto it.
          *
-         * @param {Reference|Value|Variable} arrayReference
-         * @returns {Future<ElementReference>}
+         * Used by "$myArray[] = 123;" syntax.
+         *
+         * @returns {ChainableInterface<ElementReference>}
          */
-        pushElement: function (arrayReference) {
-            return internals.implyArray(arrayReference)
-                .asFuture() // Do not wrap result as a value, we expect to resolve with an (object)element reference.
-                .next(function (arrayValue) {
-                    return arrayValue.getPushElement();
-                });
-        },
+        pushElement: internals.typeHandler(
+            'ref|val array : ref',
+            function (arrayReference) {
+                return internals.implyArray(arrayReference)
+                    .next(function (arrayValue) {
+                        return arrayValue.getPushElement();
+                    });
+            }
+        ),
 
         /**
          * Includes the specified module, returning its return value.
          * Throws if no include transport has been configured.
          * Raises a fatal error if the module cannot be found.
          *
+         * Used by `$export = require 'my_script.php';` syntax.
+         *
          * @param {Reference|Value|Variable} includedPathReference
          * @returns {Value}
          * @throws {Exception} When no include transport has been configured
          * @throws {Error} When the loader throws a generic error
          */
-        require: function (includedPathReference) {
+        require: internals.typeHandler('val path : val', function (includedPathValue) {
             var enclosingScope = callStack.getCurrentScope(),
-                moduleScope = callStack.getCurrentModuleScope();
+                moduleScope = callStack.getCurrentModuleScope(),
+                includedPath = includedPathValue.getNative();
 
-            return includedPathReference.getValue().next(function (includedPathValue) {
-                var includedPath = includedPathValue.getNative(); // Guaranteed to be present by this point.
-
-                return includer.include(
-                    'require',
-                    PHPError.E_ERROR, // For requires, a fatal error is raised on failure
-                    moduleScope.getEnvironment(),
-                    moduleScope.getModule(),
-                    includedPath,
-                    enclosingScope,
-                    optionSet.getOptions()
-                );
-            });
-        },
+            return includer.include(
+                'require',
+                PHPError.E_ERROR, // For requires, a fatal error is raised on failure.
+                moduleScope.getEnvironment(),
+                moduleScope.getModule(),
+                includedPath,
+                enclosingScope,
+                optionSet.getOptions()
+            );
+        }),
 
         /**
          * Includes the specified module if it has not been included yet.
@@ -1516,112 +1557,130 @@ module.exports = function (internals) {
          * Throws if no include transport has been configured.
          * Raises a fatal error if the module cannot be found.
          *
+         * Used by `$export = require_once 'my_script.php';` syntax.
+         *
          * @param {Reference|Value|Variable} includedPathReference
          * @returns {Value}
          * @throws {Exception} When no include transport has been configured
          * @throws {Error} When the loader throws a generic error
          */
-        requireOnce: function (includedPathReference) {
+        requireOnce: internals.typeHandler('val path : val', function (includedPathValue) {
             var enclosingScope = callStack.getCurrentScope(),
-                moduleScope = callStack.getCurrentModuleScope();
+                moduleScope = callStack.getCurrentModuleScope(),
+                includedPath = includedPathValue.getNative();
 
-            return includedPathReference.getValue().next(function (includedPathValue) {
-                var includedPath = includedPathValue.getNative(); // Guaranteed to be present by this point.
-
-                return onceIncluder.includeOnce(
-                    'require_once',
-                    PHPError.E_ERROR, // For requires, a fatal error is raised on failure
-                    moduleScope.getEnvironment(),
-                    moduleScope.getModule(),
-                    includedPath,
-                    enclosingScope,
-                    optionSet.getOptions()
-                );
-            });
-        },
+            return onceIncluder.includeOnce(
+                'require_once',
+                PHPError.E_ERROR, // For requires, a fatal error is raised on failure.
+                moduleScope.getEnvironment(),
+                moduleScope.getModule(),
+                includedPath,
+                enclosingScope,
+                optionSet.getOptions()
+            );
+        }),
 
         /**
          * Takes a reference to the source reference or variable and assigns it to the target reference.
          *
          * Used by the reference assignment operator "=&".
          */
-        setReference: function (targetReference, sourceReference) {
-            var reference = sourceReference.getReference();
+        setReference: internals.typeHandler(
+            'ref target, ref source : val',
+            function (targetReference, sourceReference) {
+                var reference = sourceReference.getReference();
 
-            targetReference.setReference(reference);
+                targetReference.setReference(reference);
 
-            // TODO: Check this is valid - we may need to detect where a reference-assignment is read
-            //       at transpiler stage and output a getValue(...) call
-            return reference.getValue();
-        },
-
-        setReferenceOrValue: function (targetReference, sourceReference) {
-            if (valueFactory.isValue(sourceReference)) {
-                return targetReference.setValue(sourceReference);
+                // TODO: Check this is valid - we may need to detect where a reference-assignment is read
+                //       at transpiler stage and output a getValue(...) call.
+                return reference.getValue();
             }
-
-            return targetReference.setReference(sourceReference);
-        },
+        ),
 
         /**
          * Sets the value of the target reference to that of the source reference,
          * returning the assigned value. Note that if the assignment happens asynchronously,
-         * a FutureValue may be returned which will then be awaited.
+         * a Future may be returned which will then be awaited.
          *
          * Used by the assignment operators "=", ".=" etc.
-         *
-         * @param {Reference|Value|Variable} targetReference
-         * @param {Reference|Value|Variable} sourceReference
-         * @returns {Value}
          */
-        setValue: function (targetReference, sourceReference) {
-            // The result of an assignment is the value assigned. Assignments can also involve
-            // async behaviour so we need to return the result in case it is a FutureValue.
-            return targetReference.setValue(sourceReference.getValue());
-        },
-
-        shiftLeft: function (leftReference, rightReference) {
-            return leftReference.getValue().shiftLeft(rightReference.getValue());
-        },
+        setValue: internals.typeHandler(
+            'ref|list target, val source : val',
+            function setValue(targetReference, sourceValue) {
+                // The result of an assignment is the value assigned. Assignments can also involve
+                // async behaviour, so we need to return the result in case it is a Future.
+                return targetReference.setValue(sourceValue);
+            }
+        ),
 
         /**
-         * Bitwise-shifts this reference's value left by the given right reference's value,
-         * writing the result back to the left reference
+         * Bitwise-shifts the left operand left by the number of bits
+         * specified by the right operand and returns the result.
          *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
-         * @returns {Value}
+         * Used by the left-shift operator "<<".
          */
-        shiftLeftBy: function (leftReference, rightReference) {
-            return leftReference.setValue(leftReference.getValue().shiftLeft(rightReference.getValue()));
-        },
-
-        shiftRight: function (leftReference, rightReference) {
-            return leftReference.getValue().shiftRight(rightReference.getValue());
-        },
+        shiftLeft: internals.typeHandler(
+            'val left, val right : val',
+            function (leftValue, rightValue) {
+                return leftValue.shiftLeft(rightValue);
+            }
+        ),
 
         /**
-         * Bitwise-shifts this reference's value right by the given right reference's value,
-         * writing the result back to the left reference
+         * Bitwise-shifts the target operand left by the number of bits
+         * specified by the source operand, writing the result back to the target reference.
          *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
-         * @returns {Value}
+         * Used by the left-shift assignment operator "<<=".
          */
-        shiftRightBy: function (leftReference, rightReference) {
-            return leftReference.setValue(leftReference.getValue().shiftRight(rightReference.getValue()));
-        },
+        shiftLeftBy: internals.typeHandler(
+            'snapshot target, val source : val',
+            function (targetReference, sourceValue) {
+                var targetValue = targetReference.getValue();
+
+                return targetReference.setValue(targetValue.shiftLeft(sourceValue));
+            }
+        ),
 
         /**
-         * Subtracts a Value from another, returning the result wrapped as a Value
+         * Bitwise-shifts the left operand right by the number of bits
+         * specified by the right operand and returns the result.
          *
-         * @param {Reference|Value|Variable} leftReference
-         * @param {Reference|Value|Variable} rightReference
-         * @returns {Value}
+         * Used by the right-shift operator `>>`.
          */
-        subtract: function (leftReference, rightReference) {
-            return leftReference.getValue().subtract(rightReference.getValue());
-        },
+        shiftRight: internals.typeHandler(
+            'val left, val right : val',
+            function (leftValue, rightValue) {
+                return leftValue.shiftRight(rightValue);
+            }
+        ),
+
+        /**
+         * Bitwise-shifts the target operand right by the number of bits
+         * specified by the source operand, writing the result back to the target reference.
+         *
+         * Used by the right-shift assignment operator `>>=`.
+         */
+        shiftRightBy: internals.typeHandler(
+            'snapshot target, val source : val',
+            function (targetReference, sourceValue) {
+                var targetValue = targetReference.getValue();
+
+                return targetReference.setValue(targetValue.shiftRight(sourceValue));
+            }
+        ),
+
+        /**
+         * Subtracts a Value from another, returning the result wrapped as a Value.
+         *
+         * Used by `$var1 - $var2` expressions.
+         */
+        subtract: internals.typeHandler(
+            'val left, val right : val',
+            function (leftValue, rightValue) {
+                return leftValue.subtract(rightValue);
+            }
+        ),
 
         /**
          * Returns a special opcode handler function that is then passed the reference to evaluate
@@ -1640,14 +1699,14 @@ module.exports = function (internals) {
             // its result must be stored in the trace and not applied to the parent opcode (eg. setValue)
             return opcodeHandlerFactory.createTracedHandler(
                 /**
-                 * Return a function that accepts the reference while we have errors suppressed (see above)
+                 * Return a function that accepts the reference while we have errors suppressed (see above).
                  *
                  * @param {Reference|Value|Variable} reference
                  * @returns {Value}
                  */
                 function (reference) {
-                    // This may pause if the reference has an accessor that pauses, eg. an AccessorReference
-                    // or a reference to an instance property that is handled by a magic __get() method
+                    // This may pause if the reference has an accessor that pauses, e.g. an AccessorReference
+                    // or a reference to an instance property that is handled by a magic __get() method.
                     return reference.getValue()
                         .finally(function () {
                             scope.unsuppressErrors();
@@ -1661,42 +1720,39 @@ module.exports = function (internals) {
          * Calls the configured tick handler with the current statement's position data.
          * PHPToJS inserts calls to this method when ticking is enabled.
          *
-         * @param {number} startLine
-         * @param {number} startColumn
-         * @param {number} endLine
-         * @param {number} endColumn
-         * @returns {FutureValue=}
          * @throws {Exception} When no tick handler has been configured
          */
-        tick: function (startLine, startColumn, endLine, endColumn) {
-            var tickFunction = optionSet.getOption(TICK_OPTION);
+        tick: internals.typeHandler(
+            'number startLine, number startColumn, number endLine, number endColumn : any',
+            function (startLine, startColumn, endLine, endColumn) {
+                var tickFunction = optionSet.getOption(TICK_OPTION);
 
-            if (!tickFunction) {
-                throw new Exception('tick(...) :: No "' + TICK_OPTION + '" handler option is available.');
+                if (!tickFunction) {
+                    throw new Exception('tick(...) :: No "' + TICK_OPTION + '" handler option is available.');
+                }
+
+                // Return the result of calling the tick handler, in case it returns a Future
+                // for pausing execution. Note that any other returned value will have no effect,
+                // as the tick call itself is not passed as an argument to any other opcode.
+                return tickFunction(
+                    callStack.getCurrentModuleScope().getNormalisedPath(),
+                    startLine,
+                    startColumn,
+                    endLine,
+                    endColumn
+                );
             }
-
-            // Return the result of calling the tick handler, in case it returns a FutureValue
-            // for pausing execution. Note that any other returned value will have no effect,
-            // as the tick call itself is not passed as an argument to any other opcode.
-            return tickFunction(
-                callStack.getCurrentModuleScope().getNormalisedPath(),
-                startLine,
-                startColumn,
-                endLine,
-                endColumn
-            );
-        },
+        ),
 
         /**
          * Unsets all the given references (except static properties, for which it is illegal).
          *
-         * @param {Reference[]|Value[]|Variable[]} references
-         * @returns {Future}
+         * Used by unset constructs, e.g. "unset(...);"
          */
-        unset: function (references) {
+        unset: internals.typeHandler('ref ...references', function (references) {
             return flow.eachAsync(references, function (reference) {
                 return reference.unset();
             });
-        }
+        })
     };
 };

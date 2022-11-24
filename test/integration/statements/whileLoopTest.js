@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP "while" loop statement integration', function () {
-    it('should be able to loop in sync mode', function () {
+    it('should be able to loop', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -30,9 +30,10 @@ while ($i > 2) {
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             '[5]',
             '[4]',
             '[3]'
@@ -63,9 +64,10 @@ while ($i > 2) {
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect(engine.execute().getNative()).to.deep.equal([
             '[5]',
             '[[3]]',
             '[[2]]',

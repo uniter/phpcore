@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP concatenation-assignment operator ".=" integration', function () {
-    it('should support appending to the string contained in a variable or property', function () {
+    it('should support appending to the string contained in a variable or property', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -66,13 +66,11 @@ EOS
             accessorValue = newValue;
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'with variable': 'hello world',
-                'with accessor': 'welcome back',
-                'with instance prop': 'foo bar',
-                'with static prop': 'monday tuesday'
-            });
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'with variable': 'hello world',
+            'with accessor': 'welcome back',
+            'with instance prop': 'foo bar',
+            'with static prop': 'monday tuesday'
         });
     });
 });

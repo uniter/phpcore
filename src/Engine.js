@@ -154,36 +154,45 @@ _.extend(Engine.prototype, {
      * @param {string} name
      * @param {Function} valueGetter
      * @param {Function=} valueSetter
+     * @param {Function=} unsetter
      * @param {Function=} referenceGetter
      * @param {Function=} referenceSetter
      * @param {Function=} referenceClearer
      * @param {Function=} definednessGetter
+     * @param {Function=} readablenessGetter
      * @param {Function=} emptinessGetter
      * @param {Function=} setnessGetter
+     * @param {Function=} referencenessGetter
      * @param {Function=} undefinednessRaiser
      */
     defineGlobalAccessor: function (
         name,
         valueGetter,
         valueSetter,
+        unsetter,
         referenceGetter,
         referenceSetter,
         referenceClearer,
         definednessGetter,
+        readablenessGetter,
         emptinessGetter,
         setnessGetter,
+        referencenessGetter,
         undefinednessRaiser
     ) {
         this.environment.defineGlobalAccessor(
             name,
             valueGetter,
             valueSetter,
+            unsetter,
             referenceGetter,
             referenceSetter,
             referenceClearer,
             definednessGetter,
+            readablenessGetter,
             emptinessGetter,
             setnessGetter,
+            referencenessGetter,
             undefinednessRaiser
         );
     },

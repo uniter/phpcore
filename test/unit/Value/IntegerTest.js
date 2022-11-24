@@ -27,6 +27,7 @@ describe('Integer', function () {
         createKeyValuePair,
         createValue,
         factory,
+        flow,
         futureFactory,
         referenceFactory,
         state,
@@ -38,6 +39,7 @@ describe('Integer', function () {
             'call_stack': callStack
         });
         factory = state.getValueFactory();
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         referenceFactory = state.getReferenceFactory();
 
@@ -55,7 +57,14 @@ describe('Integer', function () {
         };
 
         createValue = function (nativeValue) {
-            value = new IntegerValue(factory, referenceFactory, futureFactory, callStack, nativeValue);
+            value = new IntegerValue(
+                factory,
+                referenceFactory,
+                futureFactory,
+                callStack,
+                flow,
+                nativeValue
+            );
 
             return value;
         };
@@ -677,7 +686,7 @@ describe('Integer', function () {
     describe('isGreaterThan()', function () {
         it('should return true for two integers when left is greater than right', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(createValue(15)), // Test async/Future handling.
+                rhs = createValue(15),
                 result = await lhs.isGreaterThan(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -686,7 +695,7 @@ describe('Integer', function () {
 
         it('should return false for two integers when left is equal to right', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                rhs = createValue(21),
                 result = await lhs.isGreaterThan(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -695,7 +704,7 @@ describe('Integer', function () {
 
         it('should return false for two integers when left is less than right', async function () {
             var lhs = createValue(15),
-                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                rhs = createValue(21),
                 result = await lhs.isGreaterThan(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -706,7 +715,7 @@ describe('Integer', function () {
     describe('isGreaterThanOrEqual()', function () {
         it('should return true for two integers when left is greater than right', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(createValue(15)), // Test async/Future handling.
+                rhs = createValue(15),
                 result = await lhs.isGreaterThanOrEqual(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -715,7 +724,7 @@ describe('Integer', function () {
 
         it('should return true for two integers when left is equal to right', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                rhs = createValue(21),
                 result = await lhs.isGreaterThanOrEqual(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -724,7 +733,7 @@ describe('Integer', function () {
 
         it('should return false for two integers when left is less than right', async function () {
             var lhs = createValue(15),
-                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                rhs = createValue(21),
                 result = await lhs.isGreaterThanOrEqual(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -735,7 +744,7 @@ describe('Integer', function () {
     describe('isIdenticalTo()', function () {
         it('should return true for two equal integers', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                rhs = createValue(21),
                 result = await lhs.isIdenticalTo(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -744,7 +753,7 @@ describe('Integer', function () {
 
         it('should return false for two values of same value but different type', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(factory.createFloat(21)), // Test async/Future handling.
+                rhs = factory.createFloat(21),
                 result = await lhs.isIdenticalTo(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -761,7 +770,7 @@ describe('Integer', function () {
     describe('isLessThan()', function () {
         it('should return false for two integers when left is greater than right', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(createValue(15)), // Test async/Future handling.
+                rhs = createValue(15),
                 result = await lhs.isLessThan(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -770,7 +779,7 @@ describe('Integer', function () {
 
         it('should return false for two integers when left is equal to right', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                rhs = createValue(21),
                 result = await lhs.isLessThan(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -779,7 +788,7 @@ describe('Integer', function () {
 
         it('should return true for two integers when left is less than right', async function () {
             var lhs = createValue(15),
-                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                rhs = createValue(21),
                 result = await lhs.isLessThan(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -790,7 +799,7 @@ describe('Integer', function () {
     describe('isLessThanOrEqual()', function () {
         it('should return false for two integers when left is greater than right', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(createValue(15)), // Test async/Future handling.
+                rhs = createValue(15),
                 result = await lhs.isLessThanOrEqual(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -799,7 +808,7 @@ describe('Integer', function () {
 
         it('should return true for two integers when left is equal to right', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                rhs = createValue(21),
                 result = await lhs.isLessThanOrEqual(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -808,7 +817,7 @@ describe('Integer', function () {
 
         it('should return true for two integers when left is less than right', async function () {
             var lhs = createValue(15),
-                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                rhs = createValue(21),
                 result = await lhs.isLessThanOrEqual(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -819,7 +828,7 @@ describe('Integer', function () {
     describe('isNotEqualTo()', function () {
         it('should return true for two unequal integers', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(createValue(101)), // Test async/Future handling.
+                rhs = createValue(101),
                 result = await lhs.isNotEqualTo(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -828,7 +837,7 @@ describe('Integer', function () {
 
         it('should return false for two equal integers', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                rhs = createValue(21),
                 result = await lhs.isNotEqualTo(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -837,7 +846,7 @@ describe('Integer', function () {
 
         it('should return false for two values of same value but different type', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(factory.createFloat(21)), // Test async/Future handling.
+                rhs = factory.createFloat(21),
                 result = await lhs.isNotEqualTo(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -848,7 +857,7 @@ describe('Integer', function () {
     describe('isNotIdenticalTo()', function () {
         it('should return true for two unequal integers', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(createValue(101)), // Test async/Future handling.
+                rhs = createValue(101),
                 result = await lhs.isNotIdenticalTo(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -857,7 +866,7 @@ describe('Integer', function () {
 
         it('should return true for two values of same value but different type', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(factory.createFloat(21)), // Test async/Future handling.
+                rhs = factory.createFloat(21),
                 result = await lhs.isNotIdenticalTo(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -866,7 +875,7 @@ describe('Integer', function () {
 
         it('should return false for two equal integers', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(createValue(21)), // Test async/Future handling.
+                rhs = createValue(21),
                 result = await lhs.isNotIdenticalTo(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -973,7 +982,7 @@ describe('Integer', function () {
     describe('logicalAnd()', function () {
         it('should return true for two truthy values', async function () {
             var lhs = createValue(21),
-                rhs = factory.createAsyncPresent(factory.createString('hello')), // Test async/Future handling.
+                rhs = factory.createString('hello'),
                 result = await lhs.logicalAnd(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -982,7 +991,7 @@ describe('Integer', function () {
 
         it('should return false for two falsy values', async function () {
             var lhs = createValue(0),
-                rhs = factory.createAsyncPresent(factory.createString('')), // Test async/Future handling.
+                rhs = factory.createString(''),
                 result = await lhs.logicalAnd(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -991,7 +1000,7 @@ describe('Integer', function () {
 
         it('should return false when left operand is falsy', async function () {
             var lhs = createValue(0),
-                rhs = factory.createAsyncPresent(factory.createString('hello')), // Test async/Future handling.
+                rhs = factory.createString('hello'),
                 result = await lhs.logicalAnd(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -1000,7 +1009,7 @@ describe('Integer', function () {
 
         it('should return false when right operand is falsy', async function () {
             var lhs = createValue(15),
-                rhs = factory.createAsyncPresent(factory.createString('')), // Test async/Future handling.
+                rhs = factory.createString(''),
                 result = await lhs.logicalAnd(rhs).toPromise();
 
             expect(result.getType()).to.equal('boolean');
@@ -1011,7 +1020,7 @@ describe('Integer', function () {
     describe('modulo()', function () {
         it('should return the correct remainder of 3 for 23 mod 5', async function () {
             var result,
-                rightValue = factory.createAsyncPresent(factory.createInteger(5));
+                rightValue = factory.createInteger(5);
             createValue(23);
 
             result = await value.modulo(rightValue).toPromise();
@@ -1022,7 +1031,7 @@ describe('Integer', function () {
 
         it('should return the correct remainder of 0 for 10 mod 2', async function () {
             var result,
-                rightValue = factory.createAsyncPresent(factory.createInteger(2));
+                rightValue = factory.createInteger(2);
             createValue(10);
 
             result = await value.modulo(rightValue).toPromise();
@@ -1033,7 +1042,7 @@ describe('Integer', function () {
 
         it('should return the correct remainder of 4 for 24 mod 5', async function () {
             var result,
-                rightValue = factory.createAsyncPresent(factory.createInteger(5));
+                rightValue = factory.createInteger(5);
             createValue(24);
 
             result = await value.modulo(rightValue).toPromise();
@@ -1180,26 +1189,21 @@ describe('Integer', function () {
             expect(value.next()).to.equal(value);
         });
 
-        it('should invoke the callback with the value and return the coerced result', function () {
-            var callback = sinon.stub(),
-                resultValue;
+        it('should invoke the callback with the value and return the chainified result', async function () {
+            var callback = sinon.stub();
             callback.withArgs(sinon.match.same(value)).returns('my result');
 
-            resultValue = value.next(callback);
-
-            expect(resultValue.getType()).to.equal('string');
-            expect(resultValue.getNative()).to.equal('my result');
+            expect(await value.next(callback).toPromise()).to.equal('my result');
         });
 
-        it('should return a rejected FutureValue when the callback raises an error', async function () {
+        it('should return a rejected Future when the callback raises an error', async function () {
             var callback = sinon.stub(),
-                resultValue;
+                result;
             callback.withArgs(sinon.match.same(value)).throws(new Error('Bang!'));
 
-            resultValue = value.next(callback);
+            result = value.next(callback);
 
-            expect(resultValue.getType()).to.equal('future');
-            await expect(resultValue.toPromise()).to.eventually.be.rejectedWith('Bang!');
+            await expect(result.toPromise()).to.eventually.be.rejectedWith('Bang!');
         });
     });
 

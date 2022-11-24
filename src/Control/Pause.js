@@ -42,7 +42,7 @@ function Pause(callStack, controlScope, future, resolveFuture, rejectFuture, exe
         }
 
         queueMicrotask(function () {
-            return resolveFuture(resultValue);
+            resolveFuture(resultValue);
         });
     }
 
@@ -57,7 +57,7 @@ function Pause(callStack, controlScope, future, resolveFuture, rejectFuture, exe
         }
 
         queueMicrotask(function () {
-            return rejectFuture(error);
+            rejectFuture(error);
         });
     }
 

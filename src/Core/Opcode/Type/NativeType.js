@@ -23,6 +23,7 @@ var _ = require('microdash'),
  *
  * @param {string} nativeType
  * @constructor
+ * @implements {TypeInterface}
  */
 function NativeType(nativeType) {
     /**
@@ -37,11 +38,27 @@ _.extend(NativeType.prototype, {
     /**
      * {@inheritdoc}
      */
+    allowsValue: function (value) {
+        var type = this,
+            givenType;
+
+        if (type.nativeType === 'null') {
+            return (value === null);
+        }
+
+        givenType = typeof value;
+
+        return givenType === type.nativeType;
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     coerceValue: function (value) {
         var type = this,
             givenType = typeof value;
 
-        if (givenType === type.nativeType) {
+        if (type.allowsValue(value)) {
             return value;
         }
 
@@ -50,6 +67,15 @@ _.extend(NativeType.prototype, {
             givenType +
             '" provided for NativeType<' + type.nativeType + '>'
         );
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    getDisplayName: function () {
+        var nativeType = this.nativeType;
+
+        return nativeType === 'boolean' ? 'bool' : nativeType;
     }
 });
 

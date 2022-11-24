@@ -20,7 +20,9 @@ var _ = require('microdash'),
 /**
  * @param {ValueFactory} valueFactory
  * @param {ReferenceFactory} referenceFactory
+ * @param {FutureFactory} futureFactory
  * @param {CallStack} callStack
+ * @param {Flow} flow
  * @param {Class} classObject
  * @param {string} name
  * @param {string} visibility "private", "protected" or "public"
@@ -29,12 +31,14 @@ var _ = require('microdash'),
 function StaticPropertyReference(
     valueFactory,
     referenceFactory,
+    futureFactory,
     callStack,
+    flow,
     classObject,
     name,
     visibility
 ) {
-    Reference.call(this, referenceFactory);
+    Reference.call(this, referenceFactory, futureFactory, flow);
 
     /**
      * @type {CallStack}
@@ -99,6 +103,9 @@ _.extend(StaticPropertyReference.prototype, {
         return property.reference;
     },
 
+    /**
+     * {@inheritdoc}
+     */
     getValue: function () {
         var property = this;
 
@@ -121,7 +128,7 @@ _.extend(StaticPropertyReference.prototype, {
     /**
      * Determines whether this class property is "empty" or not
      *
-     * @returns {Future<boolean>}
+     * @returns {ChainableInterface<boolean>}
      */
     isEmpty: function () {
         return this.getValue().isEmpty();
@@ -137,7 +144,7 @@ _.extend(StaticPropertyReference.prototype, {
     /**
      * Determines whether this class property is "set" (assigned a non-NULL value) or not
      *
-     * @returns {Future<boolean>}
+     * @returns {ChainableInterface<boolean>}
      */
     isSet: function () {
         return this.getValue().isSet();

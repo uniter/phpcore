@@ -12,7 +12,7 @@
 var _ = require('microdash');
 
 /**
- * Represents an opcode that performs a calculation, eg. arithmetic addition.
+ * Represents an opcode that performs a calculation, e.g. arithmetic addition.
  *
  * @constructor
  */
@@ -92,7 +92,7 @@ _.extend(CalculationOpcode.prototype, {
     /**
      * Returns the previous result of this opcode if it succeeded,
      * or re-throws the previous error for this opcode if it failed,
-     * or returns null if it has not executed yet.
+     * or returns UnpausedSentinel if it has not executed yet.
      *
      * @returns {*}
      * @throws {Error} Throws when the opcode previously failed

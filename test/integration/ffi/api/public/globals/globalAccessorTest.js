@@ -78,6 +78,8 @@ EOS
             function (newValue) {
                 myReference.setValue(newValue);
             },
+            // No unsetter.
+            null,
             // Define a reference getter.
             function () {
                 return myReference;

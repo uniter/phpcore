@@ -10,7 +10,6 @@
 'use strict';
 
 var _ = require('microdash'),
-    FFIResult = require('../FFI/Result'),
     Pause = require('./Pause');
 
 /**
@@ -21,10 +20,22 @@ var _ = require('microdash'),
  * @param {ControlBridge} controlBridge
  * @param {ControlScope} controlScope
  * @param {FutureFactory} futureFactory
+ * @param {Chainifier} chainifier
  * @param {string} mode
  * @constructor
  */
-function Flow(controlFactory, controlBridge, controlScope, futureFactory, mode) {
+function Flow(
+    controlFactory,
+    controlBridge,
+    controlScope,
+    futureFactory,
+    chainifier,
+    mode
+) {
+    /**
+     * @type {Chainifier}
+     */
+    this.chainifier = chainifier;
     /**
      * @type {ControlBridge}
      */
@@ -52,7 +63,7 @@ _.extend(Flow.prototype, {
      * Takes the given array of values and settles any Future(Values).
      *
      * @param {Future[]|Value[]|*[]} values
-     * @returns {Future<Value[]|*[]>}
+     * @returns {ChainableInterface<Value[]|*[]>}
      */
     all: function (values) {
         var flow = this,
@@ -92,31 +103,21 @@ _.extend(Flow.prototype, {
     },
 
     /**
-     * Returns the provided Future(Value) or wraps any other value in a Future to provide
+     * Returns the provided Chainable or wraps any other value in a Future to provide
      * a consistent chainable interface.
      *
-     * @param {Future|*} value
-     * @returns {Future|Value}
+     * @param {ChainableInterface|*} value
+     * @returns {ChainableInterface}
      */
     chainify: function (value) {
-        var flow = this;
-
-        if (flow.controlBridge.isChainable(value)) {
-            return value;
-        }
-
-        if (value instanceof FFIResult) {
-            return value.resolve();
-        }
-
-        return flow.futureFactory.createPresent(value);
+        return this.chainifier.chainify(value);
     },
 
     /**
      * Creates a new present Future for the given value.
      *
      * @param {*} value
-     * @returns {Future}
+     * @returns {ChainableInterface}
      */
     createPresent: function (value) {
         return this.futureFactory.createPresent(value);
@@ -134,7 +135,7 @@ _.extend(Flow.prototype, {
      *
      * @param {*[]} inputs
      * @param {Function} handler
-     * @returns {Future}
+     * @returns {ChainableInterface}
      */
     eachAsync: function (inputs, handler) {
         var flow = this,
@@ -219,7 +220,7 @@ _.extend(Flow.prototype, {
      *
      * @param {Object} input
      * @param {Function} handler
-     * @returns {Future}
+     * @returns {ChainableInterface}
      */
     forOwnAsync: function (input, handler) {
         var flow = this;
@@ -243,7 +244,7 @@ _.extend(Flow.prototype, {
      *
      * @param {*[]} inputs
      * @param {Function} handler
-     * @returns {Future}
+     * @returns {ChainableInterface}
      */
     mapAsync: function (inputs, handler) {
         var flow = this,
@@ -312,7 +313,7 @@ _.extend(Flow.prototype, {
      *
      * @param {Function} executor
      * @param {Function=} pauser Called if a pause is intercepted
-     * @returns {Future|Value}
+     * @returns {ChainableInterface}
      */
     maybeFuturise: function (executor, pauser) {
         var flow = this,
@@ -330,7 +331,7 @@ _.extend(Flow.prototype, {
          * A pause or error occurred. Note that the error thrown could be a Future(Value),
          * in which case we need to yield to it so that a pause occurs if required.
          *
-         * @param {Error|Future|FutureValue|Pause} error
+         * @param {Error|Future|Pause} error
          * @returns {Future}
          */
         function handlePauseOrError(error) {
@@ -352,7 +353,7 @@ _.extend(Flow.prototype, {
                     throw error;
                 }
 
-                // For async mode, return a rejected FutureValue.
+                // For async mode, return a rejected Future.
                 return flow.futureFactory.createRejection(error);
             }
 

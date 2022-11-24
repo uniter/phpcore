@@ -34,7 +34,7 @@ describe('FutureFactory', function () {
         futuresCreated = 0;
         state = tools.createIsolatedState('async', {
             'control_scope': controlScope,
-            'future_factory': function (get) {
+            'future_factory': function (set, get) {
                 function TrackedFuture() {
                     RealFuture.apply(this, arguments);
 

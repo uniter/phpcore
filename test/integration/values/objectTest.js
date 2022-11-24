@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP object value integration', function () {
-    it('should correctly coerce instances of classes implementing ->__toString() in sync mode', function () {
+    it('should correctly coerce instances of classes implementing ->__toString()', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -46,16 +46,16 @@ $result['when implicitly cast to string via concatenation'] = $myObject . ' (and
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'when explicitly cast to string': 'my string representation with: my value',
             'when implicitly cast to string via concatenation': 'my string representation with: my value (and then some)'
         });
     });
 
-    it('should raise an error when attempting to coerce instances of classes not implementing ->__toString in sync mode', function () {
+    it('should raise an error when attempting to coerce instances of classes not implementing ->__toString', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -72,12 +72,10 @@ $result['my object as string'] = (string)$myObject; // This should raise an erro
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'Fatal error: Uncaught Error: Object of class MyClass could not be converted to string in /path/to/my_module.php on line 11'
         );

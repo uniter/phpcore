@@ -15,7 +15,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP asynchronous tick integration', function () {
-    it('should allow the registered tick handler called before every PHP statement to pause', function () {
+    it('should allow the registered tick handler called before every PHP statement to pause', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -67,31 +67,29 @@ EOS
             return value;
         });
 
-        return engine.execute().then(function (result) {
-            expect(result.getNative()).to.deep.equal([
-                21,
-                101
-            ]);
-            expect(log).to.deep.equal([
-                'tick() :: my/script/testing/async/ticks.php@3:1-3:14',
-                'pausing...', // Check for the pause & resume behaviour
-                'resuming...',
-                'tick() :: my/script/testing/async/ticks.php@5:1-5:32',
-                'pausing...',
-                'resuming...',
-                'log_and_return() :: 21',
-                'tick() :: my/script/testing/async/ticks.php@6:1-6:30',
-                'pausing...',
-                'resuming...',
-                'log_and_return() :: 101',
-                'tick() :: my/script/testing/async/ticks.php@7:1-7:36',
-                'pausing...',
-                'resuming...',
-                'log_and_return() :: 101',
-                'tick() :: my/script/testing/async/ticks.php@9:1-9:16',
-                'pausing...',
-                'resuming...'
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            21,
+            101
+        ]);
+        expect(log).to.deep.equal([
+            'tick() :: my/script/testing/async/ticks.php@3:1-3:14',
+            'pausing...', // Check for the pause & resume behaviour.
+            'resuming...',
+            'tick() :: my/script/testing/async/ticks.php@5:1-5:32',
+            'pausing...',
+            'resuming...',
+            'log_and_return() :: 21',
+            'tick() :: my/script/testing/async/ticks.php@6:1-6:30',
+            'pausing...',
+            'resuming...',
+            'log_and_return() :: 101',
+            'tick() :: my/script/testing/async/ticks.php@7:1-7:36',
+            'pausing...',
+            'resuming...',
+            'log_and_return() :: 101',
+            'tick() :: my/script/testing/async/ticks.php@9:1-9:16',
+            'pausing...',
+            'resuming...'
+        ]);
     });
 });

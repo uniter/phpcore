@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP identity operator "+" integration', function () {
-    it('should support getting the identity of references and values', function () {
+    it('should support getting the identity of references and values', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -29,10 +29,10 @@ return [
 ];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             '+ of negative variable value': -21, // Note that the value will not be made positive as you may expect
             '+ of positive variable value': 58,
             '+ of negative array element value string': -101 // As above

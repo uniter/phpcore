@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP empty(...) construct integration', function () {
-    it('should correctly handle accessing set but empty variables, elements, properties and exprs', function () {
+    it('should correctly handle accessing set but empty variables, elements, properties and exprs', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -39,10 +39,10 @@ $result[] = empty(MyClass::$myVar);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             true, // Values are set but empty, so classed as empty
             true,
             true,
@@ -52,7 +52,7 @@ EOS
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should correctly handle accessing set and non-empty variables, elements, properties and exprs in sync mode', function () {
+    it('should correctly handle accessing set and non-empty variables, elements, properties and exprs in sync mode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -78,10 +78,10 @@ $result[] = empty(MyClass::$myVar);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             false, // Values are non-empty, so classed as non-empty
             false,
             false,
@@ -91,7 +91,7 @@ EOS
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should correctly handle accessing set and non-empty variables, elements, properties, accessors and exprs in async mode', function () {
+    it('should correctly handle accessing set and non-empty variables, elements, properties, accessors and exprs in async mode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -151,21 +151,19 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'defined var with int value': false, // Values are non-empty, so classed as non-empty
-                'array element': false,
-                'instance property': false,
-                'magic property': false,
-                'function call result': false,
-                'async accessor global': false,
-                'static class property': false
-            });
-            expect(engine.getStderr().readAll()).to.equal('');
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'defined var with int value': false, // Values are non-empty, so classed as non-empty
+            'array element': false,
+            'instance property': false,
+            'magic property': false,
+            'function call result': false,
+            'async accessor global': false,
+            'static class property': false
         });
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should correctly resume past an empty(...) expression with a control structure after it', function () {
+    it('should correctly resume past an empty(...) expression with a control structure after it', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -196,17 +194,15 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'before control structure': true,
-                'inside control structure': 'some value',
-                'after control structure': true,
-            });
-            expect(engine.getStderr().readAll()).to.equal('');
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'before control structure': true,
+            'inside control structure': 'some value',
+            'after control structure': true,
         });
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should correctly handle accessing undefined variables, elements and properties', function () {
+    it('should correctly handle accessing undefined variables, elements and properties', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -223,10 +219,10 @@ $result[] = empty(MyClass::$someUndefinedProp);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             true, // Not defined, so classed as empty
             true,
             true,
@@ -254,7 +250,7 @@ EOS
             module = tools.syncTranspile('the_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.be.true; // Expect true, as the variable was not defined
+        expect(engine.execute().getNative()).to.be.true; // Expect true, as the variable was not defined.
         expect(engine.getStderr().readAll()).to.equal(
             nowdoc(function () {/*<<<EOS
 PHP Notice:  Undefined variable: anotherUndefVar in the_module.php on line 5
@@ -264,7 +260,7 @@ EOS
         );
     });
 
-    it('should not suppress errors from a function called inside empty(...) construct in async mode', function () {
+    it('should not suppress errors from a function called inside empty(...) construct in async mode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL); // Notices are hidden by default
@@ -290,15 +286,13 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.be.true; // Expect true, as the variable was not defined
-            expect(engine.getStderr().readAll()).to.equal(
-                nowdoc(function () {/*<<<EOS
+        expect((await engine.execute()).getNative()).to.be.true; // Expect true, as the variable was not defined.
+        expect(engine.getStderr().readAll()).to.equal(
+            nowdoc(function () {/*<<<EOS
 PHP Notice:  Undefined variable: anotherUndefVar in the_module.php on line 5
 
 EOS
 */;}) //jshint ignore:line
-            );
-        });
+        );
     });
 });

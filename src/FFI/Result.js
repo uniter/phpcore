@@ -80,9 +80,9 @@ _.extend(Result.prototype, {
 
     /**
      * Resolves this FFI result to a value, awaiting the Promise
-     * returned by the async callback if needed
+     * returned by the async callback if needed.
      *
-     * @return {FutureValue|Value}
+     * @return {ChainableInterface<Value>}
      */
     resolve: function () {
         var result = this;

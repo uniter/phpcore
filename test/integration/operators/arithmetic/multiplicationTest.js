@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP multiplication operator "*" integration', function () {
-    it('should support multiplying different types of value', function () {
+    it('should support multiplying different types of value', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -31,10 +31,10 @@ return [
 ];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'int * int': 60,
             'float * int': 20.8,
             'int * float': 20.8,

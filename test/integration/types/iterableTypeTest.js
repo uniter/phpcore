@@ -36,7 +36,7 @@ describe('PHP "iterable" type integration', function () {
         };
     });
 
-    it('should allow passing valid iterables for function parameters typed as "iterable"', function () {
+    it('should allow passing valid iterables for function parameters typed as "iterable"', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -89,16 +89,16 @@ $result['traversable'] = mySummer(new MyCustomIterator([1000, 42]));
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(doRun(engine).getNative()).to.deep.equal({
+        expect((await doRun(engine)).getNative()).to.deep.equal({
             'array': 121,
             'traversable': 1042
         });
     });
 
-    it('should allow passing null for function parameters typed as "iterable" with default null', function () {
+    it('should allow passing null for function parameters typed as "iterable" with default null', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -118,16 +118,16 @@ $result['explicit null'] = myFunction(null);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(doRun(engine).getNative()).to.deep.equal({
+        expect((await doRun(engine)).getNative()).to.deep.equal({
             'omitted': 'cannot iterate (it was omitted)',
             'explicit null': 'cannot iterate (it was omitted)'
         });
     });
 
-    it('should raise an error when an iterable-type parameter is given an invalid iterable', function () {
+    it('should raise an error when an iterable-type parameter is given an invalid iterable', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -143,12 +143,10 @@ function myFunction(iterable $myIterable) {
 myFunction('I_am_not_a_valid_iterable');
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(function () {
-            doRun(engine);
-        }).to.throw(
+        await expect(doRun(engine)).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught TypeError: Argument 1 passed to myFunction() must be iterable,' +
             ' string given, called in /path/to/module.php on line 12 and defined in /path/to/module.php:5' +

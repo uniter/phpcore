@@ -38,6 +38,7 @@ describe('Object', function () {
     var callStack,
         classObject,
         factory,
+        flow,
         futureFactory,
         globalNamespace,
         namespaceScope,
@@ -54,11 +55,12 @@ describe('Object', function () {
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
         translator = sinon.createStubInstance(Translator);
-        state = tools.createIsolatedState(null, {
+        state = tools.createIsolatedState('async', {
             'call_stack': callStack,
             'translator': translator
         });
         factory = state.getValueFactory();
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
         referenceFactory = state.getReferenceFactory();
@@ -93,6 +95,7 @@ describe('Object', function () {
             referenceFactory,
             futureFactory,
             callStack,
+            flow,
             translator,
             nativeObject,
             classObject,
@@ -391,6 +394,7 @@ describe('Object', function () {
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 translator,
                 nativeObject,
                 classObject,
@@ -666,6 +670,7 @@ describe('Object', function () {
                     referenceFactory,
                     futureFactory,
                     callStack,
+                    flow,
                     translator,
                     {},
                     classObject,
@@ -825,16 +830,17 @@ describe('Object', function () {
             anotherClass = sinon.createStubInstance(Class);
         });
 
-        it('should return 0 when given the same object', function () {
-            expect(value.compareWithObject(value)).to.equal(0);
+        it('should return 0 when given the same object', async function () {
+            expect(await value.compareWithObject(value).toPromise()).to.equal(0);
         });
 
-        it('should return 0 when given another object with identical properties and of the same class', function () {
+        it('should return 0 when given another object with identical properties and of the same class', async function () {
             var otherObject = new ObjectValue(
                 factory,
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 translator,
                 {},
                 classObject,
@@ -843,15 +849,16 @@ describe('Object', function () {
             otherObject.declareProperty('firstProp', classObject, 'public').initialise(prop1);
             otherObject.declareProperty('secondProp', classObject, 'public').initialise(prop2);
 
-            expect(value.compareWithObject(otherObject)).to.equal(0);
+            expect(await value.compareWithObject(otherObject).toPromise()).to.equal(0);
         });
 
-        it('should return null when given another object with identical properties but of another class', function () {
+        it('should return null when given another object with identical properties but of another class', async function () {
             var otherObject = new ObjectValue(
                 factory,
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 translator,
                 {},
                 anotherClass,
@@ -860,16 +867,18 @@ describe('Object', function () {
             otherObject.declareProperty('firstProp', classObject, 'public').initialise(prop1);
             otherObject.declareProperty('secondProp', classObject, 'public').initialise(prop2);
 
-            expect(value.compareWithObject(otherObject)).to.be.null;
+            // Null indicates that the values cannot be compared.
+            expect(await value.compareWithObject(otherObject).toPromise()).to.be.null;
         });
 
         // Note that for these methods the argument given is the left operand.
-        it('should return -1 when given another object of the same class but with one fewer property', function () {
+        it('should return -1 when given another object of the same class but with one fewer property', async function () {
             var otherObject = new ObjectValue(
                 factory,
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 translator,
                 {},
                 classObject,
@@ -877,16 +886,17 @@ describe('Object', function () {
             );
             otherObject.declareProperty('firstProp', classObject, 'public').initialise(prop1);
 
-            expect(value.compareWithObject(otherObject)).to.equal(-1);
+            expect(await value.compareWithObject(otherObject).toPromise()).to.equal(-1);
         });
 
         // Note that for these methods the argument given is the left operand.
-        it('should return 1 when given another object of the same class but with one more property', function () {
+        it('should return 1 when given another object of the same class but with one more property', async function () {
             var otherObject = new ObjectValue(
                 factory,
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 translator,
                 {},
                 classObject,
@@ -897,16 +907,17 @@ describe('Object', function () {
             otherObject.declareProperty('thirdProp', classObject, 'public')
                 .initialise(factory.createString('my third value'));
 
-            expect(value.compareWithObject(otherObject)).to.equal(1);
+            expect(await value.compareWithObject(otherObject).toPromise()).to.equal(1);
         });
 
         // Note that for these methods the argument given is the left operand.
-        it('should return -1 when given another object of the same class but with one property value lower', function () {
+        it('should return -1 when given another object of the same class but with one property value lower', async function () {
             var otherObject = new ObjectValue(
                 factory,
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 translator,
                 {},
                 classObject,
@@ -916,16 +927,17 @@ describe('Object', function () {
             otherObject.declareProperty('secondProp', classObject, 'public')
                 .initialise(factory.createString('s the value of secondProp'));
 
-            expect(value.compareWithObject(otherObject)).to.equal(-1);
+            expect(await value.compareWithObject(otherObject).toPromise()).to.equal(-1);
         });
 
         // Note that for these methods the argument given is the left operand.
-        it('should return 1 when given another object of the same class but with one property value higher', function () {
+        it('should return 1 when given another object of the same class but with one property value higher', async function () {
             var otherObject = new ObjectValue(
                 factory,
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 translator,
                 {},
                 classObject,
@@ -935,16 +947,17 @@ describe('Object', function () {
             otherObject.declareProperty('secondProp', classObject, 'public')
                 .initialise(factory.createString('u the value of secondProp'));
 
-            expect(value.compareWithObject(otherObject)).to.equal(1);
+            expect(await value.compareWithObject(otherObject).toPromise()).to.equal(1);
         });
 
         // Note that for these methods the argument given is the left operand.
-        it('should raise an error when comparing recursive structures', function () {
+        it('should raise an error when comparing recursive structures', async function () {
             var otherObject = new ObjectValue(
                 factory,
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 translator,
                 {},
                 classObject,
@@ -954,9 +967,8 @@ describe('Object', function () {
             otherObject.declareProperty('secondProp', classObject, 'public').initialise(prop2);
             value.getInstancePropertyByName(factory.createString('firstProp')).initialise(otherObject);
 
-            expect(function () {
-                value.compareWithObject(otherObject);
-            }).to.throw('Fake PHP Fatal error for #core.nesting_level_too_deep with {}');
+            await expect(value.compareWithObject(otherObject).toPromise())
+                .to.be.rejectedWith('Fake PHP Fatal error for #core.nesting_level_too_deep with {}');
         });
     });
 
@@ -969,7 +981,7 @@ describe('Object', function () {
             );
         });
 
-        it('should be able to concatenate with a FutureValue that resolves to a FloatValue', async function () {
+        it('should be able to concatenate with a FloatValue', async function () {
             var result;
             classObject.callMethod
                 .withArgs('__toString')
@@ -978,13 +990,13 @@ describe('Object', function () {
                 .withArgs('__toString')
                 .returns(sinon.createStubInstance(MethodSpec));
 
-            result = await value.concat(factory.createPresent(factory.createFloat(7.2))).toPromise();
+            result = await value.concat(factory.createFloat(7.2)).toPromise();
 
             expect(result.getType()).to.equal('string');
             expect(result.getNative()).to.equal('hello 7.2');
         });
 
-        it('should be able to concatenate when this ->__toString() returns a FutureValue', async function () {
+        it('should be able to concatenate when this ->__toString() returns a Future', async function () {
             var result;
             classObject.callMethod
                 .withArgs('__toString')
@@ -2209,6 +2221,7 @@ describe('Object', function () {
                     referenceFactory,
                     futureFactory,
                     callStack,
+                    flow,
                     translator,
                     nativeObject,
                     classObject,
@@ -2262,6 +2275,7 @@ describe('Object', function () {
                     referenceFactory,
                     futureFactory,
                     callStack,
+                    flow,
                     translator,
                     nativeObject,
                     classObject,
@@ -2769,26 +2783,21 @@ describe('Object', function () {
             expect(value.next()).to.equal(value);
         });
 
-        it('should invoke the callback with the value and return the coerced result', function () {
-            var callback = sinon.stub(),
-                resultValue;
+        it('should invoke the callback with the value and return the coerced result', async function () {
+            var callback = sinon.stub();
             callback.withArgs(sinon.match.same(value)).returns('my result');
 
-            resultValue = value.next(callback);
-
-            expect(resultValue.getType()).to.equal('string');
-            expect(resultValue.getNative()).to.equal('my result');
+            expect(await value.next(callback).toPromise()).to.equal('my result');
         });
 
         it('should return a rejected FutureValue when the callback raises an error', async function () {
             var callback = sinon.stub(),
-                resultValue;
+                result;
             callback.withArgs(sinon.match.same(value)).throws(new Error('Bang!'));
 
-            resultValue = value.next(callback);
+            result = value.next(callback);
 
-            expect(resultValue.getType()).to.equal('future');
-            await expect(resultValue.toPromise()).to.eventually.be.rejectedWith('Bang!');
+            await expect(result.toPromise()).to.eventually.be.rejectedWith('Bang!');
         });
     });
 

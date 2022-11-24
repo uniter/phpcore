@@ -77,7 +77,7 @@ _.extend(LoopStructureOpcode.prototype, {
     /**
      * Returns the previous result of this opcode if it succeeded,
      * or re-throws the previous error for this opcode if it failed,
-     * or returns null if it has not executed yet.
+     * or returns UnpausedSentinel if it has not executed yet.
      *
      * @returns {*}
      * @throws {Error} Throws when the opcode previously failed

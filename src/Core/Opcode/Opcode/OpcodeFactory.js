@@ -17,6 +17,7 @@ var _ = require('microdash');
  * @param {class} ControlStructureOpcode
  * @param {class} LoopStructureOpcode
  * @param {class} UntracedOpcode
+ * @param {UnpausedSentinel} unpausedSentinel
  * @constructor
  */
 function OpcodeFactory(
@@ -24,7 +25,8 @@ function OpcodeFactory(
     ControlExpressionOpcode,
     ControlStructureOpcode,
     LoopStructureOpcode,
-    UntracedOpcode
+    UntracedOpcode,
+    unpausedSentinel
 ) {
     /**
      * @type {class}
@@ -42,6 +44,10 @@ function OpcodeFactory(
      * @type {class}
      */
     this.LoopStructureOpcode = LoopStructureOpcode;
+    /**
+     * @type {UnpausedSentinel}
+     */
+    this.unpausedSentinel = unpausedSentinel;
     /**
      * @type {class}
      */
@@ -114,7 +120,9 @@ _.extend(OpcodeFactory.prototype, {
      * @returns {UntracedOpcode}
      */
     createUntracedOpcode: function (handler, args) {
-        return new this.UntracedOpcode(handler, args);
+        var factory = this;
+
+        return new factory.UntracedOpcode(factory.unpausedSentinel, handler, args);
     }
 });
 

@@ -30,6 +30,7 @@ function ReferenceSnapshot(
     valueFactory,
     referenceFactory,
     futureFactory,
+    flow,
     wrappedReference,
     value,
     reference
@@ -37,12 +38,8 @@ function ReferenceSnapshot(
     // Note that as value is the resolved value, it is possible for a snapshot to have both
     // unlike other reference types.
 
-    Reference.call(this, referenceFactory);
+    Reference.call(this, referenceFactory, futureFactory, flow);
 
-    /**
-     * @type {FutureFactory}
-     */
-    this.futureFactory = futureFactory;
     /**
      * @type {Reference|null}
      */
@@ -145,7 +142,23 @@ _.extend(ReferenceSnapshot.prototype, {
      * {@inheritdoc}
      */
     isEmpty: function () {
-        return this.futureFactory.createRejection(new Exception('ReferenceSnapshot.isEmpty(): Unsupported'));
+        var snapshot = this;
+
+        if (snapshot.value) {
+            return snapshot.value.isEmpty();
+        }
+
+        if (snapshot.reference) {
+            // A reference was snapshotted, so check it.
+            return snapshot.reference.isEmpty();
+        }
+
+        if (snapshot.syntheticReference) {
+            // We've created a synthetic reference (see below), check it.
+            return snapshot.syntheticReference.isEmpty();
+        }
+
+        return this.futureFactory.createPresent(true);
     },
 
     /**
@@ -181,7 +194,15 @@ _.extend(ReferenceSnapshot.prototype, {
      * @returns {Value}
      */
     setValue: function (value) {
-        return this.wrappedReference.setValue(value);
+        var snapshot = this;
+
+        return snapshot.wrappedReference.setValue(value)
+            .next(function (assignedValue) {
+                // Store the final assigned value against this snapshot.
+                snapshot.value = assignedValue;
+
+                return assignedValue;
+            });
     },
 
     /**

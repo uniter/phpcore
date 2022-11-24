@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP "foreach" loop statement integration (async mode)', function () {
-    it('should be able to loop over a simple indexed array with pauses', function () {
+    it('should be able to loop over a simple indexed array with pauses', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = get_async([]);
@@ -38,16 +38,14 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                'value for 0 is: first',
-                'value for 1 is: second',
-                'value for 2 is: third'
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            'value for 0 is: first',
+            'value for 1 is: second',
+            'value for 2 is: third'
+        ]);
     });
 
-    it('should be able to loop over a simple associative array with pauses', function () {
+    it('should be able to loop over a simple associative array with pauses', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = get_async([]);
@@ -71,16 +69,14 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                'value for one is: first',
-                'value for two is: second',
-                'value for three is: third'
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            'value for one is: first',
+            'value for two is: second',
+            'value for three is: third'
+        ]);
     });
 
-    it('should be able to loop over the visible properties of an object that does not implement Traversable with pauses', function () {
+    it('should be able to loop over the visible properties of an object that does not implement Traversable with pauses', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class ParentClass {
@@ -139,30 +135,28 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                'value for firstProp is: one - from outside the class',
-                'value for secondProp is: two - from outside the class',
-                // Private property should not be accessible from outside the class
-                [
-                    'value for childSharedProp is: six - from inside ParentClass',
-                    'value for firstProp is: one - from inside ParentClass',
-                    'value for secondProp is: two - from inside ParentClass',
-                    'value for privateProp is: three - from inside ParentClass',
-                    'value for parentSharedProp is: four - from inside ParentClass'
-                ],
-                [
-                    'value for childProp is: five - from inside ChildClass',
-                    'value for childSharedProp is: six - from inside ChildClass',
-                    'value for firstProp is: one - from inside ChildClass',
-                    'value for secondProp is: two - from inside ChildClass',
-                    'value for parentSharedProp is: four - from inside ChildClass'
-                ]
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            'value for firstProp is: one - from outside the class',
+            'value for secondProp is: two - from outside the class',
+            // Private property should not be accessible from outside the class
+            [
+                'value for childSharedProp is: six - from inside ParentClass',
+                'value for firstProp is: one - from inside ParentClass',
+                'value for secondProp is: two - from inside ParentClass',
+                'value for privateProp is: three - from inside ParentClass',
+                'value for parentSharedProp is: four - from inside ParentClass'
+            ],
+            [
+                'value for childProp is: five - from inside ChildClass',
+                'value for childSharedProp is: six - from inside ChildClass',
+                'value for firstProp is: one - from inside ChildClass',
+                'value for secondProp is: two - from inside ChildClass',
+                'value for parentSharedProp is: four - from inside ChildClass'
+            ]
+        ]);
     });
 
-    it('should be able to loop over an array fetched from instance property inside a closure passed as function arg with pauses', function () {
+    it('should be able to loop over an array fetched from instance property inside a closure passed as function arg with pauses', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -198,19 +192,17 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                'value for 0 is: first',
-                'value for 1 is: second',
-                'value for 2 is: third'
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            'value for 0 is: first',
+            'value for 1 is: second',
+            'value for 2 is: third'
+        ]);
     });
 
     // Make sure that in order to resume iteration 21, we only resume-execute the loop body once.
     // This is achieved by resetting the opIndex counter after a loop's condition opcode
     // back to the value it had when the loop began.
-    it('should not iterate in order to resume the Nth iteration', function () {
+    it('should not iterate in order to resume the Nth iteration', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = get_async([]);
@@ -257,15 +249,13 @@ EOS
             ]),
             engine = module({}, environment);
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                'value for 0 is: first',
-                'value for 1 is: second',
-                'value for 2 is: third'
-            ]);
-            // One condition check should occur before each of the 3 iterations,
-            // with one extra check that returns false when the loop completes.
-            expect(loopConditionChecks).to.equal(4);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            'value for 0 is: first',
+            'value for 1 is: second',
+            'value for 2 is: third'
+        ]);
+        // One condition check should occur before each of the 3 iterations,
+        // with one extra check that returns false when the loop completes.
+        expect(loopConditionChecks).to.equal(4);
     });
 });

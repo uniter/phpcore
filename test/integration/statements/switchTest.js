@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP "switch" statement integration', function () {
-    it('should support switches with constant case expressions', function () {
+    it('should support switches with constant case expressions', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -44,16 +44,17 @@ $result['unknown op'] = doIt('some unknown op', 'blah', 'blah');
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'add': 121,
             'multiply': 30,
             'unknown op': '[unknown op result]'
         });
     });
 
-    it('should support switches where a case falls-through to the default one', function () {
+    it('should support switches where a case falls-through to the default one', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -85,9 +86,10 @@ $result['unknown op'] = doIt('some unknown op', 'blah', 'blah');
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'add': 121,
             'multiply': 30,
             'unknown special': '[unknown op result]',
@@ -95,7 +97,7 @@ EOS
         });
     });
 
-    it('should support switches with default case in positions other than last', function () {
+    it('should support switches with default case in positions other than last', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -125,16 +127,17 @@ $result['unknown op'] = doIt('some unknown op', 'blah', 'blah');
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'add': 121,
             'multiply': 30,
             'unknown op': '[unknown op result]'
         });
     });
 
-    it('should support pause/resume', function () {
+    it('should support pause/resume', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -174,12 +177,10 @@ EOS
             });
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'add': 121,
-                'multiply': 30,
-                'unknown op': '[unknown op result]'
-            });
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'add': 121,
+            'multiply': 30,
+            'unknown op': '[unknown op result]'
         });
     });
 });

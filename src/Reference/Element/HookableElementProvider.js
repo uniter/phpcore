@@ -13,15 +13,19 @@ var _ = require('microdash'),
     HookableElement = require('./HookableElement');
 
 /**
- * Creates hookable array elements, which will invoke hooks in the given collection where applicable
+ * Creates hookable array elements, which will invoke hooks in the given collection where applicable.
  *
  * @param {ReferenceFactory} referenceFactory
+ * @param {FutureFactory} futureFactory
+ * @param {Flow} flow
  * @param {ElementProvider} baseElementProvider
  * @param {ElementHookCollection} elementHookCollection
  * @constructor
  */
 function HookableElementProvider(
     referenceFactory,
+    futureFactory,
+    flow,
     baseElementProvider,
     elementHookCollection
 ) {
@@ -33,6 +37,14 @@ function HookableElementProvider(
      * @type {ElementHookCollection}
      */
     this.elementHookCollection = elementHookCollection;
+    /**
+     * @type {Flow}
+     */
+    this.flow = flow;
+    /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
     /**
      * @type {ReferenceFactory}
      */
@@ -64,6 +76,8 @@ _.extend(HookableElementProvider.prototype, {
 
         return new HookableElement(
             provider.referenceFactory,
+            provider.futureFactory,
+            provider.flow,
             decoratedElement,
             provider.elementHookCollection
         );

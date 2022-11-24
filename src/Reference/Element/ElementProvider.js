@@ -9,21 +9,15 @@
 
 'use strict';
 
-var _ = require('microdash'),
-    ElementReference = require('../Element');
+var _ = require('microdash');
 
 /**
  * Creates standard (unhooked) array elements
  *
  * @param {ReferenceFactory} referenceFactory
- * @param {FutureFactory} futureFactory
  * @constructor
  */
-function ElementProvider(referenceFactory, futureFactory) {
-    /**
-     * @type {FutureFactory}
-     */
-    this.futureFactory = futureFactory;
+function ElementProvider(referenceFactory) {
     /**
      * @type {ReferenceFactory}
      */
@@ -45,11 +39,7 @@ _.extend(ElementProvider.prototype, {
     createElement: function (valueFactory, callStack, arrayValue, key, value, reference) {
         var provider = this;
 
-        return new ElementReference(
-            valueFactory,
-            provider.referenceFactory,
-            provider.futureFactory,
-            callStack,
+        return provider.referenceFactory.createElement(
             arrayValue,
             key,
             value,

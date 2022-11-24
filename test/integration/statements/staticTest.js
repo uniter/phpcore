@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP "static" variable scope integration', function () {
-    it('should preserve the value of a static variable between calls', function () {
+    it('should preserve the value of a static variable between calls', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -35,15 +35,16 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             23,
             25
         ]);
     });
 
-    it('should support unnecessary static variables in the global scope', function () {
+    it('should support unnecessary static variables in the global scope', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -57,9 +58,10 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             22
         ]);

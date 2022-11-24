@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP namespace (backslash-delimited) construct integration', function () {
-    it('should allow the special namespace keyword to resolve to the current namespace, regardless of "use" imports', function () {
+    it('should allow the special "namespace" keyword to resolve to the current namespace, regardless of "use" imports', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 namespace Your\Stuff {
@@ -43,10 +43,10 @@ namespace My {
 
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'taking use statements into account': 'your thing!',
             'explicitly current namespace-relative': 'my thing!',
             'explicitly current namespace-relative, mixed case keyword': 'my thing!'

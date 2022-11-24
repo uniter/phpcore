@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP bitwise AND operator "&" integration', function () {
-    it('should support bitwise AND operations', function () {
+    it('should support bitwise AND operations', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -27,12 +27,12 @@ $result['floats'] = 1234.567 & 4567.891;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
-            'small integers': 3,            // 0b101011 & 0b000111 = 0b000011
-            'large integers': 106676225,    // Large unsigned integers should be supported too
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'small integers': 3,            // 0b101011 & 0b000111 = 0b000011.
+            'large integers': 106676225,    // Large unsigned integers should be supported too.
             'floats': 210
         });
     });

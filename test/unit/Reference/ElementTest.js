@@ -28,6 +28,7 @@ describe('ElementReference', function () {
     var arrayValue,
         callStack,
         element,
+        flow,
         futureFactory,
         keyValue,
         referenceFactory,
@@ -40,6 +41,7 @@ describe('ElementReference', function () {
         state = tools.createIsolatedState(null, {
             'call_stack': callStack
         });
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         valueFactory = state.getValueFactory();
         arrayValue = sinon.createStubInstance(ArrayValue);
@@ -56,6 +58,7 @@ describe('ElementReference', function () {
         value.getForAssignment.returns(value);
         value.getNative.returns('the value of my element');
         value.getType.returns('string');
+        value.next.callsArgWith(0, value);
         value.toPromise.returns(Promise.resolve(value));
 
         element = new ElementReference(
@@ -63,6 +66,7 @@ describe('ElementReference', function () {
             referenceFactory,
             futureFactory,
             callStack,
+            flow,
             arrayValue,
             keyValue,
             value,
@@ -82,41 +86,27 @@ describe('ElementReference', function () {
         });
     });
 
-    describe('formatAsString()', function () {
-        it('should return "NULL" for an unset element', function () {
+    describe('asValue()', function () {
+        it('should return the value when the element is defined with a value', function () {
+            var value = valueFactory.createString('my value');
+            element.setValue(value);
+
+            expect(element.asValue()).to.equal(value);
+        });
+
+        it('should return the value of the reference when the element is defined with a reference', function () {
+            var reference = sinon.createStubInstance(Reference),
+                value = valueFactory.createString('my val from reference');
+            reference.getValue.returns(value);
+            element.setReference(reference);
+
+            expect(element.asValue()).to.equal(value);
+        });
+
+        it('should return a NullValue when the element is not defined', function () {
             element.unset();
 
-            expect(element.formatAsString()).to.equal('NULL');
-        });
-
-        it('should return the correct string when the element has a value that is empty', function () {
-            value.isEmpty.returns(true);
-
-            expect(element.formatAsString()).to.equal('\'the value of my...\'');
-        });
-
-        it('should return the correct string when the element has a value that is not empty', function () {
-            value.isEmpty.returns(false);
-
-            expect(element.formatAsString()).to.equal('\'the value of my...\'');
-        });
-
-        it('should return the correct string when the element has a reference to a value that is empty', function () {
-            var reference = sinon.createStubInstance(Variable);
-            reference.getValue.returns(value);
-            value.isEmpty.returns(true);
-            element.setReference(reference);
-
-            expect(element.formatAsString()).to.equal('\'the value of my...\'');
-        });
-
-        it('should return the correct string when the element has a reference to a value that is not empty', function () {
-            var reference = sinon.createStubInstance(Variable);
-            reference.getValue.returns(value);
-            value.isEmpty.returns(false);
-            element.setReference(reference);
-
-            expect(element.formatAsString()).to.equal('\'the value of my...\'');
+            expect(element.asValue().getType()).to.equal('null');
         });
     });
 
@@ -169,6 +159,7 @@ describe('ElementReference', function () {
                     referenceFactory,
                     futureFactory,
                     callStack,
+                    flow,
                     arrayValue,
                     keyValue
                 );
@@ -291,6 +282,7 @@ describe('ElementReference', function () {
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 arrayValue,
                 keyValue
             );
@@ -378,6 +370,12 @@ describe('ElementReference', function () {
             element.setReference(reference);
 
             expect(await element.isEmpty().toPromise()).to.be.false;
+        });
+    });
+
+    describe('isFuture()', function () {
+        it('should return false', function () {
+            expect(element.isFuture()).to.be.false;
         });
     });
 
@@ -550,11 +548,8 @@ describe('ElementReference', function () {
     });
 
     describe('toPromise()', function () {
-        it('should return a Promise that resolves with the Value of the element', async function () {
-            var resultValue = await element.toPromise();
-
-            expect(resultValue.getType()).to.equal('string');
-            expect(resultValue.getNative()).to.equal('the value of my element');
+        it('should return a Promise that resolves to the ElementReference', async function () {
+            expect(await element.toPromise()).to.equal(element);
         });
     });
 
@@ -567,6 +562,12 @@ describe('ElementReference', function () {
 
         it('should return a Future that resolves to null', async function () {
             expect(await element.unset().toPromise()).to.be.null;
+        });
+    });
+
+    describe('yieldSync()', function () {
+        it('should just return the element', function () {
+            expect(element.yieldSync()).to.equal(element);
         });
     });
 });

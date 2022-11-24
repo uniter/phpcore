@@ -25,6 +25,30 @@ describe('Opcode ReferenceType', function () {
         type = new ReferenceType();
     });
 
+    describe('allowsValue()', function () {
+        it('should return true for a Reference instance', function () {
+            var value = sinon.createStubInstance(Reference);
+
+            expect(type.allowsValue(value)).to.be.true;
+        });
+
+        it('should return true for a Variable instance', function () {
+            var value = sinon.createStubInstance(Variable);
+
+            expect(type.allowsValue(value)).to.be.true;
+        });
+
+        it('should return false for a native string', function () {
+            expect(type.allowsValue('my string')).to.be.false;
+        });
+
+        it('should return false for a Value instance', function () {
+            var value = sinon.createStubInstance(Value);
+
+            expect(type.allowsValue(value)).to.be.false;
+        });
+    });
+
     describe('coerceValue()', function () {
         it('should return the reference when given a Reference', function () {
             var reference = sinon.createStubInstance(Reference);
@@ -56,6 +80,12 @@ describe('Opcode ReferenceType', function () {
                 Exception,
                 'Unexpected value provided for ReferenceType'
             );
+        });
+    });
+
+    describe('getDisplayName()', function () {
+        it('should return "ref"', function () {
+            expect(type.getDisplayName()).to.equal('ref');
         });
     });
 });

@@ -116,7 +116,7 @@ EOS
         });
     });
 
-    it('should correctly handle an asynchronous rejection', function () {
+    it('should correctly handle an asynchronous rejection', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $num = require_once 'abc.php';
@@ -133,14 +133,14 @@ EOS
             },
             engine = module(options);
 
-        return expect(engine.execute().finally(function () {
+        await expect(engine.execute().finally(function () {
             expect(engine.getStderr().readAll()).to.equal(nowdoc(function () {/*<<<EOS
 PHP Warning:  require_once(abc.php): failed to open stream: Include failed in a_module.php on line 2
 PHP Fatal error:  require_once(): Failed opening 'abc.php' for inclusion in a_module.php on line 2
 
 EOS
 */;})); //jshint ignore:line
-        })).to.be.rejectedWith(
+        })).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: require_once(): Failed opening \'abc.php\' for inclusion in a_module.php on line 2'
         );

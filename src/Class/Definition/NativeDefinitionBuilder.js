@@ -102,20 +102,22 @@ _.extend(NativeDefinitionBuilder.prototype, {
             var args = arguments,
                 objectValue = this,
                 // Will be the native object as the `this` object inside the (shadow) constructor
-                // if auto-coercion is enabled, otherwise use the ObjectValue
+                // if auto-coercion is enabled, otherwise use the ObjectValue.
                 unwrappedThisObject = autoCoercionEnabled ?
                     objectValue.getObject() :
                     objectValue;
 
             return valueCoercer.coerceArguments(args)
                 .next(function (unwrappedArgs) {
-                    // Call the original native constructor
-                    definition.apply(unwrappedThisObject, unwrappedArgs);
-
+                    // Call the original native constructor, returning its result
+                    // in case a Future is returned so that it may be awaited.
+                    return definition.apply(unwrappedThisObject, unwrappedArgs);
+                })
+                .next(function () {
                     // Call magic __construct method if defined for the original native class.
                     if (hasMagicConstructor) {
                         // Note that although constructors' return values are discarded, it may pause, in which case
-                        // a FutureValue or Future would be returned, which we then need to return in order to await.
+                        // a Future would be returned, which we then need to return in order to await.
                         return objectValue.callMethod(ORIGINAL_MAGIC_CONSTRUCTOR, args);
                     }
 

@@ -13,19 +13,14 @@ var _ = require('microdash');
 
 /**
  * @param {class} Future
- * @param {class} FutureValue
  * @param {class} Value
  * @constructor
  */
-function ControlBridge(Future, FutureValue, Value) {
+function ControlBridge(Future, Value) {
     /**
      * @type {class}
      */
     this.Future = Future;
-    /**
-     * @type {class}
-     */
-    this.FutureValue = FutureValue;
     /**
      * @type {class}
      */
@@ -34,7 +29,7 @@ function ControlBridge(Future, FutureValue, Value) {
 
 _.extend(ControlBridge.prototype, {
     /**
-     * Determines whether the given value is a Future or FutureValue
+     * Determines whether the given value is a Future.
      *
      * @param {*} value
      * @returns {boolean}
@@ -46,7 +41,7 @@ _.extend(ControlBridge.prototype, {
     },
 
     /**
-     * Determines whether the given value is a Future or FutureValue
+     * Determines whether the given value is a Future.
      *
      * @param {*} value
      * @returns {boolean}
@@ -54,7 +49,7 @@ _.extend(ControlBridge.prototype, {
     isFuture: function (value) {
         var bridge = this;
 
-        return value instanceof bridge.Future || value instanceof bridge.FutureValue;
+        return value instanceof bridge.Future;
     }
 });
 
