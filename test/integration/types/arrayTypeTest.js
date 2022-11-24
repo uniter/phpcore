@@ -36,7 +36,7 @@ describe('PHP "array" type integration', function () {
         };
     });
 
-    it('should allow passing arrays for function parameters typed as "array"', function () {
+    it('should allow passing arrays for function parameters typed as "array"', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -59,16 +59,16 @@ $result['empty'] = mySummer([]);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(doRun(engine).getNative()).to.deep.equal({
+        expect((await doRun(engine)).getNative()).to.deep.equal({
             'non-empty': 121,
             'empty': 0
         });
     });
 
-    it('should allow passing null for function parameters typed as "array" with default null', function () {
+    it('should allow passing null for function parameters typed as "array" with default null', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -88,16 +88,16 @@ $result['explicit null'] = myFunction(null);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(doRun(engine).getNative()).to.deep.equal({
+        expect((await doRun(engine)).getNative()).to.deep.equal({
             'omitted': 'it was omitted',
             'explicit null': 'it was omitted'
         });
     });
 
-    it('should raise an error when an array-type parameter is given an invalid argument', function () {
+    it('should raise an error when an array-type parameter is given an invalid argument', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -113,12 +113,10 @@ function myFunction(array $myArray) {
 myFunction('I_am_not_a_valid_array');
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(function () {
-            doRun(engine);
-        }).to.throw(
+        await expect(doRun(engine)).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught TypeError: Argument 1 passed to myFunction() must be of the type array,' +
             ' string given, called in /path/to/module.php on line 12 and defined in /path/to/module.php:5' +

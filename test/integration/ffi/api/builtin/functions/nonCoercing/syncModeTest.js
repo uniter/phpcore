@@ -112,9 +112,13 @@ EOS
             module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        engine.defineNonCoercingFunction('get_it_and_add_two', function (objectArgReference) {
-            return objectArgReference.getValue().callMethod('getIt').add(this.valueFactory.createInteger(2));
-        });
+        engine.defineNonCoercingFunction('get_it_and_add_two', function (objectValue) {
+            var internals = this;
+
+            return objectValue.callMethod('getIt').next(function (resultValue) {
+                return resultValue.add(internals.valueFactory.createInteger(2));
+            });
+        }, 'object $object');
 
         expect(engine.execute().getNative()).to.equal(27);
     });

@@ -21,7 +21,6 @@ module.exports = require('pauser')([
     require('./Value/Exit'),
     require('./FFI/Result'),
     require('./Value/Float'),
-    require('./Value/Future'),
     require('./Value/Integer'),
     require('./KeyValuePair'),
     require('./Value/Null'),
@@ -46,7 +45,6 @@ module.exports = require('pauser')([
     ExitValue,
     FFIResult,
     FloatValue,
-    FutureValue,
     IntegerValue,
     KeyValuePair,
     NullValue,
@@ -67,6 +65,7 @@ module.exports = require('pauser')([
                 factory.referenceFactory,
                 factory.futureFactory,
                 factory.callStack,
+                factory.flow,
                 value
             );
         },
@@ -124,7 +123,7 @@ module.exports = require('pauser')([
         /**
          * @type {ElementProvider}
          */
-        this.elementProvider = new ElementProvider();
+        this.elementProvider = null;
         /**
          * The single BooleanValue<false> for efficiency, created lazily in .createBoolean(...).
          * See notes for .nullValue.
@@ -220,14 +219,12 @@ module.exports = require('pauser')([
             }
 
             if (factory.controlBridge.isFuture(value)) {
-                // Value must be a plain Future and not a FutureValue, otherwise it would
-                // have been handled by the guard above
                 return factory.deriveFuture(value);
             }
 
             if (value instanceof FFIResult) {
                 // An FFI Result was returned, so we need to handle it as appropriate
-                // (may result in a FutureValue in async mode)
+                // (may result in a Future-wrapped Value in async mode).
                 return value.resolve();
             }
 
@@ -341,11 +338,11 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates a new FutureValue whose executor is always called asynchronously in a macrotask
+         * Creates a new Future-wrapped Value whose executor is always called asynchronously in a macrotask
          * (macrotasks wait for the _next_ event loop tick, allowing DOM events to fire etc.).
          *
          * @param {Function} executor
-         * @returns {FutureValue}
+         * @returns {FutureInterface<Value>}
          */
         createAsyncMacrotaskFuture: function (executor) {
             return this.createFuture(function (resolve, reject) {
@@ -365,12 +362,12 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates a new FutureValue whose executor is always called asynchronously in a microtask
+         * Creates a new Future-wrapped Value whose executor is always called asynchronously in a microtask
          * (microtasks are called at the end of the _current_ event loop tick, so any DOM events etc.
          * will not be fired in between).
          *
          * @param {Function} executor
-         * @returns {FutureValue}
+         * @returns {FutureInterface<Value>}
          */
         createAsyncMicrotaskFuture: function (executor) {
             return this.createFuture(function (resolve, reject) {
@@ -390,10 +387,10 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates a new FutureValue to be resolved with the given value after deferring.
+         * Creates a new Future-wrapped Value to be resolved with the given value after deferring.
          *
          * @param {*} value
-         * @returns {FutureValue}
+         * @returns {FutureInterface<Value>}
          */
         createAsyncPresent: function (value) {
             return this.createFuture(function (resolve) {
@@ -404,10 +401,10 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates a new FutureValue to be rejected with the given error after deferring.
+         * Creates a new Future-wrapped Value to be rejected with the given error after deferring.
          *
          * @param {Error} error
-         * @returns {FutureValue}
+         * @returns {FutureInterface<Value>}
          */
         createAsyncRejection: function (error) {
             return this.createFuture(function (resolve, reject) {
@@ -432,6 +429,7 @@ module.exports = require('pauser')([
                 factory.referenceFactory,
                 factory.futureFactory,
                 factory.callStack,
+                factory.flow,
                 value,
                 factory.globalNamespace,
                 namespaceScope
@@ -518,7 +516,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates an ObjectValue wrapping a PHP Error instance (eg. a call to an undefined method)
+         * Creates an ObjectValue wrapping a PHP Error instance (e.g. a call to an undefined method)
          *
          * @param {string} className eg. Error, ParseError, DivisionByZeroError
          * @param {string|null=} message
@@ -527,7 +525,7 @@ module.exports = require('pauser')([
          * @param {string|null=} filePath To override the file path - null explicitly overrides with "unknown"
          * @param {number|null=} lineNumber To override the line number - null explicitly overrides with "unknown"
          * @param {boolean=} reportsOwnContext Whether the error handles reporting its own file/line context
-         * @returns {FutureValue<ObjectValue>|ObjectValue}
+         * @returns {ChainableInterface<ObjectValue>}
          */
         createErrorObject: function (
             className,
@@ -571,15 +569,14 @@ module.exports = require('pauser')([
                     }
 
                     return errorObject;
-                })
-                .asValue();
+                });
         },
 
         /**
          * Creates an ExitValue. This is a special type of value only returned as the result
          * of an `exit;` or `die;` statement being executed from PHP
          *
-         * @param {Value} statusValue
+         * @param {Value|null} statusValue
          * @return {ExitValue}
          */
         createExit: function (statusValue) {
@@ -590,6 +587,7 @@ module.exports = require('pauser')([
                 factory.referenceFactory,
                 factory.futureFactory,
                 factory.callStack,
+                factory.flow,
                 statusValue
             );
         },
@@ -608,6 +606,7 @@ module.exports = require('pauser')([
                 factory.referenceFactory,
                 factory.futureFactory,
                 factory.callStack,
+                factory.flow,
                 value
             );
         },
@@ -718,41 +717,34 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates a new FutureValue
+         * Creates a new Future-wrapped Value.
          *
          * @param {Function} executor
-         * @returns {FutureValue}
+         * @returns {FutureInterface<Value>}
          */
         createFuture: function (executor) {
-            var factory = this,
-                future = factory.futureFactory.createFuture(function (resolveFuture, rejectFuture, nestCoroutine) {
-                    executor(
-                        function resolve(result) {
-                            // For FutureValues, we always want to coerce the eventual result to a Value
-                            return resolveFuture(factory.coerce(result));
-                        },
-                        function reject(error) {
-                            return rejectFuture(error);
-                        },
-                        nestCoroutine
-                    );
-                });
+            var factory = this;
 
-            return new FutureValue(
-                factory,
-                factory.referenceFactory,
-                factory.futureFactory,
-                factory.callStack,
-                future
-            );
+            return factory.futureFactory.createFuture(function (resolveFuture, rejectFuture, nestCoroutine) {
+                executor(
+                    function resolve(result) {
+                        // For Future-wrapped Values, we always want to coerce the eventual result to a Value.
+                        return resolveFuture(factory.coerce(result));
+                    },
+                    function reject(error) {
+                        return rejectFuture(error);
+                    },
+                    nestCoroutine
+                );
+            });
         },
 
         /**
-         * Creates a FutureValue (if required) as the start of a chain,
+         * Creates a Future-wrapped Value (if required) as the start of a chain,
          * allowing for the initial result to be returned rather than having to call resolve().
          *
          * @param {Function} executor
-         * @returns {FutureValue|Value}
+         * @returns {ChainableInterface<Value>}
          */
         createFutureChain: function (executor) {
             var factory = this,
@@ -781,6 +773,7 @@ module.exports = require('pauser')([
                 factory.referenceFactory,
                 factory.futureFactory,
                 factory.callStack,
+                factory.flow,
                 value
             );
         },
@@ -800,7 +793,8 @@ module.exports = require('pauser')([
                     factory,
                     factory.referenceFactory,
                     factory.futureFactory,
-                    factory.callStack
+                    factory.callStack,
+                    factory.flow
                 );
             }
 
@@ -839,6 +833,7 @@ module.exports = require('pauser')([
                 factory.referenceFactory,
                 factory.futureFactory,
                 factory.callStack,
+                factory.flow,
                 factory.translator,
                 nativeValue,
                 classObject,
@@ -847,13 +842,13 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates a new present FutureValue with the given value
+         * Creates a new present Future-wrapped Value with the given value.
          *
          * Note that in most cases this method should not be used, as a known "present" value
-         * should simply be returned directly and not wrapped as a FutureValue.
+         * should simply be returned directly and not wrapped as a Future.
          *
          * @param {Value} value
-         * @returns {FutureValue}
+         * @returns {FutureInterface<Value>}
          */
         createPresent: function (value) {
             return this.createFuture(function (resolve) {
@@ -888,6 +883,7 @@ module.exports = require('pauser')([
                 factory.referenceFactory,
                 factory.futureFactory,
                 factory.callStack,
+                factory.flow,
                 resource,
                 type,
                 factory.nextResourceID++
@@ -895,9 +891,9 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates an instance of the builtin stdClass class
+         * Creates an instance of the builtin stdClass class.
          *
-         * @return {FutureValue<ObjectValue>|ObjectValue}
+         * @return {ChainableInterface<ObjectValue>}
          */
         createStdClassObject: function () {
             var factory = this;
@@ -919,13 +915,14 @@ module.exports = require('pauser')([
                 factory.referenceFactory,
                 factory.futureFactory,
                 factory.callStack,
+                factory.flow,
                 value,
                 factory.globalNamespace
             );
         },
 
         /**
-         * Creates an ObjectValue wrapping a PHP Error instance (eg. a call to an undefined method)
+         * Creates an ObjectValue wrapping a PHP Error instance (eg. a call to an undefined method).
          *
          * @param {string} className eg. Error, ParseError, DivisionByZeroError
          * @param {string} translationKey
@@ -934,7 +931,7 @@ module.exports = require('pauser')([
          * @param {ObjectValue|null=} previousThrowable
          * @param {string=} filePath To override the file path
          * @param {number=} lineNumber To override the line number
-         * @returns {FutureValue<ObjectValue>|ObjectValue}
+         * @returns {ChainableInterface<ObjectValue>}
          */
         createTranslatedErrorObject: function (
             className,
@@ -959,14 +956,14 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates an ObjectValue wrapping a PHP Exception instance (eg. a RuntimeException)
+         * Creates an ObjectValue wrapping a PHP Exception instance (eg. a RuntimeException).
          *
          * @param {string} className eg. Exception, LogicException, RuntimeException
          * @param {string} translationKey
          * @param {Object.<string, string>=} placeholderVariables
          * @param {number|null=} code
          * @param {ObjectValue|null=} previousThrowable
-         * @returns {FutureValue<ObjectValue>|ObjectValue}
+         * @returns {ChainableInterface<ObjectValue>}
          */
         createTranslatedExceptionObject: function (
             className,
@@ -989,10 +986,10 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Derives a new FutureValue from an existing Future.
+         * Derives a new Future-wrapped Value from an existing Future.
          *
-         * @param {Future} future
-         * @returns {FutureValue}
+         * @param {FutureInterface} future
+         * @returns {FutureInterface<Value>}
          */
         deriveFuture: function (future) {
             // Note that .createFuture(...) will coerce the result (if resolved) to a Value.
@@ -1003,11 +1000,11 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates an ObjectValue instance of the specified class
+         * Creates an ObjectValue instance of the specified class.
          *
          * @param {string} className
          * @param {Array} constructorArgNatives
-         * @returns {FutureValue<ObjectValue>}
+         * @returns {ChainableInterface<ObjectValue>}
          */
         instantiateObject: function (className, constructorArgNatives) {
             var factory = this,
@@ -1018,8 +1015,7 @@ module.exports = require('pauser')([
             return factory.globalNamespace.getClass(className)
                 .next(function (classObject) {
                     return classObject.instantiate(constructorArgValues);
-                })
-                .asValue();
+                });
         },
 
         /**
@@ -1034,12 +1030,12 @@ module.exports = require('pauser')([
 
         /**
          * Executes the given callback, which is expected to make a tail-call that may pause
-         * in async mode. If it pauses then the pause will be intercepted and turned into a FutureValue,
+         * in async mode. If it pauses then the pause will be intercepted and turned into a Future-wrapped Value,
          * otherwise the result will be coerced to a Value.
          *
          * @param {Function} executor
          * @param {Function=} pauser Called if a pause is intercepted
-         * @returns {FutureValue|Value}
+         * @returns {ChainableInterface<Value>}
          */
         maybeFuturise: function (executor, pauser) {
             var factory = this,
@@ -1053,8 +1049,8 @@ module.exports = require('pauser')([
              * A pause or error occurred. Note that the error thrown could be a Future(Value),
              * in which case we need to yield to it so that a pause occurs if required.
              *
-             * @param {Error|Future|FutureValue|Pause} error
-             * @returns {FutureValue}
+             * @param {Error|ChainableInterface<Value>|Pause} error
+             * @returns {ChainableInterface<Value>}
              */
             function handlePauseOrError(error) {
                 if (factory.controlBridge.isFuture(error)) {
@@ -1075,7 +1071,7 @@ module.exports = require('pauser')([
                         throw error;
                     }
 
-                    // For async mode, return a rejected FutureValue
+                    // For async mode, return a rejected Future.
                     return factory.createFuture(function (resolve, reject) {
                         reject(error);
                     });

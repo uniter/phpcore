@@ -24,6 +24,7 @@ var _ = require('microdash'),
  * - Any other type, including a Value, will raise an error.
  *
  * @constructor
+ * @implements {TypeInterface}
  */
 function ReferenceType() {
 
@@ -35,12 +36,26 @@ _.extend(ReferenceType.prototype, {
     /**
      * {@inheritdoc}
      */
+    allowsValue: function (value) {
+        return (value instanceof Reference) || (value instanceof Variable);
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     coerceValue: function (value) {
-        if ((value instanceof Reference) || (value instanceof Variable)) {
+        if (this.allowsValue(value)) {
             return value;
         }
 
         throw new Exception('Unexpected value provided for ReferenceType');
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    getDisplayName: function () {
+        return 'ref';
     }
 });
 

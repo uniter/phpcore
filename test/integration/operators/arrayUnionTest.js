@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP array union operator "+" integration', function () {
-    it('should merge the arrays correctly giving precedence to the left-hand array in sync mode', function () {
+    it('should merge the arrays correctly giving precedence to the left-hand array in sync mode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -32,21 +32,21 @@ $result['two associative arrays'] = $associativeArray1 + $associativeArray2;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
-            'two indexed arrays': ['first', 'second', 'fifth'], // Array 1's keys should take precedence
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'two indexed arrays': ['first', 'second', 'fifth'], // Array 1's keys should take precedence.
 
             'two associative arrays': {
-                a: 'one', // Array 1's keys should take precedence
+                a: 'one', // Array 1's keys should take precedence.
                 b: 'two',
                 c: 'five'
             }
         });
     });
 
-    it('should merge the arrays correctly giving precedence to the left-hand array in async mode with pauses', function () {
+    it('should merge the arrays correctly giving precedence to the left-hand array in async mode with pauses', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -76,16 +76,14 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'two indexed arrays': ['first', 'second', 'fifth'], // Array 1's keys should take precedence
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'two indexed arrays': ['first', 'second', 'fifth'], // Array 1's keys should take precedence.
 
-                'two associative arrays': {
-                    a: 'one', // Array 1's keys should take precedence
-                    b: 'two',
-                    c: 'five'
-                }
-            });
+            'two associative arrays': {
+                a: 'one', // Array 1's keys should take precedence.
+                b: 'two',
+                c: 'five'
+            }
         });
     });
 });

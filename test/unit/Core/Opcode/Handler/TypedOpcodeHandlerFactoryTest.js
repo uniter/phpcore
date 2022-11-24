@@ -55,10 +55,11 @@ describe('TypedOpcodeHandlerFactory', function () {
 
         beforeEach(function () {
             signature = sinon.createStubInstance(OpcodeSignature);
-            signature.hasVariadicParameter.returns(false);
+            signature.coerceReturnValue.returnsArg(0);
+            signature.getInitialParameterCount.returns(0);
             signature.getParameterCount.returns(0);
             signature.getParameters.returns([]);
-            signature.coerceReturnValue.returnsArg(0);
+            signature.hasVariadicParameter.returns(false);
 
             handler = sinon.stub();
 
@@ -105,10 +106,13 @@ describe('TypedOpcodeHandlerFactory', function () {
 
                 beforeEach(function () {
                     parameter = sinon.createStubInstance(Parameter);
-                    parameter.isVariadic.returns(false);
                     parameter.coerceArgument
                         .withArgs('hello')
                         .returns('world');
+                    parameter.getDefaultArgument.returns('my default');
+                    parameter.getName.returns('my_param');
+                    parameter.isRequired.returns(false);
+                    parameter.isVariadic.returns(false);
 
                     signature.getParameterCount.returns(1);
                     signature.getParameters.returns([parameter]);
@@ -169,15 +173,308 @@ describe('TypedOpcodeHandlerFactory', function () {
                     );
                 });
 
+                it('should throw when no arguments are passed but the parameter is required', function () {
+                    parameter.isRequired.returns(true);
+
+                    callTypeHandler();
+
+                    expect(function () {
+                        typedHandler();
+                    }).to.throw(
+                        Exception,
+                        'Missing argument for required parameter "my_param"'
+                    );
+                });
+            });
+
+            describe('with two formal parameters', function () {
+                var parameter1,
+                    parameter2;
+
+                beforeEach(function () {
+                    parameter1 = sinon.createStubInstance(Parameter);
+                    parameter1.coerceArgument
+                        .withArgs('hello')
+                        .returns('world');
+                    parameter1.getDefaultArgument.returns('first default');
+                    parameter1.getName.returns('first_param');
+                    parameter1.isRequired.returns(false);
+                    parameter1.isVariadic.returns(false);
+                    parameter2 = sinon.createStubInstance(Parameter);
+                    parameter2.coerceArgument
+                        .withArgs('foo')
+                        .returns('bar');
+                    parameter2.getDefaultArgument.returns('second default');
+                    parameter2.getName.returns('second_param');
+                    parameter2.isRequired.returns(false);
+                    parameter2.isVariadic.returns(false);
+
+                    signature.getParameterCount.returns(2);
+                    signature.getParameters.returns([parameter1, parameter2]);
+                });
+
+                it('should invoke the wrapped handler with two arguments when provided initially and not Futures', function () {
+                    callTypeHandler();
+
+                    typedHandler('hello', 'foo');
+
+                    expect(handler).to.have.been.calledOnce;
+                    expect(handler).to.have.been.calledOn(null);
+                    expect(handler).to.have.been.calledWithExactly('world', 'bar');
+                });
+
+                it('should invoke the wrapped handler with two arguments when provided initially and second is a Future', async function () {
+                    parameter2.coerceArgument
+                        .withArgs('foo')
+                        .returns(futureFactory.createAsyncPresent('bar'));
+                    callTypeHandler();
+
+                    await typedHandler('hello', 'foo').toPromise();
+
+                    expect(handler).to.have.been.calledOnce;
+                    expect(handler).to.have.been.calledOn(null);
+                    expect(handler).to.have.been.calledWithExactly('world', 'bar');
+                });
+
+                it('should invoke the wrapped handler with two arguments when provided separately and first is a Future', async function () {
+                    parameter1.coerceArgument
+                        .withArgs('hello')
+                        .returns(futureFactory.createAsyncPresent('world'));
+                    callTypeHandler();
+
+                    (await typedHandler('hello').toPromise())('foo');
+
+                    expect(handler).to.have.been.calledOnce;
+                    expect(handler).to.have.been.calledOn(null);
+                    expect(handler).to.have.been.calledWithExactly('world', 'bar');
+                });
+
+                it('should invoke the wrapped handler with two arguments when provided separately and second is a Future', async function () {
+                    parameter2.coerceArgument
+                        .withArgs('foo')
+                        .returns(futureFactory.createAsyncPresent('bar'));
+                    callTypeHandler();
+
+                    await typedHandler('hello')('foo').toPromise();
+
+                    expect(handler).to.have.been.calledOnce;
+                    expect(handler).to.have.been.calledOn(null);
+                    expect(handler).to.have.been.calledWithExactly('world', 'bar');
+                });
+
+                it('should invoke the wrapped handler with two arguments when provided separately and both are Futures', async function () {
+                    parameter1.coerceArgument
+                        .withArgs('hello')
+                        .returns(futureFactory.createAsyncPresent('world'));
+                    parameter2.coerceArgument
+                        .withArgs('foo')
+                        .returns(futureFactory.createAsyncPresent('bar'));
+                    callTypeHandler();
+
+                    await (await typedHandler('hello').toPromise())('foo').toPromise();
+
+                    expect(handler).to.have.been.calledOnce;
+                    expect(handler).to.have.been.calledOn(null);
+                    expect(handler).to.have.been.calledWithExactly('world', 'bar');
+                });
+
+                it('should await the second coerced argument when two are provided initially if it is a Future', async function () {
+                    parameter2.coerceArgument
+                        .withArgs('foo')
+                        .returns(futureFactory.createAsyncPresent('bar'));
+                    handler.returns('my original result');
+                    signature.coerceReturnValue
+                        .withArgs('my original result')
+                        .returns('my coerced result');
+                    callTypeHandler();
+
+                    expect(await typedHandler('hello', 'foo').toPromise())
+                        .to.equal('my coerced result');
+                });
+
+                it('should await the second coerced argument when provided separately if it is a Future', async function () {
+                    parameter2.coerceArgument
+                        .withArgs('foo')
+                        .returns(futureFactory.createAsyncPresent('bar'));
+                    handler.returns('my original result');
+                    signature.coerceReturnValue
+                        .withArgs('my original result')
+                        .returns('my coerced result');
+                    callTypeHandler();
+
+                    expect(await typedHandler('hello')('foo').toPromise())
+                        .to.equal('my coerced result');
+                });
+
+                it('should coerce the result via the Signature to apply its return type', function () {
+                    handler.returns('my original result');
+                    signature.coerceReturnValue
+                        .withArgs('my original result')
+                        .returns('my coerced result');
+                    callTypeHandler();
+
+                    expect(typedHandler('hello', 'foo')).to.equal('my coerced result');
+                });
+
+                it('should await the result before coercing if it is a Future', async function () {
+                    handler.returns(futureFactory.createAsyncPresent('my original result'));
+                    signature.coerceReturnValue
+                        .withArgs('my original result')
+                        .returns('my coerced result');
+                    callTypeHandler();
+
+                    expect(await typedHandler('hello', 'foo').toPromise()).to.equal('my coerced result');
+                });
+
+                it('should throw when a third argument is provided initially', function () {
+                    callTypeHandler();
+
+                    expect(function () {
+                        typedHandler('first', 'second', 'third');
+                    }).to.throw(
+                        Exception,
+                        'Too many opcode arguments provided - expected 2, got 3'
+                    );
+                });
+
                 it('should throw when formal partial argument capture handler is given multiple arguments', function () {
                     callTypeHandler();
 
                     expect(function () {
-                        typedHandler()('first', 'second');
+                        typedHandler('first')('second', 'extra third');
                     }).to.throw(
                         Exception,
                         'Only one partial argument may be provided at a time'
                     );
+                });
+
+                it('should throw when no arguments are passed but both parameters are required', function () {
+                    parameter1.isRequired.returns(true);
+                    parameter2.isRequired.returns(true);
+
+                    callTypeHandler();
+
+                    expect(function () {
+                        typedHandler();
+                    }).to.throw(
+                        Exception,
+                        'Missing argument for required parameter "first_param"'
+                    );
+                });
+
+                it('should throw when one argument is passed but second parameter is required', function () {
+                    parameter1.isRequired.returns(true);
+                    parameter2.isRequired.returns(true);
+
+                    callTypeHandler();
+
+                    expect(function () {
+                        typedHandler('first')();
+                    }).to.throw(
+                        Exception,
+                        'Missing argument for required parameter "second_param"'
+                    );
+                });
+
+                it('should throw when one argument is passed but second parameter is required initially', function () {
+                    parameter1.isRequired.returns(true);
+                    parameter2.isRequired.returns(true);
+                    signature.getInitialParameterCount.returns(2);
+
+                    callTypeHandler();
+
+                    expect(function () {
+                        // Note no empty arguments call trails.
+                        typedHandler('first');
+                    }).to.throw(
+                        Exception,
+                        'Missing argument for required initial parameter "second_param"'
+                    );
+                });
+
+                it('should use parameter defaults when neither argument is provided', async function () {
+                    callTypeHandler();
+
+                    typedHandler();
+
+                    expect(handler).to.have.been.calledOnce;
+                    expect(handler).to.have.been.calledOn(null);
+                    expect(handler).to.have.been.calledWithExactly('first default', 'second default');
+                });
+
+                it('should use parameter default when only first argument is provided', async function () {
+                    parameter1.coerceArgument
+                        .withArgs('hello')
+                        .returns(futureFactory.createAsyncPresent('world'));
+                    callTypeHandler();
+
+                    (await typedHandler('hello').toPromise())();
+
+                    expect(handler).to.have.been.calledOnce;
+                    expect(handler).to.have.been.calledOn(null);
+                    expect(handler).to.have.been.calledWithExactly('world', 'second default');
+                });
+            });
+
+            describe('with three formal parameters', function () {
+                var parameter1,
+                    parameter2,
+                    parameter3;
+
+                beforeEach(function () {
+                    parameter1 = sinon.createStubInstance(Parameter);
+                    parameter1.coerceArgument
+                        .withArgs('hello')
+                        .returns('world');
+                    parameter1.getDefaultArgument.returns('first default');
+                    parameter1.getName.returns('first_param');
+                    parameter1.isRequired.returns(false);
+                    parameter1.isVariadic.returns(false);
+                    parameter1.test_name = 'parameter1';
+                    parameter2 = sinon.createStubInstance(Parameter);
+                    parameter2.coerceArgument
+                        .withArgs('foo')
+                        .returns('bar');
+                    parameter2.getDefaultArgument.returns('second default');
+                    parameter2.getName.returns('second_param');
+                    parameter2.isRequired.returns(false);
+                    parameter2.isVariadic.returns(false);
+                    parameter2.test_name = 'parameter2';
+                    parameter3 = sinon.createStubInstance(Parameter);
+                    parameter3.coerceArgument
+                        .withArgs('yours')
+                        .returns('mine');
+                    parameter3.getDefaultArgument.returns('third default');
+                    parameter3.getName.returns('third_param');
+                    parameter3.isRequired.returns(false);
+                    parameter3.isVariadic.returns(false);
+                    parameter3.test_name = 'parameter3';
+
+                    signature.getParameterCount.returns(3);
+                    signature.getParameters.returns([parameter1, parameter2, parameter3]);
+                });
+
+                it('should invoke the wrapped handler with three arguments when provided separately and all are Futures', async function () {
+                    parameter1.coerceArgument
+                        .withArgs('hello')
+                        .returns(futureFactory.createAsyncPresent('world'));
+                    parameter2.coerceArgument
+                        .withArgs('foo')
+                        .returns(futureFactory.createAsyncPresent('bar'));
+                    parameter2.coerceArgument
+                        .withArgs('yours')
+                        .returns(futureFactory.createAsyncPresent('mine'));
+                    callTypeHandler();
+
+                    (
+                        await (
+                            await typedHandler('hello').toPromise()
+                        )('foo').toPromise()
+                    )('yours');
+
+                    expect(handler).to.have.been.calledOnce;
+                    expect(handler).to.have.been.calledOn(null);
+                    expect(handler).to.have.been.calledWithExactly('world', 'bar', 'mine');
                 });
             });
 
@@ -188,12 +485,14 @@ describe('TypedOpcodeHandlerFactory', function () {
                 beforeEach(function () {
                     signature.hasVariadicParameter.returns(true);
                     parameter1 = sinon.createStubInstance(Parameter);
-                    parameter1.isVariadic.returns(false);
                     parameter1.coerceArgument
                         .withArgs('hello')
                         .returns('world');
+                    parameter1.getDefaultArgument.returns('first default');
+                    parameter1.getName.returns('first_param');
+                    parameter1.isRequired.returns(false);
+                    parameter1.isVariadic.returns(false);
                     parameter2 = sinon.createStubInstance(Parameter);
-                    parameter2.isVariadic.returns(true);
                     parameter2.coerceArgument
                         .withArgs('foo')
                         .returns('bar');
@@ -202,6 +501,10 @@ describe('TypedOpcodeHandlerFactory', function () {
                         .returns('there');
                     parameter2.coerceArgument
                         .returnsArg(0);
+                    parameter2.getDefaultArgument.returns('second default');
+                    parameter2.getName.returns('second_param');
+                    parameter2.isRequired.returns(false);
+                    parameter2.isVariadic.returns(true);
 
                     signature.getParameterCount.returns(2);
                     signature.getParameters.returns([parameter1, parameter2]);
@@ -275,15 +578,109 @@ describe('TypedOpcodeHandlerFactory', function () {
                         'Variadic opcode arguments should be provided separately'
                     );
                 });
+            });
 
-                it('should throw when formal partial argument capture handler is given multiple arguments', function () {
+            describe('with only a variadic parameter', function () {
+                var parameter;
+
+                beforeEach(function () {
+                    signature.hasVariadicParameter.returns(true);
+                    parameter = sinon.createStubInstance(Parameter);
+                    parameter.coerceArgument
+                        .withArgs('hello')
+                        .returns('world');
+                    parameter.coerceArgument
+                        .withArgs('foo')
+                        .returns('bar');
+                    parameter.coerceArgument
+                        .withArgs('here')
+                        .returns('there');
+                    parameter.coerceArgument
+                        .returnsArg(0);
+                    parameter.getName.returns('my_param');
+                    parameter.isRequired.returns(false);
+                    parameter.isVariadic.returns(true);
+
+                    signature.getParameterCount.returns(1);
+                    signature.getParameters.returns([parameter]);
+                });
+
+                it('should invoke the wrapped handler with no arguments when none given', function () {
+                    callTypeHandler();
+
+                    typedHandler();
+
+                    expect(handler).to.have.been.calledOnce;
+                    expect(handler).to.have.been.calledOn(null);
+                    expect(handler).to.have.been.calledWithExactly([]);
+                });
+
+                it('should invoke the wrapped handler with one argument when one given', function () {
+                    callTypeHandler();
+
+                    typedHandler('hello')();
+
+                    expect(handler).to.have.been.calledOnce;
+                    expect(handler).to.have.been.calledOn(null);
+                    expect(handler).to.have.been.calledWithExactly(['world']);
+                });
+
+                it('should invoke the wrapped handler with three arguments when three given', function () {
+                    callTypeHandler();
+
+                    typedHandler('hello')('foo')('here')();
+
+                    expect(handler).to.have.been.calledOnce;
+                    expect(handler).to.have.been.calledOn(null);
+                    expect(handler).to.have.been.calledWithExactly(['world', 'bar', 'there']);
+                });
+
+                it('should await the coerced argument if it is a Future', async function () {
+                    handler.returns('my original result');
+                    signature.coerceReturnValue
+                        .withArgs('my original result')
+                        .returns('my coerced result');
+                    callTypeHandler();
+
+                    expect(
+                        (
+                            await typedHandler('hello')(futureFactory.createAsyncPresent('foo'))
+                                .toPromise()
+                        )
+                        ('here')
+                        ()
+                    )
+                        .to.equal('my coerced result');
+                });
+
+                it('should coerce the result via the Signature to apply its return type', function () {
+                    handler.returns('my original result');
+                    signature.coerceReturnValue
+                        .withArgs('my original result')
+                        .returns('my coerced result');
+                    callTypeHandler();
+
+                    expect(typedHandler('hello')()).to.equal('my coerced result');
+                });
+
+                it('should await the result before coercing if it is a Future', async function () {
+                    handler.returns(futureFactory.createAsyncPresent('my original result'));
+                    signature.coerceReturnValue
+                        .withArgs('my original result')
+                        .returns('my coerced result');
+                    callTypeHandler();
+
+                    expect(await typedHandler('hello')().toPromise()).to.equal('my coerced result');
+                });
+
+                it('should throw when a second argument is provided initially', function () {
                     callTypeHandler();
 
                     expect(function () {
-                        typedHandler()('first', 'second');
+                        typedHandler('first', 'second');
                     }).to.throw(
                         Exception,
-                        'Only one partial argument may be provided at a time'
+                        'Too many opcode arguments provided - expected 1, got 2'
                     );
                 });
             });

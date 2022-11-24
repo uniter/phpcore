@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP assignment operator integration', function () {
-    it('should return the value assigned for object property and array element writes', function () {
+    it('should return the value assigned for object property and array element writes', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -49,10 +49,10 @@ $result[] = ($myArray[21]->myProp = 27);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             22,
             23,
@@ -65,7 +65,7 @@ EOS
         ]);
     });
 
-    it('should allow an array literal to replace a variable with a new array containing the old value', function () {
+    it('should allow an array literal to replace a variable with a new array containing the old value', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -80,17 +80,17 @@ $result[] = $myArray;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             {
                 old: [21]
             }
         ]);
     });
 
-    it('should recursively copy arrays for assignment (shallow copy, except for nested arrays, unless references)', function () {
+    it('should recursively copy arrays for assignment (shallow copy, except for nested arrays, unless references)', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -110,17 +110,17 @@ $result['thirdArray'] = $thirdArray;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             firstArray: [21, 'I should not affect $secondArray'],
             secondArray: [[21]],
             thirdArray: [[21, 'I should not affect $secondArray']]
         });
     });
 
-    it('should raise a warning on assignment of integer value to index of non-array element', function () {
+    it('should raise a warning on assignment of integer value to index of non-array element', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -134,10 +134,10 @@ $result['notAnArray'] = $notAnArray;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'notAnArray': 2 // Non-array should be left unchanged.
         });
         expect(engine.getStderr().readAll()).to.equal(nowdoc(function () {/*<<<EOS

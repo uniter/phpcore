@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP bitwise XOR operator "^" integration', function () {
-    it('should support bitwise XOR operations', function () {
+    it('should support bitwise XOR operations', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -27,10 +27,10 @@ $result['floats'] = 1234.5678 ^ 567.123;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'small integers': 3,            // 0b10 ^ 0b01 = 0b11
             'large integers': 687882108,    // Large unsigned integers should be supported too
             'floats': 1765

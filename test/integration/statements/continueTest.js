@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP "continue" statement integration', function () {
-    it('should jump to the next iteration of a for loop', function () {
+    it('should jump to the next iteration of a for loop', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -30,12 +30,13 @@ $result[] = 'end';
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([0, 1, 3, 'end']);
+        expect((await engine.execute()).getNative()).to.deep.equal([0, 1, 3, 'end']);
     });
 
-    it('should be able jump to the next iteration of an outer loop', function () {
+    it('should be able jump to the next iteration of an outer loop', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -53,8 +54,9 @@ $result[] = 'end';
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([0, 1, 3, 'end']);
+        expect((await engine.execute()).getNative()).to.deep.equal([0, 1, 3, 'end']);
     });
 });

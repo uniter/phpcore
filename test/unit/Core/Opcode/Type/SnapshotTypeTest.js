@@ -15,10 +15,14 @@ var expect = require('chai').expect,
     tools = require('../../../tools'),
     Exception = phpCommon.Exception,
     CallStack = require('../../../../../src/CallStack'),
+    KeyReferencePair = require('../../../../../src/KeyReferencePair'),
+    KeyValuePair = require('../../../../../src/KeyValuePair'),
     Reference = require('../../../../../src/Reference/Reference'),
+    ReferenceElement = require('../../../../../src/Element/ReferenceElement'),
     ReferenceSnapshot = require('../../../../../src/Reference/ReferenceSnapshot'),
     ReferenceFactory = require('../../../../../src/ReferenceFactory').sync(),
     SnapshotType = require('../../../../../src/Core/Opcode/Type/SnapshotType'),
+    Value = require('../../../../../src/Value').sync(),
     Variable = require('../../../../../src/Variable').sync();
 
 describe('Opcode SnapshotType', function () {
@@ -48,6 +52,54 @@ describe('Opcode SnapshotType', function () {
         type = new SnapshotType(valueFactory, referenceFactory);
     });
 
+    describe('allowsValue()', function () {
+        it('should return true for a Reference instance', function () {
+            var value = sinon.createStubInstance(Reference);
+
+            expect(type.allowsValue(value)).to.be.true;
+        });
+
+        it('should return true for a ReferenceSnapshot instance', function () {
+            var value = sinon.createStubInstance(ReferenceSnapshot);
+
+            expect(type.allowsValue(value)).to.be.true;
+        });
+
+        it('should return true for a ReferenceElement instance', function () {
+            var value = sinon.createStubInstance(ReferenceElement);
+
+            expect(type.allowsValue(value)).to.be.true;
+        });
+
+        it('should return true for a KeyReferencePair instance', function () {
+            var value = sinon.createStubInstance(KeyReferencePair);
+
+            expect(type.allowsValue(value)).to.be.true;
+        });
+
+        it('should return true for a KeyValuePair instance', function () {
+            var value = sinon.createStubInstance(KeyValuePair);
+
+            expect(type.allowsValue(value)).to.be.true;
+        });
+
+        it('should return true for a Value instance', function () {
+            var value = sinon.createStubInstance(Value);
+
+            expect(type.allowsValue(value)).to.be.true;
+        });
+
+        it('should return true for a Variable instance', function () {
+            var value = sinon.createStubInstance(Variable);
+
+            expect(type.allowsValue(value)).to.be.true;
+        });
+
+        it('should return false for a native string', function () {
+            expect(type.allowsValue('my string')).to.be.false;
+        });
+    });
+
     describe('coerceValue()', function () {
         it('should return the value when given a Value', function () {
             var value = valueFactory.createString('my string');
@@ -59,6 +111,24 @@ describe('Opcode SnapshotType', function () {
             var snapshot = sinon.createStubInstance(ReferenceSnapshot);
 
             expect(type.coerceValue(snapshot)).to.equal(snapshot);
+        });
+
+        it('should return the snapshot when given a ReferenceElement', function () {
+            var element = sinon.createStubInstance(ReferenceElement);
+
+            expect(type.coerceValue(element)).to.equal(element);
+        });
+
+        it('should return the pair when given a KeyReferencePair', function () {
+            var pair = sinon.createStubInstance(KeyReferencePair);
+
+            expect(type.coerceValue(pair)).to.equal(pair);
+        });
+
+        it('should return the pair when given a KeyValuePair', function () {
+            var pair = sinon.createStubInstance(KeyValuePair);
+
+            expect(type.coerceValue(pair)).to.equal(pair);
         });
 
         it('should throw when given a native string', function () {
@@ -130,6 +200,12 @@ describe('Opcode SnapshotType', function () {
                 expect(snapshot.getWrappedReference()).to.equal(variable);
                 expect(snapshot.getValue()).to.be.null;
             });
+        });
+    });
+
+    describe('getDisplayName()', function () {
+        it('should return "snapshot"', function () {
+            expect(type.getDisplayName()).to.equal('snapshot');
         });
     });
 });

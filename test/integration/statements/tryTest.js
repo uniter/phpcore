@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP "try" statement integration', function () {
-    it('should allow a thrown exception created inline to be caught', function () {
+    it('should allow a thrown exception created inline to be caught', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -39,12 +39,13 @@ $result[] = 6;
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([1, 4, 5, 6]);
+        expect((await engine.execute()).getNative()).to.deep.equal([1, 4, 5, 6]);
     });
 
-    it('should support a global-namespace-relative class path', function () {
+    it('should support a global-namespace-relative class path', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -67,12 +68,13 @@ $result[] = 6;
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([1, 4, 5, 6]);
+        expect((await engine.execute()).getNative()).to.deep.equal([1, 4, 5, 6]);
     });
 
-    it('should support a namespace-relative class path', function () {
+    it('should support a namespace-relative class path', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 namespace My\Stuff {
@@ -101,12 +103,13 @@ namespace {
 }
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([1, 4, 5, 6]);
+        expect((await engine.execute()).getNative()).to.deep.equal([1, 4, 5, 6]);
     });
 
-    it('should allow a thrown exception stored in variable to be caught', function () {
+    it('should allow a thrown exception stored in variable to be caught', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -130,12 +133,13 @@ $result[] = 6;
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([1, 4, 5, 6]);
+        expect((await engine.execute()).getNative()).to.deep.equal([1, 4, 5, 6]);
     });
 
-    it('should rethrow a Throwable after the finally clause if there is no matching catch', function () {
+    it('should rethrow a Throwable after the finally clause if there is no matching catch', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -150,12 +154,10 @@ try {
 print '[I should not be reached either]';
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Exception: Bang! in /path/to/module.php on line 4'
         );
@@ -172,7 +174,7 @@ EOS
         );
     });
 
-    it('should allow a finally clause to convert the thrown Throwable into a return, discarding it', function () {
+    it('should allow a finally clause to convert the thrown Throwable into a return, discarding it', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -189,14 +191,14 @@ try {
 print '[I should not be reached either]';
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.equal('Done!');
+        expect((await engine.execute()).getNative()).to.equal('Done!');
         expect(engine.getStdout().readAll()).to.equal('[In finally]');
     });
 
-    it('should support pause/resume where all pauses resume', function () {
+    it('should support pause/resume where all pauses resume', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -231,18 +233,16 @@ EOS
             });
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                'first',
-                'second',
-                'fifth',
-                'sixth',
-                'seventh'
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            'first',
+            'second',
+            'fifth',
+            'sixth',
+            'seventh'
+        ]);
     });
 
-    it('should support pause/resume where one pause throws-into', function () {
+    it('should support pause/resume where one pause throws-into', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -301,15 +301,13 @@ EOS
             });
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                'first',
-                'second',
-                // See the nested try..catch and the get_async() JS implementation above
-                'caught: Bang! @ /some/fault.php:1234',
-                'sixth',
-                'seventh'
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            'first',
+            'second',
+            // See the nested try..catch and the get_async() JS implementation above
+            'caught: Bang! @ /some/fault.php:1234',
+            'sixth',
+            'seventh'
+        ]);
     });
 });

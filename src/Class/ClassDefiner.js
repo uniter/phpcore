@@ -59,7 +59,7 @@ _.extend(ClassDefiner.prototype, {
      * @param {NamespaceScope} namespaceScope
      * @param {boolean} autoCoercionEnabled Whether the class should be auto-coercing
      * @param {Function|null} methodCaller Custom method call handler
-     * @returns {Future<Class>} Returns the internal Class instance created
+     * @returns {ChainableInterface<Class>} Returns the internal Class instance created
      */
     defineClass: function (
         name,

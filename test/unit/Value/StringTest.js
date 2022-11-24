@@ -35,6 +35,7 @@ describe('String', function () {
         createKeyValuePair,
         createValue,
         factory,
+        flow,
         futureFactory,
         globalNamespace,
         namespaceScope,
@@ -44,10 +45,11 @@ describe('String', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
-        state = tools.createIsolatedState(null, {
+        state = tools.createIsolatedState('async', {
             'call_stack': callStack
         });
         factory = state.getValueFactory();
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
@@ -79,6 +81,7 @@ describe('String', function () {
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 nativeValue,
                 globalNamespace
             );
@@ -633,88 +636,94 @@ describe('String', function () {
     });
 
     describe('compareWithString()', function () {
-        it('should return 0 when two numeric strings are equal', function () {
+        it('should return 0 when two numeric strings are equal', async function () {
             var leftValue = new StringValue(
                 factory,
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 '21',
                 globalNamespace
             );
             createValue('21');
 
-            expect(value.compareWithString(leftValue)).to.equal(0);
+            expect(await value.compareWithString(leftValue).toPromise()).to.equal(0);
         });
 
-        it('should return -1 when left of two numeric strings is less', function () {
+        it('should return -1 when left of two numeric strings is less', async function () {
             var leftValue = new StringValue(
                 factory,
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 '4',
                 globalNamespace
             );
             createValue('6');
 
-            expect(value.compareWithString(leftValue)).to.equal(-1);
+            expect(await value.compareWithString(leftValue).toPromise()).to.equal(-1);
         });
 
-        it('should return 1 when left of two numeric strings is greater', function () {
+        it('should return 1 when left of two numeric strings is greater', async function () {
             var leftValue = new StringValue(
                 factory,
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 '14',
                 globalNamespace
             );
             createValue('12');
 
-            expect(value.compareWithString(leftValue)).to.equal(1);
+            expect(await value.compareWithString(leftValue).toPromise()).to.equal(1);
         });
 
-        it('should return 0 when two non-numeric strings are lexically equal', function () {
+        it('should return 0 when two non-numeric strings are lexically equal', async function () {
             var leftValue = new StringValue(
                 factory,
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 'my string',
                 globalNamespace
             );
             createValue('my string');
 
-            expect(value.compareWithString(leftValue)).to.equal(0);
+            expect(await value.compareWithString(leftValue).toPromise()).to.equal(0);
         });
 
-        it('should return -1 when left of two non-numeric strings is lexically less', function () {
+        it('should return -1 when left of two non-numeric strings is lexically less', async function () {
             var leftValue = new StringValue(
                 factory,
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 'X my string',
                 globalNamespace
             );
             createValue('Y my string');
 
-            expect(value.compareWithString(leftValue)).to.equal(-1);
+            expect(await value.compareWithString(leftValue).toPromise()).to.equal(-1);
         });
 
-        it('should return 1 when left of two non-numeric strings is lexically greater', function () {
+        it('should return 1 when left of two non-numeric strings is lexically greater', async function () {
             var leftValue = new StringValue(
                 factory,
                 referenceFactory,
                 futureFactory,
                 callStack,
+                flow,
                 'F my string',
                 globalNamespace
             );
             createValue('E my string');
 
-            expect(value.compareWithString(leftValue)).to.equal(1);
+            expect(await value.compareWithString(leftValue).toPromise()).to.equal(1);
         });
     });
 
@@ -1825,26 +1834,21 @@ describe('String', function () {
             expect(value.next()).to.equal(value);
         });
 
-        it('should invoke the callback with the value and return the coerced result', function () {
-            var callback = sinon.stub(),
-                resultValue;
+        it('should invoke the callback with the value and return the coerced result', async function () {
+            var callback = sinon.stub();
             callback.withArgs(sinon.match.same(value)).returns('my result');
 
-            resultValue = value.next(callback);
-
-            expect(resultValue.getType()).to.equal('string');
-            expect(resultValue.getNative()).to.equal('my result');
+            expect(await value.next(callback).toPromise()).to.equal('my result');
         });
 
-        it('should return a rejected FutureValue when the callback raises an error', async function () {
+        it('should return a rejected Future when the callback raises an error', async function () {
             var callback = sinon.stub(),
-                resultValue;
+                result;
             callback.withArgs(sinon.match.same(value)).throws(new Error('Bang!'));
 
-            resultValue = value.next(callback);
+            result = value.next(callback);
 
-            expect(resultValue.getType()).to.equal('future');
-            await expect(resultValue.toPromise()).to.eventually.be.rejectedWith('Bang!');
+            await expect(result.toPromise()).to.eventually.be.rejectedWith('Bang!');
         });
     });
 

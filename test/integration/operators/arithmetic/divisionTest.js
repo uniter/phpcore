@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP division operator "/" integration', function () {
-    it('should support dividing different types of value', function () {
+    it('should support dividing different types of value', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -30,10 +30,10 @@ return [
 ];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'int / int': 4,
             'float / int': 5.2,
             'int / float': 2,
@@ -45,16 +45,16 @@ EOS
         });
     });
 
-    it('should raise a warning and return false on divide by zero', function () {
+    it('should raise a warning and return false on divide by zero', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
 return 100 / 0;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('my_module.php', php),
             engine = module(),
-            resultValue = engine.execute();
+            resultValue = await engine.execute();
 
         expect(resultValue.getType()).to.equal('boolean');
         expect(resultValue.getNative()).to.equal(false);

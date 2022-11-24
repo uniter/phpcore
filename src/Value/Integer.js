@@ -23,11 +23,12 @@ module.exports = require('pauser')([
      * @param {ReferenceFactory} referenceFactory
      * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
+     * @param {Flow} flow
      * @param {number} value
      * @constructor
      */
-    function IntegerValue(factory, referenceFactory, futureFactory, callStack, value) {
-        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'int', value);
+    function IntegerValue(factory, referenceFactory, futureFactory, callStack, flow, value) {
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, flow, 'int', value);
     }
 
     util.inherits(IntegerValue, Value);
@@ -65,8 +66,18 @@ module.exports = require('pauser')([
         /**
          * {@inheritdoc}
          */
+        compareWith: function (rightValue) {
+            var value = this;
+
+            return value.futureFactory.createPresent(rightValue.compareWithInteger(value));
+        },
+
+        /**
+         * {@inheritdoc}
+         */
         compareWithArray: function () {
-            return 1; // Arrays (even empty ones) are always greater (except for objects).
+            // Arrays (even empty ones) are always greater (except for objects).
+            return this.futureFactory.createPresent(1);
         },
 
         /**
@@ -145,21 +156,14 @@ module.exports = require('pauser')([
                 rightInteger = rightValue.getNative();
 
             if (leftInteger < rightInteger) {
-                return -1;
+                return rightValue.futureFactory.createPresent(-1);
             }
 
             if (leftInteger > rightInteger) {
-                return 1;
+                return rightValue.futureFactory.createPresent(1);
             }
 
-            return 0;
-        },
-
-        /**
-         * {@inheritdoc}
-         */
-        compareWithPresent: function (rightValue) {
-            return rightValue.compareWithInteger(this);
+            return rightValue.futureFactory.createPresent(0);
         },
 
         /**
@@ -190,14 +194,14 @@ module.exports = require('pauser')([
                 rightInteger = rightValue.getNative();
 
             if (leftNumber < rightInteger) {
-                return -1;
+                return rightValue.futureFactory.createPresent(-1);
             }
 
             if (leftNumber > rightInteger) {
-                return 1;
+                return rightValue.futureFactory.createPresent(1);
             }
 
-            return 0;
+            return rightValue.futureFactory.createPresent(0);
         },
 
         /**
@@ -251,7 +255,7 @@ module.exports = require('pauser')([
          * Determines whether this integer is classed as "empty" or not.
          * Only zero is classed as empty
          *
-         * @returns {Future<boolean>}
+         * @returns {ChainableInterface<boolean>}
          */
         isEmpty: function () {
             var value = this;

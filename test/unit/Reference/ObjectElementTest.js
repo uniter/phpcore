@@ -19,6 +19,7 @@ var expect = require('chai').expect,
 
 describe('ObjectElementReference', function () {
     var element,
+        flow,
         futureFactory,
         keyValue,
         objectValue,
@@ -28,6 +29,7 @@ describe('ObjectElementReference', function () {
 
     beforeEach(function () {
         state = tools.createIsolatedState();
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         keyValue = sinon.createStubInstance(StringValue);
         objectValue = sinon.createStubInstance(ObjectValue);
@@ -43,7 +45,14 @@ describe('ObjectElementReference', function () {
             sinon.match([sinon.match.same(keyValue)])
         ).returns(valueFactory.createString('hello'));
 
-        element = new ObjectElementReference(valueFactory, referenceFactory, objectValue, keyValue);
+        element = new ObjectElementReference(
+            valueFactory,
+            referenceFactory,
+            futureFactory,
+            flow,
+            objectValue,
+            keyValue
+        );
     });
 
     describe('asArrayElement()', function () {
@@ -66,6 +75,17 @@ describe('ObjectElementReference', function () {
             ).returns(valueFactory.createString('my value'));
 
             expect(await element.asEventualNative().toPromise()).to.equal('my value');
+        });
+    });
+
+    describe('asValue()', function () {
+        it('should return the result from ArrayAccess::offsetGet(...)', async function () {
+            objectValue.callMethod.withArgs(
+                'offsetGet',
+                sinon.match([sinon.match.same(keyValue)])
+            ).returns(valueFactory.createString('my value'));
+
+            expect((await element.asValue()).getNative()).to.equal('my value');
         });
     });
 
@@ -152,6 +172,12 @@ describe('ObjectElementReference', function () {
         });
     });
 
+    describe('isFuture()', function () {
+        it('should return false', function () {
+            expect(element.isFuture()).to.be.false;
+        });
+    });
+
     describe('isReferenceable()', function () {
         it('should return true', function () {
             expect(element.isReferenceable()).to.be.true;
@@ -223,10 +249,9 @@ describe('ObjectElementReference', function () {
                 .returns(offsetSetResultFuture);
         });
 
-        it('should await any FutureValue returned by ->offsetSet(...)', async function () {
+        it('should await any Future returned by ->offsetSet(...)', async function () {
             var resultFuture = element.setValue(value);
 
-            expect(offsetSetResultFuture.getType()).to.equal('future');
             expect(offsetSetResultFuture.isPending()).to.be.true;
             await resultFuture.toPromise();
             expect(offsetSetResultFuture.isSettled()).to.be.true;
@@ -242,17 +267,8 @@ describe('ObjectElementReference', function () {
     });
 
     describe('toPromise()', function () {
-        it('should return a Promise that resolves with the Value from ArrayAccess::offsetGet(...)', async function () {
-            var resultValue;
-            objectValue.callMethod.withArgs(
-                'offsetGet',
-                sinon.match([sinon.match.same(keyValue)])
-            ).returns(valueFactory.createString('my value'));
-
-            resultValue = await element.toPromise();
-
-            expect(resultValue.getType()).to.equal('string');
-            expect(resultValue.getNative()).to.equal('my value');
+        it('should return a Promise that resolves to the ObjectElementReference', async function () {
+            expect(await element.toPromise()).to.equal(element);
         });
     });
 
@@ -274,13 +290,18 @@ describe('ObjectElementReference', function () {
             expect(element.unset()).to.be.an.instanceOf(Future);
         });
 
-        it('should await any FutureValue returned by ->offsetUnset(...)', async function () {
+        it('should await any Future returned by ->offsetUnset(...)', async function () {
             var resultFuture = element.unset();
 
-            expect(offsetUnsetResultFuture.getType()).to.equal('future');
             expect(offsetUnsetResultFuture.isPending()).to.be.true;
             await resultFuture.toPromise();
             expect(offsetUnsetResultFuture.isSettled()).to.be.true;
+        });
+    });
+
+    describe('yieldSync()', function () {
+        it('should just return the element', function () {
+            expect(element.yieldSync()).to.equal(element);
         });
     });
 });

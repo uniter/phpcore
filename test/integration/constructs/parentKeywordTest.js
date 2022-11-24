@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP parent:: keyword integration', function () {
-    it('should allow referencing the parent class\' properties from class methods and closures', function () {
+    it('should allow referencing the parent class\' properties from class methods and closures', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -65,17 +65,17 @@ namespace
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             101,
             202
         ]);
     });
 
-    it('should support class constants that refer to others via parent::', function () {
+    it('should support class constants that refer to others via parent::', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -104,15 +104,15 @@ namespace
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             'second'
         ]);
     });
 
-    it('should support calling overridden parent method from an instance method', function () {
+    it('should support calling overridden parent method from an instance method', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -147,10 +147,10 @@ namespace
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             121
         ]);
         expect(engine.getStderr().readAll()).to.equal('');

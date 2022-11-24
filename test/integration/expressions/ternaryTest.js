@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP ternary expression integration', function () {
-    it('should support basic ternary operator expressions', function () {
+    it('should support basic ternary operator expressions', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $myTruthyVar = 1;
@@ -27,17 +27,17 @@ $result[] = $myTruthyVar ? 'yes' : 'no';
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             10,
             'nope, falsy',
             'yes'
         ]);
     });
 
-    it('should support shorthand ternary operator expressions', function () {
+    it('should support shorthand ternary operator expressions', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -47,16 +47,16 @@ $result[] = 1 === 2 ?: 37;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             37
         ]);
     });
 
-    it('should support nested ternary operator expressions', function () {
+    it('should support nested ternary operator expressions', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -66,16 +66,16 @@ $result[] = 1 ?: 21 ?: 30;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             30,
             1
         ]);
     });
 
-    it('should support pause/resume', function () {
+    it('should support pause/resume', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -120,20 +120,18 @@ EOS
             });
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                'first',
-                'fourth',
-                'second',
-                'third',
-                1000,
-                'fifth',
-                'other',
-                1,
-                1001,
-                'sixth'
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            'first',
+            'fourth',
+            'second',
+            'third',
+            1000,
+            'fifth',
+            'other',
+            1,
+            1001,
+            'sixth'
+        ]);
     });
 
     it('should support fetching the condition from accessor returning future in async mode', async function () {

@@ -23,6 +23,7 @@ var expect = require('chai').expect,
 
 describe('Variable', function () {
     var callStack,
+        flow,
         futureFactory,
         referenceFactory,
         state,
@@ -34,6 +35,7 @@ describe('Variable', function () {
         state = tools.createIsolatedState('async', {
             'call_stack': callStack
         });
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         referenceFactory = state.getReferenceFactory();
         valueFactory = state.getValueFactory();
@@ -46,7 +48,7 @@ describe('Variable', function () {
                 );
             });
 
-        variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'myVar');
+        variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, flow, 'myVar');
     });
 
     describe('asArrayElement()', function () {
@@ -63,9 +65,21 @@ describe('Variable', function () {
 
     describe('asEventualNative()', function () {
         it('should return the native value of the variable', async function () {
-            variable.setValue(valueFactory.createPresent(1234));
+            variable.setValue(valueFactory.createInteger(1234));
 
             expect(await variable.asEventualNative().toPromise()).to.equal(1234);
+        });
+    });
+
+    describe('asValue()', function () {
+        it('should return the value of the variable when set', function () {
+            var value;
+            variable.setValue(valueFactory.createInteger(1234));
+
+            value = variable.asValue();
+
+            expect(value.getType()).to.equal('int');
+            expect(value.getNative()).to.equal(1234);
         });
     });
 
@@ -86,26 +100,6 @@ describe('Variable', function () {
 
             expect(existingReference.setReference).not.to.have.been.called;
             expect(variable.getReference()).to.equal(reference);
-        });
-    });
-
-    describe('formatAsString()', function () {
-        it('should format the value when the variable is defined with a value', function () {
-            variable.setValue(valueFactory.createString('my value'));
-
-            expect(variable.formatAsString()).to.equal('\'my value\'');
-        });
-
-        it('should format the value of the reference when the variable is defined with a reference', function () {
-            var reference = sinon.createStubInstance(Reference);
-            reference.getValue.returns(valueFactory.createString('my val from reference'));
-            variable.setReference(reference);
-
-            expect(variable.formatAsString()).to.equal('\'my val from ref...\'');
-        });
-
-        it('should return "NULL" when the variable is not defined', function () {
-            expect(variable.formatAsString()).to.equal('NULL');
         });
     });
 
@@ -186,7 +180,7 @@ describe('Variable', function () {
         });
 
         it('should raise a "Using $this when not in object context" error when the variable is $this and the value is not set', function () {
-            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'this');
+            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, flow, 'this');
 
             expect(function () {
                 variable.getValue();
@@ -303,6 +297,12 @@ describe('Variable', function () {
         });
     });
 
+    describe('isFuture()', function () {
+        it('should return false', function () {
+            expect(variable.isFuture()).to.be.false;
+        });
+    });
+
     describe('isReference()', function () {
         it('should return true when a reference has been assigned', function () {
             var reference = sinon.createStubInstance(Reference);
@@ -328,9 +328,32 @@ describe('Variable', function () {
         });
     });
 
+    describe('next()', function () {
+        it('should just return the variable when no callback given', function () {
+            expect(variable.next()).to.equal(variable);
+        });
+
+        it('should invoke the callback with the variable and return the chainified result', async function () {
+            var callback = sinon.stub();
+            callback.withArgs(sinon.match.same(variable)).returns('my result');
+
+            expect(await variable.next(callback).toPromise()).to.equal('my result');
+        });
+
+        it('should return a rejected FutureValue when the callback raises an error', async function () {
+            var callback = sinon.stub(),
+                resultValue;
+            callback.withArgs(sinon.match.same(variable)).throws(new Error('Bang!'));
+
+            resultValue = variable.next(callback);
+
+            await expect(resultValue.toPromise()).to.eventually.be.rejectedWith('Bang!');
+        });
+    });
+
     describe('raiseUndefined()', function () {
         it('should raise a "Using $this when not in object context" error when the variable is $this', function () {
-            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'this');
+            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, flow, 'this');
 
             expect(function () {
                 variable.raiseUndefined();
@@ -387,7 +410,7 @@ describe('Variable', function () {
         describe('when the variable has no reference assigned', function () {
             it('should return the assigned present value', async function () {
                 var resultValue = await variable
-                    .setValue(valueFactory.createAsyncPresent('my assigned value'))
+                    .setValue(valueFactory.createString('my assigned value'))
                     .toPromise();
 
                 expect(resultValue.getType()).to.equal('string');
@@ -418,7 +441,7 @@ describe('Variable', function () {
 
             it('should assign the value to the reference', async function () {
                 await variable
-                    .setValue(valueFactory.createAsyncPresent('my assigned value'))
+                    .setValue(valueFactory.createString('my assigned value'))
                     .toPromise();
 
                 expect(reference.setValue).to.have.been.calledOnce;
@@ -428,7 +451,7 @@ describe('Variable', function () {
         });
 
         it('should unset $this when setting to null', async function () {
-            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'this');
+            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, flow, 'this');
 
             await variable.setValue(valueFactory.createNull()).toPromise();
 
@@ -437,7 +460,7 @@ describe('Variable', function () {
 
         it('should return the null value when setting $this to null', async function () {
             var value;
-            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'this');
+            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, flow, 'this');
 
             value = await variable.setValue(valueFactory.createNull()).toPromise();
 
@@ -486,6 +509,12 @@ describe('Variable', function () {
             variable.setValue(valueFactory.createInteger(1234));
 
             expect(variable.unset()).to.be.an.instanceOf(Future);
+        });
+    });
+
+    describe('yieldSync()', function () {
+        it('should just return the variable', function () {
+            expect(variable.yieldSync()).to.equal(variable);
         });
     });
 });

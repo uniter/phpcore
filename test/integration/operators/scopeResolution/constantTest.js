@@ -19,25 +19,23 @@ describe('PHP constant scope resolution "::" integration', function () {
     // TODO: The line number should actually be that of the constant name itself - at the moment
     //       the line number of the statement will always be given. It is rare to split constant dereferences
     //       across multiple lines, though
-    it('should raise a fatal error when attempting to access an undefined constant in the root namespace with namespace prefix', function () {
+    it('should raise a fatal error when attempting to access an undefined constant in the root namespace with namespace prefix', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
 print \MY_CONST;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('my_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }.bind(this)).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Undefined constant \'MY_CONST\' in my_module.php on line 3'
         );
     });
 
-    it('should raise a fatal error when attempting to access an undefined constant in a non-root namespace', function () {
+    it('should raise a fatal error when attempting to access an undefined constant in a non-root namespace', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -46,12 +44,10 @@ EOS
 print \Your\Stuff\YOUR_CONST;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('your_module.php', php),
+            module = tools.asyncTranspile('your_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }.bind(this)).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Undefined constant \'Your\\Stuff\\YOUR_CONST\' in your_module.php on line 5'
         );

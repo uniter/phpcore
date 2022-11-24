@@ -26,7 +26,6 @@ var expect = require('chai').expect,
     Flow = require('../../../../src/Control/Flow'),
     Future = require('../../../../src/Control/Future'),
     FutureFactory = require('../../../../src/Control/FutureFactory'),
-    FutureValue = require('../../../../src/Value/Future'),
     Namespace = require('../../../../src/Namespace').sync(),
     Includer = require('../../../../src/Load/Includer').sync(),
     INIState = require('../../../../src/INIState'),
@@ -282,26 +281,26 @@ describe('FFI Internals', function () {
     });
 
     describe('createAsyncMacrotaskFutureValue()', function () {
-        it('should return a FutureValue created via the ValueFactory', function () {
+        it('should return a Future created via the ValueFactory', function () {
             var executor = sinon.stub(),
-                futureValue = sinon.createStubInstance(FutureValue);
+                future = sinon.createStubInstance(Future);
             valueFactory.createAsyncMacrotaskFuture
                 .withArgs(sinon.match.same(executor))
-                .returns(futureValue);
+                .returns(future);
 
-            expect(internals.createAsyncMacrotaskFutureValue(executor)).to.equal(futureValue);
+            expect(internals.createAsyncMacrotaskFutureValue(executor)).to.equal(future);
         });
     });
 
     describe('createAsyncMicrotaskFutureValue()', function () {
-        it('should return a FutureValue created via the ValueFactory', function () {
+        it('should return a Future created via the ValueFactory', function () {
             var executor = sinon.stub(),
-                futureValue = sinon.createStubInstance(FutureValue);
+                future = sinon.createStubInstance(Future);
             valueFactory.createAsyncMicrotaskFuture
                 .withArgs(sinon.match.same(executor))
-                .returns(futureValue);
+                .returns(future);
 
-            expect(internals.createAsyncMicrotaskFutureValue(executor)).to.equal(futureValue);
+            expect(internals.createAsyncMicrotaskFutureValue(executor)).to.equal(future);
         });
     });
 
@@ -318,14 +317,14 @@ describe('FFI Internals', function () {
     });
 
     describe('createAsyncPresentValue()', function () {
-        it('should return an async FutureValue created via the ValueFactory', function () {
-            var futureValue = sinon.createStubInstance(FutureValue),
+        it('should return an async Future created via the ValueFactory', function () {
+            var future = sinon.createStubInstance(Future),
                 value = realValueFactory.createString('my value');
             valueFactory.createAsyncPresent
                 .withArgs(sinon.match.same(value))
-                .returns(futureValue);
+                .returns(future);
 
-            expect(internals.createAsyncPresentValue(value)).to.equal(futureValue);
+            expect(internals.createAsyncPresentValue(value)).to.equal(future);
         });
     });
 
@@ -338,18 +337,6 @@ describe('FFI Internals', function () {
                 .returns(future);
 
             expect(internals.createAsyncRejection(error)).to.equal(future);
-        });
-    });
-
-    describe('createAsyncRejectionValue()', function () {
-        it('should return an async FutureValue created via the ValueFactory', function () {
-            var futureValue = sinon.createStubInstance(FutureValue),
-                error = new Error('Bang!');
-            valueFactory.createAsyncRejection
-                .withArgs(sinon.match.same(error))
-                .returns(futureValue);
-
-            expect(internals.createAsyncRejectionValue(error)).to.equal(futureValue);
         });
     });
 
@@ -379,14 +366,14 @@ describe('FFI Internals', function () {
     });
 
     describe('createFutureValue()', function () {
-        it('should return a FutureValue created via the ValueFactory', function () {
+        it('should return a Future created via the ValueFactory', function () {
             var executor = sinon.stub(),
-                futureValue = sinon.createStubInstance(FutureValue);
+                future = sinon.createStubInstance(Future);
             valueFactory.createFuture
                 .withArgs(sinon.match.same(executor))
-                .returns(futureValue);
+                .returns(future);
 
-            expect(internals.createFutureValue(executor)).to.equal(futureValue);
+            expect(internals.createFutureValue(executor)).to.equal(future);
         });
     });
 
@@ -402,14 +389,14 @@ describe('FFI Internals', function () {
     });
 
     describe('createPresentValue()', function () {
-        it('should return a present FutureValue created via the ValueFactory', function () {
-            var futureValue = sinon.createStubInstance(Future),
+        it('should return a settled Future created via the ValueFactory', function () {
+            var future = sinon.createStubInstance(Future),
                 value = sinon.createStubInstance(Value);
             valueFactory.createPresent
                 .withArgs(sinon.match.same(value))
-                .returns(futureValue);
+                .returns(future);
 
-            expect(internals.createPresentValue(value)).to.equal(futureValue);
+            expect(internals.createPresentValue(value)).to.equal(future);
         });
     });
 
@@ -422,18 +409,6 @@ describe('FFI Internals', function () {
                 .returns(future);
 
             expect(internals.createRejection(error)).to.equal(future);
-        });
-    });
-
-    describe('createRejectionValue()', function () {
-        it('should return a rejected FutureValue created via the ValueFactory', function () {
-            var error = new Error('my error'),
-                futureValue = sinon.createStubInstance(Future);
-            valueFactory.createRejection
-                .withArgs(sinon.match.same(error))
-                .returns(futureValue);
-
-            expect(internals.createRejectionValue(error)).to.equal(futureValue);
         });
     });
 

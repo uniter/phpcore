@@ -15,21 +15,24 @@ var expect = require('chai').expect,
     Value = require('../../../src/Value').sync();
 
 describe('DebugValue', function () {
-    beforeEach(function () {
-        this.value = sinon.createStubInstance(Value);
+    var debugValue,
+        value;
 
-        this.debugValue = new DebugValue(this.value);
+    beforeEach(function () {
+        value = sinon.createStubInstance(Value);
+
+        debugValue = new DebugValue(value);
     });
 
     describe('getValue()', function () {
         it('should return the wrapped Value', function () {
-            expect(this.debugValue.getValue()).to.equal(this.value);
+            expect(debugValue.getValue()).to.equal(value);
         });
     });
 
     describe('isDefined()', function () {
         it('should always return true for a DebugValue', function () {
-            expect(this.debugValue.isDefined()).to.be.true;
+            expect(debugValue.isDefined()).to.be.true;
         });
     });
 });

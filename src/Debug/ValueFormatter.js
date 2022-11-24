@@ -57,7 +57,7 @@ var _ = require('microdash'),
     };
 
 /**
- * Debugging value formatter for Chrome's Developer Tools
+ * Debugging value formatter for Chrome's Developer Tools.
  *
  * @param {DebugFactory} debugFactory
  * @constructor
@@ -71,7 +71,7 @@ function ValueFormatter(debugFactory) {
 
 _.extend(ValueFormatter.prototype, {
     /**
-     * Formats a value for display in Chrome's dev tools
+     * Formats a value for display in Chrome's dev tools.
      *
      * @param {Value} value
      * @returns {{headingStyle: string, headingValue: (string|number), attributes: object[]}}

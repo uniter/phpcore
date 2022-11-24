@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP reference assignment operator static property integration', function () {
-    it('should correctly handle assigning a reference then assigning a reference to the right side', function () {
+    it('should correctly handle assigning a reference then assigning a reference to the right side', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL);
@@ -42,10 +42,10 @@ $result = [
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'myRefProperty1': null,
             'myRefProperty2': 101,
             'myProperty': 101
@@ -54,7 +54,7 @@ EOS
         expect(engine.getStdout().readAll()).to.equal('');
     });
 
-    it('should correctly handle assigning a reference to a property while keeping another reference to its original value slot', function () {
+    it('should correctly handle assigning a reference to a property while keeping another reference to its original value slot', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL);
@@ -83,10 +83,10 @@ $result = [
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'myRefProperty1': 101,
             'myRefProperty2': 21,
             'myProperty': 101
@@ -95,7 +95,7 @@ EOS
         expect(engine.getStdout().readAll()).to.equal('');
     });
 
-    it('should correctly handle a property with a reference being referenced', function () {
+    it('should correctly handle a property with a reference being referenced', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL);
@@ -123,10 +123,10 @@ $result = [
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'myRefProperty1': 101,
             'myRefProperty2': 101,
             'myRefProperty3': 101

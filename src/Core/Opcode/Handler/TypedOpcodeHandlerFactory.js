@@ -47,6 +47,7 @@ _.extend(TypedOpcodeHandlerFactory.prototype, {
     typeHandler: function (signature, handler, opcodeFetcherType) {
         var factory = this,
             hasVariadicParameter = signature.hasVariadicParameter(),
+            initialParameterCount = signature.getInitialParameterCount(),
             parameterCount = signature.getParameterCount(),
             parameters = signature.getParameters(),
             typedHandler;
@@ -79,7 +80,6 @@ _.extend(TypedOpcodeHandlerFactory.prototype, {
 
                 if (factory.controlBridge.isFuture(returnValue)) {
                     return returnValue
-                        .asFuture()
                         .next(coerceReturnValue);
                 }
 
@@ -113,7 +113,6 @@ _.extend(TypedOpcodeHandlerFactory.prototype, {
                         if (factory.controlBridge.isFuture(coercedPartialArg)) {
                             // Coerced partial arg is a future, so we need to await it before continuing.
                             return coercedPartialArg
-                                .asFuture()
                                 .next(finishArg);
                         }
 
@@ -127,8 +126,37 @@ _.extend(TypedOpcodeHandlerFactory.prototype, {
                 coercedVariadicArgs = [];
             }
 
+            /**
+             * Handles parameters marked as initial that are unspecified in the initial arguments list.
+             *
+             * Uses default arguments if defined, otherwise raises an error due to missing required argument.
+             */
+            function populateDefaultInitialArgs() {
+                var initialArgIndex;
+
+                for (
+                    initialArgIndex = coercedFormalArgs.length;
+                    initialArgIndex < initialParameterCount;
+                    initialArgIndex++
+                ) {
+                    parameter = parameters[initialArgIndex];
+
+                    if (parameter.isRequired()) {
+                        throw new Exception(
+                            'Missing argument for required initial parameter "' + parameter.getName() + '"'
+                        );
+                    }
+
+                    coercedFormalArgs.push(parameter.getDefaultArgument());
+                }
+            }
+
             function finishInitialArgs() {
-                var nextInitialArgIndex = coercedFormalArgs.length;
+                var nextInitialArgIndex;
+
+                populateDefaultInitialArgs();
+
+                nextInitialArgIndex = coercedFormalArgs.length;
 
                 if (nextInitialArgIndex === parameterCount) {
                     // Fastest case: all parameters have received their arguments
@@ -136,10 +164,10 @@ _.extend(TypedOpcodeHandlerFactory.prototype, {
                     return finishHandling();
                 }
 
+                parameter = parameters[nextInitialArgIndex];
+
                 if (nextInitialArgIndex === parameterCount - 1) {
                     // Only exactly one parameter remains: check whether it is variadic.
-                    parameter = parameters[nextInitialArgIndex];
-
                     if (parameter.isVariadic()) {
                         return variadicCaptureHandler;
                     }
@@ -149,13 +177,25 @@ _.extend(TypedOpcodeHandlerFactory.prototype, {
                 // return a handler to capture them one at a time.
                 formalCaptureHandler = factory.opcodeHandlerFactory.createTracedHandler(
                     function (partialArg) {
-                        var coercedPartialArg;
+                        var argCount = arguments.length,
+                            coercedPartialArg;
 
-                        if (arguments.length > 1) {
+                        if (argCount > 1) {
                             throw new Exception('Only one partial argument may be provided at a time');
                         }
 
-                        coercedPartialArg = parameter.coerceArgument(partialArg);
+                        if (argCount === 0) {
+                            // No argument provided - use default assuming parameter is optional.
+                            if (parameter.isRequired()) {
+                                throw new Exception(
+                                    'Missing argument for required parameter "' + parameter.getName() + '"'
+                                );
+                            }
+
+                            coercedPartialArg = parameter.getDefaultArgument();
+                        } else {
+                            coercedPartialArg = parameter.coerceArgument(partialArg);
+                        }
 
                         function finishArg(presentCoercedPartialArg) {
                             var argCount;
@@ -170,7 +210,9 @@ _.extend(TypedOpcodeHandlerFactory.prototype, {
                             }
 
                             // Return the handler for capturing the next argument based on the next parameter.
-                            return parameters[argCount].isVariadic() ?
+                            parameter = parameters[argCount];
+
+                            return parameter.isVariadic() ?
                                 variadicCaptureHandler :
                                 formalCaptureHandler;
                         }
@@ -178,7 +220,6 @@ _.extend(TypedOpcodeHandlerFactory.prototype, {
                         if (factory.controlBridge.isFuture(coercedPartialArg)) {
                             // Coerced partial arg is a future, so we need to await it before continuing.
                             return coercedPartialArg
-                                .asFuture()
                                 .next(finishArg);
                         }
 
@@ -198,14 +239,39 @@ _.extend(TypedOpcodeHandlerFactory.prototype, {
                 return finishInitialArgs();
             }
 
-            for (initialArgIndex = 0; initialArgIndex < initialArgCount; initialArgIndex++) {
-                if (initialArgIndex >= parameterCount) {
-                    throw new Exception(
-                        'Too many opcode arguments provided - expected ' +
-                        parameterCount + ', got ' + initialArgCount
-                    );
+            if (parameterCount === 1 && initialArgCount <= 1 && parameters[0].isVariadic()) {
+                // Special case: first parameter is variadic, so an initial arg can contribute to it.
+                parameter = parameters[0];
+
+                return initialArgCount > 0 ? variadicCaptureHandler(initialArgs[0]) : variadicCaptureHandler();
+            }
+
+            if (initialArgCount === 0) {
+                // Special case: no initial args passed,
+                // any parameters should have their default args used.
+                for (initialArgIndex = 0; initialArgIndex < parameterCount; initialArgIndex++) {
+                    parameter = parameters[initialArgIndex];
+
+                    if (parameter.isRequired()) {
+                        throw new Exception(
+                            'Missing argument for required parameter "' + parameter.getName() + '"'
+                        );
+                    }
+
+                    coercedFormalArgs.push(parameter.getDefaultArgument());
                 }
 
+                return finishInitialArgs();
+            }
+
+            if (initialArgCount > parameterCount) {
+                throw new Exception(
+                    'Too many opcode arguments provided - expected ' +
+                    parameterCount + ', got ' + initialArgCount
+                );
+            }
+
+            for (initialArgIndex = 0; initialArgIndex < initialArgCount; initialArgIndex++) {
                 parameter = parameters[initialArgIndex];
 
                 if (parameter.isVariadic()) {
@@ -218,7 +284,6 @@ _.extend(TypedOpcodeHandlerFactory.prototype, {
                     if (initialArgIndex === initialArgCount - 1) {
                         // Final coerced initial arg is a future, so we need to await it before continuing.
                         return coercedInitialArg
-                            .asFuture()
                             .next(finishFinalFutureArg);
                     }
 

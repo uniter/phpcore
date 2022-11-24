@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP class statement class constant integration', function () {
-    it('should allow a backward reference from one constant to another above it', function () {
+    it('should allow a backward reference from one constant to another above it', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -36,15 +36,16 @@ namespace {
 }
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             101,
             101
         ]);
     });
 
-    it('should allow a forward reference from one constant to another further down', function () {
+    it('should allow a forward reference from one constant to another further down', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -60,15 +61,16 @@ $result[] = MyClass::SECOND;
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             21
         ]);
     });
 
-    it('should support fetching constants from interfaces and ancestor classes in the hierarchy', function () {
+    it('should support fetching constants from interfaces and ancestor classes in the hierarchy', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -108,9 +110,10 @@ $result['child const'] = MyChildClass::CHILD_CONST;
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'first const': 'first',
             'second const': 'second',
             'third const': 'third',
@@ -120,7 +123,7 @@ EOS
         });
     });
 
-    it('should lazily initialise constants', function () {
+    it('should lazily initialise constants', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -186,17 +189,15 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                '[before]',
-                // Note that unlike properties, constants are only lazily evaluated individually
-                // and not all loaded when the first one is
-                '[autoload] My\\Stuff\\FirstOtherClass',
-                '[first const] first const',
-                '[autoload] My\\Stuff\\SecondOtherClass',
-                '[second const] second const',
-                '[after]'
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            '[before]',
+            // Note that unlike properties, constants are only lazily evaluated individually
+            // and not all loaded when the first one is.
+            '[autoload] My\\Stuff\\FirstOtherClass',
+            '[first const] first const',
+            '[autoload] My\\Stuff\\SecondOtherClass',
+            '[second const] second const',
+            '[after]'
+        ]);
     });
 });

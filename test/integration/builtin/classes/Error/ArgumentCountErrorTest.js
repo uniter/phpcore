@@ -36,7 +36,7 @@ describe('PHP builtin ArgumentCountError class integration', function () {
         };
     });
 
-    it('should raise the correct error when an optional argument is before a missing required one', function () {
+    it('should raise the correct error when an optional argument is before a missing required one', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -47,12 +47,10 @@ function myFunction($firstArg, $secondArg = 21, $thirdArg) {}
 myFunction(123);
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(function () {
-            doRun(engine);
-        }).to.throw(
+        await expect(doRun(engine)).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught ArgumentCountError: Too few arguments to function myFunction(),' +
             ' 1 passed in /path/to/module.php on line 7 and exactly 3 expected in /path/to/module.php on line 5'

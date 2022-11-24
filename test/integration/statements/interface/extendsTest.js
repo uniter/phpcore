@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP interface statement "extends" integration', function () {
-    it('should allow an interface to extend multiple other interfaces from "use" imports', function () {
+    it('should allow an interface to extend multiple other interfaces from "use" imports', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -70,9 +70,10 @@ namespace {
 }
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             'my const',
             'your const',
             'his const',
@@ -80,7 +81,7 @@ EOS
         ]);
     });
 
-    it('should allow an interface to extend another interface defined after it', function () {
+    it('should allow an interface to extend another interface defined after it', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -106,15 +107,16 @@ namespace {
 }
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'first const': 'first value',
             'second const': 'second value'
         });
     });
 
-    it('should allow two interfaces to have members referring to the other', function () {
+    it('should allow two interfaces to have members referring to the other', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -145,9 +147,10 @@ namespace {
 }
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'first const': 'second value',
             'second const': 'first value'
         });

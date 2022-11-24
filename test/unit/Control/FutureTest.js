@@ -42,7 +42,7 @@ describe('Future', function () {
         state = tools.createIsolatedState('async', {
             'call_stack': callStack,
             'control_scope': controlScope,
-            'future_factory': function (get) {
+            'future_factory': function (set, get) {
                 function TrackedFuture() {
                     Future.apply(this, arguments);
 
@@ -171,7 +171,7 @@ describe('Future', function () {
             rejectFuture(new Error('Bang!'));
 
             expect(await derivedFuture.toPromise()).to.be.undefined;
-            await expect(future.toPromise()).to.be.rejectedWith('Bang!');
+            await expect(future.toPromise()).to.eventually.be.rejectedWith('Bang!');
         });
     });
 
@@ -184,7 +184,7 @@ describe('Future', function () {
 
             rejectFuture(error);
 
-            await expect(future.toPromise()).to.be.rejectedWith('Bang!');
+            await expect(future.toPromise()).to.eventually.be.rejectedWith('Bang!');
             expect(rejectHandler).to.have.been.calledOnce;
             expect(rejectHandler).to.have.been.calledWith(sinon.match.same(error));
         });
@@ -197,7 +197,7 @@ describe('Future', function () {
 
             rejectFuture(error);
 
-            await expect(future.toPromise()).to.be.rejectedWith('Bang!');
+            await expect(future.toPromise()).to.eventually.be.rejectedWith('Bang!');
             expect(rejectHandler).to.have.been.calledOnce;
             expect(rejectHandler).to.have.been.calledWith(sinon.match.same(error));
         });
@@ -234,7 +234,7 @@ describe('Future', function () {
             rejectFuture(new Error('Bang!'));
 
             expect(await derivedFuture.toPromise()).to.equal('rejected with: Bang!');
-            await expect(future.toPromise()).to.be.rejectedWith('Bang!');
+            await expect(future.toPromise()).to.eventually.be.rejectedWith('Bang!');
         });
 
         it('should return a new Future that calls the handler when rejected, re-raising error if nothing returned', async function () {
@@ -244,8 +244,14 @@ describe('Future', function () {
 
             rejectFuture(new Error('Bang!'));
 
-            await expect(derivedFuture.toPromise()).to.be.rejectedWith('Bang!');
-            await expect(future.toPromise()).to.be.rejectedWith('Bang!');
+            await expect(derivedFuture.toPromise()).to.eventually.be.rejectedWith('Bang!');
+            await expect(future.toPromise()).to.eventually.be.rejectedWith('Bang!');
+        });
+    });
+
+    describe('isFuture()', function () {
+        it('should return true', function () {
+            expect(future.isFuture()).to.be.true;
         });
     });
 
@@ -297,7 +303,7 @@ describe('Future', function () {
             rejectFuture(new Error('Bang!'));
 
             expect(await derivedFuture.toPromise()).to.equal('rejected with: Bang!');
-            await expect(future.toPromise()).to.be.rejectedWith('Bang!');
+            await expect(future.toPromise()).to.eventually.be.rejectedWith('Bang!');
         });
 
         it('should return a new Future that calls the rejection handler when rejected, allowing error to be replaced with result', async function () {
@@ -310,7 +316,7 @@ describe('Future', function () {
             rejectFuture(new Error('Bang!'));
 
             expect(await derivedFuture.toPromise()).to.equal('rejected with: Bang!');
-            await expect(future.toPromise()).to.be.rejectedWith('Bang!');
+            await expect(future.toPromise()).to.eventually.be.rejectedWith('Bang!');
         });
 
         // Note this differs from .finally(...) behaviour.
@@ -324,7 +330,7 @@ describe('Future', function () {
             rejectFuture(new Error('Bang!'));
 
             expect(await derivedFuture.toPromise()).to.be.undefined;
-            await expect(future.toPromise()).to.be.rejectedWith('Bang!');
+            await expect(future.toPromise()).to.eventually.be.rejectedWith('Bang!');
         });
     });
 
@@ -353,7 +359,7 @@ describe('Future', function () {
 
             rejectFuture(error);
 
-            await expect(future.toPromise()).to.be.rejectedWith('Bang!');
+            await expect(future.toPromise()).to.eventually.be.rejectedWith('Bang!');
             expect(rejectHandler).to.have.been.calledOnce;
             expect(rejectHandler).to.have.been.calledWith(sinon.match.same(error));
         });
@@ -384,7 +390,7 @@ describe('Future', function () {
 
             rejectFuture(error);
 
-            await expect(future.toPromise()).to.be.rejectedWith('Bang!');
+            await expect(future.toPromise()).to.eventually.be.rejectedWith('Bang!');
             expect(rejectHandler).to.have.been.calledOnce;
             expect(rejectHandler).to.have.been.calledWith(sinon.match.same(error));
         });

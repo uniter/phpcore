@@ -34,6 +34,7 @@ describe('ReferenceSlot', function () {
             var result,
                 resultValue = sinon.createStubInstance(Value);
             resultValue.getForAssignment.returns(valueFactory.createString('my value for assignment'));
+            resultValue.next.callsArgWith(0, resultValue);
             reference.setValue(resultValue);
 
             result = reference.asArrayElement();
@@ -148,14 +149,8 @@ describe('ReferenceSlot', function () {
     });
 
     describe('toPromise()', function () {
-        it('should return a Promise that resolves with the Value of the slot', async function () {
-            var resultValue;
-            reference.setValue(valueFactory.createString('my value'));
-
-            resultValue = await reference.toPromise();
-
-            expect(resultValue.getType()).to.equal('string');
-            expect(resultValue.getNative()).to.equal('my value');
+        it('should return a Promise that resolves to the ReferenceSlot', async function () {
+            expect(await reference.toPromise()).to.equal(reference);
         });
     });
 });

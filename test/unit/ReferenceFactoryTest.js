@@ -14,6 +14,7 @@ var expect = require('chai').expect,
     ArrayValue = require('../../src/Value/Array').sync(),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
+    Flow = require('../../src/Control/Flow'),
     FutureFactory = require('../../src/Control/FutureFactory'),
     ObjectValue = require('../../src/Value/Object').sync(),
     Reference = require('../../src/Reference/Reference'),
@@ -26,6 +27,7 @@ describe('ReferenceFactory', function () {
         callStack,
         ElementReference,
         factory,
+        flow,
         futureFactory,
         NullReference,
         ObjectElementReference,
@@ -40,6 +42,7 @@ describe('ReferenceFactory', function () {
         AccessorReference = sinon.stub();
         callStack = sinon.createStubInstance(CallStack);
         ElementReference = sinon.stub();
+        flow = sinon.createStubInstance(Flow);
         futureFactory = sinon.createStubInstance(FutureFactory);
         NullReference = sinon.stub();
         ObjectElementReference = sinon.stub();
@@ -62,29 +65,36 @@ describe('ReferenceFactory', function () {
             UndeclaredStaticPropertyReference,
             valueFactory,
             futureFactory,
-            callStack
+            callStack,
+            flow
         );
     });
 
     describe('createAccessor()', function () {
         var definednessGetter,
             emptinessGetter,
+            readablenessGetter,
             referenceClearer,
             referenceGetter,
+            referencenessGetter,
             referenceSetter,
             setnessGetter,
             undefinednessRaiser,
+            unsetter,
             valueGetter,
             valueSetter;
 
         beforeEach(function () {
             definednessGetter = sinon.stub();
             emptinessGetter = sinon.stub();
+            readablenessGetter = sinon.stub();
             referenceClearer = sinon.stub();
             referenceGetter = sinon.stub();
+            referencenessGetter = sinon.stub();
             referenceSetter = sinon.stub();
             setnessGetter = sinon.stub();
             undefinednessRaiser = sinon.stub();
+            unsetter = sinon.stub();
             valueGetter = sinon.stub();
             valueSetter = sinon.stub();
         });
@@ -93,12 +103,15 @@ describe('ReferenceFactory', function () {
             factory.createAccessor(
                 valueGetter,
                 valueSetter,
+                unsetter,
                 referenceGetter,
                 referenceSetter,
                 referenceClearer,
                 definednessGetter,
+                readablenessGetter,
                 emptinessGetter,
                 setnessGetter,
+                referencenessGetter,
                 undefinednessRaiser
             );
 
@@ -106,14 +119,19 @@ describe('ReferenceFactory', function () {
             expect(AccessorReference).to.have.been.calledWith(
                 sinon.match.same(valueFactory),
                 sinon.match.same(factory),
+                sinon.match.same(futureFactory),
+                sinon.match.same(flow),
                 sinon.match.same(valueGetter),
                 sinon.match.same(valueSetter),
+                sinon.match.same(unsetter),
                 sinon.match.same(referenceGetter),
                 sinon.match.same(referenceSetter),
                 sinon.match.same(referenceClearer),
                 sinon.match.same(definednessGetter),
+                sinon.match.same(readablenessGetter),
                 sinon.match.same(emptinessGetter),
                 sinon.match.same(setnessGetter),
+                sinon.match.same(referencenessGetter),
                 sinon.match.same(undefinednessRaiser)
             );
         });
@@ -148,6 +166,7 @@ describe('ReferenceFactory', function () {
                 sinon.match.same(factory),
                 sinon.match.same(futureFactory),
                 sinon.match.same(callStack),
+                sinon.match.same(flow),
                 sinon.match.same(arrayValue),
                 sinon.match.same(keyValue),
                 sinon.match.same(value),
@@ -166,6 +185,7 @@ describe('ReferenceFactory', function () {
                 sinon.match.same(factory),
                 sinon.match.same(futureFactory),
                 sinon.match.same(callStack),
+                sinon.match.same(flow),
                 sinon.match.same(arrayValue),
                 sinon.match.same(keyValue),
                 null,
@@ -216,6 +236,8 @@ describe('ReferenceFactory', function () {
             expect(ObjectElementReference).to.have.been.calledWith(
                 sinon.match.same(valueFactory),
                 sinon.match.same(factory),
+                sinon.match.same(futureFactory),
+                sinon.match.same(flow),
                 sinon.match.same(objectValue),
                 sinon.match.same(keyValue)
             );
@@ -249,6 +271,7 @@ describe('ReferenceFactory', function () {
                 sinon.match.same(factory),
                 sinon.match.same(futureFactory),
                 sinon.match.same(callStack),
+                sinon.match.same(flow),
                 sinon.match.same(objectValue),
                 sinon.match.same(keyValue),
                 sinon.match.same(classObject),
@@ -283,7 +306,9 @@ describe('ReferenceFactory', function () {
             expect(ReferenceSlot).to.have.been.calledOnce;
             expect(ReferenceSlot).to.have.been.calledWith(
                 sinon.match.same(valueFactory),
-                sinon.match.same(factory)
+                sinon.match.same(factory),
+                sinon.match.same(futureFactory),
+                sinon.match.same(flow)
             );
         });
 
@@ -318,6 +343,7 @@ describe('ReferenceFactory', function () {
                     sinon.match.same(valueFactory),
                     sinon.match.same(factory),
                     sinon.match.same(futureFactory),
+                    sinon.match.same(flow),
                     sinon.match.same(wrappedReference),
                     sinon.match.same(value),
                     sinon.match.same(assignedReference)
@@ -335,6 +361,7 @@ describe('ReferenceFactory', function () {
                     sinon.match.same(valueFactory),
                     sinon.match.same(factory),
                     sinon.match.same(futureFactory),
+                    sinon.match.same(flow),
                     sinon.match.same(wrappedReference),
                     sinon.match.same(value),
                     null
@@ -358,6 +385,7 @@ describe('ReferenceFactory', function () {
                     sinon.match.same(valueFactory),
                     sinon.match.same(factory),
                     sinon.match.same(futureFactory),
+                    sinon.match.same(flow),
                     sinon.match.same(wrappedReference),
                     null,
                     sinon.match.same(assignedReference)
@@ -375,6 +403,7 @@ describe('ReferenceFactory', function () {
                     sinon.match.same(valueFactory),
                     sinon.match.same(factory),
                     sinon.match.same(futureFactory),
+                    sinon.match.same(flow),
                     sinon.match.same(wrappedReference),
                     null,
                     null
@@ -406,7 +435,9 @@ describe('ReferenceFactory', function () {
             expect(StaticPropertyReference).to.have.been.calledWith(
                 sinon.match.same(valueFactory),
                 sinon.match.same(factory),
+                sinon.match.same(futureFactory),
                 sinon.match.same(callStack),
+                sinon.match.same(flow),
                 sinon.match.same(classObject),
                 'myProp',
                 'protected'
@@ -440,6 +471,7 @@ describe('ReferenceFactory', function () {
                 sinon.match.same(factory),
                 sinon.match.same(futureFactory),
                 sinon.match.same(callStack),
+                sinon.match.same(flow),
                 sinon.match.same(classObject),
                 'myProp'
             );

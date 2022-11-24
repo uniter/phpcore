@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP null coalescing (??) operator integration', function () {
-    it('should support coalescing values correctly in sync mode', function () {
+    it('should support coalescing values correctly', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -50,10 +50,10 @@ $result['chained operations where second is set'] = $undefinedVar ?? $setVar ?? 
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/my/script_path.php', php),
+            module = tools.asyncTranspile('/my/script_path.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'with a set value': 'my set value',
             'with a false value': false,
             'with a zero int value': 0,
@@ -68,7 +68,7 @@ EOS
         });
     });
 
-    it('should support coalescing values correctly in async mode with pauses', function () {
+    it('should support coalescing values correctly in async mode with pauses', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -116,24 +116,22 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'with a set value': 'my set value',
-                'with a false value': false,
-                'with a zero int value': 0,
-                'with a direct null value': 'Yes, I should be used',
-                'with an indirect null value': 'Yes, I should be used',
-                'with an undefined variable': 'Yes, I should be used',
-                'with an undefined object property lookup': 'Yes, I should be used',
-                'with an undefined static property lookup': 'Yes, I should be used',
-                'with an undefined array element lookup': 'Yes, I should be used',
-                'chained operations where first is set': 123,
-                'chained operations where second is set': 123
-            });
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'with a set value': 'my set value',
+            'with a false value': false,
+            'with a zero int value': 0,
+            'with a direct null value': 'Yes, I should be used',
+            'with an indirect null value': 'Yes, I should be used',
+            'with an undefined variable': 'Yes, I should be used',
+            'with an undefined object property lookup': 'Yes, I should be used',
+            'with an undefined static property lookup': 'Yes, I should be used',
+            'with an undefined array element lookup': 'Yes, I should be used',
+            'chained operations where first is set': 123,
+            'chained operations where second is set': 123
         });
     });
 
-    it('should correctly resume past a null coalescing expression with a control structure after it', function () {
+    it('should correctly resume past a null coalescing expression with a control structure after it', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -164,14 +162,12 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'before control structure': 'another value',
-                'inside control structure': 'some value',
-                'after control structure': 'another value',
-            });
-            expect(engine.getStderr().readAll()).to.equal('');
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'before control structure': 'another value',
+            'inside control structure': 'some value',
+            'after control structure': 'another value',
         });
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 
     it('should support fetching the left operand from accessor returning future in async mode', async function () {

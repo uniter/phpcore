@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP array access operator integration', function () {
-    it('should be able to push onto both indexed and associative arrays', function () {
+    it('should be able to push onto both indexed and associative arrays', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -31,10 +31,10 @@ $result[] = 'fifth';
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             0: 'first',
             1: 'second',
             three: 'third',
@@ -43,7 +43,7 @@ EOS
         });
     });
 
-    it('should evaluate the expression before pushing the element onto the array', function () {
+    it('should evaluate the expression before pushing the element onto the array', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -57,16 +57,16 @@ $result[] = $doPush();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             22
         ]);
     });
 
-    it('should imply an array when assigning to an element of a variable with value null', function () {
+    it('should imply an array when assigning to an element of a variable with value null', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -79,17 +79,17 @@ $result[] = $myArray;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             {
                 my_key: 'the value for element 21'
             }
         ]);
     });
 
-    it('should return the pushed value as the result of the push expression', function () {
+    it('should return the pushed value as the result of the push expression', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -102,10 +102,10 @@ $result[] = $myArray;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             'the value for my pushed element',
             {
                 'my': 'my value',
@@ -114,7 +114,7 @@ EOS
         ]);
     });
 
-    it('should return the pushed reference\'s value as the result of the push expression', function () {
+    it('should return the pushed reference\'s value as the result of the push expression', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -133,10 +133,10 @@ $result[] = $myArray;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             101,
             21,
             {'my': 'my value', 0: 101},
@@ -144,7 +144,7 @@ EOS
         ]);
     });
 
-    it('should raise a fatal error on attempting to access a non-ArrayAccess object as an array', function () {
+    it('should raise a fatal error on attempting to access a non-ArrayAccess object as an array', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -156,12 +156,10 @@ $dummy = $object['some key'];
 
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('my_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }.bind(this)).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Cannot use object of type MyClass as array in my_module.php on line 7'
         );

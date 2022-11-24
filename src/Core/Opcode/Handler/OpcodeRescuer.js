@@ -29,7 +29,7 @@ _.extend(OpcodeRescuer.prototype, {
      * Note that the error thrown could be a Future(Value), in which case we need to yield to it
      * so that a pause occurs if required.
      *
-     * @param {Error|Future|FutureValue|Pause} error
+     * @param {Error|Future|Pause} error
      * @param {OpcodeInterface} opcode
      * @param {Trace} trace
      * @throws {Error|Pause}

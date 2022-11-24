@@ -22,46 +22,62 @@ describe('AccessorReference', function () {
     var createReference,
         definednessGetter,
         emptinessGetter,
+        flow,
         futureFactory,
+        readablenessGetter,
         reference,
         referenceClearer,
         referenceFactory,
         referenceGetter,
+        referencenessGetter,
         referenceSetter,
         setnessGetter,
         state,
         undefinednessRaiser,
+        unsetter,
         valueFactory,
         valueGetter,
         valueSetter;
 
     beforeEach(function () {
         state = tools.createIsolatedState();
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         referenceFactory = state.getReferenceFactory();
         definednessGetter = null;
         emptinessGetter = null;
+        readablenessGetter = sinon.stub();
         referenceClearer = sinon.stub();
         referenceGetter = sinon.stub();
+        referencenessGetter = sinon.stub();
         referenceSetter = sinon.stub();
         setnessGetter = null;
         undefinednessRaiser = null;
+        unsetter = sinon.stub();
         valueFactory = state.getValueFactory();
         valueGetter = sinon.stub();
-        valueSetter = sinon.spy();
+        valueSetter = sinon.stub();
+
+        readablenessGetter.returns(true);
+        referencenessGetter.returns(false);
 
         createReference = function () {
             reference = new AccessorReference(
                 valueFactory,
                 referenceFactory,
+                futureFactory,
+                flow,
                 valueGetter,
                 valueSetter,
+                unsetter,
                 referenceGetter,
                 referenceSetter,
                 referenceClearer,
                 definednessGetter,
+                readablenessGetter,
                 emptinessGetter,
                 setnessGetter,
+                referencenessGetter,
                 undefinednessRaiser
             );
         };
@@ -89,6 +105,19 @@ describe('AccessorReference', function () {
         });
     });
 
+    describe('asValue()', function () {
+        it('should return the result of the getter coerced to a PHP value', function () {
+            var value;
+            valueGetter.returns(101);
+            createReference();
+
+            value = reference.asValue();
+
+            expect(value.getType()).to.equal('int');
+            expect(value.getNative()).to.equal(101);
+        });
+    });
+
     describe('clearReference()', function () {
         it('should call the clearer', function () {
             createReference();
@@ -108,15 +137,6 @@ describe('AccessorReference', function () {
                 Exception,
                 'Accessor cannot have its reference cleared'
             );
-        });
-    });
-
-    describe('formatAsString()', function () {
-        it('should return the native result of the getter, formatted', function () {
-            valueGetter.returns('My native result');
-            createReference();
-
-            expect(reference.formatAsString()).to.equal('\'My native resul...\'');
         });
     });
 
@@ -161,11 +181,11 @@ describe('AccessorReference', function () {
 
     describe('getValueOrNativeNull()', function () {
         beforeEach(function () {
-            definednessGetter = sinon.stub();
-            definednessGetter.returns(true);
+            readablenessGetter = sinon.stub();
+            readablenessGetter.returns(true);
         });
 
-        it('should return the value when the definedness getter returns true', function () {
+        it('should return the value when the readableness getter returns true', function () {
             var value = valueFactory.createString('my value');
             valueGetter.returns(value);
             createReference();
@@ -173,8 +193,8 @@ describe('AccessorReference', function () {
             expect(reference.getValueOrNativeNull()).to.equal(value);
         });
 
-        it('should return native null when the definedness getter returns false', function () {
-            definednessGetter.returns(false);
+        it('should return native null when the readableness getter returns false', function () {
+            readablenessGetter.returns(false);
             createReference();
 
             expect(reference.getValueOrNativeNull()).to.be.null;
@@ -272,14 +292,67 @@ describe('AccessorReference', function () {
         });
     });
 
+    describe('isFuture()', function () {
+        it('should return false', function () {
+            createReference();
+
+            expect(reference.isFuture()).to.be.false;
+        });
+    });
+
+    describe('isReadable()', function () {
+        beforeEach(function () {
+            definednessGetter = sinon.stub();
+            definednessGetter.returns(false);
+        });
+
+        it('should return true when the readableness getter returns true', function () {
+            readablenessGetter.returns(true);
+            createReference();
+
+            expect(reference.isReadable()).to.be.true;
+        });
+
+        it('should return false when the readableness getter returns false', function () {
+            readablenessGetter.returns(false);
+            createReference();
+
+            expect(reference.isReadable()).to.be.false;
+        });
+
+        it('should return true when no readableness getter was given but definedness is true', function () {
+            readablenessGetter = null;
+            definednessGetter.returns(true);
+            createReference();
+
+            expect(reference.isReadable()).to.be.true;
+        });
+
+        it('should return false when no readableness getter was given and definedness is false', function () {
+            readablenessGetter = null;
+            definednessGetter.returns(false);
+            createReference();
+
+            expect(reference.isReadable()).to.be.false;
+        });
+    });
+
     describe('isReference()', function () {
-        it('should return true when an accessor reference was given', function () {
+        it('should return true when the referenceness getter returns true', function () {
+            referencenessGetter.returns(true);
             createReference();
 
             expect(reference.isReference()).to.be.true;
         });
 
-        it('should return false when no accessor reference was given', function () {
+        it('should return false when the referenceness getter returns false', function () {
+            referencenessGetter.returns(false);
+            createReference();
+
+            expect(reference.isReference()).to.be.false;
+        });
+
+        it('should return false when no referenceness getter was given', function () {
             referenceGetter = null;
             createReference();
 
@@ -398,18 +471,70 @@ describe('AccessorReference', function () {
 
             expect(await reference.setValue(newValue).toPromise()).to.equal(newValue);
         });
+
+        it('should coerce the result of the setter to a Value', async function () {
+            var newValue = valueFactory.createString('my new value'),
+                result;
+            valueSetter.returns('my setter result');
+            createReference();
+
+            result = await reference.setValue(newValue).toPromise();
+
+            expect(result.getType()).to.equal('string');
+            expect(result.getNative()).to.equal('my setter result');
+        });
+
+        it('should return a rejected Future when the setter throws', async function () {
+            var newValue = valueFactory.createString('my new value');
+            valueSetter.throws(new Error('Bang!'));
+            createReference();
+
+            await expect(reference.setValue(newValue).toPromise())
+                .to.eventually.be.rejectedWith('Bang!');
+        });
     });
 
     describe('toPromise()', function () {
-        it('should return a Promise that resolves with the eventual Value from the getter', async function () {
-            var resultValue;
-            valueGetter.returns(101);
+        it('should return a Promise that resolves to the AccessorReference', async function () {
             createReference();
 
-            resultValue = await reference.toPromise();
+            expect(await reference.toPromise()).to.equal(reference);
+        });
+    });
 
-            expect(resultValue.getType()).to.equal('int');
-            expect(resultValue.getNative()).to.equal(101);
+    describe('unset()', function () {
+        it('should call the unsetter', async function () {
+            createReference();
+
+            await reference.unset();
+
+            expect(unsetter).to.have.been.calledOnce;
+        });
+
+        it('should return a Future that resolves to null', async function () {
+            createReference();
+
+            expect(await reference.unset().toPromise()).to.be.null;
+        });
+
+        it('should throw when no unsetter is defined', function () {
+            unsetter = null;
+            createReference();
+
+            expect(function () {
+                reference.unset();
+            }).to.throw(
+                Exception,
+                'Accessor cannot be unset'
+            );
+        });
+    });
+
+    describe('yieldSync()', function () {
+        it('should just return the reference', function () {
+            createReference();
+
+            expect(reference.yieldSync()).to.equal(reference);
         });
     });
 });

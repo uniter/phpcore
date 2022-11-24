@@ -96,4 +96,44 @@ EOS
         ]);
         expect(engine.getStderr().readAll()).to.equal('');
     });
+
+    it('should correctly handle specifying a variable as element that is then re-assigned within a later element', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+$myVar = 20;
+$yourVar = 100;
+
+list(${($nameVar = 'myVar') && false ?: $nameVar}, ${($nameVar = 'yourVar') && false ?: $nameVar}) = [99, 109];
+$result['value assignment within element'] = [
+    'myVar' => $myVar,
+    'yourVar' => $yourVar
+];
+
+$otherVar = 45;
+$otherNameVar = 'otherVar';
+
+list(${($nameVar = 'myVar') && false ?: $nameVar}, ${($nameVar =& $otherNameVar) && false ?: $nameVar}) = [21, 31];
+$result['reference assignment within element'] = [
+    'myVar' => $myVar,
+    'yourVar' => $yourVar,
+    'otherVar' => $otherVar
+];
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            // Value should be resolved at the point the element is passed.
+            'value assignment within element': {myVar: 99, yourVar: 109},
+
+            // First element should use the original value
+            // and not the reference assigned within the second element.
+            'reference assignment within element': {myVar: 21, yourVar: 109, otherVar: 31}
+        });
+    });
 });

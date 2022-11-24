@@ -12,12 +12,12 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('../tools'),
-    FFIResult = require('../../../src/FFI/Result'),
-    Flow = require('../../../src/Control/Flow'),
-    Future = require('../../../src/Control/Future');
+    Chainifier = require('../../../src/Control/Chain/Chainifier'),
+    Flow = require('../../../src/Control/Flow');
 
 describe('Flow', function () {
-    var flow,
+    var chainifier,
+        flow,
         futureFactory,
         state,
         valueFactory;
@@ -26,12 +26,14 @@ describe('Flow', function () {
         state = tools.createIsolatedState();
         futureFactory = state.getFutureFactory();
         valueFactory = state.getValueFactory();
+        chainifier = sinon.createStubInstance(Chainifier);
 
         flow = new Flow(
             state.getControlFactory(),
             state.getControlBridge(),
             state.getControlScope(),
             futureFactory,
+            chainifier,
             'async'
         );
     });
@@ -53,31 +55,14 @@ describe('Flow', function () {
     });
 
     describe('chainify()', function () {
-        it('should return a Future untouched', function () {
-            var future = futureFactory.createPresent(21);
+        it('should chainify via the Chainifier', function () {
+            var chainifiedValue = {my: 'chainified value'},
+                value = {my: 'value'};
+            chainifier.chainify
+                .withArgs(sinon.match.same(value))
+                .returns(chainifiedValue);
 
-            expect(flow.chainify(future)).to.equal(future);
-        });
-
-        it('should return a Value untouched', function () {
-            var value = valueFactory.createString('my chainable');
-
-            expect(flow.chainify(value)).to.equal(value);
-        });
-
-        it('should resolve an FFIResult', function () {
-            var ffiResult = sinon.createStubInstance(FFIResult),
-                future = futureFactory.createPresent('my resolved result');
-            ffiResult.resolve.returns(future);
-
-            expect(flow.chainify(ffiResult)).to.equal(future);
-        });
-
-        it('should wrap other native values in a Future', async function () {
-            var future = flow.chainify('my string');
-
-            expect(future).to.be.an.instanceOf(Future);
-            expect(await future.toPromise()).to.equal('my string');
+            expect(flow.chainify(value)).to.equal(chainifiedValue);
         });
     });
 

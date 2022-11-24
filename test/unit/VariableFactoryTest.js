@@ -12,6 +12,7 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     CallStack = require('../../src/CallStack'),
+    Flow = require('../../src/Control/Flow'),
     FutureFactory = require('../../src/Control/FutureFactory'),
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     ValueFactory = require('../../src/ValueFactory').sync(),
@@ -20,6 +21,7 @@ var expect = require('chai').expect,
 describe('VariableFactory', function () {
     var callStack,
         factory,
+        flow,
         futureFactory,
         referenceFactory,
         valueFactory,
@@ -27,6 +29,7 @@ describe('VariableFactory', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        flow = sinon.createStubInstance(Flow);
         futureFactory = sinon.createStubInstance(FutureFactory);
         referenceFactory = sinon.createStubInstance(ReferenceFactory);
         valueFactory = sinon.createStubInstance(ValueFactory);
@@ -37,7 +40,8 @@ describe('VariableFactory', function () {
             callStack,
             valueFactory,
             referenceFactory,
-            futureFactory
+            futureFactory,
+            flow
         );
     });
 
@@ -51,6 +55,7 @@ describe('VariableFactory', function () {
                 sinon.match.same(valueFactory),
                 sinon.match.same(referenceFactory),
                 sinon.match.same(futureFactory),
+                sinon.match.same(flow),
                 'myVar'
             );
         });

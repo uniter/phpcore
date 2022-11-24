@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP negation operator "-" integration', function () {
-    it('should support negating references and values', function () {
+    it('should support negating references and values', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -29,10 +29,10 @@ return [
 ];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             '- of negative variable value': 21,
             '- of positive variable value': -58,
             '- of negative array element value': 101

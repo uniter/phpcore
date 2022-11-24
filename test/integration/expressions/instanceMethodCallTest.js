@@ -165,6 +165,40 @@ EOS
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
+    it('should correctly handle passing a variable as by-value argument that is then re-assigned within a later argument', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+class MyClass
+{
+    public function myMethod($arg1, $arg2) {
+        return $arg1 + $arg2;
+    }
+}
+
+$result = [];
+
+$myObject = new MyClass;
+$yourVar = 100;
+
+$result['value assignment within argument'] = $myObject->myMethod(${($myVar = 21) && false ?: 'myVar'}, ${($myVar = 32) && false ?: 'myVar'});
+$result['reference assignment within argument'] = $myObject->myMethod(${($myVar = 21) && false ?: 'myVar'}, ${($myVar =& $yourVar) && false ?: 'myVar'});
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            // Value should be resolved at the point the argument is passed.
+            'value assignment within argument': 53,
+
+            // First argument should use the original value
+            // and not the reference assigned within the second argument.
+            'reference assignment within argument': 121
+        });
+    });
+
     it('should correctly handle calling an instance method statically from an unrelated method', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

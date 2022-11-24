@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP cast operators integration', function () {
-    it('should support the (array) cast', function () {
+    it('should support the (array) cast', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -25,16 +25,16 @@ $result[] = (array)'my string here';
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             [21],
             ['my string here']
         ]);
     });
 
-    it('should include visibilities when casting objects to arrays', function () {
+    it('should include visibilities when casting objects to arrays', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -61,10 +61,10 @@ $result[] = (array)$object; // Cast to array from outside class
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             {
                 '\0ChildClass\0childPrivateProp': 10001,
                 'childPublicProp': 10007,
@@ -77,7 +77,7 @@ EOS
         ]);
     });
 
-    it('should support the (binary) cast', function () {
+    it('should support the (binary) cast', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -88,16 +88,16 @@ $result[] = (binary)'still a string';
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             '21', // Just casts to a normal string for now
             'still a string'
         ]);
     });
 
-    it('should support the (bool) cast', function () {
+    it('should support the (bool) cast', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -108,16 +108,16 @@ $result[] = (boolean)4;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             false,
             true
         ]);
     });
 
-    it('should support the (float) cast', function () {
+    it('should support the (float) cast', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -129,17 +129,17 @@ $result[] = (real)'23.5';
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21.1,
             22.2,
             23.5
         ]);
     });
 
-    it('should support the (int) cast', function () {
+    it('should support the (int) cast', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL); // Notices are hidden by default
@@ -152,10 +152,10 @@ $result[] = (int)new stdClass;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('your_module.php', php),
+            module = tools.asyncTranspile('your_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             22,
             1
@@ -169,7 +169,7 @@ EOS
         );
     });
 
-    it('should support the (object) cast', function () {
+    it('should support the (object) cast', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -184,9 +184,9 @@ $result[] = (object)$object;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module(),
-            value = engine.execute(),
+            value = await engine.execute(),
             internalValue = value.getInternalValue();
 
         expect(internalValue.getElementByIndex(0).getValue().getType()).to.equal('object');
@@ -198,7 +198,7 @@ EOS
         expect(internalValue.getElementByIndex(2).getValue().getClassName()).to.equal('MyClass');
     });
 
-    it('should support the (string) cast', function () {
+    it('should support the (string) cast', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -209,16 +209,16 @@ $result[] = (string)22.2;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             '21',
             '22.2'
         ]);
     });
 
-    it('should support the (unset) cast', function () {
+    it('should support the (unset) cast', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -233,10 +233,10 @@ $result[] = (unset)$myFunc();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             null,
             22, // From $myFunc()
             null

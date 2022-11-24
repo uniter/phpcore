@@ -37,20 +37,20 @@ _.extend(TypeInterface.prototype, {
      * would allow the given value
      *
      * @param {Value} value
-     * @returns {Future<bool>}
+     * @returns {ChainableInterface<boolean>}
      */
     allowsValue: throwUnimplemented('allowsValue'),
 
     /**
      * Coerces an argument for a parameter defined with this type (for example) to a value of this type.
-     * Note that a FutureValue may be returned, eg. when an ObjectValue is coerced to string,
+     * Note that a Future-wrapped Value may be returned, e.g. when an ObjectValue is coerced to string,
      * and its __toString() magic method performs an async pause (eg. a usleep(...) or async I/O operation).
      *
      * Note that if coercion fails, the value provided will be returned unchanged: it is expected
      * that the value will also be tested with .allowsValue(...) during a validation stage.
      *
      * @param {Value} value
-     * @returns {Value}
+     * @returns {ChainableInterface<Value>}
      */
     coerceValue: throwUnimplemented('coerceValue'),
 

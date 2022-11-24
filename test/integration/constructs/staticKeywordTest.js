@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP static:: keyword integration', function () {
-    it('should allow referencing the called class\' constants from class methods and closures', function () {
+    it('should allow referencing the called class\' constants from class methods and closures', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -103,10 +103,10 @@ namespace
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             101,
             202,

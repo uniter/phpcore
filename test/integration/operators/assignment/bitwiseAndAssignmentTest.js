@@ -15,7 +15,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP bitwise-AND-assignment operator "&=" integration', function () {
-    it('should support ANDing with the number contained in a variable or property', function () {
+    it('should support ANDing with the number contained in a variable or property', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -44,6 +44,10 @@ $result['with instance prop'] = $myObject->myInstanceProp;
 MyClass::$myStaticProp &= 15;
 $result['with static prop'] = MyClass::$myStaticProp;
 
+// AND a variable that is then re-assigned within a later operand.
+${($myNumber = 13) && false ?: 'myNumber'} &= ${($myNumber = 11) && false ?: 'myNumber'};
+$result['assignment within operand'] = $myNumber;
+
 return $result;
 EOS
 */;}), //jshint ignore:line
@@ -67,13 +71,12 @@ EOS
             accessorValue = newValue;
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'with variable': 1000 & 63,
-                'with accessor': 21 & 7,
-                'with instance prop': 26 & 7,
-                'with static prop': 100 & 15
-            });
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'with variable': 1000 & 63,
+            'with accessor': 21 & 7,
+            'with instance prop': 26 & 7,
+            'with static prop': 100 & 15,
+            'assignment within operand': 9
         });
     });
 });

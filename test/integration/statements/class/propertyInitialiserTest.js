@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP class statement property initialiser integration', function () {
-    it('should give each instance a separate array object when initialised with one', function () {
+    it('should give each instance a separate array object when initialised with one', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -39,15 +39,16 @@ $result[] = $secondObject->myProp[0];
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             22,
             21
         ]);
     });
 
-    it('should allow instance and static property initialisers to forward-reference constants further down', function () {
+    it('should allow instance and static property initialisers to forward-reference constants further down', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -67,15 +68,16 @@ $result[] = MyClass::$myStaticProp;
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             1001,
             2222
         ]);
     });
 
-    it('should default empty instance or static property initialisers to null', function () {
+    it('should default empty instance or static property initialisers to null', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -96,15 +98,16 @@ $result[] = MyClass::getStatic();
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             null,
             null
         ]);
     });
 
-    it('should lazily initialise static properties on read', function () {
+    it('should lazily initialise static properties on read', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -180,23 +183,21 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                '[before]',
-                '[autoload] My\\Stuff\\MyOtherClass',
-                '[my const] other const',
-                // Note that both static properties are evaluated, causing autoloads,
-                // as soon as the first one is referenced
-                '[autoload] My\\Stuff\\FirstOtherClass',
-                '[autoload] My\\Stuff\\SecondOtherClass',
-                '[first prop] first const',
-                '[second prop] second const',
-                '[after]'
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            '[before]',
+            '[autoload] My\\Stuff\\MyOtherClass',
+            '[my const] other const',
+            // Note that both static properties are evaluated, causing autoloads,
+            // as soon as the first one is referenced
+            '[autoload] My\\Stuff\\FirstOtherClass',
+            '[autoload] My\\Stuff\\SecondOtherClass',
+            '[first prop] first const',
+            '[second prop] second const',
+            '[after]'
+        ]);
     });
 
-    it('should lazily initialise static properties on write (ie. even before read)', function () {
+    it('should lazily initialise static properties on write (ie. even before read)', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -263,21 +264,19 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                '[before]',
-                // Note that the property's value is still initialised even though
-                // it is written to before it is ever read from
-                '[autoload] My\\Stuff\\FirstOtherClass',
-                '[autoload] My\\Stuff\\SecondOtherClass',
-                '[first prop] a new value',
-                '[second prop] second const',
-                '[after]'
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            '[before]',
+            // Note that the property's value is still initialised even though
+            // it is written to before it is ever read from
+            '[autoload] My\\Stuff\\FirstOtherClass',
+            '[autoload] My\\Stuff\\SecondOtherClass',
+            '[first prop] a new value',
+            '[second prop] second const',
+            '[after]'
+        ]);
     });
 
-    it('should handle asynchronous errors when initialising a static property', function () {
+    it('should handle asynchronous errors when initialising a static property', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -322,13 +321,13 @@ EOS
             };
         });
 
-        return expect(engine.execute()).to.eventually.be.rejectedWith(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Undefined class constant \'SOME_UNDEFINED_CONST\' in /path/to/module.php on line 28'
         );
     });
 
-    it('should initialise instance properties on object instantiation', function () {
+    it('should initialise instance properties on object instantiation', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -415,21 +414,19 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                '[before]',
-                // Note that all properties (both static and instance) and constants are initialised on "new".
-                '[autoload] My\\Stuff\\MyFirstOtherClass',
-                '[autoload] My\\Stuff\\MySecondOtherClass',
-                '[autoload] My\\Stuff\\FirstOtherClass',
-                '[autoload] My\\Stuff\\SecondOtherClass',
-                '[after new]',
-                '[my const] first other const',
-                '[my static prop] second other const',
-                '[first prop] first const',
-                '[second prop] second const',
-                '[after]'
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            '[before]',
+            // Note that all properties (both static and instance) and constants are initialised on "new".
+            '[autoload] My\\Stuff\\MyFirstOtherClass',
+            '[autoload] My\\Stuff\\MySecondOtherClass',
+            '[autoload] My\\Stuff\\FirstOtherClass',
+            '[autoload] My\\Stuff\\SecondOtherClass',
+            '[after new]',
+            '[my const] first other const',
+            '[my static prop] second other const',
+            '[first prop] first const',
+            '[second prop] second const',
+            '[after]'
+        ]);
     });
 });

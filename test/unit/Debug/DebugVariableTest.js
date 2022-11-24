@@ -17,34 +17,39 @@ var expect = require('chai').expect,
     Variable = require('../../../src/Variable').sync();
 
 describe('DebugVariable', function () {
+    var debugValue,
+        scope,
+        value,
+        variable;
+
     beforeEach(function () {
-        this.scope = sinon.createStubInstance(Scope);
-        this.value = sinon.createStubInstance(Value);
-        this.variable = sinon.createStubInstance(Variable);
+        scope = sinon.createStubInstance(Scope);
+        value = sinon.createStubInstance(Value);
+        variable = sinon.createStubInstance(Variable);
 
-        this.variable.getValue.returns(this.value);
-        this.scope.getVariable.withArgs('myVar').returns(this.variable);
+        variable.getValue.returns(value);
+        scope.getVariable.withArgs('myVar').returns(variable);
 
-        this.debugValue = new DebugVariable(this.scope, 'myVar');
+        debugValue = new DebugVariable(scope, 'myVar');
     });
 
     describe('getValue()', function () {
         it('should return the value of the variable from its scope', function () {
-            expect(this.debugValue.getValue()).to.equal(this.value);
+            expect(debugValue.getValue()).to.equal(value);
         });
     });
 
     describe('isDefined()', function () {
         it('should return true when the variable is defined', function () {
-            this.variable.isDefined.returns(true);
+            variable.isDefined.returns(true);
 
-            expect(this.debugValue.isDefined()).to.be.true;
+            expect(debugValue.isDefined()).to.be.true;
         });
 
         it('should return false when the variable is not defined', function () {
-            this.variable.isDefined.returns(false);
+            variable.isDefined.returns(false);
 
-            expect(this.debugValue.isDefined()).to.be.false;
+            expect(debugValue.isDefined()).to.be.false;
         });
     });
 });

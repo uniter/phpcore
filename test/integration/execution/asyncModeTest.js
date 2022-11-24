@@ -29,7 +29,7 @@ EOS
         });
     });
 
-    it('should correctly handle an exception thrown synchronously (no pause occurs)', function () {
+    it('should correctly handle an exception thrown synchronously (no pause occurs)', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyException extends Exception {
@@ -44,13 +44,13 @@ EOS
             module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        return expect(engine.execute()).to.eventually.be.rejectedWith(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught MyException: My intentional exception and suffix in /path/to/module.php on line 8'
         );
     });
 
-    it('should correctly handle an exception thrown following resume', function () {
+    it('should correctly handle an exception thrown following resume', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyException extends Exception {
@@ -78,7 +78,7 @@ EOS
             });
         });
 
-        return expect(engine.execute()).to.eventually.be.rejectedWith(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught MyException: My intentional exception and suffix in /path/to/module.php on line 11'
         );

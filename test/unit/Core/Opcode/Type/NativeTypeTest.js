@@ -24,6 +24,50 @@ describe('Opcode NativeType', function () {
         };
     });
 
+    describe('allowsValue()', function () {
+        describe('when "string"', function () {
+            it('should return true when given correct native type', function () {
+                createType('string');
+
+                expect(type.allowsValue('my string')).to.be.true;
+            });
+
+            it('should throw when given an incorrect type', function () {
+                createType('string');
+
+                expect(type.allowsValue(1234)).to.be.false;
+            });
+        });
+
+        describe('when "null"', function () {
+            it('should return true when given correct native type', function () {
+                createType('null');
+
+                expect(type.allowsValue(null)).to.be.true;
+            });
+
+            it('should throw when given an incorrect type', function () {
+                createType('null');
+
+                expect(type.allowsValue('not null')).be.false;
+            });
+        });
+
+        describe('when "number"', function () {
+            it('should return a value of correct native type', function () {
+                createType('number');
+
+                expect(type.allowsValue(321)).to.be.true;
+            });
+
+            it('should throw when given an incorrect type', function () {
+                createType('number');
+
+                expect(type.allowsValue('not a number')).be.false;
+            });
+        });
+    });
+
     describe('coerceValue()', function () {
         describe('when "string"', function () {
             it('should return a value of correct native type', function () {
@@ -40,6 +84,25 @@ describe('Opcode NativeType', function () {
                 }).to.throw(
                     Exception,
                     'Unexpected value of type "number" provided for NativeType<string>'
+                );
+            });
+        });
+
+        describe('when "null"', function () {
+            it('should return a value of correct native type', function () {
+                createType('null');
+
+                expect(type.coerceValue(null)).to.be.null;
+            });
+
+            it('should throw when given an incorrect type', function () {
+                createType('null');
+
+                expect(function () {
+                    type.coerceValue('not null');
+                }).to.throw(
+                    Exception,
+                    'Unexpected value of type "string" provided for NativeType<null>'
                 );
             });
         });
@@ -61,6 +124,33 @@ describe('Opcode NativeType', function () {
                     'Unexpected value of type "string" provided for NativeType<number>'
                 );
             });
+        });
+    });
+
+    describe('getDisplayName()', function () {
+        it('should return the correct string for "boolean" native type', function () {
+            createType('boolean');
+
+            // Note that the short form "bool" is used.
+            expect(type.getDisplayName()).to.equal('bool');
+        });
+
+        it('should return the correct string for "null" native type', function () {
+            createType('null');
+
+            expect(type.getDisplayName()).to.equal('null');
+        });
+
+        it('should return the correct string for "number" native type', function () {
+            createType('number');
+
+            expect(type.getDisplayName()).to.equal('number');
+        });
+
+        it('should return the correct string for "string" native type', function () {
+            createType('string');
+
+            expect(type.getDisplayName()).to.equal('string');
         });
     });
 });

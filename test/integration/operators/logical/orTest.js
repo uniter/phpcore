@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP logical "or" operator integration', function () {
-    it('should support short-circuit evaluation in async mode', function () {
+    it('should support short-circuit evaluation in async mode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -63,30 +63,28 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                // truthy || truthy should short-circuit, not evaluating the second returnTruthy()
-                '[in returnTruthy]',
-                true,
-                'done truthy || truthy',
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            // truthy || truthy should short-circuit, not evaluating the second returnTruthy()
+            '[in returnTruthy]',
+            true,
+            'done truthy || truthy',
 
-                // truthy || falsy should short-circuit, not evaluating returnFalsy()
-                '[in returnTruthy]',
-                true,
-                'done truthy || falsy',
+            // truthy || falsy should short-circuit, not evaluating returnFalsy()
+            '[in returnTruthy]',
+            true,
+            'done truthy || falsy',
 
-                // falsy || truthy should not short-circuit, evaluating both
-                '[in returnFalsy]',
-                '[in returnTruthy]',
-                true,
-                'done falsy || truthy',
+            // falsy || truthy should not short-circuit, evaluating both
+            '[in returnFalsy]',
+            '[in returnTruthy]',
+            true,
+            'done falsy || truthy',
 
-                // falsy || falsy should not short-circuit, evaluating both
-                '[in returnFalsy]',
-                '[in returnFalsy]',
-                false,
-                'done falsy || falsy'
-            ]);
-        });
+            // falsy || falsy should not short-circuit, evaluating both
+            '[in returnFalsy]',
+            '[in returnFalsy]',
+            false,
+            'done falsy || falsy'
+        ]);
     });
 });

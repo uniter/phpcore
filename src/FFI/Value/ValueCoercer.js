@@ -32,7 +32,7 @@ _.extend(ValueCoercer.prototype, {
      * Unwraps arguments for a method based on the coercion mode for the class
      *
      * @param {Reference[]|Value[]|Variable[]} argumentReferences
-     * @returns {Future<Value[]|*[]>}
+     * @returns {FutureInterface<Value[]|*[]>}
      */
     coerceArguments: function (argumentReferences) {
         var coercer = this;
@@ -43,7 +43,6 @@ _.extend(ValueCoercer.prototype, {
 
         return coercer.flow.mapAsync(argumentReferences, function (argumentReference) {
             return argumentReference.getValue()
-                .asFuture() // Avoid re-boxing the result as a Value.
                 .next(function (argumentValue) {
                     return argumentValue.getNative();
                 });

@@ -16,11 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP "class" statement integration', function () {
-    beforeEach(function () {
-        this.runtime = tools.createSyncRuntime();
-    });
-
-    it('should support extending JS classes with auto-coercion both on and off', function () {
+    it('should support extending JS classes with auto-coercion both on and off', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class FirstPHPClass extends CoercingJSClass
@@ -41,72 +37,74 @@ $second = new SecondPHPClass('php_init2');
 return $first->addOneTo(' php_10') . ' op ' . $second->addThreeTo(' php_7');
 EOS
 */;}),//jshint ignore:line
-            module = tools.transpile(this.runtime, null, php);
+            environment = tools.createAsyncEnvironment({}, [
+                {
+                    classes: {
+                        'CoercingJSClass': function () {
+                            function CoercingJSClass(base) {
+                                this.base = this.shadow + ' '  + base + ' js_ctor1';
+                            }
 
-        this.runtime.install({
-            classes: {
-                'CoercingJSClass': function () {
-                    function CoercingJSClass(base) {
-                        this.base = this.shadow + ' '  + base + ' js_ctor1';
+                            CoercingJSClass.shadowConstructor = function () {
+                                this.shadow = 'shadow_coerce';
+                            };
+
+                            CoercingJSClass.prototype.__construct = function () {
+                                this.base += ' magic_coerce';
+                            };
+
+                            CoercingJSClass.prototype.addOneTo = function (string) {
+                                return this.base + string + ' one';
+                            };
+
+                            return CoercingJSClass;
+                        },
+                        'NonCoercingJSClass': function (internals) {
+                            function NonCoercingJSClass(baseValue) {
+                                this.setProperty(
+                                    'base',
+                                    internals.valueFactory.createString(
+                                        this.getProperty('shadow').getNative() + ' ' + baseValue.getNative() + ' js_ctor2'
+                                    )
+                                );
+                            }
+
+                            NonCoercingJSClass.shadowConstructor = function () {
+                                // Shadow constructor will be called before the real one
+                                this.setProperty('shadow', internals.valueFactory.createString('shadow_non_coerce'));
+                            };
+
+                            NonCoercingJSClass.prototype.__construct = function () {
+                                this.setProperty(
+                                    'base',
+                                    internals.valueFactory.createString(
+                                        this.getProperty('base').getNative() + ' magic_non_coerce'
+                                    )
+                                );
+                            };
+
+                            NonCoercingJSClass.prototype.addThreeTo = function (stringValue) {
+                                return internals.valueFactory.createString(
+                                    this.getProperty('base').getNative() + stringValue.getNative() + ' three'
+                                );
+                            };
+
+                            internals.disableAutoCoercion();
+
+                            return NonCoercingJSClass;
+                        }
                     }
-
-                    CoercingJSClass.shadowConstructor = function () {
-                        this.shadow = 'shadow_coerce';
-                    };
-
-                    CoercingJSClass.prototype.__construct = function () {
-                        this.base += ' magic_coerce';
-                    };
-
-                    CoercingJSClass.prototype.addOneTo = function (string) {
-                        return this.base + string + ' one';
-                    };
-
-                    return CoercingJSClass;
-                },
-                'NonCoercingJSClass': function (internals) {
-                    function NonCoercingJSClass(baseValue) {
-                        this.setProperty(
-                            'base',
-                            internals.valueFactory.createString(
-                                this.getProperty('shadow').getNative() + ' ' + baseValue.getNative() + ' js_ctor2'
-                            )
-                        );
-                    }
-
-                    NonCoercingJSClass.shadowConstructor = function () {
-                        // Shadow constructor will be called before the real one
-                        this.setProperty('shadow', internals.valueFactory.createString('shadow_non_coerce'));
-                    };
-
-                    NonCoercingJSClass.prototype.__construct = function () {
-                        this.setProperty(
-                            'base',
-                            internals.valueFactory.createString(
-                                this.getProperty('base').getNative() + ' magic_non_coerce'
-                            )
-                        );
-                    };
-
-                    NonCoercingJSClass.prototype.addThreeTo = function (stringValue) {
-                        return internals.valueFactory.createString(
-                            this.getProperty('base').getNative() + stringValue.getNative() + ' three'
-                        );
-                    };
-
-                    internals.disableAutoCoercion();
-
-                    return NonCoercingJSClass;
                 }
-            }
-        });
+            ]),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module({}, environment);
 
-        expect(module().execute().getNative()).to.equal(
+        expect((await engine.execute()).getNative()).to.equal(
             'shadow_coerce php_init1 php_ctor js_ctor1 magic_coerce php_10 one op shadow_non_coerce php_init2 js_ctor2 magic_non_coerce php_7 three'
         );
     });
 
-    it('should raise a fatal error when attempting to define a class with a name already used by a class', function () {
+    it('should raise a fatal error when attempting to define a class with a name already used by a class', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 namespace My\Stuff;
@@ -116,12 +114,10 @@ class MyClass {}
 class MyClass {}
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Cannot declare class My\\Stuff\\MyClass, because the name is already in use in /path/to/module.php on line 6'
         );

@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP "if" statement integration', function () {
-    it('should support conditions with logical and comparison operators', function () {
+    it('should support conditions with logical and comparison operators', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -27,14 +27,15 @@ if (1 === 2 || 7 === 4 || 3 === 3) {
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             'yep'
         ]);
     });
 
-    it('should support if conditions reading an instance property inside a closure passed as function arg', function () {
+    it('should support if conditions reading an instance property inside a closure passed as function arg', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -58,14 +59,15 @@ callIt(function () {
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             'found'
         ]);
     });
 
-    it('should support pause/resume', function () {
+    it('should support pause/resume', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -114,24 +116,22 @@ EOS
             });
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                'first',
-                'sixth',
-                'second',
-                'third and a concat',
-                1000,
-                'seventh',
-                'second',
-                'fourth',
-                1001,
-                'eighth',
-                'second',
-                'fifth',
-                99999,
-                'ninth'
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            'first',
+            'sixth',
+            'second',
+            'third and a concat',
+            1000,
+            'seventh',
+            'second',
+            'fourth',
+            1001,
+            'eighth',
+            'second',
+            'fifth',
+            99999,
+            'ninth'
+        ]);
     });
 
     it('should support fetching the condition from accessor returning future in async mode', async function () {

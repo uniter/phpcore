@@ -18,6 +18,8 @@ var _ = require('microdash'),
  *
  * @param {ValueFactory} valueFactory
  * @param {ReferenceFactory} referenceFactory
+ * @param {FutureFactory} futureFactory
+ * @param {Flow} flow
  * @param {ObjectValue} objectValue
  * @param {Value} keyValue
  * @constructor
@@ -25,10 +27,12 @@ var _ = require('microdash'),
 function ObjectElement(
     valueFactory,
     referenceFactory,
+    futureFactory,
+    flow,
     objectValue,
     keyValue
 ) {
-    Reference.call(this, referenceFactory);
+    Reference.call(this, referenceFactory, futureFactory, flow);
 
     /**
      * @type {Value}
@@ -47,6 +51,9 @@ function ObjectElement(
 util.inherits(ObjectElement, Reference);
 
 _.extend(ObjectElement.prototype, {
+    /**
+     * {@inheritdoc}
+     */
     getValue: function () {
         var element = this;
 
@@ -74,14 +81,13 @@ _.extend(ObjectElement.prototype, {
      * Objects may only have an element fetched if they can be treated as an array,
      * by implementing ArrayAccess
      *
-     * @returns {Future<boolean>}
+     * @returns {ChainableInterface<boolean>}
      */
     isEmpty: function () {
         var element = this;
 
         return element.objectValue.callMethod('offsetExists', [element.keyValue])
-            .getValue()
-            .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
+            .asValue()
             .next(function (resultValue) {
                 if (!resultValue.getNative()) {
                     // ->offsetExists(...) returned false, no need to check further
@@ -89,8 +95,10 @@ _.extend(ObjectElement.prototype, {
                 }
 
                 return element.objectValue.callMethod('offsetGet', [element.keyValue])
-                    .getValue()
-                    .isEmpty();
+                    .asValue()
+                    .next(function (offsetValue) {
+                        return offsetValue.isEmpty();
+                    });
             });
     },
 
@@ -104,25 +112,26 @@ _.extend(ObjectElement.prototype, {
     /**
      * Determines whether an element of an object is classed as set.
      * Objects may only have an element fetched if they can be treated as an array,
-     * by implementing ArrayAccess
+     * by implementing ArrayAccess.
      *
-     * @returns {Future<boolean>}
+     * @returns {ChainableInterface<boolean>}
      */
     isSet: function () {
         var element = this;
 
         return element.objectValue.callMethod('offsetExists', [element.keyValue])
-            .getValue()
-            .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
+            .asValue()
             .next(function (resultValue) {
                 if (!resultValue.getNative()) {
-                    // ->offsetExists(...) returned false, no need to check further
+                    // ->offsetExists(...) returned false, no need to check further.
                     return false;
                 }
 
                 return element.objectValue.callMethod('offsetGet', [element.keyValue])
-                    .getValue()
-                    .isSet();
+                    .asValue()
+                    .next(function (offsetValue) {
+                        return offsetValue.isSet();
+                    });
             });
     },
 
@@ -134,7 +143,7 @@ _.extend(ObjectElement.prototype, {
             assignedValue = value.getForAssignment();
 
         return element.objectValue.callMethod('offsetSet', [element.keyValue, assignedValue])
-            // Discard the result of ->offsetSet(...) but still await any FutureValue it may return.
+            // Discard the result of ->offsetSet(...) but still await any Future it may return.
             .next(function () {
                 return assignedValue;
             });
@@ -146,8 +155,7 @@ _.extend(ObjectElement.prototype, {
     unset: function () {
         var element = this;
 
-        return element.objectValue.callMethod('offsetUnset', [element.keyValue])
-            .asFuture();
+        return element.objectValue.callMethod('offsetUnset', [element.keyValue]);
     }
 });
 

@@ -14,15 +14,27 @@ var _ = require('microdash'),
         return function () {
             throw new Error('Reference.' + functionName + '() :: Not implemented');
         };
-    };
+    },
+    Promise = require('lie');
 
 /**
- * Interface for references to extend to allow instanceof checking
+ * Interface for references to extend to allow instanceof checking.
  *
  * @param {ReferenceFactory} referenceFactory
+ * @param {FutureFactory} futureFactory
+ * @param {Flow} flow
  * @constructor
+ * @implements {ChainableInterface}
  */
-function Reference(referenceFactory) {
+function Reference(referenceFactory, futureFactory, flow) {
+    /**
+     * @type {Flow}
+     */
+    this.flow = flow;
+    /**
+     * @type {FutureFactory}
+     */
+    this.futureFactory = futureFactory;
     /**
      * @type {ReferenceFactory}
      */
@@ -32,42 +44,40 @@ function Reference(referenceFactory) {
 _.extend(Reference.prototype, {
     /**
      * Returns the value or reference of this reference, suitable for use as an array element.
-     * Note that FutureValues will be returned unchanged ready to be awaited.
+     * Note that Futures will be returned unchanged ready to be awaited.
      *
      * PHP references will be represented as ReferenceElements instead.
      *
-     * @returns {Reference|Value}
+     * @returns {ChainableInterface<Reference|Value|Variable>}
      */
     asArrayElement: function () {
-        return this.getValue().getForAssignment();
+        return this.getValue().next(function (value) {
+            return value.getForAssignment();
+        });
     },
 
     /**
      * Returns a Future that will resolve to the native value of the PHP value being referred to.
      *
-     * @returns {Future<*>}
+     * @returns {ChainableInterface<*>}
      */
     asEventualNative: function () {
-        return this.getValue().asEventualNative();
+        return this.getValue().next(function (value) {
+            return value.asEventualNative();
+        });
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    asValue: function () {
+        return this.getValue();
     },
 
     /**
      * Clears any reference this variable may have assigned.
      */
     clearReference: throwUnimplemented('clearReference'),
-
-    /**
-     * Formats the reference (which may not be defined) for display in stack traces etc.
-     *
-     * @returns {string}
-     */
-    formatAsString: function () {
-        var reference = this;
-
-        return reference.isDefined() ?
-            reference.getValue().formatAsString() :
-            'NULL';
-    },
 
     /**
      * Fetches the value of this reference when it is being assigned to a variable or another reference.
@@ -83,7 +93,7 @@ _.extend(Reference.prototype, {
      * @returns {*}
      */
     getNative: function () {
-        return this.getValue().getNative();
+        return this.getValue().yieldSync().getNative();
     },
 
     /**
@@ -96,9 +106,9 @@ _.extend(Reference.prototype, {
     },
 
     /**
-     * Fetches the value this reference stores, if any
+     * Fetches the value this reference stores, if any.
      *
-     * @returns {Value|null}
+     * @returns {ChainableInterface<Value>}
      */
     getValue: throwUnimplemented('getValue'),
 
@@ -108,24 +118,24 @@ _.extend(Reference.prototype, {
      *
      * Note that unlike .getValueOrNull(), native null is returned if not defined.
      *
-     * @returns {Value|null}
+     * @returns {ChainableInterface<Value>|null}
      */
     getValueOrNativeNull: function () {
         var reference = this;
 
-        return reference.isDefined() ? reference.getValue() : null;
+        return reference.isReadable() ? reference.getValue() : null;
     },
 
     /**
      * Returns this reference's value if defined, NULL otherwise.
      * No notice/warning will be raised if the reference has no value defined.
      *
-     * @return {Value}
+     * @return {ChainableInterface<Value>}
      */
     getValueOrNull: function () {
         var reference = this;
 
-        return reference.isDefined() ?
+        return reference.isReadable() ?
             reference.getValue() :
             reference.valueFactory.createNull();
     },
@@ -140,7 +150,7 @@ _.extend(Reference.prototype, {
     },
 
     /**
-     * Determines whether this reference is defined
+     * Determines whether this reference is defined.
      *
      * @returns {boolean}
      */
@@ -149,9 +159,26 @@ _.extend(Reference.prototype, {
     /**
      * Determines whether the reference is classed as "empty" or not
      *
-     * @returns {Future<boolean>}
+     * @returns {ChainableInterface<boolean>}
      */
     isEmpty: throwUnimplemented('isEmpty'),
+
+    /**
+     * {@inheritdoc}
+     */
+    isFuture: function () {
+        return false;
+    },
+
+    /**
+     * Determines whether this reference is readable.
+     * Some values may be undefined but still readable, e.g. overloaded properties using __get(...).
+     *
+     * @returns {boolean}
+     */
+    isReadable: function () {
+        return this.isDefined();
+    },
 
     /**
      * Determines whether this reference has a reference rather than value assigned.
@@ -172,9 +199,31 @@ _.extend(Reference.prototype, {
     /**
      * Determines whether the reference is classed as "set" or not
      *
-     * @returns {Future<boolean>}
+     * @returns {ChainableInterface<boolean>}
      */
     isSet: throwUnimplemented('isSet'),
+
+    /**
+     * {@inheritdoc}
+     */
+    next: function (resolveHandler) {
+        var reference = this,
+            result;
+
+        if (!resolveHandler) {
+            return reference;
+        }
+
+        try {
+            result = resolveHandler(reference);
+        } catch (error) {
+            return reference.futureFactory.createRejection(error);
+        }
+
+        result = reference.flow.chainify(result);
+
+        return result;
+    },
 
     /**
      * Raises an error for when this reference is not defined.
@@ -192,10 +241,10 @@ _.extend(Reference.prototype, {
 
     /**
      * Sets the value of this reference. If it was already assigned a value it will be overwritten,
-     * otherwise if it was already assigned a sub-reference then that reference will be assigned the value
+     * otherwise if it was already assigned a sub-reference then that reference will be assigned the value.
      *
      * @param {Value} value
-     * @returns {Value} Returns the value that was set
+     * @returns {ChainableInterface<Value>} Returns the value that was set
      */
     setValue: throwUnimplemented('setValue'),
 
@@ -205,7 +254,7 @@ _.extend(Reference.prototype, {
      * @returns {Promise<Value>}
      */
     toPromise: function () {
-        return this.getValue().toPromise();
+        return Promise.resolve(this);
     },
 
     /**
@@ -213,7 +262,14 @@ _.extend(Reference.prototype, {
      *
      * @returns {Future}
      */
-    unset: throwUnimplemented('unset')
+    unset: throwUnimplemented('unset'),
+
+    /**
+     * {@inheritdoc}
+     */
+    yieldSync: function () {
+        return this;
+    }
 });
 
 module.exports = Reference;

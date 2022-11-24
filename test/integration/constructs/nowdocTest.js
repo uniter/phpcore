@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP nowdoc construct integration', function () {
-    it('should support nowdocs with strings that look like variables interpolated', function () {
+    it('should support nowdocs with strings that look like variables interpolated', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -30,10 +30,10 @@ MYNOWDOC;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             'This is $not $a $variable\n\nMYNOWDOC; <-- Still inside\nSome more text'
         ]);
         expect(engine.getStderr().readAll()).to.equal('');

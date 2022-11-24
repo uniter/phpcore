@@ -36,10 +36,10 @@ _.extend(ValueProvider.prototype, {
     /**
      * Creates an ArrayValue with the given elements.
      * Allows creation of an array from a reference & value list to values,
-     * where any FutureValues have been resolved.
+     * where any Futures have been resolved.
      *
      * @param {KeyReferencePair[]|KeyValuePair[]|Reference[]|Value[]|Variable[]} elements
-     * @returns {FutureValue<ArrayValue>}
+     * @returns {ChainableInterface<ArrayValue>}
      */
     createFutureArray: function (elements) {
         var provider = this;
@@ -53,23 +53,22 @@ _.extend(ValueProvider.prototype, {
                  * ReferenceSlots will be wrapped in a ReferenceElement.
                  *
                  * For all other types its value will be extracted -
-                 * if this is a FutureValue then it will be awaited by Flow.
+                 * if this is a Future then it will be awaited by Flow.
                  */
                 return element.asArrayElement();
             })
             .next(function (presentElements) {
                 return provider.valueFactory.createArray(presentElements);
-            })
-            .asValue();
+            });
     },
 
     /**
      * Creates a Future-wrapped native array with the elements.
      * Allows creation of an array from a reference & value list to values,
-     * where any FutureValues have been resolved.
+     * where any Futures have been resolved.
      *
      * @param {KeyReferencePair[]|KeyValuePair[]|Reference[]|Value[]|Variable[]} elements
-     * @returns {Future<Value[]>}
+     * @returns {ChainableInterface<Value[]>}
      */
     createFutureList: function (elements) {
         var provider = this;
@@ -84,7 +83,7 @@ _.extend(ValueProvider.prototype, {
      * Creates an FFI ResultValue for the given internal Value.
      *
      * @param {Value} internalValue
-     * @returns {Future<ResultValue>}
+     * @returns {ChainableInterface<ResultValue>}
      */
     createResultValue: function (internalValue) {
         var provider = this;

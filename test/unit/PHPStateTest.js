@@ -706,13 +706,6 @@ describe('PHPState', function () {
             expect(resultValue.getNative()).to.equal(1001);
         });
 
-        it('should return an assigned FutureValue yielded synchronously', function () {
-            var resultValue = state.defineGlobal('myGlobal', valueFactory.createPresent(1234));
-
-            expect(resultValue.getType()).to.equal('int');
-            expect(resultValue.getNative()).to.equal(1234);
-        });
-
         it('should throw when the global is already defined', function () {
             state.defineGlobal('myGlobal', 21);
 
@@ -755,7 +748,7 @@ describe('PHPState', function () {
                 valueGetter = sinon.stub(),
                 valueSetter = sinon.spy();
 
-            state.defineGlobalAccessor('MY_GLOB', valueGetter, valueSetter, null, referenceSetter);
+            state.defineGlobalAccessor('MY_GLOB', valueGetter, valueSetter, null, null, referenceSetter);
             state.getGlobalScope().getVariable('MY_GLOB').setReference(reference);
 
             expect(referenceSetter).to.have.been.calledOnce;

@@ -45,6 +45,7 @@ describe('Scope', function () {
         createScope,
         currentClass,
         currentFunction,
+        flow,
         functionSpecFactory,
         futureFactory,
         globalNamespace,
@@ -64,7 +65,7 @@ describe('Scope', function () {
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
         controlScope = sinon.createStubInstance(ControlScope);
-        state = tools.createIsolatedState(null, {
+        state = tools.createIsolatedState('async', {
             'call_stack': callStack,
             'control_scope': controlScope
         });
@@ -73,6 +74,7 @@ describe('Scope', function () {
         currentClass = null;
         currentFunction = null;
         closureFactory = sinon.createStubInstance(ClosureFactory);
+        flow = state.getFlow();
         functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
         futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
@@ -93,7 +95,7 @@ describe('Scope', function () {
         closureFactory.create.returns(closure);
 
         variableFactory.createVariable.callsFake(function (variableName) {
-            return new Variable(callStack, valueFactory, referenceFactory, futureFactory, variableName);
+            return new Variable(callStack, valueFactory, referenceFactory, futureFactory, flow, variableName);
         });
 
         controlScope.enterCoroutine.resetHistory();
@@ -129,21 +131,6 @@ describe('Scope', function () {
                 thisObject || null
             );
         };
-    });
-
-    describe('constructor()', function () {
-        it('should throw when an unresolved FutureValue is given as `$this`', function () {
-            expect(function () {
-                var thisObject = valueFactory.createFuture(function () {
-                    // (Do not resolve so the Future remains pending...)
-                });
-
-                createScope(thisObject);
-            }).to.throw(
-                Exception,
-                'Cannot synchronously yield a pending Future - did you mean to chain with .next(...)?'
-            );
-        });
     });
 
     describe('createClosure()', function () {
@@ -393,19 +380,6 @@ describe('Scope', function () {
 
             expect(value.getType()).to.equal('int');
             expect(value.getNative()).to.equal(4567);
-        });
-
-        it('should throw when an unresolved FutureValue is given', function () {
-            expect(function () {
-                var futureValue = valueFactory.createFuture(function () {
-                    // (Do not resolve so the Future remains pending...)
-                });
-
-                scope.expose(futureValue, 'myVar');
-            }).to.throw(
-                Exception,
-                'Cannot synchronously yield a pending Future - did you mean to chain with .next(...)?'
-            );
         });
     });
 
@@ -790,38 +764,6 @@ describe('Scope', function () {
                 scope.importStatic('myVar');
 
                 expect(scope.getVariable('myVar').getValue()).to.equal(value);
-            });
-
-            it('should throw when an unresolved FutureValue is given as initial value', function () {
-                createScope();
-
-                expect(function () {
-                    var futureValue = valueFactory.createFuture(function () {
-                        // (Do not resolve so the Future remains pending...)
-                    });
-
-                    scope.importStatic('myVar', futureValue);
-                }).to.throw(
-                    Exception,
-                    'Cannot synchronously yield a pending Future - did you mean to chain with .next(...)?'
-                );
-            });
-        });
-
-        describe('when there is no current function', function () {
-            it('should throw when an unresolved FutureValue is given as initial value', function () {
-                createScope();
-
-                expect(function () {
-                    var futureValue = valueFactory.createFuture(function () {
-                        // (Do not resolve so the Future remains pending...)
-                    });
-
-                    scope.importStatic('myVar', futureValue);
-                }).to.throw(
-                    Exception,
-                    'Cannot synchronously yield a pending Future - did you mean to chain with .next(...)?'
-                );
             });
         });
     });

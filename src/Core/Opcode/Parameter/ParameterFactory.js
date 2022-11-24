@@ -30,11 +30,21 @@ _.extend(ParameterFactory.prototype, {
      *
      * @param {string} name
      * @param {TypeInterface} type
+     * @param {boolean} isInitial
+     * @param {boolean} isRequired
      * @param {boolean} isVariadic
+     * @param {*} defaultArgument
      * @returns {Parameter}
      */
-    createParameter: function (name, type, isVariadic) {
-        return new this.Parameter(name, type, isVariadic);
+    createParameter: function (
+        name,
+        type,
+        isInitial,
+        isRequired,
+        isVariadic,
+        defaultArgument
+    ) {
+        return new this.Parameter(name, type, isInitial, isRequired, isVariadic, defaultArgument);
     }
 });
 

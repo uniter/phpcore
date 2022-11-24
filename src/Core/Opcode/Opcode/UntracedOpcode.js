@@ -15,11 +15,12 @@ var _ = require('microdash');
  * Represents an opcode that is to be executed but whose result is not to be traced.
  * Used when we are already inside an opcode and only the outer one's result is needed.
  *
+ * @param {UnpausedSentinel} unpausedSentinel
  * @param {Function} handler
  * @param {*[]} args
  * @constructor
  */
-function UntracedOpcode(handler, args) {
+function UntracedOpcode(unpausedSentinel, handler, args) {
     /**
      * @type {*[]}
      */
@@ -28,6 +29,10 @@ function UntracedOpcode(handler, args) {
      * @type {Function}
      */
     this.handler = handler;
+    /**
+     * @type {UnpausedSentinel}
+     */
+    this.unpausedSentinel = unpausedSentinel;
 }
 
 _.extend(UntracedOpcode.prototype, {
@@ -63,15 +68,15 @@ _.extend(UntracedOpcode.prototype, {
     /**
      * Returns the previous result of this opcode if it succeeded,
      * or re-throws the previous error for this opcode if it failed,
-     * or returns null if it has not executed yet.
+     * or returns UnpausedSentinel if it has not executed yet.
      *
-     * For an untraced opcode this will always return null, as they are not traced
+     * For an untraced opcode this will always return UnpausedSentinel, as they are not traced
      * and therefore cannot be resumed.
      *
-     * @returns {null}
+     * @returns {UnpausedSentinel}
      */
     resume: function () {
-        return null;
+        return this.unpausedSentinel;
     },
 
     /**

@@ -27,10 +27,11 @@ module.exports = require('pauser')([
      * @param {ReferenceFactory} referenceFactory
      * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
+     * @param {Flow} flow
      * @constructor
      */
-    function NullValue(factory, referenceFactory, futureFactory, callStack) {
-        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'null', null);
+    function NullValue(factory, referenceFactory, futureFactory, callStack, flow) {
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, flow, 'null', null);
     }
 
     util.inherits(NullValue, Value);
@@ -64,11 +65,20 @@ module.exports = require('pauser')([
         /**
          * {@inheritdoc}
          */
+        compareWith: function (rightValue) {
+            var value = this;
+
+            return value.futureFactory.createPresent(rightValue.compareWithNull(value));
+        },
+
+        /**
+         * {@inheritdoc}
+         */
         compareWithArray: function (leftValue) {
             var arrayLength = leftValue.getLength();
 
             // Empty arrays are equal to null.
-            return arrayLength > 0 ? 1 : 0;
+            return this.futureFactory.createPresent(arrayLength > 0 ? 1 : 0);
         },
 
         /**
@@ -112,14 +122,8 @@ module.exports = require('pauser')([
          * {@inheritdoc}
          */
         compareWithObject: function () {
-            return 1; // Objects (even empty ones) are always greater than null.
-        },
-
-        /**
-         * {@inheritdoc}
-         */
-        compareWithPresent: function (rightValue) {
-            return rightValue.compareWithNull(this);
+            // Objects (even empty ones) are always greater than null.
+            return this.futureFactory.createPresent(1);
         },
 
         /**
@@ -136,7 +140,7 @@ module.exports = require('pauser')([
             var leftStringIsEmpty = leftValue.getNative() === '';
 
             // The empty string is equal to null, any other string is greater.
-            return leftStringIsEmpty ? 0 : 1;
+            return this.futureFactory.createPresent(leftStringIsEmpty ? 0 : 1);
         },
 
         /**
@@ -178,7 +182,7 @@ module.exports = require('pauser')([
         /**
          * Null is always classed as empty
          *
-         * @returns {Future<boolean>}
+         * @returns {ChainableInterface<boolean>}
          */
         isEmpty: function () {
             return this.futureFactory.createPresent(true);

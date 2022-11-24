@@ -34,34 +34,29 @@ module.exports = function (internals) {
          * where the iterator variable is assigned.
          *
          * Used by "foreach (...)" constructs.
-         *
-         * @param {Reference|Value|Variable} arrayReference
-         * @returns {Future<ArrayIterator>|FutureValue<ObjectValue>}
          */
-        getIterator: function (arrayReference) {
-            return arrayReference.getValue().getIterator();
-        },
+        getIterator: internals.typeHandler('val array', function (arrayValue) {
+            return arrayValue.getIterator();
+        }),
 
         /**
          * Fetches the given reference's value, coerces it to boolean and then returns the native boolean value.
-         * Used by transpiled logical AND and OR expressions to implement short-circuiting.
-         *
-         * @param {Reference|Value|Variable} reference
-         * @returns {Future<boolean>}
+         * Used by transpiled logical "AND" and "OR" expressions to implement short-circuiting.
          */
-        logicalTerm: function (reference) {
-            return reference.getValue().coerceToBoolean().asEventualNative();
-        },
+        logicalTerm: internals.typeHandler('val term : bool', function (termValue) {
+            return termValue.coerceToBoolean().next(function (booleanTermValue) {
+                return booleanTermValue.getNative();
+            });
+        }),
 
         /**
          * Handles the condition expression of a ternary, evaluating and coercing it to a native boolean.
-         *
-         * @param {Reference|Value|Variable} conditionReference
-         * @returns {Future<boolean>}
          */
-        ternary: function (conditionReference) {
-            return conditionReference.getValue().coerceToBoolean().asEventualNative();
-        },
+        ternary: internals.typeHandler('val condition : bool', function (conditionValue) {
+            return conditionValue.coerceToBoolean().next(function (booleanConditionValue) {
+                return booleanConditionValue.getNative();
+            });
+        }),
 
         /**
          * Throws the given operand.
@@ -72,20 +67,18 @@ module.exports = function (internals) {
          * @returns {Value}
          * @throws {Value}
          */
-        throw_: function (operandReference) {
-            return operandReference.getValue().next(function (throwableValue) {
-                if (throwableValue.getType() !== 'object') {
-                    // Fatal error: Uncaught Error: Can only throw objects.
-                    callStack.raiseTranslatedError(PHPError.E_ERROR, CAN_ONLY_THROW_OBJECTS);
-                }
+        throw_: internals.typeHandler('val operand', function (throwableValue) {
+            if (throwableValue.getType() !== 'object') {
+                // Fatal error: Uncaught Error: Can only throw objects.
+                callStack.raiseTranslatedError(PHPError.E_ERROR, CAN_ONLY_THROW_OBJECTS);
+            }
 
-                if (!throwableValue.classIs('Throwable')) {
-                    // Fatal error: Uncaught Error: Cannot throw objects that do not implement Throwable.
-                    callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_THROW_NON_THROWABLE_OBJECTS);
-                }
+            if (!throwableValue.classIs('Throwable')) {
+                // Fatal error: Uncaught Error: Cannot throw objects that do not implement Throwable.
+                callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_THROW_NON_THROWABLE_OBJECTS);
+            }
 
-                throw throwableValue;
-            });
-        }
+            throw throwableValue;
+        })
     };
 };

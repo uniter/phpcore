@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP builtin ArrayAccess interface integration', function () {
-    it('should support accessing an object with the array access syntax', function () {
+    it('should support accessing an object with the array access syntax', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyStuff implements ArrayAccess
@@ -94,9 +94,9 @@ $result['read of nested pushed value'] = $object->lastSetValue;
 return $result;
 EOS
 */;}),//jshint ignore:line,
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module(),
-            result = engine.execute();
+            result = await engine.execute();
 
         expect(result.getNative()).to.deep.equal({
             'isset(offset that exists)': true,

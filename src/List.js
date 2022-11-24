@@ -41,36 +41,34 @@ _.extend(List.prototype, {
      * Assigns the given value to the list.
      *
      * @param {Value} value
-     * @returns {Value}
+     * @returns {ChainableInterface<Value>}
      */
     setValue: function (value) {
         var list = this;
 
-        return value.next(function (presentValue) {
-            if (presentValue.getType() === 'array') {
-                return list.flow
-                    .eachAsync(list.elements, function (reference, index) {
-                        return presentValue.getElementByIndex(index).getValue()
-                            .next(function (value) {
-                                // Note that .setValue(...) could return a Future(Value) here to be awaited.
-                                return reference.setValue(value);
-                            });
-                    })
-                    .next(function () {
-                        return presentValue;
-                    });
-            }
-
-            // Non-array value assigned to list, all references should just be nulled.
+        if (value.getType() === 'array') {
             return list.flow
-                .eachAsync(list.elements, function (reference) {
-                    // Note that .setValue(...) could return a Future(Value) here to be awaited.
-                    return reference.setValue(list.valueFactory.createNull());
+                .eachAsync(list.elements, function (reference, index) {
+                    return value.getElementByIndex(index).getValue()
+                        .next(function (value) {
+                            // Note that .setValue(...) could return a Future(Value) here to be awaited.
+                            return reference.setValue(value);
+                        });
                 })
                 .next(function () {
-                    return presentValue;
+                    return value;
                 });
-        });
+        }
+
+        // Non-array value assigned to list, all references should just be nulled.
+        return list.flow
+            .eachAsync(list.elements, function (reference) {
+                // Note that .setValue(...) could return a Future(Value) here to be awaited.
+                return reference.setValue(list.valueFactory.createNull());
+            })
+            .next(function () {
+                return value;
+            });
     }
 });
 

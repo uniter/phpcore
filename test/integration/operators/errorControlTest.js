@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP error control @(...) operator integration', function () {
-    it('should suppress errors in the current scope and any sub-call scopes in sync mode', function () {
+    it('should suppress errors in the current scope and any sub-call scopes in sync mode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL); // Notices are hidden by default
@@ -44,10 +44,10 @@ $result['badFunc2'] = @badFunc2();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/some/module.php', php),
+            module = tools.asyncTranspile('/some/module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'unset var, @ before var': null,
             'unset var, @ before array access': null,
             'badFunc': 21,
@@ -65,7 +65,7 @@ EOS
         );
     });
 
-    it('should suppress errors in the current scope and any sub-call scopes in async mode with pauses', function () {
+    it('should suppress errors in the current scope and any sub-call scopes in async mode with pauses', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL); // Notices are hidden by default
@@ -120,30 +120,28 @@ EOS
             }
         );
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'unset var, @ before var': null,
-                'unset var, @ before array access': null,
-                'unset var from get_async()': null,
-                'array access with async key fetch': null,
-                'async accessor global get': 21,
-                'badFunc': 21,
-                'goodFunc': 22,
-                'no suppression': null,
-                'badFunc2': null
-            });
-            // Only the unsuppressed expression should be able to raise an error
-            expect(engine.getStderr().readAll()).to.equal(
-                nowdoc(function () {/*<<<EOS
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'unset var, @ before var': null,
+            'unset var, @ before array access': null,
+            'unset var from get_async()': null,
+            'array access with async key fetch': null,
+            'async accessor global get': 21,
+            'badFunc': 21,
+            'goodFunc': 22,
+            'no suppression': null,
+            'badFunc2': null
+        });
+        // Only the unsuppressed expression should be able to raise an error
+        expect(engine.getStderr().readAll()).to.equal(
+            nowdoc(function () {/*<<<EOS
 PHP Notice:  Undefined variable: undefVarWithNoSuppression in /some/module.php on line 26
 
 EOS
 */;}) //jshint ignore:line
-            );
-        });
+        );
     });
 
-    it('should correctly resume past an error control expression with a control structure after it', function () {
+    it('should correctly resume past an error control expression with a control structure after it', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -174,13 +172,11 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'before control structure': null,
-                'inside control structure': 'some value',
-                'after control structure': null,
-            });
-            expect(engine.getStderr().readAll()).to.equal('');
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'before control structure': null,
+            'inside control structure': 'some value',
+            'after control structure': null,
         });
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 });

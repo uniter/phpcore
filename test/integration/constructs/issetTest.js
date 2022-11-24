@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP isset(...) construct integration', function () {
-    it('should correctly handle accessing set variables, elements and properties', function () {
+    it('should correctly handle accessing set variables, elements and properties', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -37,10 +37,10 @@ $result['multiple set values'] = isset($aRandomVar, MyClass::$myProp);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'random var': true,
             'array element': true,
             'instance property': true,
@@ -50,7 +50,7 @@ EOS
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should correctly handle accessing undefined variables, elements and properties', function () {
+    it('should correctly handle accessing undefined variables, elements and properties', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -68,10 +68,10 @@ $result['multiple values where one is not set'] = isset($object, MyClass::$myPro
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'random var': false,
             'array element': false,
             'instance property': false,
@@ -81,7 +81,7 @@ EOS
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should correctly handle multiple references being given in async mode with pauses', function () {
+    it('should correctly handle multiple references being given in async mode with pauses', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -133,25 +133,23 @@ EOS
             }
         );
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'multiple values with pauses where all are set': true,
-                'multiple values with pauses where one is not set': false
-            });
-            expect(engine.getStderr().readAll()).to.equal('');
-            // Ensure that we stop processing the list of references passed to isset(...)
-            // as soon as an unset one is reached
-            expect(log).to.deep.equal([
-                'read of myAsyncSetAccessorGlobal',
-                'read of myAsyncSetAccessorGlobal',
-                'read of myAsyncUnsetAccessorGlobal'
-                // Note that the final read of myAsyncSetAccessorGlobal should never occur,
-                // due to the previous tested value being unset
-            ]);
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'multiple values with pauses where all are set': true,
+            'multiple values with pauses where one is not set': false
         });
+        expect(engine.getStderr().readAll()).to.equal('');
+        // Ensure that we stop processing the list of references passed to isset(...)
+        // as soon as an unset one is reached
+        expect(log).to.deep.equal([
+            'read of myAsyncSetAccessorGlobal',
+            'read of myAsyncSetAccessorGlobal',
+            'read of myAsyncUnsetAccessorGlobal'
+            // Note that the final read of myAsyncSetAccessorGlobal should never occur,
+            // due to the previous tested value being unset
+        ]);
     });
 
-    it('should correctly resume past an isset(...) expression with a control structure after it', function () {
+    it('should correctly resume past an isset(...) expression with a control structure after it', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -182,14 +180,12 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'before control structure': false,
-                'inside control structure': 'some value',
-                'after control structure': false,
-            });
-            expect(engine.getStderr().readAll()).to.equal('');
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'before control structure': false,
+            'inside control structure': 'some value',
+            'after control structure': false,
         });
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 
     it('should not suppress errors from a function called inside isset(...) construct in sync mode', function () {
@@ -219,7 +215,7 @@ EOS
         );
     });
 
-    it('should not suppress errors from a function called inside isset(...) construct in async mode', function () {
+    it('should not suppress errors from a function called inside isset(...) construct in async mode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL); // Notices are hidden by default
@@ -245,15 +241,13 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.be.false;
-            expect(engine.getStderr().readAll()).to.equal(
-                nowdoc(function () {/*<<<EOS
+        expect((await engine.execute()).getNative()).to.be.false;
+        expect(engine.getStderr().readAll()).to.equal(
+            nowdoc(function () {/*<<<EOS
 PHP Notice:  Undefined variable: anotherUndefVar in a_module.php on line 5
 
 EOS
 */;}) //jshint ignore:line
-            );
-        });
+        );
     });
 });

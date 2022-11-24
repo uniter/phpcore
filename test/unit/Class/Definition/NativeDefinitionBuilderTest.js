@@ -26,14 +26,18 @@ describe('NativeDefinitionBuilder', function () {
     var builder,
         ffiFactory,
         flow,
+        futureFactory,
+        hostScheduler,
         nativeMethodDefinitionBuilder,
         state,
         valueFactory;
 
     beforeEach(function () {
-        state = tools.createIsolatedState();
+        state = tools.createIsolatedState('async');
         ffiFactory = sinon.createStubInstance(FFIFactory);
         flow = state.getFlow();
+        futureFactory = state.getFutureFactory();
+        hostScheduler = state.getHostScheduler();
         nativeMethodDefinitionBuilder = sinon.createStubInstance(NativeMethodDefinitionBuilder);
         valueFactory = state.getValueFactory();
 
@@ -213,7 +217,7 @@ describe('NativeDefinitionBuilder', function () {
                             arg1 = valueFactory.createString('arg 1');
                             arg2 = valueFactory.createString('arg 2');
 
-                            definition.getInternalClass().prototype.__construct.apply(objectValue, [arg1, arg2]);
+                            return definition.getInternalClass().prototype.__construct.apply(objectValue, [arg1, arg2]);
                         };
                     });
 
@@ -223,6 +227,26 @@ describe('NativeDefinitionBuilder', function () {
                         expect(definitionFunction).to.have.been.calledOnce;
                         expect(definitionFunction).to.have.been.calledOn(sinon.match.same(nativeObject));
                         expect(definitionFunction).to.have.been.calledWith('arg 1', 'arg 2');
+                    });
+
+                    it('should await any Future returned from the original native constructor when auto-coercing', async function () {
+                        var completed = false;
+                        definitionFunction.callsFake(function () {
+                            return futureFactory.createFuture(function (resolve) {
+                                // Defer in a macrotask to ensure we are correctly awaiting returned Futures.
+                                hostScheduler.queueMacrotask(function () {
+                                    completed = true;
+                                    resolve();
+                                });
+                            });
+                        });
+
+                        await callProxyConstructor('MyClass', true).toPromise();
+
+                        expect(definitionFunction).to.have.been.calledOnce;
+                        expect(definitionFunction).to.have.been.calledOn(sinon.match.same(nativeObject));
+                        expect(definitionFunction).to.have.been.calledWith('arg 1', 'arg 2');
+                        expect(completed).to.be.true;
                     });
 
                     it('should call a __construct() method on the definition function correctly when auto-coercing', function () {

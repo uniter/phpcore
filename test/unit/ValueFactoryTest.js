@@ -44,6 +44,7 @@ describe('ValueFactory', function () {
         elementProvider,
         errorPromoter,
         factory,
+        flow,
         futureFactory,
         futuresCreated,
         globalNamespace,
@@ -57,7 +58,7 @@ describe('ValueFactory', function () {
         futuresCreated = 0;
         state = tools.createIsolatedState('async', {
             'call_stack': callStack,
-            'future_factory': function (get) {
+            'future_factory': function (set, get) {
                 function TrackedFuture() {
                     Future.apply(this, arguments);
 
@@ -77,12 +78,13 @@ describe('ValueFactory', function () {
         });
         callFactory = sinon.createStubInstance(CallFactory);
         controlScope = state.getControlScope();
-        elementProvider = new ElementProvider();
         errorPromoter = sinon.createStubInstance(ErrorPromoter);
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
         referenceFactory = state.getReferenceFactory();
         translator = sinon.createStubInstance(Translator);
+        elementProvider = new ElementProvider(referenceFactory);
         valueStorage = new ValueStorage();
 
         translator.translate
@@ -101,6 +103,7 @@ describe('ValueFactory', function () {
         );
         factory.setCallStack(callStack);
         factory.setElementProvider(elementProvider);
+        factory.setFlow(flow);
         factory.setFutureFactory(futureFactory);
         factory.setGlobalNamespace(globalNamespace);
         factory.setReferenceFactory(referenceFactory);
@@ -224,10 +227,10 @@ describe('ValueFactory', function () {
     });
 
     describe('createAsyncPresent()', function () {
-        it('should return a pending FutureValue', function () {
+        it('should return a pending Future-wrapped Value', function () {
             var value = factory.createAsyncPresent('my value');
 
-            expect(value.getType()).to.equal('future');
+            expect(value).to.be.an.instanceOf(Future);
             expect(value.isPending()).to.be.true;
         });
 
@@ -243,14 +246,14 @@ describe('ValueFactory', function () {
     });
 
     describe('createAsyncMacrotaskFuture()', function () {
-        it('should return a pending FutureValue', function () {
+        it('should return a pending Future-wrapped Value', function () {
             var value = factory.createAsyncMacrotaskFuture(function () {});
 
-            expect(value.getType()).to.equal('future');
+            expect(value).to.be.an.instanceOf(Future);
             expect(value.isPending()).to.be.true;
         });
 
-        it('should return a FutureValue that eventually resolves with the given value', async function () {
+        it('should return a Future that eventually resolves with the given value', async function () {
             var resolvedValue,
                 value = factory.createAsyncMacrotaskFuture(function (resolve) {
                     resolve('my value');
@@ -264,14 +267,14 @@ describe('ValueFactory', function () {
     });
 
     describe('createAsyncMicrotaskFuture()', function () {
-        it('should return a pending FutureValue', function () {
+        it('should return a pending Future-wrapped Value', function () {
             var value = factory.createAsyncMicrotaskFuture(function () {});
 
-            expect(value.getType()).to.equal('future');
+            expect(value).to.be.an.instanceOf(Future);
             expect(value.isPending()).to.be.true;
         });
 
-        it('should return a FutureValue that eventually resolves with the given value', async function () {
+        it('should return a Future that eventually resolves with the given value', async function () {
             var resolvedValue,
                 value = factory.createAsyncMicrotaskFuture(function (resolve) {
                     resolve('my value');
@@ -285,14 +288,14 @@ describe('ValueFactory', function () {
     });
 
     describe('createAsyncRejection()', function () {
-        it('should return a pending FutureValue', function () {
+        it('should return a pending Future-wrapped Value', function () {
             var value = factory.createAsyncRejection(new Error('my error'));
 
-            expect(value.getType()).to.equal('future');
+            expect(value).to.be.an.instanceOf(Future);
             expect(value.isPending()).to.be.true;
         });
 
-        it('should return a FutureValue that eventually rejects with the given error', function () {
+        it('should return a Future that eventually rejects with the given error', function () {
             var error = new Error('my error'),
                 value = factory.createAsyncRejection(error);
 
@@ -769,18 +772,16 @@ describe('ValueFactory', function () {
     });
 
     describe('createFutureChain()', function () {
-        it('should create a FutureValue resolved with the result of the executor', async function () {
+        it('should create a Future resolved with the result of the executor', async function () {
             var value = factory
                 .createFutureChain(function () {
                     return 'my result';
                 })
                 .next(function (intermediateValue) {
                     return intermediateValue.getNative() + ' with suffix';
-                }),
-                resultValue = await value.toPromise();
+                });
 
-            expect(resultValue.getType()).to.equal('string');
-            expect(resultValue.getNative()).to.equal('my result with suffix');
+            expect(await value.toPromise()).to.equal('my result with suffix');
         });
 
         it('should create a FutureValue rejected with any error of the executor', async function () {

@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP builtin Iterator interface integration', function () {
-    it('should support iterating over an object that implements Iterator', function () {
+    it('should support iterating over an object that implements Iterator', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyCustomIterator implements Iterator
@@ -71,9 +71,9 @@ foreach ($myIterator as $key => $value) {
 return $result;
 EOS
 */;}),//jshint ignore:line,
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module(),
-            result = engine.execute();
+            result = await engine.execute();
 
         expect(engine.getStderr().readAll()).to.equal('');
         expect(result.getNative()).to.deep.equal([

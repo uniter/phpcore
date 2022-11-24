@@ -25,6 +25,7 @@ module.exports = require('pauser')([
      * @param {ReferenceFactory} referenceFactory
      * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
+     * @param {Flow} flow
      * @param {Value|null} statusValue
      * @constructor
      */
@@ -33,9 +34,10 @@ module.exports = require('pauser')([
         referenceFactory,
         futureFactory,
         callStack,
+        flow,
         statusValue
     ) {
-        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'exit', null);
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, flow, 'exit', null);
 
         /**
          * @type {Value|null}

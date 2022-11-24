@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP "global" import statement integration', function () {
-    it('should import the global for future references', function () {
+    it('should import the global for future references', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $myVar = 'original value';
@@ -31,12 +31,13 @@ myImporter();
 return $myVar;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.equal('modified value');
+        expect((await engine.execute()).getNative()).to.equal('modified value');
     });
 
-    it('should not import the global before the statement has executed', function () {
+    it('should not import the global before the statement has executed', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $myVar = 'original value';
@@ -53,12 +54,13 @@ myImporter();
 return $myVar;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.equal('original value');
+        expect((await engine.execute()).getNative()).to.equal('original value');
     });
 
-    it('should support unnecessary global variables in the global scope', function () {
+    it('should support unnecessary global variables in the global scope', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -73,9 +75,10 @@ return $result;
 
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             22
         ]);

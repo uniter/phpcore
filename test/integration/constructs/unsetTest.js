@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP unset(...) construct integration', function () {
-    it('should correctly handle unsetting variables, elements and properties', function () {
+    it('should correctly handle unsetting variables, elements and properties', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -37,10 +37,10 @@ $result[] = isset($array[1]);
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             false,
             false,
             false
@@ -48,7 +48,7 @@ EOS
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should raise a fatal error when attempting to unset a static property', function () {
+    it('should raise a fatal error when attempting to unset a static property', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -63,12 +63,10 @@ namespace {
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }.bind(this)).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Attempt to unset static property My\\Stuff\\MyClass::$myProperty in /path/to/my_module.php on line 10'
         );

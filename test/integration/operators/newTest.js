@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP new operator integration', function () {
-    it('should inherit the constructor from the parent class', function () {
+    it('should inherit the constructor from the parent class', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyParent
@@ -36,13 +36,13 @@ class MyChild extends MyParent
 return new MyChild('Fred')->name;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.equal('Fred');
+        expect((await engine.execute()).getNative()).to.equal('Fred');
     });
 
-    it('should resolve an unprefixed bareword string class name relative to the current namespace', function () {
+    it('should resolve an unprefixed bareword string class name relative to the current namespace', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -82,13 +82,13 @@ namespace {
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.equal(21);
+        expect((await engine.execute()).getNative()).to.equal(21);
     });
 
-    it('should resolve a prefixed bareword string class name relative to the root namespace', function () {
+    it('should resolve a prefixed bareword string class name relative to the root namespace', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -128,13 +128,13 @@ namespace {
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.equal(21);
+        expect((await engine.execute()).getNative()).to.equal(21);
     });
 
-    it('should resolve a string class name as a FQCN relative to the root namespace', function () {
+    it('should resolve a string class name as a FQCN relative to the root namespace', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -176,13 +176,13 @@ namespace {
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.equal(101);
+        expect((await engine.execute()).getNative()).to.equal(101);
     });
 
-    it('should resolve the special string "self" to the current class', function () {
+    it('should resolve the special string "self" to the current class', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -216,16 +216,16 @@ namespace {
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             101
         ]);
     });
 
-    it('should resolve the special string "static" to the called class in static context', function () {
+    it('should resolve the special string "static" to the called class in static context', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -269,16 +269,16 @@ namespace {
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             101
         ]);
     });
 
-    it('should support classes with a property called "length"', function () {
+    it('should support classes with a property called "length"', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -302,10 +302,10 @@ return $result;
 
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             'first',
             'second',
             'third',
@@ -313,7 +313,7 @@ EOS
         ]);
     });
 
-    it('should support creating an instance of the static class scope', function () {
+    it('should support creating an instance of the static class scope', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -346,16 +346,58 @@ return $result;
 
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             true
         ]);
     });
 
-    it('should raise a fatal error on attempting to instantiate an undefined class', function () {
+    it('should correctly handle passing a variable as by-value constructor argument that is then re-assigned within a later argument', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+class MyClass
+{
+    private $sum;
+
+    public function __construct($arg1, $arg2) {
+        $this->sum = $arg1 + $arg2;
+    }
+
+    public function getSum() {
+        return $this->sum;
+    }
+}
+
+$result = [];
+
+$yourVar = 100;
+
+$valueAssignmentWithinArg = new MyClass(${($myVar = 21) && false ?: 'myVar'}, ${($myVar = 32) && false ?: 'myVar'});
+$referenceAssignmentWithinArg = new MyClass(${($myVar = 21) && false ?: 'myVar'}, ${($myVar =& $yourVar) && false ?: 'myVar'});
+
+$result['value assignment within argument'] = $valueAssignmentWithinArg->getSum();
+$result['reference assignment within argument'] = $referenceAssignmentWithinArg->getSum();
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            // Value should be resolved at the point the argument is passed.
+            'value assignment within argument': 53,
+
+            // First argument should use the original value
+            // and not the reference assigned within the second argument.
+            'reference assignment within argument': 121
+        });
+    });
+
+    it('should raise a fatal error on attempting to instantiate an undefined class', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -363,12 +405,10 @@ new SomeUndefinedClass(1001);
 
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('my_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Class \'SomeUndefinedClass\' not found in my_module.php on line 3'
         );

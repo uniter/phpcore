@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP logical "not" operator integration', function () {
-    it('should support evaluation in async mode with pauses', function () {
+    it('should support evaluation in async mode with pauses', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -42,12 +42,10 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'not truthy': false,
-                'not falsy': true,
-                'not-not truthy': true
-            });
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'not truthy': false,
+            'not falsy': true,
+            'not-not truthy': true
         });
     });
 });

@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP increment "++" operator integration', function () {
-    it('should be able to increment a variable or variable reference', function () {
+    it('should be able to increment a variable or variable reference', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -34,14 +34,14 @@ $result['final ref'] = $myRef;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'initial number': 21,
             'initial ref': 21,
-            'number post-inc': 21, // Post-increment won't have been able to update the property yet
-            'ref post-inc': 22,    // The previous post-increment will have updated the property by now
+            'number post-inc': 21, // Post-increment won't have been able to update the property yet.
+            'ref post-inc': 22,    // The previous post-increment will have updated the property by now.
             'number pre-inc': 24,
             'ref pre-inc': 25,
             'final number': 25,
@@ -49,7 +49,7 @@ EOS
         });
     });
 
-    it('should be able to increment an instance property', function () {
+    it('should be able to increment an instance property', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -69,18 +69,18 @@ $result[] = $object->myProp;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
-            21, // Post-increment won't have been able to update the property yet
-            23, // Previous post-increment plus this pre-increment
+            21, // Post-increment won't have been able to update the property yet.
+            23, // Previous post-increment plus this pre-increment.
             23
         ]);
     });
 
-    it('should be able to increment a static property', function () {
+    it('should be able to increment a static property', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -99,18 +99,18 @@ $result[] = MyClass::$myStaticProp;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
-            21, // Post-increment won't have been able to update the property yet
-            23, // Previous post-increment plus this pre-increment
+            21, // Post-increment won't have been able to update the property yet.
+            23, // Previous post-increment plus this pre-increment.
             23
         ]);
     });
 
-    it('should be able to increment a magic property', function () {
+    it('should be able to increment a magic property', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -147,20 +147,20 @@ $result[] = ++$object->myMagicProp;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
-            // Initial fetch of myMagicProp
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            // Initial fetch of myMagicProp.
             'get myMagicProp',
             21,
 
-            // myMagicProp++
+            // myMagicProp++.
             'get myMagicProp',
             'set myMagicProp to 22',
             21,
 
-            // ++myMagicProp
+            // ++myMagicProp.
             'get myMagicProp',
             'set myMagicProp to 23',
             23

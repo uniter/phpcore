@@ -77,6 +77,7 @@ describe('FFIFactory', function () {
                 sinon.match.same(referenceFactory),
                 sinon.match.same(futureFactory),
                 sinon.match.same(callStack),
+                sinon.match.same(flow),
                 sinon.match.same(valueCaller),
                 sinon.match.same(wrappedObjectValue)
             );

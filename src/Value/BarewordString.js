@@ -29,6 +29,7 @@ module.exports = require('pauser')([
      * @param {ReferenceFactory} referenceFactory
      * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
+     * @param {Flow} flow
      * @param {string} value
      * @param {Namespace} globalNamespace
      * @param {NamespaceScope} namespaceScope
@@ -39,11 +40,12 @@ module.exports = require('pauser')([
         referenceFactory,
         futureFactory,
         callStack,
+        flow,
         value,
         globalNamespace,
         namespaceScope
     ) {
-        StringValue.call(this, factory, referenceFactory, futureFactory, callStack, value, globalNamespace);
+        StringValue.call(this, factory, referenceFactory, futureFactory, callStack, flow, value, globalNamespace);
 
         /**
          * @type {NamespaceScope}
@@ -58,7 +60,7 @@ module.exports = require('pauser')([
          * Calls the function this bareword references.
          *
          * @param {Reference[]|Value[]|Variable[]} args
-         * @returns {Future<Reference|Value>|Reference|Value}
+         * @returns {ChainableInterface<Reference|Value|Variable>}
          */
         call: function (args) {
             var value = this,
@@ -73,7 +75,7 @@ module.exports = require('pauser')([
          * @param {StringValue} nameValue
          * @param {Value[]} args
          * @param {bool} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
-         * @returns {Future<Reference|Value>}
+         * @returns {ChainableInterface<Reference|Value|Variable>}
          */
         callStaticMethod: function (nameValue, args, isForwarding) {
             var value = this;
@@ -101,7 +103,7 @@ module.exports = require('pauser')([
          * Fetches the value of a constant from the class this string refers to.
          *
          * @param {string} name
-         * @returns {Value}
+         * @returns {ChainableInterface<Value>}
          */
         getConstantByName: function (name) {
             var value = this;
@@ -110,15 +112,14 @@ module.exports = require('pauser')([
             return value.namespaceScope.getClass(value.value)
                 .next(function (classObject) {
                     return classObject.getConstantByName(name);
-                })
-                .asValue();
+                });
         },
 
         /**
-         * Fetches a reference to a static property of the class this string refers to
+         * Fetches a reference to a static property of the class this string refers to.
          *
          * @param {StringValue} nameValue
-         * @returns {Future<StaticPropertyReference|UndeclaredStaticPropertyReference>}
+         * @returns {ChainableInterface<StaticPropertyReference|UndeclaredStaticPropertyReference>}
          */
         getStaticPropertyByName: function (nameValue) {
             var value = this;
@@ -131,10 +132,10 @@ module.exports = require('pauser')([
 
         /**
          * Creates an instance of the class this string contains the name of,
-         * relative to the current namespace
+         * relative to the current namespace.
          *
          * @param {Value[]} args
-         * @returns {FutureValue<ObjectValue>|ObjectValue}
+         * @returns {ChainableInterface<ObjectValue>}
          */
         instantiate: function (args) {
             var value = this;
@@ -142,8 +143,7 @@ module.exports = require('pauser')([
             return value.namespaceScope.getClass(value.value)
                 .next(function (classObject) {
                     return classObject.instantiate(args);
-                })
-                .asValue();
+                });
         },
 
         /**

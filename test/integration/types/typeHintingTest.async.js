@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP parameter type hinting integration (async mode)', function () {
-    it('should allow passing valid arguments for function parameters', function () {
+    it('should allow passing valid arguments for function parameters', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -51,11 +51,9 @@ EOS
             module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                21 + 21 + 21
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            21 + 21 + 21
+        ]);
     });
 
     it('should allow passing accessors with valid values as arguments', async function () {
@@ -96,7 +94,7 @@ EOS
         });
     });
 
-    it('should allow passing valid arguments for function parameters with autoloaded interface types', function () {
+    it('should allow passing valid arguments for function parameters with autoloaded interface types', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -157,14 +155,12 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                21 + 21 + 21
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            21 + 21 + 21
+        ]);
     });
 
-    it('should allow passing valid arguments for instance and static method parameters', function () {
+    it('should allow passing valid arguments for instance and static method parameters', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -212,15 +208,13 @@ EOS
             module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                21 + 21 + 21,
-                1001 + 1001 + 1001
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            21 + 21 + 21,
+            1001 + 1001 + 1001
+        ]);
     });
 
-    it('should raise a fatal error when a function argument does not match its parameter', function () {
+    it('should raise a fatal error when a function argument does not match its parameter', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyClass {}
@@ -235,7 +229,7 @@ EOS
             module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        return expect(engine.execute()).to.eventually.be.rejectedWith(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught TypeError: Argument 1 passed to myFunction() must be an instance of MyClass,' +
             ' instance of YourClass given, called in /path/to/module.php on line 8 and defined in /path/to/module.php:5' +
@@ -245,7 +239,7 @@ EOS
         );
     });
 
-    it('should raise a fatal error when an instance method argument does not match its parameter', function () {
+    it('should raise a fatal error when an instance method argument does not match its parameter', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyClass {}
@@ -262,7 +256,7 @@ EOS
             module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        return expect(engine.execute()).to.eventually.be.rejectedWith(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught TypeError: Argument 1 passed to MyTestClass::myInstanceMethod() must be an instance of MyClass, ' +
             'instance of YourClass given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:6' +
@@ -272,7 +266,7 @@ EOS
         );
     });
 
-    it('should raise a fatal error when a static method argument does not match its parameter', function () {
+    it('should raise a fatal error when a static method argument does not match its parameter', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyClass {}
@@ -289,7 +283,7 @@ EOS
             module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        return expect(engine.execute()).to.eventually.be.rejectedWith(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught TypeError: Argument 1 passed to MyTestClass::myStaticMethod() must be an instance of MyClass, ' +
             'instance of YourClass given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:6' +

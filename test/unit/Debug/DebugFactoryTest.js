@@ -14,37 +14,42 @@ var expect = require('chai').expect,
     DebugFactory = require('../../../src/Debug/DebugFactory');
 
 describe('DebugFactory', function () {
-    beforeEach(function () {
-        this.DebugFormatter = sinon.stub();
-        this.DebugValue = sinon.stub();
-        this.ValueFormatter = sinon.stub();
+    var debugFactory,
+        DebugFormatter,
+        DebugValue,
+        ValueFormatter;
 
-        this.debugFactory = new DebugFactory(this.DebugFormatter, this.DebugValue, this.ValueFormatter);
+    beforeEach(function () {
+        DebugFormatter = sinon.stub();
+        DebugValue = sinon.stub();
+        ValueFormatter = sinon.stub();
+
+        debugFactory = new DebugFactory(DebugFormatter, DebugValue, ValueFormatter);
     });
 
     describe('createDebugFormatter()', function () {
         it('should pass the DebugFactory to the created ValueFormatter', function () {
-            this.debugFactory.createDebugFormatter();
+            debugFactory.createDebugFormatter();
 
-            expect(this.ValueFormatter).to.have.been.calledOnce;
-            expect(this.ValueFormatter).to.have.been.calledWith(sinon.match.same(this.debugFactory));
+            expect(ValueFormatter).to.have.been.calledOnce;
+            expect(ValueFormatter).to.have.been.calledWith(sinon.match.same(debugFactory));
         });
 
         it('should pass the created ValueFormatter to the DebugFormatter', function () {
-            var valueFormatter = sinon.createStubInstance(this.ValueFormatter);
-            this.ValueFormatter.returns(valueFormatter);
+            var valueFormatter = sinon.createStubInstance(ValueFormatter);
+            ValueFormatter.returns(valueFormatter);
 
-            this.debugFactory.createDebugFormatter();
+            debugFactory.createDebugFormatter();
 
-            expect(this.DebugFormatter).to.have.been.calledOnce;
-            expect(this.DebugFormatter).to.have.been.calledWith(sinon.match.same(valueFormatter));
+            expect(DebugFormatter).to.have.been.calledOnce;
+            expect(DebugFormatter).to.have.been.calledWith(sinon.match.same(valueFormatter));
         });
 
         it('should return the created DebugFormatter', function () {
-            var debugFormatter = sinon.createStubInstance(this.DebugFormatter);
-            this.DebugFormatter.returns(debugFormatter);
+            var debugFormatter = sinon.createStubInstance(DebugFormatter);
+            DebugFormatter.returns(debugFormatter);
 
-            expect(this.debugFactory.createDebugFormatter()).to.equal(debugFormatter);
+            expect(debugFactory.createDebugFormatter()).to.equal(debugFormatter);
         });
     });
 });

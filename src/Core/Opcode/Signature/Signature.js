@@ -41,6 +41,24 @@ _.extend(Signature.prototype, {
     },
 
     /**
+     * Fetches the number of parameters whose arguments (if specified) must be specified initially.
+     *
+     * @returns {number}
+     */
+    getInitialParameterCount: function () {
+        var parameterIndex,
+            signature = this;
+
+        for (parameterIndex = signature.parameters.length - 1; parameterIndex >= 0; parameterIndex--) {
+            if (signature.parameters[parameterIndex].isInitial()) {
+                return parameterIndex + 1;
+            }
+        }
+
+        return 0;
+    },
+
+    /**
      * Fetches the number of parameters in this opcode signature.
      *
      * @returns {number}

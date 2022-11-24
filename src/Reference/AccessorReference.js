@@ -16,35 +16,45 @@ var _ = require('microdash'),
     Reference = require('./Reference');
 
 /**
- * Represents a special type of reference where a getter and setter callback function are provided.
+ * Represents a special type of reference where callback functions are provided.
  *
  * @param {ValueFactory} valueFactory
  * @param {ReferenceFactory} referenceFactory
+ * @param {FutureFactory} futureFactory
+ * @param {Flow} flow
  * @param {Function} valueGetter
  * @param {Function|null} valueSetter
+ * @param {Function|null} unsetter
  * @param {Function|null} referenceGetter
  * @param {Function|null} referenceSetter
  * @param {Function|null} referenceClearer
  * @param {Function|null} definednessGetter
+ * @param {Function|null} readablenessGetter
  * @param {Function|null} emptinessGetter
  * @param {Function|null} setnessGetter
+ * @param {Function|null} referencenessGetter
  * @param {Function|null} undefinednessRaiser
  * @constructor
  */
 function AccessorReference(
     valueFactory,
     referenceFactory,
+    futureFactory,
+    flow,
     valueGetter,
     valueSetter,
+    unsetter,
     referenceGetter,
     referenceSetter,
     referenceClearer,
     definednessGetter,
+    readablenessGetter,
     emptinessGetter,
     setnessGetter,
+    referencenessGetter,
     undefinednessRaiser
 ) {
-    Reference.call(this, referenceFactory);
+    Reference.call(this, referenceFactory, futureFactory, flow);
 
     /**
      * @type {Function|null}
@@ -57,11 +67,19 @@ function AccessorReference(
     /**
      * @type {Function|null}
      */
+    this.readablenessGetter = readablenessGetter;
+    /**
+     * @type {Function|null}
+     */
     this.referenceClearer = referenceClearer;
     /**
      * @type {Function|null}
      */
     this.referenceGetter = referenceGetter;
+    /**
+     * @type {Function|null}
+     */
+    this.referencenessGetter = referencenessGetter;
     /**
      * @type {Function|null}
      */
@@ -74,6 +92,10 @@ function AccessorReference(
      * @type {Function|null}
      */
     this.undefinednessRaiser = undefinednessRaiser;
+    /**
+     * @type {Function|null}
+     */
+    this.unsetter = unsetter;
     /**
      * @type {ValueFactory}
      */
@@ -119,6 +141,10 @@ _.extend(AccessorReference.prototype, {
     getValue: function () {
         var reference = this;
 
+        if (!reference.isReadable()) {
+            return reference.raiseUndefined();
+        }
+
         return reference.valueFactory.coerce(reference.valueGetter());
     },
 
@@ -149,7 +175,6 @@ _.extend(AccessorReference.prototype, {
         }
 
         return reference.getValue()
-            .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
             .next(function (resultValue) {
                 return resultValue.isEmpty();
             });
@@ -158,8 +183,23 @@ _.extend(AccessorReference.prototype, {
     /**
      * {@inheritdoc}
      */
+    isReadable: function () {
+        var reference = this;
+
+        return reference.readablenessGetter ?
+            reference.readablenessGetter() :
+            reference.isDefined();
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     isReference: function () {
-        return Boolean(this.referenceGetter);
+        var reference = this;
+
+        return reference.referencenessGetter ?
+            reference.referencenessGetter() :
+            false;
     },
 
     /**
@@ -173,7 +213,6 @@ _.extend(AccessorReference.prototype, {
         }
 
         return reference.getValue()
-            .asFuture() // Avoid auto-boxing the boolean result as a BooleanValue.
             .next(function (resultValue) {
                 return resultValue.isSet();
             });
@@ -212,21 +251,39 @@ _.extend(AccessorReference.prototype, {
      * {@inheritdoc}
      */
     setValue: function (value) {
-        var reference = this,
-            presentSetValue;
+        var reference = this;
 
         if (!reference.valueSetter) {
             throw new Exception('Accessor is read-only');
         }
 
-        return value.next(function (presentValue) {
-            presentSetValue = presentValue;
+        return reference.futureFactory
+            .createFutureChain(function () {
+                // Capture any error thrown by the setter and convert to a rejected Future.
+                return reference.valueSetter(value);
+            })
+            .next(function (setterResultValue) {
+                // Return the coerced result from the setter or fall back to the set value as the result.
+                return setterResultValue ?
+                    reference.valueFactory.coerce(setterResultValue) :
+                    value;
+            });
+    },
 
-            return reference.valueSetter(presentValue);
-        }).next(function () {
-            // Return the set value as the result.
-            return presentSetValue;
-        });
+    /**
+     * {@inheritdoc}
+     */
+    unset: function () {
+        var reference = this;
+
+        if (!reference.unsetter) {
+            throw new Exception('Accessor cannot be unset');
+        }
+
+        return reference.flow.chainify(reference.unsetter())
+            .next(function () {
+                return null;
+            });
     }
 });
 

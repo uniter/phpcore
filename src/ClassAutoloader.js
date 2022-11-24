@@ -65,11 +65,12 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Attempts to autoload the specified class
+         * Attempts to autoload the specified class.
          *
          * @param {string} name
-         * @returns {Value} Usually returns Value<null>, any userland autoloader return value is ignored
-         *                  but a FutureValue will be awaited, allowing for any async operation
+         * @returns {ChainableInterface<Value>} Usually returns Value<null>, any userland autoloader
+         *                                      return value is ignored but a Future will be awaited,
+         *                                      allowing for any async operation.
          */
         autoloadClass: function (name) {
             var autoloader = this,
@@ -78,11 +79,10 @@ module.exports = require('pauser')([
                 splStack = autoloader.splStack;
 
             if (splStack) {
-                // spl_autoload_register(...) was used, so the SPL autoloader stack was initialised
+                // spl_autoload_register(...) was used, so the SPL autoloader stack was initialised.
 
                 return autoloader.flow.eachAsync(splStack, function (autoloadCallable) {
                     return autoloadCallable.call([autoloader.valueFactory.createString(name)], globalNamespace)
-                        .asFuture() // We must switch to a future, because we sometimes resolve with a scalar just below
                         .next(function () {
                             if (globalNamespace.hasClass(name)) {
                                 // Autoloader has defined the class: no need to call any further autoloaders
@@ -109,7 +109,7 @@ module.exports = require('pauser')([
          * Removes the given callable autoloader function from the SPL stack.
          *
          * @param {Value} autoloadCallableValue
-         * @returns {FutureValue<BooleanValue>|BooleanValue}
+         * @returns {ChainableInterface<BooleanValue>}
          */
         removeAutoloadCallable: function (autoloadCallableValue) {
             var autoloader = this,
@@ -125,9 +125,9 @@ module.exports = require('pauser')([
                 // Callables may be different value types or different objects,
                 // so compare using the *Value API.
                 return existingAutoloadCallable.isEqualTo(autoloadCallableValue)
-                    .asEventualNative()
-                    .next(function (isEqual) {
-                        if (isEqual) {
+                    .asValue()
+                    .next(function (isEqualValue) {
+                        if (isEqualValue.getNative()) {
                             found = true;
                             splStack.splice(index, 1);
                             return false;

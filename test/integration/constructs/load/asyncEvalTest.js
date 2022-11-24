@@ -103,7 +103,7 @@ EOS
         });
     });
 
-    it('should correctly trap a parse error during eval of PHP code', function () {
+    it('should correctly trap a parse error during eval of PHP code', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -127,7 +127,7 @@ EOS
         //      not the includer/parent
         // NB2: Unlike other errors, an uncaught ParseError is displayed as "PHP Parse error: ..."
         //      as below, _not_ as eg. "PHP Fatal error: Uncaught ParseError ..."
-        return expect(engine.execute().finally(function () {
+        await expect(engine.execute().finally(function () {
             expect(engine.getStderr().readAll()).to.equal(
                 'PHP Parse error:  syntax error, unexpected end of file in /path/to/my_module.php(3) : eval()\'d code on line 1\n'
             );
@@ -135,13 +135,13 @@ EOS
             expect(engine.getStdout().readAll()).to.equal(
                 '\nParse error: syntax error, unexpected end of file in /path/to/my_module.php(3) : eval()\'d code on line 1\n'
             );
-        })).to.be.rejectedWith(
+        })).to.eventually.be.rejectedWith(
             PHPParseError,
             'PHP Parse error: syntax error, unexpected end of file in /path/to/my_module.php(3) : eval()\'d code on line 1'
         );
     });
 
-    it('should correctly trap a compile-time fatal error during eval of PHP code', function () {
+    it('should correctly trap a compile-time fatal error during eval of PHP code', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -166,7 +166,7 @@ EOS
         //      not the includer/parent
         // NB2: Unlike other errors, an uncaught compile-time fatal error is displayed as "PHP Fatal error: ..."
         //      as below, _not_ as eg. "PHP Fatal error: Uncaught Error ..."
-        return expect(engine.execute().finally(function () {
+        await expect(engine.execute().finally(function () {
             expect(engine.getStderr().readAll()).to.equal(
                 'PHP Fatal error:  \'goto\' to undefined label \'my_undefined_label\' in /path/to/my_invalid_goto.php(3) : eval()\'d code on line 2\n'
             );
@@ -174,13 +174,13 @@ EOS
             expect(engine.getStdout().readAll()).to.equal(
                 '\nFatal error: \'goto\' to undefined label \'my_undefined_label\' in /path/to/my_invalid_goto.php(3) : eval()\'d code on line 2\n'
             );
-        })).to.be.rejectedWith(
+        })).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: \'goto\' to undefined label \'my_undefined_label\' in /path/to/my_invalid_goto.php(3) : eval()\'d code on line 2'
         );
     });
 
-    it('should correctly trap a runtime fatal error during eval of PHP code', function () {
+    it('should correctly trap a runtime fatal error during eval of PHP code', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -214,7 +214,7 @@ EOS
 
         // NB: The line number and file of the error should be that of the included file,
         //     not the includer/parent
-        return expect(engine.execute().finally(function () {
+        await expect(engine.execute().finally(function () {
             // Stdout (and stderr) should have the file/line combination in colon-separated format
             expect(engine.getStdout().readAll()).to.equal(
                 // NB: Stdout should have a leading newline written out just before the message
@@ -246,7 +246,7 @@ Stack trace:
 EOS
 */;}) //jshint ignore:line
             );
-        })).to.be.rejectedWith(
+        })).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Call to undefined function my_undefined_func() in /path/to/my_undefined_function_caller.php(10) : eval()\'d code on line 2'
         );

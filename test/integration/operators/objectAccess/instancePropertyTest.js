@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP instance property object access "->" integration', function () {
-    it('should allow properties with or without an initial value', function () {
+    it('should allow properties with or without an initial value', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -41,17 +41,17 @@ $result[] = $object->getSecondProp();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             null,
             21
         ]);
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should allow private properties to have different values for different classes in the hierarchy when third is public', function () {
+    it('should allow private properties to have different values for different classes in the hierarchy when third is public', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -89,10 +89,10 @@ $result[] = $myObject->mySecretProp; // The public one should be exposed and not
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             1001,
             9876, // Via getter
@@ -101,7 +101,7 @@ EOS
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should allow private properties to have different values for different classes in the hierarchy when third is protected', function () {
+    it('should allow private properties to have different values for different classes in the hierarchy when third is protected', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -138,10 +138,10 @@ $result[] = $myObject->getThirdSecret();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             1001,
             9876 // Via getter
@@ -149,7 +149,7 @@ EOS
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should allow a parent class to access a protected property of a descendant', function () {
+    it('should allow a parent class to access a protected property of a descendant', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -173,16 +173,16 @@ $result[] = $myObject->getProtectedSecretFromDescendant();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             9876
         ]);
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should allow a derived class to override a protected property of an ancestor', function () {
+    it('should allow a derived class to override a protected property of an ancestor', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -211,16 +211,16 @@ $result[] = $myObject->getProtectedSecretFromDescendant();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             'overridden initial value'
         ]);
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should raise a notice but return null for reads of undeclared properties', function () {
+    it('should raise a notice but return null for reads of undeclared properties', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL); // Notices are hidden by default
@@ -238,10 +238,10 @@ $result[] = $object->getAnUndeclaredProp();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('there.php', php),
+            module = tools.asyncTranspile('there.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             null
         ]);
         expect(engine.getStderr().readAll()).to.equal(
@@ -249,7 +249,7 @@ EOS
         );
     });
 
-    it('should raise two notices but return null when accessing a static property non-statically', function () {
+    it('should raise two notices but return null when accessing a static property non-statically', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL); // Notices are hidden by default
@@ -269,10 +269,10 @@ $result[] = $object->getMyProp();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             null
         ]);
         expect(engine.getStderr().readAll()).to.equal(
@@ -281,7 +281,7 @@ EOS
         );
     });
 
-    it('should raise a fatal error on attempting to access a private property outside the class', function () {
+    it('should raise a fatal error on attempting to access a private property outside the class', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -294,18 +294,16 @@ $object = new MyClass;
 return $object->mySecretProp;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }.bind(this)).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
-            'PHP Fatal error: Uncaught Error: Cannot access private property MyClass::$mySecretProp in my_module.php on line 9'
+            'PHP Fatal error: Uncaught Error: Cannot access private property MyClass::$mySecretProp in /path/to/my_module.php on line 9'
         );
     });
 
-    it('should raise a fatal error on attempting to access a private property from an ancestor', function () {
+    it('should raise a fatal error on attempting to access a private property from an ancestor', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -324,18 +322,16 @@ $object = new MyChildClass;
 return $object->getIt();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }.bind(this)).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
-            'PHP Fatal error: Uncaught Error: Cannot access private property MyChildClass::$mySecretProp in my_module.php on line 5'
+            'PHP Fatal error: Uncaught Error: Cannot access private property MyChildClass::$mySecretProp in /path/to/my_module.php on line 5'
         );
     });
 
-    it('should raise a notice and return null on attempting to access a private property from an ancestor when the definer is extended', function () {
+    it('should raise a notice and return null on attempting to access a private property from an ancestor when the definer is extended', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 ini_set('error_reporting', E_ALL); // Enable notices as we're testing for one being raised
@@ -357,16 +353,16 @@ $object = new MyGrandchildClass;
 return $object->getIt();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.be.null;
+        expect((await engine.execute()).getNative()).to.be.null;
         expect(engine.getStderr().readAll()).to.equal(
             'PHP Notice:  Undefined property: MyGrandchildClass::$mySecretProp in my_module.php on line 6\n'
         );
     });
 
-    it('should raise a fatal error on attempting to access a private property from a descendant', function () {
+    it('should raise a fatal error on attempting to access a private property from a descendant', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -385,12 +381,10 @@ $object = new MyChildClass;
 return $object->getIt();
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('my_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }.bind(this)).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             // Note that this is different from the behaviour in this scenario for a static property,
             // where the error message would be "Cannot access private property ..."
@@ -398,7 +392,7 @@ EOS
         );
     });
 
-    it('should raise a fatal error on attempting to access a protected property outside the class', function () {
+    it('should raise a fatal error on attempting to access a protected property outside the class', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -411,12 +405,10 @@ $object = new MyClass;
 return $object->mySecretProp;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('my_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }.bind(this)).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Cannot access protected property MyClass::$mySecretProp in my_module.php on line 9'
         );

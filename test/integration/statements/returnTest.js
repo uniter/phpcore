@@ -14,17 +14,16 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP "return" statement integration', function () {
-    it('should return the expected result for a simple return statement in async mode', function () {
+    it('should return the expected result for a simple return statement in async mode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 return 4;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        return module().execute().then(function (result) {
-            expect(result.getNative()).to.equal(4);
-        });
+        expect((await engine.execute()).getNative()).to.equal(4);
     });
 
     it('should correctly handle a return of pending future from accessor in async mode', async function () {
@@ -49,17 +48,16 @@ EOS
         expect((await engine.execute()).getNative()).to.equal('my result');
     });
 
-    it('should return the expected result for a simple return statement in psync mode', function () {
+    it('should return the expected result for a simple return statement in psync mode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 return 4;
 EOS
 */;}),//jshint ignore:line
-            module = tools.psyncTranspile('/path/to/my_module.php', php);
+            module = tools.psyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        return module().execute().then(function (result) {
-            expect(result.getNative()).to.equal(4);
-        });
+        expect((await engine.execute()).getNative()).to.equal(4);
     });
 
     it('should return the expected result for a simple return statement in sync mode', function () {
@@ -68,9 +66,10 @@ EOS
 return 4;
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.syncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.equal(4);
+        expect(engine.execute().getNative()).to.equal(4);
     });
 
     it('should correctly handle a return of Future from accessor following pause in async mode', async function () {

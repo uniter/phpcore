@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP "function" statement integration', function () {
-    it('should return the expected result for a simple return statement', function (done) {
+    it('should return the expected result for a simple return statement', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 function doNothing() {}
@@ -22,11 +22,9 @@ function doNothing() {}
 return doNothing();
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        module().execute().then(function (result) {
-            expect(result.getNative()).to.equal(null);
-            done();
-        }, done).catch(done);
+        expect((await engine.execute()).getNative()).to.equal(null);
     });
 });

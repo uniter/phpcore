@@ -18,12 +18,13 @@ var _ = require('microdash'),
     Reference = require('./Reference');
 
 /**
- * Represents an element of a PHP array
+ * Represents an element of a PHP array.
  *
  * @param {ValueFactory} valueFactory
  * @param {ReferenceFactory} referenceFactory
  * @param {FutureFactory} futureFactory
  * @param {CallStack} callStack
+ * @param {Flow} flow
  * @param {ArrayValue} arrayValue
  * @param {Value} key
  * @param {Value|null} value
@@ -35,6 +36,7 @@ function ElementReference(
     referenceFactory,
     futureFactory,
     callStack,
+    flow,
     arrayValue,
     key,
     value,
@@ -44,16 +46,16 @@ function ElementReference(
         throw new Error('Array elements can only have a value or be a reference, not both');
     }
 
-    Reference.call(this, referenceFactory);
+    Reference.call(this, referenceFactory, futureFactory, flow);
 
     /**
      * @type {ArrayValue}
      */
     this.arrayValue = arrayValue;
     /**
-     * @type {FutureFactory}
+     * @type {CallStack}
      */
-    this.futureFactory = futureFactory;
+    this.callStack = callStack;
     /**
      * @type {Value}
      */
@@ -62,10 +64,6 @@ function ElementReference(
      * @type {ReferenceSlot|null}
      */
     this.reference = reference || null;
-    /**
-     * @type {CallStack}
-     */
-    this.callStack = callStack;
     /**
      * @type {Value|null}
      */
@@ -169,7 +167,7 @@ _.extend(ElementReference.prototype, {
     /**
      * Determines whether the specified array element is "empty" or not.
      *
-     * @returns {Future<boolean>}
+     * @returns {ChainableInterface<boolean>}
      */
     isEmpty: function () {
         var element = this;
@@ -258,40 +256,36 @@ _.extend(ElementReference.prototype, {
      * {@inheritdoc}
      */
     setValue: function (value) {
-        var element = this;
+        var element = this,
+            isFirstElement = (element.arrayValue.getLength() === 0);
 
-        return value
-            .next(function (presentValue) {
-                var isFirstElement = (element.arrayValue.getLength() === 0);
+        if (element.key === null) {
+            // This reference refers to a new element to push onto the end of an array.
+            element.arrayValue.pushElement(element);
+        }
 
-                if (element.key === null) {
-                    // This reference refers to a new element to push onto the end of an array.
-                    element.arrayValue.pushElement(element);
-                }
+        return element.valueFactory.createFutureChain(function () {
+            var assignedValue;
 
-                return element.valueFactory.createFutureChain(function () {
-                    var assignedValue;
+            if (element.reference) {
+                // Note that we don't call .getForAssignment() here as the eventual reference will do so.
+                return element.reference.setValue(value);
+            }
 
-                    if (element.reference) {
-                        // Note that we don't call .getForAssignment() here as the eventual reference will do so.
-                        return element.reference.setValue(presentValue);
-                    }
+            // TODO: Does this only need to happen when .pushElement() has not above?
+            element.arrayValue.defineElement(element);
 
-                    // TODO: Does this only need to happen when .pushElement() has not above?
-                    element.arrayValue.defineElement(element);
+            assignedValue = value.getForAssignment();
+            element.value = assignedValue;
 
-                    assignedValue = presentValue.getForAssignment();
-                    element.value = assignedValue;
+            return assignedValue;
+        }).next(function (assignedValue) {
+            if (isFirstElement) {
+                element.arrayValue.pointToElement(element);
+            }
 
-                    return assignedValue;
-                }).next(function (assignedValue) {
-                    if (isFirstElement) {
-                        element.arrayValue.pointToElement(element);
-                    }
-
-                    return assignedValue;
-                });
-            });
+            return assignedValue;
+        });
     },
 
     /**

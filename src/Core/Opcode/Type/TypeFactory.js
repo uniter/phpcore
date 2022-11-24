@@ -11,9 +11,11 @@
 
 var _ = require('microdash'),
     AnyType = require('./AnyType'),
+    ListType = require('./ListType'),
     NativeType = require('./NativeType'),
     ReferenceType = require('./ReferenceType'),
     SnapshotType = require('./SnapshotType'),
+    UnionType = require('./UnionType'),
     ValueType = require('./ValueType');
 
 /**
@@ -48,6 +50,15 @@ _.extend(TypeFactory.prototype, {
     },
 
     /**
+     * Creates a new ListType.
+     *
+     * @returns {ListType}
+     */
+    createListType: function () {
+        return new ListType();
+    },
+
+    /**
      * Creates a new NativeType.
      *
      * @param {string} nativeType
@@ -75,6 +86,16 @@ _.extend(TypeFactory.prototype, {
         var factory = this;
 
         return new SnapshotType(factory.valueFactory, factory.referenceFactory);
+    },
+
+    /**
+     * Creates a new UnionType.
+     *
+     * @param {TypeInterface[]} subTypes
+     * @returns {UnionType}
+     */
+    createUnionType: function (subTypes) {
+        return new UnionType(subTypes);
     },
 
     /**

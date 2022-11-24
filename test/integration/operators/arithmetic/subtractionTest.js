@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP subtraction operator "-" integration', function () {
-    it('should support subtracting different types of value', function () {
+    it('should support subtracting different types of value', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -31,10 +31,10 @@ return [
 ];
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'int - int': 17,
             'float - int': 8.4,
             'int - float': -8.4,
@@ -44,6 +44,24 @@ EOS
             'bool - int (true coerced to 1)': -14,
             'int - null (null coerces to 0)': 20,
             'null - int (null coerces to 0)': -20
+        });
+    });
+
+    it('should correctly handle passing a variable as operand that is then re-assigned within a later operand', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+$result['assignment within operand'] = ${($myVar = 100) && false ?: 'myVar'} - ${($myVar = 22) && false ?: 'myVar'};
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php);
+
+        expect((await module().execute()).getNative()).to.deep.equal({
+            // Value should be resolved within the operand.
+            'assignment within operand': 78
         });
     });
 });

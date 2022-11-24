@@ -15,8 +15,7 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     TraceFormatter = require('../../../src/Error/TraceFormatter'),
     Translator = phpCommon.Translator,
-    ValueFactory = require('../../../src/ValueFactory').sync(),
-    Variable = require('../../../src/Variable').sync();
+    ValueFactory = require('../../../src/ValueFactory').sync();
 
 describe('TraceFormatter', function () {
     var traceFormatter,
@@ -36,8 +35,7 @@ describe('TraceFormatter', function () {
 
     describe('format()', function () {
         it('should return a correctly formatted trace string', function () {
-            var variable = sinon.createStubInstance(Variable),
-                trace = [{
+            var trace = [{
                     index: 0,
                     file: '/path/to/my/third.php',
                     line: null,
@@ -50,8 +48,7 @@ describe('TraceFormatter', function () {
                     func: 'secondFunc',
                     args: [
                         valueFactory.createString('second call, first arg'),
-                        valueFactory.createString('second call, second arg'),
-                        variable // Simulate passing a variable/reference in rather than a value
+                        valueFactory.createString('second call, second arg')
                     ]
                 }, {
                     index: 2,
@@ -60,12 +57,11 @@ describe('TraceFormatter', function () {
                     func: 'firstFunc',
                     args: [valueFactory.createInteger(20002)]
                 }];
-            variable.formatAsString.returns('\'My formatted variable\'');
 
             expect(traceFormatter.format(trace)).to.equal(
                 nowdoc(function () {/*<<<EOS
 #0 /path/to/my/third.php([Translated] core.unknown {}): thirdFunc('third call, onl...')
-#1 /path/to/my/second.php(21): secondFunc('second call, fi...', 'second call, se...', 'My formatted variable')
+#1 /path/to/my/second.php(21): secondFunc('second call, fi...', 'second call, se...')
 #2 /path/to/my/first.php(101): firstFunc(20002)
 #3 {main}
 EOS

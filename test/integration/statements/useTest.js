@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP "use" statement integration', function () {
-    it('should allow importing a class of the same name into a different namespace', function () {
+    it('should allow importing a class of the same name into a different namespace', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -47,16 +47,16 @@ namespace {
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             '[From mine] My\\Stuff\\TheClass',
             '[From yours] My\\Stuff\\TheClass'
         ]);
     });
 
-    it('should raise a fatal error when attempting to use a defined class name as an alias', function () {
+    it('should raise a fatal error when attempting to use a defined class name as an alias', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -65,18 +65,16 @@ class MyClass {}
 use YourClass as MyClass;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Cannot use YourClass as MyClass because the name is already in use in /path/to/module.php on line 5'
         );
     });
 
-    it('should raise a fatal error when attempting to define a class with a name already used as an alias', function () {
+    it('should raise a fatal error when attempting to define a class with a name already used as an alias', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 namespace My\Stuff;
@@ -86,18 +84,16 @@ use YourClass as MyClass;
 class MyClass {}
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Cannot declare class My\\Stuff\\MyClass because the name is already in use in /path/to/module.php on line 6'
         );
     });
 
-    it('should raise a fatal error when attempting to define an alias that is already in use', function () {
+    it('should raise a fatal error when attempting to define an alias that is already in use', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -106,12 +102,10 @@ use YourClass as MyClass;
 use YourClass as MyClass;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Cannot use YourClass as MyClass because the name is already in use in /path/to/module.php on line 5'
         );

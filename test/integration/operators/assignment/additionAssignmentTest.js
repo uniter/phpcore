@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP addition-assignment operator "+=" integration', function () {
-    it('should support adding to the number contained in a variable or property', function () {
+    it('should support adding to the number contained in a variable or property', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -43,6 +43,10 @@ $result['with instance prop'] = $myObject->myInstanceProp;
 MyClass::$myStaticProp += 21;
 $result['with static prop'] = MyClass::$myStaticProp;
 
+// Add to a variable that is then re-assigned within a later operand.
+${($myNumber = 21) && false ?: 'myNumber'} += ${($myNumber = 7) && false ?: 'myNumber'};
+$result['assignment within operand'] = $myNumber;
+
 return $result;
 EOS
 */;}), //jshint ignore:line
@@ -66,13 +70,12 @@ EOS
             accessorValue = newValue;
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'with variable': 1000 +4,
-                'with accessor': 21 +5,
-                'with instance prop': 10 +17,
-                'with static prop': 100 +21
-            });
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'with variable': 1000 +4,
+            'with accessor': 21 +5,
+            'with instance prop': 10 +17,
+            'with static prop': 100 +21,
+            'assignment within operand': 28
         });
     });
 });

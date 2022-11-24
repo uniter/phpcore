@@ -62,7 +62,6 @@ module.exports = require('pauser')([
     require('./FunctionFactory'),
     require('./Function/FunctionSpec'),
     require('./Function/FunctionSpecFactory'),
-    require('./Value/Future'),
     require('./Load/Includer'),
     require('./INIState'),
     require('./Load/Loader'),
@@ -106,9 +105,7 @@ module.exports = require('pauser')([
     require('./Control/Userland'),
     require('./Class/Definition/UserlandDefinitionBuilder'),
     require('./Value'),
-    require('./ValueFactory'),
-    require('./Variable'),
-    require('./VariableFactory')
+    require('./ValueFactory')
 ], function (
     _,
     builtinTypes,
@@ -162,7 +159,6 @@ module.exports = require('pauser')([
     FunctionFactory,
     FunctionSpec,
     FunctionSpecFactory,
-    FutureValue,
     Includer,
     INIState,
     Loader,
@@ -206,9 +202,7 @@ module.exports = require('pauser')([
     Userland,
     UserlandDefinitionBuilder,
     Value,
-    ValueFactory,
-    Variable,
-    VariableFactory
+    ValueFactory
 ) {
     var THROWABLE_INTERFACE = 'Throwable',
         hasOwn = {}.hasOwnProperty,
@@ -481,7 +475,7 @@ module.exports = require('pauser')([
             controlBridge = get('control_bridge'),
             controlScope = get('control_scope'),
             opcodePool = get('opcode_pool'),
-            controlFactory = new ControlFactory(Trace, opcodePool),
+            controlFactory = get('control_factory'),
             valueFactory = set('value_factory', new ValueFactory(
                 mode,
                 translator,
@@ -495,7 +489,14 @@ module.exports = require('pauser')([
             pauseFactory = set('pause_factory', new PauseFactory(Pause, callStack, controlScope, mode)),
             userland = new Userland(callStack, controlFactory, controlBridge, controlScope, valueFactory, opcodePool, mode),
             futureFactory = get('future_factory'),
-            flow = set('flow', new Flow(controlFactory, controlBridge, controlScope, futureFactory, mode)),
+            flow = set('flow', new Flow(
+                controlFactory,
+                controlBridge,
+                controlScope,
+                futureFactory,
+                get('chainifier'),
+                mode
+            )),
             referenceFactory = set('reference_factory', new ReferenceFactory(
                 AccessorReference,
                 ElementReference,
@@ -508,10 +509,11 @@ module.exports = require('pauser')([
                 UndeclaredStaticPropertyReference,
                 valueFactory,
                 futureFactory,
-                callStack
+                callStack,
+                flow
             )),
-            elementProviderFactory = new ElementProviderFactory(referenceFactory, futureFactory),
-            elementProvider = elementProviderFactory.createProvider(),
+            elementProviderFactory = get('element_provider_factory'),
+            elementProvider = get('element_provider'),
             classAutoloader = new ClassAutoloader(valueFactory, flow),
 
             ffiCaller = new FFICaller(
@@ -574,7 +576,7 @@ module.exports = require('pauser')([
                 futureFactory,
                 flow
             )),
-            variableFactory = new VariableFactory(Variable, callStack, valueFactory, referenceFactory, futureFactory),
+            variableFactory = get('variable_factory'),
             superGlobalScope = new SuperGlobalScope(variableFactory),
             scopeFactory = new ScopeFactory(
                 ModuleScope,
@@ -842,6 +844,10 @@ module.exports = require('pauser')([
          */
         this.coreBinder = coreBinder;
         this.coreFactory = coreFactory;
+        /**
+         * @type {ElementProvider}
+         */
+        this.elementProvider = elementProvider;
         this.errorReporting = errorReporting;
         /**
          * @type {Flow}
@@ -1021,7 +1027,7 @@ module.exports = require('pauser')([
          *
          * @param {string} name
          * @param {Value|*} value Value object or native value to be coerced
-         * @returns {Value} Returns the value assigned, which may have been a FutureValue, settled synchronously
+         * @returns {Value} Returns the value assigned, which may have been a Future, settled synchronously
          * @throws {Error} Throws when the global scope already defines the specified variable
          */
         defineGlobal: function (name, value) {
@@ -1042,36 +1048,45 @@ module.exports = require('pauser')([
          * @param {string} name
          * @param {Function} valueGetter
          * @param {Function=} valueSetter
+         * @param {Function=} unsetter
          * @param {Function=} referenceGetter
          * @param {Function=} referenceSetter
          * @param {Function=} referenceClearer
          * @param {Function=} definednessGetter
+         * @param {Function=} readablenessGetter
          * @param {Function=} emptinessGetter
          * @param {Function=} setnessGetter
+         * @param {Function=} referencenessGetter
          * @param {Function=} undefinednessRaiser
          */
         defineGlobalAccessor: function (
             name,
             valueGetter,
             valueSetter,
+            unsetter,
             referenceGetter,
             referenceSetter,
             referenceClearer,
             definednessGetter,
+            readablenessGetter,
             emptinessGetter,
             setnessGetter,
+            referencenessGetter,
             undefinednessRaiser
         ) {
             var state = this,
                 accessorReference = state.referenceFactory.createAccessor(
                     valueGetter.bind(state.ffiInternals),
                     valueSetter ? valueSetter.bind(state.ffiInternals) : null,
+                    unsetter ? unsetter.bind(state.ffiInternals) : null,
                     referenceGetter ? referenceGetter.bind(state.ffiInternals) : null,
                     referenceSetter ? referenceSetter.bind(state.ffiInternals) : null,
                     referenceClearer ? referenceClearer.bind(state.ffiInternals) : null,
                     definednessGetter ? definednessGetter.bind(state.ffiInternals) : null,
+                    readablenessGetter ? readablenessGetter.bind(state.ffiInternals) : null,
                     emptinessGetter ? emptinessGetter.bind(state.ffiInternals) : null,
                     setnessGetter ? setnessGetter.bind(state.ffiInternals) : null,
+                    referencenessGetter ? referencenessGetter.bind(state.ffiInternals) : null,
                     undefinednessRaiser ? undefinednessRaiser.bind(state.ffiInternals) : null
                 );
 
@@ -1151,7 +1166,7 @@ module.exports = require('pauser')([
          *
          * @param {string} name
          * @param {Value|*} value
-         * @returns {Value} Returns the value assigned, which may be a FutureValue
+         * @returns {ChainableInterface<Value>} Returns the value assigned, which may be a Future-wrapped Value.
          */
         defineSuperGlobal: function (name, value) {
             var state = this;
@@ -1274,6 +1289,15 @@ module.exports = require('pauser')([
          */
         getCoreFactory: function () {
             return this.coreFactory;
+        },
+
+        /**
+         * Fetches the ElementProvider service.
+         *
+         * @returns {ElementProvider}
+         */
+        getElementProvider: function () {
+            return this.elementProvider;
         },
 
         /**
@@ -1511,12 +1535,12 @@ module.exports = require('pauser')([
          * Sets the value of an existing PHP global. If a native value is given
          * then it will be coerced to a PHP one.
          * If the global is not defined than an error will be thrown -
-         * use .defineGlobal(...) when defining a new variable
+         * use .defineGlobal(...) when defining a new variable.
          *
          * @param {string} name
-         * @param {Value|*} value Value object or native value to be coerced
-         * @returns {Value} Returns the value assigned, which may be a FutureValue
-         * @throws {Error} Throws if the variable is not defined in the global scope
+         * @param {Value|*} value Value object or native value to be coerced.
+         * @returns {Value} Returns the value assigned, which may be a Future-wrapped Value.
+         * @throws {Error} Throws if the variable is not defined in the global scope.
          */
         setGlobal: function (name, value) {
             var state = this;

@@ -14,11 +14,13 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     AnyType = require('../../../../../src/Core/Opcode/Type/AnyType'),
     Exception = phpCommon.Exception,
+    ListType = require('../../../../../src/Core/Opcode/Type/ListType'),
     NativeType = require('../../../../../src/Core/Opcode/Type/NativeType'),
     ReferenceType = require('../../../../../src/Core/Opcode/Type/ReferenceType'),
     SnapshotType = require('../../../../../src/Core/Opcode/Type/SnapshotType'),
     TypeFactory = require('../../../../../src/Core/Opcode/Type/TypeFactory'),
     TypeProvider = require('../../../../../src/Core/Opcode/Type/TypeProvider'),
+    UnionType = require('../../../../../src/Core/Opcode/Type/UnionType'),
     ValueType = require('../../../../../src/Core/Opcode/Type/ValueType');
 
 describe('Opcode TypeProvider', function () {
@@ -55,6 +57,22 @@ describe('Opcode TypeProvider', function () {
                 .returns(type);
 
             expect(provider.provideType('bool')).to.equal(type);
+        });
+
+        it('should return a ListType from TypeFactory when given "list"', function () {
+            var type = sinon.createStubInstance(ListType);
+            typeFactory.createListType.returns(type);
+
+            expect(provider.provideType('list')).to.equal(type);
+        });
+
+        it('should return a NativeType<null> from TypeFactory when given "null"', function () {
+            var type = sinon.createStubInstance(NativeType);
+            typeFactory.createNativeType
+                .withArgs('null')
+                .returns(type);
+
+            expect(provider.provideType('null')).to.equal(type);
         });
 
         it('should return a NativeType<number> from TypeFactory when given "number"', function () {
@@ -94,6 +112,19 @@ describe('Opcode TypeProvider', function () {
             typeFactory.createValueType.returns(type);
 
             expect(provider.provideType('val')).to.equal(type);
+        });
+
+        it('should return a UnionType from TypeFactory when given "val|ref"', function () {
+            var referenceType = sinon.createStubInstance(ReferenceType),
+                unionType = sinon.createStubInstance(UnionType),
+                valueType = sinon.createStubInstance(ValueType);
+            typeFactory.createReferenceType.returns(referenceType);
+            typeFactory.createUnionType
+                .withArgs([sinon.match.same(valueType), sinon.match.same(referenceType)])
+                .returns(unionType);
+            typeFactory.createValueType.returns(valueType);
+
+            expect(provider.provideType('val|ref')).to.equal(unionType);
         });
 
         it('should throw when given an unsupported type', function () {

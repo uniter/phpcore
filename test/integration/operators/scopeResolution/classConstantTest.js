@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP class constant scope resolution "::" integration', function () {
-    it('should allow class constants to be fetched using various methods of dereference', function () {
+    it('should allow class constants to be fetched using various methods of dereference', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -43,21 +43,21 @@ namespace Your\Stuff {
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
-            123, // With unprefixed class name
-            123, // With fully-qualified class name
-            123, // With class name in variable, without leading slash
-            123  // With class name in variable, with leading slash
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            123, // With unprefixed class name.
+            123, // With fully-qualified class name.
+            123, // With class name in variable, without leading slash.
+            123  // With class name in variable, with leading slash.
         ]);
     });
 
     // TODO: The line number should actually be that of the constant name itself - at the moment
     //       the line number of the statement will always be given. It is rare to split constant dereferences
     //       across multiple lines, though
-    it('should raise a fatal error when attempting to access an undefined constant of a class', function () {
+    it('should raise a fatal error when attempting to access an undefined constant of a class', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -66,18 +66,16 @@ class MyFirstClass {}
 return MyFirstClass::MY_UNDEFINED_CONST;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('my_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }.bind(this)).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Undefined class constant \'MY_UNDEFINED_CONST\' in my_module.php on line 5'
         );
     });
 
-    it('should raise a fatal error on attempting to fetch a class constant of an integer', function () {
+    it('should raise a fatal error on attempting to fetch a class constant of an integer', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -87,12 +85,10 @@ $dummy = $myInt::MY_CONST;
 
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_module.php', php),
+            module = tools.asyncTranspile('my_module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }.bind(this)).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Error: Class name must be a valid object or a string in my_module.php on line 5'
         );

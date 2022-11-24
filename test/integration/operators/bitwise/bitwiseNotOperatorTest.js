@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP bitwise NOT (ones\' complement) operator "~" integration', function () {
-    it('should support bitwise NOT operations', function () {
+    it('should support bitwise NOT operations', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -28,10 +28,10 @@ $result['zero'] = ~0;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'small integer': -3,
             'large integer': -123456782,
             'float': -124, // Note truncation

@@ -19,7 +19,8 @@ var expect = require('chai').expect,
     OpcodeHandlerFactory = require('../../../../../src/Core/Opcode/Handler/OpcodeHandlerFactory'),
     OpcodeRescuer = require('../../../../../src/Core/Opcode/Handler/OpcodeRescuer'),
     Pause = require('../../../../../src/Control/Pause'),
-    Trace = require('../../../../../src/Control/Trace');
+    Trace = require('../../../../../src/Control/Trace'),
+    UnpausedSentinel = require('../../../../../src/Core/Opcode/Handler/UnpausedSentinel');
 
 describe('OpcodeHandlerFactory', function () {
     var callStack,
@@ -28,7 +29,8 @@ describe('OpcodeHandlerFactory', function () {
         opcodeExecutor,
         opcodeFetcherRepository,
         opcodeRescuer,
-        trace;
+        trace,
+        unpausedSentinel;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
@@ -37,6 +39,7 @@ describe('OpcodeHandlerFactory', function () {
         opcodeFetcherRepository = sinon.createStubInstance(OpcodeFetcherRepository);
         opcodeRescuer = sinon.createStubInstance(OpcodeRescuer);
         trace = sinon.createStubInstance(Trace);
+        unpausedSentinel = sinon.createStubInstance(UnpausedSentinel);
 
         callStack.getCurrentTrace.returns(trace);
         controlBridge.isFuture.returns(false);
@@ -46,7 +49,8 @@ describe('OpcodeHandlerFactory', function () {
             callStack,
             opcodeFetcherRepository,
             opcodeExecutor,
-            opcodeRescuer
+            opcodeRescuer,
+            unpausedSentinel
         );
     });
 
@@ -59,7 +63,7 @@ describe('OpcodeHandlerFactory', function () {
 
         beforeEach(function () {
             opcode = {
-                resume: sinon.stub().returns(null),
+                resume: sinon.stub().returns(unpausedSentinel),
                 traceResult: sinon.stub()
             };
             opcodeFetcher = {};

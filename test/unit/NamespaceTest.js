@@ -448,7 +448,7 @@ describe('Namespace', function () {
                 });
 
                 it('should raise a "class not found" error', function () {
-                    return expect(namespace.getClass('My\\Lib\\MyAutoloadedClass').toPromise()).to.be.rejectedWith(
+                    return expect(namespace.getClass('My\\Lib\\MyAutoloadedClass').toPromise()).to.eventually.be.rejectedWith(
                         'Fake PHP Fatal error for #core.class_not_found with {"name":"My\\\\Lib\\\\MyAutoloadedClass"}'
                     );
                 });

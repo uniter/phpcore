@@ -30,6 +30,7 @@ module.exports = require('pauser')([
      * @param {ReferenceFactory} referenceFactory
      * @param {FutureFactory} futureFactory
      * @param {CallStack} callStack
+     * @param {Flow} flow
      * @param {boolean} value
      * @constructor
      */
@@ -38,9 +39,10 @@ module.exports = require('pauser')([
         referenceFactory,
         futureFactory,
         callStack,
+        flow,
         value
     ) {
-        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'boolean', !!value);
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, flow, 'boolean', !!value);
     }
 
     util.inherits(BooleanValue, Value);
@@ -72,20 +74,29 @@ module.exports = require('pauser')([
         /**
          * {@inheritdoc}
          */
+        compareWith: function (rightValue) {
+            var value = this;
+
+            return value.futureFactory.createPresent(rightValue.compareWithBoolean(value));
+        },
+
+        /**
+         * {@inheritdoc}
+         */
         compareWithArray: function (leftValue) {
             var rightValue = this,
                 booleanValue = rightValue.getNative(),
                 arrayIsNotEmpty = leftValue.getLength() > 0;
 
             if (!booleanValue && arrayIsNotEmpty) {
-                return -1;
+                return rightValue.futureFactory.createPresent(-1);
             }
 
             if (booleanValue && !arrayIsNotEmpty) {
-                return 1;
+                return rightValue.futureFactory.createPresent(1);
             }
 
-            return 0;
+            return rightValue.futureFactory.createPresent(0);
         },
 
         /**
@@ -164,14 +175,7 @@ module.exports = require('pauser')([
             var rightValue = this,
                 boolean = rightValue.getNative();
 
-            return boolean ? 0 : 1;
-        },
-
-        /**
-         * {@inheritdoc}
-         */
-        compareWithPresent: function (rightValue) {
-            return rightValue.compareWithBoolean(this);
+            return rightValue.futureFactory.createPresent(boolean ? 0 : 1);
         },
 
         /**
@@ -193,14 +197,14 @@ module.exports = require('pauser')([
                 rightBoolean = rightValue.getNative();
 
             if (!leftBoolean && rightBoolean) {
-                return -1;
+                return rightValue.futureFactory.createPresent(-1);
             }
 
             if (leftBoolean && !rightBoolean) {
-                return 1;
+                return rightValue.futureFactory.createPresent(1);
             }
 
-            return 0;
+            return rightValue.futureFactory.createPresent(0);
         },
 
         /**
@@ -264,7 +268,7 @@ module.exports = require('pauser')([
          * Determines whether this boolean is classed as "empty" or not.
          * Only false is classed as empty
          *
-         * @returns {Future<boolean>}
+         * @returns {ChainableInterface<boolean>}
          */
         isEmpty: function () {
             var value = this;

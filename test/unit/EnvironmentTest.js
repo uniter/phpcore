@@ -145,11 +145,14 @@ describe('Environment', function () {
         it('should define the global on the state', function () {
             var definednessGetter = sinon.stub(),
                 emptinessGetter = sinon.stub(),
+                readablenessGetter = sinon.stub(),
                 referenceClearer = sinon.stub(),
                 referenceGetter = sinon.stub(),
+                referencenessGetter = sinon.stub(),
                 referenceSetter = sinon.stub(),
                 setnessGetter = sinon.stub(),
                 undefinednessRaiser = sinon.stub(),
+                unsetter = sinon.stub(),
                 valueGetter = sinon.stub(),
                 valueSetter = sinon.stub();
 
@@ -157,12 +160,15 @@ describe('Environment', function () {
                 'my_global',
                 valueGetter,
                 valueSetter,
+                unsetter,
                 referenceGetter,
                 referenceSetter,
                 referenceClearer,
                 definednessGetter,
+                readablenessGetter,
                 emptinessGetter,
                 setnessGetter,
+                referencenessGetter,
                 undefinednessRaiser
             );
 
@@ -171,12 +177,15 @@ describe('Environment', function () {
                 'my_global',
                 sinon.match.same(valueGetter),
                 sinon.match.same(valueSetter),
+                sinon.match.same(unsetter),
                 sinon.match.same(referenceGetter),
                 sinon.match.same(referenceSetter),
                 sinon.match.same(referenceClearer),
                 sinon.match.same(definednessGetter),
+                sinon.match.same(readablenessGetter),
                 sinon.match.same(emptinessGetter),
                 sinon.match.same(setnessGetter),
+                sinon.match.same(referencenessGetter),
                 sinon.match.same(undefinednessRaiser)
             );
         });

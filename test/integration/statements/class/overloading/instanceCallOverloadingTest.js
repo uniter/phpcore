@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../../tools');
 
 describe('PHP class instance call overloading integration', function () {
-    it('should use the magic __call(...) method when the method is not defined', function () {
+    it('should use the magic __call(...) method when the method is not defined', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -33,12 +33,13 @@ $object = new MyClass;
 return $object->myUndefinedMethod(21, 2);
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.equal('myUndefinedMethod :: 42');
+        expect((await engine.execute()).getNative()).to.equal('myUndefinedMethod :: 42');
     });
 
-    it('magic __call(...) should override __callStatic(...) when both present for static call in object context', function () {
+    it('magic __call(...) should override __callStatic(...) when both present for static call in object context', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -65,12 +66,13 @@ $object = new MyClass;
 return $object->firstMethod(21, 2);
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.equal('non-static call: undefinedSecondMethod :: 42');
+        expect((await engine.execute()).getNative()).to.equal('non-static call: undefinedSecondMethod :: 42');
     });
 
-    it('should fall back to magic __callStatic(...) for static call in object context when __call(...) is missing', function () {
+    it('should fall back to magic __callStatic(...) for static call in object context when __call(...) is missing', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -92,8 +94,9 @@ $object = new MyClass;
 return $object->firstMethod(21, 2);
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.equal('static call: undefinedSecondMethod :: 42');
+        expect((await engine.execute()).getNative()).to.equal('static call: undefinedSecondMethod :: 42');
     });
 });

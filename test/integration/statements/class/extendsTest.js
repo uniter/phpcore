@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP class statement "extends" integration', function () {
-    it('should allow a class to extend another class from a "use" import', function () {
+    it('should allow a class to extend another class from a "use" import', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -46,15 +46,16 @@ namespace {
 }
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             21,
             1001
         ]);
     });
 
-    it('should allow a class to extend another autoloaded class', function () {
+    it('should allow a class to extend another autoloaded class', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -107,16 +108,14 @@ EOS
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal([
-                21
-            ]);
-        });
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            21
+        ]);
     });
 
     // TODO: Note that hoisting is incomplete, as namespaces are not taken into account.
     //       Fixing will require the planned refactor to remove NamespaceScope.
-    it('should allow a class to extend another class defined after it', function () {
+    it('should allow a class to extend another class defined after it', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -137,12 +136,13 @@ $object = new MyChildClass;
 return $object->getIt();
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.equal(121);
+        expect((await engine.execute()).getNative()).to.equal(121);
     });
 
-    it('should allow a JS class to call its superconstructor', function () {
+    it('should allow a JS class to call its superconstructor', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -163,8 +163,9 @@ namespace {
 }
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
-            environment = tools.createSyncEnvironment();
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine,
+            environment = tools.createAsyncEnvironment();
         environment.defineClass('My\\Space\\TheGrandparent', function (internals) {
             function TheGrandparent(theArg) {
                 var theArgExtended = internals.valueFactory.createString(
@@ -188,7 +189,7 @@ EOS
                     theArg.getNative() + '[parent]'
                 );
 
-                internals.callSuperConstructor(this, [theArgExtended]);
+                return internals.callSuperConstructor(this, [theArgExtended]);
             }
 
             internals.extendClass('My\\Space\\TheGrandparent');
@@ -197,11 +198,12 @@ EOS
 
             return TheParent;
         });
+        engine = module({}, environment);
 
-        expect(module({}, environment).execute().getNative()).to.equal('[call][child][parent][grandparent]');
+        expect((await engine.execute()).getNative()).to.equal('[call][child][parent][grandparent]');
     });
 
-    it('should allow a JS class to extend a PHP one', function () {
+    it('should allow a JS class to extend a PHP one', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -227,19 +229,21 @@ return function () {
 };
 EOS
 */;}),//jshint ignore:line,
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module(),
-            returnedClosure = engine.execute().getNative();
+            returnedClosure = (await engine.execute()).getNative();
 
         engine.defineClass('MyJSClass', function (internals) {
             function MyJSClass() {
-                internals.callSuperConstructor(this, arguments);
+                return internals.callSuperConstructor(this, arguments);
             }
 
             internals.extendClass('MyPHPClass');
 
             MyJSClass.prototype.secondGetIt = function (first, second) {
-                return this.callMethod('firstGetIt', [first]).add(second);
+                return this.callMethod('firstGetIt', [first]).next(function (resultValue) {
+                    return resultValue.add(second);
+                });
             };
 
             internals.disableAutoCoercion();
@@ -247,6 +251,6 @@ EOS
             return MyJSClass;
         });
 
-        expect(returnedClosure()).to.equal(36);
+        expect(await returnedClosure()).to.equal(36);
     });
 });

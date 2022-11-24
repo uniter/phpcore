@@ -126,16 +126,12 @@ module.exports = require('pauser')([
             keysToElements[sanitiseKey(key.getNative())] = element;
         });
 
-        Value.call(this, factory, referenceFactory, futureFactory, callStack, 'array', elements);
+        Value.call(this, factory, referenceFactory, futureFactory, callStack, flow, 'array', elements);
 
         /**
          * @type {ElementProvider|HookableElementProvider}
          */
         this.elementProvider = elementProvider;
-        /**
-         * @type {Flow}
-         */
-        this.flow = flow;
         /**
          * @type {Object.<string, ElementReference>}
          */
@@ -151,10 +147,10 @@ module.exports = require('pauser')([
     _.extend(ArrayValue.prototype, {
         /**
          * Overrides the implementation in Value, allowing for unioning arrays together
-         * with the plus operator
+         * with the plus operator.
          *
          * @param {Reference|Value|Variable} rightValue
-         * @returns {Value}
+         * @returns {ChainableInterface<ArrayValue>}
          */
         add: function (rightValue) {
             var leftValue = this,
@@ -176,15 +172,14 @@ module.exports = require('pauser')([
                 })
                 .next(function () {
                     return resultArray;
-                })
-                .asValue();
+                });
         },
 
         /**
          * Exports a wrapped PHP indexed array to a native array, or
          * an associative array to a plain JS object, wrapped as a Future.
          *
-         * @returns {Future<Array|object>}
+         * @returns {ChainableInterface<Array|object>}
          */
         asEventualNative: function () {
             var hasNonNumericKey = false,
@@ -212,10 +207,10 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Calls a static or instance method, referenced by the first two elements of this array
+         * Calls a static or instance method, referenced by the first two elements of this array.
          *
          * @param {Reference[]|Value[]|Variable[]} args
-         * @returns {Value}
+         * @returns {ChainableInterface<Reference|Value|Variable>}
          * @throws {PHPFatalError} Throws when the given function name is not a string
          */
         call: function (args) {
@@ -293,42 +288,49 @@ module.exports = require('pauser')([
         /**
          * {@inheritdoc}
          */
+        compareWith: function (rightValue) {
+            return rightValue.compareWithArray(this);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
         compareWithArray: function (leftValue) {
             var comparisonResult = 0, // Consider arrays equal until proven unequal by the loop below.
                 rightValue = this;
 
             if (leftValue.value.length < rightValue.value.length) {
                 // Left array contains fewer elements than the right: consider left array smaller.
-                return -1;
+                return rightValue.futureFactory.createPresent(-1);
             }
 
             if (leftValue.value.length > rightValue.value.length) {
                 // Left array contains more elements than the right: consider left array greater.
-                return 1;
+                return rightValue.futureFactory.createPresent(1);
             }
 
-            _.forOwn(leftValue.keysToElements, function (element, nativeKey) {
-                var elementComparisonResult;
+            return rightValue.flow
+                .forOwnAsync(leftValue.keysToElements, function (element, nativeKey) {
+                    if (!hasOwn.call(rightValue.keysToElements, nativeKey)) {
+                        // Left array contains an element that the right does not: consider left array greater.
+                        comparisonResult = 1;
+                        return false;
+                    }
 
-                if (!hasOwn.call(rightValue.keysToElements, nativeKey)) {
-                    // Left array contains an element that the right does not: consider left array greater.
-                    comparisonResult = 1;
-                    return false;
-                }
-
-                elementComparisonResult = element.getValue().compareWithPresent(
-                    rightValue.keysToElements[nativeKey].getValue()
-                );
-
-                if (elementComparisonResult !== 0) {
-                    // Element has a different value in left array than the right:
-                    // use comparison result (will be either -1 or 1).
-                    comparisonResult = elementComparisonResult;
-                    return false;
-                }
-            });
-
-            return comparisonResult;
+                    return element.getValue()
+                        .compareWith(rightValue.keysToElements[nativeKey].getValue())
+                        .next(function (elementComparisonResult) {
+                            if (elementComparisonResult !== 0) {
+                                // Element has a different value in left array than the right:
+                                // use comparison result (will be either -1 or 1).
+                                comparisonResult = elementComparisonResult;
+                                return false;
+                            }
+                        });
+                })
+                .next(function () {
+                    return comparisonResult;
+                });
         },
 
         /**
@@ -378,14 +380,7 @@ module.exports = require('pauser')([
          * {@inheritdoc}
          */
         compareWithObject: function () {
-            return 1; // Objects are always greater than arrays.
-        },
-
-        /**
-         * {@inheritdoc}
-         */
-        compareWithPresent: function (rightValue) {
-            return rightValue.compareWithArray(this);
+            return this.futureFactory.createPresent(1); // Objects are always greater than arrays.
         },
 
         /**
@@ -399,7 +394,8 @@ module.exports = require('pauser')([
          * {@inheritdoc}
          */
         compareWithString: function () {
-            return -1; // Arrays (even empty ones) are always greater (except for objects, see .compareWithObject()).
+            // Arrays (even empty ones) are always greater (except for objects, see .compareWithObject()).
+            return this.futureFactory.createPresent(-1);
         },
 
         /**
@@ -650,7 +646,7 @@ module.exports = require('pauser')([
          * Determines whether this array is classed as "empty" or not.
          * Only empty arrays (with no elements) are classed as empty
          *
-         * @returns {Future<boolean>}
+         * @returns {ChainableInterface<boolean>}
          */
         isEmpty: function () {
             var value = this;
@@ -707,11 +703,17 @@ module.exports = require('pauser')([
             this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
+        /**
+         * Sets the internal array pointer.
+         *
+         * @param {ElementReference} elementReference
+         */
         pointToElement: function (elementReference) {
             var value = this;
 
             _.each(value.value, function (element, index) {
-                if (element.getKey().compareWithPresent(elementReference.getKey()) === 0) {
+                // Key comparisons should always be completable synchronously.
+                if (element.getKey().compareWith(elementReference.getKey()).yieldSync() === 0) {
                     value.setPointer(index);
                 }
             });
@@ -743,7 +745,7 @@ module.exports = require('pauser')([
          * Pushes an indexed element onto the array and then returns the array.
          *
          * @param {Value} otherValue
-         * @returns {EventualInterface<ArrayValue>}
+         * @returns {ChainableInterface<ArrayValue>}
          */
         push: function (otherValue) {
             var value = this,

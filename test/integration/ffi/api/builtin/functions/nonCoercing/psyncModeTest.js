@@ -78,18 +78,17 @@ EOS
             module = tools.psyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        engine.defineNonCoercingFunction('get_it_and_add_two', function (objectArgReference) {
+        engine.defineNonCoercingFunction('get_it_and_add_two', function (objectValue) {
             var internals = this;
 
             return internals.createFFIResult(function () {
-                // `objectArgReference.getValue()` returns a CustomBuiltin/ObjectValue, which is a facade
-                // that provides a minimal interface.
-                return objectArgReference.getValue().callMethod('getIt')
-                    .add(internals.valueFactory.createInteger(2));
+                return objectValue.callMethod('getIt').next(function (resultValue) {
+                    return resultValue.add(internals.valueFactory.createInteger(2));
+                });
             }, function () {
                 throw new Error('This test should run in psync mode and use the sync callback');
             });
-        });
+        }, 'object $object');
 
         return engine.execute().then(function (result) {
             expect(result.getNative()).to.equal(27);

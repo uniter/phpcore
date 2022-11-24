@@ -16,6 +16,7 @@ var expect = require('chai').expect,
 describe('Exit', function () {
     var callStack,
         factory,
+        flow,
         futureFactory,
         referenceFactory,
         state,
@@ -23,9 +24,10 @@ describe('Exit', function () {
         value;
 
     beforeEach(function () {
-        state = tools.createIsolatedState();
+        state = tools.createIsolatedState('async');
         callStack = state.getCallStack();
         factory = state.getValueFactory();
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         referenceFactory = state.getReferenceFactory();
         statusValue = factory.createInteger(21);
@@ -35,6 +37,7 @@ describe('Exit', function () {
             referenceFactory,
             futureFactory,
             callStack,
+            flow,
             statusValue
         );
     });

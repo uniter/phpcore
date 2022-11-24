@@ -28,6 +28,7 @@ describe('Null', function () {
         createKeyValuePair,
         createValue,
         factory,
+        flow,
         futureFactory,
         referenceFactory,
         state,
@@ -35,10 +36,11 @@ describe('Null', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
-        state = tools.createIsolatedState(null, {
+        state = tools.createIsolatedState('async', {
             'call_stack': callStack
         });
         factory = state.getValueFactory();
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         referenceFactory = state.getReferenceFactory();
 
@@ -56,7 +58,7 @@ describe('Null', function () {
         };
 
         createValue = function () {
-            value = new NullValue(factory, referenceFactory, futureFactory, callStack);
+            value = new NullValue(factory, referenceFactory, futureFactory, callStack, flow);
         };
         createValue();
     });
@@ -820,26 +822,21 @@ describe('Null', function () {
             expect(value.next()).to.equal(value);
         });
 
-        it('should invoke the callback with the value and return the coerced result', function () {
-            var callback = sinon.stub(),
-                resultValue;
+        it('should invoke the callback with the value and return the chainified result', async function () {
+            var callback = sinon.stub();
             callback.withArgs(sinon.match.same(value)).returns('my result');
 
-            resultValue = value.next(callback);
-
-            expect(resultValue.getType()).to.equal('string');
-            expect(resultValue.getNative()).to.equal('my result');
+            expect(await value.next(callback).toPromise()).to.equal('my result');
         });
 
-        it('should return a rejected FutureValue when the callback raises an error', async function () {
+        it('should return a rejected Future when the callback raises an error', async function () {
             var callback = sinon.stub(),
-                resultValue;
+                result;
             callback.withArgs(sinon.match.same(value)).throws(new Error('Bang!'));
 
-            resultValue = value.next(callback);
+            result = value.next(callback);
 
-            expect(resultValue.getType()).to.equal('future');
-            await expect(resultValue.toPromise()).to.eventually.be.rejectedWith('Bang!');
+            await expect(result.toPromise()).to.eventually.be.rejectedWith('Bang!');
         });
     });
 

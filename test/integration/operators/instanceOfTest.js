@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP instanceof operator integration', function () {
-    it('should return true when object is an instance of the class and false otherwise', function () {
+    it('should return true when object is an instance of the class and false otherwise', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -39,10 +39,10 @@ namespace My\Stuff
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             true,
             true,
             false,
@@ -52,7 +52,7 @@ EOS
         ]);
     });
 
-    it('should return true when object is an instance of a class implementing the interface', function () {
+    it('should return true when object is an instance of a class implementing the interface', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 namespace My\Stuff;
@@ -70,10 +70,10 @@ $result[] = $object instanceof UnrelatedInterface;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             true,
             false
         ]);

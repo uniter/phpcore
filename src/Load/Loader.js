@@ -59,14 +59,14 @@ module.exports = require('pauser')([
          * @param {Module} module
          * @param {Scope} enclosingScope
          * @param {Function} load
-         * @returns {FutureValue}
+         * @returns {FutureInterface<Value>}
          */
         load: function (type, filePath, options, environment, module, enclosingScope, load) {
             var done = false,
                 loader = this,
                 subOptions;
 
-            // Always return a FutureValue, for a consistent interface regardless of synchronicity mode
+            // Always return a Future-wrapped Value, for a consistent interface regardless of synchronicity mode.
             return loader.valueFactory.createFuture(function (resolveFuture, rejectFuture, nestCoroutine) {
                 /**
                  * Completes an unsuccessful module load

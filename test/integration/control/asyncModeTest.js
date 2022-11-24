@@ -212,15 +212,15 @@ describe('Async control integration', function () {
         }).catch(done);
     });
 
-    it('should reject a Future with the eventual error when rejected with another Future', function () {
+    it('should reject a Future with the eventual error when rejected with another Future', async function () {
         var future = futureFactory.createFuture(function (resolve, reject) {
             reject(futureFactory.createRejection(new Error('My error from future')));
         });
 
-        return expect(future.toPromise()).to.eventually.be.rejectedWith('My error from future');
+        await expect(future.toPromise()).to.eventually.be.rejectedWith('My error from future');
     });
 
-    it('should reject a Future with the eventual error when rejected with a Future that rejects', function () {
+    it('should reject a Future with the eventual error when rejected with a Future that rejects', async function () {
         var future = futureFactory.createFuture(function (resolve, reject) {
             var doSubReject,
                 subFuture = futureFactory.createFuture(function (resolve, reject) {
@@ -234,7 +234,7 @@ describe('Async control integration', function () {
             reject(subFuture);
         });
 
-        return expect(future.toPromise()).to.eventually.be.rejectedWith('My error from inner future');
+        await expect(future.toPromise()).to.eventually.be.rejectedWith('My error from inner future');
     });
 
     it('should return the eventual result from .yieldSync() when synchronously resolved with a result', function () {

@@ -105,11 +105,7 @@ EOS
         engine.defineGlobalAccessor(
             'myAccessor',
             function () {
-                return this.createFutureValue(function (resolve) {
-                    setImmediate(function () {
-                        resolve('myFunction');
-                    });
-                });
+                return this.createAsyncPresentValue('myFunction');
             }
         );
 

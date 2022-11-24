@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP builtin IteratorAggregate interface integration', function () {
-    it('should support iterating over an object that implements IteratorAggregate', function () {
+    it('should support iterating over an object that implements IteratorAggregate', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyCustomIterator implements Iterator
@@ -77,9 +77,9 @@ foreach ($myIterator as $key => $value) {
 return $result;
 EOS
 */;}),//jshint ignore:line,
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module(),
-            result = engine.execute();
+            result = await engine.execute();
 
         expect(engine.getStderr().readAll()).to.equal('');
         expect(result.getNative()).to.deep.equal([
@@ -89,7 +89,7 @@ EOS
         ]);
     });
 
-    it('should raise an Exception when ->getIterator() returns a non-traversable', function () {
+    it('should raise an Exception when ->getIterator() returns a non-traversable', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -106,12 +106,10 @@ foreach ($object as $value) {}
 
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/module.php', php),
+            module = tools.asyncTranspile('/path/to/module.php', php),
             engine = module();
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught Exception: Objects returned by MyClass::getIterator() ' +
             'must be traversable or implement interface Iterator in /path/to/module.php on line 12'

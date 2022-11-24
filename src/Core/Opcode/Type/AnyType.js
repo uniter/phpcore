@@ -18,6 +18,7 @@ var _ = require('microdash'),
  * such as an opcode parameter with no type specified.
  *
  * @constructor
+ * @implements {TypeInterface}
  */
 function AnyType() {
 
@@ -29,8 +30,22 @@ _.extend(AnyType.prototype, {
     /**
      * {@inheritdoc}
      */
+    allowsValue: function () {
+        return true; // "Any" type allows any value.
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     coerceValue: function (value) {
         return value; // No special coercion to perform.
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    getDisplayName: function () {
+        return 'any';
     }
 });
 

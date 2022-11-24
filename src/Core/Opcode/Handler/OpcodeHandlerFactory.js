@@ -18,6 +18,7 @@ var _ = require('microdash'),
  * @param {OpcodeFetcherRepository} opcodeFetcherRepository
  * @param {OpcodeExecutor} opcodeExecutor
  * @param {OpcodeRescuer} opcodeRescuer
+ * @param {UnpausedSentinel} unpausedSentinel
  * @constructor
  */
 function OpcodeHandlerFactory(
@@ -25,7 +26,8 @@ function OpcodeHandlerFactory(
     callStack,
     opcodeFetcherRepository,
     opcodeExecutor,
-    opcodeRescuer
+    opcodeRescuer,
+    unpausedSentinel
 ) {
     /**
      * @type {CallStack}
@@ -47,6 +49,10 @@ function OpcodeHandlerFactory(
      * @type {OpcodeRescuer}
      */
     this.opcodeRescuer = opcodeRescuer;
+    /**
+     * @type {UnpausedSentinel}
+     */
+    this.unpausedSentinel = unpausedSentinel;
 }
 
 _.extend(OpcodeHandlerFactory.prototype, {
@@ -70,7 +76,7 @@ _.extend(OpcodeHandlerFactory.prototype, {
                 resumeValue = opcode.resume(),
                 result;
 
-            if (resumeValue !== null) {
+            if (resumeValue !== wrapper.unpausedSentinel) {
                 // We are currently resuming from a pause.
                 return resumeValue;
             }

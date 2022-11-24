@@ -11,8 +11,7 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../tools'),
-    when = require('../../when');
+    tools = require('../tools');
 
 describe('PHP exit(...) construct integration', function () {
     it('should correctly handle exiting from inside a function in sync mode', function () {
@@ -41,7 +40,7 @@ EOS
         expect(engine.getStdout().readAll()).to.equal('BeforeInside');
     });
 
-    it('should correctly handle exiting from inside a function in async mode', function (done) {
+    it('should correctly handle exiting from inside a function in async mode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -63,10 +62,8 @@ EOS
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        engine.execute().then(when(done, function (result) {
-            expect(result.getNative()).to.be.null;
-            expect(engine.getStdout().readAll()).to.equal('BeforeInside');
-        }), done);
+        expect((await engine.execute()).getNative()).to.be.null;
+        expect(engine.getStdout().readAll()).to.equal('BeforeInside');
     });
 
     it('should correctly handle an include exiting from inside a function in sync mode', function () {
@@ -108,7 +105,7 @@ EOS
         expect(engine.getStdout().readAll()).to.equal('before inside func');
     });
 
-    it('should correctly handle an include exiting in async mode following a pause', function () {
+    it('should correctly handle an include exiting in async mode following a pause', async function () {
         var grandparentPHP = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -166,7 +163,8 @@ EOS
                     });
                 }
             },
-            engine = grandparentModule(options);
+            engine = grandparentModule(options),
+            result;
         engine.defineFunction('get_async', function (internals) {
             return function (value) {
                 return internals.createFutureValue(function (resolve) {
@@ -177,11 +175,11 @@ EOS
             };
         });
 
-        return engine.execute().then(function (result) {
-            expect(result.getType()).to.equal('exit');
-            expect(result.getNative()).to.be.null;
-            expect(result.getStatus()).to.equal(21);
-            expect(engine.getStdout().readAll()).to.equal('[grandparent before][parent before][require before][child before]');
-        });
+        result = await engine.execute();
+
+        expect(result.getType()).to.equal('exit');
+        expect(result.getNative()).to.be.null;
+        expect(result.getStatus()).to.equal(21);
+        expect(engine.getStdout().readAll()).to.equal('[grandparent before][parent before][require before][child before]');
     });
 });

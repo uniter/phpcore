@@ -16,7 +16,7 @@ describe('Custom addon with initialiser integration', function () {
     var runtime;
 
     beforeEach(function () {
-        runtime = tools.createSyncRuntime();
+        runtime = tools.createAsyncRuntime();
     });
 
     it('should support defining initialisers with access to bindings', function () {

@@ -19,6 +19,7 @@ var expect = require('chai').expect,
 
 describe('ReferenceSnapshot', function () {
     var createSnapshot,
+        flow,
         futureFactory,
         reference,
         referenceFactory,
@@ -30,6 +31,7 @@ describe('ReferenceSnapshot', function () {
 
     beforeEach(function () {
         state = tools.createIsolatedState();
+        flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         reference = null;
         referenceFactory = sinon.createStubInstance(ReferenceFactory);
@@ -38,17 +40,31 @@ describe('ReferenceSnapshot', function () {
         wrappedReference = sinon.createStubInstance(Reference);
 
         wrappedReference.isReference.returns(false);
+        wrappedReference.setValue.callsFake(function (assignedValue) {
+            wrappedReference.getValue.returns(assignedValue);
+
+            return assignedValue;
+        });
 
         createSnapshot = function () {
             snapshot = new ReferenceSnapshot(
                 valueFactory,
                 referenceFactory,
                 futureFactory,
+                flow,
                 wrappedReference,
                 value,
                 reference
             );
         };
+    });
+
+    describe('asValue()', function () {
+        it('should return the value', function () {
+            createSnapshot();
+
+            expect(snapshot.asValue()).to.equal(value);
+        });
     });
 
     describe('getReference()', function () {
@@ -171,6 +187,14 @@ describe('ReferenceSnapshot', function () {
         });
     });
 
+    describe('isFuture()', function () {
+        it('should return false', function () {
+            createSnapshot();
+
+            expect(snapshot.isFuture()).to.be.false;
+        });
+    });
+
     describe('isReference()', function () {
         it('should return true when the snapshotted reference was defined with a reference', function () {
             reference = sinon.createStubInstance(Reference);
@@ -211,6 +235,22 @@ describe('ReferenceSnapshot', function () {
             createSnapshot();
 
             expect(snapshot.setValue(newValue)).to.equal(result);
+        });
+    });
+
+    describe('toPromise()', function () {
+        it('should return a Promise that resolves to the ReferenceSnapshot', async function () {
+            createSnapshot();
+
+            expect(await snapshot.toPromise()).to.equal(snapshot);
+        });
+    });
+
+    describe('yieldSync()', function () {
+        it('should just return the snapshot', function () {
+            createSnapshot();
+
+            expect(snapshot.yieldSync()).to.equal(snapshot);
         });
     });
 });

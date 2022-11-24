@@ -20,6 +20,7 @@ module.exports = require('pauser')([
      * @param {ValueFactory} valueFactory
      * @param {ReferenceFactory} referenceFactory
      * @param {FutureFactory} futureFactory
+     * @param {Flow} flow
      * @constructor
      */
     function VariableFactory(
@@ -27,12 +28,17 @@ module.exports = require('pauser')([
         callStack,
         valueFactory,
         referenceFactory,
-        futureFactory
+        futureFactory,
+        flow
     ) {
         /**
          * @type {CallStack}
          */
         this.callStack = callStack;
+        /**
+         * @type {Flow}
+         */
+        this.flow = flow;
         /**
          * @type {FutureFactory}
          */
@@ -66,6 +72,7 @@ module.exports = require('pauser')([
                 factory.valueFactory,
                 factory.referenceFactory,
                 factory.futureFactory,
+                factory.flow,
                 variableName
             );
         }

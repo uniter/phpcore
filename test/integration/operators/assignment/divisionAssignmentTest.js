@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../../tools');
 
 describe('PHP division-assignment operator "/=" integration', function () {
-    it('should support dividing the number contained in a variable or property', function () {
+    it('should support dividing the number contained in a variable or property', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -66,13 +66,11 @@ EOS
             accessorValue = newValue;
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'with variable': 1000 / 4,
-                'with accessor': 20 / 5,
-                'with instance prop': 10 / 2,
-                'with static prop': 100 / 5
-            });
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'with variable': 1000 / 4,
+            'with accessor': 20 / 5,
+            'with instance prop': 10 / 2,
+            'with static prop': 100 / 5
         });
     });
 });

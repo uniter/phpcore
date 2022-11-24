@@ -114,19 +114,17 @@ module.exports = require('pauser')([
                      * Handles coercion and validation of the result of the function call.
                      *
                      * @param {Reference|Value|Variable|*} result
-                     * @returns {Future<Reference|Value|Variable>}
+                     * @returns {ChainableInterface<Reference|Value|Variable>}
                      */
                     function finishCall(result) {
                         /** @var {Reference|Value|Variable} */
-                        var resultReference,
-                            /** @var {Value} */
-                            resultValue;
+                        var resultReference;
 
                         if ((result instanceof Reference) || (result instanceof Variable)) {
                             // Result is a Reference, resolve to a value if needed
                             resultReference = functionSpec.isReturnByReference() ?
                                 result :
-                                factory.valueFactory.coerce(result);
+                                result.getValue();
                         } else if (!(result instanceof FFIResult)) {
                             // Result is either a Value or native value needing coercion
                             // (see below for note on FFIResults)
@@ -138,13 +136,15 @@ module.exports = require('pauser')([
                             resultReference = result.resolve();
                         }
 
-                        // Coerce return value or reference as required, capturing the value for later validation.
-                        // Note that the coerced result for by-value functions will be written back to resultReference.
-                        resultValue = functionSpec.coerceReturnReference(resultReference);
+                        return resultReference.next(function (presentResultReference) {
+                            // Coerce return value or reference as required, capturing the value for later validation.
+                            // Note that the coerced result for by-value functions will be written back to resultReference.
+                            var resultValue = functionSpec.coerceReturnReference(presentResultReference);
 
-                        // Check the return value against the return type (if any). If the caller
-                        // is in weak type-checking mode, the value will have been coerced if possible above.
-                        return functionSpec.validateReturnReference(resultReference, resultValue);
+                            // Check the return value against the return type (if any). If the caller
+                            // is in weak type-checking mode, the value will have been coerced if possible above.
+                            return functionSpec.validateReturnReference(presentResultReference, resultValue);
+                        });
                     }
 
                     /**
@@ -220,7 +220,7 @@ module.exports = require('pauser')([
                      *
                      * Coerced arguments for by-value parameters will be written back to argReferences.
                      *
-                     * Any arguments that are references returning FutureValues will be resolved.
+                     * Any arguments that are references returning Futures will be resolved.
                      */
                     result = functionSpec.coerceArguments(argReferences)
                         .next(function (argValues) {
@@ -258,7 +258,7 @@ module.exports = require('pauser')([
                         })
                         .next(function (populatedArguments) {
                             // Note that by this point all arguments will have been resolved to present values
-                            // (ie. any FutureValues will have been awaited and resolved).
+                            // (i.e. any Futures will have been awaited and resolved).
                             argReferences = populatedArguments;
 
                             if (functionSpec.isUserland()) {

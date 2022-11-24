@@ -11,16 +11,19 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    UnpausedSentinel = require('../../../../../src/Core/Opcode/Handler/UnpausedSentinel'),
     UntracedOpcode = require('../../../../../src/Core/Opcode/Opcode/UntracedOpcode');
 
 describe('UntracedOpcode', function () {
     var handler,
-        opcode;
+        opcode,
+        unpausedSentinel;
 
     beforeEach(function () {
         handler = sinon.stub();
+        unpausedSentinel = sinon.createStubInstance(UnpausedSentinel);
 
-        opcode = new UntracedOpcode(handler, ['first arg', 'second arg']);
+        opcode = new UntracedOpcode(unpausedSentinel, handler, ['first arg', 'second arg']);
     });
 
     describe('handle()', function () {
@@ -50,8 +53,8 @@ describe('UntracedOpcode', function () {
     });
 
     describe('resume()', function () {
-        it('should return null as UntracedOpcodes are untraced', function () {
-            expect(opcode.resume()).to.be.null;
+        it('should return UnpausedSentinel as UntracedOpcodes are untraced', function () {
+            expect(opcode.resume()).to.equal(unpausedSentinel);
         });
     });
 });
