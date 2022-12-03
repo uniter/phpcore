@@ -27,6 +27,10 @@ var _ = require('microdash'),
  */
 function SignatureParser(valueFactory) {
     /**
+     * @type {Namespace|null}
+     */
+    this.globalNamespace = null;
+    /**
      * @type {ValueFactory}
      */
     this.valueFactory = valueFactory;
@@ -138,6 +142,11 @@ _.extend(SignatureParser.prototype, {
                     // TODO: Support non-empty arrays.
                     return parser.valueFactory.createArray([]);
                 };
+            } else if (typeof match[11] !== 'undefined') {
+                // Default value is a constant.
+                valueProvider = function () {
+                    return parser.globalNamespace.getConstant(match[11], false);
+                };
             }
 
             spec = buildTypeSpecData(type, nullable);
@@ -152,7 +161,7 @@ _.extend(SignatureParser.prototype, {
         while (remainingSignature.length > 0 && !/^\s*:/.test(remainingSignature)) {
             // TODO: Support non-empty array literals as default values.
             match = remainingSignature.match(
-                /^\s*(?:(\?)\s*)?([\w\\]+)\s*(?:(&)\s*)?\$(\w+)(?:\s*=\s*(?:(-?\d*\.\d+)|(-?\d+)|(true|false)|(null)|"((?:[^\\"]|\\[\s\S])*)"|\[()]))?\s*(?:,\s*)?/i
+                /^\s*(?:(\?)\s*)?([\w\\]+)\s*(?:(&)\s*)?\$(\w+)(?:\s*=\s*(?:(-?\d*\.\d+)|(-?\d+)|(true|false)|(null)|"((?:[^\\"]|\\[\s\S])*)"|\[()]|([\w_]+)))?\s*(?:,\s*)?/i
             );
 
             if (!match) {
@@ -187,6 +196,15 @@ _.extend(SignatureParser.prototype, {
         }
 
         return new Signature(parametersSpecData, returnTypeSpecData, returnByReference);
+    },
+
+    /**
+     * Injects the global Namespace service. Required to solve a circular dependency issue.
+     *
+     * @param {Namespace} globalNamespace
+     */
+    setGlobalNamespace: function (globalNamespace) {
+        this.globalNamespace = globalNamespace;
     }
 });
 

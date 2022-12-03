@@ -11,21 +11,26 @@
 
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
+    sinon = require('sinon'),
     tools = require('../../tools'),
     Exception = phpCommon.Exception,
+    Namespace = require('../../../../src/Namespace').sync(),
     Signature = require('../../../../src/Function/Signature/Signature'),
     SignatureParser = require('../../../../src/Function/Signature/SignatureParser');
 
 describe('SignatureParser', function () {
-    var parser,
+    var globalNamespace,
+        parser,
         state,
         valueFactory;
 
     beforeEach(function () {
         state = tools.createIsolatedState();
         valueFactory = state.getValueFactory();
+        globalNamespace = sinon.createStubInstance(Namespace);
 
         parser = new SignatureParser(valueFactory);
+        parser.setGlobalNamespace(globalNamespace);
     });
 
     describe('parseSignature()', function () {
@@ -298,6 +303,26 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('string');
             expect(defaultValue.getNative()).to.equal('my default string value');
+        });
+
+        it('should be able to parse a single parameter with named constant as default value', function () {
+            var constantValue = valueFactory.createString('my constant value'),
+                parameterSpecData,
+                signature;
+            globalNamespace.getConstant
+                .withArgs('MY_CONSTANT')
+                .returns(constantValue);
+
+            signature = parser.parseSignature('mixed $myParam = MY_CONSTANT : bool');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(1);
+            parameterSpecData = signature.getParametersSpecData()[0];
+            expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
+            expect(parameterSpecData.nullable).to.be.true;
+            expect(parameterSpecData.name).to.equal('myParam');
+            expect(parameterSpecData.ref).to.be.false;
+            expect(parameterSpecData.value()).to.equal(constantValue);
         });
 
         it('should be able to parse a signature with nullable class return type but no parameters', function () {

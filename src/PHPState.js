@@ -15,10 +15,6 @@ module.exports = require('pauser')([
     require('phpcommon'),
     require('./Reference/AccessorReference'),
     require('./CallStack'),
-    require('./ClassAutoloader'),
-    require('./Class/ClassDefiner'),
-    require('./Class/ClassFactory'),
-    require('./Class/ClassPromoter'),
     require('./Closure'),
     require('./Function/ClosureContext'),
     require('./ClosureFactory'),
@@ -38,8 +34,6 @@ module.exports = require('pauser')([
     require('./FFI/Value/AsyncObjectValue'),
     require('./FFI/Call/Caller'),
     require('./FFI/Internals/ClassInternalsClassFactory'),
-    require('./FFI/Export/ExportFactory'),
-    require('./FFI/Export/ExportRepository'),
     require('./FFI/FFIFactory'),
     require('./FFI/Internals/FunctionInternalsClassFactory'),
     require('./FFI/Internals/Internals'),
@@ -72,7 +66,6 @@ module.exports = require('pauser')([
     require('./ModuleFactory'),
     require('./Core/Opcode/ModuleScope'),
     require('./Namespace'),
-    require('./NamespaceFactory'),
     require('./NamespaceScope'),
     require('./Reference/Null'),
     require('./Reference/ObjectElement'),
@@ -103,7 +96,6 @@ module.exports = require('pauser')([
     require('./Function/TypedFunction'),
     require('./Reference/UndeclaredStaticProperty'),
     require('./Control/Userland'),
-    require('./Class/Definition/UserlandDefinitionBuilder'),
     require('./Value'),
     require('./ValueFactory')
 ], function (
@@ -112,10 +104,6 @@ module.exports = require('pauser')([
     phpCommon,
     AccessorReference,
     CallStack,
-    ClassAutoloader,
-    ClassDefiner,
-    ClassFactory,
-    ClassPromoter,
     Closure,
     ClosureContext,
     ClosureFactory,
@@ -135,8 +123,6 @@ module.exports = require('pauser')([
     FFIAsyncObjectValue,
     FFICaller,
     FFIClassInternalsClassFactory,
-    FFIExportFactory,
-    FFIExportRepository,
     FFIFactory,
     FFIFunctionInternalsClassFactory,
     FFIInternals,
@@ -169,7 +155,6 @@ module.exports = require('pauser')([
     ModuleFactory,
     ModuleScope,
     Namespace,
-    NamespaceFactory,
     NamespaceScope,
     NullReference,
     ObjectElement,
@@ -200,7 +185,6 @@ module.exports = require('pauser')([
     TypedFunction,
     UndeclaredStaticPropertyReference,
     Userland,
-    UserlandDefinitionBuilder,
     Value,
     ValueFactory
 ) {
@@ -487,7 +471,15 @@ module.exports = require('pauser')([
             )),
             callStack = get('call_stack'),
             pauseFactory = set('pause_factory', new PauseFactory(Pause, callStack, controlScope, mode)),
-            userland = new Userland(callStack, controlFactory, controlBridge, controlScope, valueFactory, opcodePool, mode),
+            userland = set('userland', new Userland(
+                callStack,
+                controlFactory,
+                controlBridge,
+                controlScope,
+                valueFactory,
+                opcodePool,
+                mode
+            )),
             futureFactory = get('future_factory'),
             flow = set('flow', new Flow(
                 controlFactory,
@@ -514,7 +506,7 @@ module.exports = require('pauser')([
             )),
             elementProviderFactory = get('element_provider_factory'),
             elementProvider = get('element_provider'),
-            classAutoloader = new ClassAutoloader(valueFactory, flow),
+            classAutoloader = get('class_autoloader'),
 
             ffiCaller = new FFICaller(
                 callFactory,
@@ -546,10 +538,8 @@ module.exports = require('pauser')([
             ),
             ffiProxyClassFactory = new FFIProxyClassFactory(ffiValueStorage, ffiProxyMemberFactory),
             ffiProxyClassRepository = new FFIProxyClassRepository(ffiProxyClassFactory),
-            ffiProxyFactory = new FFIProxyFactory(ffiProxyClassRepository, mode),
-            ffiUnwrapperRepository = new FFIUnwrapperRepository(),
-            ffiExportFactory = new FFIExportFactory(ffiUnwrapperRepository, ffiProxyFactory),
-            ffiExportRepository = new FFIExportRepository(ffiExportFactory, ffiValueStorage),
+            ffiProxyFactory = set('ffi_proxy_factory', new FFIProxyFactory(ffiProxyClassRepository, mode)),
+            ffiUnwrapperRepository = set('ffi_unwrapper_repository', new FFIUnwrapperRepository()),
             ffiValueHelper = new FFIValueHelper(ffiProxyFactory, ffiFactory, ffiValueStorage, mode),
 
             parameterFactory = new ParameterFactory(
@@ -604,45 +594,10 @@ module.exports = require('pauser')([
                 controlScope
             )),
             closureFactory = new ClosureFactory(functionFactory, valueFactory, callStack, Closure),
-            userlandDefinitionBuilder = new UserlandDefinitionBuilder(
-                callStack,
-                valueFactory,
-                ffiFactory
-            ),
-            classFactory = new ClassFactory(
-                valueFactory,
-                get('value_provider'),
-                referenceFactory,
-                functionFactory,
-                callStack,
-                flow,
-                futureFactory,
-                userland,
-                ffiExportRepository,
-                ffiFactory
-            ),
-            classPromoter = new ClassPromoter(classFactory, get('method_promoter')),
-            classDefiner = new ClassDefiner(
-                flow,
-                futureFactory,
-                get('native_class_definition_builder'),
-                userlandDefinitionBuilder,
-                classPromoter
-            ),
-            namespaceFactory = new NamespaceFactory(
-                Namespace,
-                callStack,
-                futureFactory,
-                functionFactory,
-                functionSpecFactory,
-                valueFactory,
-                classAutoloader,
-                classDefiner
-            ),
-            globalNamespace = set('global_namespace', namespaceFactory.create()),
-            // The global/default module (not eg. the same as the command line module)
+            globalNamespace = get('global_namespace'),
+            // The global/default module (not e.g. the same as the command line module).
             globalModule = moduleFactory.create(null),
-            // "Invisible" global namespace scope, not defined by any code
+            // "Invisible" global namespace scope, not defined by any code.
             globalNamespaceScope = new NamespaceScope(
                 scopeFactory,
                 globalNamespace,
@@ -669,10 +624,12 @@ module.exports = require('pauser')([
             opcodeHandlerFactory = get('opcode_handler_factory'),
             coroutineFactory = get('coroutine_factory'),
             coreBinder = new CoreBinder(),
-            coreFactory;
+            coreFactory,
+            functionSignatureParser = get('function_signature_parser');
 
         callFactory.setControlFactory(controlFactory);
         controlScope.setCoroutineFactory(coroutineFactory);
+        functionSignatureParser.setGlobalNamespace(globalNamespace);
         pauseFactory.setFutureFactory(futureFactory);
         scopeFactory.setClosureFactory(closureFactory);
         globalScope = scopeFactory.create();
@@ -760,7 +717,7 @@ module.exports = require('pauser')([
             ffiFactory,
             globalNamespace,
             globalNamespaceScope,
-            get('function_signature_parser')
+            functionSignatureParser
         );
         opcodeInternalsClassFactory = new OpcodeInternalsClassFactory(
             ffiInternals,
