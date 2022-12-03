@@ -17,6 +17,10 @@ var phpCommon = require('phpcommon'),
     CallFactory = require('../../CallFactory'),
     CallStack = require('../../CallStack'),
     Chainifier = require('../../Control/Chain/Chainifier'),
+    ClassAutoloader = require('../../ClassAutoloader').sync(),
+    ClassDefiner = require('../../Class/ClassDefiner'),
+    ClassFactory = require('../../Class/ClassFactory'),
+    ClassPromoter = require('../../Class/ClassPromoter'),
     ControlBridge = require('../../Control/ControlBridge'),
     ControlExpressionOpcode = require('../../Core/Opcode/Opcode/ControlExpressionOpcode'),
     ControlExpressionOpcodeFetcher = require('../../Core/Opcode/Fetcher/ControlExpressionOpcodeFetcher'),
@@ -28,12 +32,16 @@ var phpCommon = require('phpcommon'),
     CoroutineFactory = require('../../Control/CoroutineFactory'),
     ElementProviderFactory = require('../../Reference/Element/ElementProviderFactory'),
     FFICall = require('../../FFI/Call'),
+    FFIExportFactory = require('../../FFI/Export/ExportFactory'),
+    FFIExportRepository = require('../../FFI/Export/ExportRepository'),
     Future = require('../../Control/Future'),
     FutureFactory = require('../../Control/FutureFactory'),
     HostScheduler = require('../../Control/HostScheduler'),
     LoopStructureOpcode = require('../../Core/Opcode/Opcode/LoopStructureOpcode'),
     LoopStructureOpcodeFetcher = require('../../Core/Opcode/Fetcher/LoopStructureOpcodeFetcher'),
     MethodPromoter = require('../../Class/MethodPromoter'),
+    Namespace = require('../../Namespace').sync(),
+    NamespaceFactory = require('../../NamespaceFactory'),
     NativeDefinitionBuilder = require('../../Class/Definition/NativeDefinitionBuilder'),
     NativeMethodDefinitionBuilder = require('../../Class/Definition/NativeMethodDefinitionBuilder'),
     OpcodeExecutor = require('../../Core/Opcode/Handler/OpcodeExecutor'),
@@ -57,6 +65,7 @@ var phpCommon = require('phpcommon'),
     TypedOpcodeHandlerFactory = require('../../Core/Opcode/Handler/TypedOpcodeHandlerFactory'),
     UnpausedSentinel = require('../../Core/Opcode/Handler/UnpausedSentinel'),
     UntracedOpcode = require('../../Core/Opcode/Opcode/UntracedOpcode'),
+    UserlandDefinitionBuilder = require('../../Class/Definition/UserlandDefinitionBuilder'),
     Value = require('../../Value').sync(),
     ValueProvider = require('../../Value/ValueProvider'),
     Variable = require('../../Variable').sync(),
@@ -65,16 +74,28 @@ var phpCommon = require('phpcommon'),
     ARRAY_CHAINIFIER = 'array_chainifier',
     CALL_STACK = 'call_stack',
     CHAINIFIER = 'chainifier',
+    CLASS_AUTOLOADER = 'class_autoloader',
+    CLASS_DEFINER = 'class_definer',
+    CLASS_FACTORY = 'class_factory',
+    CLASS_PROMOTER = 'class_promoter',
     CONTROL_BRIDGE = 'control_bridge',
     CONTROL_SCOPE = 'control_scope',
     ELEMENT_PROVIDER_FACTORY = 'element_provider_factory',
     ERROR_REPORTING = 'error_reporting',
+    FFI_EXPORT_FACTORY = 'ffi_export_factory',
+    FFI_EXPORT_REPOSITORY = 'ffi_export_repository',
     FFI_FACTORY = 'ffi_factory',
+    FFI_PROXY_FACTORY = 'ffi_proxy_factory',
+    FFI_UNWRAPPER_REPOSITORY = 'ffi_unwrapper_repository',
+    FFI_VALUE_STORAGE = 'ffi_value_storage',
     FLOW = 'flow',
     FUNCTION_FACTORY = 'function_factory',
     FUNCTION_SIGNATURE_PARSER = 'function_signature_parser',
     FUNCTION_SPEC_FACTORY = 'function_spec_factory',
     FUTURE_FACTORY = 'future_factory',
+    METHOD_PROMOTER = 'method_promoter',
+    NAMESPACE_FACTORY = 'namespace_factory',
+    NATIVE_CLASS_DEFINITION_BUILDER = 'native_class_definition_builder',
     NATIVE_METHOD_DEFINITION_BUILDER = 'native_method_definition_builder',
     OPCODE_EXECUTOR = 'opcode_executor',
     OPCODE_FACTORY = 'opcode_factory',
@@ -94,7 +115,10 @@ var phpCommon = require('phpcommon'),
     TYPE_FACTORY = 'type_factory',
     TYPED_OPCODE_HANDLER_FACTORY = 'typed_opcode_handler_factory',
     UNPAUSED_SENTINEL = 'unpaused_sentinel',
-    VALUE_FACTORY = 'value_factory';
+    USERLAND = 'userland',
+    USERLAND_CLASS_DEFINITION_BUILDER = 'userland_class_definition_builder',
+    VALUE_FACTORY = 'value_factory',
+    VALUE_PROVIDER = 'value_provider';
 
 /**
  * Provides the base set of services for the PHP runtime.
@@ -130,6 +154,39 @@ module.exports = function (internals) {
             chainifier.setArrayChainifier(get(ARRAY_CHAINIFIER));
         },
 
+        'class_autoloader': function () {
+            return new ClassAutoloader(get(VALUE_FACTORY), get(FLOW));
+        },
+
+        'class_definer': function () {
+            return new ClassDefiner(
+                get(FLOW),
+                get(FUTURE_FACTORY),
+                get(NATIVE_CLASS_DEFINITION_BUILDER),
+                get(USERLAND_CLASS_DEFINITION_BUILDER),
+                get(CLASS_PROMOTER)
+            );
+        },
+
+        'class_factory': function () {
+            return new ClassFactory(
+                get(VALUE_FACTORY),
+                get(VALUE_PROVIDER),
+                get(REFERENCE_FACTORY),
+                get(FUNCTION_FACTORY),
+                get(CALL_STACK),
+                get(FLOW),
+                get(FUTURE_FACTORY),
+                get(USERLAND),
+                get(FFI_EXPORT_REPOSITORY),
+                get(FFI_FACTORY)
+            );
+        },
+
+        'class_promoter': function () {
+            return new ClassPromoter(get(CLASS_FACTORY), get(METHOD_PROMOTER));
+        },
+
         'control_bridge': function () {
             return new ControlBridge(Future, Value);
         },
@@ -158,6 +215,14 @@ module.exports = function (internals) {
             );
         },
 
+        'ffi_export_factory': function () {
+            return new FFIExportFactory(get(FFI_UNWRAPPER_REPOSITORY), get(FFI_PROXY_FACTORY));
+        },
+
+        'ffi_export_repository': function () {
+            return new FFIExportRepository(get(FFI_EXPORT_FACTORY), get(FFI_VALUE_STORAGE));
+        },
+
         'function_signature_parser': function () {
             return new SignatureParser(get(VALUE_FACTORY));
         },
@@ -172,12 +237,31 @@ module.exports = function (internals) {
             );
         },
 
+        'global_namespace': function () {
+            var namespaceFactory = get(NAMESPACE_FACTORY);
+
+            return namespaceFactory.create();
+        },
+
         'host_scheduler': function () {
             return new HostScheduler();
         },
 
         'method_promoter': function () {
             return new MethodPromoter(get(CALL_STACK), get(FUNCTION_FACTORY), get(FUNCTION_SPEC_FACTORY));
+        },
+
+        'namespace_factory': function () {
+            return new NamespaceFactory(
+                Namespace,
+                get(CALL_STACK),
+                get(FUTURE_FACTORY),
+                get(FUNCTION_FACTORY),
+                get(FUNCTION_SPEC_FACTORY),
+                get(VALUE_FACTORY),
+                get(CLASS_AUTOLOADER),
+                get(CLASS_DEFINER)
+            );
         },
 
         'native_class_definition_builder': function () {
@@ -285,6 +369,14 @@ module.exports = function (internals) {
 
         'unpaused_sentinel': function () {
             return new UnpausedSentinel();
+        },
+
+        'userland_class_definition_builder': function () {
+            return new UserlandDefinitionBuilder(
+                get(CALL_STACK),
+                get(VALUE_FACTORY),
+                get(FFI_FACTORY)
+            );
         },
 
         'value_provider': function () {

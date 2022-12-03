@@ -12,7 +12,7 @@
 var _ = require('microdash');
 
 /**
- * Creates objects related to Namespaces
+ * Creates objects related to Namespaces.
  *
  * @param {class} Namespace
  * @param {CallStack} callStack
@@ -70,7 +70,7 @@ function NamespaceFactory(
 
 _.extend(NamespaceFactory.prototype, {
     /**
-     * Creates a new Namespace
+     * Creates a new Namespace.
      *
      * @param {Namespace|null} parentNamespace
      * @param {string|null} name
