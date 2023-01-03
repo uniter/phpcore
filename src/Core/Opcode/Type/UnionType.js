@@ -18,16 +18,17 @@ var _ = require('microdash'),
     /**
      * Fetches the subtype of this union that allows the given value, or null if there is none.
      *
-     * @param {UnionType} type
+     * @param {UnionType} typeObject
      * @param {*} value
      * @returns {TypeInterface|null}
      */
-    getMatchingSubType = function (type, value) {
+    getMatchingSubType = function (typeObject, value) {
         var matchingSubType = null;
 
-        _.each(type.subTypes, function (subType) {
+        _.each(typeObject.subTypes, function (subType) {
             if (subType.allowsValue(value)) {
                 matchingSubType = subType;
+
                 return false; // A subtype has matched, no need to check further subtypes.
             }
         });
@@ -63,7 +64,7 @@ _.extend(UnionType.prototype, {
      * {@inheritdoc}
      */
     coerceValue: function (value) {
-        var type = this,
+        var typeObject = this,
             matchingSubType = getMatchingSubType(this, value);
 
         if (matchingSubType !== null) {
@@ -71,7 +72,7 @@ _.extend(UnionType.prototype, {
         }
 
         throw new Exception(
-            'Unexpected value provided for UnionType<' + type.getDisplayName() + '>'
+            'Unexpected value provided for UnionType<' + typeObject.getDisplayName() + '>'
         );
     },
 
@@ -79,9 +80,9 @@ _.extend(UnionType.prototype, {
      * {@inheritdoc}
      */
     getDisplayName: function () {
-        var type = this;
+        var typeObject = this;
 
-        return type.subTypes
+        return typeObject.subTypes
             .map(function (subType) {
                 return subType.getDisplayName();
             })

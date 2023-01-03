@@ -129,10 +129,10 @@ EOS
             engine.execute();
         }).to.throw(
             PHPFatalError,
-            'PHP Fatal error: Uncaught TypeError: Argument 1 passed to myFunction() must be an instance of MyClass,' +
-            ' instance of YourClass given, called in /path/to/module.php on line 8 and defined in /path/to/module.php:5' +
+            'PHP Fatal error: Uncaught TypeError: myFunction(): Argument #1 ($thing) must be of type MyClass, ' +
+            'YourClass given, called in /path/to/module.php on line 8 and defined in /path/to/module.php:5' +
             // NB: Extraneous context info here is added by PHPFatalError (PHPError),
-            //     but not output to stdout/stderr
+            //     but not output to stdout/stderr.
             ' in /path/to/module.php on line 5'
         );
     });
@@ -158,10 +158,10 @@ EOS
             engine.execute();
         }).to.throw(
             PHPFatalError,
-            'PHP Fatal error: Uncaught TypeError: Argument 1 passed to MyTestClass::myInstanceMethod() must be an instance of MyClass, ' +
-            'instance of YourClass given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:6' +
+            'PHP Fatal error: Uncaught TypeError: MyTestClass::myInstanceMethod(): Argument #1 ($thing) must be of type MyClass, ' +
+            'YourClass given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:6' +
             // NB: Extraneous context info here is added by PHPFatalError (PHPError),
-            //     but not output to stdout/stderr
+            //     but not output to stdout/stderr.
             ' in /path/to/module.php on line 6'
         );
     });
@@ -187,10 +187,10 @@ EOS
             engine.execute();
         }).to.throw(
             PHPFatalError,
-            'PHP Fatal error: Uncaught TypeError: Argument 1 passed to MyTestClass::myStaticMethod() must be an instance of MyClass, ' +
-            'instance of YourClass given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:6' +
+            'PHP Fatal error: Uncaught TypeError: MyTestClass::myStaticMethod(): Argument #1 ($thing) must be of type MyClass, ' +
+            'YourClass given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:6' +
             // NB: Extraneous context info here is added by PHPFatalError (PHPError),
-            //     but not output to stdout/stderr
+            //     but not output to stdout/stderr.
             ' in /path/to/module.php on line 6'
         );
     });

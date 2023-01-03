@@ -149,7 +149,7 @@ module.exports = require('pauser')([
          */
         coerceToNumber: function () {
             var value = this,
-                isFloat = /^-?\d*(\.|[eE][-+]?)\d/.test(value.value);
+                isFloat = value.getNumericType() === 'float';
 
             if (isFloat) {
                 return value.coerceToFloat();
@@ -425,6 +425,25 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Determines the numeric type of this string:
+         *
+         * - "float"
+         * - "int"
+         * - or null if not numeric.
+         *
+         * @returns {string|null}
+         */
+        getNumericType: function () {
+            var value = this;
+
+            if (/^-?\d*(\.|[eE][-+]?)\d/.test(value.value)) {
+                return 'float';
+            }
+
+            return value.isNumeric() ? 'int' : null;
+        },
+
+        /**
          * Fetches a reference to a static property of the class this string refers to.
          *
          * @param {StringValue} nameValue
@@ -527,12 +546,19 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Returns true if the string is numeric, false otherwise
+         * Returns true if the string is numeric, false otherwise.
          *
          * @returns {boolean}
          */
         isNumeric: function () {
             return /(\d+(\.)?)?\d+([Ee][+-]\d+)?/.test(this.value);
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        isScalar: function () {
+            return true;
         },
 
         isTheClassOfArray: function () {

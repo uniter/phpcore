@@ -31,7 +31,7 @@ function ScalarType(futureFactory, scalarType, nullIsAllowed) {
      */
     this.futureFactory = futureFactory;
     /**
-     * Note that whether a type is nullable is not directly to whether a parameter using that type is nullable -
+     * Note that whether a type is nullable is not directly related to whether a parameter using that type is nullable -
      * if the default value is null then it will allow null, which is checked in the Parameter class.
      *
      * @type {boolean}
@@ -41,6 +41,12 @@ function ScalarType(futureFactory, scalarType, nullIsAllowed) {
      * @type {string}
      */
     this.scalarType = scalarType;
+    /**
+     * Scalar types use the shortened form while the value type is the long form.
+     *
+     * @type {string}
+     */
+    this.scalarValueType = (scalarType === 'bool') ? 'boolean' : scalarType;
 }
 
 util.inherits(ScalarType, TypeInterface);
@@ -62,13 +68,8 @@ _.extend(ScalarType.prototype, {
         var typeObject = this,
             valueType = value.getType();
 
-        if (valueType === 'boolean') {
-            // Scalar types use the shortened form while the value type is the long form.
-            valueType = 'bool';
-        }
-
         return typeObject.futureFactory.createPresent(
-            (valueType === typeObject.scalarType) ||
+            (valueType === typeObject.scalarValueType) ||
             (typeObject.allowsNull() && value.getType() === 'null')
         );
     },
@@ -111,6 +112,15 @@ _.extend(ScalarType.prototype, {
         return translator.translate(OF_GENERIC_TYPE_EXPECTED, {
             expectedType: this.getDisplayName()
         });
+    },
+
+    /**
+     * Returns the type of scalar value for this type.
+     *
+     * @returns {string}
+     */
+    getScalarValueType: function () {
+        return this.scalarValueType;
     },
 
     /**

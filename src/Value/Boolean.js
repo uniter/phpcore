@@ -293,6 +293,13 @@ module.exports = require('pauser')([
         },
 
         /**
+         * {@inheritdoc}
+         */
+        isScalar: function () {
+            return true;
+        },
+
+        /**
          * Calculates the ones' complement of this value
          */
         onesComplement: function () {

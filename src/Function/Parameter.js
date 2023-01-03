@@ -367,6 +367,7 @@ _.extend(Parameter.prototype, {
                             INVALID_VALUE_FOR_TYPE_BUILTIN,
                         {
                             index: parameter.index + 1,
+                            name: parameter.name,
                             func: parameter.context.getName(),
                             expectedType: expectedType,
                             actualType: actualType,

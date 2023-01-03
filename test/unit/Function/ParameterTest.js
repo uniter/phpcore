@@ -424,6 +424,7 @@ describe('Parameter', function () {
                 .to.eventually.be.rejectedWith(
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
+                    '"name":"myParam",' +
                     '"actualType":"string",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345,' +
@@ -451,6 +452,7 @@ describe('Parameter', function () {
                 .to.eventually.be.rejectedWith(
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_userland with {' +
                     '"index":7,' +
+                    '"name":"myParam",' +
                     '"actualType":"string",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345,' +
@@ -494,6 +496,7 @@ describe('Parameter', function () {
                 .to.eventually.be.rejectedWith(
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
+                    '"name":"myParam",' +
                     '"actualType":"string",' +
                     '"callerFile":"[Translated] core.unknown {}",' +
                     '"callerLine":"[Translated] core.unknown {}",' +
@@ -535,6 +538,7 @@ describe('Parameter', function () {
                 .to.eventually.be.rejectedWith(
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
+                    '"name":"myParam",' +
                     '"actualType":"null",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345,' +
@@ -561,6 +565,7 @@ describe('Parameter', function () {
                 .to.eventually.be.rejectedWith(
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
+                    '"name":"myParam",' +
                     '"actualType":"null",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345,' +

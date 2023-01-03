@@ -11,9 +11,11 @@
 
 var phpCommon = require('phpcommon'),
     ArrayChainifier = require('../../Control/Chain/ArrayChainifier'),
+    ArrayTypeProvider = require('../../Type/Provider/Spec/ArrayTypeProvider'),
     CalculationOpcode = require('../../Core/Opcode/Opcode/CalculationOpcode'),
     CalculationOpcodeFetcher = require('../../Core/Opcode/Fetcher/CalculationOpcodeFetcher'),
     Call = require('../../Call'),
+    CallableTypeProvider = require('../../Type/Provider/Spec/CallableTypeProvider'),
     CallFactory = require('../../CallFactory'),
     CallStack = require('../../CallStack'),
     Chainifier = require('../../Control/Chain/Chainifier'),
@@ -21,6 +23,7 @@ var phpCommon = require('phpcommon'),
     ClassDefiner = require('../../Class/ClassDefiner'),
     ClassFactory = require('../../Class/ClassFactory'),
     ClassPromoter = require('../../Class/ClassPromoter'),
+    ClassTypeProvider = require('../../Type/Provider/Spec/ClassTypeProvider'),
     ControlBridge = require('../../Control/ControlBridge'),
     ControlExpressionOpcode = require('../../Core/Opcode/Opcode/ControlExpressionOpcode'),
     ControlExpressionOpcodeFetcher = require('../../Core/Opcode/Fetcher/ControlExpressionOpcodeFetcher'),
@@ -37,13 +40,16 @@ var phpCommon = require('phpcommon'),
     Future = require('../../Control/Future'),
     FutureFactory = require('../../Control/FutureFactory'),
     HostScheduler = require('../../Control/HostScheduler'),
+    IterableTypeProvider = require('../../Type/Provider/Spec/IterableTypeProvider'),
     LoopStructureOpcode = require('../../Core/Opcode/Opcode/LoopStructureOpcode'),
     LoopStructureOpcodeFetcher = require('../../Core/Opcode/Fetcher/LoopStructureOpcodeFetcher'),
     MethodPromoter = require('../../Class/MethodPromoter'),
+    MixedTypeProvider = require('../../Type/Provider/Spec/MixedTypeProvider'),
     Namespace = require('../../Namespace').sync(),
     NamespaceFactory = require('../../NamespaceFactory'),
     NativeDefinitionBuilder = require('../../Class/Definition/NativeDefinitionBuilder'),
     NativeMethodDefinitionBuilder = require('../../Class/Definition/NativeMethodDefinitionBuilder'),
+    ObjectTypeProvider = require('../../Type/Provider/Spec/ObjectTypeProvider'),
     OpcodeExecutor = require('../../Core/Opcode/Handler/OpcodeExecutor'),
     OpcodeFactory = require('../../Core/Opcode/Opcode/OpcodeFactory'),
     OpcodeFetcherRepository = require('../../Core/Opcode/Fetcher/OpcodeFetcherRepository'),
@@ -57,12 +63,14 @@ var phpCommon = require('phpcommon'),
     OpcodeTypeFactory = require('../../Core/Opcode/Type/TypeFactory'),
     OpcodeTypeProvider = require('../../Core/Opcode/Type/TypeProvider'),
     ReturnTypeProvider = require('../../Function/ReturnTypeProvider'),
+    ScalarTypeProvider = require('../../Type/Provider/Spec/ScalarTypeProvider'),
     SignatureParser = require('../../Function/Signature/SignatureParser'),
-    SpecTypeProvider = require('../../Type/SpecTypeProvider'),
+    SpecTypeProvider = require('../../Type/Provider/Spec/SpecTypeProvider'),
     Trace = require('../../Control/Trace'),
     Translator = phpCommon.Translator,
     TypeFactory = require('../../Type/TypeFactory'),
     TypedOpcodeHandlerFactory = require('../../Core/Opcode/Handler/TypedOpcodeHandlerFactory'),
+    UnionTypeProvider = require('../../Type/Provider/Spec/UnionTypeProvider'),
     UnpausedSentinel = require('../../Core/Opcode/Handler/UnpausedSentinel'),
     UntracedOpcode = require('../../Core/Opcode/Opcode/UntracedOpcode'),
     UserlandDefinitionBuilder = require('../../Class/Definition/UserlandDefinitionBuilder'),
@@ -348,8 +356,18 @@ module.exports = function (internals) {
             return new ReturnTypeProvider(get(SPEC_TYPE_PROVIDER));
         },
 
-        'spec_type_provider': function () {
-            return new SpecTypeProvider(get(TYPE_FACTORY));
+        'spec_type_provider': function (set) {
+            var typeFactory = get(TYPE_FACTORY),
+                provider = set(new SpecTypeProvider(typeFactory));
+
+            provider.addNamedProvider(new ArrayTypeProvider(typeFactory));
+            provider.addNamedProvider(new CallableTypeProvider(typeFactory));
+            provider.addNamedProvider(new ClassTypeProvider(typeFactory));
+            provider.addNamedProvider(new IterableTypeProvider(typeFactory));
+            provider.addNamedProvider(new MixedTypeProvider(typeFactory));
+            provider.addNamedProvider(new ObjectTypeProvider(typeFactory));
+            provider.addNamedProvider(new ScalarTypeProvider(typeFactory));
+            provider.addNamedProvider(new UnionTypeProvider(typeFactory, provider));
         },
 
         'translator': function () {
@@ -357,7 +375,7 @@ module.exports = function (internals) {
         },
 
         'type_factory': function () {
-            return new TypeFactory(get(FUTURE_FACTORY));
+            return new TypeFactory(get(FUTURE_FACTORY), get(FLOW));
         },
 
         'typed_opcode_handler_factory': function () {

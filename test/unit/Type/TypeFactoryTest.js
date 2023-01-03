@@ -11,6 +11,7 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    tools = require('../tools'),
     ArrayType = require('../../../src/Type/ArrayType'),
     CallableType = require('../../../src/Type/CallableType'),
     ClassType = require('../../../src/Type/ClassType'),
@@ -19,13 +20,22 @@ var expect = require('chai').expect,
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ObjectType = require('../../../src/Type/ObjectType'),
     ScalarType = require('../../../src/Type/ScalarType'),
-    TypeFactory = require('../../../src/Type/TypeFactory');
+    TypeFactory = require('../../../src/Type/TypeFactory'),
+    TypeInterface = require('../../../src/Type/TypeInterface'),
+    UnionType = require('../../../src/Type/UnionType');
 
 describe('TypeFactory', function () {
-    var factory;
+    var factory,
+        flow,
+        futureFactory,
+        state;
 
     beforeEach(function () {
-        factory = new TypeFactory();
+        state = tools.createIsolatedState('async');
+        flow = state.getFlow();
+        futureFactory = state.getFutureFactory();
+
+        factory = new TypeFactory(futureFactory, flow);
     });
 
     describe('createArrayType()', function () {
@@ -160,6 +170,79 @@ describe('TypeFactory', function () {
             var type = factory.createScalarType('int', false);
 
             expect(type.getDisplayName()).to.equal('int');
+        });
+    });
+
+    describe('createUnionType()', function () {
+        var classSubType1,
+            classSubType2,
+            classSubTypes,
+            scalarSubType1,
+            scalarSubType2,
+            scalarSubTypesByValueType,
+            scalarSubTypesByPriority,
+            otherSubType1,
+            otherSubType2,
+            otherSubTypes;
+
+        beforeEach(function () {
+            classSubType1 = sinon.createStubInstance(ClassType);
+            classSubType1.getDisplayName.returns('MyClass');
+            classSubType2 = sinon.createStubInstance(ClassType);
+            classSubType2.getDisplayName.returns('YourClass');
+            classSubTypes = [classSubType1, classSubType2];
+            scalarSubType1 = sinon.createStubInstance(ScalarType);
+            scalarSubType1.getDisplayName.returns('int');
+            scalarSubType2 = sinon.createStubInstance(ScalarType);
+            scalarSubType2.getDisplayName.returns('string');
+            scalarSubTypesByValueType = {
+                'int': scalarSubType1,
+                'string': scalarSubType2
+            };
+            scalarSubTypesByPriority = [scalarSubType1, scalarSubType2];
+            otherSubType1 = sinon.createStubInstance(TypeInterface);
+            otherSubType1.getDisplayName.returns('callable');
+            otherSubType2 = sinon.createStubInstance(TypeInterface);
+            otherSubType2.getDisplayName.returns('iterable');
+            otherSubTypes = [otherSubType1, otherSubType2];
+        });
+
+        it('should return a UnionType that allows null when specified', function () {
+            var type = factory.createUnionType(
+                    scalarSubTypesByValueType,
+                    scalarSubTypesByPriority,
+                    classSubTypes,
+                    otherSubTypes,
+                    true
+                );
+
+            expect(type).to.be.an.instanceOf(UnionType);
+            expect(type.allowsNull()).to.be.true;
+        });
+
+        it('should return a UnionType that disallows null when specified', function () {
+            var type = factory.createUnionType(
+                    scalarSubTypesByValueType,
+                    scalarSubTypesByPriority,
+                    classSubTypes,
+                    otherSubTypes,
+                    false
+                );
+
+            expect(type).to.be.an.instanceOf(UnionType);
+            expect(type.allowsNull()).to.be.false;
+        });
+
+        it('should give the UnionType the correct types', function () {
+            var type = factory.createUnionType(
+                    scalarSubTypesByValueType,
+                    scalarSubTypesByPriority,
+                    classSubTypes,
+                    otherSubTypes,
+                    true
+                );
+
+            expect(type.getDisplayName()).to.equal('MyClass|YourClass|callable|iterable|string|int|null');
         });
     });
 });

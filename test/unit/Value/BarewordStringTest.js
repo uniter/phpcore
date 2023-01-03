@@ -328,6 +328,14 @@ describe('BarewordString', function () {
         });
     });
 
+    describe('isScalar()', function () {
+        it('should return true', function () {
+            createValue('mybarewordstring');
+
+            expect(value.isScalar()).to.be.true;
+        });
+    });
+
     describe('isTheClassOfObject()', function () {
         var namespace;
 

@@ -13,7 +13,7 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ReturnTypeProvider = require('../../../src/Function/ReturnTypeProvider'),
-    SpecTypeProvider = require('../../../src/Type/SpecTypeProvider'),
+    SpecTypeProvider = require('../../../src/Type/Provider/Spec/SpecTypeProvider'),
     TypeInterface = require('../../../src/Type/TypeInterface');
 
 describe('ReturnTypeProvider', function () {

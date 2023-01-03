@@ -1255,6 +1255,73 @@ describe('String', function () {
         });
     });
 
+    describe('getNumericType()', function () {
+        _.each({
+            'parsing a positive plain integer to int': {
+                string: '21',
+                expectedResult: 'int'
+            },
+            'parsing a negative plain integer to int': {
+                string: '-21',
+                expectedResult: 'int'
+            },
+            'parsing a positive plain float to float': {
+                string: '27.123',
+                expectedResult: 'float'
+            },
+            'parsing a negative plain float to float': {
+                string: '-27.123',
+                expectedResult: 'float'
+            },
+            'parsing a negative plain float without leading zero to float': {
+                string: '-.123',
+                expectedResult: 'float'
+            },
+            'parsing a non-numeric string': {
+                string: 'not a num',
+                expectedResult: null
+            },
+            'parsing a non-numeric string containing lowercase "e"': {
+                string: 'my number',
+                expectedResult: null
+            },
+            'parsing a non-numeric string containing uppercase "E"': {
+                string: 'my numbEr',
+                expectedResult: null
+            },
+            'parsing an integer followed by lowercase "e"': {
+                string: '21 e',
+                expectedResult: 'int'
+            },
+            'parsing an implicitly positive exponent (will give an integer result, but as a float)': {
+                string: '1e4',
+                expectedResult: 'float' // Exponents are always evaluated to floats.
+            },
+            'parsing an explicitly positive exponent (will give an integer result, but as a float)': {
+                string: '1e+4',
+                expectedResult: 'float' // Exponents are always evaluated to floats.
+            },
+            'parsing a lowercase exponent with float result': {
+                string: '1e-3',
+                expectedResult: 'float'
+            },
+            'parsing an uppercase exponent with float result': {
+                string: '1E-3',
+                expectedResult: 'float'
+            }
+        }, function (scenario, description) {
+            describe(description, function () {
+                beforeEach(function () {
+                    createValue(scenario.string);
+                });
+
+                it('should return the correct type', function () {
+                    expect(value.getNumericType()).to.equal(scenario.expectedResult);
+                });
+            });
+        });
+    });
+
     describe('getProxy()', function () {
         it('should return "hello" when expected', function () {
             createValue('hello');
@@ -1509,6 +1576,14 @@ describe('String', function () {
             createValue('hello');
 
             expect(value.isNumeric()).to.be.false;
+        });
+    });
+
+    describe('isScalar()', function () {
+        it('should return true', function () {
+            createValue('my string');
+
+            expect(value.isScalar()).to.be.true;
         });
     });
 

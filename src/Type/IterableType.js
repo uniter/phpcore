@@ -11,6 +11,7 @@
 
 var _ = require('microdash'),
     util = require('util'),
+    OF_GENERIC_TYPE_EXPECTED = 'core.of_generic_type_expected',
     TypeInterface = require('./TypeInterface');
 
 /**
@@ -28,7 +29,7 @@ function IterableType(futureFactory, nullIsAllowed) {
      */
     this.futureFactory = futureFactory;
     /**
-     * Note that whether a type is nullable is not directly to whether a parameter using that type is nullable -
+     * Note that whether a type is nullable is not directly related to whether a parameter using that type is nullable -
      * if the default value is null then it will allow null, which is checked in the Parameter class.
      *
      * @type {boolean}
@@ -77,8 +78,10 @@ _.extend(IterableType.prototype, {
     /**
      * {@inheritdoc}
      */
-    getExpectedMessage: function () {
-        return this.getDisplayName();
+    getExpectedMessage: function (translator) {
+        return translator.translate(OF_GENERIC_TYPE_EXPECTED, {
+            expectedType: this.getDisplayName()
+        });
     },
 
     /**
