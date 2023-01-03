@@ -91,7 +91,9 @@ describe('IterableType', function () {
                     return '[Translated] ' + translationKey + ' ' + JSON.stringify(placeholderVariables || {});
                 });
 
-            expect(type.getExpectedMessage(translator)).to.equal('iterable');
+            expect(type.getExpectedMessage(translator)).to.equal(
+                '[Translated] core.of_generic_type_expected {"expectedType":"iterable"}'
+            );
         });
     });
 

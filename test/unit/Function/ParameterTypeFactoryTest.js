@@ -13,7 +13,7 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ParameterTypeFactory = require('../../../src/Function/ParameterTypeFactory'),
-    SpecTypeProvider = require('../../../src/Type/SpecTypeProvider'),
+    SpecTypeProvider = require('../../../src/Type/Provider/Spec/SpecTypeProvider'),
     TypeInterface = require('../../../src/Type/TypeInterface');
 
 describe('ParameterTypeFactory', function () {

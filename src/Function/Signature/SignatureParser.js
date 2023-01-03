@@ -59,7 +59,38 @@ _.extend(SignatureParser.prototype, {
          * @returns {type: string, nullable: boolean, className: string, scalarType: string}
          */
         function buildTypeSpecData(type, nullable) {
-            var spec = {};
+            var spec,
+                subTypes;
+
+            if (type.indexOf('|') > -1) {
+                // Throw if nullable is true as "?A|B" syntax is invalid.
+                if (nullable) {
+                    throw new Exception(
+                        'SignatureParser.parseSignature() :: "?" nullable syntax may not be used with unions, ' +
+                        'use "|null" instead for type "?' + type + '"'
+                    );
+                }
+
+                subTypes = [];
+
+                // Iterate through subtypes looking for "|null",
+                // extract and remove and pass as the nullable spec prop.
+                _.each(type.split('|'), function (subType) {
+                    if (subType.toLowerCase() === 'null') {
+                        nullable = true;
+                    } else {
+                        subTypes.push(buildTypeSpecData(subType, false));
+                    }
+                });
+
+                return {
+                    type: 'union',
+                    subTypes: subTypes,
+                    nullable: nullable
+                };
+            }
+
+            spec = {};
 
             if (type === 'mixed') {
                 // "mixed" type is represented by undefined in the parameter spec data format.
@@ -161,7 +192,7 @@ _.extend(SignatureParser.prototype, {
         while (remainingSignature.length > 0 && !/^\s*:/.test(remainingSignature)) {
             // TODO: Support non-empty array literals as default values.
             match = remainingSignature.match(
-                /^\s*(?:(\?)\s*)?([\w\\]+)\s*(?:(&)\s*)?\$(\w+)(?:\s*=\s*(?:(-?\d*\.\d+)|(-?\d+)|(true|false)|(null)|"((?:[^\\"]|\\[\s\S])*)"|\[()]|([\w_]+)))?\s*(?:,\s*)?/i
+                /^\s*(?:(\?)\s*)?([\w\\]+(?:\|[\w\\]+)*)\s*(?:(&)\s*)?\$(\w+)(?:\s*=\s*(?:(-?\d*\.\d+)|(-?\d+)|(true|false)|(null)|"((?:[^\\"]|\\[\s\S])*)"|\[()]|([\w_]+)))?\s*(?:,\s*)?/i
             );
 
             if (!match) {
@@ -180,7 +211,7 @@ _.extend(SignatureParser.prototype, {
             // Signature declares a return type.
 
             match = remainingSignature.match(
-                /^\s*:\s*(?:(&)\s*)?(?:(\?)\s*)?([\w\\]+)\s*$/i
+                /^\s*:\s*(?:(&)\s*)?(?:(\?)\s*)?([\w\\]+(?:\|[\w\\]+)*)\s*$/i
             );
 
             if (!match) {

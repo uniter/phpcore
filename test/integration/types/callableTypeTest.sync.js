@@ -143,7 +143,7 @@ EOS
             doRun(engine);
         }).to.throw(
             PHPFatalError,
-            'PHP Fatal error: Uncaught TypeError: Argument 1 passed to myFunction() must be callable,' +
+            'PHP Fatal error: Uncaught TypeError: myFunction(): Argument #1 ($myCallable) must be callable,' +
             ' string given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:5' +
             // NB: Extraneous context info here is added by PHPFatalError (PHPError),
             //     but not output to stdout/stderr
@@ -151,7 +151,7 @@ EOS
         );
         expect(outputLog).to.deep.equal([
             nowdoc(function () {/*<<<EOS
-[stderr]PHP Fatal error:  Uncaught TypeError: Argument 1 passed to myFunction() must be callable, string given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:5
+[stderr]PHP Fatal error:  Uncaught TypeError: myFunction(): Argument #1 ($myCallable) must be callable, string given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:5
 Stack trace:
 #0 /path/to/module.php(10): myFunction('I_am_not_a_vali...')
 #1 {main}
@@ -163,7 +163,7 @@ EOS
             // NB: Stdout should have a leading newline written out just before the message
             nowdoc(function () {/*<<<EOS
 [stdout]
-Fatal error: Uncaught TypeError: Argument 1 passed to myFunction() must be callable, string given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:5
+Fatal error: Uncaught TypeError: myFunction(): Argument #1 ($myCallable) must be callable, string given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:5
 Stack trace:
 #0 /path/to/module.php(10): myFunction('I_am_not_a_vali...')
 #1 {main}
@@ -195,7 +195,7 @@ EOS
             doRun(engine);
         }).to.throw(
             PHPFatalError,
-            'PHP Fatal error: Uncaught TypeError: Argument 1 passed to myFunction() must be callable,' +
+            'PHP Fatal error: Uncaught TypeError: myFunction(): Argument #1 ($myCallable) must be callable,' +
             ' array given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:5' +
             // NB: Extraneous context info here is added by PHPFatalError (PHPError),
             //     but not output to stdout/stderr
@@ -203,7 +203,7 @@ EOS
         );
         expect(outputLog).to.deep.equal([
             nowdoc(function () {/*<<<EOS
-[stderr]PHP Fatal error:  Uncaught TypeError: Argument 1 passed to myFunction() must be callable, array given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:5
+[stderr]PHP Fatal error:  Uncaught TypeError: myFunction(): Argument #1 ($myCallable) must be callable, array given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:5
 Stack trace:
 #0 /path/to/module.php(10): myFunction(Array)
 #1 {main}
@@ -215,7 +215,7 @@ EOS
             // NB: Stdout should have a leading newline written out just before the message
             nowdoc(function () {/*<<<EOS
 [stdout]
-Fatal error: Uncaught TypeError: Argument 1 passed to myFunction() must be callable, array given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:5
+Fatal error: Uncaught TypeError: myFunction(): Argument #1 ($myCallable) must be callable, array given, called in /path/to/module.php on line 10 and defined in /path/to/module.php:5
 Stack trace:
 #0 /path/to/module.php(10): myFunction(Array)
 #1 {main}
@@ -251,7 +251,7 @@ EOS
             doRun(engine);
         }).to.throw(
             PHPFatalError,
-            'PHP Fatal error: Uncaught TypeError: Argument 1 passed to myFunction() must be callable,' +
+            'PHP Fatal error: Uncaught TypeError: myFunction(): Argument #1 ($myCallable) must be callable,' +
             ' array given, called in /path/to/module.php on line 14 and defined in /path/to/module.php:5' +
             // NB: Extraneous context info here is added by PHPFatalError (PHPError),
             //     but not output to stdout/stderr
@@ -259,7 +259,7 @@ EOS
         );
         expect(outputLog).to.deep.equal([
             nowdoc(function () {/*<<<EOS
-[stderr]PHP Fatal error:  Uncaught TypeError: Argument 1 passed to myFunction() must be callable, array given, called in /path/to/module.php on line 14 and defined in /path/to/module.php:5
+[stderr]PHP Fatal error:  Uncaught TypeError: myFunction(): Argument #1 ($myCallable) must be callable, array given, called in /path/to/module.php on line 14 and defined in /path/to/module.php:5
 Stack trace:
 #0 /path/to/module.php(14): myFunction(Array)
 #1 {main}
@@ -271,7 +271,7 @@ EOS
             // NB: Stdout should have a leading newline written out just before the message
             nowdoc(function () {/*<<<EOS
 [stdout]
-Fatal error: Uncaught TypeError: Argument 1 passed to myFunction() must be callable, array given, called in /path/to/module.php on line 14 and defined in /path/to/module.php:5
+Fatal error: Uncaught TypeError: myFunction(): Argument #1 ($myCallable) must be callable, array given, called in /path/to/module.php on line 14 and defined in /path/to/module.php:5
 Stack trace:
 #0 /path/to/module.php(14): myFunction(Array)
 #1 {main}

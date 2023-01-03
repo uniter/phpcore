@@ -16,15 +16,21 @@ var _ = require('microdash'),
     IterableType = require('./IterableType'),
     MixedType = require('./MixedType'),
     ObjectType = require('./ObjectType'),
-    ScalarType = require('./ScalarType');
+    ScalarType = require('./ScalarType'),
+    UnionType = require('./UnionType');
 
 /**
- * Creates objects related to Types
+ * Creates objects related to Types.
  *
  * @param {FutureFactory} futureFactory
+ * @param {Flow} flow
  * @constructor
  */
-function TypeFactory(futureFactory) {
+function TypeFactory(futureFactory, flow) {
+    /**
+     * @type {Flow}
+     */
+    this.flow = flow;
     /**
      * @type {FutureFactory}
      */
@@ -33,7 +39,7 @@ function TypeFactory(futureFactory) {
 
 _.extend(TypeFactory.prototype, {
     /**
-     * Creates a new ArrayType
+     * Creates a new ArrayType.
      *
      * @param {boolean=} nullIsAllowed
      * @returns {ArrayType}
@@ -43,7 +49,7 @@ _.extend(TypeFactory.prototype, {
     },
 
     /**
-     * Creates a new CallableType
+     * Creates a new CallableType.
      *
      * @param {NamespaceScope} namespaceScope
      * @param {boolean=} nullIsAllowed
@@ -54,7 +60,7 @@ _.extend(TypeFactory.prototype, {
     },
 
     /**
-     * Creates a new ClassType
+     * Creates a new ClassType.
      *
      * @param {string} className
      * @param {boolean=} nullIsAllowed
@@ -65,7 +71,7 @@ _.extend(TypeFactory.prototype, {
     },
 
     /**
-     * Creates a new IterableType
+     * Creates a new IterableType.
      *
      * @param {boolean=} nullIsAllowed
      * @returns {IterableType}
@@ -75,7 +81,7 @@ _.extend(TypeFactory.prototype, {
     },
 
     /**
-     * Creates a new MixedType
+     * Creates a new MixedType.
      *
      * @returns {MixedType}
      */
@@ -102,6 +108,36 @@ _.extend(TypeFactory.prototype, {
      */
     createScalarType: function (scalarType, nullIsAllowed) {
         return new ScalarType(this.futureFactory, scalarType, Boolean(nullIsAllowed));
+    },
+
+    /**
+     * Creates a new UnionType.
+     *
+     * @param {Object.<string, ScalarType>} scalarSubTypesByValueType
+     * @param {ScalarType[]} scalarSubTypesByPriority
+     * @param {ClassType[]} classSubTypes
+     * @param {TypeInterface[]} otherSubTypes
+     * @param {boolean=} nullIsAllowed
+     * @returns {UnionType}
+     */
+    createUnionType: function (
+        scalarSubTypesByValueType,
+        scalarSubTypesByPriority,
+        classSubTypes,
+        otherSubTypes,
+        nullIsAllowed
+    ) {
+        var factory = this;
+
+        return new UnionType(
+            factory.futureFactory,
+            factory.flow,
+            scalarSubTypesByValueType,
+            scalarSubTypesByPriority,
+            classSubTypes,
+            otherSubTypes,
+            Boolean(nullIsAllowed)
+        );
     }
 });
 

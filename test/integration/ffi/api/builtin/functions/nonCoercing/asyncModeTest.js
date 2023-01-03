@@ -15,7 +15,7 @@ var expect = require('chai').expect,
     Promise = require('lie');
 
 describe('PHP builtin FFI function asynchronous mode non-coercion integration', function () {
-    it('should support installing a custom function that returns a Value object', function () {
+    it('should support installing a custom function that returns a Value object', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 return add_one_to(21);
@@ -28,12 +28,10 @@ EOS
             return this.valueFactory.createInteger(argReference.getNative() + 1);
         });
 
-        return engine.execute().then(function (result) {
-            expect(result.getNative()).to.equal(22);
-        });
+        expect((await engine.execute()).getNative()).to.equal(22);
     });
 
-    it('should support installing a custom function that returns an FFIResult that resolves to a Value object', function () {
+    it('should support installing a custom function that returns an FFIResult that resolves to a Value object', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 return add_one_to(21) + 100;
@@ -54,12 +52,10 @@ EOS
             });
         });
 
-        return engine.execute().then(function (result) {
-            expect(result.getNative()).to.equal(122);
-        });
+        expect((await engine.execute()).getNative()).to.equal(122);
     });
 
-    it('should support installing a custom function that receives an ObjectValue', function () {
+    it('should support installing a custom function that receives an ObjectValue', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -112,8 +108,6 @@ EOS
             };
         });
 
-        return engine.execute().then(function (result) {
-            expect(result.getNative()).to.equal(27);
-        });
+        expect((await engine.execute()).getNative()).to.equal(27);
     });
 });

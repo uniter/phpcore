@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP builtin FFI function auto-coercion scalar type integration', function () {
-    it('should support installing a custom function with coercing scalar parameter used in weak type-checking mode', function () {
+    it('should support installing a custom function with coercing scalar parameter used in weak type-checking mode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -28,21 +28,21 @@ $result['no arg given'] = double_it();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.defineCoercingFunction('double_it', function (number) {
             return number * 2;
         }, 'int $myNumber = 21');
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'int arg given': 14,
             'string arg given (coercion needed)': 16,
             'no arg given': 42
         });
     });
 
-    it('should raise a fatal error when an integer parameter is given an array argument', function () {
+    it('should raise a fatal error when an integer parameter is given an array argument', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -52,17 +52,15 @@ $result['with array'] = i_want_an_integer(['my' => 'array']); // Not an integer!
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
         engine.defineCoercingFunction('i_want_an_integer', function () {}, 'int $myInteger');
 
-        expect(function () {
-            engine.execute();
-        }).to.throw(
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
-            'PHP Fatal error: Uncaught TypeError: i_want_an_integer() ' +
-            'expects parameter 1 to be of the type int, array given in /path/to/my_module.php on line 4'
+            'PHP Fatal error: Uncaught TypeError: i_want_an_integer(): ' +
+            'Argument #1 ($myInteger) must be of type int, array given in /path/to/my_module.php on line 4'
         );
     });
 });

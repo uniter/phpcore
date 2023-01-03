@@ -216,6 +216,18 @@ describe('ScalarType', function () {
         });
     });
 
+    describe('getScalarValueType()', function () {
+        it('should return the type for non-boolean', function () {
+            expect(type.getScalarValueType()).to.equal('int');
+        });
+
+        it('should return "boolean" for boolean', function () {
+            createType('bool');
+
+            expect(type.getScalarValueType()).to.equal('boolean');
+        });
+    });
+
     describe('isScalar()', function () {
         it('should return true', function () {
             expect(type.isScalar()).to.be.true;

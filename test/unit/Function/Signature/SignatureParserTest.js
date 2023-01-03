@@ -317,12 +317,93 @@ describe('SignatureParser', function () {
 
             expect(signature).to.be.an.instanceOf(Signature);
             expect(signature.getParameterCount()).to.equal(1);
+            expect(signature.getReturnTypeSpecData()).to.deep.equal({
+                type: 'scalar',
+                scalarType: 'bool',
+                nullable: false,
+            });
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
             expect(parameterSpecData.nullable).to.be.true;
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             expect(parameterSpecData.value()).to.equal(constantValue);
+        });
+
+        it('should be able to parse a single parameter with non-nullable union type', function () {
+            var parameterSpecData,
+                signature = parser.parseSignature('callable|iterable $myParam : bool');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(1);
+            expect(signature.getReturnTypeSpecData()).to.deep.equal({
+                type: 'scalar',
+                scalarType: 'bool',
+                nullable: false,
+            });
+            parameterSpecData = signature.getParametersSpecData()[0];
+            expect(parameterSpecData.type).to.equal('union');
+            expect(parameterSpecData.subTypes).to.deep.equal([
+                { type: 'callable', nullable: false },
+                { type: 'iterable', nullable: false }
+            ]);
+            expect(parameterSpecData.nullable).to.be.false;
+            expect(parameterSpecData.name).to.equal('myParam');
+            expect(parameterSpecData.ref).to.be.false;
+            expect(parameterSpecData.value).to.be.null;
+        });
+
+        it('should be able to parse a single parameter with nullable union type', function () {
+            var parameterSpecData,
+                signature = parser.parseSignature('callable|iterable|null $myParam : bool');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(1);
+            expect(signature.getReturnTypeSpecData()).to.deep.equal({
+                type: 'scalar',
+                scalarType: 'bool',
+                nullable: false,
+            });
+            parameterSpecData = signature.getParametersSpecData()[0];
+            expect(parameterSpecData.type).to.equal('union');
+            expect(parameterSpecData.subTypes).to.deep.equal([
+                { type: 'callable', nullable: false },
+                { type: 'iterable', nullable: false }
+            ]);
+            expect(parameterSpecData.nullable).to.be.true;
+            expect(parameterSpecData.name).to.equal('myParam');
+            expect(parameterSpecData.ref).to.be.false;
+            expect(parameterSpecData.value).to.be.null;
+        });
+
+        it('should be able to parse a non-nullable union return type', function () {
+            var signature = parser.parseSignature(': callable|iterable');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(0);
+            expect(signature.getReturnTypeSpecData()).to.deep.equal({
+                type: 'union',
+                subTypes: [
+                    { type: 'callable', nullable: false },
+                    { type: 'iterable', nullable: false }
+                ],
+                nullable: false,
+            });
+        });
+
+        it('should be able to parse a nullable union return type', function () {
+            var signature = parser.parseSignature(': callable|iterable|null');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(0);
+            expect(signature.getReturnTypeSpecData()).to.deep.equal({
+                type: 'union',
+                subTypes: [
+                    { type: 'callable', nullable: false },
+                    { type: 'iterable', nullable: false }
+                ],
+                nullable: true,
+            });
         });
 
         it('should be able to parse a signature with nullable class return type but no parameters', function () {
@@ -432,6 +513,26 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('string');
             expect(defaultValue.getNative()).to.equal('my default string value \\ with " \n escaped chars');
+        });
+
+        it('should throw an error when a union parameter type uses "?" nullable syntax', function () {
+            expect(function () {
+                parser.parseSignature('?bool|int $myParam = true');
+            }).to.throw(
+                Exception,
+                'SignatureParser.parseSignature() :: ' +
+                '"?" nullable syntax may not be used with unions, use "|null" instead for type "?bool|int"'
+            );
+        });
+
+        it('should throw an error when a union return type uses "?" nullable syntax', function () {
+            expect(function () {
+                parser.parseSignature(': ?int|string');
+            }).to.throw(
+                Exception,
+                'SignatureParser.parseSignature() :: ' +
+                '"?" nullable syntax may not be used with unions, use "|null" instead for type "?int|string"'
+            );
         });
 
         it('should throw an error when a default string literal is malformed', function () {

@@ -522,7 +522,7 @@ EOS
     });
 
     // This test ensures that when a trace is formatted, any undefined variables or references
-    // that may have been passed as arguments are handled correctly
+    // that may have been passed as arguments are handled correctly.
     it('should correctly handle an undefined variable being passed as a function argument alongside a TypeError', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -541,7 +541,7 @@ EOS
 
         await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
-            'PHP Fatal error: Uncaught TypeError: Argument 2 passed to myFunc() must be an instance of MyClass, int given, ' +
+            'PHP Fatal error: Uncaught TypeError: myFunc(): Argument #2 ($myObject) must be of type MyClass, int given, ' +
             'called in /path/to/my_module.php on line 9 and defined in /path/to/my_module.php:4 ' +
             // NB: Extraneous context info here is added by PHPFatalError (PHPError),
             //     but not output to stdout/stderr
@@ -550,7 +550,7 @@ EOS
         expect(engine.getStderr().readAll()).to.equal(
             nowdoc(function () {/*<<<EOS
 PHP Notice:  Undefined variable: myUndefinedVar in /path/to/my_module.php on line 9
-PHP Fatal error:  Uncaught TypeError: Argument 2 passed to myFunc() must be an instance of MyClass, int given, called in /path/to/my_module.php on line 9 and defined in /path/to/my_module.php:4
+PHP Fatal error:  Uncaught TypeError: myFunc(): Argument #2 ($myObject) must be of type MyClass, int given, called in /path/to/my_module.php on line 9 and defined in /path/to/my_module.php:4
 Stack trace:
 #0 /path/to/my_module.php(9): myFunc(NULL, 21)
 #1 {main}
@@ -564,7 +564,7 @@ EOS
 
 Notice: Undefined variable: myUndefinedVar in /path/to/my_module.php on line 9
 
-Fatal error: Uncaught TypeError: Argument 2 passed to myFunc() must be an instance of MyClass, int given, called in /path/to/my_module.php on line 9 and defined in /path/to/my_module.php:4
+Fatal error: Uncaught TypeError: myFunc(): Argument #2 ($myObject) must be of type MyClass, int given, called in /path/to/my_module.php on line 9 and defined in /path/to/my_module.php:4
 Stack trace:
 #0 /path/to/my_module.php(9): myFunc(NULL, 21)
 #1 {main}

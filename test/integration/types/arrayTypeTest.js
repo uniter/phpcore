@@ -118,7 +118,7 @@ EOS
 
         await expect(doRun(engine)).to.eventually.be.rejectedWith(
             PHPFatalError,
-            'PHP Fatal error: Uncaught TypeError: Argument 1 passed to myFunction() must be of the type array,' +
+            'PHP Fatal error: Uncaught TypeError: myFunction(): Argument #1 ($myArray) must be of type array,' +
             ' string given, called in /path/to/module.php on line 12 and defined in /path/to/module.php:5' +
             // NB: Extraneous context info here is added by PHPFatalError (PHPError),
             //     but not output to stdout/stderr
@@ -126,7 +126,7 @@ EOS
         );
         expect(outputLog).to.deep.equal([
             nowdoc(function () {/*<<<EOS
-[stderr]PHP Fatal error:  Uncaught TypeError: Argument 1 passed to myFunction() must be of the type array, string given, called in /path/to/module.php on line 12 and defined in /path/to/module.php:5
+[stderr]PHP Fatal error:  Uncaught TypeError: myFunction(): Argument #1 ($myArray) must be of type array, string given, called in /path/to/module.php on line 12 and defined in /path/to/module.php:5
 Stack trace:
 #0 /path/to/module.php(12): myFunction('I_am_not_a_vali...')
 #1 {main}
@@ -138,7 +138,7 @@ EOS
             // NB: Stdout should have a leading newline written out just before the message
             nowdoc(function () {/*<<<EOS
 [stdout]
-Fatal error: Uncaught TypeError: Argument 1 passed to myFunction() must be of the type array, string given, called in /path/to/module.php on line 12 and defined in /path/to/module.php:5
+Fatal error: Uncaught TypeError: myFunction(): Argument #1 ($myArray) must be of type array, string given, called in /path/to/module.php on line 12 and defined in /path/to/module.php:5
 Stack trace:
 #0 /path/to/module.php(12): myFunction('I_am_not_a_vali...')
 #1 {main}

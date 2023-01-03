@@ -2465,6 +2465,12 @@ describe('Object', function () {
         });
     });
 
+    describe('isScalar()', function () {
+        it('should return false', function () {
+            expect(value.isScalar()).to.be.false;
+        });
+    });
+
     describe('isTheClassOfArray()', function () {
         it('should return bool(false)', function () {
             var classValue = sinon.createStubInstance(ArrayValue),

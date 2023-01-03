@@ -279,6 +279,13 @@ module.exports = require('pauser')([
             return true;
         },
 
+        /**
+         * {@inheritdoc}
+         */
+        isScalar: function () {
+            return true;
+        },
+
         onesComplement: function () {
             /*jshint bitwise: false */
             return this.factory.createInteger(~this.value);

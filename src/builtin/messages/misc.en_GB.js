@@ -10,14 +10,14 @@
 'use strict';
 
 /*
- * Miscellaneous translations
+ * Miscellaneous translations.
  */
 module.exports = {
     'en_GB': {
         'core': {
             'at_least': 'at least',
 
-            // For uncaught errors (see ErrorReporting)
+            // For uncaught errors (see ErrorReporting).
             'error_with_context_and_trace': ' in ${filePath}:${line}\n' +
                 'Stack trace:' + '\n' +
                 '${formattedTrace}\n' +
@@ -30,17 +30,17 @@ module.exports = {
             // For warnings/notices/uncatchable errors etc.
             'error_without_trace': ' in ${filePath} on line ${line}',
 
-            // The path used in stack traces etc. for eval'd code
+            // The path used in stack traces etc. for eval'd code.
             'eval_path': '${path}(${lineNumber}) : eval()\'d code',
 
             'exactly': 'exactly',
 
-            // Used for building messages referencing types
-            'instance_of_type_expected': 'an instance of ${expectedType}',
-            'instance_of_type_actual': 'instance of ${actualType}',
-            'of_generic_type_expected': 'of the type ${expectedType}',
+            // Used for building messages referencing types.
+            'instance_of_type_expected': 'of type ${expectedType}',
+            'instance_of_type_actual': '${actualType}',
+            'of_generic_type_expected': 'of type ${expectedType}',
 
-            // For any type of error that needs to be scoped to the current function
+            // For any type of error that needs to be scoped to the current function.
             'scoped_error': '${function}(): ${message}',
 
             // For unknown file paths, line numbers etc.

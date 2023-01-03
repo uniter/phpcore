@@ -135,8 +135,8 @@ EOS
             engine.execute();
         }).to.throw(
             PHPFatalError,
-            'PHP Fatal error: Uncaught TypeError: i_want_an_object() ' +
-            'expects parameter 1 to be an instance of My\\Stuff\\MyClass, int given ' +
+            'PHP Fatal error: Uncaught TypeError: i_want_an_object(): ' +
+            'Argument #1 ($myObject) must be of type My\\Stuff\\MyClass, int given ' +
             'in /path/to/my_module.php on line 2'
         );
     });
@@ -156,8 +156,8 @@ EOS
             engine.execute();
         }).to.throw(
             PHPFatalError,
-            'PHP Fatal error: Uncaught TypeError: i_want_an_object() ' +
-            'expects parameter 1 to be an instance of My\\Stuff\\MyClass, null given ' +
+            'PHP Fatal error: Uncaught TypeError: i_want_an_object(): ' +
+            'Argument #1 ($myObject) must be of type My\\Stuff\\MyClass, null given ' +
             'in /path/to/my_module.php on line 2'
         );
     });

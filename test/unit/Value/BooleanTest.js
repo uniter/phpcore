@@ -619,6 +619,12 @@ describe('Boolean', function () {
         });
     });
 
+    describe('isScalar()', function () {
+        it('should return true', function () {
+            expect(value.isScalar()).to.be.true;
+        });
+    });
+
     describe('isTheClassOfArray()', function () {
         it('should raise a fatal error', function () {
             var classValue = sinon.createStubInstance(ArrayValue);

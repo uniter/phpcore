@@ -1050,6 +1050,15 @@ module.exports = require('pauser')([
         isNumeric: throwUnimplemented('isNumeric'),
 
         /**
+         * Determines whether this value is scalar or not.
+         *
+         * @returns {boolean}
+         */
+        isScalar: function () {
+            return false;
+        },
+
+        /**
          * Determines whether this value is classed as "set" or not
          *
          * @returns {ChainableInterface<boolean>}
