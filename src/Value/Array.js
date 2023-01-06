@@ -437,6 +437,11 @@ module.exports = require('pauser')([
             return arrayValue.factory.createArray(orderedElements, arrayValue.elementProvider);
         },
 
+        /**
+         * Fetches a list of key Values for this array.
+         *
+         * @returns {Value[]}
+         */
         getKeys: function () {
             var keys = [];
 

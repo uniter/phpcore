@@ -2015,6 +2015,18 @@ describe('Object', function () {
         });
     });
 
+    describe('getKeys()', function () {
+        it('should return an array of keys for the object when treated as an array', function () {
+            var keys = value.getKeys();
+
+            expect(keys).to.have.length(2);
+            expect(keys[0].getType()).to.equal('string');
+            expect(keys[0].getNative()).to.equal('firstProp');
+            expect(keys[1].getType()).to.equal('string');
+            expect(keys[1].getNative()).to.equal('secondProp');
+        });
+    });
+
     describe('getLength()', function () {
         var ancestorClass,
             descendantClass,

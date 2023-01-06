@@ -866,6 +866,16 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Fetches a list of key Values for this object when treated as an array,
+         * which corresponds to its instance properties.
+         *
+         * @returns {Value[]}
+         */
+        getKeys: function () {
+            return this.getInstancePropertyNames();
+        },
+
+        /**
          * Fetches the value of an instance property of this object
          *
          * @param {string} name

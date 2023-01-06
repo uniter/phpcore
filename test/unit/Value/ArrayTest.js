@@ -840,6 +840,18 @@ describe('Array', function () {
         });
     });
 
+    describe('getKeys()', function () {
+        it('should return an array of keys for the array', function () {
+            var keys = value.getKeys();
+
+            expect(keys).to.have.length(2);
+            expect(keys[0].getType()).to.equal('string');
+            expect(keys[0].getNative()).to.equal('firstEl');
+            expect(keys[1].getType()).to.equal('string');
+            expect(keys[1].getNative()).to.equal('secondEl');
+        });
+    });
+
     describe('getNative()', function () {
         it('should unwrap to a native array when the array has no non-numeric keys', function () {
             var result;
