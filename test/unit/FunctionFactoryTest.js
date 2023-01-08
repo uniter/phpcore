@@ -97,7 +97,9 @@ describe('FunctionFactory', function () {
                         })
                     );
                 });
-            functionSpec.coerceReturnReference.returnsArg(0);
+            functionSpec.coerceReturnReference.callsFake(function (returnReference) {
+                return futureFactory.createPresent(returnReference);
+            });
             functionSpec.populateDefaultArguments.returnsArg(0);
             functionSpec.getFunctionName.returns(name);
             functionSpec.isReturnByReference.returns(false);
@@ -143,13 +145,38 @@ describe('FunctionFactory', function () {
                 expect(resultValue.getNative()).to.equal(123);
             });
 
-            it('should return the eventual result from the wrapped function when return-by-reference', async function () {
-                var resultVariable = sinon.createStubInstance(Variable);
-                resultVariable.next.callsArgWith(0, resultVariable);
-                functionSpec.isReturnByReference.returns(true);
-                originalFunc.returns(resultVariable);
+            describe('when return-by-reference', function () {
+                var resultVariable;
 
-                expect(await callCreate()().toPromise()).to.equal(resultVariable);
+                beforeEach(function () {
+                    resultVariable = sinon.createStubInstance(Variable);
+                    resultVariable.next.callsArgWith(0, resultVariable);
+                    functionSpec.isReturnByReference.returns(true);
+                    originalFunc.returns(resultVariable);
+                });
+
+                it('should return the eventual result from the wrapped function', async function () {
+                    expect(await callCreate()().toPromise()).to.equal(resultVariable);
+                });
+
+                it('should validate the eventual result Variable/reference via .validateReturnReference()', async function () {
+                    await callCreate()().toPromise();
+
+                    expect(functionSpec.validateReturnReference).to.have.been.calledOnce;
+                    expect(functionSpec.validateReturnReference).to.have.been.calledWith(
+                        sinon.match.same(resultVariable)
+                    );
+                });
+
+                it('should validate the eventual result Value via .validateReturnReference()', async function () {
+                    await callCreate()().toPromise();
+
+                    expect(functionSpec.validateReturnReference).to.have.been.calledOnce;
+                    expect(functionSpec.validateReturnReference).to.have.been.calledWith(
+                        sinon.match.any,
+                        sinon.match.same(resultVariable)
+                    );
+                });
             });
 
             it('should pass the current Class to the ScopeFactory', async function () {
