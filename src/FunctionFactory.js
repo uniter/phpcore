@@ -139,11 +139,12 @@ module.exports = require('pauser')([
                         return resultReference.next(function (presentResultReference) {
                             // Coerce return value or reference as required, capturing the value for later validation.
                             // Note that the coerced result for by-value functions will be written back to resultReference.
-                            var resultValue = functionSpec.coerceReturnReference(presentResultReference);
-
-                            // Check the return value against the return type (if any). If the caller
-                            // is in weak type-checking mode, the value will have been coerced if possible above.
-                            return functionSpec.validateReturnReference(presentResultReference, resultValue);
+                            return functionSpec.coerceReturnReference(presentResultReference)
+                                .next(function (resultValue) {
+                                    // Check the return value against the return type (if any). If the caller
+                                    // is in weak type-checking mode, the value will have been coerced if possible above.
+                                    return functionSpec.validateReturnReference(presentResultReference, resultValue);
+                                });
                         });
                     }
 

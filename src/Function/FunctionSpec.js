@@ -151,7 +151,7 @@ _.extend(FunctionSpec.prototype, {
      * Coerces a return value or reference for this function as per its return type, if any.
      *
      * @param {Reference|Value|Variable} returnReference
-     * @returns {Value} Returns the result coerced to a value
+     * @returns {ChainableInterface<Value>} Returns the result coerced to a value
      */
     coerceReturnReference: function (returnReference) {
         var spec = this,

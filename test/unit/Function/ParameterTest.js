@@ -114,7 +114,7 @@ describe('Parameter', function () {
                 variable = sinon.createStubInstance(Variable);
             typeObject.coerceValue
                 .withArgs(sinon.match.same(originalValue))
-                .returns(coercedValue);
+                .returns(futureFactory.createPresent(coercedValue));
             variable.getValueOrNull.returns(originalValue);
             variable.setValue
                 .withArgs(sinon.match.same(coercedValue))
@@ -130,7 +130,7 @@ describe('Parameter', function () {
                 variable = sinon.createStubInstance(Variable);
             typeObject.coerceValue
                 .withArgs(sinon.match.same(originalValue))
-                .returns(coercedValue);
+                .returns(futureFactory.createPresent(coercedValue));
             variable.getValueOrNull.returns(originalValue);
             variable.setValue
                 .withArgs(sinon.match.same(coercedValue))
@@ -142,30 +142,16 @@ describe('Parameter', function () {
             expect(variable.setValue).to.have.been.calledWith(sinon.match.same(coercedValue));
         });
 
-        it('should return the argument\'s value when the parameter is passed by value', function () {
+        it('should return the argument\'s value when the parameter is passed by value', async function () {
             var value = valueFactory.createString('my value'),
                 variable = sinon.createStubInstance(Variable);
-            typeObject.coerceValue.returnsArg(0);
+            typeObject.coerceValue.callsFake(function (value) {
+                return futureFactory.createPresent(value);
+            });
             variable.getValue.returns(value);
-            parameter = new Parameter(
-                callStack,
-                valueFactory,
-                translator,
-                futureFactory,
-                flow,
-                userland,
-                'myParam',
-                6,
-                typeObject,
-                context,
-                namespaceScope,
-                false,
-                defaultValueProvider,
-                '/path/to/my/module.php',
-                101
-            );
+            createParameter(false);
 
-            expect(parameter.coerceArgument(variable)).to.equal(value);
+            expect(await parameter.coerceArgument(variable).toPromise()).to.equal(value);
         });
     });
 

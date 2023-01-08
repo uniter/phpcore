@@ -145,18 +145,19 @@ _.extend(Parameter.prototype, {
              * is of type "float" but the argument is a string containing a float, a FloatValue
              * will be returned with the value parsed from the string.
              */
-            var coercedValue = parameter.typeObject.coerceValue(presentValue);
+            return parameter.typeObject.coerceValue(presentValue)
+                .next(function (coercedValue) {
+                    // Write the coerced argument value back to the reference if needed.
+                    if (
+                        parameter.passedByReference &&
+                        coercedValue !== presentValue &&
+                        !(argumentReference instanceof Value)
+                    ) {
+                        return argumentReference.setValue(coercedValue);
+                    }
 
-            // Write the coerced argument value back to the reference if needed.
-            if (
-                parameter.passedByReference &&
-                coercedValue !== presentValue &&
-                !(argumentReference instanceof Value)
-            ) {
-                return argumentReference.setValue(coercedValue);
-            }
-
-            return coercedValue;
+                    return coercedValue;
+                });
         });
 
         return value;
