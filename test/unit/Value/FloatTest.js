@@ -22,7 +22,7 @@ var expect = require('chai').expect,
     PHPError = phpCommon.PHPError,
     Value = require('../../../src/Value').sync();
 
-describe('Float', function () {
+describe('FloatValue', function () {
     var callStack,
         createKeyValuePair,
         createValue,
@@ -43,9 +43,16 @@ describe('Float', function () {
         futureFactory = state.getFutureFactory();
         referenceFactory = state.getReferenceFactory();
 
-        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables, errorClass) {
+            if (level !== PHPError.E_ERROR) {
+                return;
+            }
+
             throw new Error(
-                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+                'Fake PHP ' + level +
+                (errorClass ? ' (' + errorClass + ')' : '') +
+                ' for #' + translationKey +
+                ' with ' + JSON.stringify(placeholderVariables || {})
             );
         });
 
@@ -69,7 +76,8 @@ describe('Float', function () {
             expect(function () {
                 value.add(addendValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"float","operator":"+","right":"array"}'
             );
         });
 
@@ -160,6 +168,7 @@ describe('Float', function () {
 
                 expect(resultValue.getType()).to.equal('float');
                 expect(resultValue.getNative()).to.equal(23.5);
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
 
             it('should return the result of adding a float with decimal string prefix', function () {
@@ -170,6 +179,11 @@ describe('Float', function () {
 
                 expect(resultValue.getType()).to.equal('float');
                 expect(resultValue.getNative()).to.equal(24.5);
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_WARNING,
+                    'core.non_numeric_value'
+                );
             });
 
             it('should return the result of adding an integer string', function () {
@@ -180,6 +194,7 @@ describe('Float', function () {
 
                 expect(resultValue.getType()).to.equal('float');
                 expect(resultValue.getNative()).to.equal(28);
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
         });
     });
@@ -201,6 +216,90 @@ describe('Float', function () {
     describe('asFuture()', function () {
         it('should return a Present that resolves to this value', function () {
             return expect(value.asFuture().toPromise()).to.eventually.equal(value);
+        });
+    });
+
+    describe('bitwiseAnd()', function () {
+        beforeEach(function () {
+            createValue(parseInt('10101101', 2));
+        });
+
+        it('should throw an "Unsupported operand" error for an array operand', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseAnd(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"float","operator":"&","right":"array"}'
+            );
+        });
+
+        it('should return the correct result for an integer operand', function () {
+            var expectedResult = parseInt('00001001', 2),
+                result,
+                rightValue = factory.createInteger(parseInt('00001011', 2));
+
+            result = value.bitwiseAnd(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+    });
+
+    describe('bitwiseOr()', function () {
+        beforeEach(function () {
+            createValue(parseInt('10101001', 2));
+        });
+
+        it('should throw an "Unsupported operand" error for an array operand', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseOr(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"float","operator":"|","right":"array"}'
+            );
+        });
+
+        it('should return the correct result for an integer operand', function () {
+            var expectedResult = parseInt('11111001', 2),
+                result,
+                rightValue = factory.createInteger(parseInt('11110000', 2));
+
+            result = value.bitwiseOr(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+    });
+
+    describe('bitwiseXor()', function () {
+        beforeEach(function () {
+            createValue(parseInt('10101001', 2));
+        });
+
+        it('should throw an "Unsupported operand" error for an array operand', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseXor(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"float","operator":"^","right":"array"}'
+            );
+        });
+
+        it('should return the correct result for an integer operand', function () {
+            var expectedResult = parseInt('01011001', 2),
+                result,
+                rightValue = factory.createInteger(parseInt('11110000', 2));
+
+            result = value.bitwiseXor(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
         });
     });
 
@@ -244,6 +343,12 @@ describe('Float', function () {
             }).to.throw(
                 'Only instances of Throwable may be thrown: tried to throw a(n) float'
             );
+        });
+    });
+
+    describe('coerceToNumber()', function () {
+        it('should return the float unchanged', function () {
+            expect(value.coerceToNumber()).to.equal(value);
         });
     });
 
@@ -375,7 +480,8 @@ describe('Float', function () {
             expect(function () {
                 value.divideBy(divisorValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"float","operator":"/","right":"array"}'
             );
         });
 
@@ -500,6 +606,7 @@ describe('Float', function () {
 
                 expect(resultValue.getType()).to.equal('float');
                 expect(resultValue.getNative()).to.equal(4.2);
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
 
             it('should return the result of dividing by a float with decimal string prefix', function () {
@@ -511,6 +618,11 @@ describe('Float', function () {
 
                 expect(resultValue.getType()).to.equal('float');
                 expect(resultValue.getNative()).to.equal(4.2);
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_WARNING,
+                    'core.non_numeric_value'
+                );
             });
 
             it('should return the result of dividing by an integer string', function () {
@@ -521,6 +633,7 @@ describe('Float', function () {
 
                 expect(resultValue.getType()).to.equal('float');
                 expect(resultValue.getNative()).to.equal(10.5);
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
 
             it('should raise a warning and return false when dividing by zero', function () {
@@ -534,6 +647,7 @@ describe('Float', function () {
                     .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
                 expect(resultValue.getType()).to.equal('boolean');
                 expect(resultValue.getNative()).to.equal(false);
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
         });
     });
@@ -846,7 +960,8 @@ describe('Float', function () {
             expect(function () {
                 value.multiplyBy(multiplierValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"float","operator":"*","right":"array"}'
             );
         });
 
@@ -1011,6 +1126,16 @@ describe('Float', function () {
         });
     });
 
+    describe('onesComplement()', function () {
+        it('should return an integer with the ones\' complement', function () {
+            /*jshint bitwise: false */
+            var resultValue = value.onesComplement();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(~21);
+        });
+    });
+
     describe('subtract()', function () {
         it('should throw an "Unsupported operand" error for an array subtrahend', function () {
             var subtrahendValue = factory.createArray([]);
@@ -1018,7 +1143,8 @@ describe('Float', function () {
             expect(function () {
                 value.subtract(subtrahendValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"float","operator":"-","right":"array"}'
             );
         });
 

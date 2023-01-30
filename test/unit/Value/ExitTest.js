@@ -13,7 +13,7 @@ var expect = require('chai').expect,
     tools = require('../tools'),
     ExitValue = require('../../../src/Value/Exit').sync();
 
-describe('Exit', function () {
+describe('ExitValue', function () {
     var callStack,
         factory,
         flow,

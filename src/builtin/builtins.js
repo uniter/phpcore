@@ -24,6 +24,7 @@ module.exports = require('pauser')([
     require('./messages/notice.en_GB'),
     require('./constants/reserved'),
     require('./ini/resource'),
+    require('./services/semantics'),
     require('./functions/spl'),
     require('./classes/stdClass'),
     require('./messages/warning.en_GB'),
@@ -56,6 +57,7 @@ module.exports = require('pauser')([
     noticeMessages,
     reservedConstants,
     resourceDefaultINIOptions,
+    semanticsServiceGroup,
     splFunctions,
     stdClass,
     warningMessages,
@@ -112,7 +114,8 @@ module.exports = require('pauser')([
             loopStructureOpcodeGroup
         ],
         serviceGroups: [
-            baseServiceGroup
+            baseServiceGroup,
+            semanticsServiceGroup
         ],
         translationCatalogues: [
             errorMessages,

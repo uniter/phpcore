@@ -20,7 +20,7 @@ module.exports = require('pauser')([
 ) {
     /**
      * Represents an undelimited string, which can resolve relative to the current namespace scope
-     * (eg. with "use function", "use {class}" etc.)
+     * (e.g. with "use function", "use {class}" etc.)
      *
      * Note that global constants will be transpiled as a getConstant() opcode and not a bareword,
      * therefore a bareword is not actually a valid expression term.
@@ -32,6 +32,7 @@ module.exports = require('pauser')([
      * @param {Flow} flow
      * @param {string} value
      * @param {Namespace} globalNamespace
+     * @param {NumericStringParser} numericStringParser
      * @param {NamespaceScope} namespaceScope
      * @constructor
      */
@@ -43,9 +44,20 @@ module.exports = require('pauser')([
         flow,
         value,
         globalNamespace,
+        numericStringParser,
         namespaceScope
     ) {
-        StringValue.call(this, factory, referenceFactory, futureFactory, callStack, flow, value, globalNamespace);
+        StringValue.call(
+            this,
+            factory,
+            referenceFactory,
+            futureFactory,
+            callStack,
+            flow,
+            value,
+            globalNamespace,
+            numericStringParser
+        );
 
         /**
          * @type {NamespaceScope}

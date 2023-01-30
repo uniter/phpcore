@@ -25,7 +25,7 @@ module.exports = require('pauser')([
     var Exception = phpCommon.Exception,
         MAGIC_TO_STRING = '__toString',
         PHPError = phpCommon.PHPError,
-        NON_WELL_FORMED_NUMERIC_VALUE = 'core.non_well_formed_numeric_value';
+        NON_NUMERIC_VALUE = 'core.non_numeric_value';
 
     /**
      * @param {ValueFactory} factory
@@ -35,6 +35,7 @@ module.exports = require('pauser')([
      * @param {Flow} flow
      * @param {string} value
      * @param {Namespace} globalNamespace
+     * @param {NumericStringParser} numericStringParser
      * @constructor
      */
     function StringValue(
@@ -44,7 +45,8 @@ module.exports = require('pauser')([
         callStack,
         flow,
         value,
-        globalNamespace
+        globalNamespace,
+        numericStringParser
     ) {
         Value.call(this, factory, referenceFactory, futureFactory, callStack, flow, 'string', value);
 
@@ -52,6 +54,10 @@ module.exports = require('pauser')([
          * @type {Namespace}
          */
         this.globalNamespace = globalNamespace;
+        /**
+         * @type {NumericStringParser}
+         */
+        this.numericStringParser = numericStringParser;
     }
 
     util.inherits(StringValue, Value);
@@ -115,27 +121,27 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Coerces this string to a float value
+         * Coerces this string to a float value.
          *
          * @returns {FloatValue}
          */
         coerceToFloat: function () {
-            var value = this;
+            var value = this,
+                parse = value.numericStringParser.parseNumericString(value.value);
 
-            // Note that both leading and trailing whitespace is allowed.
-            return value.factory.createFloat(/^\s*(\d|-[\d.])/.test(value.value) ? parseFloat(value.value) : 0);
+            return parse ? parse.toFloatValue() : value.factory.createFloat(0);
         },
 
         /**
-         * Coerces this string to an integer value
+         * Coerces this string to an integer value.
          *
          * @returns {IntegerValue}
          */
         coerceToInteger: function () {
-            var value = this;
+            var value = this,
+                parse = value.numericStringParser.parseNumericString(value.value);
 
-            // Note that both leading and trailing whitespace is allowed.
-            return value.factory.createInteger(/^\s*(\d|-[\d.])/.test(value.value) ? parseInt(value.value, 10) : 0);
+            return parse ? parse.toIntegerValue() : value.factory.createInteger(0);
         },
 
         coerceToKey: function () {
@@ -143,19 +149,28 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Coerces this string to either a FloatValue or IntegerValue, depending on its contents
-         *
-         * @returns {FloatValue|IntegerValue}
+         * {@inheritdoc}
          */
         coerceToNumber: function () {
             var value = this,
-                isFloat = value.getNumericType() === 'float';
+                parse = value.numericStringParser.parseNumericString(value.value);
 
-            if (isFloat) {
-                return value.coerceToFloat();
-            } else {
-                return value.coerceToInteger();
+            if (!parse) {
+                // Return null if the string is completely non-numeric.
+                return null;
             }
+
+            if (!parse.isFullyNumeric()) {
+                /*
+                 * Raise a warning if the value is only leading-numeric.
+                 *
+                 * Note that this will mean raising the same warning twice if both operands
+                 * of an operation with two are non-numeric, as expected.
+                 */
+                value.callStack.raiseTranslatedError(PHPError.E_WARNING, NON_NUMERIC_VALUE);
+            }
+
+            return parse.toValue();
         },
 
         coerceToString: function () {
@@ -310,38 +325,26 @@ module.exports = require('pauser')([
          * {@inheritdoc}
          */
         convertForFloatType: function () {
-            var value = this;
+            var value = this,
+                parse = value.numericStringParser.parseNumericString(value.value);
 
-            // Ensure only leading and/or trailing whitespace is present if any.
-            if (!/^\s*-?(?:\d\.\d+e\d+|\d*\.\d+|\d+e[+-]?\d+)\s*$/i.test(value.value)) {
-                if (!/^\s*[.-]?\d/.test(value.value)) {
-                    // String is completely non-numeric, no conversion is possible.
-                    return value;
-                }
-
-                value.callStack.raiseTranslatedError(PHPError.E_NOTICE, NON_WELL_FORMED_NUMERIC_VALUE);
-            }
-
-            return this.coerceToFloat();
+            // Only leading and/or trailing whitespace may be allowed present if any.
+            return parse && parse.isFullyNumeric() ?
+                parse.toFloatValue() :
+                value;
         },
 
         /**
          * {@inheritdoc}
          */
         convertForIntegerType: function () {
-            var value = this;
+            var value = this,
+                parse = value.numericStringParser.parseNumericString(value.value);
 
-            // Ensure only leading and/or trailing whitespace is present if any.
-            if (!/^\s*-?(?:0x[0-9a-f]+|\d+)\s*$/.test(value.value)) {
-                if (!/^\s*[.-]?\d/.test(value.value)) {
-                    // String is completely non-numeric, no conversion is possible.
-                    return value;
-                }
-
-                value.callStack.raiseTranslatedError(PHPError.E_NOTICE, NON_WELL_FORMED_NUMERIC_VALUE);
-            }
-
-            return this.coerceToInteger();
+            // Only leading and/or trailing whitespace may be allowed present if any.
+            return parse && parse.isFullyNumeric() ?
+                parse.toIntegerValue() :
+                value;
         },
 
         /**
@@ -434,13 +437,10 @@ module.exports = require('pauser')([
          * @returns {string|null}
          */
         getNumericType: function () {
-            var value = this;
+            var value = this,
+                parse = value.numericStringParser.parseNumericString(value.value);
 
-            if (/^-?\d*(\.|[eE][-+]?)\d/.test(value.value)) {
-                return 'float';
-            }
-
-            return value.isNumeric() ? 'int' : null;
+            return parse ? parse.getType() : null;
         },
 
         /**
@@ -546,12 +546,15 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Returns true if the string is numeric, false otherwise.
+         * Returns true if the string is fully (not just leading-) numeric, false otherwise.
          *
          * @returns {boolean}
          */
         isNumeric: function () {
-            return /(\d+(\.)?)?\d+([Ee][+-]\d+)?/.test(this.value);
+            var value = this,
+                parse = value.numericStringParser.parseNumericString(value.value);
+
+            return Boolean(parse && parse.isFullyNumeric());
         },
 
         /**
@@ -593,8 +596,21 @@ module.exports = require('pauser')([
             return this.factory.createBoolean(false);
         },
 
+        /**
+         * {@inheritdoc}
+         */
         onesComplement: function () {
-            return this.factory.createString('?');
+            /*jshint bitwise: false */
+            var value = this,
+                transformed = value.value
+                    .split('')
+                    .map(function (char) {
+                        // For strings, we perform ones' complement on the ASCII values of the characters.
+                        return String.fromCharCode((~char.charCodeAt(0)) & 0xff);
+                    })
+                    .join('');
+
+            return this.factory.createString(transformed);
         }
     });
 

@@ -159,7 +159,16 @@ module.exports = require('pauser')([
             if (rightValue.getType() !== 'array') {
                 rightValue.coerceToNumber();
 
-                leftValue.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
+                leftValue.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    UNSUPPORTED_OPERAND_TYPES,
+                    {
+                        left: leftValue.getDisplayType(),
+                        operator: '+',
+                        right: rightValue.getDisplayType()
+                    },
+                    'TypeError'
+                );
             }
 
             resultArray = leftValue.getForAssignment();
@@ -260,10 +269,6 @@ module.exports = require('pauser')([
 
         coerceToKey: function () {
             this.callStack.raiseError(PHPError.E_WARNING, 'Illegal offset type');
-        },
-
-        coerceToNumber: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
         /**
@@ -699,13 +704,6 @@ module.exports = require('pauser')([
          */
         isNumeric: function () {
             return false;
-        },
-
-        /**
-         * Calculates the ones' complement of this value
-         */
-        onesComplement: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         },
 
         /**

@@ -20,11 +20,8 @@ module.exports = require('pauser')([
     util,
     Value
 ) {
-    var UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types',
-        PHPError = phpCommon.PHPError;
-
     /**
-     * Represents a PHP boolean value
+     * Represents a PHP boolean value.
      *
      * @param {ValueFactory} factory
      * @param {ReferenceFactory} referenceFactory
@@ -62,6 +59,15 @@ module.exports = require('pauser')([
         },
 
         coerceToKey: function () {
+            return this.coerceToInteger();
+        },
+
+        /**
+         * Booleans always coerce to integer.
+         *
+         * @returns {IntegerValue}
+         */
+        coerceToNumber: function () {
             return this.coerceToInteger();
         },
 
@@ -240,6 +246,14 @@ module.exports = require('pauser')([
             return this.value ? 'true' : 'false';
         },
 
+        /**
+         * {@inheritdoc}
+         */
+        getDisplayType: function () {
+            // For booleans we display the shorthand "bool" rather than "boolean".
+            return 'bool';
+        },
+
         getElement: function () {
             // Array access on booleans always returns null, no notice or warning is raised
             return this.factory.createNull();
@@ -297,13 +311,6 @@ module.exports = require('pauser')([
          */
         isScalar: function () {
             return true;
-        },
-
-        /**
-         * Calculates the ones' complement of this value
-         */
-        onesComplement: function () {
-            this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
         }
     });
 

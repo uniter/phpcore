@@ -181,6 +181,10 @@ module.exports = require('pauser')([
          */
         this.nullValue = null;
         /**
+         * @type {NumericStringParser|null}
+         */
+        this.numericStringParser = null;
+        /**
          * @type {ReferenceFactory|null}
          */
         this.referenceFactory = null;
@@ -432,6 +436,7 @@ module.exports = require('pauser')([
                 factory.flow,
                 value,
                 factory.globalNamespace,
+                factory.numericStringParser,
                 namespaceScope
             );
         },
@@ -917,7 +922,8 @@ module.exports = require('pauser')([
                 factory.callStack,
                 factory.flow,
                 value,
-                factory.globalNamespace
+                factory.globalNamespace,
+                factory.numericStringParser
             );
         },
 
@@ -1142,6 +1148,15 @@ module.exports = require('pauser')([
          */
         setGlobalNamespace: function (globalNamespace) {
             this.globalNamespace = globalNamespace;
+        },
+
+        /**
+         * Sets the NumericStringParser service.
+         *
+         * @param {NumericStringParser} numericStringParser
+         */
+        setNumericStringParser: function (numericStringParser) {
+            this.numericStringParser = numericStringParser;
         },
 
         /**

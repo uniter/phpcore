@@ -63,4 +63,50 @@ EOS
             'Argument #1 ($myInteger) must be of type int, array given in /path/to/my_module.php on line 4'
         );
     });
+
+    it('should raise a fatal error when a float parameter is given a leading numeric string', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+// Leading-numeric strings are not accepted by scalar types.
+$result['with leading numeric string'] = i_want_a_float('123abc');
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        engine.defineCoercingFunction('i_want_a_float', function () {}, 'float $myFloat');
+
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught TypeError: i_want_a_float(): ' +
+            'Argument #1 ($myFloat) must be of type float, string given in /path/to/my_module.php on line 5'
+        );
+    });
+
+    it('should raise a fatal error when an integer parameter is given a leading numeric string', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+// Leading-numeric strings are not accepted by scalar types.
+$result['with leading numeric string'] = i_want_an_integer('123abc');
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        engine.defineCoercingFunction('i_want_an_integer', function () {}, 'int $myInteger');
+
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
+            PHPFatalError,
+            'PHP Fatal error: Uncaught TypeError: i_want_an_integer(): ' +
+            'Argument #1 ($myInteger) must be of type int, string given in /path/to/my_module.php on line 5'
+        );
+    });
 });

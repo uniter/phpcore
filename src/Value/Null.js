@@ -54,8 +54,26 @@ module.exports = require('pauser')([
             return this.factory.createBoolean(false);
         },
 
+        /**
+         * Null always coerces to int 0.
+         *
+         * @returns {IntegerValue}
+         */
+        coerceToInteger: function () {
+            return this.factory.createInteger(0);
+        },
+
         coerceToKey: function () {
             return this.factory.createString('');
+        },
+
+        /**
+         * Null always coerces to int 0.
+         *
+         * @returns {IntegerValue}
+         */
+        coerceToNumber: function () {
+            return this.coerceToInteger();
         },
 
         coerceToString: function () {

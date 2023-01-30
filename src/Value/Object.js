@@ -67,6 +67,8 @@ module.exports = require('pauser')([
 
         CANNOT_ACCESS_PROPERTY = 'core.cannot_access_property',
         CANNOT_CONVERT_OBJECT = 'core.cannot_convert_object',
+        CANNOT_DECREMENT = 'core.cannot_decrement',
+        CANNOT_INCREMENT = 'core.cannot_increment',
         CANNOT_USE_WRONG_TYPE_AS = 'core.cannot_use_wrong_type_as',
         NESTING_LEVEL_TOO_DEEP = 'core.nesting_level_too_deep',
         OBJECT_FROM_GET_ITERATOR_MUST_BE_TRAVERSABLE = 'core.object_from_get_iterator_must_be_traversable',
@@ -674,8 +676,11 @@ module.exports = require('pauser')([
          * {@inheritdoc}
          */
         decrement: function () {
-            // NB: This is the expected behaviour, vs. subtracting one from an object explicitly.
-            return this;
+            var value = this;
+
+            value.callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_DECREMENT, {
+                'type': value.getDisplayType()
+            }, 'TypeError');
         },
 
         /**
@@ -1264,8 +1269,11 @@ module.exports = require('pauser')([
          * {@inheritdoc}
          */
         increment: function () {
-            // NB: This is the expected behaviour, vs. adding one to an object explicitly.
-            return this;
+            var value = this;
+
+            value.callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_INCREMENT, {
+                'type': value.getDisplayType()
+            }, 'TypeError');
         },
 
         /**

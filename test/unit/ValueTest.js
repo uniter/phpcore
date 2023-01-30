@@ -52,34 +52,6 @@ describe('Value', function () {
         };
     });
 
-    describe('bitwiseAnd()', function () {
-        it('should return the correct result for 0b10101101 & 0b00001111', function () {
-            var left = parseInt('10101101', 2),
-                right = parseInt('00001011', 2),
-                expectedResult = parseInt('00001001', 2),
-                leftValue = createValue('first-type', left),
-                rightValue = createValue('second-type', right),
-                result = leftValue.bitwiseAnd(rightValue);
-
-            expect(result).to.be.an.instanceOf(IntegerValue);
-            expect(result.getNative()).to.equal(expectedResult);
-        });
-    });
-
-    describe('bitwiseOr()', function () {
-        it('should return the correct result for 0b10101001 | 0b11110000', function () {
-            var left = parseInt('10101001', 2),
-                right = parseInt('11110000', 2),
-                expectedResult = parseInt('11111001', 2),
-                leftValue = createValue('first-type', left),
-                rightValue = createValue('second-type', right),
-                result = leftValue.bitwiseOr(rightValue);
-
-            expect(result).to.be.an.instanceOf(IntegerValue);
-            expect(result.getNative()).to.equal(expectedResult);
-        });
-    });
-
     describe('coerceToInteger()', function () {
         it('should coerce the value to an integer', function () {
             var value = createValue('my-type', '127.632'),
@@ -87,16 +59,6 @@ describe('Value', function () {
 
             expect(result).to.be.an.instanceOf(IntegerValue);
             expect(result.getNative()).to.equal(127); // Value should be coerced to an integer
-        });
-    });
-
-    describe('coerceToNumber()', function () {
-        it('should coerce the value to an integer', function () {
-            var value = createValue('my-type', '12'),
-                result = value.coerceToNumber();
-
-            expect(result).to.be.an.instanceOf(IntegerValue);
-            expect(result.getNative()).to.equal(12); // Value should be coerced to a number
         });
     });
 

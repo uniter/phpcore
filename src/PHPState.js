@@ -642,6 +642,7 @@ module.exports = require('pauser')([
         valueFactory.setFlow(flow);
         valueFactory.setFutureFactory(futureFactory);
         valueFactory.setGlobalNamespace(globalNamespace);
+        valueFactory.setNumericStringParser(get('numeric_string_parser'));
         valueFactory.setReferenceFactory(referenceFactory);
 
         // Make a copy of the options object so we don't mutate it

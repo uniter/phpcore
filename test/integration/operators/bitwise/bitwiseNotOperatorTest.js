@@ -24,6 +24,7 @@ $result['small integer'] = ~2;
 $result['large integer'] = ~123456781;
 $result['float'] = ~123.5;
 $result['zero'] = ~0;
+$result['string'] = ~'xyz';
 
 return $result;
 EOS
@@ -34,8 +35,11 @@ EOS
         expect((await engine.execute()).getNative()).to.deep.equal({
             'small integer': -3,
             'large integer': -123456782,
-            'float': -124, // Note truncation
-            'zero': -1
+            'float': -124, // Note truncation.
+            'zero': -1,
+
+            // For strings, we perform ones' complement on the ASCII values of the characters.
+            'string': String.fromCharCode(135) + String.fromCharCode(134) + String.fromCharCode(133)
         });
     });
 });

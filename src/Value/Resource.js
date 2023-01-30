@@ -18,7 +18,6 @@ var _ = require('microdash'),
     CANNOT_INCREMENT = 'core.cannot_increment',
     INVALID_FOREACH_ARGUMENT = 'core.invalid_foreach_argument',
     TRYING_TO_ACCESS_ARRAY_OFFSET = 'core.trying_to_access_array_offset',
-    UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types',
     Value = require('../Value').sync();
 
 /**
@@ -62,13 +61,6 @@ _.extend(ResourceValue.prototype, {
     /**
      * {@inheritdoc}
      */
-    add: function () {
-        this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-    },
-
-    /**
-     * {@inheritdoc}
-     */
     coerceToBoolean: function () {
         var value = this;
 
@@ -80,13 +72,6 @@ _.extend(ResourceValue.prototype, {
      */
     coerceToKey: function () {
         this.callStack.raiseError(PHPError.E_WARNING, 'Illegal offset type');
-    },
-
-    /**
-     * {@inheritdoc}
-     */
-    coerceToNumber: function () {
-        this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
     },
 
     /**
@@ -369,21 +354,7 @@ _.extend(ResourceValue.prototype, {
      * {@inheritdoc}
      */
     isNumeric: function () {
-        return true; // Resources are numeric (they coerce to their ID).
-    },
-
-    /**
-     * {@inheritdoc}
-     */
-    modulo: function () {
-        this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
-    },
-
-    /**
-     * Calculates the ones' complement of this value.
-     */
-    onesComplement: function () {
-        this.callStack.raiseTranslatedError(PHPError.E_ERROR, UNSUPPORTED_OPERAND_TYPES);
+        return false; // Although resources coerce to their ID, they are not numeric.
     }
 });
 
