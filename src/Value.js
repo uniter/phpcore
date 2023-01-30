@@ -20,9 +20,11 @@ module.exports = require('pauser')([
 ) {
     var PHPError = phpCommon.PHPError,
 
+        CANNOT_PERFORM_BITWISE_NOT = 'core.cannot_perform_bitwise_not',
         CLASS_NAME_NOT_VALID = 'core.class_name_not_valid',
         METHOD_CALLED_ON_NON_OBJECT = 'core.method_called_on_non_object',
         NON_OBJECT_METHOD_CALL = 'core.non_object_method_call',
+        UNSUPPORTED_OPERAND_TYPES = 'core.unsupported_operand_types',
         VALUE_NOT_CALLABLE = 'core.value_not_callable',
 
         createNullReference = function (value) {
@@ -110,10 +112,17 @@ module.exports = require('pauser')([
                 coercedLeftValue = leftValue.coerceToNumber(),
                 coercedRightValue = rightValue.coerceToNumber();
 
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.add(rightValue);
-                });
+            if (!coercedLeftValue || !coercedRightValue) {
+                leftValue.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    UNSUPPORTED_OPERAND_TYPES,
+                    {
+                        left: leftValue.getDisplayType(),
+                        operator: '+',
+                        right: rightValue.getDisplayType()
+                    },
+                    'TypeError'
+                );
             }
 
             return leftValue.factory.createArithmeticResult(
@@ -168,13 +177,28 @@ module.exports = require('pauser')([
          * @returns {IntegerValue}
          */
         bitwiseAnd: function (rightValue) {
-            var leftValue = this;
+            var leftValue = this,
+                coercedLeftValue = leftValue.coerceToNumber(),
+                coercedRightValue = rightValue.coerceToNumber();
+
+            if (!coercedLeftValue || !coercedRightValue) {
+                leftValue.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    UNSUPPORTED_OPERAND_TYPES,
+                    {
+                        left: leftValue.getDisplayType(),
+                        operator: '&',
+                        right: rightValue.getDisplayType()
+                    },
+                    'TypeError'
+                );
+            }
 
             /*jshint bitwise:false */
             return leftValue.factory.createInteger(
                 (
-                    leftValue.coerceToInteger().getNative() & rightValue.coerceToInteger().getNative()
-                ) >>> 0 // Force unsigned native JS number
+                    coercedLeftValue.getNative() & coercedRightValue.getNative()
+                ) >>> 0 // Force unsigned native JS number.
             );
         },
 
@@ -185,13 +209,28 @@ module.exports = require('pauser')([
          * @returns {IntegerValue}
          */
         bitwiseOr: function (rightValue) {
-            var leftValue = this;
+            var leftValue = this,
+                coercedLeftValue = leftValue.coerceToNumber(),
+                coercedRightValue = rightValue.coerceToNumber();
+
+            if (!coercedLeftValue || !coercedRightValue) {
+                leftValue.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    UNSUPPORTED_OPERAND_TYPES,
+                    {
+                        left: leftValue.getDisplayType(),
+                        operator: '|',
+                        right: rightValue.getDisplayType()
+                    },
+                    'TypeError'
+                );
+            }
 
             /*jshint bitwise:false */
             return leftValue.factory.createInteger(
                 (
-                    leftValue.coerceToInteger().getNative() | rightValue.coerceToInteger().getNative()
-                ) >>> 0 // Force unsigned native JS number
+                    coercedLeftValue.getNative() | coercedRightValue.getNative()
+                ) >>> 0 // Force unsigned native JS number.
             );
         },
 
@@ -202,13 +241,28 @@ module.exports = require('pauser')([
          * @returns {IntegerValue}
          */
         bitwiseXor: function (rightValue) {
-            var leftValue = this;
+            var leftValue = this,
+                coercedLeftValue = leftValue.coerceToNumber(),
+                coercedRightValue = rightValue.coerceToNumber();
+
+            if (!coercedLeftValue || !coercedRightValue) {
+                leftValue.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    UNSUPPORTED_OPERAND_TYPES,
+                    {
+                        left: leftValue.getDisplayType(),
+                        operator: '^',
+                        right: rightValue.getDisplayType()
+                    },
+                    'TypeError'
+                );
+            }
 
             /*jshint bitwise:false */
             return leftValue.factory.createInteger(
                 (
-                    leftValue.coerceToInteger().getNative() ^ rightValue.coerceToInteger().getNative()
-                ) >>> 0 // Force unsigned native JS number
+                    coercedLeftValue.getNative() ^ coercedRightValue.getNative()
+                ) >>> 0 // Force unsigned native JS number.
             );
         },
 
@@ -341,12 +395,13 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Coerces this value to a number as an IntegerValue
+         * Coerces this value to a number as either a FloatValue or IntegerValue if possible.
+         * If the value is completely non-numeric, null will be returned.
          *
-         * @returns {FloatValue|IntegerValue}
+         * @returns {FloatValue|IntegerValue|null}
          */
         coerceToNumber: function () {
-            return this.coerceToInteger();
+            return null;
         },
 
         /**
@@ -476,26 +531,16 @@ module.exports = require('pauser')([
          * @returns {ChainableInterface<StringValue>}
          */
         concat: function (rightValue) {
-            var leftValue = this,
-                coercedLeftValue = leftValue.coerceToString(),
-                coercedRightValue = rightValue.coerceToString();
+            var leftValue = this;
 
-            // This value could coerce to a future, e.g. if an ObjectValue implementing ->__toString().
-            if (coercedLeftValue.isFuture()) {
-                return coercedLeftValue.next(function (leftValue) {
-                    return leftValue.concat(rightValue);
+            // Either operand could coerce to a future, e.g. if an ObjectValue implementing ->__toString().
+            return leftValue.coerceToString().next(function (coercedLeftValue) {
+                return rightValue.coerceToString().next(function (coercedRightValue) {
+                    return leftValue.factory.createString(
+                        coercedLeftValue.getNative() + coercedRightValue.getNative()
+                    );
                 });
-            }
-
-            if (coercedRightValue.isFuture()) {
-                return coercedRightValue.next(function (rightValue) {
-                    return leftValue.concat(rightValue);
-                });
-            }
-
-            return leftValue.factory.createString(
-                coercedLeftValue.getNative() + coercedRightValue.getNative()
-            );
+            });
         },
 
         /**
@@ -550,28 +595,34 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Divides this value by another
+         * Divides this value by another.
          *
          * @param {Value} rightValue
          * @returns {Value}
          */
         divideBy: function (rightValue) {
             var leftValue = this,
-                coercedLeftValue,
-                coercedRightValue,
+                coercedLeftValue = leftValue.coerceToNumber(),
+                coercedRightValue = rightValue.coerceToNumber(),
                 divisor;
 
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.divideBy(rightValue);
-                });
+            if (!coercedLeftValue || !coercedRightValue) {
+                leftValue.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    UNSUPPORTED_OPERAND_TYPES,
+                    {
+                        left: leftValue.getDisplayType(),
+                        operator: '/',
+                        right: rightValue.getDisplayType()
+                    },
+                    'TypeError'
+                );
             }
 
-            coercedLeftValue = leftValue.coerceToNumber();
-            coercedRightValue = rightValue.coerceToNumber();
             divisor = coercedRightValue.getNative();
 
             if (divisor === 0) {
+                // TODO: Should raise a new DivisionByZeroError in PHP 7+.
                 leftValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
 
                 return leftValue.factory.createBoolean(false);
@@ -621,7 +672,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches the type of this value for display purposes, eg. "boolean"
+         * Fetches the type of this value for display purposes, e.g. "int".
          *
          * @returns {string}
          */
@@ -1043,7 +1094,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Returns true if this value is numeric and false otherwise
+         * Returns true if this value is numeric and false otherwise.
          *
          * @returns {boolean}
          */
@@ -1104,11 +1155,30 @@ module.exports = require('pauser')([
          */
         modulo: function (rightValue) {
             var leftValue = this,
-                // Coerce both operands to integers first, to ensure an integer division
-                dividend = leftValue.coerceToInteger().getNative(),
-                divisor = rightValue.coerceToInteger().getNative();
+                coercedLeftValue = leftValue.coerceToNumber(),
+                coercedRightValue = rightValue.coerceToNumber(),
+                dividend,
+                divisor;
+
+            if (!coercedLeftValue || !coercedRightValue) {
+                leftValue.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    UNSUPPORTED_OPERAND_TYPES,
+                    {
+                        left: leftValue.getDisplayType(),
+                        operator: '%',
+                        right: rightValue.getDisplayType()
+                    },
+                    'TypeError'
+                );
+            }
+
+            // Coerce both operands to integers first, to ensure an integer division.
+            dividend = coercedLeftValue.coerceToInteger().getNative();
+            divisor = coercedRightValue.coerceToInteger().getNative();
 
             if (divisor === 0) {
+                // TODO: Should raise a new DivisionByZeroError with message "Modulo by zero" in PHP 7+.
                 leftValue.callStack.raiseError(PHPError.E_WARNING, 'Division by zero');
 
                 return leftValue.factory.createBoolean(false);
@@ -1118,25 +1188,30 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Multiplies this value with another
+         * Multiplies this value with another.
          *
          * @param {Value} multiplierValue
          * @returns {Value}
          */
         multiplyBy: function (multiplierValue) {
             var multiplicandValue = this,
-                coercedMultiplicandValue,
-                coercedMultiplierValue,
+                coercedMultiplicandValue = multiplicandValue.coerceToNumber(),
+                coercedMultiplierValue = multiplierValue.coerceToNumber(),
                 product;
 
-            if (multiplierValue.isFuture()) {
-                return multiplierValue.next(function (multiplierValue) {
-                    return multiplicandValue.multiplyBy(multiplierValue);
-                });
+            if (!coercedMultiplicandValue || !coercedMultiplierValue) {
+                multiplicandValue.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    UNSUPPORTED_OPERAND_TYPES,
+                    {
+                        left: multiplicandValue.getDisplayType(),
+                        operator: '*',
+                        right: multiplierValue.getDisplayType()
+                    },
+                    'TypeError'
+                );
             }
 
-            coercedMultiplicandValue = multiplicandValue.coerceToNumber();
-            coercedMultiplierValue = multiplierValue.coerceToNumber();
             product = coercedMultiplicandValue.getNative() * coercedMultiplierValue.getNative();
 
             return multiplicandValue.factory.createArithmeticResult(
@@ -1155,6 +1230,20 @@ module.exports = require('pauser')([
         negate: function () {
             var value = this,
                 coercedValue = value.coerceToNumber();
+
+            if (!coercedValue) {
+                // Error message reflects the fact that negation operator is identical to * -1.
+                value.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    UNSUPPORTED_OPERAND_TYPES,
+                    {
+                        left: value.getDisplayType(),
+                        operator: '*',
+                        right: 'int'
+                    },
+                    'TypeError'
+                );
+            }
 
             return value.factory.createArithmeticResult(coercedValue, coercedValue, -coercedValue.getNative());
         },
@@ -1205,6 +1294,22 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Calculates the ones' complement of this value.
+         */
+        onesComplement: function () {
+            var value = this;
+
+            value.callStack.raiseTranslatedError(
+                PHPError.E_ERROR,
+                CANNOT_PERFORM_BITWISE_NOT,
+                {
+                    type: value.getDisplayType()
+                },
+                'TypeError'
+            );
+        },
+
+        /**
          * Bitwise-shifts this value left by the given number of bits.
          *
          * @param {Value} rightValue
@@ -1214,8 +1319,21 @@ module.exports = require('pauser')([
             /*jshint bitwise: false */
             var leftValue = this,
                 factory = leftValue.factory,
-                coercedRightValue = rightValue.coerceToInteger(),
-                coercedLeftValue = leftValue.coerceToInteger();
+                coercedLeftValue = leftValue.coerceToNumber(),
+                coercedRightValue = rightValue.coerceToNumber();
+
+            if (!coercedLeftValue || !coercedRightValue) {
+                leftValue.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    UNSUPPORTED_OPERAND_TYPES,
+                    {
+                        left: leftValue.getDisplayType(),
+                        operator: '<<',
+                        right: rightValue.getDisplayType()
+                    },
+                    'TypeError'
+                );
+            }
 
             return factory.createInteger(coercedLeftValue.getNative() << coercedRightValue.getNative());
         },
@@ -1230,8 +1348,21 @@ module.exports = require('pauser')([
             /*jshint bitwise: false */
             var leftValue = this,
                 factory = leftValue.factory,
-                coercedRightValue = rightValue.coerceToInteger(),
-                coercedLeftValue = leftValue.coerceToInteger();
+                coercedLeftValue = leftValue.coerceToNumber(),
+                coercedRightValue = rightValue.coerceToNumber();
+
+            if (!coercedLeftValue || !coercedRightValue) {
+                leftValue.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    UNSUPPORTED_OPERAND_TYPES,
+                    {
+                        left: leftValue.getDisplayType(),
+                        operator: '>>',
+                        right: rightValue.getDisplayType()
+                    },
+                    'TypeError'
+                );
+            }
 
             return factory.createInteger(coercedLeftValue.getNative() >> coercedRightValue.getNative());
         },
@@ -1247,10 +1378,17 @@ module.exports = require('pauser')([
                 coercedLeftValue = leftValue.coerceToNumber(),
                 coercedRightValue = rightValue.coerceToNumber();
 
-            if (rightValue.isFuture()) {
-                return rightValue.next(function (rightValue) {
-                    return leftValue.subtract(rightValue);
-                });
+            if (!coercedLeftValue || !coercedRightValue) {
+                leftValue.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    UNSUPPORTED_OPERAND_TYPES,
+                    {
+                        left: leftValue.getDisplayType(),
+                        operator: '-',
+                        right: rightValue.getDisplayType()
+                    },
+                    'TypeError'
+                );
             }
 
             return leftValue.factory.createArithmeticResult(

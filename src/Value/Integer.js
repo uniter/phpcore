@@ -57,6 +57,15 @@ module.exports = require('pauser')([
             return this;
         },
 
+        /**
+         * Integers should stay unchanged.
+         *
+         * @returns {IntegerValue}
+         */
+        coerceToNumber: function () {
+            return this;
+        },
+
         coerceToString: function () {
             var value = this;
 
@@ -286,6 +295,9 @@ module.exports = require('pauser')([
             return true;
         },
 
+        /**
+         * {@inheritdoc}
+         */
         onesComplement: function () {
             /*jshint bitwise: false */
             return this.factory.createInteger(~this.value);

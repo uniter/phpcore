@@ -33,7 +33,7 @@ var expect = require('chai').expect,
     Value = require('../../../src/Value').sync(),
     Variable = require('../../../src/Variable').sync();
 
-describe('Array', function () {
+describe('ArrayValue', function () {
     var callStack,
         createKeyReferencePair,
         createKeyValuePair,
@@ -99,9 +99,12 @@ describe('Array', function () {
             element2
         ];
 
-        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables, errorClass) {
             throw new Error(
-                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+                'Fake PHP ' + level +
+                (errorClass ? ' (' + errorClass + ')' : '') +
+                ' for #' + translationKey +
+                ' with ' + JSON.stringify(placeholderVariables || {})
             );
         });
 
@@ -148,6 +151,45 @@ describe('Array', function () {
                 'secondEl': 'value of second el',
                 'my_key': 'my value'
             });
+        });
+    });
+
+    describe('bitwiseAnd()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var addendValue = factory.createInteger(21);
+
+            expect(function () {
+                value.bitwiseAnd(addendValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"array","operator":"&","right":"int"}'
+            );
+        });
+    });
+
+    describe('bitwiseOr()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var addendValue = factory.createInteger(21);
+
+            expect(function () {
+                value.bitwiseOr(addendValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"array","operator":"|","right":"int"}'
+            );
+        });
+    });
+
+    describe('bitwiseXor()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var addendValue = factory.createInteger(21);
+
+            expect(function () {
+                value.bitwiseXor(addendValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"array","operator":"^","right":"int"}'
+            );
         });
     });
 
@@ -269,7 +311,8 @@ describe('Array', function () {
                 expect(function () {
                     value.add(booleanValue);
                 }).to.throw(
-                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                    'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                    'with {"left":"array","operator":"+","right":"bool"}'
                 );
             });
         });
@@ -281,7 +324,8 @@ describe('Array', function () {
                 expect(function () {
                     value.add(floatValue);
                 }).to.throw(
-                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                    'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                    'with {"left":"array","operator":"+","right":"float"}'
                 );
             });
         });
@@ -293,7 +337,8 @@ describe('Array', function () {
                 expect(function () {
                     value.add(integerValue);
                 }).to.throw(
-                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                    'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                    'with {"left":"array","operator":"+","right":"int"}'
                 );
             });
         });
@@ -305,7 +350,8 @@ describe('Array', function () {
                 expect(function () {
                     value.add(nullValue);
                 }).to.throw(
-                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                    'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                    'with {"left":"array","operator":"+","right":"null"}'
                 );
             });
         });
@@ -324,12 +370,14 @@ describe('Array', function () {
 
             it('should throw an "Unsupported operand" error', function () {
                 var objectValue = sinon.createStubInstance(ObjectValue);
+                objectValue.getDisplayType.returns('MyClass');
                 objectValue.getType.returns('object');
 
                 expect(function () {
                     value.add(objectValue);
                 }).to.throw(
-                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                    'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                    'with {"left":"array","operator":"+","right":"MyClass"}'
                 );
             });
         });
@@ -341,7 +389,8 @@ describe('Array', function () {
                 expect(function () {
                     value.add(stringValue);
                 }).to.throw(
-                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                    'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                    'with {"left":"array","operator":"+","right":"string"}'
                 );
             });
         });
@@ -502,6 +551,12 @@ describe('Array', function () {
             }).to.throw(
                 'Only instances of Throwable may be thrown: tried to throw a(n) array'
             );
+        });
+    });
+
+    describe('coerceToNumber()', function () {
+        it('should return null', function () {
+            expect(value.coerceToNumber()).to.be.null;
         });
     });
 
@@ -679,11 +734,13 @@ describe('Array', function () {
     describe('divideBy()', function () {
         it('should throw an "Unsupported operand" error', function () {
             var rightValue = sinon.createStubInstance(Value);
+            rightValue.getDisplayType.returns('my-other-type');
 
             expect(function () {
                 value.divideBy(rightValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"array","operator":"/","right":"my-other-type"}'
             );
         });
     });
@@ -1309,39 +1366,16 @@ describe('Array', function () {
     });
 
     describe('modulo()', function () {
-        it('should always return 0 for an empty array, as it will always coerce to 0', function () {
-            var result,
-                rightValue = factory.createInteger(21);
-            elements.length = 0;
-            createValue();
+        it('should throw an "Unsupported operand" error', function () {
+            var rightValue = sinon.createStubInstance(Value);
+            rightValue.getDisplayType.returns('my-other-type');
 
-            result = value.modulo(rightValue);
-
-            expect(result).to.be.an.instanceOf(IntegerValue);
-            expect(result.getNative()).to.equal(0);
-        });
-
-        it('should return 1 for a populated array when the remainder is 1', function () {
-            var result,
-                rightValue = factory.createInteger(2);
-            createValue();
-
-            result = value.modulo(rightValue);
-
-            expect(result).to.be.an.instanceOf(IntegerValue);
-            expect(result.getNative()).to.equal(1);
-        });
-
-        it('should return 0 for a populated array when there is no remainder', function () {
-            var result,
-                rightValue = factory.createInteger(1);
-            elements.length = 1;
-            createValue();
-
-            result = value.modulo(rightValue);
-
-            expect(result).to.be.an.instanceOf(IntegerValue);
-            expect(result.getNative()).to.equal(0);
+            expect(function () {
+                value.modulo(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"array","operator":"%","right":"my-other-type"}'
+            );
         });
     });
 
@@ -1352,7 +1386,8 @@ describe('Array', function () {
             expect(function () {
                 value.multiplyBy(multiplierValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"array","operator":"*","right":"array"}'
             );
         });
 
@@ -1362,7 +1397,8 @@ describe('Array', function () {
             expect(function () {
                 value.multiplyBy(multiplierValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"array","operator":"*","right":"bool"}'
             );
         });
 
@@ -1372,7 +1408,8 @@ describe('Array', function () {
             expect(function () {
                 value.multiplyBy(multiplierValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"array","operator":"*","right":"float"}'
             );
         });
 
@@ -1382,7 +1419,8 @@ describe('Array', function () {
             expect(function () {
                 value.multiplyBy(leftValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"array","operator":"*","right":"int"}'
             );
         });
 
@@ -1392,17 +1430,21 @@ describe('Array', function () {
             expect(function () {
                 value.multiplyBy(leftValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"array","operator":"*","right":"null"}'
             );
         });
 
         it('should throw an "Unsupported operand" error when multiplier is an object', function () {
-            var leftValue = factory.createObject({});
+            var leftValue = sinon.createStubInstance(ObjectValue);
+            leftValue.getDisplayType.returns('MyClass');
+            leftValue.getType.returns('object');
 
             expect(function () {
                 value.multiplyBy(leftValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"array","operator":"*","right":"MyClass"}'
             );
         });
 
@@ -1412,7 +1454,8 @@ describe('Array', function () {
             expect(function () {
                 value.multiplyBy(leftValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"array","operator":"*","right":"string"}'
             );
         });
     });
@@ -1458,11 +1501,11 @@ describe('Array', function () {
     });
 
     describe('onesComplement()', function () {
-        it('should throw an "Unsupported operand" error', function () {
+        it('should throw a "Cannot perform bitwise not" error', function () {
             expect(function () {
                 value.onesComplement();
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.cannot_perform_bitwise_not with {"type":"array"}'
             );
         });
     });
@@ -1633,7 +1676,8 @@ describe('Array', function () {
             expect(function () {
                 value.subtract(subtrahendValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"array","operator":"-","right":"int"}'
             );
         });
     });

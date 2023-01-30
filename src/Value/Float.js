@@ -70,7 +70,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Overrides the implementation in Value, as a float should stay unchanged
+         * Floats should stay unchanged.
          *
          * @returns {FloatValue}
          */
@@ -319,9 +319,14 @@ module.exports = require('pauser')([
             return true;
         },
 
+        /**
+         * {@inheritdoc}
+         */
         onesComplement: function () {
+            var value = this;
+
             /*jshint bitwise: false */
-            return this.factory.createInteger(~this.value);
+            return value.factory.createInteger(~value.value); // Note that the result is an integer and not a float.
         }
     });
 

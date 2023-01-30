@@ -10,7 +10,7 @@
 'use strict';
 
 /*
- * Translations for error-level error messages
+ * Translations for error-level error messages.
  */
 module.exports = {
     'en_GB': {
@@ -27,6 +27,7 @@ module.exports = {
             // NB: This translation is in fact different to the above, by a comma
             'cannot_redeclare_class_as_name_already_in_use': 'Cannot declare class ${className}, because the name is already in use',
             'cannot_implement_throwable': 'Class ${className} cannot implement interface Throwable, extend Exception or Error instead',
+            'cannot_perform_bitwise_not': 'Cannot perform bitwise not on ${type}',
             'cannot_throw_non_throwable_objects': 'Cannot throw objects that do not implement Throwable',
             'cannot_unset_static_property': 'Attempt to unset static property ${className}::$${propertyName}',
             'cannot_use_as_name_already_in_use': 'Cannot use ${source} as ${alias} because the name is already in use',
@@ -53,7 +54,7 @@ module.exports = {
             'undefined_constant': 'Undefined constant \'${name}\'',
             'undefined_method': 'Call to undefined method ${className}::${methodName}()',
             'undefined_property': 'Undefined property: ${className}::$${propertyName}',
-            'unsupported_operand_types': 'Unsupported operand types',
+            'unsupported_operand_types': 'Unsupported operand types: ${left} ${operator} ${right}',
             'used_this_outside_object_context': 'Using $this when not in object context',
             'value_not_callable': 'Value of type ${type} is not callable'
         }

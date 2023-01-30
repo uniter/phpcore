@@ -23,7 +23,7 @@ var expect = require('chai').expect,
     PHPError = phpCommon.PHPError,
     Value = require('../../../src/Value').sync();
 
-describe('Null', function () {
+describe('NullValue', function () {
     var callStack,
         createKeyValuePair,
         createValue,
@@ -44,9 +44,16 @@ describe('Null', function () {
         futureFactory = state.getFutureFactory();
         referenceFactory = state.getReferenceFactory();
 
-        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables, errorClass) {
+            if (level !== PHPError.E_ERROR) {
+                return;
+            }
+
             throw new Error(
-                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+                'Fake PHP ' + level +
+                (errorClass ? ' (' + errorClass + ')' : '') +
+                ' for #' + translationKey +
+                ' with ' + JSON.stringify(placeholderVariables || {})
             );
         });
 
@@ -70,7 +77,8 @@ describe('Null', function () {
             expect(function () {
                 value.add(addendValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"null","operator":"+","right":"array"}'
             );
         });
 
@@ -205,6 +213,77 @@ describe('Null', function () {
         });
     });
 
+    describe('bitwiseAnd()', function () {
+        it('should throw an "Unsupported operand" error for an array operand', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseAnd(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"null","operator":"&","right":"array"}'
+            );
+        });
+
+        it('should return 0', function () {
+            var result,
+                rightValue = factory.createInteger(parseInt('00001011', 2));
+
+            result = value.bitwiseAnd(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(0);
+        });
+    });
+
+    describe('bitwiseOr()', function () {
+        it('should throw an "Unsupported operand" error for an array operand', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseOr(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"null","operator":"|","right":"array"}'
+            );
+        });
+
+        it('should return the correct result for an integer operand', function () {
+            var expectedResult = parseInt('11110000', 2),
+                result,
+                rightValue = factory.createInteger(parseInt('11110000', 2));
+
+            result = value.bitwiseOr(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+    });
+
+    describe('bitwiseXor()', function () {
+        it('should throw an "Unsupported operand" error for an array operand', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseXor(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"null","operator":"^","right":"array"}'
+            );
+        });
+
+        it('should return the correct result for an integer operand', function () {
+            var expectedResult = parseInt('11110000', 2),
+                result,
+                rightValue = factory.createInteger(parseInt('11110000', 2));
+
+            result = value.bitwiseXor(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+    });
+
     describe('callMethod()', function () {
         it('should raise a fatal error', function () {
             expect(function () {
@@ -248,6 +327,15 @@ describe('Null', function () {
         });
     });
 
+    describe('coerceToNumber()', function () {
+        it('should return int(0)', function () {
+            var resultValue = value.coerceToNumber();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(0);
+        });
+    });
+
     describe('convertForBooleanType()', function () {
         it('should just return this value as no conversion is possible', function () {
             expect(value.convertForBooleanType()).to.equal(value);
@@ -288,7 +376,8 @@ describe('Null', function () {
             expect(function () {
                 value.divideBy(divisorValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"null","operator":"/","right":"array"}'
             );
         });
 
@@ -698,7 +787,8 @@ describe('Null', function () {
             expect(function () {
                 value.multiplyBy(multiplierValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"null","operator":"*","right":"array"}'
             );
         });
 
@@ -863,6 +953,16 @@ describe('Null', function () {
         });
     });
 
+    describe('onesComplement()', function () {
+        it('should throw a "Cannot perform bitwise not" error', function () {
+            expect(function () {
+                value.onesComplement();
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.cannot_perform_bitwise_not with {"type":"null"}'
+            );
+        });
+    });
+
     describe('subtract()', function () {
         it('should throw an "Unsupported operand" error for an array subtrahend', function () {
             var subtrahendValue = factory.createArray([]);
@@ -870,7 +970,8 @@ describe('Null', function () {
             expect(function () {
                 value.subtract(subtrahendValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"null","operator":"-","right":"array"}'
             );
         });
 

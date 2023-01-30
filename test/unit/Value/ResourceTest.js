@@ -21,7 +21,7 @@ var expect = require('chai').expect,
     ResourceValue = require('../../../src/Value/Resource'),
     Value = require('../../../src/Value').sync();
 
-describe('Resource', function () {
+describe('ResourceValue', function () {
     var callStack,
         createValue,
         factory,
@@ -45,9 +45,16 @@ describe('Resource', function () {
 
         callStack.raiseTranslatedError
             .withArgs(PHPError.E_ERROR)
-            .callsFake(function (level, translationKey, placeholderVariables) {
+            .callsFake(function (level, translationKey, placeholderVariables, errorClass) {
+                if (level !== PHPError.E_ERROR) {
+                    return;
+                }
+
                 throw new Error(
-                    'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+                    'Fake PHP ' + level +
+                    (errorClass ? ' (' + errorClass + ')' : '') +
+                    ' for #' + translationKey +
+                    ' with ' + JSON.stringify(placeholderVariables || {})
                 );
             });
 
@@ -73,7 +80,8 @@ describe('Resource', function () {
             expect(function () {
                 value.add(addendValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"resource","operator":"+","right":"int"}'
             );
         });
     });
@@ -95,6 +103,45 @@ describe('Resource', function () {
     describe('asFuture()', function () {
         it('should return a Present that resolves to this value', function () {
             return expect(value.asFuture().toPromise()).to.eventually.equal(value);
+        });
+    });
+
+    describe('bitwiseAnd()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseAnd(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"resource","operator":"&","right":"array"}'
+            );
+        });
+    });
+
+    describe('bitwiseOr()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseOr(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"resource","operator":"|","right":"array"}'
+            );
+        });
+    });
+
+    describe('bitwiseXor()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseXor(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"resource","operator":"^","right":"array"}'
+            );
         });
     });
 
@@ -141,6 +188,12 @@ describe('Resource', function () {
         });
     });
 
+    describe('coerceToNumber()', function () {
+        it('should return null', function () {
+            expect(value.coerceToNumber()).to.be.null;
+        });
+    });
+
     describe('convertForBooleanType()', function () {
         it('should just return this value as no conversion is possible', function () {
             expect(value.convertForBooleanType()).to.equal(value);
@@ -169,7 +222,10 @@ describe('Resource', function () {
         it('should raise an error', function () {
             expect(function () {
                 value.decrement();
-            }).to.throw('Fake PHP Fatal error for #core.cannot_decrement with {"type":"resource"}');
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.cannot_decrement ' +
+                'with {"type":"resource"}'
+            );
         });
     });
 
@@ -180,7 +236,8 @@ describe('Resource', function () {
             expect(function () {
                 value.divideBy(divisorValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"resource","operator":"/","right":"int"}'
             );
         });
     });
@@ -275,7 +332,10 @@ describe('Resource', function () {
         it('should raise an error', function () {
             expect(function () {
                 value.increment();
-            }).to.throw('Fake PHP Fatal error for #core.cannot_increment with {"type":"resource"}');
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.cannot_increment ' +
+                'with {"type":"resource"}'
+            );
         });
     });
 
@@ -318,8 +378,8 @@ describe('Resource', function () {
     });
 
     describe('isNumeric()', function () {
-        it('should return true', function () {
-            expect(value.isNumeric()).to.be.true;
+        it('should return false', function () {
+            expect(value.isNumeric()).to.be.false;
         });
     });
 
@@ -426,7 +486,8 @@ describe('Resource', function () {
             expect(function () {
                 value.modulo(rightValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"resource","operator":"%","right":"int"}'
             );
         });
     });
@@ -438,7 +499,8 @@ describe('Resource', function () {
             expect(function () {
                 value.multiplyBy(multiplierOperand);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"resource","operator":"*","right":"int"}'
             );
         });
     });
@@ -483,6 +545,17 @@ describe('Resource', function () {
         });
     });
 
+    describe('onesComplement()', function () {
+        it('should throw a "Cannot perform bitwise not" error', function () {
+            expect(function () {
+                value.onesComplement();
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.cannot_perform_bitwise_not ' +
+                'with {"type":"resource"}'
+            );
+        });
+    });
+
     describe('subtract()', function () {
         it('should throw an "Unsupported operand" error', function () {
             var subtrahendValue = factory.createInteger(5);
@@ -490,7 +563,8 @@ describe('Resource', function () {
             expect(function () {
                 value.subtract(subtrahendValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"resource","operator":"-","right":"int"}'
             );
         });
     });

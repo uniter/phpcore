@@ -34,7 +34,7 @@ var expect = require('chai').expect,
     Translator = phpCommon.Translator,
     Value = require('../../../src/Value').sync();
 
-describe('Object', function () {
+describe('ObjectValue', function () {
     var callStack,
         classObject,
         factory,
@@ -77,9 +77,16 @@ describe('Object', function () {
         objectID = 21;
 
         callStack.getCurrentClass.returns(null);
-        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables, errorClass) {
+            if (level !== PHPError.E_ERROR) {
+                return;
+            }
+
             throw new Error(
-                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+                'Fake PHP ' + level +
+                (errorClass ? ' (' + errorClass + ')' : '') +
+                ' for #' + translationKey +
+                ' with ' + JSON.stringify(placeholderVariables || {})
             );
         });
 
@@ -106,207 +113,83 @@ describe('Object', function () {
     });
 
     describe('add()', function () {
-        describe('for an array addend', function () {
-            it('should throw an "Unsupported operand" error for an array addend', function () {
-                var addendValue = factory.createArray([]);
+        it('should throw an "Unsupported operand" error for an array addend', function () {
+            var addendValue = factory.createArray([]);
 
-                expect(function () {
-                    value.add(addendValue);
-                }).to.throw(
-                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-                );
-            });
-
-            it('should raise a notice', function () {
-                var addendValue = factory.createArray([]);
-
-                try {
-                    value.add(addendValue);
-                } catch (error) {
-                }
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            expect(function () {
+                value.add(addendValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"+","right":"array"}'
+            );
         });
 
-        describe('for a boolean addend', function () {
-            it('should return the result of adding true', function () {
-                var addendOperand = factory.createBoolean(true), // Will be coerced to int(1)
-                    resultValue;
+        it('should throw an "Unsupported operand" error for a boolean addend', function () {
+            var addendValue = factory.createBoolean(true);
 
-                resultValue = value.add(addendOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(2);
-            });
-
-            it('should return the result of adding false', function () {
-                var addendOperand = factory.createBoolean(false), // Will be coerced to int(0)
-                    resultValue;
-
-                resultValue = value.add(addendOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(1);
-            });
-
-            it('should raise a notice', function () {
-                var addendValue = factory.createBoolean(true);
-
+            expect(function () {
                 value.add(addendValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"+","right":"bool"}'
+            );
         });
 
-        describe('for a float addend', function () {
-            it('should return the result of adding', function () {
-                var addendOperand = factory.createFloat(2.5),
-                    resultValue;
+        it('should throw an "Unsupported operand" error for a float addend', function () {
+            var addendValue = factory.createFloat(2.5);
 
-                resultValue = value.add(addendOperand);
-
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(3.5);
-            });
-
-            it('should raise a notice', function () {
-                var addendValue = factory.createFloat(2.5);
-
+            expect(function () {
                 value.add(addendValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"+","right":"float"}'
+            );
         });
 
-        describe('for an integer addend', function () {
-            it('should return the result of adding', function () {
-                var addendOperand = factory.createInteger(2),
-                    resultValue;
+        it('should throw an "Unsupported operand" error for an integer addend', function () {
+            var addendValue = factory.createInteger(2);
 
-                resultValue = value.add(addendOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(3);
-            });
-
-            it('should raise a notice', function () {
-                var addendValue = factory.createInteger(2);
-
+            expect(function () {
                 value.add(addendValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"+","right":"int"}'
+            );
         });
 
-        describe('for a null addend', function () {
-            it('should add zero', function () {
-                var addendOperand = factory.createNull(),
-                    resultValue;
+        it('should throw an "Unsupported operand" error for a null addend', function () {
+            var addendValue = factory.createNull();
 
-                resultValue = value.add(addendOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(1);
-            });
-
-            it('should raise a notice', function () {
-                var addendValue = factory.createNull();
-
+            expect(function () {
                 value.add(addendValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"+","right":"null"}'
+            );
         });
 
-        describe('for an object addend', function () {
-            it('should return the result of adding, with the object coerced to int(1)', function () {
-                var addendOperand = sinon.createStubInstance(ObjectValue),
-                    resultValue;
-                addendOperand.coerceToNumber.returns(factory.createInteger(1));
+        it('should throw an "Unsupported operand" error for an object addend', function () {
+            var addendValue = sinon.createStubInstance(ObjectValue);
+            addendValue.coerceToNumber.returns(factory.createInteger(1));
+            addendValue.getDisplayType.returns('Your\\Space\\AnotherClass');
 
-                resultValue = value.add(addendOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(2);
-            });
-
-            it('should raise a notice', function () {
-                var addendValue = sinon.createStubInstance(ObjectValue);
-                addendValue.coerceToNumber.returns(factory.createInteger(1));
-
+            expect(function () {
                 value.add(addendValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"+","right":"Your\\\\Space\\\\AnotherClass"}'
+            );
         });
 
-        describe('for a string addend', function () {
-            it('should return the result of adding a float string', function () {
-                var addendOperand = factory.createString('2.5'),
-                    resultValue;
+        it('should throw an "Unsupported operand" error for a string addend', function () {
+            var addendValue = factory.createString('2.5');
 
-                resultValue = value.add(addendOperand);
-
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(3.5);
-            });
-
-            it('should return the result of adding a float with decimal string prefix', function () {
-                var addendOperand = factory.createString('3.5.4'),
-                    resultValue;
-
-                resultValue = value.add(addendOperand);
-
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(4.5);
-            });
-
-            it('should return the result of adding an integer string', function () {
-                var addendOperand = factory.createString('7'),
-                    resultValue;
-
-                resultValue = value.add(addendOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(8);
-            });
-
-            it('should raise a notice', function () {
-                var addendValue = factory.createString('21');
-
+            expect(function () {
                 value.add(addendValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"+","right":"string"}'
+            );
         });
     });
 
@@ -430,6 +313,45 @@ describe('Object', function () {
             expect(function () {
                 value.bindClosure(thisValue, scopeClass);
             }).to.throw('bindClosure() :: Value is not a Closure');
+        });
+    });
+
+    describe('bitwiseAnd()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseAnd(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"&","right":"array"}'
+            );
+        });
+    });
+
+    describe('bitwiseOr()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseOr(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"|","right":"array"}'
+            );
+        });
+    });
+
+    describe('bitwiseXor()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseXor(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"^","right":"array"}'
+            );
         });
     });
 
@@ -796,22 +718,8 @@ describe('Object', function () {
     });
 
     describe('coerceToNumber()', function () {
-        it('should raise a notice', function () {
-            classObject.getName.returns('MyClass');
-            value.coerceToNumber();
-
-            expect(callStack.raiseError).to.have.been.calledOnce;
-            expect(callStack.raiseError).to.have.been.calledWith(
-                PHPError.E_NOTICE,
-                'Object of class MyClass could not be converted to int'
-            );
-        });
-
-        it('should return int one', function () {
-            var result = value.coerceToNumber();
-
-            expect(result).to.be.an.instanceOf(IntegerValue);
-            expect(result.getNative()).to.equal(1);
+        it('should return null', function () {
+            expect(value.coerceToNumber()).to.be.null;
         });
     });
 
@@ -1075,277 +983,94 @@ describe('Object', function () {
     });
 
     describe('decrement()', function () {
-        // NB: Yes, this is actually the correct behaviour, vs. subtracting one from an object explicitly.
-        it('should just return the object', function () {
-            var resultValue = value.decrement();
-
-            expect(resultValue).to.equal(value);
+        it('should raise an error', function () {
+            expect(function () {
+                value.decrement();
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.cannot_decrement ' +
+                'with {"type":"My\\\\Space\\\\AwesomeClass"}'
+            );
         });
     });
 
     describe('divideBy()', function () {
-        describe('for an array divisor', function () {
-            it('should throw an "Unsupported operand" error', function () {
-                var divisorValue = factory.createArray([]);
+        it('should throw an "Unsupported operand" error for an array divisor', function () {
+            var divisorValue = factory.createArray([]);
 
-                expect(function () {
-                    value.divideBy(divisorValue);
-                }).to.throw(
-                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-                );
-            });
-
-            it('should raise a notice', function () {
-                var divisorValue = factory.createArray([]);
-
-                try {
-                    value.divideBy(divisorValue);
-                } catch (error) {
-                }
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
-        });
-
-        describe('for a boolean divisor', function () {
-            it('should return the result of dividing by true', function () {
-                var divisorOperand = factory.createBoolean(true), // Will be coerced to int(1)
-                    resultValue;
-
-                resultValue = value.divideBy(divisorOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(1);
-            });
-
-            it('should raise a warning and return false when dividing by false', function () {
-                var divisorOperand = factory.createBoolean(false), // Will be coerced to int(0)
-                    resultValue;
-
-                resultValue = value.divideBy(divisorOperand);
-
-                // Once for object-to-number conversion, once for division by zero
-                expect(callStack.raiseError).to.have.been.calledTwice;
-                expect(callStack.raiseError)
-                    .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
-                expect(resultValue.getType()).to.equal('boolean');
-                expect(resultValue.getNative()).to.equal(false);
-            });
-
-            it('should raise a notice', function () {
-                var divisorValue = factory.createBoolean(true);
-
+            expect(function () {
                 value.divideBy(divisorValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"/","right":"array"}'
+            );
         });
 
-        describe('for a float divisor', function () {
-            it('should return the result of dividing', function () {
-                var divisorOperand = factory.createFloat(0.5),
-                    resultValue;
+        it('should throw an "Unsupported operand" error for a boolean divisor', function () {
+            var divisorValue = factory.createBoolean(true);
 
-                resultValue = value.divideBy(divisorOperand);
-
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(2);
-            });
-
-            it('should raise a warning and return false when dividing by zero', function () {
-                var divisorOperand = factory.createFloat(0),
-                    resultValue;
-
-                resultValue = value.divideBy(divisorOperand);
-
-                // Once for object-to-number conversion, once for division by zero
-                expect(callStack.raiseError).to.have.been.calledTwice;
-                expect(callStack.raiseError)
-                    .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
-                expect(resultValue.getType()).to.equal('boolean');
-                expect(resultValue.getNative()).to.equal(false);
-            });
-
-            it('should raise a notice', function () {
-                var divisorValue = factory.createFloat(1.5);
-
+            expect(function () {
                 value.divideBy(divisorValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"/","right":"bool"}'
+            );
         });
 
-        describe('for an integer divisor', function () {
-            it('should return the result of dividing with a float result', function () {
-                var divisorOperand = factory.createInteger(2),
-                    resultValue;
+        it('should throw an "Unsupported operand" error for a float divisor', function () {
+            var divisorValue = factory.createFloat(2.5);
 
-                resultValue = value.divideBy(divisorOperand);
-
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(0.5);
-            });
-
-            it('should return the result of dividing with an integer result', function () {
-                var divisorOperand = factory.createInteger(1),
-                    resultValue;
-
-                resultValue = value.divideBy(divisorOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(1);
-            });
-
-            it('should raise a warning and return false when dividing by zero', function () {
-                var divisorOperand = factory.createInteger(0),
-                    resultValue;
-
-                resultValue = value.divideBy(divisorOperand);
-
-                // Once for object-to-number conversion, once for division by zero
-                expect(callStack.raiseError).to.have.been.calledTwice;
-                expect(callStack.raiseError)
-                    .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
-                expect(resultValue.getType()).to.equal('boolean');
-                expect(resultValue.getNative()).to.equal(false);
-            });
-
-            it('should raise a notice', function () {
-                var divisorValue = factory.createInteger(21);
-
+            expect(function () {
                 value.divideBy(divisorValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"/","right":"float"}'
+            );
         });
 
-        describe('for a null divisor', function () {
-            it('should raise a warning and return false', function () {
-                var divisorOperand = factory.createNull(),
-                    resultValue;
+        it('should throw an "Unsupported operand" error for an integer divisor', function () {
+            var divisorValue = factory.createInteger(2);
 
-                resultValue = value.divideBy(divisorOperand);
-
-                // Once for object-to-number conversion, once for division by zero
-                expect(callStack.raiseError).to.have.been.calledTwice;
-                expect(callStack.raiseError)
-                    .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
-                expect(resultValue.getType()).to.equal('boolean');
-                expect(resultValue.getNative()).to.equal(false);
-            });
-
-            it('should raise a notice', function () {
-                var divisorValue = factory.createNull();
-
+            expect(function () {
                 value.divideBy(divisorValue);
-
-                // Once for object-to-number conversion, once for division by zero
-                expect(callStack.raiseError).to.have.been.calledTwice;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"/","right":"int"}'
+            );
         });
 
-        describe('for an object divisor', function () {
-            it('should return the result of dividing', function () {
-                var divisorOperand = sinon.createStubInstance(ObjectValue),
-                    resultValue;
-                divisorOperand.coerceToNumber.returns(factory.createInteger(1));
+        it('should throw an "Unsupported operand" error for a null divisor', function () {
+            var divisorValue = factory.createNull();
 
-                resultValue = value.divideBy(divisorOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(1);
-            });
-
-            it('should raise a notice', function () {
-                var divisorOperand = sinon.createStubInstance(ObjectValue);
-                divisorOperand.coerceToNumber.returns(factory.createInteger(1));
-
-                value.divideBy(divisorOperand);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            expect(function () {
+                value.divideBy(divisorValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"/","right":"null"}'
+            );
         });
 
-        describe('for a string divisor', function () {
-            it('should return the result of dividing by a float string', function () {
-                var divisorOperand = factory.createString('0.5'),
-                    resultValue;
+        it('should throw an "Unsupported operand" error for an object divisor', function () {
+            var divisorValue = sinon.createStubInstance(ObjectValue);
+            divisorValue.coerceToNumber.returns(factory.createInteger(1));
+            divisorValue.getDisplayType.returns('Your\\Space\\AnotherClass');
 
-                resultValue = value.divideBy(divisorOperand);
+            expect(function () {
+                value.divideBy(divisorValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"/","right":"Your\\\\Space\\\\AnotherClass"}'
+            );
+        });
 
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(2);
-            });
+        it('should throw an "Unsupported operand" error for a string divisor', function () {
+            var divisorValue = factory.createString('2.5');
 
-            it('should return the result of dividing by a float with decimal string prefix', function () {
-                var divisorOperand = factory.createString('0.5.4'),
-                    resultValue;
-
-                resultValue = value.divideBy(divisorOperand);
-
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(2);
-            });
-
-            it('should return the result of dividing by an integer string', function () {
-                var divisorOperand = factory.createString('2'),
-                    resultValue;
-
-                resultValue = value.divideBy(divisorOperand);
-
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(0.5);
-            });
-
-            it('should raise a warning and return false when dividing by zero', function () {
-                var divisorOperand = factory.createString('0'),
-                    resultValue;
-
-                resultValue = value.divideBy(divisorOperand);
-
-                // Once for object-to-number conversion, once for division by zero
-                expect(callStack.raiseError).to.have.been.calledTwice;
-                expect(callStack.raiseError)
-                    .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
-                expect(resultValue.getType()).to.equal('boolean');
-                expect(resultValue.getNative()).to.equal(false);
-            });
-
-            it('should raise a notice', function () {
-                var divisorOperand = factory.createString('1.5');
-
-                value.divideBy(divisorOperand);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            expect(function () {
+                value.divideBy(divisorValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"/","right":"string"}'
+            );
         });
     });
 
@@ -2184,11 +1909,13 @@ describe('Object', function () {
     });
 
     describe('increment()', function () {
-        // NB: Yes, this is actually the correct behaviour, vs. adding one to an object explicitly.
-        it('should just return the object', function () {
-            var resultValue = value.increment();
-
-            expect(resultValue).to.equal(value);
+        it('should raise an error', function () {
+            expect(function () {
+                value.increment();
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.cannot_increment ' +
+                'with {"type":"My\\\\Space\\\\AwesomeClass"}'
+            );
         });
     });
 
@@ -2582,217 +2309,83 @@ describe('Object', function () {
     });
 
     describe('multiplyBy()', function () {
-        describe('for an array multiplier', function () {
-            it('should throw an "Unsupported operand" error', function () {
-                var multiplierValue = factory.createArray([]);
+        it('should throw an "Unsupported operand" error for an array multiplier', function () {
+            var multiplierValue = factory.createArray([]);
 
-                expect(function () {
-                    value.multiplyBy(multiplierValue);
-                }).to.throw(
-                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-                );
-            });
-
-            it('should raise a notice', function () {
-                var multiplierValue = factory.createArray([]);
-
-                try {
-                    value.multiplyBy(multiplierValue);
-                } catch (error) {
-                }
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
-        });
-
-        describe('for a boolean multiplier', function () {
-            it('should return the result of multiplying by true', function () {
-                var multiplierOperand = factory.createBoolean(true), // Will be coerced to int(1)
-                    resultValue;
-
-                resultValue = value.multiplyBy(multiplierOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(1);
-            });
-
-            it('should return the result of multiplying by false', function () {
-                var multiplierOperand = factory.createBoolean(false), // Will be coerced to int(0)
-                    resultValue;
-
-                resultValue = value.multiplyBy(multiplierOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(0);
-            });
-
-            it('should raise a notice', function () {
-                var multiplierValue = factory.createBoolean(true);
-
+            expect(function () {
                 value.multiplyBy(multiplierValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"*","right":"array"}'
+            );
         });
 
-        describe('for a float multiplier', function () {
-            it('should return the result of multiplying', function () {
-                var multiplierOperand = factory.createFloat(2.5),
-                    resultValue;
+        it('should throw an "Unsupported operand" error for a boolean multiplier', function () {
+            var multiplierValue = factory.createBoolean(true);
 
-                resultValue = value.multiplyBy(multiplierOperand);
-
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(2.5);
-            });
-
-            it('should raise a notice', function () {
-                var multiplierValue = factory.createFloat(1.5);
-
+            expect(function () {
                 value.multiplyBy(multiplierValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"*","right":"bool"}'
+            );
         });
 
-        describe('for an integer multiplier', function () {
-            it('should return the result of multiplying', function () {
-                var multiplierOperand = factory.createInteger(2),
-                    resultValue;
+        it('should throw an "Unsupported operand" error for a float multiplier', function () {
+            var multiplierValue = factory.createFloat(2.5);
 
-                resultValue = value.multiplyBy(multiplierOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(2);
-            });
-
-            it('should raise a notice', function () {
-                var multiplierValue = factory.createInteger(21);
-
+            expect(function () {
                 value.multiplyBy(multiplierValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"*","right":"float"}'
+            );
         });
 
-        describe('for a null multiplier', function () {
-            it('should return zero', function () {
-                var multiplierOperand = factory.createNull(),
-                    resultValue;
+        it('should throw an "Unsupported operand" error for an integer multiplier', function () {
+            var multiplierValue = factory.createInteger(2);
 
-                resultValue = value.multiplyBy(multiplierOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(0);
-            });
-
-            it('should raise a notice', function () {
-                var multiplierValue = factory.createNull();
-
+            expect(function () {
                 value.multiplyBy(multiplierValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"*","right":"int"}'
+            );
         });
 
-        describe('for an object multiplier', function () {
-            it('should return the result of multiplying', function () {
-                var multiplierOperand = sinon.createStubInstance(ObjectValue),
-                    resultValue;
-                multiplierOperand.coerceToNumber.returns(factory.createInteger(1));
+        it('should throw an "Unsupported operand" error for a null multiplier', function () {
+            var multiplierValue = factory.createNull();
 
-                resultValue = value.multiplyBy(multiplierOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(1);
-            });
-
-            it('should raise a notice', function () {
-                var multiplierOperand = sinon.createStubInstance(ObjectValue);
-                multiplierOperand.coerceToNumber.returns(factory.createInteger(1));
-
-                value.multiplyBy(multiplierOperand);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
-        });
-
-        describe('for a string multiplier', function () {
-            it('should return the result of multiplying by a float string', function () {
-                var multiplierOperand = factory.createString('2.5'),
-                    resultValue;
-
-                resultValue = value.multiplyBy(multiplierOperand);
-
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(2.5);
-            });
-
-            it('should return the result of multiplying by a float with decimal string prefix', function () {
-                var multiplierOperand = factory.createString('3.5.4'),
-                    resultValue;
-
-                resultValue = value.multiplyBy(multiplierOperand);
-
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(3.5);
-            });
-
-            it('should return the result of multiplying by an integer string', function () {
-                var multiplierOperand = factory.createString('2'),
-                    resultValue;
-
-                resultValue = value.multiplyBy(multiplierOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(2);
-            });
-
-            it('should return zero when multiplying by zero', function () {
-                var multiplierOperand = factory.createString('0'),
-                    resultValue;
-
-                resultValue = value.multiplyBy(multiplierOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(0);
-            });
-
-            it('should raise a notice', function () {
-                var multiplierValue = factory.createString('1.5');
-
+            expect(function () {
                 value.multiplyBy(multiplierValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"*","right":"null"}'
+            );
+        });
 
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+        it('should throw an "Unsupported operand" error for an object multiplier', function () {
+            var multiplierValue = sinon.createStubInstance(ObjectValue);
+            multiplierValue.coerceToNumber.returns(factory.createInteger(1));
+            multiplierValue.getDisplayType.returns('Your\\Space\\AnotherClass');
+
+            expect(function () {
+                value.multiplyBy(multiplierValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"*","right":"Your\\\\Space\\\\AnotherClass"}'
+            );
+        });
+
+        it('should throw an "Unsupported operand" error for a string multiplier', function () {
+            var multiplierValue = factory.createString('2.5');
+
+            expect(function () {
+                value.multiplyBy(multiplierValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"*","right":"string"}'
+            );
         });
     });
 
@@ -2836,6 +2429,17 @@ describe('Object', function () {
         });
     });
 
+    describe('onesComplement()', function () {
+        it('should throw a "Cannot perform bitwise not" error', function () {
+            expect(function () {
+                value.onesComplement();
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.cannot_perform_bitwise_not ' +
+                'with {"type":"My\\\\Space\\\\AwesomeClass"}'
+            );
+        });
+    });
+
     describe('setProperty()', function () {
         it('should set the value of the property', async function () {
             var resultValue;
@@ -2856,207 +2460,83 @@ describe('Object', function () {
     });
 
     describe('subtract()', function () {
-        describe('for an array subtrahend', function () {
-            it('should throw an "Unsupported operand" error', function () {
-                var subtrahendValue = factory.createArray([]);
+        it('should throw an "Unsupported operand" error for an array subtrahend', function () {
+            var subtrahendValue = factory.createArray([]);
 
-                expect(function () {
-                    value.subtract(subtrahendValue);
-                }).to.throw(
-                    'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
-                );
-            });
-
-            it('should raise a notice', function () {
-                var subtrahendValue = factory.createArray([]);
-
-                try {
-                    value.subtract(subtrahendValue);
-                } catch (error) {
-                }
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
-        });
-
-        describe('for a boolean subtrahend', function () {
-            it('should return the result of subtracting true', function () {
-                var subtrahendOperand = factory.createBoolean(true), // Will be coerced to int(1)
-                    resultValue;
-
-                resultValue = value.subtract(subtrahendOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(0);
-            });
-
-            it('should return the result of subtracting false', function () {
-                var subtrahendOperand = factory.createBoolean(false), // Will be coerced to int(0)
-                    resultValue;
-
-                resultValue = value.subtract(subtrahendOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(1);
-            });
-
-            it('should raise a notice', function () {
-                var subtrahendValue = factory.createBoolean(true);
-
+            expect(function () {
                 value.subtract(subtrahendValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"-","right":"array"}'
+            );
         });
 
-        describe('for a float subtrahend', function () {
-            it('should return the result of subtracting', function () {
-                var subtrahendOperand = factory.createFloat(2.5),
-                    resultValue;
+        it('should throw an "Unsupported operand" error for a boolean subtrahend', function () {
+            var subtrahendValue = factory.createBoolean(true);
 
-                resultValue = value.subtract(subtrahendOperand);
-
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(-1.5);
-            });
-
-            it('should raise a notice', function () {
-                var subtrahendValue = factory.createFloat(1.5);
-
+            expect(function () {
                 value.subtract(subtrahendValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"-","right":"bool"}'
+            );
         });
 
-        describe('for an integer subtrahend', function () {
-            it('should return the result of subtracting', function () {
-                var subtrahendOperand = factory.createInteger(2),
-                    resultValue;
+        it('should throw an "Unsupported operand" error for a float subtrahend', function () {
+            var subtrahendValue = factory.createFloat(2.5);
 
-                resultValue = value.subtract(subtrahendOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(-1);
-            });
-
-            it('should raise a notice', function () {
-                var subtrahendValue = factory.createInteger(7);
-
+            expect(function () {
                 value.subtract(subtrahendValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"-","right":"float"}'
+            );
         });
 
-        describe('for a null subtrahend', function () {
-            it('should subtract zero', function () {
-                var subtrahendOperand = factory.createNull(),
-                    resultValue;
+        it('should throw an "Unsupported operand" error for an integer subtrahend', function () {
+            var subtrahendValue = factory.createInteger(2);
 
-                resultValue = value.subtract(subtrahendOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(1);
-            });
-
-            it('should raise a notice', function () {
-                var subtrahendValue = factory.createNull();
-
+            expect(function () {
                 value.subtract(subtrahendValue);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"-","right":"int"}'
+            );
         });
 
-        describe('for an object subtrahend', function () {
-            it('should return the result of subtracting, with the object coerced to int(1)', function () {
-                var subtrahendOperand = sinon.createStubInstance(ObjectValue),
-                    resultValue;
-                subtrahendOperand.coerceToNumber.returns(factory.createInteger(1));
+        it('should throw an "Unsupported operand" error for a null subtrahend', function () {
+            var subtrahendValue = factory.createNull();
 
-                resultValue = value.subtract(subtrahendOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(0);
-            });
-
-            it('should raise a notice', function () {
-                var subtrahendOperand = sinon.createStubInstance(ObjectValue);
-                subtrahendOperand.coerceToNumber.returns(factory.createInteger(1));
-
-                value.subtract(subtrahendOperand);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            expect(function () {
+                value.subtract(subtrahendValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"-","right":"null"}'
+            );
         });
 
-        describe('for a string subtrahend', function () {
-            it('should return the result of subtracting a float string', function () {
-                var subtrahendOperand = factory.createString('2.5'),
-                    resultValue;
+        it('should throw an "Unsupported operand" error for an object subtrahend', function () {
+            var subtrahendValue = sinon.createStubInstance(ObjectValue);
+            subtrahendValue.coerceToNumber.returns(factory.createInteger(1));
+            subtrahendValue.getDisplayType.returns('Your\\Space\\AnotherClass');
 
-                resultValue = value.subtract(subtrahendOperand);
+            expect(function () {
+                value.subtract(subtrahendValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"-","right":"Your\\\\Space\\\\AnotherClass"}'
+            );
+        });
 
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(-1.5);
-            });
+        it('should throw an "Unsupported operand" error for a string subtrahend', function () {
+            var subtrahendValue = factory.createString('2.5');
 
-            it('should return the result of subtracting a float with decimal string prefix', function () {
-                var subtrahendOperand = factory.createString('3.5.4'),
-                    resultValue;
-
-                resultValue = value.subtract(subtrahendOperand);
-
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(-2.5);
-            });
-
-            it('should return the result of subtracting an integer string', function () {
-                var subtrahendOperand = factory.createString('7'),
-                    resultValue;
-
-                resultValue = value.subtract(subtrahendOperand);
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(-6);
-            });
-
-            it('should raise a notice', function () {
-                var subtrahendOperand = factory.createString('21');
-
-                value.subtract(subtrahendOperand);
-
-                expect(callStack.raiseError).to.have.been.calledOnce;
-                expect(callStack.raiseError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'Object of class My\\Space\\AwesomeClass could not be converted to int'
-                );
-            });
+            expect(function () {
+                value.subtract(subtrahendValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"-","right":"string"}'
+            );
         });
     });
 });

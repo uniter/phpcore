@@ -10,6 +10,7 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('../tools'),
     BarewordStringValue = require('../../../src/Value/BarewordString').sync(),
@@ -21,9 +22,10 @@ var expect = require('chai').expect,
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
+    PHPError = phpCommon.PHPError,
     Value = require('../../../src/Value').sync();
 
-describe('BarewordString', function () {
+describe('BarewordStringValue', function () {
     var callStack,
         createKeyValuePair,
         createValue,
@@ -32,6 +34,7 @@ describe('BarewordString', function () {
         futureFactory,
         globalNamespace,
         namespaceScope,
+        numericStringParser,
         referenceFactory,
         state,
         value;
@@ -46,11 +49,19 @@ describe('BarewordString', function () {
         futureFactory = state.getFutureFactory();
         globalNamespace = state.getGlobalNamespace();
         namespaceScope = sinon.createStubInstance(NamespaceScope);
+        numericStringParser = state.getService('numeric_string_parser');
         referenceFactory = state.getReferenceFactory();
 
-        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables, errorClass) {
+            if (level !== PHPError.E_ERROR) {
+                return;
+            }
+
             throw new Error(
-                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+                'Fake PHP ' + level +
+                (errorClass ? ' (' + errorClass + ')' : '') +
+                ' for #' + translationKey +
+                ' with ' + JSON.stringify(placeholderVariables || {})
             );
         });
 
@@ -70,6 +81,7 @@ describe('BarewordString', function () {
                 flow,
                 nativeValue,
                 globalNamespace,
+                numericStringParser,
                 namespaceScope
             );
         };
@@ -82,7 +94,8 @@ describe('BarewordString', function () {
             expect(function () {
                 value.add(factory.createArray([]));
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"string","operator":"+","right":"array"}'
             );
         });
     });
@@ -195,7 +208,8 @@ describe('BarewordString', function () {
             expect(function () {
                 value.divideBy(divisorValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"string","operator":"/","right":"array"}'
             );
         });
     });
@@ -428,7 +442,8 @@ describe('BarewordString', function () {
             expect(function () {
                 value.subtract(subtrahendValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"string","operator":"-","right":"array"}'
             );
         });
     });

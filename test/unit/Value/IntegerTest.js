@@ -22,7 +22,7 @@ var expect = require('chai').expect,
     PHPError = phpCommon.PHPError,
     Value = require('../../../src/Value').sync();
 
-describe('Integer', function () {
+describe('IntegerValue', function () {
     var callStack,
         createKeyValuePair,
         createValue,
@@ -43,9 +43,16 @@ describe('Integer', function () {
         futureFactory = state.getFutureFactory();
         referenceFactory = state.getReferenceFactory();
 
-        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables, errorClass) {
+            if (level !== PHPError.E_ERROR) {
+                return;
+            }
+
             throw new Error(
-                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+                'Fake PHP ' + level +
+                (errorClass ? ' (' + errorClass + ')' : '') +
+                ' for #' + translationKey +
+                ' with ' + JSON.stringify(placeholderVariables || {})
             );
         });
 
@@ -78,7 +85,8 @@ describe('Integer', function () {
             expect(function () {
                 value.add(addendValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"int","operator":"+","right":"array"}'
             );
         });
 
@@ -213,6 +221,90 @@ describe('Integer', function () {
         });
     });
 
+    describe('bitwiseAnd()', function () {
+        beforeEach(function () {
+            createValue(parseInt('10101101', 2));
+        });
+
+        it('should throw an "Unsupported operand" error for an array operand', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseAnd(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"int","operator":"&","right":"array"}'
+            );
+        });
+
+        it('should return the correct result for an integer operand', function () {
+            var expectedResult = parseInt('00001001', 2),
+                result,
+                rightValue = factory.createInteger(parseInt('00001011', 2));
+
+            result = value.bitwiseAnd(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+    });
+
+    describe('bitwiseOr()', function () {
+        beforeEach(function () {
+            createValue(parseInt('10101001', 2));
+        });
+
+        it('should throw an "Unsupported operand" error for an array operand', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseOr(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"int","operator":"|","right":"array"}'
+            );
+        });
+
+        it('should return the correct result for an integer operand', function () {
+            var expectedResult = parseInt('11111001', 2),
+                result,
+                rightValue = factory.createInteger(parseInt('11110000', 2));
+
+            result = value.bitwiseOr(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+    });
+
+    describe('bitwiseXor()', function () {
+        beforeEach(function () {
+            createValue(parseInt('10101001', 2));
+        });
+
+        it('should throw an "Unsupported operand" error for an array operand', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseXor(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"int","operator":"^","right":"array"}'
+            );
+        });
+
+        it('should return the correct result for an integer operand', function () {
+            var expectedResult = parseInt('01011001', 2),
+                result,
+                rightValue = factory.createInteger(parseInt('11110000', 2));
+
+            result = value.bitwiseXor(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+    });
+
     describe('callMethod()', function () {
         it('should raise a fatal error', function () {
             expect(function () {
@@ -253,6 +345,12 @@ describe('Integer', function () {
             }).to.throw(
                 'Only instances of Throwable may be thrown: tried to throw a(n) int'
             );
+        });
+    });
+
+    describe('coerceToNumber()', function () {
+        it('should return the integer unchanged', function () {
+            expect(value.coerceToNumber()).to.equal(value);
         });
     });
 
@@ -354,7 +452,8 @@ describe('Integer', function () {
             expect(function () {
                 value.divideBy(divisorValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"int","operator":"/","right":"array"}'
             );
         });
 
@@ -1065,7 +1164,8 @@ describe('Integer', function () {
             expect(function () {
                 value.multiplyBy(multiplierValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"int","operator":"*","right":"array"}'
             );
         });
 
@@ -1230,6 +1330,19 @@ describe('Integer', function () {
         });
     });
 
+    describe('onesComplement()', function () {
+        it('should return an integer with the ones\' complement', function () {
+            /*jshint bitwise: false */
+            var resultValue;
+            createValue(101);
+
+            resultValue = value.onesComplement();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(~101);
+        });
+    });
+
     describe('subtract()', function () {
         it('should throw an "Unsupported operand" error for an array subtrahend', function () {
             var subtrahendValue = factory.createArray([]);
@@ -1237,7 +1350,8 @@ describe('Integer', function () {
             expect(function () {
                 value.subtract(subtrahendValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"int","operator":"-","right":"array"}'
             );
         });
 

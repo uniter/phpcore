@@ -30,6 +30,7 @@ var expect = require('chai').expect,
     IntegerValue = require('../../src/Value/Integer').sync(),
     Namespace = require('../../src/Namespace').sync(),
     NullValue = require('../../src/Value/Null').sync(),
+    NumericStringParser = require('../../src/Semantics/NumericStringParser'),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPObject = require('../../src/FFI/Value/PHPObject').sync(),
     Translator = phpCommon.Translator,
@@ -48,6 +49,7 @@ describe('ValueFactory', function () {
         futureFactory,
         futuresCreated,
         globalNamespace,
+        numericStringParser,
         referenceFactory,
         state,
         translator,
@@ -82,6 +84,7 @@ describe('ValueFactory', function () {
         flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
+        numericStringParser = sinon.createStubInstance(NumericStringParser);
         referenceFactory = state.getReferenceFactory();
         translator = sinon.createStubInstance(Translator);
         elementProvider = new ElementProvider(referenceFactory);
@@ -106,6 +109,7 @@ describe('ValueFactory', function () {
         factory.setFlow(flow);
         factory.setFutureFactory(futureFactory);
         factory.setGlobalNamespace(globalNamespace);
+        factory.setNumericStringParser(NumericStringParser);
         factory.setReferenceFactory(referenceFactory);
     });
 

@@ -18,12 +18,14 @@ describe('PHP string concatenation operator "." integration', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
+$two = 2;
+
 return [
     'int . int' => 20 . 3,
-    'float . int' => 10.4 . 2,
-    'int . float' => 2 . 10.4,
-    'int . string' => 2 . "4.1",
-    'string . int' => "4.1" . 2,
+    'float . int' => 10.4 . $two,
+    'int . float' => $two . 10.4,
+    'int . string' => $two . "4.1",
+    'string . int' => "4.1" . $two,
     'int . bool (true coerced to 1)' => 15 . true,
     'bool . int (true coerced to 1)' => true . 15,
     'int . null (null coerces to 0)' => 20 . null,

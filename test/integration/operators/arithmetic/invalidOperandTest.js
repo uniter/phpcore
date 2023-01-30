@@ -82,9 +82,9 @@ return $result;
 EOS
 */;}),//jshint ignore:line
             module = tools.asyncTranspile('/my/php_module.php', php, {
-                // Capture offsets of all nodes for line tracking
+                // Capture offsets of all nodes for line tracking.
                 phpToAST: {captureAllOffsets: true},
-                // Record line numbers for statements/expressions
+                // Record line numbers for statements/expressions.
                 phpToJS: {lineNumbers: true}
             }),
             engine = module();
@@ -93,14 +93,70 @@ EOS
         });
 
         expect((await doRun(engine)).getNative()).to.deep.equal([
-            'Error: Unsupported operand types @ /my/php_module.php:7',
-            'Error: Unsupported operand types @ /my/php_module.php:20',
-            'Error: Unsupported operand types @ /my/php_module.php:32'
+            'TypeError: Unsupported operand types: array + stdClass @ /my/php_module.php:7',
+            'TypeError: Unsupported operand types: array + int @ /my/php_module.php:20',
+            'TypeError: Unsupported operand types: string / array @ /my/php_module.php:32'
         ]);
+        expect(outputLog).to.deep.equal([]);
+    });
+
+    it('should raise a single warning when one operand is only leading-numeric', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+ini_set('error_reporting', E_ALL);
+
+$result = [];
+
+$result['addition'] = '21abc' * 2;
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/my/php_module.php', php, {
+                // Capture offsets of all nodes for line tracking.
+                phpToAST: {captureAllOffsets: true},
+                // Record line numbers for statements/expressions.
+                phpToJS: {lineNumbers: true}
+            }),
+            engine = module();
+
+        expect((await doRun(engine)).getNative()).to.deep.equal({
+            'addition': 42
+        });
         expect(outputLog).to.deep.equal([
-            '[stderr]PHP Notice:  Object of class stdClass could not be converted to int in /my/php_module.php on line 7\n',
-            // NB: Stdout should have a leading newline written out just before the message
-            '[stdout]\nNotice: Object of class stdClass could not be converted to int in /my/php_module.php on line 7\n'
+            '[stderr]PHP Warning:  A non-numeric value encountered in /my/php_module.php on line 6\n',
+            '[stdout]\nWarning: A non-numeric value encountered in /my/php_module.php on line 6\n'
+        ]);
+    });
+
+    it('should raise two warnings when both operands are only leading-numeric', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+ini_set('error_reporting', E_ALL);
+
+$result = [];
+
+$result['addition'] = '21abc' * '3xyz';
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/my/php_module.php', php, {
+                // Capture offsets of all nodes for line tracking.
+                phpToAST: {captureAllOffsets: true},
+                // Record line numbers for statements/expressions.
+                phpToJS: {lineNumbers: true}
+            }),
+            engine = module();
+
+        expect((await doRun(engine)).getNative()).to.deep.equal({
+            'addition': 63
+        });
+        expect(outputLog).to.deep.equal([
+            '[stderr]PHP Warning:  A non-numeric value encountered in /my/php_module.php on line 6\n',
+            '[stdout]\nWarning: A non-numeric value encountered in /my/php_module.php on line 6\n',
+            '[stderr]PHP Warning:  A non-numeric value encountered in /my/php_module.php on line 6\n',
+            '[stdout]\nWarning: A non-numeric value encountered in /my/php_module.php on line 6\n'
         ]);
     });
 });

@@ -23,7 +23,7 @@ var expect = require('chai').expect,
     PHPError = phpCommon.PHPError,
     Value = require('../../../src/Value').sync();
 
-describe('Boolean', function () {
+describe('BooleanValue', function () {
     var callStack,
         createKeyValuePair,
         createValue,
@@ -44,9 +44,16 @@ describe('Boolean', function () {
         futureFactory = state.getFutureFactory();
         referenceFactory = state.getReferenceFactory();
 
-        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables, errorClass) {
+            if (level !== PHPError.E_ERROR) {
+                return;
+            }
+
             throw new Error(
-                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+                'Fake PHP ' + level +
+                (errorClass ? ' (' + errorClass + ')' : '') +
+                ' for #' + translationKey +
+                ' with ' + JSON.stringify(placeholderVariables || {})
             );
         });
 
@@ -75,7 +82,8 @@ describe('Boolean', function () {
             expect(function () {
                 value.add(factory.createArray([]));
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"bool","operator":"+","right":"array"}'
             );
         });
     });
@@ -106,6 +114,114 @@ describe('Boolean', function () {
     describe('asFuture()', function () {
         it('should return a Present that resolves to this value', function () {
             return expect(value.asFuture().toPromise()).to.eventually.equal(value);
+        });
+    });
+
+    describe('bitwiseAnd()', function () {
+        it('should throw an "Unsupported operand" error for an array operand', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseAnd(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"bool","operator":"&","right":"array"}'
+            );
+        });
+
+        it('should return the correct result for an integer operand when true', function () {
+            var expectedResult = parseInt('00000001', 2),
+                result,
+                rightValue = factory.createInteger(parseInt('00001011', 2));
+
+            result = value.bitwiseAnd(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+
+        it('should return the correct result for an integer operand when false', function () {
+            var expectedResult = parseInt('00000000', 2),
+                result,
+                rightValue = factory.createInteger(parseInt('00001011', 2));
+            createValue(false);
+
+            result = value.bitwiseAnd(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+    });
+
+    describe('bitwiseOr()', function () {
+        it('should throw an "Unsupported operand" error for an array operand', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseOr(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"bool","operator":"|","right":"array"}'
+            );
+        });
+
+        it('should return the correct result for an integer operand when true', function () {
+            var expectedResult = parseInt('11110001', 2),
+                result,
+                rightValue = factory.createInteger(parseInt('11110000', 2));
+
+            result = value.bitwiseOr(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+
+        it('should return the correct result for an integer operand when false', function () {
+            var expectedResult = parseInt('11110000', 2),
+                result,
+                rightValue = factory.createInteger(parseInt('11110000', 2));
+            createValue(false);
+
+            result = value.bitwiseOr(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+    });
+
+    describe('bitwiseXor()', function () {
+        it('should throw an "Unsupported operand" error for an array operand', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseXor(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"bool","operator":"^","right":"array"}'
+            );
+        });
+
+        it('should return the correct result for an integer operand when true', function () {
+            var expectedResult = parseInt('11110000', 2),
+                result,
+                rightValue = factory.createInteger(parseInt('11110001', 2));
+
+            result = value.bitwiseXor(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+
+        it('should return the correct result for an integer operand when false', function () {
+            var expectedResult = parseInt('11110001', 2),
+                result,
+                rightValue = factory.createInteger(parseInt('11110001', 2));
+            createValue(false);
+
+            result = value.bitwiseXor(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
         });
     });
 
@@ -149,6 +265,25 @@ describe('Boolean', function () {
             }).to.throw(
                 'Only instances of Throwable may be thrown: tried to throw a(n) boolean'
             );
+        });
+    });
+
+    describe('coerceToNumber()', function () {
+        it('should return int(0) when false', function () {
+            var resultValue;
+            createValue(false);
+
+            resultValue = value.coerceToNumber();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(0);
+        });
+
+        it('should return int(1) when true', function () {
+            var resultValue = value.coerceToNumber();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(1);
         });
     });
 
@@ -240,7 +375,8 @@ describe('Boolean', function () {
             expect(function () {
                 value.divideBy(divisorValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"bool","operator":"/","right":"array"}'
             );
         });
 
@@ -412,40 +548,47 @@ describe('Boolean', function () {
             it('should return the result of dividing by a float when true', function () {
                 var divisorOperand = factory.createString('2.5'),
                     resultValue;
-                createValue(true); // Will be coerced to int(1)
+                createValue(true); // Will be coerced to int(1).
 
                 resultValue = value.divideBy(divisorOperand);
 
                 expect(resultValue.getType()).to.equal('float');
                 expect(resultValue.getNative()).to.equal(0.4);
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
 
             it('should return the result of dividing by a float with decimal string prefix when true', function () {
                 var divisorOperand = factory.createString('2.5.4'),
                     resultValue;
-                createValue(true); // Will be coerced to int(1)
+                createValue(true); // Will be coerced to int(1).
 
                 resultValue = value.divideBy(divisorOperand);
 
                 expect(resultValue.getType()).to.equal('float');
                 expect(resultValue.getNative()).to.equal(0.4);
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_WARNING,
+                    'core.non_numeric_value'
+                );
             });
 
             it('should return the result of dividing when false', function () {
                 var divisorOperand = factory.createString('7'),
                     resultValue;
-                createValue(false); // Will be coerced to int(0)
+                createValue(false); // Will be coerced to int(0).
 
                 resultValue = value.divideBy(divisorOperand);
 
                 expect(resultValue.getType()).to.equal('int');
                 expect(resultValue.getNative()).to.equal(0);
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
 
             it('should raise a warning and return false when dividing by zero', function () {
                 var divisorOperand = factory.createString('0'),
                     resultValue;
-                createValue(true); // Will be coerced to int(1)
+                createValue(true); // Will be coerced to int(1).
 
                 resultValue = value.divideBy(divisorOperand);
 
@@ -454,6 +597,7 @@ describe('Boolean', function () {
                     .to.have.been.calledWith(PHPError.E_WARNING, 'Division by zero');
                 expect(resultValue.getType()).to.equal('boolean');
                 expect(resultValue.getNative()).to.equal(false);
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
         });
     });
@@ -485,8 +629,8 @@ describe('Boolean', function () {
     });
 
     describe('getDisplayType()', function () {
-        it('should return the value type', function () {
-            expect(value.getDisplayType()).to.equal('boolean');
+        it('should return the shorthand type name "bool"', function () {
+            expect(value.getDisplayType()).to.equal('bool');
         });
     });
 
@@ -752,7 +896,8 @@ describe('Boolean', function () {
             expect(function () {
                 value.multiplyBy(multiplierValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"bool","operator":"*","right":"array"}'
             );
         });
 
@@ -918,6 +1063,7 @@ describe('Boolean', function () {
 
                 expect(resultValue.getType()).to.equal('float');
                 expect(resultValue.getNative()).to.equal(2.5);
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
 
             it('should return the result of multiplying by a float with decimal string prefix when true', function () {
@@ -929,6 +1075,11 @@ describe('Boolean', function () {
 
                 expect(resultValue.getType()).to.equal('float');
                 expect(resultValue.getNative()).to.equal(3.5);
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_WARNING,
+                    'core.non_numeric_value'
+                );
             });
 
             it('should return the result of multiplying when false', function () {
@@ -940,6 +1091,7 @@ describe('Boolean', function () {
 
                 expect(resultValue.getType()).to.equal('int');
                 expect(resultValue.getNative()).to.equal(0);
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
 
             it('should return zero when multiplying by zero', function () {
@@ -951,6 +1103,7 @@ describe('Boolean', function () {
 
                 expect(resultValue.getType()).to.equal('int');
                 expect(resultValue.getNative()).to.equal(0);
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
         });
     });
@@ -996,11 +1149,11 @@ describe('Boolean', function () {
     });
 
     describe('onesComplement()', function () {
-        it('should throw an "Unsupported operand" error', function () {
+        it('should throw a "Cannot perform bitwise not" error', function () {
             expect(function () {
                 value.onesComplement();
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.cannot_perform_bitwise_not with {"type":"bool"}'
             );
         });
     });
@@ -1013,7 +1166,8 @@ describe('Boolean', function () {
             expect(function () {
                 value.subtract(subtrahendValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"bool","operator":"-","right":"array"}'
             );
         });
 
@@ -1179,6 +1333,7 @@ describe('Boolean', function () {
 
                 expect(resultValue.getType()).to.equal('float');
                 expect(resultValue.getNative()).to.equal(-1.5);
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
 
             it('should return the result of subtracting by a float with decimal string prefix when true', function () {
@@ -1190,6 +1345,11 @@ describe('Boolean', function () {
 
                 expect(resultValue.getType()).to.equal('float');
                 expect(resultValue.getNative()).to.equal(-2.5);
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_WARNING,
+                    'core.non_numeric_value'
+                );
             });
 
             it('should return the result of subtracting when false', function () {
@@ -1201,6 +1361,7 @@ describe('Boolean', function () {
 
                 expect(resultValue.getType()).to.equal('int');
                 expect(resultValue.getNative()).to.equal(-7);
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
 
             it('should return the result when subtracting zero', function () {
@@ -1212,6 +1373,7 @@ describe('Boolean', function () {
 
                 expect(resultValue.getType()).to.equal('int');
                 expect(resultValue.getNative()).to.equal(1);
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
         });
     });

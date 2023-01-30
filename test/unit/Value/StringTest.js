@@ -9,8 +9,7 @@
 
 'use strict';
 
-var _ = require('microdash'),
-    expect = require('chai').expect,
+var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('../tools'),
@@ -19,18 +18,19 @@ var _ = require('microdash'),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
     Exception = phpCommon.Exception,
-    FloatValue = require('../../../src/Value/Float').sync(),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyValuePair = require('../../../src/KeyValuePair'),
     MethodSpec = require('../../../src/MethodSpec'),
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
+    NumericParse = require('../../../src/Semantics/NumericParse'),
+    NumericStringParser = require('../../../src/Semantics/NumericStringParser'),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
     StringValue = require('../../../src/Value/String').sync(),
     Value = require('../../../src/Value').sync();
 
-describe('String', function () {
+describe('StringValue', function () {
     var callStack,
         createKeyValuePair,
         createValue,
@@ -39,6 +39,8 @@ describe('String', function () {
         futureFactory,
         globalNamespace,
         namespaceScope,
+        numericStringParser,
+        realNumericStringParser,
         referenceFactory,
         state,
         value;
@@ -54,17 +56,22 @@ describe('String', function () {
         globalNamespace = sinon.createStubInstance(Namespace);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         namespaceScope.getGlobalNamespace.returns(globalNamespace);
+        numericStringParser = sinon.createStubInstance(NumericStringParser);
+        realNumericStringParser = state.getService('numeric_string_parser');
         referenceFactory = state.getReferenceFactory();
 
         factory.setGlobalNamespace(globalNamespace);
 
-        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables, errorClass) {
             if (level !== PHPError.E_ERROR) {
                 return;
             }
 
             throw new Error(
-                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+                'Fake PHP ' + level +
+                (errorClass ? ' (' + errorClass + ')' : '') +
+                ' for #' + translationKey +
+                ' with ' + JSON.stringify(placeholderVariables || {})
             );
         });
 
@@ -75,6 +82,10 @@ describe('String', function () {
             return keyValuePair;
         };
 
+        numericStringParser.parseNumericString.callsFake(function (string) {
+            return realNumericStringParser.parseNumericString(string);
+        });
+
         createValue = function (nativeValue) {
             value = new StringValue(
                 factory,
@@ -83,7 +94,8 @@ describe('String', function () {
                 callStack,
                 flow,
                 nativeValue,
-                globalNamespace
+                globalNamespace,
+                numericStringParser
             );
         };
     });
@@ -99,7 +111,8 @@ describe('String', function () {
             expect(function () {
                 value.add(addendValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"string","operator":"+","right":"array"}'
             );
         });
 
@@ -263,6 +276,90 @@ describe('String', function () {
         });
     });
 
+    describe('bitwiseAnd()', function () {
+        beforeEach(function () {
+            createValue(String(parseInt('10101101', 2)));
+        });
+
+        it('should throw an "Unsupported operand" error for an array addend', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseAnd(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"string","operator":"&","right":"array"}'
+            );
+        });
+
+        it('should return the correct result for 0b10101101 & 0b00001111', function () {
+            var expectedResult = parseInt('00001001', 2),
+                result,
+                rightValue = factory.createString(String(parseInt('00001011', 2)));
+
+            result = value.bitwiseAnd(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+    });
+
+    describe('bitwiseOr()', function () {
+        beforeEach(function () {
+            createValue(String(parseInt('10101001', 2)));
+        });
+
+        it('should throw an "Unsupported operand" error for an array addend', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseOr(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"string","operator":"|","right":"array"}'
+            );
+        });
+
+        it('should return the correct result for 0b10101101 | 0b00001111', function () {
+            var expectedResult = parseInt('11111001', 2),
+                result,
+                rightValue = factory.createString(String(parseInt('11110000', 2)));
+
+            result = value.bitwiseOr(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+    });
+
+    describe('bitwiseXor()', function () {
+        beforeEach(function () {
+            createValue(String(parseInt('10101001', 2)));
+        });
+
+        it('should throw an "Unsupported operand" error for an array operand', function () {
+            var rightValue = factory.createArray([]);
+
+            expect(function () {
+                value.bitwiseXor(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"string","operator":"^","right":"array"}'
+            );
+        });
+
+        it('should return the correct result for an integer operand', function () {
+            var expectedResult = parseInt('01011001', 2),
+                result,
+                rightValue = factory.createInteger(parseInt('11110000', 2));
+
+            result = value.bitwiseXor(rightValue);
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(expectedResult);
+        });
+    });
+
     describe('call()', function () {
         it('should call the function and return its result when string only contains a function name', async function () {
             var argValue = sinon.createStubInstance(Value),
@@ -383,154 +480,72 @@ describe('String', function () {
     });
 
     describe('coerceToFloat()', function () {
-        _.each({
-            'coercing a positive plain integer to float': {
-                string: '21',
-                expectedResult: 21.0
-            },
-            'coercing a negative plain integer to float': {
-                string: '-21',
-                expectedResult: -21.0
-            },
-            'coercing a positive plain float': {
-                string: '27.123',
-                expectedResult: 27.123
-            },
-            'coercing a negative plain float': {
-                string: '-27.123',
-                expectedResult: -27.123
-            },
-            'coercing a non-numeric string': {
-                string: 'not a num',
-                expectedResult: 0
-            },
-            'coercing a non-numeric string containing lowercase "e"': {
-                string: 'my number',
-                expectedResult: 0
-            },
-            'coercing a non-numeric string containing uppercase "E"': {
-                string: 'my numbEr',
-                expectedResult: 0
-            },
-            'coercing an integer followed by lowercase "e"': {
-                string: '21 e',
-                expectedResult: 21.0
-            },
-            'coercing an exponent with integer result': {
-                string: '1e4',
-                expectedResult: 10000
-            },
-            'coercing a lowercase exponent with float result': {
-                string: '1e-3',
-                expectedResult: 0.001
-            },
-            'coercing an uppercase exponent with float result': {
-                string: '1E-3',
-                expectedResult: 0.001
-            },
-            'coercing a float with leading whitespace': {
-                string: '   123.456',
-                expectedResult: 123.456
-            },
-            'coercing an integer with trailing whitespace': {
-                string: '456.789  ',
-                expectedResult: 456.789
-            }
-        }, function (scenario, description) {
-            describe(description, function () {
-                beforeEach(function () {
-                    createValue(scenario.string);
-                });
+        var parse;
 
-                it('should return the correct value', function () {
-                    var result = value.coerceToFloat();
+        beforeEach(function () {
+            parse = sinon.createStubInstance(NumericParse);
+        });
 
-                    expect(result).to.be.an.instanceOf(FloatValue);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
+        it('should return a float when the parser detects a numeric string', function () {
+            var result;
+            parse.toFloatValue.returns(factory.createFloat(123.456));
+            numericStringParser.parseNumericString
+                .withArgs('123.456')
+                .returns(parse);
+            createValue('123.456');
 
-                it('should not raise any warnings', function () {
-                    value.coerceToFloat();
+            result = value.coerceToFloat();
 
-                    expect(callStack.raiseError).not.to.have.been.called;
-                });
-            });
+            expect(result.getType()).to.equal('float');
+            expect(result.getNative()).to.equal(123.456);
+        });
+
+        it('should return float(0) when the parser detects no numeric string', function () {
+            var result;
+            numericStringParser.parseNumericString
+                .withArgs('not numeric')
+                .returns(null);
+            createValue('not numeric');
+
+            result = value.coerceToFloat();
+
+            expect(result.getType()).to.equal('float');
+            expect(result.getNative()).to.equal(0);
         });
     });
 
     describe('coerceToInteger()', function () {
-        _.each({
-            'coercing a positive plain integer to int': {
-                string: '21',
-                expectedResult: 21
-            },
-            'coercing a negative plain integer to int': {
-                string: '-21',
-                expectedResult: -21
-            },
-            'coercing a positive plain float to integer': {
-                string: '27.123',
-                expectedResult: 27
-            },
-            'coercing a negative plain float to integer': {
-                string: '-27.123',
-                expectedResult: -27
-            },
-            'coercing a non-numeric string': {
-                string: 'not a num',
-                expectedResult: 0
-            },
-            'coercing a non-numeric string containing lowercase "e"': {
-                string: 'my number',
-                expectedResult: 0
-            },
-            'coercing a non-numeric string containing uppercase "E"': {
-                string: 'my numbEr',
-                expectedResult: 0
-            },
-            'coercing an integer followed by lowercase "e"': {
-                string: '21 e',
-                expectedResult: 21
-            },
-            'coercing an exponent with integer result': {
-                string: '1e4',
-                expectedResult: 1 // Can only be parsed as a float despite actually having integer value
-            },
-            'coercing a lowercase exponent with float result': {
-                string: '1e-3',
-                expectedResult: 1
-            },
-            'coercing an uppercase exponent with float result': {
-                string: '1E-3',
-                expectedResult: 1
-            },
-            'coercing an integer with leading whitespace': {
-                string: '   123',
-                expectedResult: 123
-            },
-            'coercing an integer with trailing whitespace': {
-                string: '456  ',
-                expectedResult: 456
-            }
-        }, function (scenario, description) {
-            describe(description, function () {
-                beforeEach(function () {
-                    createValue(scenario.string);
-                });
+        var parse;
 
-                it('should return the correct value', function () {
-                    var result = value.coerceToInteger();
+        beforeEach(function () {
+            parse = sinon.createStubInstance(NumericParse);
+        });
 
-                    expect(result).to.be.an.instanceOf(IntegerValue);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
+        it('should return an integer when the parser detects a numeric string', function () {
+            var result;
+            parse.toIntegerValue.returns(factory.createInteger(123));
+            numericStringParser.parseNumericString
+                .withArgs('123')
+                .returns(parse);
+            createValue('123');
 
-                it('should not raise any warnings', function () {
-                    value.coerceToInteger();
+            result = value.coerceToInteger();
 
-                    expect(callStack.raiseError).not.to.have.been.called;
-                });
-            });
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(123);
+        });
+
+        it('should return int(0) when the parser detects no numeric string', function () {
+            var result;
+            numericStringParser.parseNumericString
+                .withArgs('not numeric')
+                .returns(null);
+            createValue('not numeric');
+
+            result = value.coerceToInteger();
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(0);
         });
     });
 
@@ -547,90 +562,80 @@ describe('String', function () {
     });
 
     describe('coerceToNumber()', function () {
-        _.each({
-            'coercing a positive plain integer to int': {
-                string: '21',
-                expectedResultType: IntegerValue,
-                expectedResult: 21
-            },
-            'coercing a negative plain integer to int': {
-                string: '-21',
-                expectedResultType: IntegerValue,
-                expectedResult: -21
-            },
-            'coercing a positive plain float to float': {
-                string: '27.123',
-                expectedResultType: FloatValue,
-                expectedResult: 27.123
-            },
-            'coercing a negative plain float to float': {
-                string: '-27.123',
-                expectedResultType: FloatValue,
-                expectedResult: -27.123
-            },
-            'coercing a negative plain float without leading zero to float': {
-                string: '-.123',
-                expectedResultType: FloatValue,
-                expectedResult: -0.123
-            },
-            'coercing a non-numeric string': {
-                string: 'not a num',
-                expectedResultType: IntegerValue,
-                expectedResult: 0
-            },
-            'coercing a non-numeric string containing lowercase "e"': {
-                string: 'my number',
-                expectedResultType: IntegerValue,
-                expectedResult: 0
-            },
-            'coercing a non-numeric string containing uppercase "E"': {
-                string: 'my numbEr',
-                expectedResultType: IntegerValue,
-                expectedResult: 0
-            },
-            'coercing an integer followed by lowercase "e"': {
-                string: '21 e',
-                expectedResultType: IntegerValue,
-                expectedResult: 21
-            },
-            'coercing an implicitly positive exponent (will give an integer result, but as a float)': {
-                string: '1e4',
-                expectedResultType: FloatValue, // Exponents are always evaluated to floats
-                expectedResult: 10000
-            },
-            'coercing an explicitly positive exponent (will give an integer result, but as a float)': {
-                string: '1e+4',
-                expectedResultType: FloatValue, // Exponents are always evaluated to floats
-                expectedResult: 10000
-            },
-            'coercing a lowercase exponent with float result': {
-                string: '1e-3',
-                expectedResultType: FloatValue,
-                expectedResult: 0.001
-            },
-            'coercing an uppercase exponent with float result': {
-                string: '1E-3',
-                expectedResultType: FloatValue,
-                expectedResult: 0.001
-            }
-        }, function (scenario, description) {
-            describe(description, function () {
-                beforeEach(function () {
-                    createValue(scenario.string);
-                });
+        var parse;
 
-                it('should return the correct value', function () {
-                    var result = value.coerceToNumber();
+        beforeEach(function () {
+            parse = sinon.createStubInstance(NumericParse);
+        });
 
-                    expect(result).to.be.an.instanceOf(scenario.expectedResultType);
-                    expect(result.getNative()).to.equal(scenario.expectedResult);
-                });
+        describe('when the parser detects a fully numeric string', function () {
+            beforeEach(function () {
+                numericStringParser.parseNumericString
+                    .withArgs('1234')
+                    .returns(parse);
+                parse.isFullyNumeric.returns(true);
+                parse.toValue.returns(factory.createInteger(1234));
+                createValue('1234');
+            });
 
-                it('should not raise any warnings', function () {
-                    value.coerceToNumber();
+            it('should return a value', function () {
+                var result = value.coerceToNumber();
 
-                    expect(callStack.raiseError).not.to.have.been.called;
-                });
+                expect(result.getType()).to.equal('int');
+                expect(result.getNative()).to.equal(1234);
+            });
+
+            it('should not raise a warning', function () {
+                value.coerceToNumber();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+
+        describe('when the parser detects a leading-numeric string', function () {
+            beforeEach(function () {
+                numericStringParser.parseNumericString
+                    .withArgs('1234abc')
+                    .returns(parse);
+                parse.isFullyNumeric.returns(false); // False because the string is only leading-numeric.
+                parse.toValue.returns(factory.createInteger(1234));
+                createValue('1234abc');
+            });
+
+            it('should return a value', function () {
+                var result = value.coerceToNumber();
+
+                expect(result.getType()).to.equal('int');
+                expect(result.getNative()).to.equal(1234);
+            });
+
+            it('should raise a warning', function () {
+                value.coerceToNumber();
+
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_WARNING,
+                    'core.non_numeric_value'
+                );
+            });
+        });
+
+        describe('when the parser detects a non-numeric string', function () {
+            beforeEach(function () {
+                numericStringParser.parseNumericString
+                    .withArgs('not numeric')
+                    .returns(null);
+                createValue('not numeric');
+            });
+
+            it('should return null', function () {
+                expect(value.coerceToNumber()).to.be.null;
+            });
+
+            it('should not raise a warning', function () {
+                value.coerceToNumber();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
         });
     });
@@ -644,7 +649,8 @@ describe('String', function () {
                 callStack,
                 flow,
                 '21',
-                globalNamespace
+                globalNamespace,
+                numericStringParser
             );
             createValue('21');
 
@@ -659,7 +665,8 @@ describe('String', function () {
                 callStack,
                 flow,
                 '4',
-                globalNamespace
+                globalNamespace,
+                numericStringParser
             );
             createValue('6');
 
@@ -674,7 +681,8 @@ describe('String', function () {
                 callStack,
                 flow,
                 '14',
-                globalNamespace
+                globalNamespace,
+                numericStringParser
             );
             createValue('12');
 
@@ -689,7 +697,8 @@ describe('String', function () {
                 callStack,
                 flow,
                 'my string',
-                globalNamespace
+                globalNamespace,
+                numericStringParser
             );
             createValue('my string');
 
@@ -704,7 +713,8 @@ describe('String', function () {
                 callStack,
                 flow,
                 'X my string',
-                globalNamespace
+                globalNamespace,
+                numericStringParser
             );
             createValue('Y my string');
 
@@ -719,7 +729,8 @@ describe('String', function () {
                 callStack,
                 flow,
                 'F my string',
-                globalNamespace
+                globalNamespace,
+                numericStringParser
             );
             createValue('E my string');
 
@@ -772,166 +783,86 @@ describe('String', function () {
     });
 
     describe('convertForFloatType()', function () {
-        describe('when valid with no whitespace', function () {
-            it('should return a float containing the parsed number', function () {
-                var resultValue;
-                createValue('456.789');
+        var parse;
 
-                resultValue = value.convertForFloatType();
-
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(456.789);
-            });
-
-            it('should not raise a notice', function () {
-                createValue('456.789');
-
-                value.convertForFloatType();
-
-                expect(callStack.raiseTranslatedError).not.to.have.been.called;
-            });
+        beforeEach(function () {
+            parse = sinon.createStubInstance(NumericParse);
+            parse.isFullyNumeric.returns(true);
+            parse.toFloatValue.returns(factory.createFloat(123.456));
         });
 
-        describe('when valid with leading and trailing whitespace', function () {
-            it('should return a float containing the parsed number', function () {
-                var resultValue;
-                createValue('   456.789  ');
+        it('should return a float when the parser detects a fully numeric string', function () {
+            var result;
+            numericStringParser.parseNumericString
+                .withArgs('123.456')
+                .returns(parse);
+            createValue('123.456');
 
-                resultValue = value.convertForFloatType();
+            result = value.convertForFloatType();
 
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(456.789);
-            });
-
-            it('should not raise a notice', function () {
-                createValue('   456.789  ');
-
-                value.convertForFloatType();
-
-                expect(callStack.raiseTranslatedError).not.to.have.been.called;
-            });
+            expect(result.getType()).to.equal('float');
+            expect(result.getNative()).to.equal(123.456);
         });
 
-        describe('when semi-invalid with trailing non-numeric characters', function () {
-            it('should return a float containing the parsed number', function () {
-                var resultValue;
-                createValue('   456.789abc');
+        it('should return the original value when the parser detects a leading-numeric string', function () {
+            numericStringParser.parseNumericString
+                .withArgs('1234abc')
+                .returns(parse);
+            parse.isFullyNumeric.returns(false);
+            createValue('1234abc');
 
-                resultValue = value.convertForFloatType();
-
-                expect(resultValue.getType()).to.equal('float');
-                expect(resultValue.getNative()).to.equal(456.789);
-            });
-
-            it('should raise a notice', function () {
-                createValue('   456.789abc');
-
-                value.convertForFloatType();
-
-                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
-                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'core.non_well_formed_numeric_value'
-                );
-            });
+            expect(value.convertForFloatType()).to.equal(value);
         });
 
-        describe('when fully invalid with leading non-numeric characters', function () {
-            it('should just return this value as no conversion is possible', function () {
-                createValue('I am not numeric');
+        it('should return false when the parser detects a fully non-numeric string', function () {
+            numericStringParser.parseNumericString
+                .withArgs('not numeric')
+                .returns(null);
+            createValue('not numeric');
 
-                expect(value.convertForFloatType()).to.equal(value);
-            });
-
-            it('should not raise a notice', function () {
-                createValue('I am not numeric');
-
-                value.convertForFloatType();
-
-                expect(callStack.raiseTranslatedError).not.to.have.been.called;
-            });
+            expect(value.convertForFloatType()).to.equal(value);
         });
     });
 
     describe('convertForIntegerType()', function () {
-        describe('when valid with no whitespace', function () {
-            it('should return an integer containing the parsed number', function () {
-                var resultValue;
-                createValue('456.789'); // Decimal places ignored.
+        var parse;
 
-                resultValue = value.convertForIntegerType();
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(456);
-            });
-
-            it('should not raise a notice', function () {
-                createValue('456');
-
-                value.convertForIntegerType();
-
-                expect(callStack.raiseTranslatedError).not.to.have.been.called;
-            });
+        beforeEach(function () {
+            parse = sinon.createStubInstance(NumericParse);
+            parse.isFullyNumeric.returns(true);
+            parse.toIntegerValue.returns(factory.createInteger(123));
         });
 
-        describe('when valid with leading and trailing whitespace', function () {
-            it('should return an integer containing the parsed number', function () {
-                var resultValue;
-                createValue('   456  ');
+        it('should return an integer when the parser detects a fully numeric string', function () {
+            var result;
+            numericStringParser.parseNumericString
+                .withArgs('123')
+                .returns(parse);
+            createValue('123');
 
-                resultValue = value.convertForIntegerType();
+            result = value.convertForIntegerType();
 
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(456);
-            });
-
-            it('should not raise a notice', function () {
-                createValue('   456  ');
-
-                value.convertForIntegerType();
-
-                expect(callStack.raiseTranslatedError).not.to.have.been.called;
-            });
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(123);
         });
 
-        describe('when semi-invalid with trailing non-numeric characters', function () {
-            it('should return an integer containing the parsed number', function () {
-                var resultValue;
-                createValue('   456abc');
+        it('should return the original value when the parser detects a leading-numeric string', function () {
+            numericStringParser.parseNumericString
+                .withArgs('1234abc')
+                .returns(parse);
+            parse.isFullyNumeric.returns(false);
+            createValue('1234abc');
 
-                resultValue = value.convertForIntegerType();
-
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(456);
-            });
-
-            it('should raise a notice', function () {
-                createValue('   456abc');
-
-                value.convertForIntegerType();
-
-                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
-                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
-                    PHPError.E_NOTICE,
-                    'core.non_well_formed_numeric_value'
-                );
-            });
+            expect(value.convertForIntegerType()).to.equal(value);
         });
 
-        describe('when fully invalid with leading non-numeric characters', function () {
-            it('should just return this value as no conversion is possible', function () {
-                createValue('I am not numeric');
+        it('should return false when the parser detects a fully non-numeric string', function () {
+            numericStringParser.parseNumericString
+                .withArgs('not numeric')
+                .returns(null);
+            createValue('not numeric');
 
-                expect(value.convertForIntegerType()).to.equal(value);
-            });
-
-            it('should not raise a notice', function () {
-                createValue('I am not numeric');
-
-                value.convertForIntegerType();
-
-                expect(callStack.raiseTranslatedError).not.to.have.been.called;
-            });
+            expect(value.convertForIntegerType()).to.equal(value);
         });
     });
 
@@ -994,7 +925,8 @@ describe('String', function () {
             expect(function () {
                 value.divideBy(divisorValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"string","operator":"/","right":"array"}'
             );
         });
 
@@ -1256,69 +1188,30 @@ describe('String', function () {
     });
 
     describe('getNumericType()', function () {
-        _.each({
-            'parsing a positive plain integer to int': {
-                string: '21',
-                expectedResult: 'int'
-            },
-            'parsing a negative plain integer to int': {
-                string: '-21',
-                expectedResult: 'int'
-            },
-            'parsing a positive plain float to float': {
-                string: '27.123',
-                expectedResult: 'float'
-            },
-            'parsing a negative plain float to float': {
-                string: '-27.123',
-                expectedResult: 'float'
-            },
-            'parsing a negative plain float without leading zero to float': {
-                string: '-.123',
-                expectedResult: 'float'
-            },
-            'parsing a non-numeric string': {
-                string: 'not a num',
-                expectedResult: null
-            },
-            'parsing a non-numeric string containing lowercase "e"': {
-                string: 'my number',
-                expectedResult: null
-            },
-            'parsing a non-numeric string containing uppercase "E"': {
-                string: 'my numbEr',
-                expectedResult: null
-            },
-            'parsing an integer followed by lowercase "e"': {
-                string: '21 e',
-                expectedResult: 'int'
-            },
-            'parsing an implicitly positive exponent (will give an integer result, but as a float)': {
-                string: '1e4',
-                expectedResult: 'float' // Exponents are always evaluated to floats.
-            },
-            'parsing an explicitly positive exponent (will give an integer result, but as a float)': {
-                string: '1e+4',
-                expectedResult: 'float' // Exponents are always evaluated to floats.
-            },
-            'parsing a lowercase exponent with float result': {
-                string: '1e-3',
-                expectedResult: 'float'
-            },
-            'parsing an uppercase exponent with float result': {
-                string: '1E-3',
-                expectedResult: 'float'
-            }
-        }, function (scenario, description) {
-            describe(description, function () {
-                beforeEach(function () {
-                    createValue(scenario.string);
-                });
+        var parse;
 
-                it('should return the correct type', function () {
-                    expect(value.getNumericType()).to.equal(scenario.expectedResult);
-                });
-            });
+        beforeEach(function () {
+            parse = sinon.createStubInstance(NumericParse);
+        });
+
+        it('should return "int" when the parser detects an integer', function () {
+            parse.getType.returns('int');
+            numericStringParser.parseNumericString
+                .withArgs('1234')
+                .returns(parse);
+            createValue('1234');
+
+            expect(value.getNumericType()).to.equal('int');
+        });
+
+        it('should return "float" when the parser detects a float', function () {
+            parse.getType.returns('float');
+            numericStringParser.parseNumericString
+                .withArgs('123.456')
+                .returns(parse);
+            createValue('123.456');
+
+            expect(value.getNumericType()).to.equal('float');
         });
     });
 
@@ -1556,24 +1449,40 @@ describe('String', function () {
     });
 
     describe('isNumeric()', function () {
-        _.each([
-            '21',
-            '1e4',
-            '1e+5',
-            '1e-6',
-            '4E-7',
-            '-7',
-            '-21.2'
-        ], function (nativeValue) {
-            it('should return true when the value is numeric (' + nativeValue + ')', function () {
-                createValue(nativeValue);
+        var parse;
 
-                expect(value.isNumeric()).to.be.true;
-            });
+        beforeEach(function () {
+            parse = sinon.createStubInstance(NumericParse);
+            parse.isFullyNumeric.returns(true);
         });
 
-        it('should return false when the value is not numeric', function () {
-            createValue('hello');
+        it('should return true when the parser detects a numeric string', function () {
+            parse.getType.returns('int');
+            numericStringParser.parseNumericString
+                .withArgs('1234')
+                .returns(parse);
+            createValue('1234');
+
+            expect(value.isNumeric()).to.be.true;
+        });
+
+        it('should return false when the parser detects a leading-numeric string', function () {
+            parse.getType.returns('float');
+            numericStringParser.parseNumericString
+                .withArgs('1234abc')
+                .returns(parse);
+            parse.isFullyNumeric.returns(false);
+            createValue('1234abc');
+
+            expect(value.isNumeric()).to.be.false;
+        });
+
+        it('should return false when the parser detects a fully non-numeric string', function () {
+            parse.getType.returns('float');
+            numericStringParser.parseNumericString
+                .withArgs('not numeric')
+                .returns(null);
+            createValue('not numeric');
 
             expect(value.isNumeric()).to.be.false;
         });
@@ -1753,7 +1662,8 @@ describe('String', function () {
             expect(function () {
                 value.multiplyBy(multiplierValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"string","operator":"*","right":"array"}'
             );
         });
 
@@ -1948,6 +1858,20 @@ describe('String', function () {
         });
     });
 
+    describe('onesComplement()', function () {
+        it('should perform one\'s complement on the ASCII values of the characters', function () {
+            var result;
+            createValue('abc');
+
+            result = value.onesComplement();
+
+            expect(result.getType()).to.equal('string');
+            expect(result.getNative()).to.equal(
+                String.fromCharCode(158) + String.fromCharCode(157) + String.fromCharCode(156)
+            );
+        });
+    });
+
     describe('subtract()', function () {
         beforeEach(function () {
             createValue('21');
@@ -1959,7 +1883,8 @@ describe('String', function () {
             expect(function () {
                 value.subtract(subtrahendValue);
             }).to.throw(
-                'Fake PHP Fatal error for #core.unsupported_operand_types with {}'
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"string","operator":"-","right":"array"}'
             );
         });
 
@@ -2066,7 +1991,7 @@ describe('String', function () {
             it('should return the result of subtracting a float string when this string is a float', function () {
                 var subtrahendOperand = factory.createString('2.5'),
                     resultValue;
-                createValue(5.7);
+                createValue('5.7');
 
                 resultValue = value.subtract(subtrahendOperand);
 
