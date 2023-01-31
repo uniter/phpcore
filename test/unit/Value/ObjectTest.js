@@ -2308,6 +2308,19 @@ describe('ObjectValue', function () {
         });
     });
 
+    describe('modulo()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            var rightValue = factory.createInteger(5);
+
+            expect(function () {
+                value.modulo(rightValue);
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"%","right":"int"}'
+            );
+        });
+    });
+
     describe('multiplyBy()', function () {
         it('should throw an "Unsupported operand" error for an array multiplier', function () {
             var multiplierValue = factory.createArray([]);
