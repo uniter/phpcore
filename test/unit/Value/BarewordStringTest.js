@@ -386,6 +386,44 @@ describe('BarewordStringValue', function () {
         });
     });
 
+    describe('modulo()', function () {
+        // Note that modulo is not actually applicable as legal barewords cannot be numeric.
+        // These tests are included for completeness.
+
+        it('should return the correct remainder of 3 for 23 mod 5', function () {
+            var result,
+                rightValue = factory.createInteger(5);
+            createValue('23');
+
+            result = value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(3);
+        });
+
+        it('should return the correct remainder of 0 for 10 mod 2', function () {
+            var result,
+                rightValue = factory.createInteger(2);
+            createValue('10');
+
+            result = value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(0);
+        });
+
+        it('should return the correct remainder of 4 for 24 mod 5', function () {
+            var result,
+                rightValue = factory.createInteger(5);
+            createValue('24');
+
+            result = value.modulo(rightValue);
+
+            expect(result).to.be.an.instanceOf(IntegerValue);
+            expect(result.getNative()).to.equal(4);
+        });
+    });
+
     describe('next()', function () {
         beforeEach(function () {
             createValue('mybarewordstring');
