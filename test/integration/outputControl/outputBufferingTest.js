@@ -14,11 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('Output buffering integration', function () {
-    beforeEach(function () {
-        this.runtime = tools.createSyncRuntime();
-    });
-
-    it('should support buffering output', function () {
+    it('should support buffering output', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -35,34 +31,33 @@ print 'World' . PHP_EOL;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.transpile(this.runtime, null, php),
-            engine;
+            environment = tools.createAsyncEnvironment({}, [
+                {
+                    functionGroups: [
+                        function (internals) {
+                            return {
+                                'get_and_empty_buffer': function () {
+                                    var bufferContents = internals.output.getCurrentBufferContents();
 
-        this.runtime.install({
-            functionGroups: [
-                function (internals) {
-                    return {
-                        'get_and_empty_buffer': function () {
-                            var bufferContents = internals.output.getCurrentBufferContents();
+                                    internals.output.cleanCurrentBuffer();
 
-                            internals.output.cleanCurrentBuffer();
-
-                            return internals.valueFactory.createString(bufferContents);
-                        },
-                        'push_buffer': function () {
-                            internals.output.pushBuffer();
-                        },
-                        'pop_buffer': function () {
-                            internals.output.popBuffer();
+                                    return internals.valueFactory.createString(bufferContents);
+                                },
+                                'push_buffer': function () {
+                                    internals.output.pushBuffer();
+                                },
+                                'pop_buffer': function () {
+                                    internals.output.popBuffer();
+                                }
+                            };
                         }
-                    };
+                    ]
                 }
-            ]
-        });
+            ]),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module({}, environment);
 
-        engine = module();
-
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             'Hello\n',
             'There\n'
         ]);

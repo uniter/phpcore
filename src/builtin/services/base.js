@@ -62,10 +62,14 @@ var phpCommon = require('phpcommon'),
     OpcodeSignatureParser = require('../../Core/Opcode/Signature/SignatureParser'),
     OpcodeTypeFactory = require('../../Core/Opcode/Type/TypeFactory'),
     OpcodeTypeProvider = require('../../Core/Opcode/Type/TypeProvider'),
+    Output = require('../../Output/Output'),
+    OutputBuffer = require('../../Output/OutputBuffer'),
+    OutputFactory = require('../../Output/OutputFactory'),
     ReturnTypeProvider = require('../../Function/ReturnTypeProvider'),
     ScalarTypeProvider = require('../../Type/Provider/Spec/ScalarTypeProvider'),
     SignatureParser = require('../../Function/Signature/SignatureParser'),
     SpecTypeProvider = require('../../Type/Provider/Spec/SpecTypeProvider'),
+    StdoutBuffer = require('../../Output/StdoutBuffer'),
     Trace = require('../../Control/Trace'),
     Translator = phpCommon.Translator,
     TypeFactory = require('../../Type/TypeFactory'),
@@ -115,10 +119,13 @@ var phpCommon = require('phpcommon'),
     OPCODE_SIGNATURE_PARSER = 'opcode_signature_parser',
     OPCODE_TYPE_FACTORY = 'opcode_type_factory',
     OPCODE_TYPE_PROVIDER = 'opcode_type_provider',
+    OUTPUT_FACTORY = 'output_factory',
     PAUSE_FACTORY = 'pause_factory',
     REFERENCE_FACTORY = 'reference_factory',
     SPEC_TYPE_PROVIDER = 'spec_type_provider',
     STDERR = 'stderr',
+    STDOUT = 'stdout',
+    STDOUT_BUFFER = 'stdout_buffer',
     TRANSLATOR = 'translator',
     TYPE_FACTORY = 'type_factory',
     TYPED_OPCODE_HANDLER_FACTORY = 'typed_opcode_handler_factory',
@@ -352,6 +359,14 @@ module.exports = function (internals) {
             return new OpcodeTypeProvider(get(OPCODE_TYPE_FACTORY));
         },
 
+        'output': function () {
+            return new Output(get(OUTPUT_FACTORY), get(STDOUT_BUFFER));
+        },
+
+        'output_factory': function () {
+            return new OutputFactory(OutputBuffer);
+        },
+
         'return_type_provider': function () {
             return new ReturnTypeProvider(get(SPEC_TYPE_PROVIDER));
         },
@@ -368,6 +383,10 @@ module.exports = function (internals) {
             provider.addNamedProvider(new ObjectTypeProvider(typeFactory));
             provider.addNamedProvider(new ScalarTypeProvider(typeFactory));
             provider.addNamedProvider(new UnionTypeProvider(typeFactory, provider));
+        },
+
+        'stdout_buffer': function () {
+            return new StdoutBuffer(get(STDOUT));
         },
 
         'translator': function () {
