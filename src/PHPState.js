@@ -581,7 +581,7 @@ module.exports = require('pauser')([
             // The global/default module (not e.g. the same as the command line module).
             globalModule = moduleFactory.create(null),
             // "Invisible" global namespace scope, not defined by any code.
-            globalNamespaceScope = new NamespaceScope(
+            globalNamespaceScope = set('global_namespace_scope', new NamespaceScope(
                 scopeFactory,
                 globalNamespace,
                 valueFactory,
@@ -589,7 +589,7 @@ module.exports = require('pauser')([
                 globalModule,
                 globalNamespace,
                 true
-            ),
+            )),
             globalScope,
             ffiInternals,
             ffiClassInternalsClassFactory,
