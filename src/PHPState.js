@@ -1188,6 +1188,24 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Fetches the value of the given PHP constant, or null if it does not exist
+         *
+         * @param {string} name
+         * @returns {Value|null}
+         */
+        getConstantValue: function (name) {
+            var value;
+
+            try {
+                value = this.globalNamespace.getConstant(name, true);
+            } catch (error) {
+                return null;
+            }
+
+            return value;
+        },
+
+        /**
          * Fetches the ControlBridge service
          *
          * @returns {ControlBridge}

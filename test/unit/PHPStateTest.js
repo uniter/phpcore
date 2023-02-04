@@ -900,6 +900,19 @@ describe('PHPState', function () {
         });
     });
 
+    describe('getConstantValue()', function () {
+        it('should return the value of the constant from the global namespace when defined', function () {
+            var value = valueFactory.createString('my value');
+            state.getGlobalNamespace().defineConstant('MY_CONST', value);
+
+            expect(state.getConstantValue('MY_CONST')).to.equal(value);
+        });
+
+        it('should return null when the constant is not defined', function () {
+            expect(state.getConstantValue('MY_UNDEFINED_CONST')).to.be.null;
+        });
+    });
+
     describe('getControlBridge()', function () {
         it('should return the ControlBridge service', function () {
             expect(state.getControlBridge()).to.be.an.instanceOf(ControlBridge);
