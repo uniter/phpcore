@@ -628,10 +628,10 @@ module.exports = require('pauser')([
         valueFactory.setNumericStringParser(get('numeric_string_parser'));
         valueFactory.setReferenceFactory(referenceFactory);
 
-        // Make a copy of the options object so we don't mutate it
+        // Make a copy of the options object so we don't mutate it.
         options = _.extend({}, options || {});
 
-        optionSet = new OptionSet(options);
+        optionSet = set('option_set', new OptionSet(options));
 
         includer = new Includer(
             callStack,
@@ -841,11 +841,11 @@ module.exports = require('pauser')([
 
         setUpState(this, installedBuiltinTypes, optionGroups || []);
 
-        // Install custom FFI JS engine stack trace handling, if enabled
+        // Install custom FFI JS engine stack trace handling, if enabled.
         this.ffiStackHooker.hook();
 
-        // Set any INI options provided
-        _.forOwn(options.ini, function (value, name) {
+        // Set any INI options provided.
+        _.forOwn(optionSet.getOption('ini'), function (value, name) {
             iniState.set(name, value);
         });
     }

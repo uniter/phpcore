@@ -37,7 +37,6 @@ var expect = require('chai').expect,
 describe('PHPState', function () {
     var globalStackHooker,
         installedBuiltinTypes,
-        optionSet,
         state,
         stderr,
         stdin,
@@ -48,7 +47,6 @@ describe('PHPState', function () {
     beforeEach(function () {
         globalStackHooker = sinon.createStubInstance(GlobalStackHooker);
         installedBuiltinTypes = {};
-        optionSet = sinon.createStubInstance(OptionSet);
         stdin = sinon.createStubInstance(Stream);
         stdout = sinon.createStubInstance(Stream);
         stderr = sinon.createStubInstance(Stream);
@@ -544,6 +542,38 @@ describe('PHPState', function () {
                         'display_errors': 'Off'
                     }
                 }
+            );
+
+            expect(state.getINIOption('display_errors')).to.equal('Off');
+        });
+
+        it('should read provided INI options from the OptionSet service even if replaced', function () {
+            var optionSet = sinon.createStubInstance(OptionSet);
+            optionSet.getOption
+                .withArgs('ini')
+                .returns({
+                    'display_errors': 'Off'
+                });
+            state = new PHPState(
+                runtime,
+                globalStackHooker,
+                {
+                    serviceGroups: [
+                        function () {
+                            return {
+                                'option_set': function () {
+                                    return optionSet;
+                                }
+                            };
+                        }
+                    ]
+                },
+                stdin,
+                stdout,
+                stderr,
+                'async',
+                [],
+                {}
             );
 
             expect(state.getINIOption('display_errors')).to.equal('Off');
