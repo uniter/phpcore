@@ -664,10 +664,16 @@ module.exports = require('pauser')([
             return value.futureFactory.createPresent(value.value.length === 0);
         },
 
+        /**
+         * {@inheritdoc}
+         */
         isIdenticalTo: function (rightValue) {
             return rightValue.isIdenticalToArray(this);
         },
 
+        /**
+         * {@inheritdoc}
+         */
         isIdenticalToArray: function (rightValue) {
             var identical = true,
                 leftValue = this,

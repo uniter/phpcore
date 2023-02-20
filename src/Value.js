@@ -983,7 +983,7 @@ module.exports = require('pauser')([
          * to the provided other value.
          *
          * @param {Value} rightValue
-         * @returns {ChainableInterface<BooleanValue>}
+         * @returns {BooleanValue}
          */
         isIdenticalTo: function (rightValue) {
             var leftValue = this;
@@ -999,7 +999,7 @@ module.exports = require('pauser')([
          * to the provided array value.
          *
          * @param {ArrayValue} rightValue
-         * @returns {ChainableInterface<BooleanValue>}
+         * @returns {BooleanValue}
          */
         isIdenticalToArray: function (rightValue) {
             return this.isIdenticalTo(rightValue);
@@ -1010,7 +1010,7 @@ module.exports = require('pauser')([
          * to the provided object value.
          *
          * @param {ObjectValue} rightValue
-         * @returns {ChainableInterface<BooleanValue>}
+         * @returns {BooleanValue}
          */
         isIdenticalToObject: function (rightValue) {
             return this.isIdenticalTo(rightValue);
@@ -1021,7 +1021,7 @@ module.exports = require('pauser')([
          * to the provided resource value.
          *
          * @param {ResourceValue} rightValue
-         * @returns {ChainableInterface<BooleanValue>}
+         * @returns {BooleanValue}
          */
         isIdenticalToResource: function (rightValue) {
             return this.isIdenticalTo(rightValue);
@@ -1081,16 +1081,12 @@ module.exports = require('pauser')([
          * and false otherwise.
          *
          * @param {Reference|Value} rightValue
-         * @returns {ChainableInterface<BooleanValue>}
+         * @returns {BooleanValue}
          */
         isNotIdenticalTo: function (rightValue) {
             var leftValue = this;
 
-            return leftValue.isIdenticalTo(rightValue)
-                .next(function (isIdenticalValue) {
-                    return !isIdenticalValue.getNative();
-                })
-                .asValue();
+            return leftValue.factory.createBoolean(!leftValue.isIdenticalTo(rightValue).getNative());
         },
 
         /**

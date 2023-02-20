@@ -954,28 +954,28 @@ describe('IntegerValue', function () {
     });
 
     describe('isNotIdenticalTo()', function () {
-        it('should return true for two unequal integers', async function () {
+        it('should return true for two unequal integers', function () {
             var lhs = createValue(21),
                 rhs = createValue(101),
-                result = await lhs.isNotIdenticalTo(rhs).toPromise();
+                result = lhs.isNotIdenticalTo(rhs);
 
             expect(result.getType()).to.equal('boolean');
             expect(result.getNative()).to.be.true;
         });
 
-        it('should return true for two values of same value but different type', async function () {
+        it('should return true for two values of same value but different type', function () {
             var lhs = createValue(21),
                 rhs = factory.createFloat(21),
-                result = await lhs.isNotIdenticalTo(rhs).toPromise();
+                result = lhs.isNotIdenticalTo(rhs);
 
             expect(result.getType()).to.equal('boolean');
             expect(result.getNative()).to.be.true;
         });
 
-        it('should return false for two equal integers', async function () {
+        it('should return false for two equal integers', function () {
             var lhs = createValue(21),
                 rhs = createValue(21),
-                result = await lhs.isNotIdenticalTo(rhs).toPromise();
+                result = lhs.isNotIdenticalTo(rhs);
 
             expect(result.getType()).to.equal('boolean');
             expect(result.getNative()).to.be.false;

@@ -1370,14 +1370,23 @@ module.exports = require('pauser')([
             return this.futureFactory.createPresent(false);
         },
 
+        /**
+         * {@inheritdoc}
+         */
         isIdenticalTo: function (rightValue) {
             return rightValue.isIdenticalToObject(this);
         },
 
+        /**
+         * {@inheritdoc}
+         */
         isIdenticalToArray: function () {
             return this.factory.createBoolean(false);
         },
 
+        /**
+         * {@inheritdoc}
+         */
         isIdenticalToObject: function (rightValue) {
             var leftValue = this,
                 factory = leftValue.factory;
