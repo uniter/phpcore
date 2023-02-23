@@ -157,6 +157,7 @@ module.exports = require('pauser')([
                 resultArray;
 
             if (rightValue.getType() !== 'array') {
+                // Raise any relevant warnings.
                 rightValue.coerceToNumber();
 
                 leftValue.callStack.raiseTranslatedError(

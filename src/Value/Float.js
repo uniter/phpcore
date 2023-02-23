@@ -211,7 +211,7 @@ module.exports = require('pauser')([
          */
         compareWithString: function (leftValue) {
             var rightValue = this,
-                leftNumber = leftValue.coerceToNumber().getNative(),
+                leftNumber = leftValue.coerceToFloat().getNative(),
                 rightFloat = rightValue.getNative();
 
             if (leftNumber < rightFloat) {
