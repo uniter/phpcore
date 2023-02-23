@@ -166,4 +166,108 @@ EOS
             23
         ]);
     });
+
+    it('should correctly handle incrementing a string', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+$myString = '21';
+$myString++;
+$result['numeric string'] = $myString;
+
+$myString = '21  ';
+$myString++;
+$result['numeric string with trailing whitespace'] = $myString;
+
+$myString = '101xyz';
+$myString++;
+$result['leading numeric string'] = $myString;
+
+$myString = 'not numeric';
+$myString++;
+$result['non-numeric string'] = $myString;
+
+$myString = '';
+$myString++;
+$result['non-numeric empty string'] = $myString;
+
+$myString = 'a';
+$myString++;
+$result['non-numeric string "a"'] = $myString;
+
+$myString = '#a';
+$myString++;
+$result['non-numeric string "#a"'] = $myString;
+
+$myString = '#az';
+$myString++;
+$result['non-numeric string "#az"'] = $myString;
+
+$myString = 'aa';
+$myString++;
+$result['non-numeric string "aa"'] = $myString;
+
+$myString = 'zz';
+$myString++;
+$result['non-numeric string "zz"'] = $myString;
+
+$myString = 'ZZ';
+$myString++;
+$result['non-numeric string "ZZ"'] = $myString;
+
+$myString = 'Zz';
+$myString++;
+$result['non-numeric string "Zz"'] = $myString;
+
+$myString = 'zZ';
+$myString++;
+$result['non-numeric string "zZ"'] = $myString;
+
+$myString = ' 1z';
+$myString++;
+$result['non-numeric string " 1z"'] = $myString;
+
+$myString = ' 9z';
+$myString++;
+$result['non-numeric string " 9z"'] = $myString;
+
+$myString = ' a.';
+$myString++;
+$result['non-numeric string " a."'] = $myString;
+
+$myString = '    9z    ';
+$myString++;
+$result['non-numeric string "    9z    "'] = $myString;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'numeric string': 22,
+            'numeric string with trailing whitespace': 22,
+            'leading numeric string': '101xza',
+
+            // Alphanumeric increment rules should be applied.
+            'non-numeric string': 'not numerid',
+            'non-numeric empty string': '1',
+            'non-numeric string "a"': 'b',
+            'non-numeric string "#a"': '#b',
+            'non-numeric string "#az"': '#ba',
+            'non-numeric string "aa"': 'ab',
+            'non-numeric string "zz"': 'aaa',
+            'non-numeric string "ZZ"': 'AAA',
+            'non-numeric string "Zz"': 'AAa',
+            'non-numeric string "zZ"': 'aaA',
+            'non-numeric string " 1z"': ' 2a',
+            'non-numeric string " 9z"': ' 10a',
+            'non-numeric string " a."': ' a.',
+            'non-numeric string "    9z    "': '    9z    '
+        });
+        expect(engine.getStderr().readAll()).to.equal('');
+    });
 });

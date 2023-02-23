@@ -37,6 +37,65 @@ describe('NumericStringParser', function () {
         parser = new NumericStringParser(valueFactory, numericParseFactory);
     });
 
+    describe('incrementAlphanumericString()', function () {
+        _.each({
+            'incrementing "a"': {
+                string: 'a',
+                expectedResult: 'b'
+            },
+            'incrementing "#a"': {
+                string: '#a',
+                expectedResult: '#b'
+            },
+            'incrementing "#az"': {
+                string: '#az',
+                expectedResult: '#ba'
+            },
+            'incrementing "aa"': {
+                string: 'aa',
+                expectedResult: 'ab'
+            },
+            'incrementing "zz"': {
+                string: 'zz',
+                expectedResult: 'aaa'
+            },
+            'incrementing "ZZ"': {
+                string: 'ZZ',
+                expectedResult: 'AAA'
+            },
+            'incrementing "Zz"': {
+                string: 'Zz',
+                expectedResult: 'AAa'
+            },
+            'incrementing "zZ"': {
+                string: 'zZ',
+                expectedResult: 'aaA'
+            },
+            'incrementing "    1z"': {
+                string: '    1z',
+                expectedResult: '    2a'
+            },
+            'incrementing "    9z"': {
+                string: '    9z',
+                expectedResult: '    10a'
+            },
+            'incrementing "    a."': {
+                string: '    a.',
+                expectedResult: '    a.'
+            },
+            'incrementing "    9z    "': {
+                string: '    9z    ',
+                expectedResult: '    9z    '
+            }
+        }, function (scenario, description) {
+            describe(description, function () {
+                it('should return the correct result', function () {
+                    expect(parser.incrementAlphanumericString(scenario.string)).to.equal(scenario.expectedResult);
+                });
+            });
+        });
+    });
+
     describe('parseNumericString()', function () {
         _.each({
             'parsing a positive plain integer to int': {

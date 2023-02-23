@@ -912,6 +912,26 @@ describe('StringValue', function () {
             expect(resultValue.getType()).to.equal('float');
             expect(resultValue.getNative()).to.equal(-42.7);
         });
+
+        it('should return non-numeric strings unchanged', function () {
+            var resultValue;
+            createValue('not numeric');
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('not numeric');
+        });
+
+        it('should return leading-numeric strings unchanged', function () {
+            var resultValue;
+            createValue('12abc');
+
+            resultValue = value.decrement();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('12abc');
+        });
     });
 
     describe('divideBy()', function () {
@@ -1305,6 +1325,37 @@ describe('StringValue', function () {
 
             expect(resultValue.getType()).to.equal('float');
             expect(resultValue.getNative()).to.equal(-40.7);
+        });
+
+        it('should transform non-numeric strings via the NumericStringParser', function () {
+            var resultValue;
+            numericStringParser.incrementAlphanumericString
+                .withArgs('not numeric')
+                .returns('incremented result');
+            createValue('not numeric');
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('incremented result');
+        });
+
+        it('should transform leading-numeric strings via the NumericStringParser', function () {
+            var parse = sinon.createStubInstance(NumericParse),
+                resultValue;
+            parse.isFullyNumeric.returns(false);
+            numericStringParser.parseNumericString
+                .withArgs('123abc')
+                .returns(parse);
+            numericStringParser.incrementAlphanumericString
+                .withArgs('123abc')
+                .returns('incremented result');
+            createValue('123abc');
+
+            resultValue = value.increment();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('incremented result');
         });
     });
 

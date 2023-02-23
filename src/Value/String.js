@@ -351,9 +351,24 @@ module.exports = require('pauser')([
          * {@inheritdoc}
          */
         decrement: function () {
-            var value = this;
+            var value = this,
+                numberString = value.value,
+                parse;
 
-            return value.coerceToNumber().subtract(value.factory.createInteger(1));
+            if (numberString === '') {
+                // Special case: empty string is treated as zero, which is decremented to -1.
+                return value.factory.createInteger(-1);
+            }
+
+            parse = value.numericStringParser.parseNumericString(numberString);
+
+            if (parse === null || !parse.isFullyNumeric()) {
+                // Non-numeric or only leading-numeric string; nothing to do, return the string unchanged.
+                // Note that unlike for incrementing, there are no alphanumeric decrement rules.
+                return value;
+            }
+
+            return parse.toValue().subtract(value.factory.createInteger(1));
         },
 
         /**
@@ -463,9 +478,18 @@ module.exports = require('pauser')([
          * {@inheritdoc}
          */
         increment: function () {
-            var value = this;
+            var value = this,
+                numberString = value.value,
+                parse = value.numericStringParser.parseNumericString(numberString);
 
-            return value.coerceToNumber().add(value.factory.createInteger(1));
+            if (parse === null || !parse.isFullyNumeric()) {
+                // Non-numeric or only leading-numeric string; apply alphanumeric increment rules.
+                numberString = value.numericStringParser.incrementAlphanumericString(numberString);
+
+                return value.factory.createString(numberString);
+            }
+
+            return parse.toValue().add(value.factory.createInteger(1));
         },
 
         /**
