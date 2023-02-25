@@ -704,6 +704,12 @@ describe('IntegerValue', function () {
         });
     });
 
+    describe('identity()', function () {
+        it('should return the IntegerValue unchanged', function () {
+            expect(value.identity()).to.equal(value);
+        });
+    });
+
     describe('increment()', function () {
         it('should return one more when the integer is positive', function () {
             var resultValue;

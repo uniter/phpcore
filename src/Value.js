@@ -805,6 +805,33 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Coerces the value to a float or int as appropriate, if applicable.
+         *
+         * @returns {Value}
+         */
+        identity: function () {
+            var value = this,
+                numberValue = value.coerceToNumber();
+
+            if (numberValue !== null) {
+                // Value was successfully coerced to either a FloatValue or IntegerValue.
+                return numberValue;
+            }
+
+            // Error message treats the operation as "... * 1".
+            value.callStack.raiseTranslatedError(
+                PHPError.E_ERROR,
+                UNSUPPORTED_OPERAND_TYPES,
+                {
+                    left: value.getDisplayType(),
+                    operator: '*',
+                    right: 'int'
+                },
+                'TypeError'
+            );
+        },
+
+        /**
          * Coerces this value to a number and adds one to it
          *
          * @returns {Value}

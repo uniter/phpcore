@@ -732,6 +732,12 @@ describe('FloatValue', function () {
         });
     });
 
+    describe('identity()', function () {
+        it('should return the FloatValue unchanged', function () {
+            expect(value.identity()).to.equal(value);
+        });
+    });
+
     describe('increment()', function () {
         it('should return one more when the float is positive', function () {
             var resultValue;

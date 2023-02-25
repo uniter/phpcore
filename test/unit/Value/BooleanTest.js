@@ -688,6 +688,28 @@ describe('BooleanValue', function () {
         });
     });
 
+    describe('identity()', function () {
+        it('should coerce to int(1) when true', function () {
+            var resultValue;
+            createValue(true);
+
+            resultValue = value.identity();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(1);
+        });
+
+        it('should coerce to int(0) when false', function () {
+            var resultValue;
+            createValue(false);
+
+            resultValue = value.identity();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(0);
+        });
+    });
+
     describe('increment()', function () {
         // NB: Yes, this is actually the correct behaviour, vs. adding one to a boolean explicitly.
         it('should return the boolean unchanged when true', function () {

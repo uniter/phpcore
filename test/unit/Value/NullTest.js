@@ -619,6 +619,15 @@ describe('NullValue', function () {
         });
     });
 
+    describe('identity()', function () {
+        it('should coerce to int(0)', function () {
+            var resultValue = value.identity();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(0);
+        });
+    });
+
     describe('increment()', function () {
         it('should return int(1)', function () {
             var resultValue = value.increment();

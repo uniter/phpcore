@@ -1908,6 +1908,17 @@ describe('ObjectValue', function () {
         });
     });
 
+    describe('identity()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            expect(function () {
+                value.identity();
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"My\\\\Space\\\\AwesomeClass","operator":"*","right":"int"}'
+            );
+        });
+    });
+
     describe('increment()', function () {
         it('should raise an error', function () {
             expect(function () {

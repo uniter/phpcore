@@ -927,7 +927,7 @@ module.exports = function (internals) {
          * Used by the `+$val` operator.
          */
         identity: internals.typeHandler('val value', function (value) {
-            return value.coerceToNumber();
+            return value.identity();
         }),
 
         /**

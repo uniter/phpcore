@@ -1067,6 +1067,17 @@ describe('ArrayValue', function () {
         });
     });
 
+    describe('identity()', function () {
+        it('should throw an "Unsupported operand" error', function () {
+            expect(function () {
+                value.identity();
+            }).to.throw(
+                'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                'with {"left":"array","operator":"*","right":"int"}'
+            );
+        });
+    });
+
     describe('increment()', function () {
         // NB: Yes, this is actually the correct behaviour, vs. adding one to an array explicitly.
         it('should return a copy of the array', function () {

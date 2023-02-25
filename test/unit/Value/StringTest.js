@@ -1286,6 +1286,84 @@ describe('StringValue', function () {
         });
     });
 
+    describe('identity()', function () {
+        var parse;
+
+        beforeEach(function () {
+            parse = sinon.createStubInstance(NumericParse);
+        });
+
+        describe('when the parser detects a fully numeric string', function () {
+            beforeEach(function () {
+                numericStringParser.parseNumericString
+                    .withArgs('1234')
+                    .returns(parse);
+                parse.isFullyNumeric.returns(true);
+                parse.toValue.returns(factory.createInteger(1234));
+                createValue('1234');
+            });
+
+            it('should return a value', function () {
+                var result = value.identity();
+
+                expect(result.getType()).to.equal('int');
+                expect(result.getNative()).to.equal(1234);
+            });
+
+            it('should not raise a warning', function () {
+                value.identity();
+
+                expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            });
+        });
+
+        describe('when the parser detects a leading-numeric string', function () {
+            beforeEach(function () {
+                numericStringParser.parseNumericString
+                    .withArgs('1234abc')
+                    .returns(parse);
+                parse.isFullyNumeric.returns(false); // False because the string is only leading-numeric.
+                parse.toValue.returns(factory.createInteger(1234));
+                createValue('1234abc');
+            });
+
+            it('should return a value', function () {
+                var result = value.identity();
+
+                expect(result.getType()).to.equal('int');
+                expect(result.getNative()).to.equal(1234);
+            });
+
+            it('should raise a warning', function () {
+                value.identity();
+
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_WARNING,
+                    'core.non_numeric_value'
+                );
+            });
+        });
+
+        describe('when the parser detects a non-numeric string', function () {
+            beforeEach(function () {
+                numericStringParser.parseNumericString
+                    .withArgs('not numeric')
+                    .returns(null);
+                createValue('not numeric');
+            });
+
+            it('should throw an "Unsupported operand" error', function () {
+                expect(function () {
+                    value.identity();
+                }).to.throw(
+                    'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
+                    'with {"left":"string","operator":"*","right":"int"}'
+                );
+            });
+        });
+    });
+
     describe('increment()', function () {
         it('should return one more when the string contains a positive float', function () {
             var resultValue;
