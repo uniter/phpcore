@@ -42,9 +42,9 @@ EOS
             engine = module();
 
         expect((await engine.execute()).getNative()).to.deep.equal({
-            '+ of negative variable value': -21, // Note that the value will not be made positive as you may expect
+            '+ of negative variable value': -21, // Note that the value will not be made positive as you may expect.
             '+ of positive variable value': 58,
-            '+ of negative array element value string': -101, // As above
+            '+ of negative array element value string': -101, // As above.
 
             '+ of boolean true': 1,
             '+ of boolean false': 0,

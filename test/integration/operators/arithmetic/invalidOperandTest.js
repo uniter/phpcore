@@ -22,7 +22,7 @@ describe('PHP operator invalid operand integration', function () {
         doRun = function (engine) {
             // Capture the standard streams, prefixing each write with its name
             // so that we can ensure that what is written to each of them is in the correct order
-            // with respect to one another
+            // with respect to one another.
             engine.getStdout().on('data', function (data) {
                 outputLog.push('[stdout]' + data);
             });

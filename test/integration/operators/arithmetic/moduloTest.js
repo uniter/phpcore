@@ -33,13 +33,13 @@ EOS
             engine = module();
 
         expect((await engine.execute()).getNative()).to.deep.equal([
-            0,  // Integer division
-            2,  // Integer division
-            0,  // Float division
-            1,  // Float division
-            0,  // Division by 1 (true coerced to 1)
-            5,  // String division
-            0   // Division of 0 (null coerces to 0) - note that this isn't division *by* zero
+            0,  // Integer division.
+            2,  // Integer division.
+            0,  // Float division.
+            1,  // Float division.
+            0,  // Division by 1 (true coerced to 1).
+            5,  // String division.
+            0   // Division of 0 (null coerces to 0) - note that this isn't division *by* zero.
         ]);
     });
 
@@ -57,7 +57,73 @@ EOS
         expect(resultValue.getType()).to.equal('boolean');
         expect(resultValue.getNative()).to.equal(false);
         // TODO: In PHP 7 this should actually be:
-        //       "PHP Fatal error:  Uncaught DivisionByZeroError: Modulo by zero in my_module.php:3"
+        //       "PHP Fatal error:  Uncaught DivisionByZeroError: Modulo by zero in my_module.php:3".
         expect(engine.getStderr().readAll()).to.equal('PHP Warning:  Division by zero in my_module.php on line 3\n');
+    });
+
+    it('should raise a TypeError when given invalid operands', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+ini_set('error_reporting', E_ALL);
+
+$result = [];
+
+function tryCall(callable $callback) {
+    $result = null;
+    $throwable = null;
+
+    try {
+        $result = $callback();
+    } catch (\Throwable $caughtThrowable) {
+        $throwable = $caughtThrowable::class . ' :: ' . $caughtThrowable->getMessage();
+    }
+
+    return [
+        'result' => $result,
+        'throwable' => $throwable
+    ];
+}
+
+$result['array % bool'] = tryCall(function () {
+    return ['my' => 'array'] % true;
+});
+$result['array % int'] = tryCall(function () {
+    return ['my' => 'array'] % 21;
+});
+$result['object % int'] = tryCall(function () {
+    return (new \stdClass()) % 21;
+});
+$result['resource % int'] = tryCall(function () {
+    return create_my_resource('my_resource_type') % 21;
+});
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineCoercingFunction('create_my_resource', function (type) {
+            return this.valueFactory.createResource(type, {});
+        });
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'array % bool': {
+                'result': null,
+                'throwable': 'TypeError :: Unsupported operand types: array % bool'
+            },
+            'array % int': {
+                'result': null,
+                'throwable': 'TypeError :: Unsupported operand types: array % int'
+            },
+            'object % int': {
+                'result': null,
+                'throwable': 'TypeError :: Unsupported operand types: stdClass % int'
+            },
+            'resource % int': {
+                'result': null,
+                'throwable': 'TypeError :: Unsupported operand types: resource % int'
+            }
+        });
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 });

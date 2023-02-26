@@ -46,4 +46,70 @@ EOS
             'null * int (null coerces to 0)': 0
         });
     });
+
+    it('should raise a TypeError when given invalid operands', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+ini_set('error_reporting', E_ALL);
+
+$result = [];
+
+function tryCall(callable $callback) {
+    $result = null;
+    $throwable = null;
+
+    try {
+        $result = $callback();
+    } catch (\Throwable $caughtThrowable) {
+        $throwable = $caughtThrowable::class . ' :: ' . $caughtThrowable->getMessage();
+    }
+
+    return [
+        'result' => $result,
+        'throwable' => $throwable
+    ];
+}
+
+$result['array * bool'] = tryCall(function () {
+    return ['my' => 'array'] * true;
+});
+$result['array * int'] = tryCall(function () {
+    return ['my' => 'array'] * 21;
+});
+$result['object * int'] = tryCall(function () {
+    return (new \stdClass()) * 21;
+});
+$result['resource * int'] = tryCall(function () {
+    return create_my_resource('my_resource_type') * 21;
+});
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineCoercingFunction('create_my_resource', function (type) {
+            return this.valueFactory.createResource(type, {});
+        });
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'array * bool': {
+                'result': null,
+                'throwable': 'TypeError :: Unsupported operand types: array * bool'
+            },
+            'array * int': {
+                'result': null,
+                'throwable': 'TypeError :: Unsupported operand types: array * int'
+            },
+            'object * int': {
+                'result': null,
+                'throwable': 'TypeError :: Unsupported operand types: stdClass * int'
+            },
+            'resource * int': {
+                'result': null,
+                'throwable': 'TypeError :: Unsupported operand types: resource * int'
+            }
+        });
+        expect(engine.getStderr().readAll()).to.equal('');
+    });
 });
