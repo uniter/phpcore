@@ -26,19 +26,19 @@ $clone = clone $original;
 
 $result = [];
 
-// Before modification
+// Before modification.
 $result['identity'] = $clone === $original;
 $result['original prop1, first'] = $original->prop1;
 $result['original prop2, first'] = $original->prop2;
 $result['clone prop1, first'] = $clone->prop1;
 $result['clone prop2, first'] = $clone->prop2;
 
-// After modification
+// After modification.
 $clone->prop1[] = 'extra';
 $clone->prop2 = 'two, but modified';
 
 $result['original prop1, second'] = $original->prop1;
-$result['original prop2, second'] = $original->prop2; // Should not be modified
+$result['original prop2, second'] = $original->prop2; // Should not be modified.
 $result['clone prop1, second'] = $clone->prop1;
 $result['clone prop2, second'] = $clone->prop2;
 
@@ -49,14 +49,14 @@ EOS
             engine = module();
 
         expect((await engine.execute()).getNative()).to.deep.equal({
-            'identity': false, // Clone should be a different object instance,
+            'identity': false, // Clone should be a different object instance.
             'original prop1, first': ['one'],
             'original prop2, first': 'two',
             'clone prop1, first': ['one'],
             'clone prop2, first': 'two',
 
-            'original prop1, second': ['one'], // Should not be modified
-            'original prop2, second': 'two',   // Should not be modified
+            'original prop1, second': ['one'], // Should not be modified.
+            'original prop2, second': 'two',   // Should not be modified.
             'clone prop1, second': ['one', 'extra'],
             'clone prop2, second': 'two, but modified'
         });
@@ -92,7 +92,7 @@ $clone = clone $original;
 
 $result = [];
 
-// Before modification
+// Before modification.
 $result['identity'] = $clone === $original;
 $result['original prop1, first'] = $original->prop1;
 $result['original prop2, first'] = $original->prop2;
@@ -101,11 +101,11 @@ $result['clone prop1, first'] = $clone->prop1;
 $result['clone prop2, first'] = $clone->prop2;
 $result['clone prop3, first'] = $clone->prop3;
 
-// After modification
+// After modification.
 $clone->prop1 = 'one, but modified outside class';
 
 $result['original prop1, second'] = $original->prop1;
-$result['original prop2, second'] = $original->prop2; // Should not be modified
+$result['original prop2, second'] = $original->prop2; // Should not be modified.
 $result['original prop3, second'] = $original->prop3;
 $result['clone prop1, second'] = $clone->prop1;
 $result['clone prop2, second'] = $clone->prop2;
@@ -118,16 +118,16 @@ EOS
             engine = module();
 
         expect((await engine.execute()).getNative()).to.deep.equal({
-            'identity': false, // Clone should be a different object instance,
+            'identity': false, // Clone should be a different object instance.
             'original prop1, first': 'one',
             'original prop2, first': 'two',
             'original prop3, first': 'set by constructor: 1',
             'clone prop1, first': 'one',
             'clone prop2, first': 'two, modified by __clone',
-            'clone prop3, first': 'set by constructor: 1', // Constructor should not be re-called for clone
+            'clone prop3, first': 'set by constructor: 1', // Constructor should not be re-called for clone.
 
             'original prop1, second': 'one',
-            'original prop2, second': 'two', // Should not be modified
+            'original prop2, second': 'two', // Should not be modified.
             'original prop3, second': 'set by constructor: 1',
             'clone prop1, second': 'one, but modified outside class',
             'clone prop2, second': 'two, modified by __clone',
@@ -149,7 +149,7 @@ $clone = clone $original;
 
 $result = [];
 
-// Before modification
+// Before modification.
 $result['identity'] = $clone === $original;
 $result['original prop1, first'] = $original->prop1;
 $result['original prop2, first'] = $original->prop2;
@@ -158,11 +158,11 @@ $result['clone prop1, first'] = $clone->prop1;
 $result['clone prop2, first'] = $clone->prop2;
 $result['clone prop3, first'] = $clone->prop3;
 
-// After modification
+// After modification.
 $clone->prop1 = 'one, but modified outside class';
 
 $result['original prop1, second'] = $original->prop1;
-$result['original prop2, second'] = $original->prop2; // Should not be modified
+$result['original prop2, second'] = $original->prop2; // Should not be modified.
 $result['original prop3, second'] = $original->prop3;
 $result['clone prop1, second'] = $clone->prop1;
 $result['clone prop2, second'] = $clone->prop2;
@@ -206,16 +206,16 @@ EOS
         });
 
         expect((await engine.execute()).getNative()).to.deep.equal({
-            'identity': false, // Clone should be a different object instance,
+            'identity': false, // Clone should be a different object instance.
             'original prop1, first': 'one',
             'original prop2, first': 'two',
             'original prop3, first': 'set by constructor: 1',
             'clone prop1, first': 'one',
             'clone prop2, first': 'two, modified by __clone',
-            'clone prop3, first': 'set by constructor: 1', // Constructor should not be re-called for clone
+            'clone prop3, first': 'set by constructor: 1', // Constructor should not be re-called for clone.
 
             'original prop1, second': 'one',
-            'original prop2, second': 'two', // Should not be modified
+            'original prop2, second': 'two', // Should not be modified.
             'original prop3, second': 'set by constructor: 1',
             'clone prop1, second': 'one, but modified outside class',
             'clone prop2, second': 'two, modified by __clone',
@@ -223,7 +223,7 @@ EOS
         });
     });
 
-    // Introduced in PHP 7.0.0
+    // Introduced in PHP 7.0.0.
     it('should support accessing a member of a freshly cloned object in a single expression', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -252,13 +252,13 @@ EOS
 $result = [];
 
 // Initially modify originalObject to check the clone starts from this state
-// and not the initial state in the object literal below
+// and not the initial state in the object literal below.
 $originalObject->myProp = 21;
 $result['myMethod() of original'] = $originalObject->myMethod();
 
 $cloneObject = clone $originalObject;
 
-// Modify originalObject - make sure it does not impact the clone
+// Modify originalObject - make sure it does not impact the clone.
 $originalObject->myProp = 'my modified value - I should not be used!';
 
 $result['myMethod() of clone'] = $cloneObject->myMethod();
@@ -411,12 +411,7 @@ try {
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile('/my/php_module.php', php, {
-                // Capture offsets of all nodes for line tracking
-                phpToAST: {captureAllOffsets: true},
-                // Record line numbers for statements/expressions
-                phpToJS: {lineNumbers: true}
-            }),
+            module = tools.asyncTranspile('/my/php_module.php', php),
             engine = module();
         engine.defineNonCoercingFunction('get_my_object_class', function (objectValue) {
             return objectValue.getValue().getClassName();

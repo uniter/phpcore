@@ -81,12 +81,7 @@ try {
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile('/my/php_module.php', php, {
-                // Capture offsets of all nodes for line tracking.
-                phpToAST: {captureAllOffsets: true},
-                // Record line numbers for statements/expressions.
-                phpToJS: {lineNumbers: true}
-            }),
+            module = tools.asyncTranspile('/my/php_module.php', php),
             engine = module();
         engine.defineNonCoercingFunction('get_my_object_class', function (objectValue) {
             return objectValue.getValue().getClassName();
@@ -112,12 +107,7 @@ $result['addition'] = '21abc' * 2;
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile('/my/php_module.php', php, {
-                // Capture offsets of all nodes for line tracking.
-                phpToAST: {captureAllOffsets: true},
-                // Record line numbers for statements/expressions.
-                phpToJS: {lineNumbers: true}
-            }),
+            module = tools.asyncTranspile('/my/php_module.php', php),
             engine = module();
 
         expect((await doRun(engine)).getNative()).to.deep.equal({
@@ -141,12 +131,7 @@ $result['addition'] = '21abc' * '3xyz';
 return $result;
 EOS
 */;}),//jshint ignore:line
-            module = tools.asyncTranspile('/my/php_module.php', php, {
-                // Capture offsets of all nodes for line tracking.
-                phpToAST: {captureAllOffsets: true},
-                // Record line numbers for statements/expressions.
-                phpToJS: {lineNumbers: true}
-            }),
+            module = tools.asyncTranspile('/my/php_module.php', php),
             engine = module();
 
         expect((await doRun(engine)).getNative()).to.deep.equal({
