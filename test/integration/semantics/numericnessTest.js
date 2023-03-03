@@ -20,8 +20,6 @@ describe('PHP numericness semantics integration', function () {
 
 $result = [];
 
-$result = [];
-
 $value = true;
 $result['bool'] = is_it_numeric($value);
 
