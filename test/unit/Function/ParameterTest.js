@@ -67,13 +67,24 @@ describe('Parameter', function () {
             errorClass,
             reportsOwnContext,
             filePath,
-            lineNumber
+            lineNumber,
+            contextTranslationKey,
+            contextPlaceholderVariables,
+            skipCurrentStackFrame
         ) {
             throw new Error(
                 'Fake PHP ' + level + ' [' + errorClass +
                 '] for #' + translationKey +
                 ' with ' + JSON.stringify(placeholderVariables || {}) +
                 ' reportsOwnContext=' + (reportsOwnContext ? 'yes' : 'no') +
+                (
+                    contextTranslationKey ?
+                        ' context(#' + contextTranslationKey +
+                        ' with ' + JSON.stringify(contextPlaceholderVariables || {}) +
+                        ')' :
+                        ''
+                ) +
+                ' skipCurrentStackFrame=' + (skipCurrentStackFrame ? 'yes' : 'no') +
                 ' @ ' + filePath + ':' + lineNumber
             );
         });
@@ -389,7 +400,7 @@ describe('Parameter', function () {
 
             return expect(parameter.validateArgument(argumentValue).toPromise())
                 .to.eventually.be.rejectedWith(
-                    'Fake PHP Fatal error [null] for #core.only_variables_by_reference with {} reportsOwnContext=no ' +
+                    'Fake PHP Fatal error [null] for #core.only_variables_by_reference with {} reportsOwnContext=no skipCurrentStackFrame=no ' +
                     '@ null:null'
                 );
         });
@@ -400,8 +411,8 @@ describe('Parameter', function () {
                 defaultValue = valueFactory.createNull();
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
-                .returns(futureFactory.createPresent(false)); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
-            defaultValueProvider.returns(defaultValue); // Default is null, meaning null can be passed
+                .returns(futureFactory.createPresent(false)); // Type disallows null (e.g. a class type not prefixed with ? in PHP7+).
+            defaultValueProvider.returns(defaultValue); // Default is null, meaning null can be passed.
             callStack.getCurrent.returns(sinon.createStubInstance(Call));
             callStack.getCallerFilePath.returns('/my/caller/module.php');
             callStack.getCallerLastLine.returns(12345);
@@ -413,10 +424,10 @@ describe('Parameter', function () {
                     '"name":"myParam",' +
                     '"actualType":"string",' +
                     '"callerFile":"/my/caller/module.php",' +
-                    '"callerLine":12345,' +
-                    '"definitionFile":"/path/to/my/module.php",' +
-                    '"definitionLine":101' +
+                    '"callerLine":12345' +
                     '} reportsOwnContext=yes ' +
+                    'context(#core.call_to_builtin with {"callerFile":"/my/caller/module.php","callerLine":12345})' +
+                    ' skipCurrentStackFrame=yes ' +
                     '@ /my/caller/module.php:12345'
                 );
         });
@@ -427,8 +438,8 @@ describe('Parameter', function () {
                 defaultValue = valueFactory.createNull();
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
-                .returns(futureFactory.createPresent(false)); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
-            defaultValueProvider.returns(defaultValue); // Default is null, meaning null can be passed
+                .returns(futureFactory.createPresent(false)); // Type disallows null (e.g. a class type not prefixed with ? in PHP7+).
+            defaultValueProvider.returns(defaultValue); // Default is null, meaning null can be passed.
             callStack.getCurrent.returns(sinon.createStubInstance(Call));
             callStack.getCallerFilePath.returns('/my/caller/module.php');
             callStack.getCallerLastLine.returns(12345);
@@ -441,10 +452,10 @@ describe('Parameter', function () {
                     '"name":"myParam",' +
                     '"actualType":"string",' +
                     '"callerFile":"/my/caller/module.php",' +
-                    '"callerLine":12345,' +
-                    '"definitionFile":"/path/to/my/module.php",' +
-                    '"definitionLine":101' +
+                    '"callerLine":12345' +
                     '} reportsOwnContext=yes ' +
+                    'context(#core.defined_in_userland with {"definitionFile":"/path/to/my/module.php","definitionLine":101}) ' +
+                    'skipCurrentStackFrame=no ' +
                     '@ /path/to/my/module.php:101' // Note definition rather than caller is given here.
                 );
         });
@@ -472,8 +483,8 @@ describe('Parameter', function () {
             );
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
-                .returns(futureFactory.createPresent(false)); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
-            defaultValueProvider.returns(defaultValue); // Default is null, meaning null can be passed
+                .returns(futureFactory.createPresent(false)); // Type disallows null (e.g. a class type not prefixed with ? in PHP7+).
+            defaultValueProvider.returns(defaultValue); // Default is null, meaning null can be passed.
             callStack.getCurrent.returns(sinon.createStubInstance(Call));
             callStack.getCallerFilePath.returns(null);
             callStack.getCallerLastLine.returns(null);
@@ -485,10 +496,10 @@ describe('Parameter', function () {
                     '"name":"myParam",' +
                     '"actualType":"string",' +
                     '"callerFile":"[Translated] core.unknown {}",' +
-                    '"callerLine":"[Translated] core.unknown {}",' +
-                    '"definitionFile":"[Translated] core.unknown {}",' +
-                    '"definitionLine":"[Translated] core.unknown {}"' +
+                    '"callerLine":"[Translated] core.unknown {}"' +
                     '} reportsOwnContext=yes ' +
+                    'context(#core.call_to_builtin with {"callerFile":"[Translated] core.unknown {}","callerLine":"[Translated] core.unknown {}"}) ' +
+                    'skipCurrentStackFrame=yes ' +
                     '@ [Translated] core.unknown {}:[Translated] core.unknown {}'
                 );
         });
@@ -498,7 +509,7 @@ describe('Parameter', function () {
                 argumentValue = valueFactory.createNull();
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
-                .returns(futureFactory.createPresent(false)); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
+                .returns(futureFactory.createPresent(false)); // Type disallows null (e.g. a class type not prefixed with ? in PHP7+).
             callStack.getCurrent.returns(sinon.createStubInstance(Call));
             callStack.getCallerFilePath.returns('/my/caller/module.php');
             callStack.getCallerLastLine.returns(12345);
@@ -515,7 +526,7 @@ describe('Parameter', function () {
                 context,
                 namespaceScope,
                 true,
-                null, // No default given, so null has not been allowed
+                null, // No default given, so null has not been allowed.
                 '/path/to/my/module.php',
                 101
             );
@@ -527,22 +538,22 @@ describe('Parameter', function () {
                     '"name":"myParam",' +
                     '"actualType":"null",' +
                     '"callerFile":"/my/caller/module.php",' +
-                    '"callerLine":12345,' +
-                    '"definitionFile":"/path/to/my/module.php",' +
-                    '"definitionLine":101' +
+                    '"callerLine":12345' +
                     '} reportsOwnContext=yes ' +
+                    'context(#core.call_to_builtin with {"callerFile":"/my/caller/module.php","callerLine":12345})' +
+                    ' skipCurrentStackFrame=yes ' +
                     '@ /my/caller/module.php:12345'
                 );
         });
 
-        // An example would be a parameter of array type with a default value of an array literal
+        // An example would be a parameter of array type with a default value of an array literal.
         it('should raise an error when argument is null but type does not allow null and default is not null for builtin', function () {
             var argumentReference = sinon.createStubInstance(Variable),
                 argumentValue = valueFactory.createNull();
             defaultValueProvider.returns(valueFactory.createArray(['some value']));
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
-                .returns(futureFactory.createPresent(false)); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)
+                .returns(futureFactory.createPresent(false)); // Type disallows null (e.g. a class type not prefixed with ? in PHP7+).
             callStack.getCurrent.returns(sinon.createStubInstance(Call));
             callStack.getCallerFilePath.returns('/my/caller/module.php');
             callStack.getCallerLastLine.returns(12345);
@@ -554,10 +565,10 @@ describe('Parameter', function () {
                     '"name":"myParam",' +
                     '"actualType":"null",' +
                     '"callerFile":"/my/caller/module.php",' +
-                    '"callerLine":12345,' +
-                    '"definitionFile":"/path/to/my/module.php",' +
-                    '"definitionLine":101' +
+                    '"callerLine":12345' +
                     '} reportsOwnContext=yes ' +
+                    'context(#core.call_to_builtin with {"callerFile":"/my/caller/module.php","callerLine":12345}) ' +
+                    'skipCurrentStackFrame=yes ' +
                     '@ /my/caller/module.php:12345'
                 );
         });

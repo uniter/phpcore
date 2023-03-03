@@ -171,10 +171,10 @@ describe('NativeDefinitionBuilder', function () {
                     });
                     objectValue.getObject.returns(nativeObject);
 
-                    callInternalConstructor = function (name, autoCoercionEnabled) {
+                    callInternalConstructor = function (name, autoCoercionEnabled, args) {
                         callBuildDefinition(name, autoCoercionEnabled);
 
-                        definition.getInternalClass().call(objectValue);
+                        definition.getInternalClass().apply(objectValue, args || []);
                     };
                 });
 
@@ -203,6 +203,15 @@ describe('NativeDefinitionBuilder', function () {
                     callInternalConstructor('MyClass', false);
 
                     expect(shadowConstructor).to.have.been.calledOn(sinon.match.same(objectValue));
+                });
+
+                it('should pass the internal constructor\'s arguments through to the shadow constructor', function () {
+                    var shadowConstructor = sinon.stub();
+                    definitionFunction.shadowConstructor = shadowConstructor;
+
+                    callInternalConstructor('MyClass', false, ['first arg', 'second arg']);
+
+                    expect(shadowConstructor).to.have.been.calledWith('first arg', 'second arg');
                 });
 
                 describe('the proxy constructor installed', function () {

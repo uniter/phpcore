@@ -15,6 +15,8 @@ var _ = require('microdash'),
     PHPError = phpCommon.PHPError,
     Value = require('../Value').sync(),
 
+    CALL_TO_BUILTIN = 'core.call_to_builtin',
+    DEFINED_IN_USERLAND = 'core.defined_in_userland',
     INSTANCE_OF_TYPE_ACTUAL = 'core.instance_of_type_actual',
     INVALID_VALUE_FOR_TYPE_BUILTIN = 'core.invalid_value_for_type_builtin',
     INVALID_VALUE_FOR_TYPE_USERLAND = 'core.invalid_value_for_type_userland',
@@ -373,14 +375,24 @@ _.extend(Parameter.prototype, {
                             expectedType: expectedType,
                             actualType: actualType,
                             callerFile: callerFilePath,
-                            callerLine: callerLineNumber,
-                            definitionFile: definitionFilePath,
-                            definitionLine: definitionLineNumber
+                            callerLine: callerLineNumber
                         },
                         'TypeError',
                         true,
                         isUserland ? definitionFilePath : callerFilePath,
-                        isUserland ? definitionLineNumber : callerLineNumber
+                        isUserland ? definitionLineNumber : callerLineNumber,
+                        isUserland ? DEFINED_IN_USERLAND : CALL_TO_BUILTIN,
+                        isUserland ?
+                            {
+                                definitionFile: definitionFilePath,
+                                definitionLine: definitionLineNumber
+                            } :
+                            {
+                                callerFile: callerFilePath,
+                                callerLine: callerLineNumber,
+                            },
+                        // Unlike for ArgumentCountErrors, for argument TypeErrors the frame is skipped for builtins.
+                        !isUserland
                     );
                 });
         });

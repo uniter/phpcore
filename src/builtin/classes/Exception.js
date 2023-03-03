@@ -45,7 +45,11 @@ module.exports = function (internals) {
 
     Exception.shadowConstructor = function () {
         // Define these data properties here, so they are always defined for any derived class of Exception,
-        // regardless of whether a parent constructor call is used or not
+        // regardless of whether a parent constructor call is used or not.
+
+        // Additional context, e.g. "[...] and defined in my_module.php:123" for userland functions.
+        // Currently only used by the PHP Error class.
+        this.setInternalProperty('context', '');
 
         /**
          * The file the exception was created inside

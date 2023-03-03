@@ -530,6 +530,8 @@ module.exports = require('pauser')([
          * @param {string|null=} filePath To override the file path - null explicitly overrides with "unknown"
          * @param {number|null=} lineNumber To override the line number - null explicitly overrides with "unknown"
          * @param {boolean=} reportsOwnContext Whether the error handles reporting its own file/line context
+         * @param {string=} context Additional context to add to the end of the message when displayed
+         * @param {boolean=} skipCurrentStackFrame Whether to skip the current stack frame for the trace
          * @returns {ChainableInterface<ObjectValue>}
          */
         createErrorObject: function (
@@ -539,7 +541,9 @@ module.exports = require('pauser')([
             previousThrowable,
             filePath,
             lineNumber,
-            reportsOwnContext
+            reportsOwnContext,
+            context,
+            skipCurrentStackFrame
         ) {
             var factory = this;
 
@@ -549,9 +553,13 @@ module.exports = require('pauser')([
                         factory.createString(message || ''),
                         factory.createInteger(code || 0),
                         previousThrowable || factory.createNull()
+                    ], [
+                        context,
+                        Boolean(skipCurrentStackFrame)
                     ]);
                 })
                 .next(function (errorObject) {
+                    // TODO: Pass all of these through to shadow constructor via above instead?
                     if (reportsOwnContext) {
                         errorObject.setInternalProperty('reportsOwnContext', true);
                     }

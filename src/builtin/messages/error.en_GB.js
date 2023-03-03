@@ -37,7 +37,7 @@ module.exports = {
             'function_name_must_be_string': 'Function name must be a string',
             'invalid_return_value_type': '${func}(): Return value must be of type ${expectedType}, ${actualType} returned',
             'invalid_value_for_type_builtin': '${func}(): Argument #${index} ($${name}) must be ${expectedType}, ${actualType} given',
-            'invalid_value_for_type_userland': '${func}(): Argument #${index} ($${name}) must be ${expectedType}, ${actualType} given, called in ${callerFile} on line ${callerLine} and defined in ${definitionFile}:${definitionLine}',
+            'invalid_value_for_type_userland': '${func}(): Argument #${index} ($${name}) must be ${expectedType}, ${actualType} given, called in ${callerFile} on line ${callerLine}',
             'method_called_on_non_object': '${method} method called on non-object',
             'nesting_level_too_deep': 'Nesting level too deep - recursive dependency?',
             'no_parent_class': 'Cannot access parent:: when current class scope has no parent',

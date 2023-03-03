@@ -137,7 +137,10 @@ EOS
             PHPFatalError,
             'PHP Fatal error: Uncaught TypeError: i_want_an_object(): ' +
             'Argument #1 ($myObject) must be of type My\\Stuff\\MyClass, int given ' +
-            'in /path/to/my_module.php on line 2'
+            'in /path/to/my_module.php:2' +
+            // NB: Extraneous context info here is added by PHPFatalError (PHPError),
+            //     but not output to stdout/stderr.
+            ' in /path/to/my_module.php on line 2'
         );
     });
 
@@ -158,7 +161,10 @@ EOS
             PHPFatalError,
             'PHP Fatal error: Uncaught TypeError: i_want_an_object(): ' +
             'Argument #1 ($myObject) must be of type My\\Stuff\\MyClass, null given ' +
-            'in /path/to/my_module.php on line 2'
+            'in /path/to/my_module.php:2' +
+            // NB: Extraneous context info here is added by PHPFatalError (PHPError),
+            //     but not output to stdout/stderr.
+            ' in /path/to/my_module.php on line 2'
         );
     });
 

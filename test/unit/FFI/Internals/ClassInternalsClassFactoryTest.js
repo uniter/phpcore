@@ -208,6 +208,15 @@ describe('FFI ClassInternalsClassFactory', function () {
             });
 
             describe('defineClass()', function () {
+                it('should set the shadow constructor when one was defined', function () {
+                    var shadowConstructor = sinon.stub();
+                    classInternals.defineShadowConstructor(shadowConstructor);
+
+                    classInternals.defineClass(definitionFactory);
+
+                    expect(MyClass.shadowConstructor).to.equal(shadowConstructor);
+                });
+
                 it('should set the super class when one was extended', function () {
                     var superClass = sinon.createStubInstance(Class);
                     globalNamespace.getClass

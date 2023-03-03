@@ -60,7 +60,10 @@ EOS
         await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
             'PHP Fatal error: Uncaught TypeError: add_one_to(): ' +
-            'Argument #1 ($myNumber) must be of type int, array given in /path/to/my_module.php on line 5'
+            'Argument #1 ($myNumber) must be of type int, array given in /path/to/my_module.php:5' +
+            // NB: Extraneous context info here is added by PHPFatalError (PHPError),
+            //     but not output to stdout/stderr.
+            ' in /path/to/my_module.php on line 5'
         );
     });
 });

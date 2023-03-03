@@ -17,6 +17,10 @@ module.exports = {
         'core': {
             'at_least': 'at least',
 
+            // For appending to errors raised for builtin & userland functions respectively (see Parameter).
+            'call_to_builtin': ' in ${callerFile}:${callerLine}',
+            'defined_in_userland': ' and defined in ${definitionFile}:${definitionLine}',
+
             // For uncaught errors (see ErrorReporting).
             'error_with_context_and_trace': ' in ${filePath}:${line}\n' +
                 'Stack trace:' + '\n' +

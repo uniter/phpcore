@@ -41,12 +41,14 @@ module.exports = function (internals) {
          * This is useful for consistency, in the scenario where an Error or Exception is returned (not thrown)
          * to JS-land, then later thrown from JS-land.
          */
-        var message = errorValue.getProperty('message').getNative();
+
+        var message = errorValue.getProperty('message').getNative(),
+            context = errorValue.getInternalProperty('context');
 
         if (message !== '') {
             message = translator.translate(UNCAUGHT_THROWABLE, {
                 name: errorValue.getClassName(),
-                message: message
+                message: message + context
             });
         } else {
             message = translator.translate(UNCAUGHT_EMPTY_THROWABLE, {

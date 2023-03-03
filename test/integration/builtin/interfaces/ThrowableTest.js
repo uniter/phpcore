@@ -75,11 +75,7 @@ class MyThrowable implements \ThrowABLe {} // Use different case to test case-in
 EOS
 */;}), //jshint ignore:line
             module = tools.asyncTranspile('/path/to/my_module.php', php),
-            engine = module({
-                eval: function (evalPHP, path, promise) {
-                    promise.resolve(tools.asyncTranspile(path, evalPHP));
-                }
-            });
+            engine = module();
 
         // NB: Unlike other errors, an uncaught compile-time fatal error is displayed as "PHP Fatal error: ..."
         //     as below, _not_ as e.g. "PHP Fatal error: Uncaught Error ...".

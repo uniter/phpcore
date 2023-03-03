@@ -459,7 +459,7 @@ describe('ValueFactory', function () {
             objectValue.setProperty('line', 789);
         });
 
-        it('should return a correctly instantiated instance of the Error subclass', async function () {
+        it('should return a correctly instantiated instance of the Error subclass when no context is given', async function () {
             myClassObject.instantiate
                 .withArgs([
                     sinon.match(function (arg) {
@@ -485,6 +485,53 @@ describe('ValueFactory', function () {
                     true
                 ).toPromise()
             ).to.equal(objectValue);
+        });
+
+        it('should correctly pass the context given', async function () {
+            myClassObject.instantiate.returns(objectValue);
+
+            await factory.createErrorObject(
+                'My\\Stuff\\MyErrorClass',
+                'My error message',
+                21,
+                null,
+                '/path/to/my_module.php',
+                1234,
+                true,
+                'my context'
+            ).toPromise();
+
+            expect(myClassObject.instantiate).to.have.been.calledWith(
+                sinon.match.any,
+                [
+                    'my context',
+                    sinon.match.any
+                ]
+            );
+        });
+
+        it('should correctly pass skipCurrentStackFrame=true when given', async function () {
+            myClassObject.instantiate.returns(objectValue);
+
+            await factory.createErrorObject(
+                'My\\Stuff\\MyErrorClass',
+                'My error message',
+                21,
+                null,
+                '/path/to/my_module.php',
+                1234,
+                true,
+                'my context',
+                true
+            ).toPromise();
+
+            expect(myClassObject.instantiate).to.have.been.calledWith(
+                sinon.match.any,
+                [
+                    sinon.match.any,
+                    true
+                ]
+            );
         });
 
         it('should set the reportsOwnContext internal property to true when specified', async function () {

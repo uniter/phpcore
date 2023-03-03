@@ -40,14 +40,14 @@ EOS
             environment = tools.createAsyncEnvironment({}, [
                 {
                     classes: {
-                        'CoercingJSClass': function () {
+                        'CoercingJSClass': function (internals) {
                             function CoercingJSClass(base) {
                                 this.base = this.shadow + ' '  + base + ' js_ctor1';
                             }
 
-                            CoercingJSClass.shadowConstructor = function () {
+                            internals.defineShadowConstructor(function () {
                                 this.shadow = 'shadow_coerce';
-                            };
+                            });
 
                             CoercingJSClass.prototype.__construct = function () {
                                 this.base += ' magic_coerce';
@@ -69,10 +69,10 @@ EOS
                                 );
                             }
 
-                            NonCoercingJSClass.shadowConstructor = function () {
+                            internals.defineShadowConstructor(function () {
                                 // Shadow constructor will be called before the real one
                                 this.setProperty('shadow', internals.valueFactory.createString('shadow_non_coerce'));
-                            };
+                            });
 
                             NonCoercingJSClass.prototype.__construct = function () {
                                 this.setProperty(

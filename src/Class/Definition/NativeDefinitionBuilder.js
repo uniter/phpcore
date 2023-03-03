@@ -11,6 +11,7 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
+    slice = [].slice,
 
     MAGIC_CONSTRUCT = '__construct',
     ORIGINAL_MAGIC_CONSTRUCTOR = '__@_original_construct',
@@ -85,15 +86,18 @@ _.extend(NativeDefinitionBuilder.prototype, {
         // Create a new, empty native constructor so that we can avoid calling
         // the original if the derived class does not call parent::__construct(...)
         // - Unless the class defines the special `shadowConstructor` property, which
-        //   is always called regardless of whether the parent constructor is called explicitly
+        //   is always called regardless of whether the parent constructor is called explicitly.
         InternalClass = function () {
-            var objectValue = this;
+            var objectValue = this,
+                shadowConstructorArgs = slice.call(arguments);
 
             if (definition.shadowConstructor) {
-                definition.shadowConstructor.call(
+                definition.shadowConstructor.apply(
                     // Use the native object as the `this` object inside the shadow constructor
-                    // if auto-coercion is enabled, otherwise use the ObjectValue
-                    autoCoercionEnabled ? objectValue.getObject() : objectValue
+                    // if auto-coercion is enabled, otherwise use the ObjectValue.
+                    autoCoercionEnabled ? objectValue.getObject() : objectValue,
+                    // Pass arguments through to the shadow constructor.
+                    shadowConstructorArgs
                 );
             }
         };

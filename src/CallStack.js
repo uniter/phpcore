@@ -263,16 +263,19 @@ _.extend(CallStack.prototype, {
     },
 
     /**
-     * Fetches a call stack trace array, with one element for each stack frame (call)
+     * Fetches a call stack trace array, with one element for each stack frame (call).
      *
+     * @param {boolean=} skipCurrentStackFrame
      * @returns {{index: number, file: string, line: number, func: function, args: *[]}[]}
      */
-    getTrace: function () {
+    getTrace: function (skipCurrentStackFrame) {
         var call,
             callStack = this,
+            skipCount = skipCurrentStackFrame ? 1 : 0,
+            effectiveCallCount = callStack.calls.length - skipCount,
             index,
             trace = [],
-            chronoIndex = callStack.calls.length - 2;
+            chronoIndex = callStack.calls.length - 2 - skipCount;
 
         /**
          * Fetches the path to the file the call was made from.
@@ -347,11 +350,11 @@ _.extend(CallStack.prototype, {
             return null;
         }
 
-        for (index = 1; index < callStack.calls.length; index++) {
+        for (index = 1; index < effectiveCallCount; index++) {
             call = callStack.calls[index];
 
             trace.unshift({
-                // Most recent call should have index 0
+                // Most recent call should have index 0.
                 index: chronoIndex--,
                 file: getFilePath(index),
                 line: getLineNumber(index),
@@ -509,7 +512,7 @@ _.extend(CallStack.prototype, {
     },
 
     /**
-     * Raises a catchable Error or a notice/warning with the specified level, message translation key and variables
+     * Raises a catchable Error or a notice/warning with the specified level, message translation key and variables.
      *
      * @param {string} level One of the PHPError.E_* constants, eg. `PHPError.E_WARNING`
      * @param {string} translationKey
@@ -518,6 +521,9 @@ _.extend(CallStack.prototype, {
      * @param {boolean=} reportsOwnContext Whether the error handles reporting its own file/line context
      * @param {string=} filePath
      * @param {number=} lineNumber
+     * @param {string=} contextTranslationKey
+     * @param {Object.<string, string>=} contextPlaceholderVariables
+     * @param {boolean=} skipCurrentStackFrame
      * @throws {ObjectValue} Throws an ObjectValue-wrapped Throwable if not a notice or warning
      */
     raiseTranslatedError: function (
@@ -527,14 +533,20 @@ _.extend(CallStack.prototype, {
         errorClass,
         reportsOwnContext,
         filePath,
-        lineNumber
+        lineNumber,
+        contextTranslationKey,
+        contextPlaceholderVariables,
+        skipCurrentStackFrame
     ) {
         var callStack = this,
-            message = callStack.translator.translate(translationKey, placeholderVariables);
+            message = callStack.translator.translate(translationKey, placeholderVariables),
+            context = contextTranslationKey ?
+                callStack.translator.translate(contextTranslationKey, contextPlaceholderVariables) :
+                '';
 
         if (level === PHPError.E_ERROR) {
             // Non-warning/non-notice errors need to actually stop execution
-            // NB: The Error class' constructor will fetch file and line number info
+            // NB: The Error class' constructor will fetch file and line number info.
             throw callStack.valueFactory.createErrorObject(
                 errorClass || 'Error',
                 message,
@@ -542,7 +554,9 @@ _.extend(CallStack.prototype, {
                 null,
                 filePath,
                 lineNumber,
-                reportsOwnContext
+                reportsOwnContext,
+                context,
+                skipCurrentStackFrame
             );
         }
 

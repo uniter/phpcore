@@ -908,14 +908,15 @@ module.exports = require('pauser')([
         /**
          * Creates a new instance of this class.
          *
-         * @param {Value[]=} args
+         * @param {Value[]=} constructorArgs
+         * @param {*[]=} shadowConstructorArgs
          * @returns {ChainableInterface<ObjectValue>}
          */
-        instantiate: function (args) {
+        instantiate: function (constructorArgs, shadowConstructorArgs) {
             var classObject = this;
 
-            if (!args) {
-                args = [];
+            if (!constructorArgs) {
+                constructorArgs = [];
             }
 
             return classObject.initialiseConstants()
@@ -926,11 +927,11 @@ module.exports = require('pauser')([
                     return classObject.initialiseInstancePropertyDefaults();
                 })
                 .next(function () {
-                    var objectValue = classObject.instantiateBare();
+                    var objectValue = classObject.instantiateBare(shadowConstructorArgs);
 
                     // Call the userland constructor. Note that the return value of .construct(...)
                     // may in fact be a Future if there was a pause inside the userland __construct()or.
-                    return classObject.construct(objectValue, args);
+                    return classObject.construct(objectValue, constructorArgs);
                 });
         },
 
@@ -938,14 +939,15 @@ module.exports = require('pauser')([
          * Creates a new instance of this class without calling any userland constructor
          * (note that for JS classes the class-constructor-function will still be called)
          *
+         * @param {*[]=} shadowConstructorArgs
          * @returns {ObjectValue}
          */
-        instantiateBare: function () {
+        instantiateBare: function (shadowConstructorArgs) {
             var classObject = this,
                 nativeObject = Object.create(classObject.InternalClass.prototype),
                 objectValue = classObject.valueFactory.createObject(nativeObject, classObject);
 
-            classObject.internalConstruct(objectValue);
+            classObject.internalConstruct(objectValue, shadowConstructorArgs);
 
             return objectValue;
         },
@@ -976,20 +978,15 @@ module.exports = require('pauser')([
          * - Initialises instance properties from defaults.
          *
          * @param {ObjectValue} objectValue
+         * @param {*[]=} shadowConstructorArgs
          */
-        internalConstruct: function (objectValue) {
+        internalConstruct: function (objectValue, shadowConstructorArgs) {
             var classObject = this,
                 properties = {};
 
             if (!classObject.instancePropertyDefaultsInitialised) {
                 throw new Exception('Instance property defaults have not been initialised');
             }
-
-            classObject.InternalClass.call(
-                // Always use the wrapped object value as `this` regardless of coercion status,
-                // so that non-native properties/methods may be accessed.
-                objectValue
-            );
 
             // Go through and declare the properties on the object from the class definition.
             _.forOwn(classObject.instancePropertiesData, function (propertyData, name) {
@@ -998,8 +995,22 @@ module.exports = require('pauser')([
 
             if (classObject.superClass) {
                 // Class has a parent, perform internal construction for it.
-                classObject.superClass.internalConstruct(objectValue);
+                classObject.superClass.internalConstruct(objectValue, shadowConstructorArgs);
             }
+
+            /*
+             * Note that interfaces do not have .internalConstruct(...) called on them,
+             * so any shadow constructors defined on them will never be called.
+             *
+             * TODO: Handle shadow constructors via a new Interface class.
+             */
+
+            classObject.InternalClass.apply(
+                // Always use the wrapped object value as `this` regardless of coercion status,
+                // so that non-native properties/methods may be accessed.
+                objectValue,
+                shadowConstructorArgs
+            );
 
             // Go through and initialise the default values on the object
             // from the class definition.

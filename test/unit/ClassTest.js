@@ -1119,6 +1119,18 @@ describe('Class', function () {
                 });
         });
 
+        it('should call the internal constructor for the current class with any given shadow constructor arguments', async function () {
+            var arg1 = sinon.createStubInstance(Value),
+                arg2 = sinon.createStubInstance(Value);
+            arg1.getNative.returns(21);
+            arg2.getNative.returns('second');
+
+            await classObject.instantiate([arg1, arg2], ['first', 'second']).toPromise();
+
+            expect(InternalClass).to.have.been.calledOnce;
+            expect(InternalClass).to.have.been.calledWith('first', 'second');
+        });
+
         it('should call the userland constructor for the current class', async function () {
             var arg1 = sinon.createStubInstance(Value),
                 arg2 = sinon.createStubInstance(Value),
@@ -1193,6 +1205,13 @@ describe('Class', function () {
                 });
 
             await classObject.initialiseInstancePropertyDefaults();
+        });
+
+        it('should call the internal constructor for the current class with any given shadow constructor arguments', function () {
+            classObject.instantiateBare(['first', 'second']);
+
+            expect(InternalClass).to.have.been.calledOnce;
+            expect(InternalClass).to.have.been.calledWith('first', 'second');
         });
 
         it('should not call the userland constructor for the current class', function () {
@@ -1333,23 +1352,27 @@ describe('Class', function () {
             }).to.throw('Instance property defaults have not been initialised');
         });
 
-        it('should call the internal constructor', async function () {
+        it('should call the internal constructor with any given shadow constructor arguments', async function () {
             await classObject.initialiseInstancePropertyDefaults();
 
-            await classObject.internalConstruct(objectValue);
+            await classObject.internalConstruct(objectValue, ['first', 'second']);
 
             expect(InternalClass).to.have.been.calledOnce;
             expect(InternalClass).to.have.been.calledOn(sinon.match.same(objectValue));
+            expect(InternalClass).to.have.been.calledWith('first', 'second');
         });
 
-        it('should call .internalConstruct() on the superclass when there is one', async function () {
+        it('should call .internalConstruct() on the superclass when there is one, with any given shadow constructor arguments', async function () {
             createClass('__construct', superClass);
             await classObject.initialiseInstancePropertyDefaults();
 
-            await classObject.internalConstruct(objectValue);
+            await classObject.internalConstruct(objectValue, ['first', 'second']);
 
             expect(superClass.internalConstruct).to.have.been.calledOnce;
-            expect(superClass.internalConstruct).to.have.been.calledWith(sinon.match.same(objectValue));
+            expect(superClass.internalConstruct).to.have.been.calledWith(
+                sinon.match.same(objectValue),
+                ['first', 'second']
+            );
         });
 
         it('should declare the instance properties on the ObjectValue', async function () {

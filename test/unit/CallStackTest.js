@@ -361,6 +361,18 @@ describe('CallStack', function () {
                 expect(trace[1].args).to.equal(secondCallArgs);
                 expect(trace[2].args).to.equal(firstCallArgs);
             });
+
+            describe('when skipCurrentStackFrame=true', function () {
+                it('should return a trace with two entries', function () {
+                    var trace = callStack.getTrace(true);
+
+                    expect(trace).to.have.length(2);
+                    expect(trace[0].index).to.equal(0);
+                    expect(trace[0].func).to.equal('mySecondCalledFunc');
+                    expect(trace[1].index).to.equal(1);
+                    expect(trace[1].func).to.equal('myOldestCalledFunc');
+                });
+            });
         });
 
         describe('with two native calls followed by a userland one', function () {
@@ -818,34 +830,48 @@ describe('CallStack', function () {
     describe('raiseTranslatedError()', function () {
         beforeEach(function () {
             // Make sure we have at least one call on the stack
-            // for things like checking for error suppression
+            // for things like checking for error suppression.
             callStack.push(sinon.createStubInstance(Call));
+
+            translator.translate
+                .withArgs('my_translation_key', {
+                    my_placeholder: 'My value'
+                })
+                .returns('My translated message');
+            translator.translate
+                .withArgs('my_context_translation_key', {
+                    my_context_placeholder: 'Contextual value'
+                })
+                .returns('My translated contextual message');
         });
 
-        it('should throw an ObjectValue wrapping an instance of Error when the E_ERROR level is given', async function () {
+        it('should throw an ObjectValue wrapping an instance of Error when the E_ERROR level is given but no context', async function () {
             var caughtError = null,
                 errorClassObject = sinon.createStubInstance(Class),
                 errorValue = sinon.createStubInstance(ObjectValue);
             globalNamespace.getClass
                 .withArgs('MySubError')
                 .returns(futureFactory.createPresent(errorClassObject));
-            translator.translate
-                .withArgs('my_translation_key', {
-                    my_placeholder: 'My value'
-                })
-                .returns('My translated message');
             errorClassObject.instantiate
-                .withArgs([
-                    sinon.match(function (arg) {
-                        return arg.getNative() === 'My translated message';
-                    }),
-                    sinon.match(function (arg) {
-                        return arg.getNative() === 0;
-                    }),
-                    sinon.match(function (arg) {
-                        return arg.getNative() === null;
-                    })
-                ])
+                .withArgs(
+                    // Constructor arguments.
+                    [
+                        sinon.match(function (arg) {
+                            return arg.getNative() === 'My translated message';
+                        }),
+                        sinon.match(function (arg) {
+                            return arg.getNative() === 0;
+                        }),
+                        sinon.match(function (arg) {
+                            return arg.getNative() === null;
+                        })
+                    ],
+                    // Shadow constructor arguments.
+                    [
+                        '', // No context given.
+                        false // Not skipping the current stack frame.
+                    ]
+                )
                 .returns(errorValue);
 
             try {
@@ -874,13 +900,67 @@ describe('CallStack', function () {
             }));
         });
 
-        it('should raise an error via ErrorReporting when the E_WARNING level is given', function () {
-            translator.translate
-                .withArgs('my_translation_key', {
-                    my_placeholder: 'My value'
-                })
-                .returns('My translated message');
+        it('should throw an ObjectValue wrapping an instance of Error when the E_ERROR level is given with context', async function () {
+            var caughtError = null,
+                errorClassObject = sinon.createStubInstance(Class),
+                errorValue = sinon.createStubInstance(ObjectValue);
+            globalNamespace.getClass
+                .withArgs('MySubError')
+                .returns(futureFactory.createPresent(errorClassObject));
+            errorClassObject.instantiate
+                .withArgs(
+                    // Constructor arguments.
+                    [
+                        sinon.match(function (arg) {
+                            return arg.getNative() === 'My translated message';
+                        }),
+                        sinon.match(function (arg) {
+                            return arg.getNative() === 0;
+                        }),
+                        sinon.match(function (arg) {
+                            return arg.getNative() === null;
+                        })
+                    ],
+                    // Shadow constructor arguments.
+                    [
+                        'My translated contextual message', // Context given.
+                        true // Skip the current stack frame.
+                    ]
+                )
+                .returns(errorValue);
 
+            try {
+                callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    'my_translation_key',
+                    {
+                        my_placeholder: 'My value'
+                    },
+                    'MySubError',
+                    false,
+                    '/my/custom/file_path.php',
+                    4321,
+                    'my_context_translation_key',
+                    {
+                        my_context_placeholder: 'Contextual value'
+                    },
+                    true // Skip the current stack frame.
+                );
+            } catch (error) {
+                caughtError = await error.toPromise(); // Error will be a FutureValue.
+            }
+
+            expect(caughtError).to.equal(errorValue);
+            expect(errorValue.setProperty).to.have.been.calledTwice;
+            expect(errorValue.setProperty).to.have.been.calledWith('file', sinon.match(function (arg) {
+                return arg.getNative() === '/my/custom/file_path.php';
+            }));
+            expect(errorValue.setProperty).to.have.been.calledWith('line', sinon.match(function (arg) {
+                return arg.getNative() === 4321;
+            }));
+        });
+
+        it('should raise an error via ErrorReporting when the E_WARNING level is given', function () {
             callStack.raiseTranslatedError(
                 PHPError.E_WARNING,
                 'my_translation_key',

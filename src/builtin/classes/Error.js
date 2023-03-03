@@ -51,9 +51,19 @@ module.exports = function (internals) {
         this.setProperty('message', messageValue);
     }
 
-    Error.shadowConstructor = function () {
+    /**
+     * @param {string=} context
+     * @param {boolean=} skipCurrentStackFrame
+     */
+    internals.defineShadowConstructor(function (context, skipCurrentStackFrame) {
         // Define these data properties here, so they are always defined for any derived class of error,
-        // regardless of whether a parent constructor call is used or not
+        // regardless of whether a parent constructor call is used or not.
+
+        context = context || '';
+        skipCurrentStackFrame = Boolean(skipCurrentStackFrame);
+
+        // Additional context, e.g. "[...] and defined in my_module.php:123" for userland functions.
+        this.setInternalProperty('context', context);
 
         /**
          * The file the error was created inside
@@ -70,10 +80,10 @@ module.exports = function (internals) {
         this.setProperty('line', valueFactory.coerce(callStack.getLastLine()));
 
         /**
-         * A message describing the error
+         * A message describing the error.
          *
          * (Default to empty here - unless overridden by calling the constructor defined above
-         * or overridden by a subclass)
+         * or overridden by a subclass).
          *
          * @see {@link https://secure.php.net/manual/en/class.error.php#error.props.message}
          */
@@ -83,16 +93,16 @@ module.exports = function (internals) {
 
         // This internal trace prop will not be visible to PHP code
         // except for read-only via the ->getTraceAsString() method.
-        this.setInternalProperty('trace', callStack.getTrace());
-    };
+        this.setInternalProperty('trace', callStack.getTrace(skipCurrentStackFrame));
+    });
 
-    // Error class should implement Throwable in PHP 7+
+    // Error class should implement Throwable in PHP 7+.
     internals.implement('Throwable');
 
     _.extend(Error.prototype, {
         /**
          * Fetches the path to the file containing the line this error was created from
-         * (not the line it was thrown from, if it was thrown at all)
+         * (not the line it was thrown from, if it was thrown at all).
          *
          * @see {@link https://secure.php.net/manual/en/error.getfile.php}
          *
@@ -104,7 +114,7 @@ module.exports = function (internals) {
 
         /**
          * Fetches the line number this error was created on
-         * (not the line it was thrown from, if it was thrown at all)
+         * (not the line it was thrown from, if it was thrown at all).
          *
          * @see {@link https://secure.php.net/manual/en/error.getline.php}
          *
@@ -115,7 +125,7 @@ module.exports = function (internals) {
         },
 
         /**
-         * Fetches the message for the error
+         * Fetches the message for the error.
          *
          * @see {@link https://secure.php.net/manual/en/error.getmessage.php}
          *
@@ -126,7 +136,7 @@ module.exports = function (internals) {
         },
 
         /**
-         * Gets the stack trace as a string
+         * Gets the stack trace as a string.
          *
          * @see {@link https://secure.php.net/manual/en/error.gettraceasstring.php}
          *

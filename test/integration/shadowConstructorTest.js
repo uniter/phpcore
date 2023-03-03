@@ -14,19 +14,21 @@ var expect = require('chai').expect,
     tools = require('./tools');
 
 describe('PHP class shadow constructor integration', function () {
+    var environment;
+
     beforeEach(function () {
-        this.environment = tools.createSyncEnvironment();
+        environment = tools.createAsyncEnvironment();
     });
 
     describe('a non-coercing JS class', function () {
         beforeEach(function () {
-            this.environment.defineClass('MyClass', function (internals) {
+            environment.defineClass('MyClass', function (internals) {
                 function MyClass() {
                 }
 
-                MyClass.shadowConstructor = function () {
+                internals.defineShadowConstructor(function () {
                     this.setInternalProperty('secret', internals.valueFactory.createInteger(27));
-                };
+                });
 
                 MyClass.prototype.getSecret = function () {
                     return this.getInternalProperty('secret');
@@ -38,7 +40,7 @@ describe('PHP class shadow constructor integration', function () {
             });
         });
 
-        it('should call the shadow constructor of JS class when not extended', function () {
+        it('should call the shadow constructor of JS class when not extended', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -48,12 +50,13 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/path/to/my_module.php', php);
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
+                engine = module({}, environment);
 
-            expect(module({}, this.environment).execute().getNative()).to.equal(27);
+            expect((await engine.execute()).getNative()).to.equal(27);
         });
 
-        it('should call the shadow constructor of JS class when extended from PHP-land but constructor is not overridden', function () {
+        it('should call the shadow constructor of JS class when extended from PHP-land but constructor is not overridden', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -67,12 +70,13 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/path/to/my_module.php', php);
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
+                engine = module({}, environment);
 
-            expect(module({}, this.environment).execute().getNative()).to.equal(27);
+            expect((await engine.execute()).getNative()).to.equal(27);
         });
 
-        it('should call the shadow constructor of JS class when extended from JS-land but constructor is not overridden', function () {
+        it('should call the shadow constructor of JS class when extended from JS-land but constructor is not overridden', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -82,8 +86,9 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/path/to/my_module.php', php);
-            this.environment.defineClass('MyDerivedClass', function (internals) {
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
+                engine;
+            environment.defineClass('MyDerivedClass', function (internals) {
                 function MyDerivedClass() {
                 }
 
@@ -93,11 +98,12 @@ EOS
 
                 return MyDerivedClass;
             });
+            engine = module({}, environment);
 
-            expect(module({}, this.environment).execute().getNative()).to.equal(27);
+            expect((await engine.execute()).getNative()).to.equal(27);
         });
 
-        it('should still call the shadow constructor of JS class when extended from PHP-land and constructor is overridden', function () {
+        it('should still call the shadow constructor of JS class when extended from PHP-land and constructor is overridden', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -105,7 +111,7 @@ class MyDerivedClass extends MyClass
 {
     public function __construct()
     {
-        // No parent constructor call here - should still call the shadow constructor though
+        // No parent constructor call here - should still call the shadow constructor though.
     }
 }
 
@@ -115,12 +121,13 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/path/to/my_module.php', php);
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
+                engine = module({}, environment);
 
-            expect(module({}, this.environment).execute().getNative()).to.equal(27);
+            expect((await engine.execute()).getNative()).to.equal(27);
         });
 
-        it('should still call the shadow constructor of JS class when extended from JS-land and constructor is overridden', function () {
+        it('should still call the shadow constructor of JS class when extended from JS-land and constructor is overridden', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -130,13 +137,14 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/path/to/my_module.php', php);
-            this.environment.defineClass('MyDerivedClass', function (internals) {
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
+                engine;
+            environment.defineClass('MyDerivedClass', function (internals) {
                 function MyDerivedClass() {
                 }
 
                 MyDerivedClass.prototype.__construct = function () {
-                    // No parent constructor call here - should still call the shadow constructor though
+                    // No parent constructor call here - should still call the shadow constructor though.
                 };
 
                 internals.extendClass('MyClass');
@@ -145,20 +153,21 @@ EOS
 
                 return MyDerivedClass;
             });
+            engine = module({}, environment);
 
-            expect(module({}, this.environment).execute().getNative()).to.equal(27);
+            expect((await engine.execute()).getNative()).to.equal(27);
         });
     });
 
     describe('an auto-coercing JS class', function () {
         beforeEach(function () {
-            this.environment.defineClass('MyClass', function () {
+            environment.defineClass('MyClass', function (internals) {
                 function MyClass() {
                 }
 
-                MyClass.shadowConstructor = function () {
+                internals.defineShadowConstructor(function () {
                     this.value = 101;
-                };
+                });
 
                 MyClass.prototype.getSecret = function () {
                     return this.value;
@@ -168,7 +177,7 @@ EOS
             });
         });
 
-        it('should call the shadow constructor of JS class when not extended', function () {
+        it('should call the shadow constructor of JS class when not extended', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -178,12 +187,13 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/path/to/my_module.php', php);
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
+                engine = module({}, environment);
 
-            expect(module({}, this.environment).execute().getNative()).to.equal(101);
+            expect((await engine.execute()).getNative()).to.equal(101);
         });
 
-        it('should call the shadow constructor of JS class when extended from PHP-land but constructor is not overridden', function () {
+        it('should call the shadow constructor of JS class when extended from PHP-land but constructor is not overridden', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -197,12 +207,13 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/path/to/my_module.php', php);
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
+                engine = module({}, environment);
 
-            expect(module({}, this.environment).execute().getNative()).to.equal(101);
+            expect((await engine.execute()).getNative()).to.equal(101);
         });
 
-        it('should call the shadow constructor of JS class when extended from JS-land but constructor is not overridden', function () {
+        it('should call the shadow constructor of JS class when extended from JS-land but constructor is not overridden', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -212,8 +223,9 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/path/to/my_module.php', php);
-            this.environment.defineClass('MyDerivedClass', function (internals) {
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
+                engine;
+            environment.defineClass('MyDerivedClass', function (internals) {
                 function MyDerivedClass() {
                 }
 
@@ -223,11 +235,12 @@ EOS
 
                 return MyDerivedClass;
             });
+            engine = module({}, environment);
 
-            expect(module({}, this.environment).execute().getNative()).to.equal(101);
+            expect((await engine.execute()).getNative()).to.equal(101);
         });
 
-        it('should still call the shadow constructor of JS class when extended from PHP-land and constructor is overridden', function () {
+        it('should still call the shadow constructor of JS class when extended from PHP-land and constructor is overridden', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -235,7 +248,7 @@ class MyDerivedClass extends MyClass
 {
     public function __construct()
     {
-        // No parent constructor call here - should still call the shadow constructor though
+        // No parent constructor call here - should still call the shadow constructor though.
     }
 }
 
@@ -245,12 +258,13 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/path/to/my_module.php', php);
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
+                engine = module({}, environment);
 
-            expect(module({}, this.environment).execute().getNative()).to.equal(101);
+            expect((await engine.execute()).getNative()).to.equal(101);
         });
 
-        it('should still call the shadow constructor of JS class when extended from JS-land and constructor is overridden', function () {
+        it('should still call the shadow constructor of JS class when extended from JS-land and constructor is overridden', async function () {
             var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -260,13 +274,14 @@ return $myObject->getSecret();
 
 EOS
 */;}),//jshint ignore:line
-                module = tools.syncTranspile('/path/to/my_module.php', php);
-            this.environment.defineClass('MyDerivedClass', function (internals) {
+                module = tools.asyncTranspile('/path/to/my_module.php', php),
+                engine;
+            environment.defineClass('MyDerivedClass', function (internals) {
                 function MyDerivedClass() {
                 }
 
                 MyDerivedClass.prototype.__construct = function () {
-                    // No parent constructor call here - should still call the shadow constructor though
+                    // No parent constructor call here - should still call the shadow constructor though.
                 };
 
                 internals.extendClass('MyClass');
@@ -275,8 +290,9 @@ EOS
 
                 return MyDerivedClass;
             });
+            engine = module({}, environment);
 
-            expect(module({}, this.environment).execute().getNative()).to.equal(101);
+            expect((await engine.execute()).getNative()).to.equal(101);
         });
     });
 });

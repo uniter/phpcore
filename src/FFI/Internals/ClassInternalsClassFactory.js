@@ -87,6 +87,10 @@ _.extend(ClassInternalsClassFactory.prototype, {
              */
             this.methodCaller = null;
             /**
+             * @type {Function|null}
+             */
+            this.shadowConstructor = null;
+            /**
              * @type {Class|null}
              */
             this.superClass = null;
@@ -160,6 +164,10 @@ _.extend(ClassInternalsClassFactory.prototype, {
                     // (ie. a FQCN of "My\Stuff\MyClass" gives Namespace<My\Stuff> and name "MyClass")
                     parsed = factory.globalNamespace.parseName(internals.fqcn);
 
+                if (internals.shadowConstructor) {
+                    Class.shadowConstructor = internals.shadowConstructor;
+                }
+
                 if (internals.superClass) {
                     Class.superClass = internals.superClass;
                 }
@@ -218,6 +226,16 @@ _.extend(ClassInternalsClassFactory.prototype, {
              */
             defineMethodCaller: function (caller) {
                 this.methodCaller = caller;
+            },
+
+            /**
+             * Defines a shadow constructor for this class,
+             * which will always be called regardless of whether the parent constructor is called explicitly.
+             *
+             * @param {Function} shadowConstructor
+             */
+            defineShadowConstructor: function (shadowConstructor) {
+                this.shadowConstructor = shadowConstructor;
             },
 
             /**
