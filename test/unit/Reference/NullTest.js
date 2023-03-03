@@ -127,6 +127,12 @@ describe('NullReference', function () {
         });
     });
 
+    describe('raiseUndefined()', function () {
+        it('should return null', function () {
+            expect(reference.raiseUndefined().getNative()).to.be.null;
+        });
+    });
+
     describe('setValue()', function () {
         it('should call the `onSet()` callback once', function () {
             reference.setValue(sinon.createStubInstance(Value));

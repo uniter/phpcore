@@ -86,6 +86,13 @@ _.extend(NullReference.prototype, {
     /**
      * {@inheritdoc}
      */
+    raiseUndefined: function () {
+        return this.valueFactory.createNull();
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     setValue: function (value) {
         var reference = this;
 

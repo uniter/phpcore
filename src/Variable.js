@@ -329,6 +329,7 @@ module.exports = require('pauser')([
                 variable.callStack.raiseTranslatedError(PHPError.E_ERROR, USED_THIS_OUTSIDE_OBJECT_CONTEXT);
             }
 
+            // FIXME: Should now be a warning.
             variable.callStack.raiseError(PHPError.E_NOTICE, 'Undefined variable: ' + variable.name);
 
             return variable.valueFactory.createNull();
