@@ -354,6 +354,57 @@ describe('IntegerValue', function () {
         });
     });
 
+    describe('compareWithString()', function () {
+        it('should return 0 when string is a numeric integer and equal', async function () {
+            var leftValue = factory.createString('21');
+            createValue(21);
+
+            expect(await value.compareWithString(leftValue).toPromise()).to.equal(0);
+        });
+
+        it('should return 0 when string is a numeric float and equal', async function () {
+            var leftValue = factory.createString('21.0');
+            createValue(21);
+
+            expect(await value.compareWithString(leftValue).toPromise()).to.equal(0);
+        });
+
+        it('should return -1 when string is a numeric integer and smaller', async function () {
+            var leftValue = factory.createString('7');
+            createValue(21);
+
+            expect(await value.compareWithString(leftValue).toPromise()).to.equal(-1);
+        });
+
+        it('should return -1 when string is a numeric float and smaller', async function () {
+            var leftValue = factory.createString('7.0');
+            createValue(21);
+
+            expect(await value.compareWithString(leftValue).toPromise()).to.equal(-1);
+        });
+
+        it('should return +1 when string is a numeric integer and larger', async function () {
+            var leftValue = factory.createString('27');
+            createValue(21);
+
+            expect(await value.compareWithString(leftValue).toPromise()).to.equal(1);
+        });
+
+        it('should return +1 when string is a numeric float and larger', async function () {
+            var leftValue = factory.createString('27.0');
+            createValue(21);
+
+            expect(await value.compareWithString(leftValue).toPromise()).to.equal(1);
+        });
+
+        it('should return +1 when string is a numeric float and larger, with shared prefix', async function () {
+            var leftValue = factory.createString('21.123');
+            createValue(21);
+
+            expect(await value.compareWithString(leftValue).toPromise()).to.equal(1);
+        });
+    });
+
     describe('convertForBooleanType()', function () {
         it('should return bool(true) when positive', function () {
             var resultValue = value.convertForBooleanType();
