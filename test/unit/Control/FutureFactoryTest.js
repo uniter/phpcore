@@ -12,7 +12,6 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('../tools'),
-    util = require('util'),
     ControlScope = require('../../../src/Control/ControlScope'),
     Coroutine = require('../../../src/Control/Coroutine'),
     FutureFactory = require('../../../src/Control/FutureFactory'),
@@ -24,44 +23,31 @@ describe('FutureFactory', function () {
         coroutine,
         Future,
         futureFactory,
-        futuresCreated,
         pauseFactory,
         state,
         valueFactory;
 
     beforeEach(function () {
         controlScope = sinon.createStubInstance(ControlScope);
-        futuresCreated = 0;
         state = tools.createIsolatedState('async', {
-            'control_scope': controlScope,
-            'future_factory': function (set, get) {
-                function TrackedFuture() {
-                    RealFuture.apply(this, arguments);
-
-                    futuresCreated++;
-                }
-
-                util.inherits(TrackedFuture, RealFuture);
-
-                Future = sinon.spy(TrackedFuture);
-
-                return new FutureFactory(
-                    get('pause_factory'),
-                    get('value_factory'),
-                    get('control_bridge'),
-                    controlScope,
-                    Future
-                );
-            }
+            'control_scope': controlScope
         });
         controlBridge = state.getControlBridge();
         coroutine = sinon.createStubInstance(Coroutine);
+        Future = sinon.spy(RealFuture);
         pauseFactory = state.getPauseFactory();
         valueFactory = state.getValueFactory();
 
         controlScope.getCoroutine.returns(coroutine);
+        Future.prototype = RealFuture.prototype;
 
-        futureFactory = state.getFutureFactory();
+        futureFactory = new FutureFactory(
+            pauseFactory,
+            valueFactory,
+            controlBridge,
+            controlScope,
+            Future
+        );
     });
 
     describe('createAsyncPresent()', function () {
@@ -114,47 +100,6 @@ describe('FutureFactory', function () {
                 sinon.match.same(executor),
                 sinon.match.same(coroutine)
             );
-        });
-    });
-
-    describe('createFutureChain()', function () {
-        it('should create a Future resolved with the result of the executor', async function () {
-            var value = futureFactory
-                    .createFutureChain(function () {
-                        return 'my result';
-                    })
-                    .next(function (intermediateValue) {
-                        return intermediateValue + ' with suffix';
-                    }),
-                resultValue = await value.toPromise();
-
-            expect(resultValue).to.equal('my result with suffix');
-        });
-
-        it('should create a Future rejected with any error of the executor', async function () {
-            var error = new Error('Oh dear!'),
-                value = futureFactory
-                    .createFutureChain(function () {
-                        throw error;
-                    })
-                    .next(function (intermediateValue) {
-                        return intermediateValue + ' with suffix';
-                    });
-
-            await expect(value.toPromise()).to.eventually.be.rejectedWith(error);
-        });
-
-        it('should create no Future instances when not required', async function () {
-            var future = futureFactory.createAsyncPresent('my result');
-            futuresCreated = 0;
-
-            await futureFactory
-                .createFutureChain(function () {
-                    return future;
-                })
-                .toPromise();
-
-            expect(futuresCreated).to.equal(0);
         });
     });
 });

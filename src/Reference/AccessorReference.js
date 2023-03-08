@@ -257,8 +257,8 @@ _.extend(AccessorReference.prototype, {
             throw new Exception('Accessor is read-only');
         }
 
-        return reference.futureFactory
-            .createFutureChain(function () {
+        return reference.flow
+            .chainifyResultOf(function () {
                 // Capture any error thrown by the setter and convert to a rejected Future.
                 return reference.valueSetter(value);
             })

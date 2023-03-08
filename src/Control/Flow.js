@@ -114,7 +114,28 @@ _.extend(Flow.prototype, {
     },
 
     /**
+     * Creates a ChainableInterface (if required) as the start of a chain,
+     * allowing for the initial result to be returned rather than having to call resolve().
+     *
+     * @param {Function} executor
+     * @returns {ChainableInterface}
+     */
+    chainifyResultOf: function (executor) {
+        var flow = this,
+            result;
+
+        try {
+            result = executor();
+        } catch (error) {
+            return flow.futureFactory.createRejection(error);
+        }
+
+        return flow.chainifier.chainify(result);
+    },
+
+    /**
      * Creates a new present Future for the given value.
+     * Prefer .chainify(...), to avoid creating Futures unnecessarily.
      *
      * @param {*} value
      * @returns {ChainableInterface}

@@ -282,7 +282,7 @@ _.extend(Parameter.prototype, {
     validateArgument: function (argumentReference, argumentValue) {
         var parameter = this;
 
-        return parameter.futureFactory.createFutureChain(function () {
+        return parameter.flow.chainifyResultOf(function () {
             if (parameter.passedByReference && argumentReference instanceof Value) {
                 // Parameter expects a reference but was given a value - error
                 parameter.callStack.raiseTranslatedError(

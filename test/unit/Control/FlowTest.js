@@ -12,21 +12,57 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('../tools'),
+    util = require('util'),
     Chainifier = require('../../../src/Control/Chain/Chainifier'),
-    Flow = require('../../../src/Control/Flow');
+    ControlScope = require('../../../src/Control/ControlScope'),
+    Flow = require('../../../src/Control/Flow'),
+    FutureFactory = require('../../../src/Control/FutureFactory'),
+    RealFuture = require('../../../src/Control/Future');
 
 describe('Flow', function () {
     var chainifier,
+        controlScope,
         flow,
+        Future,
         futureFactory,
+        futuresCreated,
+        realChainifier,
         state,
         valueFactory;
 
     beforeEach(function () {
-        state = tools.createIsolatedState();
+        controlScope = sinon.createStubInstance(ControlScope);
+        futuresCreated = 0;
+        state = tools.createIsolatedState('async', {
+            'control_scope': controlScope,
+            'future_factory': function (set, get) {
+                function TrackedFuture() {
+                    RealFuture.apply(this, arguments);
+
+                    futuresCreated++;
+                }
+
+                util.inherits(TrackedFuture, RealFuture);
+
+                Future = sinon.spy(TrackedFuture);
+
+                return new FutureFactory(
+                    get('pause_factory'),
+                    get('value_factory'),
+                    get('control_bridge'),
+                    controlScope,
+                    Future
+                );
+            }
+        });
         futureFactory = state.getFutureFactory();
+        realChainifier = state.getService('chainifier');
         valueFactory = state.getValueFactory();
         chainifier = sinon.createStubInstance(Chainifier);
+
+        chainifier.chainify.callsFake(function (value) {
+            return realChainifier.chainify(value);
+        });
 
         flow = new Flow(
             state.getControlFactory(),
@@ -63,6 +99,47 @@ describe('Flow', function () {
                 .returns(chainifiedValue);
 
             expect(flow.chainify(value)).to.equal(chainifiedValue);
+        });
+    });
+
+    describe('chainifyResultOf()', function () {
+        it('should create a Future resolved with the result of the executor', async function () {
+            var value = flow
+                    .chainifyResultOf(function () {
+                        return 'my result';
+                    })
+                    .next(function (intermediateValue) {
+                        return intermediateValue + ' with suffix';
+                    }),
+                resultValue = await value.toPromise();
+
+            expect(resultValue).to.equal('my result with suffix');
+        });
+
+        it('should create a Future rejected with any error of the executor', async function () {
+            var error = new Error('Oh dear!'),
+                value = flow
+                    .chainifyResultOf(function () {
+                        throw error;
+                    })
+                    .next(function (intermediateValue) {
+                        return intermediateValue + ' with suffix';
+                    });
+
+            await expect(value.toPromise()).to.eventually.be.rejectedWith(error);
+        });
+
+        it('should create no Future instances when not required', async function () {
+            var future = futureFactory.createAsyncPresent('my result');
+            futuresCreated = 0;
+
+            await flow
+                .chainifyResultOf(function () {
+                    return future;
+                })
+                .toPromise();
+
+            expect(futuresCreated).to.equal(0);
         });
     });
 
