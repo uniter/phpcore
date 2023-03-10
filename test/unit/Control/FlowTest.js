@@ -10,11 +10,13 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('../tools'),
     util = require('util'),
     Chainifier = require('../../../src/Control/Chain/Chainifier'),
     ControlScope = require('../../../src/Control/ControlScope'),
+    Exception = phpCommon.Exception,
     Flow = require('../../../src/Control/Flow'),
     FutureFactory = require('../../../src/Control/FutureFactory'),
     RealFuture = require('../../../src/Control/Future');
@@ -26,6 +28,7 @@ describe('Flow', function () {
         Future,
         futureFactory,
         futuresCreated,
+        hostScheduler,
         realChainifier,
         state,
         valueFactory;
@@ -56,6 +59,7 @@ describe('Flow', function () {
             }
         });
         futureFactory = state.getFutureFactory();
+        hostScheduler = state.getHostScheduler();
         realChainifier = state.getService('chainifier');
         valueFactory = state.getValueFactory();
         chainifier = sinon.createStubInstance(Chainifier);
@@ -99,6 +103,97 @@ describe('Flow', function () {
                 .returns(chainifiedValue);
 
             expect(flow.chainify(value)).to.equal(chainifiedValue);
+        });
+    });
+
+    describe('chainifyCallbackFrom()', function () {
+        it('should return the result when already chainable and resolved synchronously', function () {
+            var value = valueFactory.createString('my value');
+            futuresCreated = 0;
+
+            expect(
+                flow.chainifyCallbackFrom(
+                    function (resolve) {
+                        resolve(value);
+                    }
+                )
+            ).to.equal(value);
+            expect(futuresCreated).to.equal(0, 'Should use no Futures at all');
+        });
+
+        it('should return the chainified result when not already chainable but resolved synchronously', async function () {
+            futuresCreated = 0;
+
+            expect(
+                await flow.chainifyCallbackFrom(
+                    function (resolve) {
+                        resolve('my unchainable result');
+                    }
+                )
+                    .toPromise()
+            ).to.equal('my unchainable result');
+            expect(futuresCreated).to.equal(1, 'Should use a single Future');
+        });
+
+        it('should return the chainified result when not already chainable and resolved asynchronously', async function () {
+            futuresCreated = 0;
+
+            expect(
+                await flow.chainifyCallbackFrom(
+                    function (resolve) {
+                        hostScheduler.queueMicrotask(function () {
+                            resolve('my unchainable result');
+                        });
+                    }
+                )
+                    .toPromise()
+            ).to.equal('my unchainable result');
+            expect(futuresCreated).to.equal(1, 'Should use a single Future');
+        });
+
+        it('should return the chainified result when chainable but resolved asynchronously', async function () {
+            var value = valueFactory.createString('my value');
+            futuresCreated = 0;
+
+            expect(
+                await flow.chainifyCallbackFrom(
+                    function (resolve) {
+                        hostScheduler.queueMicrotask(function () {
+                            resolve(value);
+                        });
+                    }
+                )
+                    .toPromise()
+            ).to.equal(value);
+            expect(futuresCreated).to.equal(1, 'Should use a single Future');
+        });
+
+        it('should raise an error when resolved synchronously twice', async function () {
+            await expect(
+                flow.chainifyCallbackFrom(function (resolve) {
+                    resolve('first result');
+
+                    resolve('second result');
+                })
+                    .toPromise()
+            ).to.eventually.be.rejectedWith(
+                Exception,
+                'Flow.chainifyCallbackFrom() :: resolve() :: Already settled'
+            );
+        });
+
+        it('should raise an error when resolved then rejected synchronously', async function () {
+            await expect(
+                flow.chainifyCallbackFrom(function (resolve, reject) {
+                    resolve('first: result');
+
+                    reject(new Error('second: error'));
+                })
+                    .toPromise()
+            ).to.eventually.be.rejectedWith(
+                Exception,
+                'Flow.chainifyCallbackFrom() :: reject() :: Already settled'
+            );
         });
     });
 

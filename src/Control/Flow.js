@@ -10,6 +10,8 @@
 'use strict';
 
 var _ = require('microdash'),
+    phpCommon = require('phpcommon'),
+    Exception = phpCommon.Exception,
     Pause = require('./Pause');
 
 /**
@@ -111,6 +113,73 @@ _.extend(Flow.prototype, {
      */
     chainify: function (value) {
         return this.chainifier.chainify(value);
+    },
+
+    /**
+     * Calls the specified executor, passing resolve(...) and reject(...) callbacks
+     * to be used appropriately.
+     * If resolved synchronously with a chainable result value, then that value
+     * will be returned, avoiding creation of an unnecessary Future.
+     * Otherwise, a Future will be returned.
+     *
+     * @param {Function} executor
+     * @returns {ChainableInterface}
+     */
+    chainifyCallbackFrom: function (executor) {
+        var deferred = false,
+            eventualError,
+            eventualResult,
+            flow = this,
+            rejectDeferredFuture,
+            resolveDeferredFuture,
+            settled = false;
+
+        function resolve(result) {
+            if (settled) {
+                throw new Exception('Flow.chainifyCallbackFrom() :: resolve() :: Already settled');
+            }
+
+            if (deferred) {
+                resolveDeferredFuture(result);
+            } else {
+                eventualResult = result;
+            }
+
+            settled = true;
+        }
+
+        function reject(error) {
+            if (settled) {
+                throw new Exception('Flow.chainifyCallbackFrom() :: reject() :: Already settled');
+            }
+
+            if (deferred) {
+                rejectDeferredFuture(error);
+            } else {
+                eventualError = error;
+            }
+
+            settled = true;
+        }
+
+        try {
+            executor(resolve, reject);
+        } catch (error) {
+            return flow.futureFactory.createRejection(error);
+        }
+
+        if (settled) {
+            // Future was settled synchronously: chainify the result, avoiding creation of a Future if possible.
+            return flow.chainifier.chainify(eventualResult);
+        }
+
+        // Future will be settled asynchronously: we'll need to create a Future.
+        deferred = true;
+
+        return flow.futureFactory.createFuture(function (resolve, reject) {
+            resolveDeferredFuture = resolve;
+            rejectDeferredFuture = reject;
+        });
     },
 
     /**
