@@ -251,7 +251,7 @@ _.extend(Reference.prototype, {
     /**
      * Derives a promise of the PHP value being referred to (shared interface with Future).
      *
-     * @returns {Promise<Value>}
+     * @returns {Promise<Reference>}
      */
     toPromise: function () {
         return Promise.resolve(this);

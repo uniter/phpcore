@@ -36,7 +36,7 @@ module.exports = require('pauser')([
      * along with null as its parent namespace.
      *
      * @param {CallStack} callStack
-     * @param {FutureFactory} futureFactory
+     * @param {Flow} flow
      * @param {ValueFactory} valueFactory
      * @param {NamespaceFactory} namespaceFactory
      * @param {FunctionFactory} functionFactory
@@ -49,7 +49,7 @@ module.exports = require('pauser')([
      */
     function Namespace(
         callStack,
-        futureFactory,
+        flow,
         valueFactory,
         namespaceFactory,
         functionFactory,
@@ -84,6 +84,10 @@ module.exports = require('pauser')([
          */
         this.constants = {};
         /**
+         * @type {Flow}
+         */
+        this.flow = flow;
+        /**
          * @type {FunctionFactory}
          */
         this.functionFactory = functionFactory;
@@ -95,10 +99,6 @@ module.exports = require('pauser')([
          * @type {Object.<string, Function>}
          */
         this.functions = {};
-        /**
-         * @type {FutureFactory}
-         */
-        this.futureFactory = futureFactory;
         /**
          * @type {string}
          */
@@ -298,20 +298,20 @@ module.exports = require('pauser')([
             if (hasOwn.call(parsed.namespace.classes, lowerName)) {
                 // Class already exists; just return it.
                 // TODO: Make Class implement ChainableInterface to avoid always Future-wrapping.
-                return namespace.futureFactory.createPresent(parsed.namespace.classes[lowerName]);
+                return namespace.flow.chainify(parsed.namespace.classes[lowerName]);
             }
 
-            // Otherwise the class must be successfully autoloaded or we fail
+            // Otherwise the class must be successfully autoloaded or we fail.
 
-            return namespace.futureFactory.createFuture(function (resolve) {
+            return namespace.flow.chainifyCallbackFrom(function (resolve) {
                 if (autoload !== false) {
-                    // Try to autoload the class
+                    // Try to autoload the class.
                     resolve(namespace.classAutoloader.autoloadClass(parsed.namespace.getPrefix() + parsed.name));
                 } else {
                     resolve();
                 }
             }).next(function () {
-                // Raise an error if it is still not defined
+                // Raise an error if it is still not defined.
                 if (!parsed.namespace.hasClass(lowerName)) {
                     namespace.callStack.raiseTranslatedError(PHPError.E_ERROR, CLASS_NOT_FOUND, {
                         name: parsed.namespace.getPrefix() + parsed.name

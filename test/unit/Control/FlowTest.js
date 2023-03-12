@@ -14,29 +14,36 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('../tools'),
     util = require('util'),
+    CallStack = require('../../../src/CallStack'),
     Chainifier = require('../../../src/Control/Chain/Chainifier'),
     ControlScope = require('../../../src/Control/ControlScope'),
     Exception = phpCommon.Exception,
     Flow = require('../../../src/Control/Flow'),
     FutureFactory = require('../../../src/Control/FutureFactory'),
+    Pause = require('../../../src/Control/Pause'),
     RealFuture = require('../../../src/Control/Future');
 
 describe('Flow', function () {
-    var chainifier,
+    var callStack,
+        chainifier,
         controlScope,
+        createFlow,
         flow,
         Future,
         futureFactory,
         futuresCreated,
         hostScheduler,
+        pauseFactory,
         realChainifier,
         state,
         valueFactory;
 
     beforeEach(function () {
+        callStack = sinon.createStubInstance(CallStack);
         controlScope = sinon.createStubInstance(ControlScope);
         futuresCreated = 0;
         state = tools.createIsolatedState('async', {
+            'call_stack': callStack,
             'control_scope': controlScope,
             'future_factory': function (set, get) {
                 function TrackedFuture() {
@@ -60,6 +67,7 @@ describe('Flow', function () {
         });
         futureFactory = state.getFutureFactory();
         hostScheduler = state.getHostScheduler();
+        pauseFactory = state.getPauseFactory();
         realChainifier = state.getService('chainifier');
         valueFactory = state.getValueFactory();
         chainifier = sinon.createStubInstance(Chainifier);
@@ -68,14 +76,17 @@ describe('Flow', function () {
             return realChainifier.chainify(value);
         });
 
-        flow = new Flow(
-            state.getControlFactory(),
-            state.getControlBridge(),
-            state.getControlScope(),
-            futureFactory,
-            chainifier,
-            'async'
-        );
+        createFlow = function (mode) {
+            flow = new Flow(
+                state.getControlFactory(),
+                state.getControlBridge(),
+                state.getControlScope(),
+                futureFactory,
+                chainifier,
+                mode
+            );
+        };
+        createFlow('async');
     });
 
     describe('all()', function () {
@@ -603,6 +614,138 @@ describe('Flow', function () {
             it('should reject the future with the error from the failed handler invocation', function () {
                 return expect(flow.mapAsync(inputs, handler).toPromise())
                     .to.eventually.be.rejectedWith('Bang!');
+            });
+        });
+    });
+
+    describe('maybeFuturise()', function () {
+        describe('in async mode', function () {
+            it('should chainify the result of the executor', async function () {
+                var result = flow.maybeFuturise(function () {
+                    return 'my string';
+                });
+
+                expect(result).to.be.an.instanceOf(Future);
+                expect(await result.toPromise()).to.equal('my string');
+            });
+
+            it('should convert any error thrown by the executor to a rejected Future', async function () {
+                var result = flow.maybeFuturise(function () {
+                    throw new Error('Bang!');
+                });
+
+                expect(result).to.be.an.instanceOf(Future);
+                await expect(result.toPromise()).to.eventually.be.rejectedWith('Bang!');
+            });
+
+            it('should return the eventual result if a Pause is raised and resumed', async function () {
+                var result = await flow
+                    .maybeFuturise(function () {
+                        var pause = pauseFactory.createPause(function (resume) {
+                            hostScheduler.queueMicrotask(function () {
+                                resume('my result');
+                            });
+                        });
+
+                        pause.now();
+                    })
+                    .toPromise();
+
+                expect(result).to.equal('my result');
+            });
+
+            it('should mark a captured Pause as paused in the ControlScope', async function () {
+                var pause;
+
+                await flow.maybeFuturise(function () {
+                    pause = pauseFactory.createPause(function (resume) {
+                        hostScheduler.queueMicrotask(function () {
+                            resume('my result');
+                        });
+                    });
+
+                    pause.now();
+                }).toPromise();
+
+                expect(pause).to.be.an.instanceOf(Pause);
+                expect(controlScope.markPaused).to.have.been.calledOnce;
+                expect(controlScope.markPaused).to.have.been.calledWith(sinon.match.same(pause));
+            });
+
+            it('should reject with the eventual error if a Pause is raised and thrown into with an error', async function () {
+                await expect(
+                    flow.maybeFuturise(function () {
+                        var pause = pauseFactory.createPause(function (resume, throwInto) {
+                            hostScheduler.queueMicrotask(function () {
+                                throwInto(new Error('my error'));
+                            });
+                        });
+
+                        pause.now();
+                    }).toPromise()
+                ).to.eventually.be.rejectedWith('my error');
+            });
+
+            it('should reject with the eventual error if a Pause is raised and thrown into with a Future that eventually rejects', async function () {
+                await expect(
+                    flow.maybeFuturise(function () {
+                        var pause = pauseFactory.createPause(function (resume, throwInto) {
+                            hostScheduler.queueMicrotask(function () {
+                                throwInto(futureFactory.createRejection(new Error('my error')));
+                            });
+                        });
+
+                        pause.now();
+                    }).toPromise()
+                ).to.eventually.be.rejectedWith('my error');
+            });
+        });
+
+        describe('in psync mode', function () {
+            beforeEach(function () {
+                createFlow('psync');
+            });
+
+            it('should chainify the result of the executor', async function () {
+                var result = flow.maybeFuturise(function () {
+                    return 'my string';
+                });
+
+                expect(result).to.be.an.instanceOf(Future);
+                expect(await result.toPromise()).to.equal('my string');
+            });
+
+            it('should convert any error thrown by the executor to a rejected Future', async function () {
+                var result = flow.maybeFuturise(function () {
+                    throw new Error('Bang!');
+                });
+
+                expect(result).to.be.an.instanceOf(Future);
+                await expect(result.toPromise()).to.eventually.be.rejectedWith('Bang!');
+            });
+        });
+
+        describe('in sync mode', function () {
+            beforeEach(function () {
+                createFlow('sync');
+            });
+
+            it('should chainify the result of the executor', async function () {
+                var result = flow.maybeFuturise(function () {
+                    return 'my string';
+                });
+
+                expect(result).to.be.an.instanceOf(Future);
+                expect(await result.toPromise()).to.equal('my string');
+            });
+
+            it('should convert any error thrown by the executor to a rejected Future', async function () {
+                var result = flow.maybeFuturise(function () {
+                    throw new Error('Bang!');
+                });
+
+                expect(result).to.be.an.instanceOf(Future);
+                await expect(result.toPromise()).to.eventually.be.rejectedWith('Bang!');
             });
         });
     });

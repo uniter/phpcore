@@ -40,11 +40,12 @@ describe('Parameter', function () {
         translator,
         typeObject,
         userland,
-        valueFactory;
+        valueFactory,
+        variableFactory;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
-        state = tools.createIsolatedState(null, {
+        state = tools.createIsolatedState('async', {
             'call_stack': callStack
         });
         context = sinon.createStubInstance(FunctionContextInterface);
@@ -56,6 +57,7 @@ describe('Parameter', function () {
         typeObject = sinon.createStubInstance(TypeInterface);
         userland = sinon.createStubInstance(Userland);
         valueFactory = state.getValueFactory();
+        variableFactory = state.getService('variable_factory');
 
         callStack.getCallerFilePath.returns(null);
         callStack.getCallerLastLine.returns(null);
@@ -92,7 +94,7 @@ describe('Parameter', function () {
             return '[Translated] ' + translationKey + ' ' + JSON.stringify(placeholderVariables || {});
         });
         userland.enterIsolated.callsFake(function (executor) {
-            return valueFactory.maybeFuturise(executor);
+            return flow.maybeFuturise(executor);
         });
 
         createParameter = function (passedByReference) {
@@ -332,9 +334,9 @@ describe('Parameter', function () {
 
     describe('populateDefaultArgument()', function () {
         it('should return the given argument reference when valid', async function () {
-            var argumentReference = sinon.createStubInstance(Variable),
+            var argumentReference = variableFactory.createVariable('my_var'),
                 argumentValue = valueFactory.createString('my arg');
-            argumentReference.getValue.returns(argumentValue);
+            argumentReference.setValue(argumentValue);
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
                 .returns(true);
@@ -343,10 +345,10 @@ describe('Parameter', function () {
         });
 
         it('should return the given argument reference when null and parameter is typed but default is null', async function () {
-            var argumentReference = sinon.createStubInstance(Variable),
+            var argumentReference = variableFactory.createVariable('my_var'),
                 argumentValue = valueFactory.createNull(),
                 defaultValue = valueFactory.createNull();
-            argumentReference.getValue.returns(argumentValue);
+            argumentReference.setValue(argumentValue);
             typeObject.allowsValue
                 .withArgs(sinon.match.same(argumentValue))
                 .returns(false); // Type disallows null (eg. a class type not prefixed with ? in PHP7+)

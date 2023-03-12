@@ -16,7 +16,7 @@ var _ = require('microdash');
  *
  * @param {class} Namespace
  * @param {CallStack} callStack
- * @param {FutureFactory} futureFactory
+ * @param {Flow} flow
  * @param {FunctionFactory} functionFactory
  * @param {FunctionSpecFactory} functionSpecFactory
  * @param {ValueFactory} valueFactory
@@ -27,7 +27,7 @@ var _ = require('microdash');
 function NamespaceFactory(
     Namespace,
     callStack,
-    futureFactory,
+    flow,
     functionFactory,
     functionSpecFactory,
     valueFactory,
@@ -55,9 +55,9 @@ function NamespaceFactory(
      */
     this.functionSpecFactory = functionSpecFactory;
     /**
-     * @type {FutureFactory}
+     * @type {Flow}
      */
-    this.futureFactory = futureFactory;
+    this.flow = flow;
     /**
      * @type {class}
      */
@@ -81,7 +81,7 @@ _.extend(NamespaceFactory.prototype, {
 
         return new factory.Namespace(
             factory.callStack,
-            factory.futureFactory,
+            factory.flow,
             factory.valueFactory,
             factory,
             factory.functionFactory,

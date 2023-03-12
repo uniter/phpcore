@@ -11,9 +11,11 @@
 
 module.exports = require('pauser')([
     require('microdash'),
+    require('lie'),
     require('phpcommon')
 ], function (
     _,
+    Promise,
     phpCommon
 ) {
     var USED_THIS_OUTSIDE_OBJECT_CONTEXT = 'core.used_this_outside_object_context',
@@ -394,10 +396,10 @@ module.exports = require('pauser')([
         /**
          * Derives a promise of this variable (shared interface with Future).
          *
-         * @returns {Promise<Value>}
+         * @returns {Promise<Variable>}
          */
         toPromise: function () {
-            return this.getValue().toPromise();
+            return Promise.resolve(this);
         },
 
         /**

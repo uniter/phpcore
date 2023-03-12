@@ -35,6 +35,7 @@ describe('Namespace', function () {
         createNamespace,
         exportRepository,
         ffiFactory,
+        flow,
         functionFactory,
         functionSpecFactory,
         futureFactory,
@@ -46,12 +47,13 @@ describe('Namespace', function () {
         valueFactory;
 
     beforeEach(function () {
-        state = tools.createIsolatedState();
+        state = tools.createIsolatedState('async');
         callStack = sinon.createStubInstance(CallStack);
         classAutoloader = sinon.createStubInstance(ClassAutoloader);
         classDefiner = sinon.createStubInstance(ClassDefiner);
         exportRepository = sinon.createStubInstance(ExportRepository);
         ffiFactory = sinon.createStubInstance(FFIFactory);
+        flow = state.getFlow();
         functionFactory = sinon.createStubInstance(FunctionFactory);
         functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
         futureFactory = state.getFutureFactory();
@@ -101,7 +103,7 @@ describe('Namespace', function () {
         namespaceFactory.create.callsFake(function (parentNamespace, name) {
             return new Namespace(
                 callStack,
-                futureFactory,
+                flow,
                 valueFactory,
                 namespaceFactory,
                 functionFactory,

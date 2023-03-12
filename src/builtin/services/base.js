@@ -65,6 +65,7 @@ var phpCommon = require('phpcommon'),
     Output = require('../../Output/Output'),
     OutputBuffer = require('../../Output/OutputBuffer'),
     OutputFactory = require('../../Output/OutputFactory'),
+    Reference = require('../../Reference/Reference'),
     ReturnTypeProvider = require('../../Function/ReturnTypeProvider'),
     ScalarTypeProvider = require('../../Type/Provider/Spec/ScalarTypeProvider'),
     SignatureParser = require('../../Function/Signature/SignatureParser'),
@@ -203,7 +204,7 @@ module.exports = function (internals) {
         },
 
         'control_bridge': function () {
-            return new ControlBridge(Future, Value);
+            return new ControlBridge(Future, Reference, Value, Variable);
         },
 
         'control_factory': function () {
@@ -270,7 +271,7 @@ module.exports = function (internals) {
             return new NamespaceFactory(
                 Namespace,
                 get(CALL_STACK),
-                get(FUTURE_FACTORY),
+                get(FLOW),
                 get(FUNCTION_FACTORY),
                 get(FUNCTION_SPEC_FACTORY),
                 get(VALUE_FACTORY),

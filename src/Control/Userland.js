@@ -20,6 +20,7 @@ var _ = require('microdash'),
  * @param {ControlFactory} controlFactory
  * @param {ControlBridge} controlBridge
  * @param {ControlScope} controlScope
+ * @param {Flow} flow
  * @param {ValueFactory} valueFactory
  * @param {OpcodePool} opcodePool
  * @param {string} mode
@@ -30,6 +31,7 @@ function Userland(
     controlFactory,
     controlBridge,
     controlScope,
+    flow,
     valueFactory,
     opcodePool,
     mode
@@ -50,6 +52,10 @@ function Userland(
      * @type {ControlScope}
      */
     this.controlScope = controlScope;
+    /**
+     * @type {Flow}
+     */
+    this.flow = flow;
     /**
      * @type {string}
      */
@@ -187,11 +193,11 @@ _.extend(Userland.prototype, {
 
     /**
      * Enters isolated userland code, eg. a default value provider
-     * such as a default class property value provider function
+     * such as a default class property value provider function.
      *
      * @param {Function} executor
      * @param {NamespaceScope=} namespaceScope
-     * @returns {ChainableInterface<Value>}
+     * @returns {ChainableInterface}
      */
     enterIsolated: function (executor, namespaceScope) {
         var userland = this,
@@ -206,7 +212,7 @@ _.extend(Userland.prototype, {
         originalTrace = call.setTrace(isolatedTrace);
 
         function doCall() {
-            return userland.valueFactory.maybeFuturise(
+            return userland.flow.maybeFuturise(
                 executor,
                 function (pause) {
                     pause.next(
@@ -235,7 +241,9 @@ _.extend(Userland.prototype, {
                         }
                     );
                 }
-            );
+            )
+                // Always coerce the result to a Value if needed.
+                .asValue();
         }
 
         return doCall()

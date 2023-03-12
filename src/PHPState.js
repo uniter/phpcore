@@ -454,15 +454,6 @@ module.exports = require('pauser')([
             )),
             callStack = get('call_stack'),
             pauseFactory = set('pause_factory', new PauseFactory(Pause, callStack, controlScope, mode)),
-            userland = set('userland', new Userland(
-                callStack,
-                controlFactory,
-                controlBridge,
-                controlScope,
-                valueFactory,
-                opcodePool,
-                mode
-            )),
             futureFactory = get('future_factory'),
             flow = set('flow', new Flow(
                 controlFactory,
@@ -470,6 +461,16 @@ module.exports = require('pauser')([
                 controlScope,
                 futureFactory,
                 get('chainifier'),
+                mode
+            )),
+            userland = set('userland', new Userland(
+                callStack,
+                controlFactory,
+                controlBridge,
+                controlScope,
+                flow,
+                valueFactory,
+                opcodePool,
                 mode
             )),
             referenceFactory = set('reference_factory', new ReferenceFactory(

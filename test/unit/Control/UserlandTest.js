@@ -19,8 +19,7 @@ var expect = require('chai').expect,
     OpcodePool = require('../../../src/Core/Opcode/Opcode/OpcodePool'),
     Pause = require('../../../src/Control/Pause'),
     Trace = require('../../../src/Control/Trace'),
-    Userland = require('../../../src/Control/Userland'),
-    Variable = require('../../../src/Variable').sync();
+    Userland = require('../../../src/Control/Userland');
 
 describe('Userland', function () {
     var call,
@@ -29,13 +28,15 @@ describe('Userland', function () {
         controlFactory,
         controlScope,
         createUserland,
+        flow,
         futureFactory,
         opcodePool,
         pauseFactory,
         state,
         userland,
         valueFactory,
-        variable;
+        variable,
+        variableFactory;
 
     beforeEach(function () {
         // Stubbed below.
@@ -45,11 +46,12 @@ describe('Userland', function () {
         controlBridge = null;
         controlFactory = null;
         controlScope = null;
+        flow = null;
         futureFactory = null;
         opcodePool = null;
         pauseFactory = null;
         valueFactory = null;
-        variable = sinon.createStubInstance(Variable);
+        variable = null;
         userland = null;
 
         createUserland = function (mode) {
@@ -62,10 +64,13 @@ describe('Userland', function () {
             });
             controlBridge = state.getControlBridge();
             controlFactory = state.getControlFactory();
+            flow = state.getFlow();
             futureFactory = state.getFutureFactory();
             opcodePool = sinon.createStubInstance(OpcodePool);
             pauseFactory = state.getPauseFactory();
             valueFactory = state.getValueFactory();
+            variableFactory = state.getService('variable_factory');
+            variable = variableFactory.createVariable('my_var');
 
             callStack.getCurrent.returns(call);
 
@@ -74,6 +79,7 @@ describe('Userland', function () {
                 controlFactory,
                 controlBridge,
                 controlScope,
+                flow,
                 valueFactory,
                 opcodePool,
                 mode || 'sync'
@@ -87,9 +93,9 @@ describe('Userland', function () {
                 createUserland('async');
             });
 
-            it('should return the result of the executor on success', async function () {
+            it('should return the result of the executor coerced to a Value on success', async function () {
                 var resultValue;
-                variable.getValue.returns(valueFactory.createString('my result'));
+                variable.setValue(valueFactory.createString('my result'));
 
                 resultValue = await userland.enterIsolated(function () {
                     return variable;
@@ -106,10 +112,10 @@ describe('Userland', function () {
                 ).to.eventually.be.rejectedWith('Bang!');
             });
 
-            it('should return the eventual result if a pause is raised and resumed', async function () {
+            it('should return the eventual result coerced to a Value if a pause is raised and resumed', async function () {
                 var paused = false,
                     resultValue;
-                variable.getValue.returns(valueFactory.createString('my result'));
+                variable.setValue(valueFactory.createString('my result'));
 
                 resultValue = await userland.enterIsolated(function () {
                     var pause;
@@ -134,7 +140,7 @@ describe('Userland', function () {
 
             it('should mark a captured pause as paused in the ControlScope', async function () {
                 var pause = null;
-                variable.getValue.returns(valueFactory.createString('my result'));
+                variable.setValue(valueFactory.createString('my result'));
 
                 await userland.enterIsolated(function () {
                     if (pause) {
@@ -263,7 +269,7 @@ describe('Userland', function () {
 
             it('should return the result of the executor on success', function () {
                 var resultValue;
-                variable.getValue.returns(valueFactory.createString('my result'));
+                variable.setValue(valueFactory.createString('my result'));
 
                 resultValue = userland.enterIsolated(function () {
                     return variable;
@@ -290,12 +296,13 @@ describe('Userland', function () {
                 expect(namespaceScope.leave).to.have.been.calledAfter(executor);
             });
 
-            it('should not catch errors on failure', function () {
-                expect(function () {
+            it('should wrap errors in a rejected Future on failure', async function () {
+                await expect(
                     userland.enterIsolated(function () {
                         throw new Error('Bang!');
-                    });
-                }).to.throw('Bang!');
+                    })
+                        .toPromise()
+                ).to.eventually.be.rejectedWith('Bang!');
             });
         });
     });
@@ -308,7 +315,7 @@ describe('Userland', function () {
 
             it('should return the result of the executor on success', async function () {
                 var resultValue;
-                variable.getValue.returns(valueFactory.createString('my result'));
+                variable.setValue(valueFactory.createString('my result'));
 
                 resultValue = await userland.enterTopLevel(function () {
                     return variable;
@@ -328,7 +335,7 @@ describe('Userland', function () {
             it('should return the eventual result if a pause is raised and resumed', async function () {
                 var paused = false,
                     resultValue;
-                variable.getValue.returns(valueFactory.createString('my result'));
+                variable.setValue(valueFactory.createString('my result'));
 
                 resultValue = await userland.enterTopLevel(function () {
                     var pause;
@@ -353,7 +360,7 @@ describe('Userland', function () {
 
             it('should mark a captured pause as paused in the ControlScope', async function () {
                 var pause = null;
-                variable.getValue.returns(valueFactory.createString('my result'));
+                variable.setValue(valueFactory.createString('my result'));
 
                 await userland.enterTopLevel(function () {
                     if (pause) {
@@ -431,7 +438,7 @@ describe('Userland', function () {
 
             it('should return the result of the executor on success', function () {
                 var resultValue;
-                variable.getValue.returns(valueFactory.createString('my result'));
+                variable.setValue(valueFactory.createString('my result'));
 
                 resultValue = userland.enterTopLevel(function () {
                     return variable;

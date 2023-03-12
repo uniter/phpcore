@@ -114,7 +114,7 @@ describe('Class', function () {
         superClass.construct.returns(valueFactory.createNull());
 
         userland.enterIsolated.callsFake(function (executor) {
-            return valueFactory.maybeFuturise(executor);
+            return flow.maybeFuturise(executor);
         });
 
         valueCoercer.coerceArguments.callsFake(function (argumentValues) {

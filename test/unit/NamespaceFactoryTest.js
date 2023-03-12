@@ -14,9 +14,9 @@ var expect = require('chai').expect,
     CallStack = require('../../src/CallStack'),
     ClassAutoloader = require('../../src/ClassAutoloader').sync(),
     ClassDefiner = require('../../src/Class/ClassDefiner'),
+    Flow = require('../../src/Control/Flow'),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     FunctionSpecFactory = require('../../src/Function/FunctionSpecFactory'),
-    FutureFactory = require('../../src/Control/FutureFactory'),
     NamespaceFactory = require('../../src/NamespaceFactory'),
     ValueFactory = require('../../src/ValueFactory').sync();
 
@@ -25,9 +25,9 @@ describe('NamespaceFactory', function () {
         classAutoloader,
         classDefiner,
         factory,
+        flow,
         functionFactory,
         functionSpecFactory,
-        futureFactory,
         Namespace,
         valueFactory;
 
@@ -35,16 +35,16 @@ describe('NamespaceFactory', function () {
         callStack = sinon.createStubInstance(CallStack);
         classAutoloader = sinon.createStubInstance(ClassAutoloader);
         classDefiner = sinon.createStubInstance(ClassDefiner);
+        flow = sinon.createStubInstance(Flow);
         functionFactory = sinon.createStubInstance(FunctionFactory);
         functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
-        futureFactory = sinon.createStubInstance(FutureFactory);
         Namespace = sinon.stub();
         valueFactory = sinon.createStubInstance(ValueFactory);
 
         factory = new NamespaceFactory(
             Namespace,
             callStack,
-            futureFactory,
+            flow,
             functionFactory,
             functionSpecFactory,
             valueFactory,
@@ -82,12 +82,12 @@ describe('NamespaceFactory', function () {
             expect(Namespace).to.have.been.calledWith(sinon.match.same(callStack));
         });
 
-        it('should pass the FutureFactory to the namespace', function () {
+        it('should pass Flow to the namespace', function () {
             callCreate();
 
             expect(Namespace).to.have.been.calledWith(
                 sinon.match.any,
-                sinon.match.same(futureFactory)
+                sinon.match.same(flow)
             );
         });
 

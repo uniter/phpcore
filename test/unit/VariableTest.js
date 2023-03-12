@@ -469,14 +469,10 @@ describe('Variable', function () {
     });
 
     describe('toPromise()', function () {
-        it('should return a Promise resolved with the value of the variable', async function () {
-            var value;
+        it('should return a Promise resolved with the variable itself', async function () {
             variable.setValue(valueFactory.createInteger(1234));
 
-            value = await variable.toPromise();
-
-            expect(value.getType()).to.equal('int');
-            expect(value.getNative()).to.equal(1234);
+            expect(await variable.toPromise()).to.equal(variable);
         });
     });
 

@@ -438,11 +438,6 @@ _.extend(Flow.prototype, {
             if (!(error instanceof Pause)) {
                 // A normal non-pause error was raised, simply rethrow.
 
-                if (flow.mode !== 'async') {
-                    // For synchronous modes, rethrow synchronously.
-                    throw error;
-                }
-
                 // For async mode, return a rejected Future.
                 return flow.futureFactory.createRejection(error);
             }

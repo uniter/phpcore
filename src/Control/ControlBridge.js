@@ -13,10 +13,12 @@ var _ = require('microdash');
 
 /**
  * @param {class} Future
+ * @param {class} Reference
  * @param {class} Value
+ * @param {class} Variable
  * @constructor
  */
-function ControlBridge(Future, Value) {
+function ControlBridge(Future, Reference, Value, Variable) {
     /**
      * @type {class}
      */
@@ -24,7 +26,15 @@ function ControlBridge(Future, Value) {
     /**
      * @type {class}
      */
+    this.Reference = Reference;
+    /**
+     * @type {class}
+     */
     this.Value = Value;
+    /**
+     * @type {class}
+     */
+    this.Variable = Variable;
 }
 
 _.extend(ControlBridge.prototype, {
@@ -37,7 +47,13 @@ _.extend(ControlBridge.prototype, {
     isChainable: function (value) {
         var bridge = this;
 
-        return bridge.isFuture(value) || value instanceof bridge.Value;
+        // TODO: Use a Symbol indicating "implements ChainableInterface" on the prototype of these classes
+        //       to speed up this test by replacing it with a single lookup.
+
+        return bridge.isFuture(value) ||
+            value instanceof bridge.Reference ||
+            value instanceof bridge.Value ||
+            value instanceof bridge.Variable;
     },
 
     /**

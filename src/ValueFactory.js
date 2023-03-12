@@ -857,8 +857,8 @@ module.exports = require('pauser')([
         /**
          * Creates a new present Future-wrapped Value with the given value.
          *
-         * Note that in most cases this method should not be used, as a known "present" value
-         * should simply be returned directly and not wrapped as a Future.
+         * Note that in most cases this method should not be used, as a known "present" ChainableInterface
+         * value should simply be returned directly and not wrapped as a Future.
          *
          * @param {Value} value
          * @returns {FutureInterface<Value>}
@@ -1040,77 +1040,6 @@ module.exports = require('pauser')([
          */
         isValue: function (object) {
             return object instanceof Value;
-        },
-
-        /**
-         * Executes the given callback, which is expected to make a tail-call that may pause
-         * in async mode. If it pauses then the pause will be intercepted and turned into a Future-wrapped Value,
-         * otherwise the result will be coerced to a Value.
-         *
-         * @param {Function} executor
-         * @param {Function=} pauser Called if a pause is intercepted
-         * @returns {ChainableInterface<Value>}
-         */
-        maybeFuturise: function (executor, pauser) {
-            var factory = this,
-                result;
-
-            if (factory.mode !== 'async') {
-                return factory.coerce(executor());
-            }
-
-            /**
-             * A pause or error occurred. Note that the error thrown could be a Future(Value),
-             * in which case we need to yield to it so that a pause occurs if required.
-             *
-             * @param {Error|ChainableInterface<Value>|Pause} error
-             * @returns {ChainableInterface<Value>}
-             */
-            function handlePauseOrError(error) {
-                if (factory.controlBridge.isFuture(error)) {
-                    // Special case: the thrown error is itself a Future(Value), so we need
-                    // to yield to it to either resolve it to the eventual error or pause.
-                    try {
-                        error = error.yield();
-                    } catch (furtherError) {
-                        return handlePauseOrError(furtherError);
-                    }
-                }
-
-                if (!(error instanceof Pause)) {
-                    // A normal non-pause error was raised, simply rethrow
-
-                    if (factory.mode !== 'async') {
-                        // For synchronous modes, rethrow synchronously
-                        throw error;
-                    }
-
-                    // For async mode, return a rejected Future.
-                    return factory.createFuture(function (resolve, reject) {
-                        reject(error);
-                    });
-                }
-
-                if (pauser) {
-                    pauser(error);
-                }
-
-                // We have intercepted a pause - it must be marked as complete so that the future
-                // we will create is able to raise its own pause
-                factory.controlScope.markPaused(error);
-
-                return factory.createFuture(function (resolve, reject) {
-                    error.next(resolve, reject);
-                });
-            }
-
-            try {
-                result = executor();
-            } catch (error) {
-                return handlePauseOrError(error);
-            }
-
-            return factory.coerce(result);
         },
 
         /**
