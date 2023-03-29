@@ -1,5 +1,8 @@
 'use strict';
 
+/**
+ * @deprecated Remove this.
+ */
 module.exports = function (done, callback) {
     return function () {
         try {

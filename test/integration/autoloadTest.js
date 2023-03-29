@@ -11,11 +11,10 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('./tools'),
-    when = require('../when');
+    tools = require('./tools');
 
 describe('PHP class autoload integration', function () {
-    it('should correctly handle instantiating an asynchronously autoloaded class', function (done) {
+    it('should correctly handle instantiating an asynchronously autoloaded class', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 spl_autoload_register(function () {
@@ -26,7 +25,7 @@ return $object->getIt();
 EOS
 */;}),//jshint ignore:line
             module = tools.asyncTranspile('/path/to/my_module.php', php),
-            options = {
+            environment = tools.createAsyncEnvironment({
                 include: function (path, promise) {
                     setTimeout(function () {
                         promise.resolve(tools.asyncTranspile(path, nowdoc(function () {/*<<<EOS
@@ -42,14 +41,13 @@ EOS
 */;}))); //jshint ignore:line
                     }, 10);
                 }
-            };
+            }),
+            engine = module({}, environment);
 
-        module(options).execute().then(when(done, function (result) {
-            expect(result.getNative()).to.equal(22);
-        }), done);
+        expect((await engine.execute()).getNative()).to.equal(22);
     });
 
-    it('should correctly handle reading a constant of an asynchronously autoloaded class via spl_autoload_register(...)', function (done) {
+    it('should correctly handle reading a constant of an asynchronously autoloaded class via spl_autoload_register(...)', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 spl_autoload_register(function () {
@@ -60,7 +58,7 @@ return $object::MY_CONST;
 EOS
 */;}),//jshint ignore:line
             module = tools.asyncTranspile('/path/to/my_module.php', php),
-            options = {
+            environment = tools.createAsyncEnvironment({
                 include: function (path, promise) {
                     setTimeout(function () {
                         promise.resolve(tools.asyncTranspile(path, nowdoc(function () {/*<<<EOS
@@ -73,14 +71,13 @@ EOS
 */;}))); //jshint ignore:line
                     }, 10);
                 }
-            };
+            }),
+            engine = module({}, environment);
 
-        module(options).execute().then(when(done, function (result) {
-            expect(result.getNative()).to.equal(21);
-        }), done);
+        expect((await engine.execute()).getNative()).to.equal(21);
     });
 
-    it('should correctly handle reading a constant of an asynchronously autoloaded class via __autoload(...)', function (done) {
+    it('should correctly handle reading a constant of an asynchronously autoloaded class via __autoload(...)', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 function __autoload($class) {
@@ -91,7 +88,7 @@ return $object::MY_CONST;
 EOS
 */;}),//jshint ignore:line
             module = tools.asyncTranspile('/path/to/my_module.php', php),
-            options = {
+            environment = tools.createAsyncEnvironment({
                 include: function (path, promise) {
                     setTimeout(function () {
                         promise.resolve(tools.asyncTranspile(path, nowdoc(function () {/*<<<EOS
@@ -104,14 +101,13 @@ EOS
 */;}))); //jshint ignore:line
                     }, 10);
                 }
-            };
+            }),
+            engine = module({}, environment);
 
-        module(options).execute().then(when(done, function (result) {
-            expect(result.getNative()).to.equal(101);
-        }), done);
+        expect((await engine.execute()).getNative()).to.equal(101);
     });
 
-    it('should correctly handle reading a constant from an interface implemented by an asynchronously autoloaded class', function (done) {
+    it('should correctly handle reading a constant from an interface implemented by an asynchronously autoloaded class', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 spl_autoload_register(function ($class) {
@@ -122,7 +118,7 @@ return MyClass::MY_CONST;
 EOS
 */;}), //jshint ignore:line
             module = tools.asyncTranspile('/path/to/my_module.php', php),
-            options = {
+            environment = tools.createAsyncEnvironment({
                 include: function (path, promise) {
                     setTimeout(function () {
                         if (path === 'MyClass.php') {
@@ -148,10 +144,9 @@ EOS
                         }
                     }, 10);
                 }
-            };
+            }),
+            engine = module({}, environment);
 
-        module(options).execute().then(when(done, function (result) {
-            expect(result.getNative()).to.equal(21);
-        }), done);
+        expect((await engine.execute()).getNative()).to.equal(21);
     });
 });

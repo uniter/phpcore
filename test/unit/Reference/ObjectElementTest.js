@@ -80,12 +80,25 @@ describe('ObjectElementReference', function () {
 
     describe('asValue()', function () {
         it('should return the result from ArrayAccess::offsetGet(...)', async function () {
-            objectValue.callMethod.withArgs(
-                'offsetGet',
-                sinon.match([sinon.match.same(keyValue)])
-            ).returns(valueFactory.createString('my value'));
+            objectValue.callMethod
+                .withArgs(
+                    'offsetGet',
+                    sinon.match([sinon.match.same(keyValue)])
+                )
+                .returns(valueFactory.createString('my value'));
 
             expect((await element.asValue()).getNative()).to.equal('my value');
+        });
+
+        it('should return a rejected Future when ArrayAccess::offsetGet(...) raises an error', async function () {
+            objectValue.callMethod
+                .withArgs(
+                    'offsetGet',
+                    sinon.match([sinon.match.same(keyValue)])
+                )
+                .throws(new Error('Bang!'));
+
+            await expect(element.asValue().toPromise()).to.eventually.be.rejectedWith('Bang!');
         });
     });
 

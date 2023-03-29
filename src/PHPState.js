@@ -59,10 +59,8 @@ module.exports = require('pauser')([
     require('./Load/Loader'),
     require('./Load/LoadScope'),
     require('./Function/MethodContext'),
-    require('./MethodSpec'),
     require('./Module'),
     require('./ModuleFactory'),
-    require('./Core/Opcode/ModuleScope'),
     require('./NamespaceScope'),
     require('./Reference/Null'),
     require('./Reference/ObjectElement'),
@@ -139,10 +137,8 @@ module.exports = require('pauser')([
     Loader,
     LoadScope,
     MethodContext,
-    MethodSpec,
     Module,
     ModuleFactory,
-    ModuleScope,
     NamespaceScope,
     NullReference,
     ObjectElement,
@@ -347,6 +343,7 @@ module.exports = require('pauser')([
      * that relate to a specific internal PHP environment's state.
      *
      * @param {Runtime} runtime
+     * @param {EnvironmentFactory} environmentFactory
      * @param {GlobalStackHooker} globalStackHooker
      * @param {Object} installedBuiltinTypes
      * @param {Stream} stdin
@@ -359,6 +356,7 @@ module.exports = require('pauser')([
      */
     function PHPState(
         runtime,
+        environmentFactory,
         globalStackHooker,
         installedBuiltinTypes,
         stdin,
@@ -421,8 +419,9 @@ module.exports = require('pauser')([
 
                 return service;
             },
+            state = this,
+            environment = set('environment', environmentFactory.createEnvironment(state)),
             callFactory = get('call_factory'),
-            moduleFactory = new ModuleFactory(Module),
             translator = get('translator'),
             iniState = new INIState(),
             getConstant = this.getConstant.bind(this),
@@ -468,6 +467,7 @@ module.exports = require('pauser')([
                 controlFactory,
                 controlBridge,
                 controlScope,
+                get('namespace_context'),
                 flow,
                 valueFactory,
                 opcodePool,
@@ -552,8 +552,7 @@ module.exports = require('pauser')([
             )),
             variableFactory = get('variable_factory'),
             superGlobalScope = new SuperGlobalScope(variableFactory),
-            scopeFactory = new ScopeFactory(
-                ModuleScope,
+            scopeFactory = set('scope_factory', new ScopeFactory(
                 EngineScope,
                 LoadScope,
                 Scope,
@@ -566,32 +565,14 @@ module.exports = require('pauser')([
                 valueFactory,
                 variableFactory,
                 referenceFactory
-            ),
-            functionFactory = set('function_factory', new FunctionFactory(
-                MethodSpec,
-                scopeFactory,
-                callFactory,
-                valueFactory,
-                callStack,
-                flow,
-                controlBridge,
-                controlScope
             )),
-            closureFactory = new ClosureFactory(functionFactory, valueFactory, callStack, Closure),
+            moduleFactory = new ModuleFactory(Module, scopeFactory),
             globalNamespace = get('global_namespace'),
             // The global/default module (not e.g. the same as the command line module).
-            globalModule = moduleFactory.create(null),
+            globalModule = moduleFactory.createGlobal(globalNamespace),
             // "Invisible" global namespace scope, not defined by any code.
-            globalNamespaceScope = set('global_namespace_scope', new NamespaceScope(
-                scopeFactory,
-                globalNamespace,
-                valueFactory,
-                callStack,
-                globalModule,
-                globalNamespace,
-                true
-            )),
-            globalScope,
+            globalNamespaceScope = set('global_namespace_scope', globalModule.getTopLevelNamespaceScope()),
+            globalScope = get('global_scope'),
             ffiInternals,
             ffiClassInternalsClassFactory,
             ffiFunctionInternalsClassFactory,
@@ -603,7 +584,6 @@ module.exports = require('pauser')([
             evaluator,
             optionSet,
             output = get('output'),
-            state = this,
             hostScheduler = get('host_scheduler'),
             opcodeHandlerFactory = get('opcode_handler_factory'),
             coroutineFactory = get('coroutine_factory'),
@@ -615,10 +595,6 @@ module.exports = require('pauser')([
         controlScope.setCoroutineFactory(coroutineFactory);
         functionSignatureParser.setGlobalNamespace(globalNamespace);
         pauseFactory.setFutureFactory(futureFactory);
-        scopeFactory.setClosureFactory(closureFactory);
-        globalScope = scopeFactory.create();
-        scopeFactory.setGlobalNamespace(globalNamespace);
-        scopeFactory.setGlobalScope(globalScope);
         classAutoloader.setGlobalNamespace(globalNamespace);
         valueFactory.setCallStack(callStack);
         valueFactory.setElementProvider(elementProvider);
@@ -662,6 +638,7 @@ module.exports = require('pauser')([
             userland,
             flow,
             controlScope,
+            get('namespace_context'),
             includer,
             onceIncluder,
             evaluator,
@@ -669,7 +646,6 @@ module.exports = require('pauser')([
             get('value_provider'),
             referenceFactory,
             controlFactory,
-            pauseFactory,
             futureFactory,
             callFactory,
             callStack,
@@ -687,7 +663,8 @@ module.exports = require('pauser')([
             stdout,
             traceFormatter,
             translator,
-            state
+            state,
+            environment
         );
         ffiClassInternalsClassFactory = new FFIClassInternalsClassFactory(
             ffiInternals,
@@ -790,6 +767,10 @@ module.exports = require('pauser')([
          * @type {ElementProvider}
          */
         this.elementProvider = elementProvider;
+        /**
+         * @type {Environment}
+         */
+        this.environment = environment;
         this.errorReporting = errorReporting;
         /**
          * @type {Flow}
@@ -1258,6 +1239,15 @@ module.exports = require('pauser')([
          */
         getElementProvider: function () {
             return this.elementProvider;
+        },
+
+        /**
+         * Fetches the Environment for this state.
+         *
+         * @returns {Environment}
+         */
+        getEnvironment: function () {
+            return this.environment;
         },
 
         /**

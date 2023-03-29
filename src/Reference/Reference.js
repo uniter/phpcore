@@ -71,7 +71,12 @@ _.extend(Reference.prototype, {
      * {@inheritdoc}
      */
     asValue: function () {
-        return this.getValue();
+        var reference = this;
+
+        // Ensure that any errors raised when fetching result in a rejected Future.
+        return reference.flow.maybeFuturise(function () {
+            return reference.getValue();
+        });
     },
 
     /**
@@ -249,9 +254,7 @@ _.extend(Reference.prototype, {
     setValue: throwUnimplemented('setValue'),
 
     /**
-     * Derives a promise of the PHP value being referred to (shared interface with Future).
-     *
-     * @returns {Promise<Reference>}
+     * {@inheritdoc}
      */
     toPromise: function () {
         return Promise.resolve(this);

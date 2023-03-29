@@ -31,9 +31,11 @@ var _ = require('microdash'),
  */
 module.exports = function (internals) {
     var callStack = internals.callStack,
+        environment = internals.environment,
         evaluator = internals.evaluator,
         flow = internals.flow,
         includer = internals.includer,
+        namespaceContext = internals.namespaceContext,
         onceIncluder = internals.onceIncluder,
         opcodeHandlerFactory = internals.opcodeHandlerFactory,
         optionSet = internals.optionSet,
@@ -143,7 +145,7 @@ module.exports = function (internals) {
         callFunction: internals.typeHandler(
             'string name, snapshot ...argReferences : ref|val',
             function (name, argReferences) {
-                var namespaceScope = callStack.getCurrentNamespaceScope(),
+                var namespaceScope = namespaceContext.getEffectiveNamespaceScope(),
                     barewordString = valueFactory.createBarewordString(name, namespaceScope);
 
                 return barewordString.call(argReferences);
@@ -329,7 +331,7 @@ module.exports = function (internals) {
          * Used by bareword syntax, e.g. "MyClass::...".
          */
         createBareword: function (nativeValue) {
-            var namespaceScope = callStack.getCurrentNamespaceScope();
+            var namespaceScope = namespaceContext.getEffectiveNamespaceScope();
 
             return valueFactory.createBarewordString(nativeValue, namespaceScope);
         },
@@ -355,7 +357,7 @@ module.exports = function (internals) {
          * @returns {ObjectValue}
          */
         createClosure: function (func, parametersSpecData, bindingsSpecData, isStatic, lineNumber) {
-            var namespaceScope = callStack.getCurrentNamespaceScope(),
+            var namespaceScope = namespaceContext.getEffectiveNamespaceScope(),
                 referenceBindings = {},
                 scope = callStack.getCurrentScope(),
                 valueBindings = {};
@@ -550,7 +552,7 @@ module.exports = function (internals) {
         eval: internals.typeHandler('val code', function (codeValue) {
             var code = codeValue.getNative();
 
-            return evaluator.eval(code, callStack.getCurrentModuleScope().getEnvironment());
+            return evaluator.eval(code, environment);
         }),
 
         /**
@@ -594,7 +596,7 @@ module.exports = function (internals) {
          * Used by `BAREWORD_CONSTANT` syntax.
          */
         getConstant: internals.typeHandler('string name : val', function (name) {
-            var namespaceScope = callStack.getCurrentNamespaceScope();
+            var namespaceScope = namespaceContext.getEffectiveNamespaceScope();
 
             return namespaceScope.getConstant(name);
         }),
@@ -710,7 +712,7 @@ module.exports = function (internals) {
          * @returns {StringValue}
          */
         getNamespaceName: function () {
-            return callStack.getCurrentNamespaceScope().getNamespaceName();
+            return namespaceContext.getEffectiveNamespaceScope().getNamespaceName();
         },
 
         /**
@@ -719,7 +721,7 @@ module.exports = function (internals) {
          * @returns {StringValue}
          */
         getPath: function () {
-            return valueFactory.createString(callStack.getCurrentModuleScope().getNormalisedPath());
+            return valueFactory.createString(namespaceContext.getNormalisedPath());
         },
 
         /**
@@ -728,7 +730,7 @@ module.exports = function (internals) {
          * @returns {StringValue}
          */
         getPathDirectory: function () {
-            var path = callStack.getCurrentNamespaceScope().getFilePath(),
+            var path = namespaceContext.getEffectiveNamespaceScope().getFilePath(),
                 directory = (path || '').replace(/(^|\/)[^\/]+$/, '');
 
             return valueFactory.createString(directory || '');
@@ -962,14 +964,13 @@ module.exports = function (internals) {
          */
         include: internals.typeHandler('val path : val', function (includedPathValue) {
             var enclosingScope = callStack.getCurrentScope(),
-                moduleScope = callStack.getCurrentModuleScope(),
                 includedPath = includedPathValue.getNative();
 
             return includer.include(
                 'include',
                 PHPError.E_WARNING, // For includes, only a warning is raised on failure.
-                moduleScope.getEnvironment(),
-                moduleScope.getModule(),
+                environment,
+                callStack.getCurrentModule(),
                 includedPath,
                 enclosingScope,
                 optionSet.getOptions()
@@ -989,14 +990,13 @@ module.exports = function (internals) {
          */
         includeOnce: internals.typeHandler('val path : val', function (includedPathValue) {
             var enclosingScope = callStack.getCurrentScope(),
-                moduleScope = callStack.getCurrentModuleScope(),
                 includedPath = includedPathValue.getNative(); // Guaranteed to be present by this point.
 
             return onceIncluder.includeOnce(
                 'include_once',
                 PHPError.E_WARNING, // For includes, only a warning is raised on failure.
-                moduleScope.getEnvironment(),
-                moduleScope.getModule(),
+                environment,
+                callStack.getCurrentModule(),
                 includedPath,
                 enclosingScope,
                 optionSet.getOptions()
@@ -1536,14 +1536,13 @@ module.exports = function (internals) {
          */
         require: internals.typeHandler('val path : val', function (includedPathValue) {
             var enclosingScope = callStack.getCurrentScope(),
-                moduleScope = callStack.getCurrentModuleScope(),
                 includedPath = includedPathValue.getNative();
 
             return includer.include(
                 'require',
                 PHPError.E_ERROR, // For requires, a fatal error is raised on failure.
-                moduleScope.getEnvironment(),
-                moduleScope.getModule(),
+                environment,
+                callStack.getCurrentModule(),
                 includedPath,
                 enclosingScope,
                 optionSet.getOptions()
@@ -1566,14 +1565,13 @@ module.exports = function (internals) {
          */
         requireOnce: internals.typeHandler('val path : val', function (includedPathValue) {
             var enclosingScope = callStack.getCurrentScope(),
-                moduleScope = callStack.getCurrentModuleScope(),
                 includedPath = includedPathValue.getNative();
 
             return onceIncluder.includeOnce(
                 'require_once',
                 PHPError.E_ERROR, // For requires, a fatal error is raised on failure.
-                moduleScope.getEnvironment(),
-                moduleScope.getModule(),
+                environment,
+                callStack.getCurrentModule(),
                 includedPath,
                 enclosingScope,
                 optionSet.getOptions()
@@ -1735,7 +1733,7 @@ module.exports = function (internals) {
                 // for pausing execution. Note that any other returned value will have no effect,
                 // as the tick call itself is not passed as an argument to any other opcode.
                 return tickFunction(
-                    callStack.getCurrentModuleScope().getNormalisedPath(),
+                    namespaceContext.getNormalisedPath(),
                     startLine,
                     startColumn,
                     endLine,

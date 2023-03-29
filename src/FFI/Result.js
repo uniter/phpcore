@@ -97,11 +97,17 @@ _.extend(Result.prototype, {
             return result.valueFactory.coerce(result.getSync());
         }
 
-        // Wait for the returned promise to resolve or reject before continuing
+        /*
+         * Wait for the returned promise to resolve or reject before continuing.
+         *
+         * Note that we must always create a Future here as Promises are always settled asynchronously,
+         * meaning that we cannot know the result ahead of time
+         * in order to check whether it is a ChainableInterface.
+         */
         return result.valueFactory.createFuture(function (resolve, reject) {
-            // Wait for the returned promise to resolve or reject before continuing
+            // Wait for the returned promise to resolve or reject before continuing.
             result.getAsync().then(function (resultValue) {
-                // Note that the result will still be coerced as above
+                // Note that the result will still be coerced as above.
                 resolve(resultValue);
             }, function (error) {
                 reject(error);

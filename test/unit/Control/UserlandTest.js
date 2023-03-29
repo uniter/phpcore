@@ -15,6 +15,7 @@ var expect = require('chai').expect,
     Call = require('../../../src/Call'),
     CallStack = require('../../../src/CallStack'),
     ControlScope = require('../../../src/Control/ControlScope'),
+    NamespaceContext = require('../../../src/Namespace/NamespaceContext'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     OpcodePool = require('../../../src/Core/Opcode/Opcode/OpcodePool'),
     Pause = require('../../../src/Control/Pause'),
@@ -30,6 +31,8 @@ describe('Userland', function () {
         createUserland,
         flow,
         futureFactory,
+        hostScheduler,
+        namespaceContext,
         opcodePool,
         pauseFactory,
         state,
@@ -48,6 +51,8 @@ describe('Userland', function () {
         controlScope = null;
         flow = null;
         futureFactory = null;
+        hostScheduler = null;
+        namespaceContext = null;
         opcodePool = null;
         pauseFactory = null;
         valueFactory = null;
@@ -58,14 +63,17 @@ describe('Userland', function () {
             call = sinon.createStubInstance(Call);
             callStack = sinon.createStubInstance(CallStack);
             controlScope = sinon.createStubInstance(ControlScope);
+            namespaceContext = sinon.createStubInstance(NamespaceContext);
             state = tools.createIsolatedState(mode, {
                 'call_stack': callStack,
-                'control_scope': controlScope
+                'control_scope': controlScope,
+                'namespace_context': namespaceContext
             });
             controlBridge = state.getControlBridge();
             controlFactory = state.getControlFactory();
             flow = state.getFlow();
             futureFactory = state.getFutureFactory();
+            hostScheduler = state.getHostScheduler();
             opcodePool = sinon.createStubInstance(OpcodePool);
             pauseFactory = state.getPauseFactory();
             valueFactory = state.getValueFactory();
@@ -79,6 +87,7 @@ describe('Userland', function () {
                 controlFactory,
                 controlBridge,
                 controlScope,
+                namespaceContext,
                 flow,
                 valueFactory,
                 opcodePool,
@@ -126,7 +135,7 @@ describe('Userland', function () {
                     }
 
                     pause = pauseFactory.createPause(function (resume) {
-                        setImmediate(function () {
+                        hostScheduler.queueMicrotask(function () {
                             resume(variable);
                         });
                     });
@@ -149,7 +158,7 @@ describe('Userland', function () {
                     }
 
                     pause = pauseFactory.createPause(function (resume) {
-                        setImmediate(function () {
+                        hostScheduler.queueMicrotask(function () {
                             resume(variable);
                         });
                     });
@@ -168,7 +177,11 @@ describe('Userland', function () {
 
                 await userland.enterIsolated(executor, namespaceScope).toPromise();
 
-                expect(namespaceScope.enter).to.have.been.calledBefore(executor);
+                expect(namespaceContext.enterNamespaceScope).to.have.been.calledOnce;
+                expect(namespaceContext.enterNamespaceScope).to.have.been.calledWith(
+                    sinon.match.same(namespaceScope)
+                );
+                expect(namespaceContext.enterNamespaceScope).to.have.been.calledBefore(executor);
             });
 
             it('should leave a NamespaceScope when given after calling the executor', async function () {
@@ -177,7 +190,11 @@ describe('Userland', function () {
 
                 await userland.enterIsolated(executor, namespaceScope).toPromise();
 
-                expect(namespaceScope.leave).to.have.been.calledAfter(executor);
+                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledOnce;
+                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledWith(
+                    sinon.match.same(namespaceScope)
+                );
+                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledAfter(executor);
             });
 
             it('should set an isolated Trace on the current call before calling the executor', async function () {
@@ -226,7 +243,7 @@ describe('Userland', function () {
                         }
 
                         pause = pauseFactory.createPause(function (resume, throwInto) {
-                            setImmediate(function () {
+                            hostScheduler.queueMicrotask(function () {
                                 throwInto(new Error('my error'));
                             });
                         });
@@ -250,7 +267,7 @@ describe('Userland', function () {
                         }
 
                         pause = pauseFactory.createPause(function (resume, throwInto) {
-                            setImmediate(function () {
+                            hostScheduler.queueMicrotask(function () {
                                 throwInto(futureFactory.createRejection(new Error('my error')));
                             });
                         });
@@ -284,7 +301,11 @@ describe('Userland', function () {
 
                 userland.enterIsolated(executor, namespaceScope);
 
-                expect(namespaceScope.enter).to.have.been.calledBefore(executor);
+                expect(namespaceContext.enterNamespaceScope).to.have.been.calledOnce;
+                expect(namespaceContext.enterNamespaceScope).to.have.been.calledWith(
+                    sinon.match.same(namespaceScope)
+                );
+                expect(namespaceContext.enterNamespaceScope).to.have.been.calledBefore(executor);
             });
 
             it('should leave a NamespaceScope when given after calling the executor', function () {
@@ -293,7 +314,11 @@ describe('Userland', function () {
 
                 userland.enterIsolated(executor, namespaceScope);
 
-                expect(namespaceScope.leave).to.have.been.calledAfter(executor);
+                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledOnce;
+                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledWith(
+                    sinon.match.same(namespaceScope)
+                );
+                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledAfter(executor);
             });
 
             it('should wrap errors in a rejected Future on failure', async function () {
@@ -308,6 +333,12 @@ describe('Userland', function () {
     });
 
     describe('enterTopLevel()', function () {
+        var namespaceScope;
+
+        beforeEach(function () {
+            namespaceScope = sinon.createStubInstance(NamespaceScope);
+        });
+
         describe('in async mode', function () {
             beforeEach(function () {
                 createUserland('async');
@@ -317,18 +348,24 @@ describe('Userland', function () {
                 var resultValue;
                 variable.setValue(valueFactory.createString('my result'));
 
-                resultValue = await userland.enterTopLevel(function () {
-                    return variable;
-                });
+                resultValue = await userland.enterTopLevel(
+                    function () {
+                        return variable;
+                    },
+                    namespaceScope
+                );
 
                 expect(resultValue.getNative()).to.equal('my result');
             });
 
-            it('should not catch errors on failure', function () {
-                return expect(
-                    userland.enterTopLevel(function () {
-                        throw new Error('Bang!');
-                    })
+            it('should not catch errors on failure', async function () {
+                await expect(
+                    userland.enterTopLevel(
+                        function () {
+                            throw new Error('Bang!');
+                        },
+                        namespaceScope
+                    )
                 ).to.eventually.be.rejectedWith('Bang!');
             });
 
@@ -337,23 +374,26 @@ describe('Userland', function () {
                     resultValue;
                 variable.setValue(valueFactory.createString('my result'));
 
-                resultValue = await userland.enterTopLevel(function () {
-                    var pause;
+                resultValue = await userland.enterTopLevel(
+                    function () {
+                        var pause;
 
-                    if (paused) {
-                        // Simulate a successful userland PHP resume.
-                        return callStack.resume.args[0][0];
-                    }
+                        if (paused) {
+                            // Simulate a successful userland PHP resume.
+                            return callStack.resume.args[0][0];
+                        }
 
-                    pause = pauseFactory.createPause(function (resume) {
-                        setImmediate(function () {
-                            resume(variable);
+                        pause = pauseFactory.createPause(function (resume) {
+                            hostScheduler.queueMicrotask(function () {
+                                resume(variable);
+                            });
                         });
-                    });
 
-                    paused = true;
-                    pause.now();
-                });
+                        paused = true;
+                        pause.now();
+                    },
+                    namespaceScope
+                );
 
                 expect(resultValue.getNative()).to.equal('my result');
             });
@@ -362,71 +402,80 @@ describe('Userland', function () {
                 var pause = null;
                 variable.setValue(valueFactory.createString('my result'));
 
-                await userland.enterTopLevel(function () {
-                    if (pause) {
-                        // Simulate a successful userland PHP resume.
-                        return callStack.resume.args[0][0];
-                    }
+                await userland.enterTopLevel(
+                    function () {
+                        if (pause) {
+                            // Simulate a successful userland PHP resume.
+                            return callStack.resume.args[0][0];
+                        }
 
-                    pause = pauseFactory.createPause(function (resume) {
-                        setImmediate(function () {
-                            resume(variable);
+                        pause = pauseFactory.createPause(function (resume) {
+                            hostScheduler.queueMicrotask(function () {
+                                resume(variable);
+                            });
                         });
-                    });
 
-                    pause.now();
-                });
+                        pause.now();
+                    },
+                    namespaceScope
+                );
 
                 expect(pause).to.be.an.instanceOf(Pause);
                 expect(controlScope.markPaused).to.have.been.calledOnce;
                 expect(controlScope.markPaused).to.have.been.calledWith(sinon.match.same(pause));
             });
 
-            it('should reject with the eventual error if a pause is raised and thrown into with an error', function () {
+            it('should reject with the eventual error if a pause is raised and thrown into with an error', async function () {
                 var paused = false;
 
-                return expect(
-                    userland.enterTopLevel(function () {
-                        var pause;
+                await expect(
+                    userland.enterTopLevel(
+                        function () {
+                            var pause;
 
-                        if (paused) {
-                            // Simulate a successful userland PHP throwInto.
-                            throw callStack.throwInto.args[0][0];
-                        }
+                            if (paused) {
+                                // Simulate a successful userland PHP throwInto.
+                                throw callStack.throwInto.args[0][0];
+                            }
 
-                        pause = pauseFactory.createPause(function (resume, throwInto) {
-                            setImmediate(function () {
-                                throwInto(new Error('my error'));
+                            pause = pauseFactory.createPause(function (resume, throwInto) {
+                                hostScheduler.queueMicrotask(function () {
+                                    throwInto(new Error('my error'));
+                                });
                             });
-                        });
 
-                        paused = true;
-                        pause.now();
-                    })
+                            paused = true;
+                            pause.now();
+                        },
+                        namespaceScope
+                    )
                 ).to.eventually.be.rejectedWith('my error');
             });
 
-            it('should reject with the eventual error if a pause is raised and thrown into with a future that eventually rejects', function () {
+            it('should reject with the eventual error if a pause is raised and thrown into with a future that eventually rejects', async function () {
                 var paused = false;
 
-                return expect(
-                    userland.enterTopLevel(function () {
-                        var pause;
+                await expect(
+                    userland.enterTopLevel(
+                        function () {
+                            var pause;
 
-                        if (paused) {
-                            // Simulate a successful userland PHP throwInto.
-                            throw futureFactory.createRejection(callStack.throwInto.args[0][0]);
-                        }
+                            if (paused) {
+                                // Simulate a successful userland PHP throwInto.
+                                throw futureFactory.createRejection(callStack.throwInto.args[0][0]);
+                            }
 
-                        pause = pauseFactory.createPause(function (resume, throwInto) {
-                            setImmediate(function () {
-                                throwInto(futureFactory.createRejection(new Error('my error')));
+                            pause = pauseFactory.createPause(function (resume, throwInto) {
+                                hostScheduler.queueMicrotask(function () {
+                                    throwInto(futureFactory.createRejection(new Error('my error')));
+                                });
                             });
-                        });
 
-                        paused = true;
-                        pause.now();
-                    })
+                            paused = true;
+                            pause.now();
+                        },
+                        namespaceScope
+                    )
                 ).to.eventually.be.rejectedWith('my error');
             });
         });
@@ -440,18 +489,24 @@ describe('Userland', function () {
                 var resultValue;
                 variable.setValue(valueFactory.createString('my result'));
 
-                resultValue = userland.enterTopLevel(function () {
-                    return variable;
-                });
+                resultValue = userland.enterTopLevel(
+                    function () {
+                        return variable;
+                    },
+                    namespaceScope
+                );
 
                 expect(resultValue.getNative()).to.equal('my result');
             });
 
             it('should not catch errors on failure', function () {
                 expect(function () {
-                    userland.enterTopLevel(function () {
-                        throw new Error('Bang!');
-                    });
+                    userland.enterTopLevel(
+                        function () {
+                            throw new Error('Bang!');
+                        },
+                        namespaceScope
+                    );
                 }).to.throw('Bang!');
             });
         });

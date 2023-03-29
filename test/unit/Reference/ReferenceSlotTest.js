@@ -16,17 +16,21 @@ var expect = require('chai').expect,
     Value = require('../../../src/Value').sync();
 
 describe('ReferenceSlot', function () {
-    var reference,
+    var flow,
+        futureFactory,
+        reference,
         referenceFactory,
         state,
         valueFactory;
 
     beforeEach(function () {
-        state = tools.createIsolatedState();
+        state = tools.createIsolatedState('async');
+        flow = state.getFlow();
+        futureFactory = state.getFutureFactory();
         referenceFactory = state.getReferenceFactory();
         valueFactory = state.getValueFactory();
 
-        reference = new ReferenceSlot(valueFactory, referenceFactory);
+        reference = new ReferenceSlot(valueFactory, referenceFactory, futureFactory, flow);
     });
 
     describe('asArrayElement()', function () {
@@ -49,6 +53,15 @@ describe('ReferenceSlot', function () {
             reference.setValue(valueFactory.createString('my value'));
 
             expect(await reference.asEventualNative().toPromise()).to.equal('my value');
+        });
+    });
+
+    describe('asValue()', function () {
+        it('should return the value of the slot', function () {
+            var value = valueFactory.createString('the native value of my var');
+            reference.setValue(value);
+
+            expect(reference.asValue()).to.equal(value);
         });
     });
 

@@ -11,11 +11,9 @@
 
 module.exports = require('pauser')([
     require('microdash'),
-    require('./PHPState'),
     require('./Stream')
 ], function (
     _,
-    PHPState,
     Stream
 ) {
     var hasOwn = {}.hasOwnProperty;
@@ -23,20 +21,16 @@ module.exports = require('pauser')([
     /**
      * PHPCore API encapsulator.
      *
-     * @param {class} Environment
      * @param {class} Engine
-     * @param {class} PHPState
      * @param {object} phpCommon
-     * @param {GlobalStackHooker} globalStackHooker
+     * @param {StateFactory} stateFactory
      * @param {string} mode
      * @constructor
      */
     function Runtime(
-        Environment,
         Engine,
-        PHPState,
         phpCommon,
-        globalStackHooker,
+        stateFactory,
         mode
     ) {
         // Check the mode given is valid
@@ -64,14 +58,6 @@ module.exports = require('pauser')([
          */
         this.Engine = Engine;
         /**
-         * @type {class}
-         */
-        this.Environment = Environment;
-        /**
-         * @type {GlobalStackHooker}
-         */
-        this.globalStackHooker = globalStackHooker;
-        /**
          * @type {string} One of: "async", "psync" or "sync"
          */
         this.mode = mode;
@@ -84,9 +70,9 @@ module.exports = require('pauser')([
          */
         this.phpCommon = phpCommon;
         /**
-         * @type {class}
+         * @type {StateFactory}
          */
-        this.PHPState = PHPState;
+        this.stateFactory = stateFactory;
     }
 
     _.extend(Runtime.prototype, {
@@ -247,7 +233,7 @@ module.exports = require('pauser')([
 
             _.each(addons, function (addon) {
                 if (typeof addon === 'function') {
-                    // Allow an addon to be defined as a function, to allow testing
+                    // Allow an addon to be defined as a function, to allow testing.
                     addon = addon();
                 }
 
@@ -264,9 +250,8 @@ module.exports = require('pauser')([
                 allBuiltins.bindingGroups = allBuiltins.bindingGroups.concat(addon.bindingGroups || []);
             });
 
-            state = new runtime.PHPState(
+            state = runtime.stateFactory.createState(
                 runtime,
-                runtime.globalStackHooker,
                 allBuiltins,
                 stdin,
                 stdout,
@@ -276,7 +261,7 @@ module.exports = require('pauser')([
                 options
             );
 
-            return new runtime.Environment(state);
+            return state.getEnvironment();
         },
 
         /**

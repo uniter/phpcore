@@ -108,6 +108,14 @@ describe('ElementReference', function () {
 
             expect(element.asValue().getType()).to.equal('null');
         });
+
+        it('should return a rejected Future when a reference assigned raises an error', async function () {
+            var reference = sinon.createStubInstance(Reference);
+            reference.getValue.throws(new Error('Bang!'));
+            element.setReference(reference);
+
+            await expect(element.asValue().toPromise()).to.eventually.be.rejectedWith('Bang!');
+        });
     });
 
     describe('getNative()', function () {

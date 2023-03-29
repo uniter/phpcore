@@ -107,7 +107,7 @@ EOS
 
         await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
-            'PHP Fatal error: Uncaught Error: Cannot access parent:: when current class scope has no parent in /path/to/my_module.php on line 7'
+            'PHP Fatal error: Uncaught Error: Cannot access parent:: when current class scope has no parent in /path/to/my_module.php on line 4'
         );
     });
 });

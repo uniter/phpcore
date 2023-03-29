@@ -18,6 +18,7 @@ var expect = require('chai').expect,
     ClassAutoloader = require('../../../../src/ClassAutoloader').sync(),
     ControlFactory = require('../../../../src/Control/ControlFactory'),
     ControlScope = require('../../../../src/Control/ControlScope'),
+    Environment = require('../../../../src/Environment'),
     ErrorConfiguration = require('../../../../src/Error/ErrorConfiguration'),
     ErrorPromoter = require('../../../../src/Error/ErrorPromoter'),
     ErrorReporting = require('../../../../src/Error/ErrorReporting'),
@@ -27,13 +28,13 @@ var expect = require('chai').expect,
     Future = require('../../../../src/Control/Future'),
     FutureFactory = require('../../../../src/Control/FutureFactory'),
     Namespace = require('../../../../src/Namespace').sync(),
+    NamespaceContext = require('../../../../src/Namespace/NamespaceContext'),
     Includer = require('../../../../src/Load/Includer').sync(),
     INIState = require('../../../../src/INIState'),
     Internals = require('../../../../src/FFI/Internals/Internals'),
     OnceIncluder = require('../../../../src/Load/OnceIncluder').sync(),
     OptionSet = require('../../../../src/OptionSet'),
     Output = require('../../../../src/Output/Output'),
-    PauseFactory = require('../../../../src/Control/PauseFactory'),
     PHPState = require('../../../../src/PHPState').sync(),
     Reference = require('../../../../src/Reference/Reference'),
     ReferenceFactory = require('../../../../src/ReferenceFactory').sync(),
@@ -56,6 +57,7 @@ describe('FFI Internals', function () {
         controlFactory,
         controlScope,
         createInternals,
+        environment,
         errorConfiguration,
         errorPromoter,
         errorReporting,
@@ -67,10 +69,10 @@ describe('FFI Internals', function () {
         includer,
         iniState,
         internals,
+        namespaceContext,
         onceIncluder,
         optionSet,
         output,
-        pauseFactory,
         realFutureFactory,
         realState,
         realValueFactory,
@@ -96,6 +98,7 @@ describe('FFI Internals', function () {
         classAutoloader = sinon.createStubInstance(ClassAutoloader);
         controlFactory = sinon.createStubInstance(ControlFactory);
         controlScope = sinon.createStubInstance(ControlScope);
+        environment = sinon.createStubInstance(Environment);
         errorConfiguration = sinon.createStubInstance(ErrorConfiguration);
         errorPromoter = sinon.createStubInstance(ErrorPromoter);
         errorReporting = sinon.createStubInstance(ErrorReporting);
@@ -106,10 +109,10 @@ describe('FFI Internals', function () {
         globalScope = sinon.createStubInstance(Scope);
         includer = sinon.createStubInstance(Includer);
         iniState = sinon.createStubInstance(INIState);
+        namespaceContext = sinon.createStubInstance(NamespaceContext);
         onceIncluder = sinon.createStubInstance(OnceIncluder);
         optionSet = sinon.createStubInstance(OptionSet);
         output = sinon.createStubInstance(Output);
-        pauseFactory = sinon.createStubInstance(PauseFactory);
         referenceFactory = sinon.createStubInstance(ReferenceFactory);
         runtime = sinon.createStubInstance(Runtime);
         state = sinon.createStubInstance(PHPState);
@@ -127,6 +130,7 @@ describe('FFI Internals', function () {
                 userland,
                 flow,
                 controlScope,
+                namespaceContext,
                 includer,
                 onceIncluder,
                 evaluator,
@@ -134,7 +138,6 @@ describe('FFI Internals', function () {
                 valueProvider,
                 referenceFactory,
                 controlFactory,
-                pauseFactory,
                 futureFactory,
                 callFactory,
                 callStack,
@@ -152,7 +155,8 @@ describe('FFI Internals', function () {
                 stdout,
                 traceFormatter,
                 translator,
-                state
+                state,
+                environment
             );
         };
         createInternals('async');
@@ -177,6 +181,10 @@ describe('FFI Internals', function () {
 
         it('should expose the ControlScope publicly', function () {
             expect(internals.controlScope).to.equal(controlScope);
+        });
+
+        it('should expose the Environment publicly', function () {
+            expect(internals.environment).to.equal(environment);
         });
 
         it('should expose the ErrorConfiguration publicly', function () {
@@ -223,6 +231,10 @@ describe('FFI Internals', function () {
             expect(internals.mode).to.equal('async');
         });
 
+        it('should expose the NamespaceContext publicly', function () {
+            expect(internals.namespaceContext).to.equal(namespaceContext);
+        });
+
         it('should expose the OnceIncluder publicly', function () {
             expect(internals.onceIncluder).to.equal(onceIncluder);
         });
@@ -233,10 +245,6 @@ describe('FFI Internals', function () {
 
         it('should expose the Output publicly', function () {
             expect(internals.output).to.equal(output);
-        });
-
-        it('should expose the PauseFactory publicly', function () {
-            expect(internals.pauseFactory).to.equal(pauseFactory);
         });
 
         it('should expose the ReferenceFactory publicly', function () {

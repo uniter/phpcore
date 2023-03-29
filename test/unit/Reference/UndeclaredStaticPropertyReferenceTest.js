@@ -77,11 +77,9 @@ describe('UndeclaredStaticPropertyReference', function () {
         });
     });
 
-    describe('asFuture()', function () {
-        it('should raise an error', function () {
-            expect(function () {
-                reference.asValue();
-            }).to.throw(
+    describe('asValue()', function () {
+        it('should return a rejected Future', async function () {
+            await expect(reference.asValue().toPromise()).to.eventually.be.rejectedWith(
                 'Fake PHP Fatal error for #core.undeclared_static_property with {"propertyName":"myProperty"}'
             );
         });

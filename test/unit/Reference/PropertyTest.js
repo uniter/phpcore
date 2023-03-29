@@ -89,6 +89,22 @@ describe('PropertyReference', function () {
         });
     });
 
+    describe('asValue()', function () {
+        it('should return the value assigned', function () {
+            property.initialise(propertyValue);
+
+            expect(property.asValue()).to.equal(propertyValue);
+        });
+
+        it('should return a rejected Future when a reference assigned raises an error', async function () {
+            var reference = sinon.createStubInstance(Reference);
+            reference.getValue.throws(new Error('Bang!'));
+            property.setReference(reference);
+
+            await expect(property.asValue().toPromise()).to.eventually.be.rejectedWith('Bang!');
+        });
+    });
+
     describe('getExternalName()', function () {
         it('should prefix a private property\'s name with its visibility', function () {
             createProperty('private');

@@ -14,6 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools'),
     CallStack = require('../../../src/CallStack'),
     CoroutineFactory = require('../../../src/Control/CoroutineFactory'),
+    NamespaceContext = require('../../../src/Namespace/NamespaceContext'),
     RealCoroutine = require('../../../src/Control/Coroutine'),
     Scope = require('../../../src/Scope').sync();
 
@@ -21,6 +22,7 @@ describe('CoroutineFactory', function () {
     var callStack,
         Coroutine,
         factory,
+        namespaceContext,
         scope,
         state;
 
@@ -29,12 +31,13 @@ describe('CoroutineFactory', function () {
         state = tools.createIsolatedState('async', {
             'call_stack': callStack
         });
+        namespaceContext = sinon.createStubInstance(NamespaceContext);
         Coroutine = sinon.stub();
         scope = sinon.createStubInstance(Scope);
 
         callStack.getCurrentScope.returns(scope);
 
-        factory = new CoroutineFactory(Coroutine, callStack);
+        factory = new CoroutineFactory(Coroutine, callStack, namespaceContext);
     });
 
     describe('createCoroutine()', function () {
@@ -49,7 +52,10 @@ describe('CoroutineFactory', function () {
             factory.createCoroutine();
 
             expect(Coroutine).to.have.been.calledOnce;
-            expect(Coroutine).to.have.been.calledWith(sinon.match.same(callStack));
+            expect(Coroutine).to.have.been.calledWith(
+                sinon.match.same(callStack),
+                sinon.match.same(namespaceContext)
+            );
         });
 
         it('should return the created Coroutine', function () {

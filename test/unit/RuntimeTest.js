@@ -11,38 +11,32 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
-    GlobalStackHooker = require('../../src/FFI/Stack/GlobalStackHooker'),
+    Environment = require('../../src/Environment'),
+    PHPState = require('../../src/PHPState').sync(),
     Runtime = require('../../src/Runtime').sync(),
     Scope = require('../../src/Scope').sync(),
-    Stream = require('../../src/Stream');
+    Stream = require('../../src/Stream'),
+    StateFactory = require('../../src/Runtime/StateFactory');
 
 describe('Runtime', function () {
     var createRuntime,
         Engine,
-        Environment,
-        globalStackHooker,
-        options,
+        environment,
         phpCommon,
-        PHPState,
         runtime,
-        state;
+        state,
+        stateFactory;
 
     beforeEach(function () {
-        Environment = sinon.stub();
         Engine = sinon.stub();
-        globalStackHooker = sinon.createStubInstance(GlobalStackHooker);
+        environment = sinon.createStubInstance(Environment);
         phpCommon = {};
-        PHPState = sinon.stub();
+        state = sinon.createStubInstance(PHPState);
+        stateFactory = sinon.createStubInstance(StateFactory);
 
-        Environment.callsFake(function (newState) {
-            state = newState;
-        });
-        Environment.prototype.getOptions = function () {
-            return state.getOptions();
-        };
-        PHPState.callsFake(function (
+        state.getEnvironment.returns(environment);
+        stateFactory.createState.callsFake(function (
             runtime,
-            globalStackHooker,
             installedBuiltinTypes,
             stdin,
             stdout,
@@ -51,21 +45,18 @@ describe('Runtime', function () {
             optionGroups,
             newOptions
         ) {
-            options = newOptions;
+            environment.getOptions.returns(newOptions);
+
+            return state;
         });
-        PHPState.prototype.getOptions = function () {
-            return options;
-        };
 
         createRuntime = function (mode) {
             mode = mode || 'async';
 
             runtime = new Runtime(
-                Environment,
                 Engine,
-                PHPState,
                 phpCommon,
-                globalStackHooker,
+                stateFactory,
                 mode
             );
         };
@@ -103,7 +94,7 @@ describe('Runtime', function () {
 
                 expect(Engine).to.have.been.calledOnce;
                 expect(Engine).to.have.been.calledWith(
-                    sinon.match.instanceOf(Environment),
+                    sinon.match.same(environment),
                     null,
                     sinon.match.same(phpCommon),
                     {option1: 21},
@@ -134,7 +125,7 @@ describe('Runtime', function () {
 
                 expect(Engine).to.have.been.calledOnce;
                 expect(Engine).to.have.been.calledWith(
-                    sinon.match.instanceOf(Environment),
+                    sinon.match.same(environment),
                     null,
                     sinon.match.same(phpCommon),
                     {option1: 21},
@@ -162,7 +153,7 @@ describe('Runtime', function () {
 
                 expect(Engine).to.have.been.calledOnce;
                 expect(Engine).to.have.been.calledWith(
-                    sinon.match.instanceOf(Environment),
+                    sinon.match.same(environment),
                     null,
                     sinon.match.same(phpCommon),
                     {'first-option': 21, 'second-option': 101},
@@ -173,11 +164,11 @@ describe('Runtime', function () {
             it('should return a factory function that provides overridable default options', function () {
                 var subFactory = factory.using({'my-option': 21});
 
-                subFactory({'my-option': 101}); // Overrides the default `my-option` with value 21
+                subFactory({'my-option': 101}); // Overrides the default `my-option` with value 21.
 
                 expect(Engine).to.have.been.calledOnce;
                 expect(Engine).to.have.been.calledWith(
-                    sinon.match.instanceOf(Environment),
+                    sinon.match.same(environment),
                     null,
                     sinon.match.same(phpCommon),
                     {'my-option': 101},
@@ -191,11 +182,11 @@ describe('Runtime', function () {
                     .using({'my-option': 'second value', 'your-option': 'unchanged value'})
                     .using({'my-option': 'third value'});
 
-                subFactory({'my-option': 'final value'}); // Overrides the default `my-option` with value 'final option'
+                subFactory({'my-option': 'final value'}); // Overrides the default `my-option` with value 'final option'.
 
                 expect(Engine).to.have.been.calledOnce;
                 expect(Engine).to.have.been.calledWith(
-                    sinon.match.instanceOf(Environment),
+                    sinon.match.same(environment),
                     null,
                     sinon.match.same(phpCommon),
                     {
@@ -256,7 +247,7 @@ describe('Runtime', function () {
             });
 
             it('should support no arguments being passed (although pointless usage)', function () {
-                var subFactory = factory.using(); // No args passed to .using(...)
+                var subFactory = factory.using(); // No args passed to .using(...).
 
                 subFactory({
                     'my-option': 'my value'
@@ -278,7 +269,7 @@ describe('Runtime', function () {
                     'path': 'my/path'
                 });
 
-                subFactory(); // No args passed to the factory function
+                subFactory(); // No args passed to the factory function.
 
                 expect(Engine).to.have.been.calledOnce;
                 expect(Engine).to.have.been.calledWith(
@@ -351,8 +342,8 @@ describe('Runtime', function () {
                 myOption: 21
             });
 
-            expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState.args[0][7][0]()).to.deep.equal({yourOption: 1001});
+            expect(stateFactory.createState).to.have.been.calledOnce;
+            expect(stateFactory.createState.args[0][6][0]()).to.deep.equal({yourOption: 1001});
         });
     });
 
@@ -362,10 +353,9 @@ describe('Runtime', function () {
                 myOption: 21
             });
 
-            expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState).to.have.been.calledWith(
+            expect(stateFactory.createState).to.have.been.calledOnce;
+            expect(stateFactory.createState).to.have.been.calledWith(
                 sinon.match.same(runtime),
-                sinon.match.same(globalStackHooker),
                 {
                     bindingGroups: [],
                     classGroups: [],
@@ -403,7 +393,7 @@ describe('Runtime', function () {
             runtime.createEnvironment({
                 myOption: 21
             }, [
-                // Standard addon using a plain object
+                // Standard addon using a plain object.
                 {
                     bindingGroups: [bindingGroup],
                     classGroups: [classGroup],
@@ -411,7 +401,7 @@ describe('Runtime', function () {
                     constantGroups: [constantGroup]
                 },
                 function () {
-                    // Addons may also be a function that is called to fetch the addon data object
+                    // Addons may also be a function that is called to fetch the addon data object.
 
                     return {
                         defaultINIGroups: [defaultINIGroup],
@@ -425,10 +415,9 @@ describe('Runtime', function () {
                 }
             ]);
 
-            expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState).to.have.been.calledWith(
+            expect(stateFactory.createState).to.have.been.calledOnce;
+            expect(stateFactory.createState).to.have.been.calledWith(
                 sinon.match.same(runtime),
-                sinon.match.same(globalStackHooker),
                 {
                     bindingGroups: [bindingGroup],
                     classGroups: [classGroup],
@@ -456,25 +445,24 @@ describe('Runtime', function () {
             runtime.createEnvironment({
                 myOption: 21
             }, [
-                // Standard addon using a plain object
+                // Standard addon using a plain object.
                 {
                     bindingGroups: [sinon.stub()]
                 },
                 function () {
-                    // Addons may also be a function that is called to fetch the addon data object
+                    // Addons may also be a function that is called to fetch the addon data object.
 
                     return {
                         functionGroups: [sinon.stub()]
                     };
                 }
             ]);
-            PHPState.resetHistory();
+            stateFactory.createState.resetHistory();
             runtime.createEnvironment({myOption: 101});
 
-            expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState).to.have.been.calledWith(
+            expect(stateFactory.createState).to.have.been.calledOnce;
+            expect(stateFactory.createState).to.have.been.calledWith(
                 sinon.match.same(runtime),
-                sinon.match.same(globalStackHooker),
                 {
                     bindingGroups: [],
                     classGroups: [],
@@ -496,22 +484,7 @@ describe('Runtime', function () {
             );
         });
 
-        it('should create a new Environment instance correctly', function () {
-            var state = sinon.createStubInstance(PHPState);
-            PHPState.returns(state);
-
-            runtime.createEnvironment({option1: 21});
-
-            expect(Environment).to.have.been.calledOnce;
-            expect(Environment).to.have.been.calledWith(
-                sinon.match.same(state)
-            );
-        });
-
-        it('should return the created Environment', function () {
-            var environment = sinon.createStubInstance(Environment);
-            Environment.returns(environment);
-
+        it('should return the created Environment from the PHPState', function () {
             expect(runtime.createEnvironment()).to.equal(environment);
         });
     });
@@ -545,9 +518,8 @@ describe('Runtime', function () {
             });
             runtime.createEnvironment();
 
-            expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState).to.have.been.calledWith(
-                sinon.match.any,
+            expect(stateFactory.createState).to.have.been.calledOnce;
+            expect(stateFactory.createState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [],
@@ -576,9 +548,8 @@ describe('Runtime', function () {
             });
             runtime.createEnvironment();
 
-            expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState).to.have.been.calledWith(
-                sinon.match.any,
+            expect(stateFactory.createState).to.have.been.calledOnce;
+            expect(stateFactory.createState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [],
@@ -612,9 +583,8 @@ describe('Runtime', function () {
             });
             runtime.createEnvironment();
 
-            expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState).to.have.been.calledWith(
-                sinon.match.any,
+            expect(stateFactory.createState).to.have.been.calledOnce;
+            expect(stateFactory.createState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [
@@ -643,9 +613,8 @@ describe('Runtime', function () {
             });
             runtime.createEnvironment();
 
-            expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState).to.have.been.calledWith(
-                sinon.match.any,
+            expect(stateFactory.createState).to.have.been.calledOnce;
+            expect(stateFactory.createState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [],
@@ -674,9 +643,8 @@ describe('Runtime', function () {
             });
             runtime.createEnvironment();
 
-            expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState).to.have.been.calledWith(
-                sinon.match.any,
+            expect(stateFactory.createState).to.have.been.calledOnce;
+            expect(stateFactory.createState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [],
@@ -705,9 +673,8 @@ describe('Runtime', function () {
             });
             runtime.createEnvironment();
 
-            expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState).to.have.been.calledWith(
-                sinon.match.any,
+            expect(stateFactory.createState).to.have.been.calledOnce;
+            expect(stateFactory.createState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [],
@@ -736,9 +703,8 @@ describe('Runtime', function () {
             });
             runtime.createEnvironment();
 
-            expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState).to.have.been.calledWith(
-                sinon.match.any,
+            expect(stateFactory.createState).to.have.been.calledOnce;
+            expect(stateFactory.createState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [],
@@ -767,9 +733,8 @@ describe('Runtime', function () {
             });
             runtime.createEnvironment();
 
-            expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState).to.have.been.calledWith(
-                sinon.match.any,
+            expect(stateFactory.createState).to.have.been.calledOnce;
+            expect(stateFactory.createState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [],
@@ -804,9 +769,8 @@ describe('Runtime', function () {
             });
             runtime.createEnvironment();
 
-            expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState).to.have.been.calledWith(
-                sinon.match.any,
+            expect(stateFactory.createState).to.have.been.calledOnce;
+            expect(stateFactory.createState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [],
@@ -828,7 +792,7 @@ describe('Runtime', function () {
         it('should support a function being passed in that will return the builtins object', function () {
             var MyClass = sinon.stub();
 
-            runtime.install(function () { // Pass a function in instead of the object directly
+            runtime.install(function () { // Pass a function in instead of the object directly.
                 return {
                     classes: {
                         MyClass: MyClass
@@ -837,9 +801,8 @@ describe('Runtime', function () {
             });
             runtime.createEnvironment();
 
-            expect(PHPState).to.have.been.calledOnce;
-            expect(PHPState).to.have.been.calledWith(
-                sinon.match.any,
+            expect(stateFactory.createState).to.have.been.calledOnce;
+            expect(stateFactory.createState).to.have.been.calledWith(
                 sinon.match.any,
                 {
                     bindingGroups: [],

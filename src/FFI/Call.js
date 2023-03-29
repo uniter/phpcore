@@ -78,15 +78,6 @@ _.extend(Call.prototype, {
     },
 
     /**
-     * Fetches the module scope of the module this call occurred in
-     *
-     * @returns {ModuleScope|null}
-     */
-    getModuleScope: function () {
-        return null;
-    },
-
-    /**
      * Fetches the scope inside the called function
      *
      * @returns {Scope}

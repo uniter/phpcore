@@ -116,6 +116,13 @@ describe('AccessorReference', function () {
             expect(value.getType()).to.equal('int');
             expect(value.getNative()).to.equal(101);
         });
+
+        it('should return a rejected Future when the getter raises an error', async function () {
+            valueGetter.throws(new Error('Bang!'));
+            createReference();
+
+            await expect(reference.asValue().toPromise()).to.eventually.be.rejectedWith('Bang!');
+        });
     });
 
     describe('clearReference()', function () {

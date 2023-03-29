@@ -137,15 +137,6 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Enters this namespace scope
-         */
-        enter: function () {
-            var namespaceScope = this;
-
-            namespaceScope.module.enterNamespaceScope(namespaceScope);
-        },
-
-        /**
          * Fetches a class with the given name relative to this namespace scope,
          * autoloading if necessary
          *
@@ -287,15 +278,6 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches the module scope this NamespaceScope exists in
-         *
-         * @returns {ModuleScope}
-         */
-        getModuleScope: function () {
-            return this.module.getScope();
-        },
-
-        /**
          * Fetches the namespace this scope is in
          *
          * @returns {Namespace}
@@ -345,15 +327,6 @@ module.exports = require('pauser')([
          */
         isGlobal: function () {
             return this.global;
-        },
-
-        /**
-         * Leaves this namespace scope, returning to the previous one
-         */
-        leave: function () {
-            var namespaceScope = this;
-
-            namespaceScope.module.leaveNamespaceScope(namespaceScope);
         },
 
         /**

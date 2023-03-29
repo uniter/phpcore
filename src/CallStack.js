@@ -129,41 +129,6 @@ _.extend(CallStack.prototype, {
     },
 
     /**
-     * Fetches the module scope of the current call
-     *
-     * @returns {ModuleScope}
-     */
-    getCurrentModuleScope: function () {
-        return this.getCurrent().getModuleScope();
-    },
-
-    /**
-     * Fetches the current NamespaceScope of the ModuleScope of the current call
-     *
-     * @returns {NamespaceScope}
-     */
-    getCurrentNamespaceScope: function () {
-        var stack = this,
-            currentCall = stack.getCurrent(),
-            currentCallNamespaceScope = currentCall.getNamespaceScope(),
-            moduleScope;
-
-        if (currentCallNamespaceScope.isGlobal()) {
-            return currentCallNamespaceScope;
-        }
-
-        moduleScope = this.getCurrentModuleScope();
-
-        if (currentCallNamespaceScope === moduleScope.getTopLevelNamespaceScope()) {
-            // We are at the top level of a module, use the ModuleScope's current NamespaceScope
-            return moduleScope.getCurrentNamespaceScope();
-        }
-
-        // Otherwise we are inside a nested scope, so use the NamespaceScope it was defined in
-        return currentCallNamespaceScope;
-    },
-
-    /**
      * Fetches the scope of the current call
      *
      * @returns {Scope|null}

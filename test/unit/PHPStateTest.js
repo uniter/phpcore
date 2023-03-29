@@ -16,6 +16,8 @@ var expect = require('chai').expect,
     ControlBridge = require('../../src/Control/ControlBridge'),
     ControlFactory = require('../../src/Control/ControlFactory'),
     ControlScope = require('../../src/Control/ControlScope'),
+    Environment = require('../../src/Environment'),
+    EnvironmentFactory = require('../../src/Runtime/EnvironmentFactory'),
     ErrorReporting = require('../../src/Error/ErrorReporting'),
     Exception = phpCommon.Exception,
     FFIInternals = require('../../src/FFI/Internals/Internals'),
@@ -35,7 +37,9 @@ var expect = require('chai').expect,
     ValueProvider = require('../../src/Value/ValueProvider');
 
 describe('PHPState', function () {
-    var globalStackHooker,
+    var environment,
+        environmentFactory,
+        globalStackHooker,
         installedBuiltinTypes,
         state,
         stderr,
@@ -45,6 +49,8 @@ describe('PHPState', function () {
         valueFactory;
 
     beforeEach(function () {
+        environment = sinon.createStubInstance(Environment);
+        environmentFactory = sinon.createStubInstance(EnvironmentFactory);
         globalStackHooker = sinon.createStubInstance(GlobalStackHooker);
         installedBuiltinTypes = {};
         stdin = sinon.createStubInstance(Stream);
@@ -53,8 +59,12 @@ describe('PHPState', function () {
         runtime = sinon.createStubInstance(Runtime);
         valueFactory = tools.createIsolatedState().getValueFactory();
 
+        environmentFactory.createEnvironment
+            .returns(environment);
+
         state = new PHPState(
             runtime,
+            environmentFactory,
             globalStackHooker,
             installedBuiltinTypes,
             stdin,
@@ -65,9 +75,17 @@ describe('PHPState', function () {
     });
 
     describe('constructor()', function () {
+        it('should correctly create the Environment', function () {
+            expect(environmentFactory.createEnvironment).to.have.been.calledOnce;
+            expect(environmentFactory.createEnvironment).to.have.been.calledWith(
+                sinon.match.same(state)
+            );
+        });
+
         it('should install non-namespaced classes into the global namespace', function () {
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {
                     classes: {
@@ -89,6 +107,7 @@ describe('PHPState', function () {
             var MyClass = sinon.stub();
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {
                     classes: {
@@ -111,6 +130,7 @@ describe('PHPState', function () {
             var AClass;
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {
                     classes: {
@@ -139,6 +159,7 @@ describe('PHPState', function () {
         it('should allow function group factories to access constants early', async function () {
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {
                     constantGroups: [
@@ -171,6 +192,7 @@ describe('PHPState', function () {
         it('should define untyped functions correctly with a FunctionSpec', function () {
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {
                     functionGroups: [
@@ -198,6 +220,7 @@ describe('PHPState', function () {
                 parameters;
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {
                     functionGroups: [
@@ -230,6 +253,7 @@ describe('PHPState', function () {
         it('should allow functions to be aliased', async function () {
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {
                     functionGroups: [
@@ -257,6 +281,7 @@ describe('PHPState', function () {
         it('should install any option groups as options', function () {
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {},
                 stdin,
@@ -279,6 +304,7 @@ describe('PHPState', function () {
         it('should install any initial options as options', function () {
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {},
                 stdin,
@@ -297,6 +323,7 @@ describe('PHPState', function () {
         it('should install any binding groups', function () {
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {
                     bindingGroups: [
@@ -321,6 +348,7 @@ describe('PHPState', function () {
         it('should install any default INI options, allowing access to constants early', function () {
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {
                     constantGroups: [
@@ -353,6 +381,7 @@ describe('PHPState', function () {
                 internals;
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {
                     initialiserGroups: [initialiser1, initialiser2]
@@ -373,6 +402,7 @@ describe('PHPState', function () {
         it('should load the state inside a Coroutine', function (done) {
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {
                     initialiserGroups: [
@@ -394,6 +424,7 @@ describe('PHPState', function () {
             var opcodeHandler = sinon.stub();
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {
                     opcodeGroups: [
@@ -418,6 +449,7 @@ describe('PHPState', function () {
         it('should install any translations', function () {
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {
                     translationCatalogues: [
@@ -445,6 +477,7 @@ describe('PHPState', function () {
             it('should expose the current synchronicity mode when "' + mode + '"', function () {
                 state = new PHPState(
                     runtime,
+                    environmentFactory,
                     globalStackHooker,
                     {},
                     stdin,
@@ -467,6 +500,7 @@ describe('PHPState', function () {
         it('should expose the error configuration', function () {
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {},
                 stdin,
@@ -492,6 +526,7 @@ describe('PHPState', function () {
                 /*jshint nonew:false */
                 new PHPState(
                     runtime,
+                    environmentFactory,
                     globalStackHooker,
                     {
                         functionGroups: [
@@ -512,6 +547,7 @@ describe('PHPState', function () {
             expect(function () {
                 state = new PHPState(
                     runtime,
+                    environmentFactory,
                     globalStackHooker,
                     {},
                     stdin,
@@ -530,6 +566,7 @@ describe('PHPState', function () {
         it('should set any provided INI options after all option groups have been handled', function () {
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {},
                 stdin,
@@ -556,6 +593,7 @@ describe('PHPState', function () {
                 });
             state = new PHPState(
                 runtime,
+                environmentFactory,
                 globalStackHooker,
                 {
                     serviceGroups: [
@@ -958,6 +996,12 @@ describe('PHPState', function () {
     describe('getControlScope()', function () {
         it('should return the ControlScope service', function () {
             expect(state.getControlScope()).to.be.an.instanceOf(ControlScope);
+        });
+    });
+
+    describe('getEnvironment()', function () {
+        it('should return the Environment', function () {
+            expect(state.getEnvironment()).to.equal(environment);
         });
     });
 

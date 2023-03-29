@@ -85,6 +85,14 @@ describe('StaticPropertyReference', function () {
 
             expect(property.asValue()).to.equal(value);
         });
+
+        it('should return a rejected Future when a reference assigned raises an error', async function () {
+            var reference = sinon.createStubInstance(Reference);
+            reference.getValue.throws(new Error('Bang!'));
+            property.setReference(reference);
+
+            await expect(property.asValue().toPromise()).to.eventually.be.rejectedWith('Bang!');
+        });
     });
 
     describe('getNative()', function () {

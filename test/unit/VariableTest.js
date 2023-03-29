@@ -81,6 +81,14 @@ describe('Variable', function () {
             expect(value.getType()).to.equal('int');
             expect(value.getNative()).to.equal(1234);
         });
+
+        it('should return a rejected Future when a reference assigned raises an error', async function () {
+            var reference = sinon.createStubInstance(Reference);
+            reference.getValue.throws(new Error('Bang!'));
+            variable.setReference(reference);
+
+            await expect(variable.asValue().toPromise()).to.eventually.be.rejectedWith('Bang!');
+        });
     });
 
     describe('clearReference()', function () {

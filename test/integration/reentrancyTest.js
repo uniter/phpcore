@@ -377,4 +377,68 @@ EOS
         resolveSecondPause();
         expect(await secondPromise).to.equal('my second result');
     });
+
+    it('should support resuming an earlier pause while a later one is in effect using exported closures in different namespace scopes', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace My\First
+{
+    $firstClosure = function () {
+        do_first_pause();
+
+        return 'my first result from "' . __NAMESPACE__ . '"';
+    };
+}
+
+namespace My\Second
+{
+    $secondClosure = function () {
+        do_second_pause();
+
+        return 'my second result from "' . __NAMESPACE__ . '"';
+    };
+}
+
+namespace My\Third
+{
+    return [
+        'first' => $firstClosure,
+        'second' => $secondClosure
+    ];
+}
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module(),
+            exportedClosures,
+            firstPromise,
+            secondPromise,
+            resolveFirstPause,
+            resolveSecondPause;
+        engine.defineCoercingFunction('do_first_pause', function () {
+            return this.createFutureValue(function (resolve) {
+                resolveFirstPause = resolve;
+                // Leave the future unresolved so the engine will be paused...
+            });
+        });
+        engine.defineCoercingFunction('do_second_pause', function () {
+            return this.createFutureValue(function (resolve) {
+                resolveSecondPause = resolve;
+                // Leave the future unresolved so the engine will be paused...
+            });
+        });
+        exportedClosures = (await engine.execute()).getNative();
+        // Call the first closure, which will pause indefinitely. Whilst paused...
+        firstPromise = exportedClosures.first();
+        // Call the second closure, which will also pause indefinitely. Whilst paused...
+        secondPromise = exportedClosures.second();
+
+        // Go back and resume the first pause while the second is also in effect.
+        resolveFirstPause();
+        expect(await firstPromise).to.equal('my first result from "My\\First"');
+        // Finally go back and resume the second pause.
+        resolveSecondPause();
+        expect(await secondPromise).to.equal('my second result from "My\\Second"');
+    });
 });

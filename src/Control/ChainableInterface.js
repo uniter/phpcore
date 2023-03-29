@@ -52,6 +52,13 @@ _.extend(ChainableInterface.prototype, {
     next: throwUnimplemented('next'),
 
     /**
+     * Creates a promise to be resolved with this chainable.
+     *
+     * @returns {Promise<*>}
+     */
+    toPromise: throwUnimplemented('toPromise'),
+
+    /**
      * Fetches the present value synchronously, which is not possible for an unsettled future.
      *
      * @returns {*} When the future was resolved

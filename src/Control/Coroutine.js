@@ -18,19 +18,36 @@ var _ = require('microdash'),
  * Used for multitasking, non-preemptively by default.
  *
  * @param {CallStack} callStack
+ * @param {NamespaceContext} namespaceContext
  * @constructor
  */
-function Coroutine(callStack) {
+function Coroutine(callStack, namespaceContext) {
     /**
      * @type {CallStack}
      */
     this.callStack = callStack;
+    /**
+     * @type {NamespaceContext}
+     */
+    this.namespaceContext = namespaceContext;
     /**
      * Saved call stack frames for restoring.
      *
      * @type {Call[]|null}
      */
     this.savedCallStack = null;
+    /**
+     * Saved NamespaceContext state for restoring.
+     *
+     * @type {Object|null}
+     */
+    this.savedNamespaceContextState = null;
+    /**
+     * Whether this coroutine is currently suspended.
+     *
+     * @type {boolean}
+     */
+    this.suspended = false;
 }
 
 _.extend(Coroutine.prototype, {
@@ -38,17 +55,18 @@ _.extend(Coroutine.prototype, {
      * Resumes this coroutine, if it was previously suspended.
      */
     resume: function () {
-        var coroutine = this,
-            savedCallStack;
+        var coroutine = this;
 
-        if (coroutine.savedCallStack === null) {
+        if (!coroutine.suspended) {
             return;
         }
 
-        savedCallStack = coroutine.savedCallStack;
-        coroutine.savedCallStack = null;
+        coroutine.callStack.restore(coroutine.savedCallStack);
+        coroutine.namespaceContext.restore(coroutine.savedNamespaceContextState);
 
-        coroutine.callStack.restore(savedCallStack);
+        coroutine.savedNamespaceContextState = null;
+        coroutine.savedCallStack = null;
+        coroutine.suspended = false;
     },
 
     /**
@@ -57,14 +75,17 @@ _.extend(Coroutine.prototype, {
     suspend: function () {
         var coroutine = this;
 
-        if (coroutine.savedCallStack !== null) {
-            throw new Exception('Coroutine.save() :: Invalid state - coroutine already suspended');
+        if (coroutine.suspended) {
+            throw new Exception('Coroutine.suspend() :: Invalid state - coroutine already suspended');
         }
 
+        coroutine.savedNamespaceContextState = coroutine.namespaceContext.save();
         coroutine.savedCallStack = coroutine.callStack.save();
 
         // Clear the call stack at this point, unlike .save().
         coroutine.callStack.clear();
+
+        coroutine.suspended = true;
     }
 });
 

@@ -12,36 +12,24 @@
 var _ = require('microdash');
 
 /**
- * Instantiates the shared Runtime
+ * Instantiates the shared Runtime.
  *
- * @param {class} Environment
  * @param {class} Engine
- * @param {class} PHPState
  * @param {class} Runtime
  * @param {PHPCommon} phpCommon
- * @param {GlobalStackHooker} globalStackHooker
+ * @param {StateFactory} stateFactory
  * @constructor
  */
 function RuntimeFactory(
-    Environment,
     Engine,
-    PHPState,
     Runtime,
     phpCommon,
-    globalStackHooker
+    stateFactory
 ) {
     /**
      * @type {class}
      */
     this.Engine = Engine;
-    /**
-     * @type {class}
-     */
-    this.Environment = Environment;
-    /**
-     * @type {GlobalStackHooker}
-     */
-    this.globalStackHooker = globalStackHooker;
     /**
      * @type {PHPCommon}
      */
@@ -49,16 +37,16 @@ function RuntimeFactory(
     /**
      * @type {class}
      */
-    this.PHPState = PHPState;
-    /**
-     * @type {class}
-     */
     this.Runtime = Runtime;
+    /**
+     * @type {StateFactory}
+     */
+    this.stateFactory = stateFactory;
 }
 
 _.extend(RuntimeFactory.prototype, {
     /**
-     * Creates a new Runtime instance
+     * Creates a new Runtime instance.
      *
      * @param {string} mode
      * @returns {Runtime}
@@ -67,11 +55,9 @@ _.extend(RuntimeFactory.prototype, {
         var factory = this;
 
         return new factory.Runtime(
-            factory.Environment,
             factory.Engine,
-            factory.PHPState,
             factory.phpCommon,
-            factory.globalStackHooker,
+            factory.stateFactory,
             mode
         );
     }

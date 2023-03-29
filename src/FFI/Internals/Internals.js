@@ -17,6 +17,7 @@ var _ = require('microdash'),
  * @param {Userland} userland
  * @param {Flow} flow
  * @param {ControlScope} controlScope
+ * @param {NamespaceContext} namespaceContext
  * @param {Includer} includer
  * @param {OnceIncluder} onceIncluder
  * @param {Evaluator} evaluator
@@ -24,7 +25,6 @@ var _ = require('microdash'),
  * @param {ValueProvider} valueProvider
  * @param {ReferenceFactory} referenceFactory
  * @param {ControlFactory} controlFactory
- * @param {PauseFactory} pauseFactory
  * @param {FutureFactory} futureFactory
  * @param {CallFactory} callFactory
  * @param {CallStack} callStack
@@ -33,16 +33,17 @@ var _ = require('microdash'),
  * @param {ErrorConfiguration} errorConfiguration
  * @param {ErrorPromoter} errorPromoter
  * @param {ErrorReporting} errorReporting
- * @param {Namespace} globalNamespace,
- * @param {Scope} globalScope,
- * @param {INIState} iniState,
- * @param {OptionSet} optionSet,
- * @param {Output} output,
- * @param {Runtime} runtime,
- * @param {Stream} stdout,
- * @param {TraceFormatter} traceFormatter,
- * @param {Translator} translator,
+ * @param {Namespace} globalNamespace
+ * @param {Scope} globalScope
+ * @param {INIState} iniState
+ * @param {OptionSet} optionSet
+ * @param {Output} output
+ * @param {Runtime} runtime
+ * @param {Stream} stdout
+ * @param {TraceFormatter} traceFormatter
+ * @param {Translator} translator
  * @param {PHPState} state
+ * @param {Environment} environment
  * @constructor
  */
 function Internals(
@@ -50,6 +51,7 @@ function Internals(
     userland,
     flow,
     controlScope,
+    namespaceContext,
     includer,
     onceIncluder,
     evaluator,
@@ -57,7 +59,6 @@ function Internals(
     valueProvider,
     referenceFactory,
     controlFactory,
-    pauseFactory,
     futureFactory,
     callFactory,
     callStack,
@@ -75,7 +76,8 @@ function Internals(
     stdout,
     traceFormatter,
     translator,
-    state
+    state,
+    environment
 ) {
     /**
      * @public
@@ -102,6 +104,11 @@ function Internals(
      * @type {ControlScope}
      */
     this.controlScope = controlScope;
+    /**
+     * @public
+     * @type {Environment}
+     */
+    this.environment = environment;
     /**
      * @public
      * @type {ErrorConfiguration}
@@ -159,6 +166,11 @@ function Internals(
     this.mode = mode;
     /**
      * @public
+     * @type {NamespaceContext}
+     */
+    this.namespaceContext = namespaceContext;
+    /**
+     * @public
      * @type {OnceIncluder}
      */
     this.onceIncluder = onceIncluder;
@@ -172,11 +184,6 @@ function Internals(
      * @type {Output}
      */
     this.output = output;
-    /**
-     * @public
-     * @type {PauseFactory}
-     */
-    this.pauseFactory = pauseFactory;
     /**
      * @type {ReferenceFactory}
      */

@@ -17,17 +17,20 @@
 
 var Engine = require('../Engine'),
     Environment = require('../Environment'),
+    EnvironmentFactory = require('../Runtime/EnvironmentFactory'),
     globalStackHooker = require('./globalStackHooker'),
     phpCommon = require('phpcommon'),
     PHPState = require('../PHPState').sync(),
     RuntimeFactory = require('../RuntimeFactory'),
-    Runtime = require('../Runtime').sync();
+    Runtime = require('../Runtime').sync(),
+    StateFactory = require('../Runtime/StateFactory'),
+
+    environmentFactory = new EnvironmentFactory(Environment),
+    stateFactory = new StateFactory(PHPState, environmentFactory, globalStackHooker);
 
 module.exports = new RuntimeFactory(
-    Environment,
     Engine,
-    PHPState,
     Runtime,
     phpCommon,
-    globalStackHooker
+    stateFactory
 );

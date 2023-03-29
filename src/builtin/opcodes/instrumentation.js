@@ -26,6 +26,7 @@ var DebugVariable = require('../../Debug/DebugVariable');
 module.exports = function (internals) {
     var callStack = internals.callStack,
         controlScope = internals.controlScope,
+        namespaceContext = internals.namespaceContext,
         valueFactory = internals.valueFactory;
 
     internals.disableTracing();
@@ -41,7 +42,8 @@ module.exports = function (internals) {
          * @returns {boolean}
          */
         caught: function (throwableClassName, error) {
-            var resolvedClass = callStack.getCurrentNamespaceScope().resolveClass(throwableClassName),
+            var namespaceScope = namespaceContext.getEffectiveNamespaceScope(),
+                resolvedClass = namespaceScope.resolveClass(throwableClassName),
                 resolvedThrowableClassName = resolvedClass.namespace.getPrefix() + resolvedClass.name;
 
             // TODO: Handle non-Throwable instances being thrown at this point?

@@ -274,9 +274,8 @@ _.extend(Engine.prototype, {
         // Use the provided top-level scope if specified, otherwise use the global scope
         // (used eg. when an `include(...)` is used inside a function)
         topLevelScope = scopeFactory.createEngineScope(engine.topLevelScope || globalScope);
-        module = moduleFactory.create(path);
-        topLevelNamespaceScope = scopeFactory.createNamespaceScope(globalNamespace, module);
-        module.setScope(scopeFactory.createModuleScope(module, topLevelNamespaceScope, environment));
+        module = moduleFactory.create(globalNamespace, path);
+        topLevelNamespaceScope = module.getTopLevelNamespaceScope();
 
         core = coreFactory.createCore(topLevelScope);
 
@@ -391,7 +390,7 @@ _.extend(Engine.prototype, {
         // Asynchronous mode
         if (mode === 'async') {
             return userland
-                .enterTopLevel(topLevel)
+                .enterTopLevel(topLevel, topLevelNamespaceScope)
                 .then(function (resultValue) {
                     // Pop the top-level scope (of the include, if this module was included) off the stack
                     // regardless of whether an error occurred
@@ -416,7 +415,7 @@ _.extend(Engine.prototype, {
         // TODO: Improve Userland for sync behavior to avoid branching here?
         try {
             try {
-                resultValue = createResultValue(userland.enterTopLevel(topLevel))
+                resultValue = createResultValue(userland.enterTopLevel(topLevel, topLevelNamespaceScope))
                     .yieldSync();
 
                 return mode === 'psync' && isMainProgram ?

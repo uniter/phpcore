@@ -102,7 +102,12 @@ module.exports = require('pauser')([
          * {@inheritdoc}
          */
         asValue: function () {
-            return this.getValue();
+            var variable = this;
+
+            // Ensure that any errors raised when fetching result in a rejected Future.
+            return variable.flow.maybeFuturise(function () {
+                return variable.getValue();
+            });
         },
 
         /**
@@ -394,9 +399,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Derives a promise of this variable (shared interface with Future).
-         *
-         * @returns {Promise<Variable>}
+         * {@inheritdoc}
          */
         toPromise: function () {
             return Promise.resolve(this);

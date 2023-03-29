@@ -154,7 +154,7 @@ namespace
 
     class MyClass
     {
-        // Include a constant to check lazily loading of those too
+        // Include a constant to check lazy loading of those too.
         const MY_CONST = MyOtherClass::MY_OTHER_CONST;
 
         public static $firstProp = FirstOtherClass::FIRST_CONST;
@@ -327,8 +327,8 @@ EOS
         );
     });
 
-    it('should initialise instance properties on object instantiation', async function () {
-        var php = nowdoc(function () {/*<<<EOS
+    it('should initialise static & instance properties and constants on object instantiation', async function () {
+        var autoloaderModulePhp = nowdoc(function () {/*<<<EOS
 <?php
 
 namespace My\Stuff
@@ -349,6 +349,12 @@ namespace My\Stuff
             case 'My\Stuff\MySecondOtherClass':
                 class MySecondOtherClass
                 {
+                    const MY_OTHER_CONST = MyThirdOtherClass::MY_OTHER_CONST;
+                }
+                break;
+            case 'My\Stuff\MyThirdOtherClass':
+                class MyThirdOtherClass
+                {
                     const MY_OTHER_CONST = 'second other const';
                 }
                 break;
@@ -364,30 +370,50 @@ namespace My\Stuff
                     const SECOND_CONST = 'second const';
                 }
                 break;
+            case 'My\Things\MyClass':
+                require '/path/to/class_module.php';
+                break;
             default:
                 throw new \Exception('Unexpected class name "' . $className . '"');
         }
     });
 }
+EOS
+*/;}), //jshint ignore:line
+            autoloaderModule = tools.asyncTranspile('/path/to/autoloader_module.php', autoloaderModulePhp),
+            classModulePhp = nowdoc(function () {/*<<<EOS
+<?php
 
-namespace
+namespace My\Things;
+
+use My\Stuff\MyFirstOtherClass;
+use My\Stuff\MySecondOtherClass;
+use My\Stuff\FirstOtherClass;
+use My\Stuff\SecondOtherClass;
+
+class MyClass
 {
-    use My\Stuff\MyFirstOtherClass;
-    use My\Stuff\MySecondOtherClass;
-    use My\Stuff\FirstOtherClass;
-    use My\Stuff\SecondOtherClass;
+    // Include a constant and a static property to check lazy loading of those too.
+    const MY_CONST = MyFirstOtherClass::MY_OTHER_CONST;
+    public static $myStaticProp = MySecondOtherClass::MY_OTHER_CONST;
+
+    public $firstProp = FirstOtherClass::FIRST_CONST;
+    public $secondProp = SecondOtherClass::SECOND_CONST;
+}
+
+EOS
+*/;}), //jshint ignore:line
+            classModule = tools.asyncTranspile('/path/to/class_module.php', classModulePhp),
+            entryModulePhp = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace Your
+{
+    use My\Things\MyClass;
+
+    require '/path/to/autoloader_module.php';
 
     $log = [];
-
-    class MyClass
-    {
-        // Include a constant and a static property to check lazily loading of those too
-        const MY_CONST = MyFirstOtherClass::MY_OTHER_CONST;
-        public static $myStaticProp = MySecondOtherClass::MY_OTHER_CONST;
-
-        public $firstProp = FirstOtherClass::FIRST_CONST;
-        public $secondProp = SecondOtherClass::SECOND_CONST;
-    }
 
     $log[] = '[before]';
     $myObject = new MyClass;
@@ -402,8 +428,35 @@ namespace
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile('/path/to/module.php', php),
-            engine = module();
+            entryModule = tools.asyncTranspile('/path/to/entry_module.php', entryModulePhp),
+            getModuleByPath = function (path) {
+                switch (path) {
+                    case '/path/to/autoloader_module.php':
+                        return autoloaderModule;
+                    case '/path/to/class_module.php':
+                        return classModule;
+                    default:
+                        throw new Error('Unexpected path: ' + path);
+                }
+            },
+            environment = tools.createAsyncEnvironment({}, [
+                {
+                    optionGroups: [
+                        function (internals) {
+                            var hostScheduler = internals.getService('host_scheduler');
+
+                            return {
+                                include: function (path, promise) {
+                                    hostScheduler.queueMicrotask(function () {
+                                        promise.resolve(getModuleByPath(path));
+                                    });
+                                }
+                            };
+                        }
+                    ]
+                }
+            ]),
+            engine = entryModule({}, environment);
         engine.defineFunction('get_async', function (internals) {
             return function (value) {
                 return internals.createFutureValue(function (resolve) {
@@ -416,9 +469,11 @@ EOS
 
         expect((await engine.execute()).getNative()).to.deep.equal([
             '[before]',
+            '[autoload] My\\Things\\MyClass',
             // Note that all properties (both static and instance) and constants are initialised on "new".
             '[autoload] My\\Stuff\\MyFirstOtherClass',
             '[autoload] My\\Stuff\\MySecondOtherClass',
+            '[autoload] My\\Stuff\\MyThirdOtherClass',
             '[autoload] My\\Stuff\\FirstOtherClass',
             '[autoload] My\\Stuff\\SecondOtherClass',
             '[after new]',

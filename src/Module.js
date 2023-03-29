@@ -9,41 +9,29 @@
 
 'use strict';
 
-var _ = require('microdash'),
-    phpCommon = require('phpcommon'),
-    Exception = phpCommon.Exception;
+var _ = require('microdash');
 
 /**
+ * @param {ScopeFactory} scopeFactory
+ * @param {Namespace} namespace
  * @param {string|null} filePath
+ * @param {boolean=} global
  * @constructor
  */
-function Module(filePath) {
+function Module(scopeFactory, namespace, filePath, global) {
     /**
      * @type {string|null}
      */
     this.filePath = filePath || null;
     /**
-     * @type {ModuleScope|null}
+     * @type {NamespaceScope}
      */
-    this.scope = null;
+    this.topLevelNamespaceScope = scopeFactory.createNamespaceScope(namespace, this, global);
 }
 
 _.extend(Module.prototype, {
     /**
-     * Enters a NamespaceScope, making it the current one for this module
-     *
-     * @param {NamespaceScope} namespaceScope
-     */
-    enterNamespaceScope: function (namespaceScope) {
-        var module = this;
-
-        if (module.scope) {
-            module.scope.enterNamespaceScope(namespaceScope);
-        }
-    },
-
-    /**
-     * Fetches the path to the file this module is defined in, or null if none
+     * Fetches the path to the file this module is defined in, or null if none.
      *
      * @returns {string|null}
      */
@@ -52,40 +40,12 @@ _.extend(Module.prototype, {
     },
 
     /**
-     * Fetches the ModuleScope
+     * Fetches the top-level NamespaceScope for this module, with the global namespace.
      *
-     * @returns {ModuleScope}
+     * @returns {NamespaceScope}
      */
-    getScope: function () {
-        var module = this;
-
-        if (!module.scope) {
-            throw new Exception('Module has no ModuleScope set');
-        }
-
-        return module.scope;
-    },
-
-    /**
-     * Leaves the current NamespaceScope, returning to the previous one for this module
-     *
-     * @param {NamespaceScope} namespaceScope
-     */
-    leaveNamespaceScope: function (namespaceScope) {
-        var module = this;
-
-        if (module.scope) {
-            module.scope.leaveNamespaceScope(namespaceScope);
-        }
-    },
-
-    /**
-     * Sets the ModuleScope
-     *
-     * @param {ModuleScope} moduleScope
-     */
-    setScope: function (moduleScope) {
-        this.scope = moduleScope;
+    getTopLevelNamespaceScope: function () {
+        return this.topLevelNamespaceScope;
     }
 });
 

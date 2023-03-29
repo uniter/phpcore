@@ -11,33 +11,27 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
-    GlobalStackHooker = require('../../src/FFI/Stack/GlobalStackHooker'),
-    RuntimeFactory = require('../../src/RuntimeFactory');
+    RuntimeFactory = require('../../src/RuntimeFactory'),
+    StateFactory = require('../../src/Runtime/StateFactory');
 
 describe('RuntimeFactory', function () {
     var Engine,
-        Environment,
         factory,
-        globalStackHooker,
         phpCommon,
-        PHPState,
-        Runtime;
+        Runtime,
+        stateFactory;
 
     beforeEach(function () {
         Engine = sinon.stub();
-        Environment = sinon.stub();
-        globalStackHooker = sinon.createStubInstance(GlobalStackHooker);
         phpCommon = {iAm: 'phpcommon'};
-        PHPState = sinon.stub();
         Runtime = sinon.stub();
+        stateFactory = sinon.createStubInstance(StateFactory);
 
         factory = new RuntimeFactory(
-            Environment,
             Engine,
-            PHPState,
             Runtime,
             phpCommon,
-            globalStackHooker
+            stateFactory
         );
     });
 
@@ -48,11 +42,9 @@ describe('RuntimeFactory', function () {
             expect(runtime).to.be.an.instanceOf(Runtime);
             expect(Runtime).to.have.been.calledOnce;
             expect(Runtime).to.have.been.calledWith(
-                sinon.match.same(Environment),
                 sinon.match.same(Engine),
-                sinon.match.same(PHPState),
                 sinon.match.same(phpCommon),
-                sinon.match.same(globalStackHooker),
+                sinon.match.same(stateFactory),
                 'async'
             );
         });
@@ -63,11 +55,9 @@ describe('RuntimeFactory', function () {
             expect(runtime).to.be.an.instanceOf(Runtime);
             expect(Runtime).to.have.been.calledOnce;
             expect(Runtime).to.have.been.calledWith(
-                sinon.match.same(Environment),
                 sinon.match.same(Engine),
-                sinon.match.same(PHPState),
                 sinon.match.same(phpCommon),
-                sinon.match.same(globalStackHooker),
+                sinon.match.same(stateFactory),
                 'psync'
             );
         });
@@ -78,11 +68,9 @@ describe('RuntimeFactory', function () {
             expect(runtime).to.be.an.instanceOf(Runtime);
             expect(Runtime).to.have.been.calledOnce;
             expect(Runtime).to.have.been.calledWith(
-                sinon.match.same(Environment),
                 sinon.match.same(Engine),
-                sinon.match.same(PHPState),
                 sinon.match.same(phpCommon),
-                sinon.match.same(globalStackHooker),
+                sinon.match.same(stateFactory),
                 'sync'
             );
         });

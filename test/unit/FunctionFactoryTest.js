@@ -10,6 +10,7 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('./tools'),
     Call = require('../../src/Call'),
@@ -17,8 +18,10 @@ var expect = require('chai').expect,
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     ControlScope = require('../../src/Control/ControlScope'),
+    Exception = phpCommon.Exception,
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     FunctionSpec = require('../../src/Function/FunctionSpec'),
+    NamespaceContext = require('../../src/Namespace/NamespaceContext'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     Reference = require('../../src/Reference/Reference'),
     Scope = require('../../src/Scope').sync(),
@@ -38,8 +41,10 @@ describe('FunctionFactory', function () {
         futureFactory,
         MethodSpec,
         name,
+        namespaceContext,
         namespaceScope,
         originalFunc,
+        pauseFactory,
         scope,
         scopeFactory,
         state,
@@ -62,7 +67,9 @@ describe('FunctionFactory', function () {
         originalFunc = sinon.stub();
         MethodSpec = sinon.stub();
         name = 'myFunction';
+        namespaceContext = sinon.createStubInstance(NamespaceContext);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
+        pauseFactory = state.getPauseFactory();
         scope = sinon.createStubInstance(Scope);
         scopeFactory = sinon.createStubInstance(ScopeFactory);
         valueFactory = state.getValueFactory();
@@ -76,6 +83,7 @@ describe('FunctionFactory', function () {
             callFactory,
             valueFactory,
             callStack,
+            namespaceContext,
             flow,
             controlBridge,
             controlScope
@@ -143,6 +151,19 @@ describe('FunctionFactory', function () {
                 expect(resultValue).to.be.an.instanceOf(Value);
                 expect(resultValue.getType()).to.equal('int');
                 expect(resultValue.getNative()).to.equal(123);
+            });
+
+            it('should throw an Exception if a built-in function enacts a Pause directly rather than returning a Future', async function () {
+                originalFunc.callsFake(function () {
+                    var pause = pauseFactory.createPause(function () {});
+
+                    pause.now();
+                });
+
+                await expect(callCreate()().toPromise()).to.eventually.be.rejectedWith(
+                    Exception,
+                    'FunctionFactory :: A built-in function enacted a Pause, did you mean to return a Future instead?'
+                );
             });
 
             describe('when return-by-reference', function () {
@@ -340,6 +361,13 @@ describe('FunctionFactory', function () {
                 expect(callStack.push).to.have.been.calledWith(sinon.match.same(call));
             });
 
+            it('should enter the NamespaceScope via the NamespaceContext', async function () {
+                await callCreate()().toPromise();
+
+                expect(namespaceContext.enterNamespaceScope).to.have.been.calledOnce;
+                expect(namespaceContext.enterNamespaceScope).to.have.been.calledWith(sinon.match.same(namespaceScope));
+            });
+
             it('should validate parameter arguments at the right point', async function () {
                 var argValue1 = valueFactory.createInteger(21),
                     argValue2 = valueFactory.createInteger(101),
@@ -391,6 +419,14 @@ describe('FunctionFactory', function () {
                 expect(callStack.pop).to.have.been.calledOnce;
             });
 
+            it('should leave the NamespaceScope via the NamespaceContext when the wrapped function returns', async function () {
+                await callCreate()().toPromise();
+
+                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledOnce;
+                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledWith(sinon.match.same(namespaceScope));
+                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledAfter(callStack.pop);
+            });
+
             it('should pop the call off the stack even when the wrapped function throws', function () {
                 var error = new Error('argh');
                 originalFunc.throws(error);
@@ -399,6 +435,21 @@ describe('FunctionFactory', function () {
                     .to.eventually.be.rejectedWith(error)
                     .then(function () {
                         expect(callStack.pop).to.have.been.calledOnce;
+                    });
+            });
+
+            it('should leave the NamespaceScope via the NamespaceContext even when the wrapped function throws', function () {
+                var error = new Error('argh');
+                originalFunc.throws(error);
+
+                return expect(callCreate()().toPromise())
+                    .to.eventually.be.rejectedWith(error)
+                    .then(function () {
+                        expect(namespaceContext.leaveNamespaceScope).to.have.been.calledOnce;
+                        expect(namespaceContext.leaveNamespaceScope).to.have.been.calledWith(
+                            sinon.match.same(namespaceScope)
+                        );
+                        expect(namespaceContext.leaveNamespaceScope).to.have.been.calledAfter(callStack.pop);
                     });
             });
 

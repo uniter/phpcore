@@ -472,9 +472,7 @@ _.extend(Future.prototype, {
     },
 
     /**
-     * Derives a promise of this future (shared interface with Value)
-     *
-     * @returns {Promise<*>}
+     * {@inheritdoc}
      */
     toPromise: function () {
         var future = this;

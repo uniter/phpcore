@@ -11,18 +11,21 @@
 
 module.exports = require('pauser')([
     require('microdash'),
+    require('phpcommon'),
     require('./FFI/Result'),
     require('./Control/Pause'),
     require('./Reference/Reference'),
     require('./Variable')
 ], function (
     _,
+    phpCommon,
     FFIResult,
     Pause,
     Reference,
     Variable
 ) {
-    var slice = [].slice;
+    var slice = [].slice,
+        Exception = phpCommon.Exception;
 
     /**
      * @param {class} MethodSpec
@@ -30,6 +33,7 @@ module.exports = require('pauser')([
      * @param {CallFactory} callFactory
      * @param {ValueFactory} valueFactory
      * @param {CallStack} callStack
+     * @param {NamespaceContext} namespaceContext
      * @param {Flow} flow
      * @param {ControlBridge} controlBridge
      * @param {ControlScope} controlScope
@@ -41,6 +45,7 @@ module.exports = require('pauser')([
         callFactory,
         valueFactory,
         callStack,
+        namespaceContext,
         flow,
         controlBridge,
         controlScope
@@ -69,6 +74,10 @@ module.exports = require('pauser')([
          * @type {class}
          */
         this.MethodSpec = MethodSpec;
+        /**
+         * @type {NamespaceContext}
+         */
+        this.namespaceContext = namespaceContext;
         /**
          * @type {Class|null}
          */
@@ -166,8 +175,14 @@ module.exports = require('pauser')([
                                     return func.apply(scope, argReferences);
                                 },
                                 function (pause) {
+                                    if (!functionSpec.isUserland()) {
+                                        throw new Exception(
+                                            'FunctionFactory :: A built-in function enacted a Pause, did you mean to return a Future instead?'
+                                        );
+                                    }
+
                                     pause.next(
-                                        function (result) {
+                                        function (/* result */) {
                                             /*
                                              * Note that the result passed here for the opcode we are about to resume
                                              * by re-calling the userland function has already been provided (see Pause),
@@ -177,13 +192,9 @@ module.exports = require('pauser')([
                                              * the function in order to resume with a throwInto at the correct opcode
                                              * (see catch handler below).
                                              */
-                                            if (functionSpec.isUserland()) {
-                                                return doCall();
-                                            }
-
-                                            return finishCall(result);
+                                            return doCall();
                                         },
-                                        function (error) {
+                                        function (/* error */) {
                                             /*
                                              * Note that the error passed here for the opcode we are about to throwInto
                                              * by re-calling the userland function has already been provided (see Pause),
@@ -192,16 +203,11 @@ module.exports = require('pauser')([
                                              * Similar to the above, we want to re-call the function in order to resume
                                              * with a throwInto at the correct opcode.
                                              */
-                                            if (functionSpec.isUserland()) {
-                                                return doCall();
-                                            }
-
-                                            throw error;
+                                            return doCall();
                                         }
                                     );
                                 }
-                            )
-                            .next(finishCall);
+                            );
                     }
 
                     if (factory.newStaticClassForNextCall !== null) {
@@ -238,7 +244,7 @@ module.exports = require('pauser')([
                             );
 
                             // TODO: Remove NamespaceScope concept, instead handling at compile time.
-                            namespaceScope.enter();
+                            factory.namespaceContext.enterNamespaceScope(namespaceScope);
 
                             // Push the call onto the stack.
                             factory.callStack.push(call);
@@ -268,7 +274,7 @@ module.exports = require('pauser')([
                                 functionSpec.loadArguments(argReferences, scope);
                             }
 
-                            return doCall();
+                            return doCall().next(finishCall);
                         })
                         .finally(function () {
                             // Once the call completes, whether with a result or a thrown error/exception,
@@ -278,7 +284,7 @@ module.exports = require('pauser')([
                             factory.callStack.pop();
 
                             // TODO: Remove NamespaceScope...
-                            namespaceScope.leave();
+                            factory.namespaceContext.leaveNamespaceScope(namespaceScope);
                         });
 
                     if (!functionSpec.isReturnByReference()) {

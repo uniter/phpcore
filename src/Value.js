@@ -1422,9 +1422,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Derives a promise of this value (shared interface with Future)
-         *
-         * @returns {Promise<Value>}
+         * {@inheritdoc}
          */
         toPromise: function () {
             return Promise.resolve(this);

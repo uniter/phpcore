@@ -13,12 +13,18 @@ var _ = require('microdash'),
     hasOwn = {}.hasOwnProperty,
     phpCommon = require('phpcommon'),
     Exception = phpCommon.Exception,
+    RESUME_PLACEHOLDER_MARKER = '__isResumePlaceholder',
     createResumePlaceholder = function (trace) {
-        return function resumePlaceholder() {
+        function resumePlaceholder() {
             trace.advanceOpIndex();
 
             return resumePlaceholder;
-        };
+        }
+
+        // Add a marker just to make these placeholders more visible in minified code.
+        resumePlaceholder[RESUME_PLACEHOLDER_MARKER] = true;
+
+        return resumePlaceholder;
     };
 
 /**
