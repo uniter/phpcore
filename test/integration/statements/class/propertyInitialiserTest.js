@@ -175,11 +175,7 @@ EOS
             engine = module();
         engine.defineFunction('get_async', function (internals) {
             return function (value) {
-                return internals.createFutureValue(function (resolve) {
-                    setImmediate(function () {
-                        resolve(value);
-                    });
-                });
+                return internals.createAsyncPresentValue(value);
             };
         });
 
@@ -256,11 +252,7 @@ EOS
             engine = module();
         engine.defineFunction('get_async', function (internals) {
             return function (value) {
-                return internals.createFutureValue(function (resolve) {
-                    setImmediate(function () {
-                        resolve(value);
-                    });
-                });
+                return internals.createAsyncPresentValue(value);
             };
         });
 
@@ -313,17 +305,13 @@ EOS
             engine = module();
         engine.defineFunction('get_async', function (internals) {
             return function (value) {
-                return internals.createFutureValue(function (resolve) {
-                    setImmediate(function () {
-                        resolve(value);
-                    });
-                });
+                return internals.createAsyncPresentValue(value);
             };
         });
 
         await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
-            'PHP Fatal error: Uncaught Error: Undefined class constant \'SOME_UNDEFINED_CONST\' in /path/to/module.php on line 28'
+            'PHP Fatal error: Uncaught Error: Undefined class constant \'SOME_UNDEFINED_CONST\' in /path/to/module.php on line 25'
         );
     });
 
@@ -459,11 +447,7 @@ EOS
             engine = entryModule({}, environment);
         engine.defineFunction('get_async', function (internals) {
             return function (value) {
-                return internals.createFutureValue(function (resolve) {
-                    setImmediate(function () {
-                        resolve(value);
-                    });
-                });
+                return internals.createAsyncPresentValue(value);
             };
         });
 

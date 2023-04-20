@@ -27,6 +27,7 @@ var _ = require('microdash');
  * @param {Object} staticProperties
  * @param {ValueCoercer} valueCoercer
  * @param {Function|null} methodCaller Custom method call handler
+ * @param {CallInstrumentation|null} instrumentation
  * @constructor
  */
 function ClassDefinition(
@@ -44,7 +45,8 @@ function ClassDefinition(
     instanceProperties,
     staticProperties,
     valueCoercer,
-    methodCaller
+    methodCaller,
+    instrumentation
 ) {
     /**
      * @type {Object<string, Function>}
@@ -58,6 +60,10 @@ function ClassDefinition(
      * @type {Object}
      */
     this.instanceProperties = instanceProperties;
+    /**
+     * @type {CallInstrumentation|null}
+     */
+    this.instrumentation = instrumentation;
     /**
      * @type {Class[]}
      */
@@ -135,6 +141,15 @@ _.extend(ClassDefinition.prototype, {
      */
     getInstanceProperties: function () {
         return this.instanceProperties;
+    },
+
+    /**
+     * Fetches the instrumentation (if any) to use for the class.
+     *
+     * @returns {CallInstrumentation|null}
+     */
+    getInstrumentation: function () {
+        return this.instrumentation;
     },
 
     /**

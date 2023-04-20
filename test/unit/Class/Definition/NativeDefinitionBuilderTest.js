@@ -325,6 +325,12 @@ describe('NativeDefinitionBuilder', function () {
 
                 expect(definition.getMethodCaller()).to.equal(methodCaller);
             });
+
+            it('should specify no instrumentation', function () {
+                callBuildDefinition('MyClass');
+
+                expect(definition.getInstrumentation()).to.be.null;
+            });
         });
     });
 });

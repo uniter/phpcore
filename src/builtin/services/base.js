@@ -17,6 +17,7 @@ var phpCommon = require('phpcommon'),
     Call = require('../../Call'),
     CallableTypeProvider = require('../../Type/Provider/Spec/CallableTypeProvider'),
     CallFactory = require('../../CallFactory'),
+    CallInstrumentation = require('../../Instrumentation/CallInstrumentation'),
     CallStack = require('../../CallStack'),
     Chainifier = require('../../Control/Chain/Chainifier'),
     ClassAutoloader = require('../../ClassAutoloader').sync(),
@@ -43,6 +44,7 @@ var phpCommon = require('phpcommon'),
     Future = require('../../Control/Future'),
     FutureFactory = require('../../Control/FutureFactory'),
     HostScheduler = require('../../Control/HostScheduler'),
+    InstrumentationFactory = require('../../Instrumentation/InstrumentationFactory'),
     IterableTypeProvider = require('../../Type/Provider/Spec/IterableTypeProvider'),
     LoopStructureOpcode = require('../../Core/Opcode/Opcode/LoopStructureOpcode'),
     LoopStructureOpcodeFetcher = require('../../Core/Opcode/Fetcher/LoopStructureOpcodeFetcher'),
@@ -50,7 +52,6 @@ var phpCommon = require('phpcommon'),
     MethodSpec = require('../../MethodSpec'),
     MixedTypeProvider = require('../../Type/Provider/Spec/MixedTypeProvider'),
     Namespace = require('../../Namespace').sync(),
-    NamespaceContext = require('../../Namespace/NamespaceContext'),
     NamespaceFactory = require('../../NamespaceFactory'),
     NativeDefinitionBuilder = require('../../Class/Definition/NativeDefinitionBuilder'),
     NativeMethodDefinitionBuilder = require('../../Class/Definition/NativeMethodDefinitionBuilder'),
@@ -101,7 +102,6 @@ var phpCommon = require('phpcommon'),
     CONTROL_BRIDGE = 'control_bridge',
     CONTROL_SCOPE = 'control_scope',
     ELEMENT_PROVIDER_FACTORY = 'element_provider_factory',
-    ENVIRONMENT = 'environment',
     ERROR_REPORTING = 'error_reporting',
     FFI_EXPORT_FACTORY = 'ffi_export_factory',
     FFI_EXPORT_REPOSITORY = 'ffi_export_repository',
@@ -115,8 +115,8 @@ var phpCommon = require('phpcommon'),
     FUNCTION_SPEC_FACTORY = 'function_spec_factory',
     FUTURE_FACTORY = 'future_factory',
     GLOBAL_SCOPE = 'global_scope',
+    INSTRUMENTATION_FACTORY = 'instrumentation_factory',
     METHOD_PROMOTER = 'method_promoter',
-    NAMESPACE_CONTEXT = 'namespace_context',
     NAMESPACE_FACTORY = 'namespace_factory',
     NATIVE_CLASS_DEFINITION_BUILDER = 'native_class_definition_builder',
     NATIVE_METHOD_DEFINITION_BUILDER = 'native_method_definition_builder',
@@ -163,7 +163,7 @@ module.exports = function (internals) {
         },
 
         'call_factory': function () {
-            return new CallFactory(Call, FFICall);
+            return new CallFactory(Call, FFICall, get(INSTRUMENTATION_FACTORY));
         },
 
         'call_stack': function () {
@@ -211,7 +211,11 @@ module.exports = function (internals) {
         },
 
         'class_promoter': function () {
-            return new ClassPromoter(get(CLASS_FACTORY), get(METHOD_PROMOTER));
+            return new ClassPromoter(
+                get(CLASS_FACTORY),
+                get(METHOD_PROMOTER),
+                get(INSTRUMENTATION_FACTORY)
+            );
         },
 
         'closure_factory': function () {
@@ -236,7 +240,7 @@ module.exports = function (internals) {
         },
 
         'coroutine_factory': function () {
-            return new CoroutineFactory(Coroutine, get(CALL_STACK), get(NAMESPACE_CONTEXT));
+            return new CoroutineFactory(Coroutine, get(CALL_STACK));
         },
 
         'element_provider': function () {
@@ -266,7 +270,6 @@ module.exports = function (internals) {
                 get(CALL_FACTORY),
                 get(VALUE_FACTORY),
                 get(CALL_STACK),
-                get(NAMESPACE_CONTEXT),
                 get(FLOW),
                 get(CONTROL_BRIDGE),
                 get(CONTROL_SCOPE)
@@ -308,12 +311,12 @@ module.exports = function (internals) {
             return new HostScheduler();
         },
 
-        'method_promoter': function () {
-            return new MethodPromoter(get(CALL_STACK), get(FUNCTION_FACTORY), get(FUNCTION_SPEC_FACTORY));
+        'instrumentation_factory': function () {
+            return new InstrumentationFactory(CallInstrumentation);
         },
 
-        'namespace_context': function () {
-            return new NamespaceContext(get(ENVIRONMENT));
+        'method_promoter': function () {
+            return new MethodPromoter(get(CALL_STACK), get(FUNCTION_FACTORY), get(FUNCTION_SPEC_FACTORY));
         },
 
         'namespace_factory': function () {

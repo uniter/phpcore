@@ -10,12 +10,14 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('../tools'),
     Call = require('../../../src/Call'),
+    CallInstrumentation = require('../../../src/Instrumentation/CallInstrumentation'),
     CallStack = require('../../../src/CallStack'),
     ControlScope = require('../../../src/Control/ControlScope'),
-    NamespaceContext = require('../../../src/Namespace/NamespaceContext'),
+    Exception = phpCommon.Exception,
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     OpcodePool = require('../../../src/Core/Opcode/Opcode/OpcodePool'),
     Pause = require('../../../src/Control/Pause'),
@@ -32,7 +34,6 @@ describe('Userland', function () {
         flow,
         futureFactory,
         hostScheduler,
-        namespaceContext,
         opcodePool,
         pauseFactory,
         state,
@@ -52,7 +53,6 @@ describe('Userland', function () {
         flow = null;
         futureFactory = null;
         hostScheduler = null;
-        namespaceContext = null;
         opcodePool = null;
         pauseFactory = null;
         valueFactory = null;
@@ -63,11 +63,9 @@ describe('Userland', function () {
             call = sinon.createStubInstance(Call);
             callStack = sinon.createStubInstance(CallStack);
             controlScope = sinon.createStubInstance(ControlScope);
-            namespaceContext = sinon.createStubInstance(NamespaceContext);
             state = tools.createIsolatedState(mode, {
                 'call_stack': callStack,
-                'control_scope': controlScope,
-                'namespace_context': namespaceContext
+                'control_scope': controlScope
             });
             controlBridge = state.getControlBridge();
             controlFactory = state.getControlFactory();
@@ -87,7 +85,6 @@ describe('Userland', function () {
                 controlFactory,
                 controlBridge,
                 controlScope,
-                namespaceContext,
                 flow,
                 valueFactory,
                 opcodePool,
@@ -171,30 +168,46 @@ describe('Userland', function () {
                 expect(controlScope.markPaused).to.have.been.calledWith(sinon.match.same(pause));
             });
 
-            it('should enter a NamespaceScope when given before calling the executor', async function () {
+            it('should throw if a NamespaceScope is given without instrumentation', async function () {
                 var executor = sinon.stub(),
                     namespaceScope = sinon.createStubInstance(NamespaceScope);
 
-                await userland.enterIsolated(executor, namespaceScope).toPromise();
-
-                expect(namespaceContext.enterNamespaceScope).to.have.been.calledOnce;
-                expect(namespaceContext.enterNamespaceScope).to.have.been.calledWith(
-                    sinon.match.same(namespaceScope)
+                expect(function () {
+                    userland.enterIsolated(executor, namespaceScope);
+                }).to.throw(
+                    Exception,
+                    'Userland.enterIsolated() :: Instrumentation must be provided along with NamespaceScope'
                 );
-                expect(namespaceContext.enterNamespaceScope).to.have.been.calledBefore(executor);
             });
 
-            it('should leave a NamespaceScope when given after calling the executor', async function () {
+            it('should enter an isolated call when given before calling the executor', async function () {
                 var executor = sinon.stub(),
+                    instrumentation = sinon.createStubInstance(CallInstrumentation),
                     namespaceScope = sinon.createStubInstance(NamespaceScope);
 
-                await userland.enterIsolated(executor, namespaceScope).toPromise();
+                await userland.enterIsolated(executor, namespaceScope, instrumentation).toPromise();
 
-                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledOnce;
-                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledWith(
-                    sinon.match.same(namespaceScope)
+                expect(call.enterIsolatedCall).to.have.been.calledOnce;
+                expect(call.enterIsolatedCall).to.have.been.calledWith(
+                    sinon.match.same(namespaceScope),
+                    sinon.match.same(instrumentation)
                 );
-                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledAfter(executor);
+                expect(call.enterIsolatedCall).to.have.been.calledBefore(executor);
+            });
+
+            it('should leave an isolated call when given after calling the executor', async function () {
+                var executor = sinon.stub(),
+                    instrumentation = sinon.createStubInstance(CallInstrumentation),
+                    namespaceScope = sinon.createStubInstance(NamespaceScope);
+
+                await userland.enterIsolated(executor, namespaceScope, instrumentation).toPromise();
+
+                expect(call.leaveIsolatedCall).to.have.been.calledOnce;
+                expect(call.leaveIsolatedCall).to.have.been.calledWith(
+                    sinon.match.same(namespaceScope),
+                    sinon.match.same(instrumentation)
+                );
+                expect(call.leaveIsolatedCall).to.have.been.calledAfter(executor);
             });
 
             it('should set an isolated Trace on the current call before calling the executor', async function () {
@@ -295,30 +308,46 @@ describe('Userland', function () {
                 expect(resultValue.getNative()).to.equal('my result');
             });
 
-            it('should enter a NamespaceScope when given before calling the executor', function () {
+            it('should throw if a NamespaceScope is given without instrumentation', async function () {
                 var executor = sinon.stub(),
                     namespaceScope = sinon.createStubInstance(NamespaceScope);
 
-                userland.enterIsolated(executor, namespaceScope);
-
-                expect(namespaceContext.enterNamespaceScope).to.have.been.calledOnce;
-                expect(namespaceContext.enterNamespaceScope).to.have.been.calledWith(
-                    sinon.match.same(namespaceScope)
+                expect(function () {
+                    userland.enterIsolated(executor, namespaceScope);
+                }).to.throw(
+                    Exception,
+                    'Userland.enterIsolated() :: Instrumentation must be provided along with NamespaceScope'
                 );
-                expect(namespaceContext.enterNamespaceScope).to.have.been.calledBefore(executor);
             });
 
-            it('should leave a NamespaceScope when given after calling the executor', function () {
+            it('should enter an isolated call when given before calling the executor', function () {
                 var executor = sinon.stub(),
+                    instrumentation = sinon.createStubInstance(CallInstrumentation),
                     namespaceScope = sinon.createStubInstance(NamespaceScope);
 
-                userland.enterIsolated(executor, namespaceScope);
+                userland.enterIsolated(executor, namespaceScope, instrumentation);
 
-                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledOnce;
-                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledWith(
-                    sinon.match.same(namespaceScope)
+                expect(call.enterIsolatedCall).to.have.been.calledOnce;
+                expect(call.enterIsolatedCall).to.have.been.calledWith(
+                    sinon.match.same(namespaceScope),
+                    sinon.match.same(instrumentation)
                 );
-                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledAfter(executor);
+                expect(call.enterIsolatedCall).to.have.been.calledBefore(executor);
+            });
+
+            it('should leave an isolated call when given after calling the executor', function () {
+                var executor = sinon.stub(),
+                    instrumentation = sinon.createStubInstance(CallInstrumentation),
+                    namespaceScope = sinon.createStubInstance(NamespaceScope);
+
+                userland.enterIsolated(executor, namespaceScope, instrumentation);
+
+                expect(call.leaveIsolatedCall).to.have.been.calledOnce;
+                expect(call.leaveIsolatedCall).to.have.been.calledWith(
+                    sinon.match.same(namespaceScope),
+                    sinon.match.same(instrumentation)
+                );
+                expect(call.leaveIsolatedCall).to.have.been.calledAfter(executor);
             });
 
             it('should wrap errors in a rejected Future on failure', async function () {

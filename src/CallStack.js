@@ -11,6 +11,7 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
+    Exception = phpCommon.Exception,
     PHPError = phpCommon.PHPError,
     PHPFatalError = phpCommon.PHPFatalError;
 
@@ -120,6 +121,22 @@ _.extend(CallStack.prototype, {
     },
 
     /**
+     * Fetches the CallInstrumentation for the current call.
+     *
+     * @returns {CallInstrumentation}
+     */
+    getCurrentInstrumentation: function () {
+        var callStack = this,
+            currentCall = callStack.getCurrent();
+
+        if (!currentCall) {
+            throw new Exception('CallStack.getCurrentInstrumentation() :: No current call');
+        }
+
+        return currentCall.getInstrumentation();
+    },
+
+    /**
      * Fetches the module of the current call
      *
      * @returns {Module|null}
@@ -148,10 +165,26 @@ _.extend(CallStack.prototype, {
         var currentCall = this.getCurrent();
 
         if (currentCall === null) {
-            throw new Error('CallStack.getCurrentTrace() :: No current call');
+            throw new Exception('CallStack.getCurrentTrace() :: No current call');
         }
 
         return currentCall.getTrace();
+    },
+
+    /**
+     * Fetches the effective NamespaceScope for the current call.
+     *
+     * @returns {NamespaceScope}
+     */
+    getEffectiveNamespaceScope: function () {
+        var callStack = this,
+            currentCall = callStack.getCurrent();
+
+        if (!currentCall) {
+            throw new Exception('CallStack.getEffectiveNamespaceScope() :: No current call');
+        }
+
+        return currentCall.getEffectiveNamespaceScope();
     },
 
     /**
@@ -358,7 +391,7 @@ _.extend(CallStack.prototype, {
             call = callStack.calls[--index];
         } while (call);
 
-        throw new Error('Could not find a valid userland callee');
+        throw new Exception('Could not find a valid userland callee');
     },
 
     /**
@@ -388,7 +421,7 @@ _.extend(CallStack.prototype, {
             call = callStack.calls[--index];
         } while (call);
 
-        throw new Error('Could not find a valid userland caller');
+        throw new Exception('Could not find a valid userland caller');
     },
 
     /**
@@ -560,16 +593,16 @@ _.extend(CallStack.prototype, {
     },
 
     /**
-     * Resumes with a given resume value
+     * Resumes with a given resume value.
      *
      * @param {*} resumeValue
      */
     resume: function (resumeValue) {
-        // Set up ready to be resumed from the top stack frame
+        // Set up ready to be resumed from the top stack frame.
         var call = this.getUserlandCallee();
 
         if (!call) {
-            throw new Error('CallStack.resume() :: Cannot resume when there is no userland callee');
+            throw new Exception('CallStack.resume() :: Cannot resume when there is no userland callee');
         }
 
         call.resume(resumeValue);
@@ -585,19 +618,52 @@ _.extend(CallStack.prototype, {
     },
 
     /**
-     * Resumes with a given error to throw
+     * Resumes with a given error to throw.
      *
      * @param {Error} error
      */
     throwInto: function (error) {
-        // Set up ready to be resumed from the top stack frame
+        // Set up ready to be resumed from the top stack frame.
         var call = this.getUserlandCallee();
 
         if (!call) {
-            throw new Error('CallStack.throwInto() :: Cannot throw-resume when there is no userland callee');
+            throw new Exception('CallStack.throwInto() :: Cannot throw-resume when there is no userland callee');
         }
 
         call.throwInto(error);
+    },
+
+    /**
+     * Creates a NamespaceScope for the given descendant namespace of the current one, switching to it.
+     *
+     * @param {string} name
+     * @returns {NamespaceScope}
+     */
+    useDescendantNamespaceScope: function (name) {
+        var callStack = this,
+            currentCall = callStack.getCurrent();
+
+        if (!currentCall) {
+            throw new Exception('CallStack.useDescendantNamespaceScope() :: No current call');
+        }
+
+        return currentCall.useDescendantNamespaceScope(name);
+    },
+
+    /**
+     * Fetches the NamespaceScope for the global namespace, switching to it.
+     *
+     * @returns {NamespaceScope}
+     */
+    useGlobalNamespaceScope: function () {
+        var callStack = this,
+            currentCall = callStack.getCurrent();
+
+        if (!currentCall) {
+            throw new Exception('CallStack.useGlobalNamespaceScope() :: No current call');
+        }
+
+        return currentCall.useGlobalNamespaceScope();
     }
 });
 

@@ -35,7 +35,6 @@ module.exports = function (internals) {
         evaluator = internals.evaluator,
         flow = internals.flow,
         includer = internals.includer,
-        namespaceContext = internals.namespaceContext,
         onceIncluder = internals.onceIncluder,
         opcodeHandlerFactory = internals.opcodeHandlerFactory,
         optionSet = internals.optionSet,
@@ -145,7 +144,7 @@ module.exports = function (internals) {
         callFunction: internals.typeHandler(
             'string name, snapshot ...argReferences : ref|val',
             function (name, argReferences) {
-                var namespaceScope = namespaceContext.getEffectiveNamespaceScope(),
+                var namespaceScope = callStack.getEffectiveNamespaceScope(),
                     barewordString = valueFactory.createBarewordString(name, namespaceScope);
 
                 return barewordString.call(argReferences);
@@ -331,7 +330,7 @@ module.exports = function (internals) {
          * Used by bareword syntax, e.g. "MyClass::...".
          */
         createBareword: function (nativeValue) {
-            var namespaceScope = namespaceContext.getEffectiveNamespaceScope();
+            var namespaceScope = callStack.getEffectiveNamespaceScope();
 
             return valueFactory.createBarewordString(nativeValue, namespaceScope);
         },
@@ -357,7 +356,7 @@ module.exports = function (internals) {
          * @returns {ObjectValue}
          */
         createClosure: function (func, parametersSpecData, bindingsSpecData, isStatic, lineNumber) {
-            var namespaceScope = namespaceContext.getEffectiveNamespaceScope(),
+            var namespaceScope = callStack.getEffectiveNamespaceScope(),
                 referenceBindings = {},
                 scope = callStack.getCurrentScope(),
                 valueBindings = {};
@@ -596,7 +595,7 @@ module.exports = function (internals) {
          * Used by `BAREWORD_CONSTANT` syntax.
          */
         getConstant: internals.typeHandler('string name : val', function (name) {
-            var namespaceScope = namespaceContext.getEffectiveNamespaceScope();
+            var namespaceScope = callStack.getEffectiveNamespaceScope();
 
             return namespaceScope.getConstant(name);
         }),
@@ -712,7 +711,7 @@ module.exports = function (internals) {
          * @returns {StringValue}
          */
         getNamespaceName: function () {
-            return namespaceContext.getEffectiveNamespaceScope().getNamespaceName();
+            return callStack.getEffectiveNamespaceScope().getNamespaceName();
         },
 
         /**
@@ -721,7 +720,10 @@ module.exports = function (internals) {
          * @returns {StringValue}
          */
         getPath: function () {
-            return valueFactory.createString(namespaceContext.getNormalisedPath());
+            var effectiveNamespaceScope = callStack.getEffectiveNamespaceScope(),
+                path = effectiveNamespaceScope.getFilePath();
+
+            return valueFactory.createString(path !== null ? path : '(program)');
         },
 
         /**
@@ -730,7 +732,7 @@ module.exports = function (internals) {
          * @returns {StringValue}
          */
         getPathDirectory: function () {
-            var path = namespaceContext.getEffectiveNamespaceScope().getFilePath(),
+            var path = callStack.getEffectiveNamespaceScope().getFilePath(),
                 directory = (path || '').replace(/(^|\/)[^\/]+$/, '');
 
             return valueFactory.createString(directory || '');
@@ -1733,7 +1735,7 @@ module.exports = function (internals) {
                 // for pausing execution. Note that any other returned value will have no effect,
                 // as the tick call itself is not passed as an argument to any other opcode.
                 return tickFunction(
-                    namespaceContext.getNormalisedPath(),
+                    callStack.getEffectiveNamespaceScope().getFilePath(),
                     startLine,
                     startColumn,
                     endLine,

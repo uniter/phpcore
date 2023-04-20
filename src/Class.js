@@ -86,6 +86,7 @@ module.exports = require('pauser')([
      * @param {ValueCoercer} valueCoercer Value coercer configured specifically for this class
      * @param {FFIFactory} ffiFactory
      * @param {Function|null} methodCaller Custom method call handler
+     * @param {CallInstrumentation} instrumentation
      * @constructor
      */
     function Class(
@@ -110,7 +111,8 @@ module.exports = require('pauser')([
         exportRepository,
         valueCoercer,
         ffiFactory,
-        methodCaller
+        methodCaller,
+        instrumentation
     ) {
         var classObject = this,
             staticProperties = {};
@@ -171,6 +173,10 @@ module.exports = require('pauser')([
          * @type {boolean}
          */
         this.instancePropertyDefaultsInitialised = false;
+        /**
+         * @type {CallInstrumentation}
+         */
+        this.instrumentation = instrumentation;
         /**
          * @type {Class[]}
          */
@@ -511,9 +517,13 @@ module.exports = require('pauser')([
                     if (hasOwn.call(classObject.constantToProviderMap, name)) {
                         // Allow for the constant value to be loaded asynchronously,
                         // eg. if it references a constant of a different, asynchronously autoloaded class
-                        return classObject.userland.enterIsolated(function () {
-                            return classObject.constantToProviderMap[name](classObject);
-                        }, classObject.namespaceScope);
+                        return classObject.userland.enterIsolated(
+                            function () {
+                                return classObject.constantToProviderMap[name](classObject);
+                            },
+                            classObject.namespaceScope,
+                            classObject.instrumentation
+                        );
                     }
 
                     return classObject.flow.eachAsync(classObject.interfaces, function (interfaceObject) {
@@ -838,7 +848,8 @@ module.exports = require('pauser')([
                                 // so that it may refer to other properties/constants of this class with self::*
                                 return data[VALUE](classObject);
                             },
-                            classObject.namespaceScope
+                            classObject.namespaceScope,
+                            classObject.instrumentation
                         ).next(function (initialValue) {
                             if (initialValue === null) {
                                 // If a property has no initialiser then its initial value is NULL
@@ -890,7 +901,8 @@ module.exports = require('pauser')([
                             // so that it may refer to other properties/constants of this class with self::*
                             return data[VALUE](classObject);
                         },
-                        classObject.namespaceScope
+                        classObject.namespaceScope,
+                        classObject.instrumentation
                     ).next(function (initialValue) {
                         if (initialValue === null) {
                             // If a property has no initialiser then its initial value is NULL

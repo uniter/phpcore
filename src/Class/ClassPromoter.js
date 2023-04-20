@@ -12,20 +12,26 @@
 var _ = require('microdash');
 
 /**
- * Creates a class from its definition
+ * Creates a class from its definition.
  *
  * @param {ClassFactory} classFactory
  * @param {MethodPromoter} methodPromoter
+ * @param {InstrumentationFactory} instrumentationFactory
  * @constructor
  */
 function ClassPromoter(
     classFactory,
-    methodPromoter
+    methodPromoter,
+    instrumentationFactory
 ) {
     /**
      * @type {ClassFactory}
      */
     this.classFactory = classFactory;
+    /**
+     * @type {InstrumentationFactory}
+     */
+    this.instrumentationFactory = instrumentationFactory;
     /**
      * @type {MethodPromoter}
      */
@@ -44,6 +50,8 @@ _.extend(ClassPromoter.prototype, {
             InternalClass = classDefinition.getInternalClass(),
             sharedMethodData = classDefinition.getMethodData(),
             namespaceScope = classDefinition.getNamespaceScope(),
+            instrumentation = classDefinition.getInstrumentation() ||
+                promoter.instrumentationFactory.createCallInstrumentation(null),
             classObject = promoter.classFactory.createClass(
                 classDefinition.getName(),
                 classDefinition.getNamespace(),
@@ -57,7 +65,8 @@ _.extend(ClassPromoter.prototype, {
                 classDefinition.getSuperClass(),
                 classDefinition.getInterfaces(),
                 classDefinition.getValueCoercer(),
-                classDefinition.getMethodCaller()
+                classDefinition.getMethodCaller(),
+                instrumentation
             );
 
         _.forOwn(classDefinition.getMethods(), function (methodDefinition, methodName) {

@@ -17,7 +17,6 @@ var _ = require('microdash'),
  * @param {Userland} userland
  * @param {Flow} flow
  * @param {ControlScope} controlScope
- * @param {NamespaceContext} namespaceContext
  * @param {Includer} includer
  * @param {OnceIncluder} onceIncluder
  * @param {Evaluator} evaluator
@@ -51,7 +50,6 @@ function Internals(
     userland,
     flow,
     controlScope,
-    namespaceContext,
     includer,
     onceIncluder,
     evaluator,
@@ -164,11 +162,6 @@ function Internals(
      * @type {string}
      */
     this.mode = mode;
-    /**
-     * @public
-     * @type {NamespaceContext}
-     */
-    this.namespaceContext = namespaceContext;
     /**
      * @public
      * @type {OnceIncluder}

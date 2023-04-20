@@ -26,7 +26,6 @@ var DebugVariable = require('../../Debug/DebugVariable');
 module.exports = function (internals) {
     var callStack = internals.callStack,
         controlScope = internals.controlScope,
-        namespaceContext = internals.namespaceContext,
         valueFactory = internals.valueFactory;
 
     internals.disableTracing();
@@ -42,7 +41,7 @@ module.exports = function (internals) {
          * @returns {boolean}
          */
         caught: function (throwableClassName, error) {
-            var namespaceScope = namespaceContext.getEffectiveNamespaceScope(),
+            var namespaceScope = callStack.getEffectiveNamespaceScope(),
                 resolvedClass = namespaceScope.resolveClass(throwableClassName),
                 resolvedThrowableClassName = resolvedClass.namespace.getPrefix() + resolvedClass.name;
 

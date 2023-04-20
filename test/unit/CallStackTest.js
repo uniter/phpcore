@@ -14,14 +14,18 @@ var expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('./tools'),
     Call = require('../../src/Call'),
+    CallInstrumentation = require('../../src/Instrumentation/CallInstrumentation'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     ErrorReporting = require('../../src/Error/ErrorReporting'),
+    Exception = phpCommon.Exception,
     Namespace = require('../../src/Namespace').sync(),
+    NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
     PHPFatalError = phpCommon.PHPFatalError,
     Scope = require('../../src/Scope').sync(),
+    Trace = require('../../src/Control/Trace'),
     Translator = phpCommon.Translator,
     Value = require('../../src/Value').sync();
 
@@ -167,6 +171,26 @@ describe('CallStack', function () {
         });
     });
 
+    describe('getCurrentInstrumentation()', function () {
+        it('should return the instrumentation for the current Call', function () {
+            var currentCall = sinon.createStubInstance(Call),
+                instrumentation = sinon.createStubInstance(CallInstrumentation);
+            currentCall.getInstrumentation.returns(instrumentation);
+            callStack.push(currentCall);
+
+            expect(callStack.getCurrentInstrumentation()).to.equal(instrumentation);
+        });
+
+        it('should throw when the call stack is empty', function () {
+            expect(function () {
+                callStack.getCurrentInstrumentation();
+            }).to.throw(
+                Exception,
+                'CallStack.getCurrentInstrumentation() :: No current call'
+            );
+        });
+    });
+
     describe('getCurrentScope()', function () {
         it('should return the current Scope for the current Call when there are 3 on the stack', function () {
             var currentCall = sinon.createStubInstance(Call),
@@ -181,6 +205,46 @@ describe('CallStack', function () {
 
         it('should return null when there is no call on the stack', function () {
             expect(callStack.getCurrentScope()).to.equal(null);
+        });
+    });
+
+    describe('getCurrentTrace()', function () {
+        it('should return the Trace for the current Call', function () {
+            var currentCall = sinon.createStubInstance(Call),
+                trace = sinon.createStubInstance(Trace);
+            currentCall.getTrace.returns(trace);
+            callStack.push(currentCall);
+
+            expect(callStack.getCurrentTrace()).to.equal(trace);
+        });
+
+        it('should throw when the call stack is empty', function () {
+            expect(function () {
+                callStack.getCurrentTrace();
+            }).to.throw(
+                Exception,
+                'CallStack.getCurrentTrace() :: No current call'
+            );
+        });
+    });
+
+    describe('getEffectiveNamespaceScope()', function () {
+        it('should return the effective NamespaceScope for the current Call', function () {
+            var currentCall = sinon.createStubInstance(Call),
+                namespaceScope = sinon.createStubInstance(NamespaceScope);
+            currentCall.getEffectiveNamespaceScope.returns(namespaceScope);
+            callStack.push(currentCall);
+
+            expect(callStack.getEffectiveNamespaceScope()).to.equal(namespaceScope);
+        });
+
+        it('should throw when the call stack is empty', function () {
+            expect(function () {
+                callStack.getEffectiveNamespaceScope();
+            }).to.throw(
+                Exception,
+                'CallStack.getEffectiveNamespaceScope() :: No current call'
+            );
         });
     });
 
@@ -1066,6 +1130,34 @@ describe('CallStack', function () {
         });
     });
 
+    describe('resume()', function () {
+        it('should resume the most recent userland callee on the stack', function () {
+            var firstUserlandCallee = sinon.createStubInstance(Call),
+                secondUserlandCallee = sinon.createStubInstance(Call),
+                builtinCallee = sinon.createStubInstance(Call);
+            firstUserlandCallee.isUserland.returns(true);
+            secondUserlandCallee.isUserland.returns(true);
+            builtinCallee.isUserland.returns(false);
+            callStack.push(firstUserlandCallee);
+            callStack.push(secondUserlandCallee);
+            callStack.push(builtinCallee);
+
+            callStack.resume(21);
+
+            expect(secondUserlandCallee.resume).to.have.been.calledOnce;
+            expect(secondUserlandCallee.resume).to.have.been.calledWith(21);
+        });
+
+        it('should throw when the call stack is empty', function () {
+            expect(function () {
+                callStack.resume(21);
+            }).to.throw(
+                Exception,
+                'CallStack.resume() :: Cannot resume when there is no userland callee'
+            );
+        });
+    });
+
     describe('save()', function () {
         it('should return the frames', function () {
             var callerCall = sinon.createStubInstance(Call),
@@ -1092,6 +1184,77 @@ describe('CallStack', function () {
             expect(callStack.getLength()).to.equal(2);
             expect(callStack.getCurrent()).to.equal(currentCall);
             expect(callStack.getCaller()).to.equal(callerCall);
+        });
+    });
+
+    describe('throwInto()', function () {
+        it('should resume the most recent userland callee on the stack', function () {
+            var error = new Error('Bang!'),
+                firstUserlandCallee = sinon.createStubInstance(Call),
+                secondUserlandCallee = sinon.createStubInstance(Call),
+                builtinCallee = sinon.createStubInstance(Call);
+            firstUserlandCallee.isUserland.returns(true);
+            secondUserlandCallee.isUserland.returns(true);
+            builtinCallee.isUserland.returns(false);
+            callStack.push(firstUserlandCallee);
+            callStack.push(secondUserlandCallee);
+            callStack.push(builtinCallee);
+
+            callStack.throwInto(error);
+
+            expect(secondUserlandCallee.throwInto).to.have.been.calledOnce;
+            expect(secondUserlandCallee.throwInto).to.have.been.calledWith(sinon.match.same(error));
+        });
+
+        it('should throw when the call stack is empty', function () {
+            expect(function () {
+                callStack.throwInto(new Error('Bang!'));
+            }).to.throw(
+                Exception,
+                'CallStack.throwInto() :: Cannot throw-resume when there is no userland callee'
+            );
+        });
+    });
+
+    describe('useDescendantNamespaceScope()', function () {
+        it('should ask the current call to use the descendant NamespaceScope', function () {
+            var call = sinon.createStubInstance(Call),
+                namespaceScope = sinon.createStubInstance(NamespaceScope);
+            call.useDescendantNamespaceScope
+                .withArgs('MyDescendant')
+                .returns(namespaceScope);
+            callStack.push(call);
+
+            expect(callStack.useDescendantNamespaceScope('MyDescendant')).to.equal(namespaceScope);
+        });
+
+        it('should throw when the call stack is empty', function () {
+            expect(function () {
+                callStack.useDescendantNamespaceScope('SomeDescendant');
+            }).to.throw(
+                Exception,
+                'CallStack.useDescendantNamespaceScope() :: No current call'
+            );
+        });
+    });
+
+    describe('useGlobalNamespaceScope()', function () {
+        it('should ask the current call to use the descendant NamespaceScope', function () {
+            var call = sinon.createStubInstance(Call),
+                namespaceScope = sinon.createStubInstance(NamespaceScope);
+            call.useGlobalNamespaceScope.returns(namespaceScope);
+            callStack.push(call);
+
+            expect(callStack.useGlobalNamespaceScope()).to.equal(namespaceScope);
+        });
+
+        it('should throw when the call stack is empty', function () {
+            expect(function () {
+                callStack.useGlobalNamespaceScope();
+            }).to.throw(
+                Exception,
+                'CallStack.useGlobalNamespaceScope() :: No current call'
+            );
         });
     });
 });

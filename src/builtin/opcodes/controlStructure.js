@@ -20,7 +20,7 @@
  * @constructor
  */
 module.exports = function (internals) {
-    var namespaceContext = internals.namespaceContext,
+    var callStack = internals.callStack,
         valueFactory = internals.valueFactory;
 
     internals.setOpcodeFetcher('controlStructure');
@@ -34,7 +34,7 @@ module.exports = function (internals) {
          * @returns {ChainableInterface<Class>}
          */
         defineClass: function (name, definition) {
-            var namespaceScope = namespaceContext.getEffectiveNamespaceScope();
+            var namespaceScope = callStack.getEffectiveNamespaceScope();
 
             return namespaceScope.defineClass(name, definition);
         },
@@ -43,7 +43,7 @@ module.exports = function (internals) {
          * Defines a constant in the current namespace.
          */
         defineConstant: internals.typeHandler('string name, val value', function (name, value) {
-            var namespaceScope = namespaceContext.getEffectiveNamespaceScope();
+            var namespaceScope = callStack.getEffectiveNamespaceScope();
 
             namespaceScope.defineConstant(name, value);
         }),
@@ -54,7 +54,7 @@ module.exports = function (internals) {
         defineFunction: internals.typeHandler(
             'string name, any func, initial any parameters = null, initial number line = null',
             function (name, func, parametersSpecData, lineNumber) {
-                var namespaceScope = namespaceContext.getEffectiveNamespaceScope();
+                var namespaceScope = callStack.getEffectiveNamespaceScope();
 
                 namespaceScope.defineFunction(
                     name,
@@ -71,7 +71,7 @@ module.exports = function (internals) {
         defineInterface: internals.typeHandler(
             'string name, any definition',
             function (name, definition) {
-                var namespaceScope = namespaceContext.getEffectiveNamespaceScope();
+                var namespaceScope = callStack.getEffectiveNamespaceScope();
 
                 // TODO: Note that we currently make no distinction between classes and interfaces,
                 //       which is required by things like interface_exists(...).
@@ -156,7 +156,7 @@ module.exports = function (internals) {
          * optionally with an alias.
          */
         useClass: internals.typeHandler('string name, initial string|null alias = null', function (name, alias) {
-            var namespaceScope = namespaceContext.getEffectiveNamespaceScope();
+            var namespaceScope = callStack.getEffectiveNamespaceScope();
 
             return namespaceScope.use(name, alias);
         }),
@@ -165,14 +165,14 @@ module.exports = function (internals) {
          * Creates a NamespaceScope for the given descendant namespace of this one, switching to it.
          */
         useDescendantNamespaceScope: internals.typeHandler('string name', function (name) {
-            return namespaceContext.useDescendantNamespaceScope(name);
+            return callStack.useDescendantNamespaceScope(name);
         }),
 
         /**
          * Creates a NamespaceScope for the global namespace, switching to it.
          */
         useGlobalNamespaceScope: function () {
-            return namespaceContext.useGlobalNamespaceScope();
+            return callStack.useGlobalNamespaceScope();
         }
     };
 };

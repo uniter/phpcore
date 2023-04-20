@@ -185,7 +185,8 @@ _.extend(NativeDefinitionBuilder.prototype, {
             {},
             {},
             valueCoercer,
-            methodCaller
+            methodCaller,
+            null
         );
     }
 });

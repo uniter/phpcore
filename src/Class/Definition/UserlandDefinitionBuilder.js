@@ -70,6 +70,7 @@ _.extend(UserlandDefinitionBuilder.prototype, {
             constants,
             constructorName = null,
             instanceProperties,
+            instrumentation,
             methods = {},
             rootInternalPrototype,
             staticProperties,
@@ -126,8 +127,10 @@ _.extend(UserlandDefinitionBuilder.prototype, {
         staticProperties = definition.staticProperties;
         constants = definition.constants;
 
-        // Record the prototype object that we should stop at when walking up the chain
+        // Record the prototype object that we should stop at when walking up the chain.
         rootInternalPrototype = InternalClass.prototype;
+
+        instrumentation = builder.callStack.getCurrentInstrumentation();
 
         return new ClassDefinition(
             name,
@@ -144,7 +147,8 @@ _.extend(UserlandDefinitionBuilder.prototype, {
             instanceProperties,
             staticProperties,
             valueCoercer,
-            false
+            null,
+            instrumentation
         );
     }
 });

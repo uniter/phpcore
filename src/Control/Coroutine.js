@@ -18,30 +18,19 @@ var _ = require('microdash'),
  * Used for multitasking, non-preemptively by default.
  *
  * @param {CallStack} callStack
- * @param {NamespaceContext} namespaceContext
  * @constructor
  */
-function Coroutine(callStack, namespaceContext) {
+function Coroutine(callStack) {
     /**
      * @type {CallStack}
      */
     this.callStack = callStack;
-    /**
-     * @type {NamespaceContext}
-     */
-    this.namespaceContext = namespaceContext;
     /**
      * Saved call stack frames for restoring.
      *
      * @type {Call[]|null}
      */
     this.savedCallStack = null;
-    /**
-     * Saved NamespaceContext state for restoring.
-     *
-     * @type {Object|null}
-     */
-    this.savedNamespaceContextState = null;
     /**
      * Whether this coroutine is currently suspended.
      *
@@ -62,9 +51,7 @@ _.extend(Coroutine.prototype, {
         }
 
         coroutine.callStack.restore(coroutine.savedCallStack);
-        coroutine.namespaceContext.restore(coroutine.savedNamespaceContextState);
 
-        coroutine.savedNamespaceContextState = null;
         coroutine.savedCallStack = null;
         coroutine.suspended = false;
     },
@@ -79,7 +66,6 @@ _.extend(Coroutine.prototype, {
             throw new Exception('Coroutine.suspend() :: Invalid state - coroutine already suspended');
         }
 
-        coroutine.savedNamespaceContextState = coroutine.namespaceContext.save();
         coroutine.savedCallStack = coroutine.callStack.save();
 
         // Clear the call stack at this point, unlike .save().

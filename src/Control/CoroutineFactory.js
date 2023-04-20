@@ -14,10 +14,9 @@ var _ = require('microdash');
 /**
  * @param {class} Coroutine
  * @param {CallStack} callStack
- * @param {NamespaceContext} namespaceContext
  * @constructor
  */
-function CoroutineFactory(Coroutine, callStack, namespaceContext) {
+function CoroutineFactory(Coroutine, callStack) {
     /**
      * @type {CallStack}
      */
@@ -26,10 +25,6 @@ function CoroutineFactory(Coroutine, callStack, namespaceContext) {
      * @type {class}
      */
     this.Coroutine = Coroutine;
-    /**
-     * @type {NamespaceContext}
-     */
-    this.namespaceContext = namespaceContext;
 }
 
 _.extend(CoroutineFactory.prototype, {
@@ -40,7 +35,7 @@ _.extend(CoroutineFactory.prototype, {
      */
     createCoroutine: function () {
         var factory = this,
-            coroutine = new factory.Coroutine(factory.callStack, factory.namespaceContext),
+            coroutine = new factory.Coroutine(factory.callStack),
             currentScope = factory.callStack.getCurrentScope();
 
         if (currentScope) {

@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('../../tools'),
+    CallInstrumentation = require('../../../../src/Instrumentation/CallInstrumentation'),
     CallStack = require('../../../../src/CallStack'),
     Class = require('../../../../src/Class').sync(),
     ClassDefinition = require('../../../../src/Class/Definition/ClassDefinition'),
@@ -27,6 +28,7 @@ var expect = require('chai').expect,
 describe('UserlandDefinitionBuilder', function () {
     var builder,
         callStack,
+        currentInstrumentation,
         ffiFactory,
         flow,
         state,
@@ -37,10 +39,12 @@ describe('UserlandDefinitionBuilder', function () {
         state = tools.createIsolatedState('async', {
             'call_stack': callStack
         });
+        currentInstrumentation = sinon.createStubInstance(CallInstrumentation);
         ffiFactory = sinon.createStubInstance(FFIFactory);
         flow = state.getFlow();
         valueFactory = state.getValueFactory();
 
+        callStack.getCurrentInstrumentation.returns(currentInstrumentation);
         callStack.raiseUncatchableFatalError.callsFake(function (translationKey, placeholderVariables) {
             throw new PHPFatalError(
                 'Fake uncatchable fatal error for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {}),
@@ -233,6 +237,18 @@ describe('UserlandDefinitionBuilder', function () {
                 callBuildDefinition();
 
                 expect(definition.getValueCoercer().isAutoCoercionEnabled()).to.be.false;
+            });
+
+            it('should have no method caller specified', function () {
+                callBuildDefinition();
+
+                expect(definition.getMethodCaller()).to.be.null;
+            });
+
+            it('should have the instrumentation for the current call', function () {
+                callBuildDefinition();
+
+                expect(definition.getInstrumentation()).to.equal(currentInstrumentation);
             });
         });
 

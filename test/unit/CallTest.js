@@ -10,9 +10,14 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     Call = require('../../src/Call'),
+    CallInstrumentation = require('../../src/Instrumentation/CallInstrumentation'),
     Class = require('../../src/Class').sync(),
+    Exception = phpCommon.Exception,
+    InstrumentationFactory = require('../../src/Instrumentation/InstrumentationFactory'),
+    Module = require('../../src/Module'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     NullValue = require('../../src/Value/Null').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
@@ -24,6 +29,7 @@ describe('Call', function () {
     var argValue1,
         argValue2,
         call,
+        instrumentationFactory,
         namespaceScope,
         newStaticClass,
         scope,
@@ -32,12 +38,36 @@ describe('Call', function () {
     beforeEach(function () {
         argValue1 = sinon.createStubInstance(Value);
         argValue2 = sinon.createStubInstance(Value);
+        instrumentationFactory = sinon.createStubInstance(InstrumentationFactory);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         newStaticClass = sinon.createStubInstance(Class);
         scope = sinon.createStubInstance(Scope);
         trace = sinon.createStubInstance(Trace);
 
-        call = new Call(scope, namespaceScope, trace, [argValue1, argValue2], newStaticClass);
+        call = new Call(
+            scope,
+            namespaceScope,
+            trace,
+            instrumentationFactory,
+            [argValue1, argValue2],
+            newStaticClass
+        );
+    });
+
+    describe('enterIsolatedCall()', function () {
+        it('should enter the isolated call correctly', function () {
+            var enteredNamespaceScope = sinon.createStubInstance(NamespaceScope),
+                finder = sinon.stub().returns(21),
+                instrumentation = sinon.createStubInstance(CallInstrumentation);
+            instrumentation.getFinder.returns(finder);
+
+            call.enterIsolatedCall(enteredNamespaceScope, instrumentation);
+
+            expect(call.getIsolatedCallStackDepth()).to.equal(1);
+            expect(call.getEnteredNamespaceScope()).to.equal(enteredNamespaceScope);
+            expect(call.getEffectiveNamespaceScope()).to.equal(enteredNamespaceScope);
+            expect(call.getLastLine()).to.equal(21);
+        });
     });
 
     describe('getCurrentClass()', function () {
@@ -49,11 +79,34 @@ describe('Call', function () {
         });
     });
 
+    describe('getEffectiveNamespaceScope()', function () {
+        it('should return the NamespaceScope of the call initially', function () {
+            expect(call.getEffectiveNamespaceScope()).to.equal(namespaceScope);
+        });
+    });
+
+    describe('getEnteredNamespaceScope()', function () {
+        it('should return null initially', function () {
+            expect(call.getEnteredNamespaceScope()).to.be.null;
+        });
+    });
+
     describe('getFilePath()', function () {
-        it('should return the path from the NamespaceScope', function () {
+        it('should return the path from the NamespaceScope of the call initially', function () {
             namespaceScope.getFilePath.returns('/my/current/file.php');
 
             expect(call.getFilePath()).to.equal('/my/current/file.php');
+        });
+
+        it('should return the path from the effective NamespaceScope when changed', function () {
+            var module = sinon.createStubInstance(Module),
+                topLevelNamespaceScope = sinon.createStubInstance(NamespaceScope);
+            namespaceScope.getModule.returns(module);
+            module.getTopLevelNamespaceScope.returns(topLevelNamespaceScope);
+            topLevelNamespaceScope.getFilePath.returns('/my/effective/file.php');
+            call.useGlobalNamespaceScope();
+
+            expect(call.getFilePath()).to.equal('/my/effective/file.php');
         });
     });
 
@@ -75,16 +128,140 @@ describe('Call', function () {
         });
     });
 
-    describe('getLastLine()', function () {
-        it('should return the current line from the Finder if instrumented', function () {
-            var finder = sinon.stub().returns(123);
+    describe('getInstrumentation()', function () {
+        it('should return a CallInstrumentation with the finder when the call has been instrumented', function () {
+            var finder = sinon.stub(),
+                instrumentation = sinon.createStubInstance(CallInstrumentation);
             call.instrument(finder);
+            instrumentationFactory.createCallInstrumentation
+                .withArgs(sinon.match.same(finder))
+                .returns(instrumentation);
 
-            expect(call.getLastLine()).to.equal(123);
+            expect(call.getInstrumentation()).to.equal(instrumentation);
         });
 
-        it('should return null if not instrumented', function () {
-            expect(call.getLastLine()).to.be.null;
+        it('should return a CallInstrumentation with no finder when the call has not been instrumented', function () {
+            var instrumentation = sinon.createStubInstance(CallInstrumentation);
+            instrumentationFactory.createCallInstrumentation
+                .withArgs(null)
+                .returns(instrumentation);
+
+            expect(call.getInstrumentation()).to.equal(instrumentation);
+        });
+    });
+
+    describe('getIsolatedCallStackDepth()', function () {
+        it('should return 0 when no isolated calls have happened', function () {
+            expect(call.getIsolatedCallStackDepth()).to.equal(0);
+        });
+
+        it('should return 1 when one isolated call has happened', function () {
+            var instrumentation = sinon.createStubInstance(CallInstrumentation),
+                namespaceScope = sinon.createStubInstance(NamespaceScope);
+            call.enterIsolatedCall(namespaceScope, instrumentation);
+
+            expect(call.getIsolatedCallStackDepth()).to.equal(1);
+        });
+
+        it('should return 2 when a second nested isolated call has happened', function () {
+            var instrumentation = sinon.createStubInstance(CallInstrumentation),
+                namespaceScope = sinon.createStubInstance(NamespaceScope);
+            call.enterIsolatedCall(namespaceScope, instrumentation);
+            call.enterIsolatedCall(namespaceScope, instrumentation);
+
+            expect(call.getIsolatedCallStackDepth()).to.equal(2);
+        });
+
+        it('should return 0 when a single isolated call has been left', function () {
+            var instrumentation = sinon.createStubInstance(CallInstrumentation),
+                namespaceScope = sinon.createStubInstance(NamespaceScope);
+            call.enterIsolatedCall(namespaceScope, instrumentation);
+            call.leaveIsolatedCall(namespaceScope, instrumentation);
+
+            expect(call.getIsolatedCallStackDepth()).to.equal(0);
+        });
+    });
+
+    describe('getLastLine()', function () {
+        describe('when there has been no isolated call', function () {
+            it('should return the current line from the Finder if instrumented', function () {
+                var finder = sinon.stub().returns(123);
+                call.instrument(finder);
+
+                expect(call.getLastLine()).to.equal(123);
+            });
+
+            it('should return null if not instrumented', function () {
+                expect(call.getLastLine()).to.be.null;
+            });
+        });
+
+        describe('when inside an isolated call', function () {
+            it('should return the line number of the current isolated call', function () {
+                var enteredNamespaceScope = sinon.createStubInstance(NamespaceScope),
+                    originalFinder = sinon.stub(),
+                    isolatedCallFinder = sinon.stub(),
+                    instrumentation = sinon.createStubInstance(CallInstrumentation);
+                originalFinder.onFirstCall().returns(123); // Read in .enterIsolatedCall(...).
+                isolatedCallFinder.returns(321); // Read in .getLastLine(...).
+                call.instrument(originalFinder);
+                instrumentation.getFinder.returns(isolatedCallFinder);
+                call.enterIsolatedCall(enteredNamespaceScope, instrumentation);
+
+                expect(call.getLastLine()).to.equal(321);
+            });
+        });
+
+        describe('after an isolated call has completed', function () {
+            it('should return the entry line number before the last isolated call when the outer call has not yet moved on', function () {
+                var enteredNamespaceScope = sinon.createStubInstance(NamespaceScope),
+                    originalFinder = sinon.stub(),
+                    isolatedCallFinder = sinon.stub().returns(321),
+                    instrumentation = sinon.createStubInstance(CallInstrumentation);
+                originalFinder.onFirstCall().returns(123); // Read in .enterIsolatedCall(...).
+                originalFinder.onSecondCall().returns(124); // Read in .leaveIsolatedCall(...).
+                originalFinder.onThirdCall().returns(124); // Read in .getLastLine().
+                call.instrument(originalFinder);
+                instrumentation.getFinder.returns(isolatedCallFinder);
+                call.enterIsolatedCall(enteredNamespaceScope, instrumentation);
+                call.leaveIsolatedCall(enteredNamespaceScope, instrumentation);
+
+                expect(call.getLastLine()).to.equal(123);
+            });
+
+            it('should return the latest outer call line number when the outer call has moved on', function () {
+                var enteredNamespaceScope = sinon.createStubInstance(NamespaceScope),
+                    originalFinder = sinon.stub(),
+                    isolatedCallFinder = sinon.stub().returns(321),
+                    instrumentation = sinon.createStubInstance(CallInstrumentation);
+                originalFinder.onFirstCall().returns(123); // Read in .enterIsolatedCall(...).
+                originalFinder.onSecondCall().returns(124); // Read in .leaveIsolatedCall(...).
+                originalFinder.onThirdCall().returns(127); // Read in .getLastLine().
+                call.instrument(originalFinder);
+                instrumentation.getFinder.returns(isolatedCallFinder);
+                call.enterIsolatedCall(enteredNamespaceScope, instrumentation);
+                call.leaveIsolatedCall(enteredNamespaceScope, instrumentation);
+
+                expect(call.getLastLine()).to.equal(127);
+            });
+
+            it('should return the latest outer call line number when the outer call has moved on but later returned to the same line', function () {
+                var enteredNamespaceScope = sinon.createStubInstance(NamespaceScope),
+                    originalFinder = sinon.stub(),
+                    isolatedCallFinder = sinon.stub().returns(321),
+                    instrumentation = sinon.createStubInstance(CallInstrumentation);
+                originalFinder.onFirstCall().returns(123); // Read in .enterIsolatedCall(...).
+                originalFinder.onSecondCall().returns(124); // Read in .leaveIsolatedCall(...).
+                originalFinder.onThirdCall().returns(127); // Read in .getLastLine().
+                originalFinder.onCall(3).returns(124); // Read in .getLastLine().
+                call.instrument(originalFinder);
+                instrumentation.getFinder.returns(isolatedCallFinder);
+                call.enterIsolatedCall(enteredNamespaceScope, instrumentation);
+                call.leaveIsolatedCall(enteredNamespaceScope, instrumentation);
+                call.getLastLine();
+
+                expect(call.getLastLine()).to.equal(124);
+            });
         });
     });
 
@@ -122,6 +299,7 @@ describe('Call', function () {
                 scope,
                 namespaceScope,
                 trace,
+                instrumentationFactory,
                 [argValue1, argValue2],
                 null // No new static class (eg. forwarding static call)
             );
@@ -170,6 +348,69 @@ describe('Call', function () {
         });
     });
 
+    describe('leaveIsolatedCall()', function () {
+        var enteredNamespaceScope,
+            instrumentation,
+            isolatedCallFinder;
+
+        beforeEach(function () {
+            enteredNamespaceScope = sinon.createStubInstance(NamespaceScope);
+            instrumentation = sinon.createStubInstance(CallInstrumentation);
+            isolatedCallFinder = sinon.stub().returns(321);
+            instrumentation.getFinder.returns(isolatedCallFinder);
+        });
+
+        it('should leave the isolated call correctly', function () {
+            var originalFinder = sinon.stub().returns(123);
+            call.instrument(originalFinder);
+            call.enterIsolatedCall(enteredNamespaceScope, instrumentation);
+
+            call.leaveIsolatedCall(enteredNamespaceScope, instrumentation);
+
+            expect(call.getIsolatedCallStackDepth()).to.equal(0);
+            expect(call.getEnteredNamespaceScope()).to.be.null;
+            expect(call.getEffectiveNamespaceScope()).to.equal(
+                namespaceScope,
+                'Should have returned to the outer call NamespaceScope'
+            );
+            expect(call.getLastLine()).to.equal(123);
+        });
+
+        it('should throw if there is no current isolated call', function () {
+            expect(function () {
+                call.leaveIsolatedCall(enteredNamespaceScope, instrumentation);
+            }).to.throw(
+                Exception,
+                'Call.leaveIsolatedCall() :: NamespaceScope stack is empty'
+            );
+        });
+
+        it('should throw if the wrong NamespaceScope is given', function () {
+            var incorrectNamespaceScope = sinon.createStubInstance(NamespaceScope);
+            call.enterIsolatedCall(enteredNamespaceScope, instrumentation);
+
+            expect(function () {
+                call.leaveIsolatedCall(incorrectNamespaceScope, instrumentation);
+            }).to.throw(
+                Exception,
+                'Call.leaveIsolatedCall() :: Incorrect NamespaceScope provided'
+            );
+        });
+
+        it('should throw if the wrong instrumentation is given', function () {
+            var incorrectInstrumentation = sinon.createStubInstance(CallInstrumentation);
+            incorrectInstrumentation.getFinder.returns(sinon.stub().returns(456));
+            call.enterIsolatedCall(enteredNamespaceScope, instrumentation);
+
+            expect(function () {
+                call.leaveIsolatedCall(enteredNamespaceScope, incorrectInstrumentation);
+            }).to.throw(
+                Exception,
+                'Call.leaveIsolatedCall() :: Incorrect CallInstrumentation provided'
+            );
+        });
+    });
+
     describe('resume()', function () {
         it('should resume this call\'s trace with the given result value', function () {
             var result = {my: 'result'};
@@ -205,6 +446,93 @@ describe('Call', function () {
 
             expect(trace.throwInto).to.have.been.calledOnce;
             expect(trace.throwInto).to.have.been.calledWith(sinon.match.same(error));
+        });
+    });
+
+    describe('useDescendantNamespaceScope()', function () {
+        var descendantNamespaceScope,
+            module,
+            topLevelNamespaceScope;
+
+        beforeEach(function () {
+            descendantNamespaceScope = sinon.createStubInstance(NamespaceScope);
+            module = sinon.createStubInstance(Module);
+            topLevelNamespaceScope = sinon.createStubInstance(NamespaceScope);
+
+            namespaceScope.getModule.returns(module);
+            module.getTopLevelNamespaceScope.returns(topLevelNamespaceScope);
+            topLevelNamespaceScope.getDescendant
+                .withArgs('MyDescendant')
+                .returns(descendantNamespaceScope);
+        });
+
+        it('should enter the descendant NamespaceScope of the original one', function () {
+            expect(call.useDescendantNamespaceScope('MyDescendant')).to.equal(
+                descendantNamespaceScope,
+                'Original NamespaceScope should be returned'
+            );
+            expect(call.getEffectiveNamespaceScope()).to.equal(
+                descendantNamespaceScope,
+                'The descendant NamespaceScope should become effective'
+            );
+            expect(call.getEnteredNamespaceScope()).to.equal(
+                null,
+                'No NamespaceScope should have been entered'
+            );
+        });
+
+        it('should throw if an isolated call has been entered', function () {
+            var enteredNamespaceScope = sinon.createStubInstance(NamespaceScope),
+                instrumentation = sinon.createStubInstance(CallInstrumentation);
+            call.enterIsolatedCall(enteredNamespaceScope, instrumentation);
+
+            expect(function () {
+                call.useDescendantNamespaceScope('MyDescendant');
+            }).to.throw(
+                Exception,
+                'Call.useDescendantNamespaceScope() :: Cannot be inside an isolated call'
+            );
+        });
+    });
+
+    describe('useGlobalNamespaceScope()', function () {
+        var module,
+            topLevelNamespaceScope;
+
+        beforeEach(function () {
+            module = sinon.createStubInstance(Module);
+            topLevelNamespaceScope = sinon.createStubInstance(NamespaceScope);
+
+            namespaceScope.getModule.returns(module);
+            module.getTopLevelNamespaceScope.returns(topLevelNamespaceScope);
+        });
+
+        it('should enter the top-level NamespaceScope for the original one\'s module', function () {
+            expect(call.useGlobalNamespaceScope()).to.equal(
+                topLevelNamespaceScope,
+                'Top-level NamespaceScope of module should be returned'
+            );
+            expect(call.getEffectiveNamespaceScope()).to.equal(
+                topLevelNamespaceScope,
+                'Top-level NamespaceScope should become effective'
+            );
+            expect(call.getEnteredNamespaceScope()).to.equal(
+                null,
+                'No NamespaceScope should have been entered'
+            );
+        });
+
+        it('should throw if an isolated call has been entered', function () {
+            var enteredNamespaceScope = sinon.createStubInstance(NamespaceScope),
+                instrumentation = sinon.createStubInstance(CallInstrumentation);
+            call.enterIsolatedCall(enteredNamespaceScope, instrumentation);
+
+            expect(function () {
+                call.useGlobalNamespaceScope();
+            }).to.throw(
+                Exception,
+                'Call.useGlobalNamespaceScope() :: Cannot be inside an isolated call'
+            );
         });
     });
 });

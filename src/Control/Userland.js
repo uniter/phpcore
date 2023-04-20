@@ -9,14 +9,15 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    phpCommon = require('phpcommon'),
+    Exception = phpCommon.Exception;
 
 /**
  * @param {CallStack} callStack
  * @param {ControlFactory} controlFactory
  * @param {ControlBridge} controlBridge
  * @param {ControlScope} controlScope
- * @param {NamespaceContext} namespaceContext
  * @param {Flow} flow
  * @param {ValueFactory} valueFactory
  * @param {OpcodePool} opcodePool
@@ -28,7 +29,6 @@ function Userland(
     controlFactory,
     controlBridge,
     controlScope,
-    namespaceContext,
     flow,
     valueFactory,
     opcodePool,
@@ -59,10 +59,6 @@ function Userland(
      */
     this.mode = mode;
     /**
-     * @type {NamespaceContext}
-     */
-    this.namespaceContext = namespaceContext;
-    /**
      * @type {OpcodePool}
      */
     this.opcodePool = opcodePool;
@@ -79,16 +75,23 @@ _.extend(Userland.prototype, {
      *
      * @param {Function} executor
      * @param {NamespaceScope=} namespaceScope
+     * @param {CallInstrumentation=} instrumentation
      * @returns {ChainableInterface}
      */
-    enterIsolated: function (executor, namespaceScope) {
+    enterIsolated: function (executor, namespaceScope, instrumentation) {
         var userland = this,
             call = userland.callStack.getCurrent(),
             isolatedTrace = userland.controlFactory.createTrace(),
             originalTrace;
 
         if (namespaceScope) {
-            userland.namespaceContext.enterNamespaceScope(namespaceScope);
+            if (!instrumentation) {
+                throw new Exception(
+                    'Userland.enterIsolated() :: Instrumentation must be provided along with NamespaceScope'
+                );
+            }
+
+            call.enterIsolatedCall(namespaceScope, instrumentation);
         }
 
         originalTrace = call.setTrace(isolatedTrace);
@@ -133,7 +136,7 @@ _.extend(Userland.prototype, {
                 call.setTrace(originalTrace);
 
                 if (namespaceScope) {
-                    userland.namespaceContext.leaveNamespaceScope(namespaceScope);
+                    call.leaveIsolatedCall(namespaceScope, instrumentation);
                 }
             });
     },
@@ -142,14 +145,11 @@ _.extend(Userland.prototype, {
      * Enters the top level of userland code (e.g. a module).
      *
      * @param {Function} executor
-     * @param {NamespaceScope} namespaceScope
      * @returns {Promise|*}
      */
-    enterTopLevel: function (executor, namespaceScope) {
+    enterTopLevel: function (executor) {
         var result,
             userland = this;
-
-        userland.namespaceContext.enterNamespaceScope(namespaceScope);
 
         function doCall() {
             return userland.flow.maybeFuturise(
@@ -186,10 +186,7 @@ _.extend(Userland.prototype, {
 
         result = doCall()
             // Always coerce the result to a Value if needed.
-            .asValue()
-            .finally(function () {
-                userland.namespaceContext.leaveNamespaceScope(namespaceScope);
-            });
+            .asValue();
 
         return userland.mode === 'async' ?
             result.toPromise() :

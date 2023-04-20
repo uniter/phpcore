@@ -13,6 +13,7 @@ var _ = require('microdash'),
     expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('./tools'),
+    CallInstrumentation = require('../../src/Instrumentation/CallInstrumentation'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     ExportRepository = require('../../src/FFI/Export/ExportRepository'),
@@ -41,6 +42,7 @@ describe('Class', function () {
         flow,
         functionFactory,
         futureFactory,
+        instrumentation,
         interfaceObject,
         methodCaller,
         namespaceScope,
@@ -61,6 +63,7 @@ describe('Class', function () {
         flow = state.getFlow();
         functionFactory = sinon.createStubInstance(FunctionFactory);
         futureFactory = state.getFutureFactory();
+        instrumentation = sinon.createStubInstance(CallInstrumentation);
         methodCaller = null;
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         referenceFactory = sinon.createStubInstance(ReferenceFactory);
@@ -177,7 +180,8 @@ describe('Class', function () {
                 exportRepository,
                 valueCoercer,
                 ffiFactory,
-                methodCaller
+                methodCaller,
+                instrumentation
             );
         };
         createClass('__construct', null);
@@ -596,62 +600,67 @@ describe('Class', function () {
             superClass.getConstantByName.returns(valueFactory.createRejection(new Error('Constant not defined')));
         });
 
-        it('should return the FQCN for the magic `::class` constant case-insensitively', function () {
+        it('should return the FQCN for the magic `::class` constant case-insensitively', async function () {
+            var value;
             createClass('__construct', superClass);
 
-            return classObject.getConstantByName('clAss').toPromise().then(function (value) {
-                expect(value.getNative()).to.equal('My\\Class\\Path\\Here');
-            });
+            value = await classObject.getConstantByName('clAss').toPromise();
+
+            expect(value.getNative()).to.equal('My\\Class\\Path\\Here');
         });
 
-        it('should be able to fetch a constant defined by the current class', function () {
+        it('should be able to fetch a constant defined by the current class', async function () {
+            var value;
             createClass('__construct', superClass, {
                 'MY_CONST': function () {
                     return valueFactory.createString('my value');
                 }
             });
 
-            return classObject.getConstantByName('MY_CONST').toPromise().then(function (value) {
-                expect(value.getNative()).to.equal('my value');
-            });
+            value = await classObject.getConstantByName('MY_CONST').toPromise();
+
+            expect(value.getNative()).to.equal('my value');
         });
 
-        it('should evaluate a constant defined by the current class within an isolated opcode', function () {
+        it('should evaluate a constant defined by the current class within an isolated call', async function () {
             createClass('__construct', superClass, {
                 'MY_CONST': function () {
                     return valueFactory.createString('my value');
                 }
             });
 
-            return classObject.getConstantByName('MY_CONST').toPromise().then(function () {
-                expect(userland.enterIsolated).to.have.been.calledOnce;
-                expect(userland.enterIsolated).to.have.been.calledWith(
-                    sinon.match.func,
-                    sinon.match.same(namespaceScope)
-                );
-            });
+            await classObject.getConstantByName('MY_CONST').toPromise();
+
+            expect(userland.enterIsolated).to.have.been.calledOnce;
+            expect(userland.enterIsolated).to.have.been.calledWith(
+                sinon.match.func,
+                sinon.match.same(namespaceScope),
+                sinon.match.same(instrumentation)
+            );
         });
 
-        it('should be able to fetch a constant defined by an interface implemented directly by the current class', function () {
+        it('should be able to fetch a constant defined by an interface implemented directly by the current class', async function () {
+            var value;
             interfaceObject.getConstantByName
                 .withArgs('MY_INTERFACE_CONST')
                 .returns(valueFactory.createString('my value from interface'));
             createClass('__construct', superClass);
 
-            return classObject.getConstantByName('MY_INTERFACE_CONST').toPromise().then(function (value) {
-                expect(value.getNative()).to.equal('my value from interface');
-            });
+            value = await classObject.getConstantByName('MY_INTERFACE_CONST').toPromise();
+
+            expect(value.getNative()).to.equal('my value from interface');
         });
 
-        it('should be able to fetch a constant defined by the superclass (or other ancestor)', function () {
+        it('should be able to fetch a constant defined by the superclass (or other ancestor)', async function () {
+            var value;
             superClass.getConstantByName
                 .withArgs('MY_SUPER_CONST')
                 .returns(valueFactory.createString('my value from superclass'));
             createClass('__construct', superClass);
 
-            return classObject.getConstantByName('MY_SUPER_CONST').toPromise().then(function (value) {
-                expect(value.getNative()).to.equal('my value from superclass');
-            });
+            value = await classObject.getConstantByName('MY_SUPER_CONST').toPromise();
+
+            expect(value.getNative()).to.equal('my value from superclass');
         });
 
         it('should cache the constant\'s value', async function () {
@@ -667,10 +676,10 @@ describe('Class', function () {
             expect(await classObject.getConstantByName('MY_CONST').toPromise()).to.equal(value);
         });
 
-        it('should raise the correct error when the constant is not defined in the class hierarchy', function () {
+        it('should raise the correct error when the constant is not defined in the class hierarchy', async function () {
             createClass('__construct', null);
 
-            return expect(classObject.getConstantByName('MY_CONST').toPromise()).to.eventually.be.rejectedWith(
+            await expect(classObject.getConstantByName('MY_CONST').toPromise()).to.eventually.be.rejectedWith(
                 'Fake PHP Fatal error for #core.undefined_class_constant with {"name":"MY_CONST"}'
             );
         });
@@ -958,6 +967,16 @@ describe('Class', function () {
                 expect(staticProperty.getName()).to.equal('myPublicStaticProp');
                 expect(staticProperty.getVisibility()).to.equal('public');
                 expect(staticProperty.getValue().getNative()).to.equal('my public static prop value');
+            });
+
+            it('should evaluate property initialisers within an isolated call', async function () {
+                await classObject.getStaticPropertyByName('myPublicStaticProp').toPromise();
+
+                expect(userland.enterIsolated).to.always.have.been.calledWith(
+                    sinon.match.func,
+                    sinon.match.same(namespaceScope),
+                    sinon.match.same(instrumentation)
+                );
             });
         });
 

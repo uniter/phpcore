@@ -28,7 +28,6 @@ var expect = require('chai').expect,
     Future = require('../../../../src/Control/Future'),
     FutureFactory = require('../../../../src/Control/FutureFactory'),
     Namespace = require('../../../../src/Namespace').sync(),
-    NamespaceContext = require('../../../../src/Namespace/NamespaceContext'),
     Includer = require('../../../../src/Load/Includer').sync(),
     INIState = require('../../../../src/INIState'),
     Internals = require('../../../../src/FFI/Internals/Internals'),
@@ -69,7 +68,6 @@ describe('FFI Internals', function () {
         includer,
         iniState,
         internals,
-        namespaceContext,
         onceIncluder,
         optionSet,
         output,
@@ -109,7 +107,6 @@ describe('FFI Internals', function () {
         globalScope = sinon.createStubInstance(Scope);
         includer = sinon.createStubInstance(Includer);
         iniState = sinon.createStubInstance(INIState);
-        namespaceContext = sinon.createStubInstance(NamespaceContext);
         onceIncluder = sinon.createStubInstance(OnceIncluder);
         optionSet = sinon.createStubInstance(OptionSet);
         output = sinon.createStubInstance(Output);
@@ -130,7 +127,6 @@ describe('FFI Internals', function () {
                 userland,
                 flow,
                 controlScope,
-                namespaceContext,
                 includer,
                 onceIncluder,
                 evaluator,
@@ -229,10 +225,6 @@ describe('FFI Internals', function () {
 
         it('should expose the mode publicly', function () {
             expect(internals.mode).to.equal('async');
-        });
-
-        it('should expose the NamespaceContext publicly', function () {
-            expect(internals.namespaceContext).to.equal(namespaceContext);
         });
 
         it('should expose the OnceIncluder publicly', function () {

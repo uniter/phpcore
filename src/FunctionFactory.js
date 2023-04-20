@@ -33,7 +33,6 @@ module.exports = require('pauser')([
      * @param {CallFactory} callFactory
      * @param {ValueFactory} valueFactory
      * @param {CallStack} callStack
-     * @param {NamespaceContext} namespaceContext
      * @param {Flow} flow
      * @param {ControlBridge} controlBridge
      * @param {ControlScope} controlScope
@@ -45,7 +44,6 @@ module.exports = require('pauser')([
         callFactory,
         valueFactory,
         callStack,
-        namespaceContext,
         flow,
         controlBridge,
         controlScope
@@ -74,10 +72,6 @@ module.exports = require('pauser')([
          * @type {class}
          */
         this.MethodSpec = MethodSpec;
-        /**
-         * @type {NamespaceContext}
-         */
-        this.namespaceContext = namespaceContext;
         /**
          * @type {Class|null}
          */
@@ -243,9 +237,6 @@ module.exports = require('pauser')([
                                 newStaticClass
                             );
 
-                            // TODO: Remove NamespaceScope concept, instead handling at compile time.
-                            factory.namespaceContext.enterNamespaceScope(namespaceScope);
-
                             // Push the call onto the stack.
                             factory.callStack.push(call);
 
@@ -282,9 +273,6 @@ module.exports = require('pauser')([
 
                             // TODO: This was previously not being done if an error occurred during arg defaults population, cover with unit test
                             factory.callStack.pop();
-
-                            // TODO: Remove NamespaceScope...
-                            factory.namespaceContext.leaveNamespaceScope(namespaceScope);
                         });
 
                     if (!functionSpec.isReturnByReference()) {

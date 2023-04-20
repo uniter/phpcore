@@ -21,7 +21,6 @@ var expect = require('chai').expect,
     Exception = phpCommon.Exception,
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     FunctionSpec = require('../../src/Function/FunctionSpec'),
-    NamespaceContext = require('../../src/Namespace/NamespaceContext'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     Reference = require('../../src/Reference/Reference'),
     Scope = require('../../src/Scope').sync(),
@@ -41,7 +40,6 @@ describe('FunctionFactory', function () {
         futureFactory,
         MethodSpec,
         name,
-        namespaceContext,
         namespaceScope,
         originalFunc,
         pauseFactory,
@@ -67,7 +65,6 @@ describe('FunctionFactory', function () {
         originalFunc = sinon.stub();
         MethodSpec = sinon.stub();
         name = 'myFunction';
-        namespaceContext = sinon.createStubInstance(NamespaceContext);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         pauseFactory = state.getPauseFactory();
         scope = sinon.createStubInstance(Scope);
@@ -83,7 +80,6 @@ describe('FunctionFactory', function () {
             callFactory,
             valueFactory,
             callStack,
-            namespaceContext,
             flow,
             controlBridge,
             controlScope
@@ -361,13 +357,6 @@ describe('FunctionFactory', function () {
                 expect(callStack.push).to.have.been.calledWith(sinon.match.same(call));
             });
 
-            it('should enter the NamespaceScope via the NamespaceContext', async function () {
-                await callCreate()().toPromise();
-
-                expect(namespaceContext.enterNamespaceScope).to.have.been.calledOnce;
-                expect(namespaceContext.enterNamespaceScope).to.have.been.calledWith(sinon.match.same(namespaceScope));
-            });
-
             it('should validate parameter arguments at the right point', async function () {
                 var argValue1 = valueFactory.createInteger(21),
                     argValue2 = valueFactory.createInteger(101),
@@ -419,14 +408,6 @@ describe('FunctionFactory', function () {
                 expect(callStack.pop).to.have.been.calledOnce;
             });
 
-            it('should leave the NamespaceScope via the NamespaceContext when the wrapped function returns', async function () {
-                await callCreate()().toPromise();
-
-                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledOnce;
-                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledWith(sinon.match.same(namespaceScope));
-                expect(namespaceContext.leaveNamespaceScope).to.have.been.calledAfter(callStack.pop);
-            });
-
             it('should pop the call off the stack even when the wrapped function throws', function () {
                 var error = new Error('argh');
                 originalFunc.throws(error);
@@ -435,21 +416,6 @@ describe('FunctionFactory', function () {
                     .to.eventually.be.rejectedWith(error)
                     .then(function () {
                         expect(callStack.pop).to.have.been.calledOnce;
-                    });
-            });
-
-            it('should leave the NamespaceScope via the NamespaceContext even when the wrapped function throws', function () {
-                var error = new Error('argh');
-                originalFunc.throws(error);
-
-                return expect(callCreate()().toPromise())
-                    .to.eventually.be.rejectedWith(error)
-                    .then(function () {
-                        expect(namespaceContext.leaveNamespaceScope).to.have.been.calledOnce;
-                        expect(namespaceContext.leaveNamespaceScope).to.have.been.calledWith(
-                            sinon.match.same(namespaceScope)
-                        );
-                        expect(namespaceContext.leaveNamespaceScope).to.have.been.calledAfter(callStack.pop);
                     });
             });
 

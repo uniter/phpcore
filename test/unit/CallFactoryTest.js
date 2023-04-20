@@ -14,6 +14,7 @@ var expect = require('chai').expect,
     CallFactory = require('../../src/CallFactory'),
     Class = require('../../src/Class').sync(),
     ControlFactory = require('../../src/Control/ControlFactory'),
+    InstrumentationFactory = require('../../src/Instrumentation/InstrumentationFactory'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     Scope = require('../../src/Scope').sync(),
     Trace = require('../../src/Control/Trace'),
@@ -24,6 +25,7 @@ describe('CallFactory', function () {
         controlFactory,
         factory,
         FFICall,
+        instrumentationFactory,
         namespaceScope,
         scope,
         trace;
@@ -32,6 +34,7 @@ describe('CallFactory', function () {
         Call = sinon.stub();
         controlFactory = sinon.createStubInstance(ControlFactory);
         FFICall = sinon.stub();
+        instrumentationFactory = sinon.createStubInstance(InstrumentationFactory);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         scope = sinon.createStubInstance(Scope);
         trace = null; // Assigned by stub below.
@@ -42,7 +45,7 @@ describe('CallFactory', function () {
             return trace;
         });
 
-        factory = new CallFactory(Call, FFICall);
+        factory = new CallFactory(Call, FFICall, instrumentationFactory);
         factory.setControlFactory(controlFactory);
     });
 
@@ -79,6 +82,18 @@ describe('CallFactory', function () {
             );
         });
 
+        it('should pass the InstrumentationFactory to the Call constructor', function () {
+            factory.create(scope, namespaceScope);
+
+            expect(Call).to.have.been.calledOnce;
+            expect(Call).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(instrumentationFactory)
+            );
+        });
+
         it('should pass the argument values to the Call constructor if specified', function () {
             var argValue1 = sinon.createStubInstance(Value),
                 argValue2 = sinon.createStubInstance(Value);
@@ -87,6 +102,7 @@ describe('CallFactory', function () {
 
             expect(Call).to.have.been.calledOnce;
             expect(Call).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -99,6 +115,7 @@ describe('CallFactory', function () {
 
             expect(Call).to.have.been.calledOnce;
             expect(Call).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -117,6 +134,7 @@ describe('CallFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
                 sinon.match.same(newStaticClass)
             );
         });
@@ -126,6 +144,7 @@ describe('CallFactory', function () {
 
             expect(Call).to.have.been.calledOnce;
             expect(Call).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,

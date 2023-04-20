@@ -14,9 +14,10 @@ var _ = require('microdash');
 /**
  * @param {class} Call
  * @param {class} FFICall
+ * @param {InstrumentationFactory} instrumentationFactory
  * @constructor
  */
-function CallFactory(Call, FFICall) {
+function CallFactory(Call, FFICall, instrumentationFactory) {
     /**
      * @type {class}
      */
@@ -31,11 +32,15 @@ function CallFactory(Call, FFICall) {
      * @type {class}
      */
     this.FFICall = FFICall;
+    /**
+     * @type {InstrumentationFactory}
+     */
+    this.instrumentationFactory = instrumentationFactory;
 }
 
 _.extend(CallFactory.prototype, {
     /**
-     * Creates a new Call
+     * Creates a new Call.
      *
      * @param {Scope} scope
      * @param {NamespaceScope} namespaceScope
@@ -47,7 +52,14 @@ _.extend(CallFactory.prototype, {
         var factory = this,
             trace = factory.controlFactory.createTrace();
 
-        return new factory.Call(scope, namespaceScope, trace, args || [], newStaticClass || null);
+        return new factory.Call(
+            scope,
+            namespaceScope,
+            trace,
+            factory.instrumentationFactory,
+            args || [],
+            newStaticClass || null
+        );
     },
 
     /**

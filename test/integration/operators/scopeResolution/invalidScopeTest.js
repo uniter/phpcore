@@ -91,23 +91,36 @@ EOS
     });
 
     it('should raise a fatal error when attempting to define a property referencing a constant of the parent class when current class has no parent', async function () {
-        var php = nowdoc(function () {/*<<<EOS
+        var classPhp = nowdoc(function () {/*<<<EOS
 <?php
 
 class MyClass {
     private $myProperty = parent::SOME_CONSTANT;
 }
 
+EOS
+*/;}), //jshint ignore:line
+            classModule = tools.asyncTranspile('/path/to/MyClass.php', classPhp),
+            mainPhp = nowdoc(function () {/*<<<EOS
+<?php
+
+// -- Some padding to inflate line numbers a bit --
+
+// ...
+
 $object = new MyClass;
 
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile('/path/to/my_module.php', php),
-            engine = module();
+            mainModule = tools.asyncTranspile('/path/to/my_module.php', mainPhp),
+            environment = tools.createAsyncEnvironment(),
+            classEngine = classModule({}, environment),
+            mainEngine = mainModule({}, environment);
+        await classEngine.execute();
 
-        await expect(engine.execute()).to.eventually.be.rejectedWith(
+        await expect(mainEngine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
-            'PHP Fatal error: Uncaught Error: Cannot access parent:: when current class scope has no parent in /path/to/my_module.php on line 4'
+            'PHP Fatal error: Uncaught Error: Cannot access parent:: when current class scope has no parent in /path/to/MyClass.php on line 4'
         );
     });
 });
