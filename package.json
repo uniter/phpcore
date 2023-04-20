@@ -23,7 +23,7 @@
     "test": "npm run jshint && npm run mocha"
   },
   "dependencies": {
-    "core-js-pure": "^3.29.0",
+    "core-js-pure": "^3.30.1",
     "es6-weak-map": "^2.0.3",
     "is-promise": "^4.0.0",
     "lie": "^3.3.0",
@@ -40,8 +40,8 @@
     "nowdoc": "^1.0.1",
     "phptest": "^0.0.10",
     "phptoast": "^9.1.1",
-    "phptojs": "^10.0.1",
-    "sinon": "^15.0.1",
+    "phptojs": "^10.0.2",
+    "sinon": "^15.0.4",
     "sinon-chai": "^3.7.0"
   },
   "engines": {
