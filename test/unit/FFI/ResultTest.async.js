@@ -10,8 +10,10 @@
 'use strict';
 
 var expect = require('chai').expect,
+    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('../tools'),
+    Exception = phpCommon.Exception,
     Promise = require('lie'),
     Result = require('../../../src/FFI/Result');
 
@@ -53,7 +55,10 @@ describe('FFIResult (async mode)', function () {
 
             expect(function () {
                 result.getAsync();
-            }.bind(this)).to.throw('Async callback did not return a Promise');
+            }).to.throw(
+                Exception,
+                'Async callback did not return a Promise'
+            );
         });
     });
 

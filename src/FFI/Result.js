@@ -11,6 +11,8 @@
 
 var _ = require('microdash'),
     isPromise = require('is-promise'),
+    phpCommon = require('phpcommon'),
+    Exception = phpCommon.Exception,
     Promise = require('lie');
 
 /**
@@ -58,7 +60,7 @@ _.extend(Result.prototype, {
             promise = this.asyncCallback();
 
             if (!isPromise(promise)) {
-                throw new Error('Async callback did not return a Promise');
+                throw new Exception('Async callback did not return a Promise');
             }
 
             return promise;
