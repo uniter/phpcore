@@ -128,6 +128,22 @@ describe('ValueFactory', function () {
 
             expect(factory.coerce(ffiResult)).to.equal(resolvedResult);
         });
+
+        it('should settle a Promise via a Future that coerces the result', async function () {
+            var resultFuture = factory.coerce(Promise.resolve(21)),
+                resultValue;
+
+            resultValue = await resultFuture.toPromise();
+
+            expect(resultValue.getType()).to.equal('int');
+            expect(resultValue.getNative()).to.equal(21);
+        });
+
+        it('should settle a Promise via a Future that handles rejection', async function () {
+            var resultFuture = factory.coerce(Promise.reject(new Error('Bang!')));
+
+            await expect(resultFuture.toPromise()).to.eventually.be.rejectedWith('Bang!');
+        });
     });
 
     describe('coerceList()', function () {

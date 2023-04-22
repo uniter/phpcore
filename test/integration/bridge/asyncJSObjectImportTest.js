@@ -44,6 +44,30 @@ EOS
         }).catch(done);
     });
 
+    it('should allow an imported method to return a Promise to be waited on', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return 21 + $myJSObject->myMethod();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module(),
+            resultValue;
+        engine.expose({
+            myMethod: function () {
+                return new Promise(function (resolve) {
+                    setTimeout(function () {
+                        resolve(9);
+                    }, 10);
+                });
+            }
+        }, 'myJSObject');
+
+        resultValue = await engine.execute();
+
+        expect(resultValue.getNative()).to.equal(30);
+    });
+
     it('should allow an imported method to reject a Promise returned from an FFI Result', function (done) {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -69,5 +93,27 @@ EOS
 
         expect(engine.execute()).to.eventually.be.rejectedWith(Error, 'Error from JS-land')
             .notify(done);
+    });
+
+    it('should allow an imported method to return a rejected Promise', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+return 21 + $myJSObject->myMethod();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        engine.expose({
+            myMethod: function () {
+                return new Promise(function (resolve, reject) {
+                    setTimeout(function () {
+                        reject(new Error('Error from JS-land'));
+                    }, 10);
+                });
+            }
+        }, 'myJSObject');
+
+        await expect(engine.execute()).to.eventually.be.rejectedWith(Error, 'Error from JS-land');
     });
 });

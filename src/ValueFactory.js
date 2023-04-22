@@ -11,6 +11,7 @@
 
 module.exports = require('pauser')([
     require('microdash'),
+    require('is-promise'),
     require('phpcommon'),
     require('core-js-pure/actual/queue-microtask'),
     require('./Iterator/ArrayIterator'),
@@ -35,6 +36,7 @@ module.exports = require('pauser')([
     require('./Variable')
 ], function (
     _,
+    isPromise,
     phpCommon,
     queueMicrotask,
     ArrayIterator,
@@ -234,6 +236,16 @@ module.exports = require('pauser')([
 
             if (value instanceof Reference || value instanceof Variable) {
                 return value.getValue();
+            }
+
+            if (isPromise(value)) {
+                // Value is a Promise that we need to settle first.
+                return factory.futureFactory
+                    .createFuture(function (resolve, reject) {
+                        value.then(resolve, reject);
+                    })
+                    // Ensure that if the Promise resolves, its result is coerced to a Value.
+                    .asValue();
             }
 
             return factory.createFromNative(value);
