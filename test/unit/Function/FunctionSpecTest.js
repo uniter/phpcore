@@ -271,6 +271,18 @@ describe('FunctionSpec', function () {
         });
     });
 
+    describe('getFilePath()', function () {
+        it('should return the file path', function () {
+            expect(spec.getFilePath()).to.equal('/path/to/my/module.php');
+        });
+    });
+
+    describe('getLineNumber()', function () {
+        it('should return the line number', function () {
+            expect(spec.getLineNumber()).to.equal(1234);
+        });
+    });
+
     describe('loadArguments()', function () {
         var scope;
 
@@ -481,6 +493,34 @@ describe('FunctionSpec', function () {
             createSpec(false);
 
             expect(spec.hasOptionalParameter()).to.be.false;
+        });
+    });
+
+    describe('isBuiltin()', function () {
+        it('should return true for a built-in function', function () {
+            namespaceScope.isGlobal.returns(true);
+
+            expect(spec.isBuiltin()).to.be.true;
+        });
+
+        it('should return false for a userland function', function () {
+            namespaceScope.isGlobal.returns(false);
+
+            expect(spec.isBuiltin()).to.be.false;
+        });
+    });
+
+    describe('isUserland()', function () {
+        it('should return true for a userland function', function () {
+            namespaceScope.isGlobal.returns(false);
+
+            expect(spec.isUserland()).to.be.true;
+        });
+
+        it('should return false for a built-in function', function () {
+            namespaceScope.isGlobal.returns(true);
+
+            expect(spec.isUserland()).to.be.false;
         });
     });
 

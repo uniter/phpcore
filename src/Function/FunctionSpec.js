@@ -228,6 +228,16 @@ _.extend(FunctionSpec.prototype, {
     },
 
     /**
+     * Fetches the path to the file this function was defined in.
+     * May be null, if the function is a built-in.
+     *
+     * @returns {string|null}
+     */
+    getFilePath: function () {
+        return this.filePath;
+    },
+
+    /**
      * Fetches the fully-qualified name of the function
      *
      * @param {boolean} isStaticCall
@@ -245,6 +255,16 @@ _.extend(FunctionSpec.prototype, {
      */
     getFunctionTraceFrameName: function (isStaticCall) {
         return this.context.getTraceFrameName(isStaticCall);
+    },
+
+    /**
+     * Fetches the line number of this function within the file it was defined in.
+     * May be null, if the function is a built-in or line number tracking is disabled.
+     *
+     * @returns {string|null}
+     */
+    getLineNumber: function () {
+        return this.lineNumber;
     },
 
     /**
@@ -338,6 +358,15 @@ _.extend(FunctionSpec.prototype, {
         var spec = this;
 
         return spec.parameterList.length > 0 && !spec.parameterList[spec.parameterList.length - 1].isRequired();
+    },
+
+    /**
+     * Determines whether this is a built-in PHP function (rather than defined in userland).
+     *
+     * @returns {boolean}
+     */
+    isBuiltin: function () {
+        return this.namespaceScope.isGlobal();
     },
 
     /**

@@ -18,7 +18,9 @@ module.exports = require('pauser')([
 ) {
     var CALL_TO_UNDEFINED_FUNCTION = 'core.call_to_undefined_function',
         CANNOT_DECLARE_CLASS_AS_NAME_ALREADY_IN_USE = 'core.cannot_declare_class_as_name_already_in_use',
+        CANNOT_REDECLARE_BUILTIN_FUNCTION = 'core.cannot_redeclare_builtin_function',
         CANNOT_REDECLARE_CLASS_AS_NAME_ALREADY_IN_USE = 'core.cannot_redeclare_class_as_name_already_in_use',
+        CANNOT_REDECLARE_USERLAND_FUNCTION = 'core.cannot_redeclare_userland_function',
         CLASS_NOT_FOUND = 'core.class_not_found',
         CONSTANT_ALREADY_DEFINED = 'core.constant_already_defined',
         UNDEFINED_CONSTANT = 'core.undefined_constant',
@@ -256,7 +258,29 @@ module.exports = require('pauser')([
             lineNumber
         ) {
             var functionSpec,
-                namespace = this;
+                isBuiltin,
+                namespace = this,
+                originalSpec;
+
+            if (hasOwn.call(namespace.functions, name)) {
+                originalSpec = namespace.functions[name].functionSpec;
+                isBuiltin = originalSpec.isBuiltin();
+
+                namespace.callStack.raiseUncatchableFatalError(
+                    isBuiltin ?
+                        CANNOT_REDECLARE_BUILTIN_FUNCTION :
+                        CANNOT_REDECLARE_USERLAND_FUNCTION,
+                    isBuiltin ?
+                        {
+                            functionName: namespace.getPrefix() + name
+                        } :
+                        {
+                            functionName: namespace.getPrefix() + name,
+                            originalFile: originalSpec.getFilePath(),
+                            originalLine: originalSpec.getLineNumber()
+                        }
+                );
+            }
 
             functionSpec = namespace.functionSpecFactory.createFunctionSpec(
                 namespaceScope,

@@ -24,8 +24,10 @@ module.exports = {
             'cannot_declare_class_as_name_already_in_use': 'Cannot declare class ${className} because the name is already in use',
             'cannot_decrement': 'Cannot decrement ${type}',
             'cannot_increment': 'Cannot increment ${type}',
+            'cannot_redeclare_builtin_function': 'Cannot redeclare ${functionName}()',
             // NB: This translation is in fact different to the above, by a comma
             'cannot_redeclare_class_as_name_already_in_use': 'Cannot declare class ${className}, because the name is already in use',
+            'cannot_redeclare_userland_function': 'Cannot redeclare ${functionName}() (previously declared in ${originalFile}:${originalLine})',
             'cannot_implement_throwable': 'Class ${className} cannot implement interface Throwable, extend Exception or Error instead',
             'cannot_perform_bitwise_not': 'Cannot perform bitwise not on ${type}',
             'cannot_throw_non_throwable_objects': 'Cannot throw objects that do not implement Throwable',
