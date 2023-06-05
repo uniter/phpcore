@@ -22,6 +22,7 @@ module.exports = require('pauser')([
     require('./Value/Exit'),
     require('./FFI/Result'),
     require('./Value/Float'),
+    require('./Iterator/GeneratorIterator'),
     require('./Value/Integer'),
     require('./KeyValuePair'),
     require('./Value/Null'),
@@ -47,6 +48,7 @@ module.exports = require('pauser')([
     ExitValue,
     FFIResult,
     FloatValue,
+    GeneratorIterator,
     IntegerValue,
     KeyValuePair,
     NullValue,
@@ -141,6 +143,12 @@ module.exports = require('pauser')([
          * @type {FutureFactory|null}
          */
         this.futureFactory = null;
+        /**
+         * Cache for the resolved Generator Class object, to save on expensive lookups.
+         *
+         * @type {Class|null}
+         */
+        this.generatorClass = null;
         /**
          * Cache for the resolved JSObject Class object, for FFI to save on expensive lookups.
          *
@@ -639,7 +647,7 @@ module.exports = require('pauser')([
         /**
          * Coerces a native JavaScript value to a suitable *Value object,
          * based on its type. For example, a string primitive value from JS
-         * will be coerced to a StringValue instance for PHP
+         * will be coerced to a StringValue instance for PHP.
          *
          * @param {*} nativeValue
          * @returns {Value}
@@ -782,6 +790,37 @@ module.exports = require('pauser')([
             }
 
             return factory.coerce(result);
+        },
+
+        /**
+         * Creates a Generator.
+         *
+         * @param {Call} call
+         * @param {Function} func
+         * @returns {ObjectValue<Generator>}
+         */
+        createGeneratorObject: function (call, func) {
+            var factory = this,
+                generatorClass = factory.generatorClass,
+                iterator = new GeneratorIterator(
+                    factory,
+                    factory.futureFactory,
+                    factory.callStack,
+                    factory.flow,
+                    call,
+                    func
+                );
+
+            // Cache the built-in Generator Class instance for future lookups.
+            if (!generatorClass) {
+                generatorClass = factory.globalNamespace.getClass('Generator').yieldSync();
+
+                factory.generatorClass = generatorClass;
+            }
+
+            return generatorClass.instantiateWithInternals([], {
+                'iterator': iterator
+            });
         },
 
         /**

@@ -21,6 +21,7 @@ var expect = require('chai').expect,
     Closure = require('../../../src/Closure').sync(),
     Exception = phpCommon.Exception,
     FunctionSpec = require('../../../src/Function/FunctionSpec'),
+    GeneratorIterator = require('../../../src/Iterator/GeneratorIterator'),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     MethodSpec = require('../../../src/MethodSpec'),
     Namespace = require('../../../src/Namespace').sync(),
@@ -1736,6 +1737,16 @@ describe('ObjectValue', function () {
                 expect(exceptionClassObject.instantiate.args[0][0][0].getNative()).to.equal(
                     '[Translated] core.object_from_get_iterator_must_be_traversable {"className":"My\\\\Space\\\\AwesomeClass"}'
                 );
+            });
+        });
+
+        describe('when the object is a Generator', function () {
+            it('should return the internal GeneratorIterator', async function () {
+                var iterator = sinon.createStubInstance(GeneratorIterator);
+                classObject.is.withArgs('Generator').returns(true);
+                value.setInternalProperty('iterator', iterator);
+
+                expect(await value.getIterator().toPromise()).to.equal(iterator);
             });
         });
     });

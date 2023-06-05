@@ -188,6 +188,21 @@ _.extend(CallStack.prototype, {
     },
 
     /**
+     * Fetches the Generator instance for the current call.
+     *
+     * @returns {ObjectValue<Generator>|null}
+     */
+    getGenerator: function () {
+        var call = this.getUserlandCallee();
+
+        if (!call) {
+            throw new Exception('CallStack.getGenerator() :: No userland callee');
+        }
+
+        return call.getGenerator();
+    },
+
+    /**
      * Fetches the path to the file containing the last line of code executed
      *
      * @returns {string|null}

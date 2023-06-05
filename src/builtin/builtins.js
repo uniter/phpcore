@@ -34,6 +34,7 @@ module.exports = require('pauser')([
     require('./classes/Error/CompileError'),
     require('./classes/Error'),
     require('./classes/Exception'),
+    require('./classes/Generator'),
     require('./interfaces/Iterator'),
     require('./interfaces/IteratorAggregate'),
     require('./classes/JSArray'),
@@ -67,6 +68,7 @@ module.exports = require('pauser')([
     CompileError,
     Error,
     Exception,
+    Generator,
     Iterator,
     IteratorAggregate,
     JSArray,
@@ -91,6 +93,7 @@ module.exports = require('pauser')([
             {'Traversable': Traversable},
             {'Iterator': Iterator},
             {'IteratorAggregate': IteratorAggregate},
+            {'Generator': Generator},
             {'JSArray': JSArray},
             {'JSObject': JSObject}
         ],

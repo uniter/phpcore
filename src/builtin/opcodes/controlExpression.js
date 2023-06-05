@@ -22,7 +22,8 @@ var phpCommon = require('phpcommon'),
  * @constructor
  */
 module.exports = function (internals) {
-    var callStack = internals.callStack;
+    var callStack = internals.callStack,
+        valueFactory = internals.valueFactory;
 
     internals.setOpcodeFetcher('controlExpression');
 
@@ -79,6 +80,22 @@ module.exports = function (internals) {
             }
 
             throw throwableValue;
+        }),
+
+        /**
+         * Used by generator functions.
+         */
+        wrapGenerator: internals.typeHandler('any func : any', function (func) {
+            return function generator() {
+                var currentCall = callStack.getCurrent();
+
+                return valueFactory.createGeneratorObject(currentCall, func)
+                    .next(function (generatorObjectValue) {
+                        currentCall.setGenerator(generatorObjectValue);
+
+                        return generatorObjectValue;
+                    });
+            };
         })
     };
 };

@@ -23,6 +23,7 @@ module.exports = {
             'cannot_convert_object': 'Object of class ${className} could not be converted to ${type}',
             'cannot_declare_class_as_name_already_in_use': 'Cannot declare class ${className} because the name is already in use',
             'cannot_decrement': 'Cannot decrement ${type}',
+            'cannot_get_return_value_of_nonreturned_generator': 'Cannot get return value of a generator that hasn\'t returned',
             'cannot_increment': 'Cannot increment ${type}',
             'cannot_redeclare_builtin_function': 'Cannot redeclare ${functionName}()',
             // NB: This translation is in fact different to the above, by a comma

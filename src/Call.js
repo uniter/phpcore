@@ -57,6 +57,10 @@ function Call(
      */
     this.finder = null;
     /**
+     * @type {ObjectValue<Generator>|null}
+     */
+    this.generator = null;
+    /**
      * @type {InstrumentationFactory}
      */
     this.instrumentationFactory = instrumentationFactory;
@@ -159,6 +163,21 @@ _.extend(Call.prototype, {
      */
     getFunctionName: function () {
         return this.scope.getTraceFrameName();
+    },
+
+    /**
+     * Fetches the Generator instance for this call.
+     *
+     * @returns {ObjectValue<Generator>}
+     */
+    getGenerator: function () {
+        var call = this;
+
+        if (!call.generator) {
+            throw new Exception('Call.getGenerator() :: Current call is not a generator');
+        }
+
+        return call.generator;
     },
 
     /**
@@ -344,6 +363,15 @@ _.extend(Call.prototype, {
      */
     resume: function (resultValue) {
         this.trace.resume(resultValue);
+    },
+
+    /**
+     * Sets the Generator instance for this call.
+     *
+     * @param {ObjectValue<Generator>} generator
+     */
+    setGenerator: function (generator) {
+        this.generator = generator;
     },
 
     /**

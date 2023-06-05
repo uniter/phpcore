@@ -1753,6 +1753,32 @@ module.exports = function (internals) {
             return flow.eachAsync(references, function (reference) {
                 return reference.unset();
             });
-        })
+        }),
+
+        /**
+         * Used by "yield <value>" expressions.
+         */
+        yield_: internals.typeHandler(
+            'snapshot value',
+            function (valueSnapshot) {
+                var generatorObjectValue = callStack.getGenerator(),
+                    iterator = generatorObjectValue.getInternalProperty('iterator');
+
+                return iterator.yieldValue(null, valueSnapshot.getValue());
+            }
+        ),
+
+        /**
+         * Used by "yield <key> => <value>" expressions.
+         */
+        yieldWithKey: internals.typeHandler(
+            'snapshot key, snapshot value',
+            function (keySnapshot, valueSnapshot) {
+                var generatorObjectValue = callStack.getGenerator(),
+                    iterator = generatorObjectValue.getInternalProperty('iterator');
+
+                return iterator.yieldValue(keySnapshot.getValue(), valueSnapshot.getValue());
+            }
+        )
     };
 };
