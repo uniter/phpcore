@@ -15,6 +15,7 @@ var expect = require('chai').expect,
     tools = require('./tools'),
     util = require('util'),
     BarewordStringValue = require('../../src/Value/BarewordString').sync(),
+    Call = require('../../src/Call'),
     CallFactory = require('../../src/CallFactory'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
@@ -27,6 +28,7 @@ var expect = require('chai').expect,
     FFIResult = require('../../src/FFI/Result'),
     Future = require('../../src/Control/Future'),
     FutureFactory = require('../../src/Control/FutureFactory'),
+    GeneratorIterator = require('../../src/Iterator/GeneratorIterator'),
     IntegerValue = require('../../src/Value/Integer').sync(),
     Namespace = require('../../src/Namespace').sync(),
     NullValue = require('../../src/Value/Null').sync(),
@@ -874,6 +876,48 @@ describe('ValueFactory', function () {
                 .toPromise();
 
             expect(futuresCreated).to.equal(0);
+        });
+    });
+
+    describe('createGeneratorObject()', function () {
+        var call,
+            generatorClassObject,
+            innerFunction,
+            objectValue;
+
+        beforeEach(function () {
+            call = sinon.createStubInstance(Call);
+            generatorClassObject = sinon.createStubInstance(Class);
+            innerFunction = sinon.stub();
+            objectValue = sinon.createStubInstance(ObjectValue);
+        });
+
+        it('should correctly create an ObjectValue of class Generator', function () {
+            var iterator;
+            globalNamespace.getClass
+                .withArgs('Generator')
+                .returns(futureFactory.createPresent(generatorClassObject));
+            generatorClassObject.instantiateWithInternals
+                .returns(objectValue);
+
+            expect(factory.createGeneratorObject(call, innerFunction)).to.equal(objectValue);
+            iterator = generatorClassObject.instantiateWithInternals.args[0][1].iterator;
+            expect(iterator).to.be.an.instanceOf(GeneratorIterator);
+            expect(iterator.getInnerFunction()).to.equal(innerFunction);
+            expect(iterator.getFunctionCall()).to.equal(call);
+        });
+
+        it('should cache the internal Class instance for Closure for efficiency', function () {
+            globalNamespace.getClass
+                .withArgs('Generator')
+                .returns(futureFactory.createPresent(generatorClassObject));
+            generatorClassObject.instantiateWithInternals
+                .returns(objectValue);
+
+            factory.createGeneratorObject(call, innerFunction);
+            factory.createGeneratorObject(call, innerFunction);
+
+            expect(globalNamespace.getClass).to.have.been.calledOnce;
         });
     });
 

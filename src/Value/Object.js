@@ -1090,10 +1090,11 @@ module.exports = require('pauser')([
          * or the object itself if it implements Traversable via Iterator or IteratorAggregate.
          * Used by transpiled foreach loops over objects implementing Iterator.
          *
-         * @returns {ChainableInterface<ArrayIterator|ObjectValue>}
+         * @returns {ChainableInterface<ArrayIterator|GeneratorIterator|ObjectValue>}
          */
         getIterator: function () {
             var value = this,
+                iterator,
                 iteratorFutureValue = value;
 
             value.pointer = 0;
@@ -1114,6 +1115,10 @@ module.exports = require('pauser')([
 
                         return iteratorValue;
                     });
+            } else if (value.classIs('Generator')) {
+                iterator = value.getInternalProperty('iterator');
+
+                return value.futureFactory.createPresent(iterator);
             } else if (!value.classIs('Iterator')) {
                 // Objects not implementing Traversable are iterated like arrays
                 return value.futureFactory.createPresent(value.factory.createArrayIterator(value));

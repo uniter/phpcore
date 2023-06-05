@@ -248,6 +248,32 @@ describe('CallStack', function () {
         });
     });
 
+    describe('getGenerator()', function () {
+        var currentCall;
+
+        beforeEach(function () {
+            currentCall = sinon.createStubInstance(Call);
+            currentCall.isUserland.returns(false);
+        });
+
+        it('should return the current Generator ObjectValue from the current call', function () {
+            var generatorObjectValue = sinon.createStubInstance(ObjectValue);
+            callStack.push(currentCall);
+            currentCall.getGenerator.returns(generatorObjectValue);
+
+            expect(callStack.getGenerator()).to.equal(generatorObjectValue);
+        });
+
+        it('should throw when there is no userland callee', function () {
+            expect(function () {
+                callStack.getGenerator();
+            }).to.throw(
+                Exception,
+                'CallStack.getGenerator() :: No userland callee'
+            );
+        });
+    });
+
     describe('getLastFilePath()', function () {
         it('should return the file path from the most recent userland Call', function () {
             var initialCall = sinon.createStubInstance(Call),

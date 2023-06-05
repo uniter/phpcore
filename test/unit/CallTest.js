@@ -128,6 +128,24 @@ describe('Call', function () {
         });
     });
 
+    describe('getGenerator()', function () {
+        it('should return the current Generator ObjectValue when one has been set', function () {
+            var generatorObjectValue = sinon.createStubInstance(ObjectValue);
+            call.setGenerator(generatorObjectValue);
+
+            expect(call.getGenerator()).to.equal(generatorObjectValue);
+        });
+
+        it('should throw when no Generator has been set', function () {
+            expect(function () {
+                call.getGenerator();
+            }).to.throw(
+                Exception,
+                'Call.getGenerator() :: Current call is not a generator'
+            );
+        });
+    });
+
     describe('getInstrumentation()', function () {
         it('should return a CallInstrumentation with the finder when the call has been instrumented', function () {
             var finder = sinon.stub(),
