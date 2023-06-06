@@ -518,6 +518,28 @@ EOS
             expectedStderr: '',
             expectedStdout: 'firstfourth'
         },
+        'jumping to if statement alternate clause when condition happens to be true': {
+            code: nowdoc(function () {/*<<<EOS
+<?php
+    print 'first';
+    $myVar = true;
+    goto my_label;
+    print 'second';
+
+    if ($myVar) {
+        print 'third';
+    } else {
+        print 'fourth';
+my_label:
+        print 'fifth';
+    }
+
+    print 'sixth';
+EOS
+*/;}), // jshint ignore:line
+            expectedStderr: '',
+            expectedStdout: 'firstfifthsixth'
+        },
         'multiple forward gotos for the same label nested inside blocks': {
             code: nowdoc(function () {/*<<<EOS
 <?php
