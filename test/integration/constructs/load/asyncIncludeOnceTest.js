@@ -109,4 +109,30 @@ EOS
             'include of accessor variable containing path': 'path was: /some/path/to_include.php'
         });
     });
+
+    it('should return int(1) when successful and the module returns no result', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+$result['include with no result'] = include_once 'abc.php';
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            options = {
+                path: 'my/caller.php',
+                include: function (path, promise) {
+                    setTimeout(function () {
+                        promise.resolve(tools.asyncTranspile(path, '<?php // No content here.'));
+                    });
+                }
+            },
+            engine = module(options);
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'include with no result': 1
+        });
+    });
 });

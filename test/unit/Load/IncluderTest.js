@@ -30,6 +30,7 @@ describe('Includer', function () {
     var callStack,
         enclosingScope,
         environment,
+        futureFactory,
         includer,
         loader,
         module,
@@ -46,6 +47,7 @@ describe('Includer', function () {
         });
         enclosingScope = sinon.createStubInstance(Scope);
         environment = sinon.createStubInstance(Environment);
+        futureFactory = state.getFutureFactory();
         includer = sinon.createStubInstance(Includer);
         loader = sinon.createStubInstance(Loader);
         module = sinon.createStubInstance(Module);
@@ -60,6 +62,8 @@ describe('Includer', function () {
                 throw new Error('Fake PHP ' + level + ': ' + message);
             });
         module.getFilePath.returns('/path/to/my/module.php');
+
+        loader.load.returns(futureFactory.createPresent(null));
 
         includer = new Includer(
             callStack,
@@ -212,6 +216,16 @@ describe('Includer', function () {
 
                 expect(callInclude('/some/path/to/my_included_module.php'))
                     .to.equal(resultValue);
+            });
+
+            it('should return int(1) when the Loader returns a MissingValue', function () {
+                var resultValue;
+                loader.load.returns(valueFactory.createMissing());
+
+                resultValue = callInclude('/some/path/to/my_included_module.php');
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(1);
             });
 
             describe('on LoadFailedException', function () {
