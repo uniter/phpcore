@@ -785,6 +785,16 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Fetches the underlying type of this value. For most values this will just be the type,
+         * but for some (BarewordStringValue, MissingValue) it will be different.
+         *
+         * @returns {string}
+         */
+        getUnderlyingType: function () {
+            return this.type;
+        },
+
+        /**
          * Fetches the current value. Implemented by References, Variables and Values
          * for a consistent interface.
          *

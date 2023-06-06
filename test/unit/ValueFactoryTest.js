@@ -930,6 +930,23 @@ describe('ValueFactory', function () {
         });
     });
 
+    describe('createMissing()', function () {
+        it('should return a MissingValue', function () {
+            var value = factory.createMissing();
+
+            expect(value.getUnderlyingType()).to.equal('missing');
+            expect(value.getNative()).to.be.null;
+        });
+
+        it('should always return the same MissingValue for efficiency', function () {
+            var firstMissingValue = factory.createMissing(),
+                secondMissingValue = factory.createMissing();
+
+            expect(secondMissingValue.getUnderlyingType()).to.equal('missing');
+            expect(secondMissingValue).to.equal(firstMissingValue);
+        });
+    });
+
     describe('createNull()', function () {
         it('should return a NullValue', function () {
             var value = factory.createNull();

@@ -288,6 +288,23 @@ describe('BarewordStringValue', function () {
         });
     });
 
+    describe('getType()', function () {
+        it('should return "string"', function () {
+            createValue('mybareword');
+
+            // Note "string" and not "bareword" as for the underlying type below.
+            expect(value.getType()).to.equal('string');
+        });
+    });
+
+    describe('getUnderlyingType()', function () {
+        it('should return "bareword"', function () {
+            createValue('mybareword');
+
+            expect(value.getUnderlyingType()).to.equal('bareword');
+        });
+    });
+
     describe('getValueOrNull()', function () {
         it('should just return this value, as values are always classed as "defined"', function () {
             createValue('MyString');

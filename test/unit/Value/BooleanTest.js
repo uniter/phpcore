@@ -682,6 +682,18 @@ describe('BooleanValue', function () {
         });
     });
 
+    describe('getType()', function () {
+        it('should return "boolean"', function () {
+            expect(value.getType()).to.equal('boolean');
+        });
+    });
+
+    describe('getUnderlyingType()', function () {
+        it('should return "boolean"', function () {
+            expect(value.getUnderlyingType()).to.equal('boolean');
+        });
+    });
+
     describe('getValueOrNull()', function () {
         it('should just return this value, as values are always classed as "defined"', function () {
             expect(value.getValueOrNull()).to.equal(value);

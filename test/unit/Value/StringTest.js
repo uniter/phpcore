@@ -1278,6 +1278,22 @@ describe('StringValue', function () {
         });
     });
 
+    describe('getType()', function () {
+        it('should return "string"', function () {
+            createValue('my string');
+
+            expect(value.getType()).to.equal('string');
+        });
+    });
+
+    describe('getUnderlyingType()', function () {
+        it('should return "string"', function () {
+            createValue('my string');
+
+            expect(value.getUnderlyingType()).to.equal('string');
+        });
+    });
+
     describe('getValueOrNull()', function () {
         it('should just return this value, as values are always classed as "defined"', function () {
             createValue('my string');

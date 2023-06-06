@@ -726,6 +726,18 @@ describe('FloatValue', function () {
         });
     });
 
+    describe('getType()', function () {
+        it('should return "float"', function () {
+            expect(value.getType()).to.equal('float');
+        });
+    });
+
+    describe('getUnderlyingType()', function () {
+        it('should return "float"', function () {
+            expect(value.getUnderlyingType()).to.equal('float');
+        });
+    });
+
     describe('getValueOrNull()', function () {
         it('should just return this value, as values are always classed as "defined"', function () {
             expect(value.getValueOrNull()).to.equal(value);

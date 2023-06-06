@@ -143,6 +143,13 @@ module.exports = require('pauser')([
         },
 
         /**
+         * {@inheritdoc}
+         */
+        getUnderlyingType: function () {
+            return 'bareword';
+        },
+
+        /**
          * Creates an instance of the class this string contains the name of,
          * relative to the current namespace.
          *

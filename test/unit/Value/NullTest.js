@@ -613,6 +613,19 @@ describe('NullValue', function () {
         });
     });
 
+    describe('getType()', function () {
+        it('should return "null"', function () {
+            expect(value.getType()).to.equal('null');
+        });
+    });
+
+    describe('getUnderlyingType()', function () {
+        it('should return "null"', function () {
+            // Unlike MissingValue, which actually returns "missing" for its underlying type.
+            expect(value.getUnderlyingType()).to.equal('null');
+        });
+    });
+
     describe('getValueOrNull()', function () {
         it('should just return this value, as values are always classed as "defined"', function () {
             expect(value.getValueOrNull()).to.equal(value);

@@ -1061,6 +1061,18 @@ describe('ArrayValue', function () {
         });
     });
 
+    describe('getType()', function () {
+        it('should return "array"', function () {
+            expect(value.getType()).to.equal('array');
+        });
+    });
+
+    describe('getUnderlyingType()', function () {
+        it('should return "array"', function () {
+            expect(value.getUnderlyingType()).to.equal('array');
+        });
+    });
+
     describe('getValueOrNull()', function () {
         it('should just return this value, as values are always classed as "defined"', function () {
             expect(value.getValueOrNull()).to.equal(value);

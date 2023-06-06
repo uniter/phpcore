@@ -322,6 +322,18 @@ describe('ResourceValue', function () {
         });
     });
 
+    describe('getType()', function () {
+        it('should return "resource"', function () {
+            expect(value.getType()).to.equal('resource');
+        });
+    });
+
+    describe('getUnderlyingType()', function () {
+        it('should return "resource"', function () {
+            expect(value.getUnderlyingType()).to.equal('resource');
+        });
+    });
+
     describe('getValueOrNull()', function () {
         it('should just return this value, as values are always classed as "defined"', function () {
             expect(value.getValueOrNull()).to.equal(value);

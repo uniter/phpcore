@@ -1913,6 +1913,18 @@ describe('ObjectValue', function () {
         });
     });
 
+    describe('getType()', function () {
+        it('should return "object"', function () {
+            expect(value.getType()).to.equal('object');
+        });
+    });
+
+    describe('getUnderlyingType()', function () {
+        it('should return "object"', function () {
+            expect(value.getUnderlyingType()).to.equal('object');
+        });
+    });
+
     describe('getValueOrNull()', function () {
         it('should just return this value, as values are always classed as "defined"', function () {
             expect(value.getValueOrNull()).to.equal(value);

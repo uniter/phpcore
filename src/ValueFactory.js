@@ -25,6 +25,7 @@ module.exports = require('pauser')([
     require('./Iterator/GeneratorIterator'),
     require('./Value/Integer'),
     require('./KeyValuePair'),
+    require('./Value/Missing'),
     require('./Value/Null'),
     require('./Value/Object'),
     require('./Control/Pause'),
@@ -51,6 +52,7 @@ module.exports = require('pauser')([
     GeneratorIterator,
     IntegerValue,
     KeyValuePair,
+    MissingValue,
     NullValue,
     ObjectValue,
     Pause,
@@ -178,14 +180,21 @@ module.exports = require('pauser')([
          */
         this.globalNamespace = null;
         /**
+         * The single MissingValue for efficiency, created lazily in .createMissing(...).
+         * It must be created lazily there as it depends on CallStack, which due to a circular dependency
+         * is injected via setter: .setCallStack(...). That setter is not always called, e.g. by various unit tests,
+         * for simplicity.
+         *
+         * @type {MissingValue|null}
+         */
+        this.missingValue = null;
+        /**
          * @type {string}
          */
         this.mode = mode;
         /**
          * The single NullValue for efficiency, created lazily in .createNull(...).
-         * It must be created lazily there as it depends on CallStack, which due to a circular dependency
-         * is injected via setter: .setCallStack(...). That setter is not always called, eg. by various unit tests,
-         * for simplicity.
+         * See also .missingValue defined above.
          *
          * @type {NullValue|null}
          */
@@ -655,8 +664,12 @@ module.exports = require('pauser')([
         createFromNative: function (nativeValue) {
             var factory = this;
 
-            if (nativeValue === null || typeof nativeValue === 'undefined') {
+            if (nativeValue === null) {
                 return factory.createNull();
+            }
+
+            if (typeof nativeValue === 'undefined') {
+                return factory.createMissing();
             }
 
             if (_.isString(nativeValue)) {
@@ -843,7 +856,30 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates a NullValue
+         * Creates a MissingValue.
+         *
+         * Note that there is only ever a single instance of MissingValue to save on memory usage.
+         *
+         * @return {MissingValue}
+         */
+        createMissing: function () {
+            var factory = this;
+
+            if (factory.missingValue === null) {
+                factory.missingValue = new MissingValue(
+                    factory,
+                    factory.referenceFactory,
+                    factory.futureFactory,
+                    factory.callStack,
+                    factory.flow
+                );
+            }
+
+            return factory.missingValue;
+        },
+
+        /**
+         * Creates a NullValue.
          *
          * Note that there is only ever a single instance of NullValue to save on memory usage.
          *
