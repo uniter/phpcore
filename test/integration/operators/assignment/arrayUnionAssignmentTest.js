@@ -11,41 +11,9 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../tools');
+    tools = require('../../tools');
 
-describe('PHP array union operator "+" integration', function () {
-    it('should merge the arrays correctly giving precedence to the left-hand array in sync mode', function () {
-        var php = nowdoc(function () {/*<<<EOS
-<?php
-
-$result = [];
-
-$indexedArray1 = ['first', 'second'];
-$indexedArray2 = ['third', 'fourth', 'fifth'];
-
-$associativeArray1 = ['a' => 'one', 'b' => 'two'];
-$associativeArray2 = ['b' => 'three', 'a' => 'four', 'c' => 'five'];
-
-$result['two indexed arrays'] = $indexedArray1 + $indexedArray2;
-$result['two associative arrays'] = $associativeArray1 + $associativeArray2;
-
-return $result;
-EOS
-*/;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
-            engine = module();
-
-        expect(engine.execute().getNative()).to.deep.equal({
-            'two indexed arrays': ['first', 'second', 'fifth'], // Array 1's keys should take precedence.
-
-            'two associative arrays': {
-                a: 'one', // Array 1's keys should take precedence.
-                b: 'two',
-                c: 'five'
-            }
-        });
-    });
-
+describe('PHP array union assignment operator "+=" integration', function () {
     it('should merge the arrays correctly giving precedence to the left-hand array in async mode with pauses', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -58,8 +26,11 @@ $indexedArray2 = get_async(['third', 'fourth', 'fifth']);
 $associativeArray1 = get_async(['a' => 'one', 'b' => 'two']);
 $associativeArray2 = get_async(['b' => 'three', 'a' => 'four', 'c' => 'five']);
 
-$result['two indexed arrays'] = get_async($indexedArray1) + get_async($indexedArray2);
-$result['two associative arrays'] = get_async($associativeArray1) + get_async($associativeArray2);
+$indexedArray1 += $indexedArray2;
+$associativeArray1 += $associativeArray2;
+
+$result['two indexed arrays'] = $indexedArray1;
+$result['two associative arrays'] = $associativeArray1;
 
 return get_async($result);
 EOS

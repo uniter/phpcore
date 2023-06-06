@@ -1016,7 +1016,9 @@ module.exports = function (internals) {
             function (targetReference, sourceValue) {
                 // The result of an assignment is the value assigned. Also note that either operand
                 // could evaluate to a Future, for handling async operation.
-                return targetReference.setValue(targetReference.getValue().add(sourceValue));
+                return targetReference.getValue().add(sourceValue).next(function (resultValue) {
+                    return targetReference.setValue(resultValue);
+                });
             }
         ),
 
