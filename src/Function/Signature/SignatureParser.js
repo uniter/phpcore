@@ -85,7 +85,7 @@ _.extend(SignatureParser.prototype, {
 
                 return {
                     type: 'union',
-                    subTypes: subTypes,
+                    types: subTypes,
                     nullable: nullable
                 };
             }

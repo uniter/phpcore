@@ -343,7 +343,7 @@ describe('SignatureParser', function () {
             });
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.equal('union');
-            expect(parameterSpecData.subTypes).to.deep.equal([
+            expect(parameterSpecData.types).to.deep.equal([
                 { type: 'callable', nullable: false },
                 { type: 'iterable', nullable: false }
             ]);
@@ -366,7 +366,7 @@ describe('SignatureParser', function () {
             });
             parameterSpecData = signature.getParametersSpecData()[0];
             expect(parameterSpecData.type).to.equal('union');
-            expect(parameterSpecData.subTypes).to.deep.equal([
+            expect(parameterSpecData.types).to.deep.equal([
                 { type: 'callable', nullable: false },
                 { type: 'iterable', nullable: false }
             ]);
@@ -383,7 +383,7 @@ describe('SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(0);
             expect(signature.getReturnTypeSpecData()).to.deep.equal({
                 type: 'union',
-                subTypes: [
+                types: [
                     { type: 'callable', nullable: false },
                     { type: 'iterable', nullable: false }
                 ],
@@ -398,7 +398,7 @@ describe('SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(0);
             expect(signature.getReturnTypeSpecData()).to.deep.equal({
                 type: 'union',
-                subTypes: [
+                types: [
                     { type: 'callable', nullable: false },
                     { type: 'iterable', nullable: false }
                 ],
