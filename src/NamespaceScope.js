@@ -108,19 +108,20 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Defines a function in the current namespace, either from a JS class/function or from a transpiled PHP function
+         * Defines a function in the current namespace, either from a JS class/function
+         * or from a transpiled PHP function.
          *
          * @param {string} name
          * @param {Function} func
-         * @param {NamespaceScope} namespaceScope
-         * @param {boolean} isUserland
          * @param {Array=} parametersSpecData
+         * @param {Object=} returnTypeSpec
          * @param {number=} lineNumber
          */
         defineFunction: function (
             name,
             func,
             parametersSpecData,
+            returnTypeSpec,
             lineNumber
         ) {
             var namespaceScope = this;
@@ -130,7 +131,7 @@ module.exports = require('pauser')([
                 func,
                 namespaceScope,
                 parametersSpecData,
-                null, // TODO: Implement userland return types.
+                returnTypeSpec || null,
                 false, // TODO: Implement userland return-by-reference.
                 lineNumber
             );

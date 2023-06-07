@@ -48,6 +48,7 @@ _.extend(EngineScope.prototype, {
      * @param {Object.<string, ReferenceSlot>=} referenceBindings
      * @param {Object.<string, Value>=} valueBindings
      * @param {boolean=} isStatic
+     * @param {Object=} returnTypeSpec
      * @param {number|null=} lineNumber
      * @returns {Closure}
      */
@@ -59,6 +60,7 @@ _.extend(EngineScope.prototype, {
         referenceBindings,
         valueBindings,
         isStatic,
+        returnTypeSpec,
         lineNumber
     ) {
         return this.effectiveScope.createClosure(
@@ -69,6 +71,7 @@ _.extend(EngineScope.prototype, {
             referenceBindings,
             valueBindings,
             isStatic,
+            returnTypeSpec,
             lineNumber
         );
     },

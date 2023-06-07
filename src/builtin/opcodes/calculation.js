@@ -352,10 +352,18 @@ module.exports = function (internals) {
          * @param {Array=} parametersSpecData
          * @param {Array=} bindingsSpecData
          * @param {boolean=} isStatic
+         * @param {Object=} returnTypeSpec
          * @param {number=} lineNumber
          * @returns {ObjectValue}
          */
-        createClosure: function (func, parametersSpecData, bindingsSpecData, isStatic, lineNumber) {
+        createClosure: function (
+            func,
+            parametersSpecData,
+            bindingsSpecData,
+            isStatic,
+            returnTypeSpec,
+            lineNumber
+        ) {
             var namespaceScope = callStack.getEffectiveNamespaceScope(),
                 referenceBindings = {},
                 scope = callStack.getCurrentScope(),
@@ -382,6 +390,7 @@ module.exports = function (internals) {
                             referenceBindings,
                             valueBindings,
                             !!isStatic,
+                            returnTypeSpec || null,
                             lineNumber || null
                         )
                     );

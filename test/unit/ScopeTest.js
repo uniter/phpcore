@@ -235,7 +235,7 @@ describe('Scope', function () {
                     sinon.match.same(currentClass),
                     sinon.match.same(thisObject),
                     [],
-                    null, // TODO: Implement userland return types.
+                    {type: 'iterable'}, // Return type.
                     false, // TODO: Implement userland return-by-reference.
                     {'myRefBinding': sinon.match.same(referenceBinding)},
                     {'myValueBinding': sinon.match.same(valueBinding)},
@@ -252,6 +252,7 @@ describe('Scope', function () {
                 {'myRefBinding': referenceBinding},
                 {'myValueBinding': valueBinding},
                 false,
+                {type: 'iterable'},
                 1234
             );
 

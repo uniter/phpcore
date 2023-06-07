@@ -66,7 +66,6 @@ _.extend(MethodPromoter.prototype, {
             parametersSpecData = methodDefinition.args || [],
             // TODO: Userland return-by-reference (only NativeMethodDefinitionBuilder uses this at the moment).
             returnByReference = Boolean(methodDefinition.ref),
-            // TODO: Userland return types (only NativeMethodDefinitionBuilder uses this at the moment).
             returnTypeSpecData = methodDefinition.ret || null;
 
         functionSpec = promoter.functionSpecFactory.createMethodSpec(

@@ -11,32 +11,32 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('../../../tools');
+    tools = require('../../../../tools');
 
-describe('PHP class static method integration', function () {
-    it('should support classes with a static method called "length"', async function () {
+describe('PHP class instance method integration', function () {
+    it('should support classes with an instance method called "length"', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 class MyClass
 {
-    public static $myProp;
+    public $myProp;
 
-    public static function setProp($myVar)
+    public function __construct($myVar)
     {
-        self::$myProp = $myVar;
+        $this->myProp = $myVar;
     }
 
-    public static function length()
+    public function length()
     {
         return 21;
     }
 }
 
-MyClass::setProp('my value');
+$myObject = new MyClass('my value');
 
 $result = [];
-$result['prop'] = MyClass::$myProp;
-$result['length'] = MyClass::length();
+$result['prop'] = $myObject->myProp;
+$result['length'] = $myObject->length();
 
 return $result;
 EOS

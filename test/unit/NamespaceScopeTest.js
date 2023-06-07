@@ -57,12 +57,14 @@ describe('NamespaceScope', function () {
     describe('defineFunction()', function () {
         it('should define the function on the Namespace', function () {
             var myFunc = sinon.stub(),
-                parametersSpecData = [{name: 'param1'}, {name: 'param2'}];
+                parametersSpecData = [{name: 'param1'}, {name: 'param2'}],
+                returnTypeSpec = {type: 'iterable'};
 
             scope.defineFunction(
                 'myFunc',
                 myFunc,
                 parametersSpecData,
+                returnTypeSpec,
                 1234
             );
 
@@ -72,7 +74,7 @@ describe('NamespaceScope', function () {
                 sinon.match.same(myFunc),
                 sinon.match.same(scope),
                 parametersSpecData,
-                null, // TODO: Implement userland return types.
+                returnTypeSpec,
                 false, // TODO: Implement userland return-by-reference.
                 1234
             );

@@ -52,14 +52,15 @@ module.exports = function (internals) {
          * Defines a function with the given name for the current NamespaceScope.
          */
         defineFunction: internals.typeHandler(
-            'string name, any func, initial any parameters = null, initial number line = null',
-            function (name, func, parametersSpecData, lineNumber) {
+            'string name, any func, initial any parameters = null, initial any returnType = null, initial number line = null',
+            function (name, func, parametersSpecData, returnTypeSpec, lineNumber) {
                 var namespaceScope = callStack.getEffectiveNamespaceScope();
 
                 namespaceScope.defineFunction(
                     name,
                     func,
                     parametersSpecData,
+                    returnTypeSpec,
                     lineNumber
                 );
             }
