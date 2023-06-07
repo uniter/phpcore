@@ -47,7 +47,7 @@ _.extend(UnionTypeProvider.prototype, {
             scalarSubTypesByValueType = {},
             scalarSubTypesByPriority = [];
 
-        _.each(typeSpecData.subTypes, function (subTypeSpecData) {
+        _.each(typeSpecData.types, function (subTypeSpecData) {
             var scalarValueTypeName,
                 subType = provider.specTypeProvider.createType(subTypeSpecData, namespaceScope);
 

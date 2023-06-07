@@ -44,7 +44,7 @@ describe('UnionTypeProvider', function () {
                 provider.createType(
                     {
                         type: 'union',
-                        subTypes: [
+                        types: [
                             {type: 'callable'},
                             {type: 'iterable'}
                         ]
@@ -71,7 +71,7 @@ describe('UnionTypeProvider', function () {
                 provider.createType(
                     {
                         type: 'union',
-                        subTypes: [
+                        types: [
                             {type: 'callable'},
                             {type: 'iterable'}
                         ]
@@ -129,7 +129,7 @@ describe('UnionTypeProvider', function () {
                 provider.createType(
                     {
                         type: 'union',
-                        subTypes: [
+                        types: [
                             {type: 'scalar', scalarType: 'bool'},
                             {type: 'scalar', scalarType: 'float'}
                         ]
@@ -151,7 +151,7 @@ describe('UnionTypeProvider', function () {
                 provider.createType(
                     {
                         type: 'union',
-                        subTypes: [
+                        types: [
                             {type: 'scalar', scalarType: 'bool'},
                             {type: 'scalar', scalarType: 'float'}
                         ]
@@ -174,7 +174,7 @@ describe('UnionTypeProvider', function () {
                 provider.createType(
                     {
                         type: 'union',
-                        subTypes: [
+                        types: [
                             {type: 'scalar', scalarType: 'bool'},
                             {type: 'class'}
                         ]
@@ -197,7 +197,7 @@ describe('UnionTypeProvider', function () {
                 provider.createType(
                     {
                         type: 'union',
-                        subTypes: [
+                        types: [
                             {type: 'scalar', scalarType: 'bool'},
                             {type: 'callable'}
                         ]
