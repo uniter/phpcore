@@ -18,6 +18,7 @@ var expect = require('chai').expect,
     IterableType = require('../../../src/Type/IterableType'),
     MixedType = require('../../../src/Type/MixedType'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
+    NullType = require('../../../src/Type/NullType'),
     ObjectType = require('../../../src/Type/ObjectType'),
     ScalarType = require('../../../src/Type/ScalarType'),
     TypeFactory = require('../../../src/Type/TypeFactory'),
@@ -131,6 +132,15 @@ describe('TypeFactory', function () {
             var type = factory.createMixedType();
 
             expect(type).to.be.an.instanceOf(MixedType);
+            expect(type.allowsNull()).to.be.true;
+        });
+    });
+
+    describe('createNullType()', function () {
+        it('should return a NullType', function () {
+            var type = factory.createNullType();
+
+            expect(type).to.be.an.instanceOf(NullType);
             expect(type.allowsNull()).to.be.true;
         });
     });

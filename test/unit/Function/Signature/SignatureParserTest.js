@@ -256,6 +256,20 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.value).to.be.null;
         });
 
+        it('should be able to parse a single by-value required null parameter', function () {
+            var parameterSpecData,
+                signature = parser.parseSignature('null $myParam');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(1);
+            parameterSpecData = signature.getParametersSpecData()[0];
+            expect(parameterSpecData.type).to.equal('null');
+            expect(parameterSpecData.nullable).to.be.false;
+            expect(parameterSpecData.name).to.equal('myParam');
+            expect(parameterSpecData.ref).to.be.false;
+            expect(parameterSpecData.value).to.be.null;
+        });
+
         it('should be able to parse a single by-value optional default-null parameter', function () {
             var defaultValue,
                 parameterSpecData,

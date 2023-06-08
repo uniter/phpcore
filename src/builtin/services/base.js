@@ -55,6 +55,7 @@ var phpCommon = require('phpcommon'),
     NamespaceFactory = require('../../NamespaceFactory'),
     NativeDefinitionBuilder = require('../../Class/Definition/NativeDefinitionBuilder'),
     NativeMethodDefinitionBuilder = require('../../Class/Definition/NativeMethodDefinitionBuilder'),
+    NullTypeProvider = require('../../Type/Provider/Spec/NullTypeProvider'),
     ObjectTypeProvider = require('../../Type/Provider/Spec/ObjectTypeProvider'),
     OpcodeExecutor = require('../../Core/Opcode/Handler/OpcodeExecutor'),
     OpcodeFactory = require('../../Core/Opcode/Opcode/OpcodeFactory'),
@@ -433,6 +434,7 @@ module.exports = function (internals) {
             provider.addNamedProvider(new ClassTypeProvider(typeFactory));
             provider.addNamedProvider(new IterableTypeProvider(typeFactory));
             provider.addNamedProvider(new MixedTypeProvider(typeFactory));
+            provider.addNamedProvider(new NullTypeProvider(typeFactory));
             provider.addNamedProvider(new ObjectTypeProvider(typeFactory));
             provider.addNamedProvider(new ScalarTypeProvider(typeFactory));
             provider.addNamedProvider(new UnionTypeProvider(typeFactory, provider));

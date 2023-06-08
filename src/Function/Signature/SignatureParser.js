@@ -101,7 +101,13 @@ _.extend(SignatureParser.prototype, {
                 // Type is a scalar type (int, string etc.)
                 spec.scalarType = type;
                 type = 'scalar';
-            } else if (type !== 'array' && type !== 'callable' && type !== 'iterable' && type !== 'object') {
+            } else if (
+                type !== 'array' &&
+                type !== 'callable' &&
+                type !== 'iterable' &&
+                type !== 'null' &&
+                type !== 'object'
+            ) {
                 // Any non-builtin type must represent a class (or interface).
                 spec.className = type;
                 type = 'class';
