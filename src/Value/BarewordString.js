@@ -102,7 +102,7 @@ module.exports = require('pauser')([
         /**
          * Fetches the fully-qualified version of this name (function or class)
          *
-         * @returns {StringValue}
+         * @returns {string}
          */
         getCallableName: function () {
             var rightValue = this,
@@ -119,6 +119,16 @@ module.exports = require('pauser')([
          */
         getConstantByName: function (name) {
             var value = this;
+
+            if (name.toLowerCase() === 'class') {
+                /*
+                 * The special MyClass::class constant that fetches the FQCN of the class as a string.
+                 * Note that this constant is case-insensitive while all others are not.
+                 *
+                 * If the class is not defined, it will not be autoloaded.
+                 */
+                return value.factory.createString(value.getCallableName());
+            }
 
             // Note that this may pause due to autoloading.
             return value.namespaceScope.getClass(value.value)

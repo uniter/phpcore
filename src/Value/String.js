@@ -403,6 +403,16 @@ module.exports = require('pauser')([
         getConstantByName: function (name) {
             var value = this;
 
+            if (name.toLowerCase() === 'class') {
+                /*
+                 * The special MyClass::class constant that fetches the FQCN of the class as a string.
+                 * Note that this constant is case-insensitive while all others are not.
+                 *
+                 * If the class is not defined, it will not be autoloaded.
+                 */
+                return value.factory.createString(value.value);
+            }
+
             // Note that this may pause due to autoloading
             return value.globalNamespace.getClass(value.value)
                 .next(function (classObject) {

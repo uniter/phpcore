@@ -1161,6 +1161,17 @@ describe('StringValue', function () {
 
             expect(await value.getConstantByName('MY_CONST', namespaceScope).toPromise()).to.equal(resultValue);
         });
+
+        it('should not autoload when the special ::class constant for an undefined class', async function () {
+            var resultValue;
+            createValue('Some\\SubSpace\\SomeUndefinedClass');
+
+            resultValue = await value.getConstantByName('class', namespaceScope).toPromise();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('Some\\SubSpace\\SomeUndefinedClass');
+            expect(namespaceScope.getClass).not.to.have.been.called;
+        });
     });
 
     describe('getDisplayType()', function () {

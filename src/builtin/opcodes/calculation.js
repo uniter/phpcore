@@ -576,6 +576,18 @@ module.exports = function (internals) {
         ),
 
         /**
+         * Fetches the name of the class of a value or bareword.
+         *
+         * Used by `::class`.
+         */
+        getClassNameConstant: internals.typeHandler(
+            'val className : val',
+            function (classNameValue) {
+                return classNameValue.getConstantByName('class');
+            }
+        ),
+
+        /**
          * Fetches the name of the current class, or an empty string if there is none
          *
          * Used by `self::` inside property or constant definitions and by `__CLASS__`.

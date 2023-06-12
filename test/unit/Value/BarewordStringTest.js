@@ -247,6 +247,24 @@ describe('BarewordStringValue', function () {
 
             expect(await value.getConstantByName('MY_CONST', namespaceScope).toPromise()).to.equal(resultValue);
         });
+
+        it('should not autoload when the special ::class constant for an undefined class', async function () {
+            var namespace,
+                resultValue;
+            namespace = sinon.createStubInstance(Namespace);
+            namespace.getPrefix.returns('Some\\SubSpace\\');
+            namespaceScope.resolveClass.withArgs('Some\\SubSpace\\SomeUndefinedClass').returns({
+                namespace: namespace,
+                name: 'SomeUndefinedClass'
+            });
+            createValue('Some\\SubSpace\\SomeUndefinedClass');
+
+            resultValue = await value.getConstantByName('class', namespaceScope).toPromise();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('Some\\SubSpace\\SomeUndefinedClass');
+            expect(namespaceScope.getClass).not.to.have.been.called;
+        });
     });
 
     describe('getDisplayType()', function () {

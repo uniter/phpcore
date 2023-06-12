@@ -47,7 +47,7 @@ EOS
             engine = module();
 
         expect((await engine.execute()).getNative()).to.deep.equal([
-            123, // With unprefixed class name.
+            123, // With un-prefixed class name.
             123, // With fully-qualified class name.
             123, // With class name in variable, without leading slash.
             123  // With class name in variable, with leading slash.
