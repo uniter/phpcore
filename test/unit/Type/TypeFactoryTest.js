@@ -252,7 +252,7 @@ describe('TypeFactory', function () {
                     true
                 );
 
-            expect(type.getDisplayName()).to.equal('MyClass|YourClass|callable|iterable|string|int|null');
+            expect(type.getDisplayName()).to.equal('MyClass|YourClass|iterable|callable|string|int|null');
         });
     });
 });
