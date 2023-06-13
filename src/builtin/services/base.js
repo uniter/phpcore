@@ -90,6 +90,7 @@ var phpCommon = require('phpcommon'),
     ValueProvider = require('../../Value/ValueProvider'),
     Variable = require('../../Variable').sync(),
     VariableFactory = require('../../VariableFactory').sync(),
+    VoidTypeProvider = require('../../Type/Provider/Spec/VoidTypeProvider'),
 
     ARRAY_CHAINIFIER = 'array_chainifier',
     CALL_FACTORY = 'call_factory',
@@ -438,6 +439,7 @@ module.exports = function (internals) {
             provider.addNamedProvider(new ObjectTypeProvider(typeFactory));
             provider.addNamedProvider(new ScalarTypeProvider(typeFactory));
             provider.addNamedProvider(new UnionTypeProvider(typeFactory, provider));
+            provider.addNamedProvider(new VoidTypeProvider(typeFactory));
         },
 
         'stdout_buffer': function () {

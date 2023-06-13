@@ -106,7 +106,8 @@ _.extend(SignatureParser.prototype, {
                 type !== 'callable' &&
                 type !== 'iterable' &&
                 type !== 'null' &&
-                type !== 'object'
+                type !== 'object' &&
+                type !== 'void'
             ) {
                 // Any non-builtin type must represent a class (or interface).
                 spec.className = type;

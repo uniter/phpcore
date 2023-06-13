@@ -420,6 +420,17 @@ describe('SignatureParser', function () {
             });
         });
 
+        it('should be able to parse a void return type', function () {
+            var signature = parser.parseSignature(': void');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(0);
+            expect(signature.getReturnTypeSpecData()).to.deep.equal({
+                type: 'void',
+                nullable: false,
+            });
+        });
+
         it('should be able to parse a signature with nullable class return type but no parameters', function () {
             var signature = parser.parseSignature(' : ?My\\Stuff\\MyClass');
 

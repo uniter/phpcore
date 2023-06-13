@@ -18,7 +18,8 @@ var _ = require('microdash'),
     NullType = require('./NullType'),
     ObjectType = require('./ObjectType'),
     ScalarType = require('./ScalarType'),
-    UnionType = require('./UnionType');
+    UnionType = require('./UnionType'),
+    VoidType = require('./VoidType');
 
 /**
  * Creates objects related to Types.
@@ -148,6 +149,15 @@ _.extend(TypeFactory.prototype, {
             otherSubTypes,
             Boolean(nullIsAllowed)
         );
+    },
+
+    /**
+     * Creates a new VoidType.
+     *
+     * @returns {VoidType}
+     */
+    createVoidType: function () {
+        return new VoidType(this.futureFactory);
     }
 });
 

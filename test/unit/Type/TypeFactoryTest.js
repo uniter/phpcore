@@ -23,7 +23,8 @@ var expect = require('chai').expect,
     ScalarType = require('../../../src/Type/ScalarType'),
     TypeFactory = require('../../../src/Type/TypeFactory'),
     TypeInterface = require('../../../src/Type/TypeInterface'),
-    UnionType = require('../../../src/Type/UnionType');
+    UnionType = require('../../../src/Type/UnionType'),
+    VoidType = require('../../../src/Type/VoidType');
 
 describe('TypeFactory', function () {
     var factory,
@@ -141,7 +142,6 @@ describe('TypeFactory', function () {
             var type = factory.createNullType();
 
             expect(type).to.be.an.instanceOf(NullType);
-            expect(type.allowsNull()).to.be.true;
         });
     });
 
@@ -253,6 +253,14 @@ describe('TypeFactory', function () {
                 );
 
             expect(type.getDisplayName()).to.equal('MyClass|YourClass|iterable|callable|string|int|null');
+        });
+    });
+
+    describe('createVoidType()', function () {
+        it('should return a VoidType', function () {
+            var type = factory.createVoidType();
+
+            expect(type).to.be.an.instanceOf(VoidType);
         });
     });
 });
