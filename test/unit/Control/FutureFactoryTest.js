@@ -12,18 +12,22 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('../tools'),
+    Chainifier = require('../../../src/Control/Chain/Chainifier'),
     ControlScope = require('../../../src/Control/ControlScope'),
     Coroutine = require('../../../src/Control/Coroutine'),
     FutureFactory = require('../../../src/Control/FutureFactory'),
-    RealFuture = require('../../../src/Control/Future');
+    RealFuture = require('../../../src/Control/Future'),
+    RealPresent = require('../../../src/Control/Present');
 
 describe('FutureFactory', function () {
-    var controlBridge,
+    var chainifier,
+        controlBridge,
         controlScope,
         coroutine,
         Future,
         futureFactory,
         pauseFactory,
+        Present,
         state,
         valueFactory;
 
@@ -32,22 +36,27 @@ describe('FutureFactory', function () {
         state = tools.createIsolatedState('async', {
             'control_scope': controlScope
         });
+        chainifier = sinon.createStubInstance(Chainifier);
         controlBridge = state.getControlBridge();
         coroutine = sinon.createStubInstance(Coroutine);
         Future = sinon.spy(RealFuture);
         pauseFactory = state.getPauseFactory();
+        Present = sinon.spy(RealPresent);
         valueFactory = state.getValueFactory();
 
         controlScope.getCoroutine.returns(coroutine);
         Future.prototype = RealFuture.prototype;
+        Present.prototype = RealPresent.prototype;
 
         futureFactory = new FutureFactory(
             pauseFactory,
             valueFactory,
             controlBridge,
             controlScope,
-            Future
+            Future,
+            Present
         );
+        futureFactory.setChainifier(chainifier);
     });
 
     describe('createAsyncPresent()', function () {
@@ -99,6 +108,24 @@ describe('FutureFactory', function () {
                 sinon.match.same(controlScope),
                 sinon.match.same(executor),
                 sinon.match.same(coroutine)
+            );
+        });
+    });
+
+    describe('createPresent()', function () {
+        it('should return a correctly constructed Present', function () {
+            var present;
+            Present.resetHistory(); // As Present will have been used internally.
+
+            present = futureFactory.createPresent('my value');
+
+            expect(present).to.be.an.instanceOf(Present);
+            expect(Present).to.have.been.calledOnce;
+            expect(Present).to.have.been.calledWith(
+                sinon.match.same(futureFactory),
+                sinon.match.same(chainifier),
+                sinon.match.same(valueFactory),
+                'my value'
             );
         });
     });

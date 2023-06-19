@@ -326,18 +326,14 @@ _.extend(Future.prototype, {
     },
 
     /**
-     * Determines whether this future is pending (not yet settled by being resolved or rejected).
-     *
-     * @returns {boolean}
+     * {@inheritdoc}
      */
     isPending: function () {
         return !this.isSettled();
     },
 
     /**
-     * Determines whether this future has settled (been resolved or rejected).
-     *
-     * @returns {boolean}
+     * {@inheritdoc}
      */
     isSettled: function () {
         return this.settled;

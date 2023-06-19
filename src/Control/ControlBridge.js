@@ -13,16 +13,21 @@ var _ = require('microdash');
 
 /**
  * @param {class} Future
+ * @param {class} Present
  * @param {class} Reference
  * @param {class} Value
  * @param {class} Variable
  * @constructor
  */
-function ControlBridge(Future, Reference, Value, Variable) {
+function ControlBridge(Future, Present, Reference, Value, Variable) {
     /**
      * @type {class}
      */
     this.Future = Future;
+    /**
+     * @type {class}
+     */
+    this.Present = Present;
     /**
      * @type {class}
      */
@@ -65,7 +70,24 @@ _.extend(ControlBridge.prototype, {
     isFuture: function (value) {
         var bridge = this;
 
-        return value instanceof bridge.Future;
+        // TODO: Use a Symbol indicating "implements FutureInterface" on the prototype of these classes
+        //       to speed up this test by replacing it with a single lookup.
+
+        return value instanceof bridge.Future || value instanceof bridge.Present;
+    },
+
+    /**
+     * Determines whether the given value is a Throwable instance.
+     *
+     * @param {*} value
+     * @returns {boolean}
+     */
+    isThrowable: function (value) {
+        var bridge = this;
+
+        return value instanceof bridge.Value &&
+            value.getType() === 'object' &&
+            value.classIs('Throwable');
     }
 });
 

@@ -18,6 +18,7 @@ var _ = require('microdash'),
  * @param {ControlBridge} controlBridge
  * @param {ControlScope} controlScope
  * @param {class} Future
+ * @param {class} Present
  * @constructor
  */
 function FutureFactory(
@@ -25,8 +26,13 @@ function FutureFactory(
     valueFactory,
     controlBridge,
     controlScope,
-    Future
+    Future,
+    Present
 ) {
+    /**
+     * @type {Chainifier}
+     */
+    this.chainifier = null;
     /**
      * @type {ControlBridge}
      */
@@ -43,6 +49,10 @@ function FutureFactory(
      * @type {PauseFactory}
      */
     this.pauseFactory = pauseFactory;
+    /**
+     * @type {class}
+     */
+    this.Present = Present;
     /**
      * @type {ValueFactory}
      */
@@ -99,15 +109,20 @@ _.extend(FutureFactory.prototype, {
     },
 
     /**
-     * Creates a new present Future for the given value
+     * Creates a new Present for the given value.
      *
      * @param {*} value
-     * @returns {Future}
+     * @returns {Present}
      */
     createPresent: function (value) {
-        return this.createFuture(function (resolve) {
-            resolve(value);
-        });
+        var factory = this;
+
+        return new factory.Present(
+            factory,
+            factory.chainifier,
+            factory.valueFactory,
+            value
+        );
     },
 
     /**
@@ -120,6 +135,15 @@ _.extend(FutureFactory.prototype, {
         return this.createFuture(function (resolve, reject) {
             reject(error);
         });
+    },
+
+    /**
+     * Injects the Chainifier. Solves a circular dependency issue.
+     *
+     * @param {Chainifier} chainifier
+     */
+    setChainifier: function (chainifier) {
+        this.chainifier = chainifier;
     }
 });
 

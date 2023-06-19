@@ -72,6 +72,7 @@ var phpCommon = require('phpcommon'),
     Output = require('../../Output/Output'),
     OutputBuffer = require('../../Output/OutputBuffer'),
     OutputFactory = require('../../Output/OutputFactory'),
+    Present = require('../../Control/Present'),
     Reference = require('../../Reference/Reference'),
     ReturnTypeProvider = require('../../Function/ReturnTypeProvider'),
     ScalarTypeProvider = require('../../Type/Provider/Spec/ScalarTypeProvider'),
@@ -230,7 +231,7 @@ module.exports = function (internals) {
         },
 
         'control_bridge': function () {
-            return new ControlBridge(Future, Reference, Value, Variable);
+            return new ControlBridge(Future, Present, Reference, Value, Variable);
         },
 
         'control_factory': function () {
@@ -282,14 +283,17 @@ module.exports = function (internals) {
             return new SignatureParser(get(VALUE_FACTORY));
         },
 
-        'future_factory': function () {
-            return new FutureFactory(
+        'future_factory': function (set) {
+            var futureFactory = set(new FutureFactory(
                 get(PAUSE_FACTORY),
                 get(VALUE_FACTORY),
                 get(CONTROL_BRIDGE),
                 get(CONTROL_SCOPE),
-                Future
-            );
+                Future,
+                Present
+            ));
+
+            futureFactory.setChainifier(get(CHAINIFIER));
         },
 
         'global_namespace': function (set) {
