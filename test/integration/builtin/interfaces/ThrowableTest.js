@@ -51,8 +51,10 @@ EOS
             module = tools.asyncTranspile('/path/to/my/module.php', php),
             engine = module(),
             result;
-        engine.defineNonCoercingFunction('get_my_object_class', function (objectValue) {
-            return objectValue.getValue().getClassName();
+        engine.defineNonCoercingFunction('get_my_object_class', function (objectReference) {
+            return objectReference.getValue().next(function (objectValue) {
+                return objectValue.getClassName();
+            });
         });
 
         result = await engine.execute();

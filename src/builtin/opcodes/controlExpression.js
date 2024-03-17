@@ -83,6 +83,17 @@ module.exports = function (internals) {
         }),
 
         /**
+         * Handles the operand of a return statement inside a try {...} block.
+         * Exists because we must preserve the result through pauses etc.
+         * if there is a finally clause that does not override it.
+         *
+         * Used by "try {...}" blocks that contain a return statement.
+         */
+        tryReturn: internals.typeHandler('slot operand', function (operandReference) {
+            return operandReference;
+        }),
+
+        /**
          * Used by generator functions.
          */
         wrapGenerator: internals.typeHandler('any func : any', function (func) {

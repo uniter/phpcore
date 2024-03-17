@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('./tools'),
+    CacheInvalidator = require('../../src/Garbage/CacheInvalidator'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     Closure = require('../../src/Closure').sync(),
@@ -48,6 +49,7 @@ describe('Scope', function () {
         flow,
         functionSpecFactory,
         futureFactory,
+        garbageCacheInvalidator,
         globalNamespace,
         globalScope,
         parentClass,
@@ -77,6 +79,7 @@ describe('Scope', function () {
         flow = state.getFlow();
         functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
         futureFactory = state.getFutureFactory();
+        garbageCacheInvalidator = sinon.createStubInstance(CacheInvalidator);
         globalNamespace = sinon.createStubInstance(Namespace);
         globalScope = sinon.createStubInstance(Scope);
         parentClass = null;
@@ -95,7 +98,15 @@ describe('Scope', function () {
         closureFactory.create.returns(closure);
 
         variableFactory.createVariable.callsFake(function (variableName) {
-            return new Variable(callStack, valueFactory, referenceFactory, futureFactory, flow, variableName);
+            return new Variable(
+                callStack,
+                valueFactory,
+                referenceFactory,
+                futureFactory,
+                flow,
+                garbageCacheInvalidator,
+                variableName
+            );
         });
 
         controlScope.enterCoroutine.resetHistory();
@@ -687,6 +698,24 @@ describe('Scope', function () {
         });
     });
 
+    describe('getVariables()', function () {
+        it('should return an array of all variables defined for this scope', function () {
+            var myVariable,
+                result,
+                yourVariable;
+            createScope();
+            myVariable = scope.defineVariable('myVar');
+            yourVariable = scope.defineVariable('yourVar');
+
+            result = scope.getVariables();
+
+            expect(result).to.have.length(3);
+            expect(result[0].getName()).to.equal('this', '$this is always defined first');
+            expect(result[1]).to.equal(myVariable);
+            expect(result[2]).to.equal(yourVariable);
+        });
+    });
+
     describe('hasVariable()', function () {
         it('should return true when the specified variable is defined', function () {
             createScope();
@@ -744,7 +773,7 @@ describe('Scope', function () {
             });
 
             it('should define variable in current scope as reference to new static variable on first call', function () {
-                var staticVariable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'myVar'),
+                var staticVariable = variableFactory.createVariable('myVar'),
                     value = valueFactory.createString('my string');
                 variableFactory.createVariable.withArgs('myVar').returns(staticVariable);
                 staticVariable.setValue(value);
@@ -756,7 +785,7 @@ describe('Scope', function () {
             });
 
             it('should define variable in current scope as reference to same static variable on second call', function () {
-                var existingStaticVariable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, 'myVar'),
+                var existingStaticVariable = variableFactory.createVariable('myVar'),
                     value = valueFactory.createString('my string');
                 existingStaticVariable.setValue(value);
                 currentFunction.staticVariables = {myVar: existingStaticVariable};
@@ -803,6 +832,8 @@ describe('Scope', function () {
             var caughtError = null,
                 errorClassObject = sinon.createStubInstance(Class),
                 errorValue = sinon.createStubInstance(ObjectValue);
+            errorValue.next.yields(errorValue);
+            errorValue.toPromise.returns(Promise.resolve(errorValue));
             globalNamespace.getClass
                 .withArgs('MySubError')
                 .returns(futureFactory.createPresent(errorClassObject));

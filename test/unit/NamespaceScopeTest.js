@@ -42,6 +42,7 @@ describe('NamespaceScope', function () {
             throw new Error('PHP Fatal error: [' + translationKey + '] ' + JSON.stringify(placeholderVariables || {}));
         });
         globalNamespace.hasClass.returns(false);
+        module.isStrictTypesMode.returns(false);
 
         scope = new NamespaceScope(
             scopeFactory,
@@ -78,6 +79,14 @@ describe('NamespaceScope', function () {
                 false, // TODO: Implement userland return-by-reference.
                 1234
             );
+        });
+    });
+
+    describe('enableStrictTypes()', function () {
+        it('should enable strict-types mode for the module', function () {
+            scope.enableStrictTypes();
+
+            expect(module.enableStrictTypes).to.have.been.calledOnce;
         });
     });
 
@@ -320,6 +329,18 @@ describe('NamespaceScope', function () {
 
         it('should return false for a normal NamespaceScope', function () {
             expect(scope.isGlobal()).to.be.false;
+        });
+    });
+
+    describe('isStrictTypesMode()', function () {
+        it('should return true when the module is in strict-types mode', function () {
+            module.isStrictTypesMode.returns(true);
+
+            expect(scope.isStrictTypesMode()).to.be.true;
+        });
+
+        it('should return false when the module is in weak type-checking mode', function () {
+            expect(scope.isStrictTypesMode()).to.be.false;
         });
     });
 

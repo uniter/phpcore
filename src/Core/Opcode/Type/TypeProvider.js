@@ -16,10 +16,14 @@ var _ = require('microdash'),
         switch (typeName) {
             case 'any':
                 return provider.typeFactory.createAnyType();
+            case 'element':
+                return provider.typeFactory.createElementType();
             case 'list':
                 return provider.typeFactory.createListType();
             case 'ref':
                 return provider.typeFactory.createReferenceType();
+            case 'slot':
+                return provider.typeFactory.createSlotType();
             case 'snapshot':
                 return provider.typeFactory.createSnapshotType();
             case 'bool':
@@ -27,9 +31,13 @@ var _ = require('microdash'),
             case 'null':
             case 'number':
             case 'string':
+            case 'undefined':
                 return provider.typeFactory.createNativeType(typeName);
             case 'val':
                 return provider.typeFactory.createValueType();
+            // Provide "void" as a shorthand for "undefined" to shrink compiled bundle size.
+            case 'void':
+                return provider.typeFactory.createVoidType();
             default:
                 throw new Exception('Unsupported type "' + typeName + '"');
         }

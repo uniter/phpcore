@@ -108,11 +108,7 @@ EOS
             engine = module();
         engine.defineFunction('get_async', function (internals) {
             return function (value) {
-                return internals.createFutureValue(function (resolve) {
-                    setImmediate(function () {
-                        resolve(value);
-                    });
-                });
+                return internals.createAsyncPresentValue(value);
             };
         });
 
@@ -140,7 +136,7 @@ $anUnsetVar = null;
 $result = [];
 $result['before control structure'] = get_async($anUnsetVar) ?? 'another value';
 
-// This control structure will clear the expression trace state
+// This control structure will clear the expression trace state.
 if (true) {
     $result['inside control structure'] = 'some value';
 }
@@ -154,11 +150,7 @@ EOS
             engine = module();
         engine.defineFunction('get_async', function (internals) {
             return function (value) {
-                return internals.createFutureValue(function (resolve) {
-                    setImmediate(function () {
-                        resolve(value);
-                    });
-                });
+                return internals.createAsyncPresentValue(value);
             };
         });
 
@@ -188,11 +180,7 @@ EOS
         engine.defineGlobalAccessor(
             'myAccessor',
             function () {
-                return this.createFutureValue(function (resolve) {
-                    setImmediate(function () {
-                        resolve('my value');
-                    });
-                });
+                return this.createAsyncPresentValue('my value');
             }
         );
 

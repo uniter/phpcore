@@ -483,6 +483,15 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Fetches all variables defined for this scope.
+         *
+         * @return {Variable[]}
+         */
+        getVariables: function () {
+            return Object.values(this.variables);
+        },
+
+        /**
          * Determines whether this scope defines the specified variable or not
          * (not including the superglobal scope)
          *

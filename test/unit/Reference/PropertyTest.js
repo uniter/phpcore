@@ -20,6 +20,7 @@ var expect = require('chai').expect,
     MethodSpec = require('../../../src/MethodSpec'),
     ObjectValue = require('../../../src/Value/Object').sync(),
     PHPError = phpCommon.PHPError,
+    Present = require('../../../src/Control/Present'),
     Reference = require('../../../src/Reference/Reference'),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
     Variable = require('../../../src/Variable').sync();
@@ -622,14 +623,14 @@ describe('PropertyReference', function () {
         });
 
         describe('when the class does not define magic __unset(...)', function () {
-            it('should return an unwrapped Future when defined', async function () {
+            it('should return an unwrapped Present when defined', async function () {
                 property.initialise(propertyValue);
 
-                expect(property.unset()).to.be.an.instanceOf(Future);
+                expect(property.unset()).to.be.an.instanceOf(Present);
             });
 
-            it('should return an unwrapped Future when undefined', async function () {
-                expect(property.unset()).to.be.an.instanceOf(Future);
+            it('should return an unwrapped Present when undefined', async function () {
+                expect(property.unset()).to.be.an.instanceOf(Present);
             });
         });
 

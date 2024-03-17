@@ -102,10 +102,10 @@ module.exports = require('pauser')([
 
     _.extend(Value.prototype, {
         /**
-         * Adds this value to another
+         * Adds this value to another.
          *
          * @param {Value} rightValue
-         * @returns {Value}
+         * @returns {ChainableInterface<Value>}
          */
         add: function (rightValue) {
             var leftValue = this,
@@ -697,6 +697,11 @@ module.exports = require('pauser')([
             return createNullReference(this);
         },
 
+        /**
+         * Handles this value being assigned to a storage slot.
+         *
+         * @returns {Value}
+         */
         getForAssignment: function () {
             return this;
         },
@@ -738,6 +743,18 @@ module.exports = require('pauser')([
          */
         getNative: function () {
             return this.value;
+        },
+
+        /**
+         * Fetches a list of all values that this value refers to.
+         * This does not include values that refer to this value (unless there is a cycle).
+         *
+         * This only applies to structured values, ArrayValue and ObjectValue.
+         *
+         * @returns {Value[]}
+         */
+        getOutgoingValues: function () {
+            return [];
         },
 
         /**
@@ -911,6 +928,15 @@ module.exports = require('pauser')([
          * @returns {boolean}
          */
         isReferenceable: function () {
+            return false;
+        },
+
+        /**
+         * Determines whether this value is structured (ArrayValue or ObjectValue, for now).
+         *
+         * @return {boolean}
+         */
+        isStructured: function () {
             return false;
         },
 

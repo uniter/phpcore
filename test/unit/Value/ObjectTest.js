@@ -23,6 +23,7 @@ var expect = require('chai').expect,
     FunctionSpec = require('../../../src/Function/FunctionSpec'),
     GeneratorIterator = require('../../../src/Iterator/GeneratorIterator'),
     IntegerValue = require('../../../src/Value/Integer').sync(),
+    KeyValuePair = require('../../../src/KeyValuePair'),
     MethodSpec = require('../../../src/MethodSpec'),
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
@@ -1663,6 +1664,8 @@ describe('ObjectValue', function () {
                 iteratorValue.classIs.withArgs('Iterator').returns(true);
                 iteratorValue.classIs.returns(false);
                 iteratorValue.getType.returns('object');
+                iteratorValue.next.yields(iteratorValue);
+                iteratorValue.toPromise.returns(Promise.resolve(iteratorValue));
                 classObject.callMethod.withArgs('getIterator')
                     .returns(futureFactory.createPresent(iteratorValue));
 
@@ -1678,6 +1681,8 @@ describe('ObjectValue', function () {
                 iteratorValue.classIs.withArgs('Iterator').returns(true);
                 iteratorValue.classIs.returns(false);
                 iteratorValue.getType.returns('object');
+                iteratorValue.next.yields(iteratorValue);
+                iteratorValue.toPromise.returns(Promise.resolve(iteratorValue));
                 classObject.callMethod.withArgs('getIterator')
                     .returns(futureFactory.createPresent(iteratorValue));
 
@@ -1859,6 +1864,21 @@ describe('ObjectValue', function () {
     describe('getObject()', function () {
         it('should return the wrapped native object', function () {
             expect(value.getObject()).to.equal(nativeObject);
+        });
+    });
+
+    describe('getOutgoingValues()', function () {
+        it('should return an array of all structured property values', function () {
+            var structuredValue = factory.createArray([
+                    new KeyValuePair(factory.createString('myKey'), factory.createString('my value'))
+                ]),
+                values;
+            value.getInstancePropertyByName(factory.createString('structuredProp')).setValue(structuredValue);
+
+            values = value.getOutgoingValues();
+
+            expect(values).to.have.length(1);
+            expect(values[0].getNative()).to.deep.equal(structuredValue.getNative());
         });
     });
 
@@ -2241,6 +2261,12 @@ describe('ObjectValue', function () {
     describe('isScalar()', function () {
         it('should return false', function () {
             expect(value.isScalar()).to.be.false;
+        });
+    });
+
+    describe('isStructured()', function () {
+        it('should return true', function () {
+            expect(value.isStructured()).to.be.true;
         });
     });
 

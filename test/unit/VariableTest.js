@@ -13,9 +13,10 @@ var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('./tools'),
+    CacheInvalidator = require('../../src/Garbage/CacheInvalidator'),
     CallStack = require('../../src/CallStack'),
-    Future = require('../../src/Control/Future'),
     PHPError = phpCommon.PHPError,
+    Present = require('../../src/Control/Present'),
     Reference = require('../../src/Reference/Reference'),
     ReferenceSlot = require('../../src/Reference/ReferenceSlot'),
     StringValue = require('../../src/Value/String').sync(),
@@ -25,6 +26,7 @@ describe('Variable', function () {
     var callStack,
         flow,
         futureFactory,
+        garbageCacheInvalidator,
         referenceFactory,
         state,
         valueFactory,
@@ -37,6 +39,7 @@ describe('Variable', function () {
         });
         flow = state.getFlow();
         futureFactory = state.getFutureFactory();
+        garbageCacheInvalidator = sinon.createStubInstance(CacheInvalidator);
         referenceFactory = state.getReferenceFactory();
         valueFactory = state.getValueFactory();
 
@@ -48,7 +51,15 @@ describe('Variable', function () {
                 );
             });
 
-        variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, flow, 'myVar');
+        variable = new Variable(
+            callStack,
+            valueFactory,
+            referenceFactory,
+            futureFactory,
+            flow,
+            garbageCacheInvalidator,
+            'myVar'
+        );
     });
 
     describe('asArrayElement()', function () {
@@ -188,7 +199,15 @@ describe('Variable', function () {
         });
 
         it('should raise a "Using $this when not in object context" error when the variable is $this and the value is not set', function () {
-            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, flow, 'this');
+            variable = new Variable(
+                callStack,
+                valueFactory,
+                referenceFactory,
+                futureFactory,
+                flow,
+                garbageCacheInvalidator,
+                'this'
+            );
 
             expect(function () {
                 variable.getValue();
@@ -361,7 +380,15 @@ describe('Variable', function () {
 
     describe('raiseUndefined()', function () {
         it('should raise a "Using $this when not in object context" error when the variable is $this', function () {
-            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, flow, 'this');
+            variable = new Variable(
+                callStack,
+                valueFactory,
+                referenceFactory,
+                futureFactory,
+                flow,
+                garbageCacheInvalidator,
+                'this'
+            );
 
             expect(function () {
                 variable.raiseUndefined();
@@ -424,6 +451,32 @@ describe('Variable', function () {
                 expect(resultValue.getType()).to.equal('string');
                 expect(resultValue.getNative()).to.equal('my assigned value');
             });
+
+            it('should mark the previous and new values of the variable for garbage invalidation', async function () {
+                var previousValue = valueFactory.createInteger(1234),
+                    newValue = valueFactory.createInteger(5678);
+                await variable.setValue(previousValue).toPromise();
+                garbageCacheInvalidator.markValueForInvalidation.resetHistory();
+
+                await variable.setValue(newValue).toPromise();
+
+                expect(garbageCacheInvalidator.markValueForInvalidation).to.have.been.calledTwice;
+                expect(garbageCacheInvalidator.markValueForInvalidation)
+                    .to.have.been.calledWith(sinon.match.same(previousValue));
+                expect(garbageCacheInvalidator.markValueForInvalidation)
+                    .to.have.been.calledWith(sinon.match.same(newValue));
+            });
+
+            it('should mark only the new value for garbage invalidation when variable had none assigned', async function () {
+                var value = valueFactory.createInteger(5678);
+                garbageCacheInvalidator.markValueForInvalidation.resetHistory();
+
+                await variable.setValue(value).toPromise();
+
+                expect(garbageCacheInvalidator.markValueForInvalidation).to.have.been.calledOnce;
+                expect(garbageCacheInvalidator.markValueForInvalidation)
+                    .to.have.been.calledWith(sinon.match.same(value));
+            });
         });
 
         describe('when the variable has a reference assigned', function () {
@@ -456,10 +509,29 @@ describe('Variable', function () {
                 expect(reference.setValue.args[0][0].getType()).to.equal('string');
                 expect(reference.setValue.args[0][0].getNative()).to.equal('my assigned value');
             });
+
+            it('should mark the new value for garbage invalidation', async function () {
+                var value = valueFactory.createInteger(5678);
+                garbageCacheInvalidator.markValueForInvalidation.resetHistory();
+
+                await variable.setValue(value).toPromise();
+
+                expect(garbageCacheInvalidator.markValueForInvalidation).to.have.been.calledOnce;
+                expect(garbageCacheInvalidator.markValueForInvalidation)
+                    .to.have.been.calledWith(sinon.match.same(value));
+            });
         });
 
         it('should unset $this when setting to null', async function () {
-            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, flow, 'this');
+            variable = new Variable(
+                callStack,
+                valueFactory,
+                referenceFactory,
+                futureFactory,
+                flow,
+                garbageCacheInvalidator,
+                'this'
+            );
 
             await variable.setValue(valueFactory.createNull()).toPromise();
 
@@ -468,7 +540,15 @@ describe('Variable', function () {
 
         it('should return the null value when setting $this to null', async function () {
             var value;
-            variable = new Variable(callStack, valueFactory, referenceFactory, futureFactory, flow, 'this');
+            variable = new Variable(
+                callStack,
+                valueFactory,
+                referenceFactory,
+                futureFactory,
+                flow,
+                garbageCacheInvalidator,
+                'this'
+            );
 
             value = await variable.setValue(valueFactory.createNull()).toPromise();
 
@@ -509,10 +589,29 @@ describe('Variable', function () {
             expect(variable.isDefined()).to.be.false;
         });
 
-        it('should return an unwrapped Future', async function () {
+        it('should mark the previous value of the variable for garbage invalidation', async function () {
+            var value = valueFactory.createInteger(1234);
+            variable.setValue(value);
+            garbageCacheInvalidator.markValueForInvalidation.resetHistory();
+
+            await variable.unset().toPromise();
+
+            expect(garbageCacheInvalidator.markValueForInvalidation).to.have.been.calledOnce;
+            expect(garbageCacheInvalidator.markValueForInvalidation).to.have.been.calledWith(sinon.match.same(value));
+        });
+
+        it('should not mark any value for garbage invalidation when variable had none assigned', async function () {
+            garbageCacheInvalidator.markValueForInvalidation.resetHistory();
+
+            await variable.unset().toPromise();
+
+            expect(garbageCacheInvalidator.markValueForInvalidation).not.to.have.been.called;
+        });
+
+        it('should return an unwrapped Present', async function () {
             variable.setValue(valueFactory.createInteger(1234));
 
-            expect(variable.unset()).to.be.an.instanceOf(Future);
+            expect(variable.unset()).to.be.an.instanceOf(Present);
         });
     });
 

@@ -93,10 +93,13 @@ var _ = require('microdash'),
             },
             nestCoroutine = function () {
                 future.controlScope.nestCoroutine();
+            },
+            newCoroutine = function (options) {
+                future.controlScope.enterCoroutine(options);
             };
 
         try {
-            executor(resolve, reject, nestCoroutine);
+            executor(resolve, reject, nestCoroutine, newCoroutine);
         } catch (error) {
             if (error instanceof Pause) {
                 throw new Exception('Unexpected Pause raised by Future executor');

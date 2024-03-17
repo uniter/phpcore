@@ -237,6 +237,8 @@ describe('BarewordStringValue', function () {
         it('should fetch the constant from the class', async function () {
             var classObject = sinon.createStubInstance(Class),
                 resultValue = sinon.createStubInstance(Value);
+            resultValue.next.yields(resultValue);
+            resultValue.toPromise.returns(Promise.resolve(resultValue));
             namespaceScope.getClass
                 .withArgs('This\\SubSpace\\MyClass')
                 .returns(futureFactory.createPresent(classObject));
@@ -275,6 +277,14 @@ describe('BarewordStringValue', function () {
         });
     });
 
+    describe('getOutgoingValues()', function () {
+        it('should return an empty array as scalars cannot refer to anything', function () {
+            createValue('mybarewordstring');
+
+            expect(value.getOutgoingValues()).to.deep.equal([]);
+        });
+    });
+
     describe('getReference()', function () {
         it('should throw an error', function () {
             createValue('mybarewordstring');
@@ -289,6 +299,8 @@ describe('BarewordStringValue', function () {
         it('should fetch the property\'s value from the class', async function () {
             var classObject = sinon.createStubInstance(Class),
                 resultValue = sinon.createStubInstance(Value);
+            resultValue.next.yields(resultValue);
+            resultValue.toPromise.returns(Promise.resolve(resultValue));
             namespaceScope.getClass
                 .withArgs('This\\SubSpace\\MyClass')
                 .returns(futureFactory.createPresent(classObject));
@@ -341,6 +353,8 @@ describe('BarewordStringValue', function () {
                 .withArgs('My\\Space\\MyClass')
                 .returns(futureFactory.createPresent(classObject));
             newObjectValue = sinon.createStubInstance(ObjectValue);
+            newObjectValue.next.yields(newObjectValue);
+            newObjectValue.toPromise.returns(Promise.resolve(newObjectValue));
             classObject.instantiate.returns(newObjectValue);
         });
 
@@ -382,6 +396,14 @@ describe('BarewordStringValue', function () {
             createValue('mybarewordstring');
 
             expect(value.isScalar()).to.be.true;
+        });
+    });
+
+    describe('isStructured()', function () {
+        it('should return false', function () {
+            createValue('mybarewordstring');
+
+            expect(value.isStructured()).to.be.false;
         });
     });
 

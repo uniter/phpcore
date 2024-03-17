@@ -159,6 +159,16 @@ describe('UndeclaredStaticPropertyReference', function () {
         });
     });
 
+    describe('raiseUndefined()', function () {
+        it('should raise an error', function () {
+            expect(function () {
+                reference.raiseUndefined();
+            }).to.throw(
+                'Fake PHP Fatal error for #core.undeclared_static_property with {"propertyName":"myProperty"}'
+            );
+        });
+    });
+
     describe('toPromise()', function () {
         it('should return a Promise that resolves to the UndeclaredStaticPropertyReference', async function () {
             expect(await reference.toPromise()).to.equal(reference);

@@ -168,38 +168,14 @@ module.exports = require('pauser')([
                                     // Native functions expect arguments to be provided natively as normal.
                                     return func.apply(scope, argReferences);
                                 },
-                                function (pause) {
+                                function (pause, onResume) {
                                     if (!functionSpec.isUserland()) {
                                         throw new Exception(
                                             'FunctionFactory :: A built-in function enacted a Pause, did you mean to return a Future instead?'
                                         );
                                     }
 
-                                    pause.next(
-                                        function (/* result */) {
-                                            /*
-                                             * Note that the result passed here for the opcode we are about to resume
-                                             * by re-calling the userland function has already been provided (see Pause),
-                                             * so the result argument passed to this callback may be ignored.
-                                             *
-                                             * If the pause resulted in an error, then we also want to re-call
-                                             * the function in order to resume with a throwInto at the correct opcode
-                                             * (see catch handler below).
-                                             */
-                                            return doCall();
-                                        },
-                                        function (/* error */) {
-                                            /*
-                                             * Note that the error passed here for the opcode we are about to throwInto
-                                             * by re-calling the userland function has already been provided (see Pause),
-                                             * so the error argument passed to this callback may be ignored.
-                                             *
-                                             * Similar to the above, we want to re-call the function in order to resume
-                                             * with a throwInto at the correct opcode.
-                                             */
-                                            return doCall();
-                                        }
-                                    );
+                                    onResume(doCall);
                                 }
                             );
                     }
@@ -265,8 +241,9 @@ module.exports = require('pauser')([
                                 functionSpec.loadArguments(argReferences, scope);
                             }
 
-                            return doCall().next(finishCall);
+                            return doCall();
                         })
+                        .next(finishCall)
                         .finally(function () {
                             // Once the call completes, whether with a result or a thrown error/exception,
                             // pop the call off of the stack

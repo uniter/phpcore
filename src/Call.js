@@ -88,6 +88,13 @@ function Call(
 
 _.extend(Call.prototype, {
     /**
+     * Enables strict-types mode for the module this call was performed in.
+     */
+    enableStrictTypes: function () {
+        this.originalNamespaceScope.enableStrictTypes();
+    },
+
+    /**
      * Enters an isolated call within this outer one, making the given NamespaceScope
      * and CallInstrumentation the current ones.
      *
@@ -313,6 +320,15 @@ _.extend(Call.prototype, {
      */
     instrument: function (finder) {
         this.finder = finder;
+    },
+
+    /**
+     * Determines whether the module this call was performed in is in strict-types mode.
+     *
+     * @returns {boolean}
+     */
+    isStrictTypesMode: function () {
+        return this.originalNamespaceScope.isStrictTypesMode();
     },
 
     /**

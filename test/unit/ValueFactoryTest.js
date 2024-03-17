@@ -18,6 +18,7 @@ var expect = require('chai').expect,
     Call = require('../../src/Call'),
     CallFactory = require('../../src/CallFactory'),
     CallStack = require('../../src/CallStack'),
+    Chainifier = require('../../src/Control/Chain/Chainifier'),
     Class = require('../../src/Class').sync(),
     Closure = require('../../src/Closure').sync(),
     ArrayIterator = require('../../src/Iterator/ArrayIterator'),
@@ -35,6 +36,7 @@ var expect = require('chai').expect,
     NumericStringParser = require('../../src/Semantics/NumericStringParser'),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPObject = require('../../src/FFI/Value/PHPObject').sync(),
+    Present = require('../../src/Control/Present'),
     Translator = phpCommon.Translator,
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync(),
@@ -43,6 +45,7 @@ var expect = require('chai').expect,
 describe('ValueFactory', function () {
     var callFactory,
         callStack,
+        chainifier,
         controlScope,
         elementProvider,
         errorPromoter,
@@ -52,6 +55,8 @@ describe('ValueFactory', function () {
         futuresCreated,
         globalNamespace,
         numericStringParser,
+        presentsCreated,
+        realChainifier,
         referenceFactory,
         state,
         translator,
@@ -59,10 +64,14 @@ describe('ValueFactory', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        chainifier = sinon.createStubInstance(Chainifier);
         futuresCreated = 0;
+        presentsCreated = 0;
         state = tools.createIsolatedState('async', {
             'call_stack': callStack,
             'future_factory': function (set, get) {
+                var futureFactory;
+
                 function TrackedFuture() {
                     Future.apply(this, arguments);
 
@@ -71,13 +80,25 @@ describe('ValueFactory', function () {
 
                 util.inherits(TrackedFuture, Future);
 
-                return new FutureFactory(
+                function TrackedPresent() {
+                    Present.apply(this, arguments);
+
+                    presentsCreated++;
+                }
+
+                util.inherits(TrackedPresent, Present);
+
+                futureFactory = new FutureFactory(
                     get('pause_factory'),
                     get('value_factory'),
                     get('control_bridge'),
                     get('control_scope'),
-                    TrackedFuture
+                    TrackedFuture,
+                    TrackedPresent
                 );
+                futureFactory.setChainifier(chainifier);
+
+                return futureFactory;
             }
         });
         callFactory = sinon.createStubInstance(CallFactory);
@@ -91,6 +112,11 @@ describe('ValueFactory', function () {
         translator = sinon.createStubInstance(Translator);
         elementProvider = new ElementProvider(referenceFactory);
         valueStorage = new ValueStorage();
+        realChainifier = state.getService('chainifier');
+
+        chainifier.chainify.callsFake(function (value) {
+            return realChainifier.chainify(value);
+        });
 
         translator.translate
             .callsFake(function (translationKey, placeholderVariables) {
@@ -453,6 +479,8 @@ describe('ValueFactory', function () {
             globalNamespace.getClass.withArgs('My\\Stuff\\MyErrorClass')
                 .returns(futureFactory.createPresent(myClassObject));
 
+            objectValue.next.yields(objectValue);
+            objectValue.toPromise.returns(Promise.resolve(objectValue));
             objectValue.getInternalProperty
                 .withArgs('reportsOwnContext')
                 .returns(false);
@@ -838,6 +866,23 @@ describe('ValueFactory', function () {
 
             expect(controlScope.isNestingCoroutine()).to.be.true;
         });
+
+        it('should allow a new Coroutine to be entered', async function () {
+            var enteredCoroutine = null,
+                value = factory.createFuture(function (resolve, reject, nestCoroutine, newCoroutine) {
+                    state.queueMicrotask(function () {
+                        newCoroutine();
+                        enteredCoroutine = controlScope.getCoroutine();
+
+                        resolve(21);
+                    });
+                });
+
+            await value.toPromise();
+
+            expect(controlScope.getCoroutine()).not.to.equal(enteredCoroutine);
+            expect(enteredCoroutine).not.to.be.null;
+        });
     });
 
     describe('createFutureChain()', function () {
@@ -1008,6 +1053,20 @@ describe('ValueFactory', function () {
         });
     });
 
+    describe('createObjectWithID()', function () {
+        it('should return a correctly constructed ObjectValue', function () {
+            var classObject = sinon.createStubInstance(Class),
+                nativeObject = {myProp: 'my value'},
+                value;
+
+            value = factory.createObjectWithID(nativeObject, classObject, 1234);
+
+            expect(value.getType()).to.equal('object');
+            expect(value.getObject()).to.equal(nativeObject);
+            expect(value.getID()).to.equal(1234);
+        });
+    });
+
     describe('createResource()', function () {
         it('should return a correctly constructed ResourceValue', function () {
             var resource = {my: 'resource'},
@@ -1063,6 +1122,8 @@ describe('ValueFactory', function () {
             globalNamespace.getClass.withArgs('My\\Stuff\\MyErrorClass')
                 .returns(futureFactory.createPresent(myClassObject));
 
+            objectValue.next.yields(objectValue);
+            objectValue.toPromise.returns(Promise.resolve(objectValue));
             objectValue.getInternalProperty
                 .withArgs('reportsOwnContext')
                 .returns(false);
@@ -1176,6 +1237,8 @@ describe('ValueFactory', function () {
             globalNamespace.getClass.withArgs('My\\Stuff\\MyErrorClass')
                 .returns(futureFactory.createPresent(myClassObject));
 
+            objectValue.next.yields(objectValue);
+            objectValue.toPromise.returns(Promise.resolve(objectValue));
             objectValue.getInternalProperty
                 .withArgs('reportsOwnContext')
                 .returns(false);
@@ -1278,6 +1341,8 @@ describe('ValueFactory', function () {
         beforeEach(function () {
             myClassObject = sinon.createStubInstance(Class);
             objectValue = sinon.createStubInstance(ObjectValue);
+            objectValue.next.yields(objectValue);
+            objectValue.toPromise.returns(Promise.resolve(objectValue));
             globalNamespace.getClass.withArgs('My\\Stuff\\MyClass')
                 .returns(futureFactory.createPresent(myClassObject));
             myClassObject.getSuperClass.returns(null);

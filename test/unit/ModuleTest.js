@@ -61,6 +61,16 @@ describe('Module', function () {
         });
     });
 
+    describe('enableStrictTypes()', function () {
+        it('should enable strict-types mode for the module', function () {
+            createModule('/my/module_here.php', true);
+
+            module.enableStrictTypes();
+
+            expect(module.isStrictTypesMode()).to.be.true;
+        });
+    });
+
     describe('getFilePath()', function () {
         it('should return the path to the file the module was defined in when specified', function () {
             createModule('/path/to/my/module.php');
@@ -80,6 +90,14 @@ describe('Module', function () {
             createModule('/my/module_here.php');
 
             expect(module.getTopLevelNamespaceScope()).to.equal(topLevelNamespaceScope);
+        });
+    });
+
+    describe('isStrictTypesMode()', function () {
+        it('should return false by default', function () {
+            createModule('/my/module_here.php', true);
+
+            expect(module.isStrictTypesMode()).to.be.false;
         });
     });
 });

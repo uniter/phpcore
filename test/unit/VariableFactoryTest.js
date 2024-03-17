@@ -11,6 +11,7 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    CacheInvalidator = require('../../src/Garbage/CacheInvalidator'),
     CallStack = require('../../src/CallStack'),
     Flow = require('../../src/Control/Flow'),
     FutureFactory = require('../../src/Control/FutureFactory'),
@@ -23,6 +24,7 @@ describe('VariableFactory', function () {
         factory,
         flow,
         futureFactory,
+        garbageCacheInvalidator,
         referenceFactory,
         valueFactory,
         Variable;
@@ -31,6 +33,7 @@ describe('VariableFactory', function () {
         callStack = sinon.createStubInstance(CallStack);
         flow = sinon.createStubInstance(Flow);
         futureFactory = sinon.createStubInstance(FutureFactory);
+        garbageCacheInvalidator = sinon.createStubInstance(CacheInvalidator);
         referenceFactory = sinon.createStubInstance(ReferenceFactory);
         valueFactory = sinon.createStubInstance(ValueFactory);
         Variable = sinon.stub();
@@ -41,7 +44,8 @@ describe('VariableFactory', function () {
             valueFactory,
             referenceFactory,
             futureFactory,
-            flow
+            flow,
+            garbageCacheInvalidator
         );
     });
 
@@ -56,6 +60,7 @@ describe('VariableFactory', function () {
                 sinon.match.same(referenceFactory),
                 sinon.match.same(futureFactory),
                 sinon.match.same(flow),
+                sinon.match.same(garbageCacheInvalidator),
                 'myVar'
             );
         });

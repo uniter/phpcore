@@ -128,6 +128,15 @@ _.extend(UndeclaredStaticPropertyReference.prototype, {
     },
 
     /**
+     * Undeclared properties cannot be accessed, only checked for empty or set state.
+     *
+     * @throws (PHPFatalError}
+     */
+    raiseUndefined: function () {
+        throwUndeclaredStaticPropertyAccessFatalError(this);
+    },
+
+    /**
      * Undeclared properties cannot be accessed, only checked for empty or set state
      *
      * @throws (PHPFatalError}

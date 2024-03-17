@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP string interpolation construct integration', function () {
-    it('should correctly handle interpolating variables, elements and properties', function () {
+    it('should correctly handle interpolating variables, elements and properties in sync mode', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 

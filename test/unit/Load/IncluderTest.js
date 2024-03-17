@@ -75,6 +75,59 @@ describe('Includer', function () {
         );
     });
 
+    describe('hasModuleBeenIncluded()', function () {
+        var callInclude;
+
+        beforeEach(function () {
+            var includeOption = sinon.stub();
+
+            optionSet.getOption
+                .withArgs('include')
+                .returns(includeOption);
+
+            callInclude = function (includedPath, type, errorLevel, options) {
+                return includer.include(
+                    type || 'include',
+                    errorLevel || PHPError.E_WARNING,
+                    environment,
+                    module,
+                    includedPath,
+                    enclosingScope,
+                    options || {}
+                ).yieldSync();
+            };
+        });
+
+        it('should return true when a module has been included once', function () {
+            callInclude('/my/included_path.php');
+
+            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.true;
+        });
+
+        it('should return true when a module has been included multiple times', function () {
+            callInclude('/my/included_path.php');
+            callInclude('/my/included_path.php'); // Second include of the same module
+
+            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.true;
+        });
+
+        it('should resolve the include path', function () {
+            callInclude('/my/stuff/here/../../included_path.php');
+
+            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.true;
+        });
+
+        it('should resolve the given path', function () {
+            callInclude('/my/included_path.php');
+
+            expect(includer.hasModuleBeenIncluded('/my/stuff/here/../../included_path.php')).to.be.true;
+        });
+
+        it('should return false when a module has not been included', function () {
+            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.false;
+        });
+    });
+
     describe('include()', function () {
         var callInclude;
 
@@ -284,47 +337,6 @@ describe('Includer', function () {
                     callInclude('/some/path/to/my_included_module.php');
                 }).to.throw('Bang!');
             });
-        });
-    });
-
-    describe('hasModuleBeenIncluded()', function () {
-        var callInclude;
-
-        beforeEach(function () {
-            var includeOption = sinon.stub();
-
-            optionSet.getOption
-                .withArgs('include')
-                .returns(includeOption);
-
-            callInclude = function (includedPath, type, errorLevel, options) {
-                return includer.include(
-                    type || 'include',
-                    errorLevel || PHPError.E_WARNING,
-                    environment,
-                    module,
-                    includedPath,
-                    enclosingScope,
-                    options || {}
-                ).yieldSync();
-            };
-        });
-
-        it('should return true when a module has been included once', function () {
-            callInclude('/my/included_path.php');
-
-            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.true;
-        });
-
-        it('should return true when a module has been included multiple times', function () {
-            callInclude('/my/included_path.php');
-            callInclude('/my/included_path.php'); // Second include of the same module
-
-            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.true;
-        });
-
-        it('should return false when a module has not been included', function () {
-            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.false;
         });
     });
 });

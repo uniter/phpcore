@@ -226,11 +226,7 @@ EOS
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
         engine.defineCoercingFunction('get_async', function (value) {
-            return this.createFutureValue(function (resolve) {
-                setImmediate(function () {
-                    resolve(value);
-                });
-            });
+            return this.createAsyncPresentValue(value);
         });
 
         expect((await engine.execute()).getNative()).to.deep.equal([
@@ -240,6 +236,101 @@ EOS
             'sixth',
             'seventh'
         ]);
+    });
+
+    it('should support a try clause with a return of function call that throws a caught exception', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+class MyException extends Exception {}
+
+function my_userland_func()
+{
+    global $result;
+
+    $result[] = get_async('first');
+    throw new MyException(get_async('Bang!'));
+    $result[] = get_async('second');
+}
+
+$result[] = get_async('third');
+
+try {
+    $result[] = get_async('fourth');
+    return my_userland_func();
+    $result[] = get_async('fifth');
+} catch (NotMyException $ex2) {
+    $result[] = get_async('sixth');
+} catch (MyException $ex1) {
+    $result[] = get_async('seventh');
+
+    // Add a control structure to test that when calculation opcode results are cleared,
+    // the return opcode's throw-result is kept to preserve control flow.
+    if (get_async('my string') === 'my string') {
+        $result[] = get_async('eighth');
+    }
+
+    $result[] = get_async('ninth');
+} finally {
+    $result[] = get_async('tenth');
+}
+$result[] = get_async('eleventh');
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineCoercingFunction('get_async', function (value) {
+            return this.createAsyncPresentValue(value);
+        });
+
+        expect((await engine.execute()).getNative()).to.deep.equal([
+            'third',
+            'fourth',
+            'first',
+            'seventh',
+            'eighth',
+            'ninth',
+            'tenth',
+            'eleventh'
+        ]);
+    });
+
+    it('should preserve the return value if there is a finally that does not override it', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+try {
+    $result[] = 1;
+    return 'my result';
+    $result[] = 2;
+} catch (NotMyException $ex) {
+    $result[] = 3;
+} finally {
+    $result[] = 4;
+
+    if (get_async(true) === true) {
+        $result[] = 5;
+    }
+
+    $result[] = 6;
+}
+$result[] = 7;
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineCoercingFunction('get_async', function (value) {
+            return this.createAsyncPresentValue(value);
+        });
+
+        expect((await engine.execute()).getNative()).to.equal('my result');
+        expect(engine.getGlobal('result').getNative()).to.deep.equal([1, 4, 5, 6]);
     });
 
     it('should support pause/resume where one pause throws-into', async function () {
@@ -259,7 +350,7 @@ try {
     $result[] = get_async('fourth');
 } catch (MyException $ex1) {
     try {
-        // This should resume with a throwInto<Exception>(), see JS implementation of get_async() below
+        // This should resume with a throwInto<Exception>(), see JS implementation of get_async() below.
         $result[] = get_async('fifth');
     } catch (Throwable $t) {
         $result[] = 'caught: ' .
@@ -285,7 +376,7 @@ EOS
             return internals.createFutureValue(function (resolve, reject) {
                 setImmediate(function () {
                     if (value === 'fifth') {
-                        // Throw-into with a PHP Exception instance, so it can be caught by PHP-land
+                        // Throw-into with a PHP Exception instance, so it can be caught by PHP-land.
                         reject(internals.valueFactory.createErrorObject(
                             'Exception',
                             'Bang!',
@@ -304,7 +395,7 @@ EOS
         expect((await engine.execute()).getNative()).to.deep.equal([
             'first',
             'second',
-            // See the nested try..catch and the get_async() JS implementation above
+            // See the nested try...catch and the get_async() JS implementation above.
             'caught: Bang! @ /some/fault.php:1234',
             'sixth',
             'seventh'

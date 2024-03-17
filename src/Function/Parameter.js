@@ -140,7 +140,11 @@ _.extend(Parameter.prototype, {
                 // Otherwise use .getValue() to ensure a notice is raised on undefined variable or reference.
                 argumentReference.getValue();
 
-        // TODO: Don't perform this coercion in strict types mode when that is supported.
+        if (parameter.callStack.isStrictTypesMode()) {
+            // No value coercion to perform in strict-types mode.
+            return value;
+        }
+
         value = value.next(function (presentValue) {
             /*
              * Coerce the argument to match the parameter's type: for example, when the parameter

@@ -50,13 +50,6 @@ _.extend(ReferenceSlot.prototype, {
     /**
      * {@inheritdoc}
      */
-    getForAssignment: function () {
-        return this.getValue();
-    },
-
-    /**
-     * {@inheritdoc}
-     */
     getValue: function () {
         return this.value;
     },

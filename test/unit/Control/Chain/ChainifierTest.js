@@ -15,7 +15,7 @@ var expect = require('chai').expect,
     ArrayChainifier = require('../../../../src/Control/Chain/ArrayChainifier'),
     Chainifier = require('../../../../src/Control/Chain/Chainifier'),
     FFIResult = require('../../../../src/FFI/Result'),
-    Future = require('../../../../src/Control/Future');
+    Present = require('../../../../src/Control/Present');
 
 describe('Chainifier', function () {
     var arrayChainifier,
@@ -67,11 +67,11 @@ describe('Chainifier', function () {
             expect(chainifier.chainify(array)).to.equal(chainifiedArray);
         });
 
-        it('should wrap other native values in a Future', async function () {
-            var future = chainifier.chainify('my string');
+        it('should wrap other native values in a Present', async function () {
+            var present = chainifier.chainify('my string');
 
-            expect(future).to.be.an.instanceOf(Future);
-            expect(await future.toPromise()).to.equal('my string');
+            expect(present).to.be.an.instanceOf(Present);
+            expect(await present.toPromise()).to.equal('my string');
         });
     });
 });

@@ -61,6 +61,7 @@ describe('Parameter', function () {
 
         callStack.getCallerFilePath.returns(null);
         callStack.getCallerLastLine.returns(null);
+        callStack.isStrictTypesMode.returns(false);
         callStack.isUserland.returns(false);
         callStack.raiseTranslatedError.callsFake(function (
             level,
@@ -165,6 +166,21 @@ describe('Parameter', function () {
             createParameter(false);
 
             expect(await parameter.coerceArgument(variable).toPromise()).to.equal(value);
+        });
+
+        it('should not coerce in strict types mode', async function () {
+            var value = valueFactory.createString('my value'),
+                variable = sinon.createStubInstance(Variable);
+            callStack.isStrictTypesMode.returns(true);
+            // Stub anyway despite not being expected, so that test would fail gracefully.
+            typeObject.coerceValue.callsFake(function (value) {
+                return futureFactory.createPresent(value);
+            });
+            variable.getValue.returns(value);
+            createParameter(false);
+
+            expect(await parameter.coerceArgument(variable).toPromise()).to.equal(value);
+            expect(typeObject.coerceValue).not.to.have.been.called;
         });
     });
 

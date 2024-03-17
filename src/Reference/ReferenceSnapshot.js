@@ -113,11 +113,11 @@ _.extend(ReferenceSnapshot.prototype, {
     getValue: function () {
         var snapshot = this;
 
-        if (snapshot.value) {
-            return snapshot.value;
+        if (!snapshot.value) {
+            snapshot.value = snapshot.wrappedReference.raiseUndefined();
         }
 
-        return snapshot.wrappedReference.raiseUndefined();
+        return snapshot.value;
     },
 
     /**
@@ -154,7 +154,7 @@ _.extend(ReferenceSnapshot.prototype, {
         }
 
         if (snapshot.syntheticReference) {
-            // We've created a synthetic reference (see below), check it.
+            // We've created a synthetic reference (see `.getReference()`), check it.
             return snapshot.syntheticReference.isEmpty();
         }
 
@@ -172,7 +172,30 @@ _.extend(ReferenceSnapshot.prototype, {
      * {@inheritdoc}
      */
     isSet: function () {
-        return this.futureFactory.createRejection(new Exception('ReferenceSnapshot.isSet(): Unsupported'));
+        var snapshot = this;
+
+        if (snapshot.value) {
+            return snapshot.value.isSet();
+        }
+
+        if (snapshot.reference) {
+            // A reference was snapshotted, so check it.
+            return snapshot.reference.isSet();
+        }
+
+        if (snapshot.syntheticReference) {
+            // We've created a synthetic reference (see `.getReference()`), check it.
+            return snapshot.syntheticReference.isSet();
+        }
+
+        return this.futureFactory.createPresent(false);
+    },
+
+    /**
+     * {@inheritdoc}
+     */
+    raiseUndefined: function () {
+        return this.wrappedReference.raiseUndefined();
     },
 
     /**

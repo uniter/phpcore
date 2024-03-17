@@ -12,8 +12,7 @@
 var expect = require('chai').expect,
     sinon = require('sinon'),
     tools = require('../tools'),
-    ControlBridge = require('../../../src/Control/ControlBridge'),
-    ObjectValue = require('../../../src/Value/Object').sync();
+    ControlBridge = require('../../../src/Control/ControlBridge');
 
 describe('ControlBridge', function () {
     var bridge,

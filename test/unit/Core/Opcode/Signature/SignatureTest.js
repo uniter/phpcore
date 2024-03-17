@@ -32,9 +32,7 @@ describe('Opcode Signature', function () {
         returnType = sinon.createStubInstance(TypeInterface);
         yourType = sinon.createStubInstance(TypeInterface);
 
-        parameter1.isInitial.returns(false);
         parameter1.isVariadic.returns(false);
-        parameter2.isInitial.returns(false);
         parameter2.isVariadic.returns(false);
         parameters = [parameter1, parameter2];
 
@@ -43,34 +41,33 @@ describe('Opcode Signature', function () {
         };
     });
 
-    describe('getInitialParameterCount()', function () {
-        it('should return 0 when no parameters are marked as initial', function () {
-            createSignature();
-
-            expect(signature.getInitialParameterCount()).to.equal(0);
-        });
-
-        it('should return two when the second parameter is marked as initial', function () {
-            parameter2.isInitial.returns(true);
-            createSignature();
-
-            expect(signature.getInitialParameterCount()).to.equal(2);
-        });
-
-        it('should return two when both parameters are marked as initial', function () {
-            parameter1.isInitial.returns(true);
-            parameter2.isInitial.returns(true);
-            createSignature();
-
-            expect(signature.getInitialParameterCount()).to.equal(2);
-        });
-    });
-
     describe('getParameterCount()', function () {
         it('should return the number of parameters in the signature', function () {
             createSignature();
 
             expect(signature.getParameterCount()).to.equal(2);
+        });
+    });
+
+    describe('getVariadicParameter()', function () {
+        it('should return the parameter when the signature has a variadic parameter', function () {
+            parameter2.isVariadic.returns(true);
+            createSignature();
+
+            expect(signature.getVariadicParameter()).to.equal(parameter2);
+        });
+
+        it('should return null when the signature defines no parameters', function () {
+            parameters.length = 0;
+            createSignature();
+
+            expect(signature.getVariadicParameter()).to.be.null;
+        });
+
+        it('should return null when the signature has only formal parameters', function () {
+            createSignature();
+
+            expect(signature.getVariadicParameter()).to.be.null;
         });
     });
 

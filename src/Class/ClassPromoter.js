@@ -57,6 +57,7 @@ _.extend(ClassPromoter.prototype, {
                 classDefinition.getNamespace(),
                 namespaceScope,
                 classDefinition.getConstructorName(),
+                classDefinition.hasDestructor(),
                 InternalClass,
                 classDefinition.getRootInternalPrototype(),
                 classDefinition.getInstanceProperties(),

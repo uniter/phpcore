@@ -67,7 +67,7 @@ module.exports = require('pauser')([
                 subOptions;
 
             // Always return a Future-wrapped Value, for a consistent interface regardless of synchronicity mode.
-            return loader.valueFactory.createFuture(function (resolveFuture, rejectFuture, nestCoroutine) {
+            return loader.valueFactory.createFuture(function (resolveFuture, rejectFuture, nestCoroutine, newCoroutine) {
                 /**
                  * Completes an unsuccessful module load
                  *
@@ -193,7 +193,8 @@ module.exports = require('pauser')([
                     load(filePath, {
                         reject: reject,
                         resolve: resolve,
-                        nestCoroutine: nestCoroutine
+                        nestCoroutine: nestCoroutine,
+                        newCoroutine: newCoroutine
                     }, module.getFilePath(), loader.valueFactory);
                 } catch (error) {
                     reject(error);

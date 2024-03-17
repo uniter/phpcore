@@ -853,7 +853,7 @@ module.exports = require('pauser')([
 
         /**
          * Returns either the current value or one based on it as part of an assignment.
-         * Objects are passed around by reference so this should just return this
+         * Objects are passed around by reference so this should just return this.
          *
          * @returns {Value}
          */
@@ -878,6 +878,29 @@ module.exports = require('pauser')([
          */
         getKeys: function () {
             return this.getInstancePropertyNames();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        getOutgoingValues: function () {
+            // NB: Don't include values via the class, e.g. static property values,
+            //     as those will be captured separately during GC root discovery.
+
+            var outgoingValues = [],
+                value = this;
+
+            _.each(value.getInstancePropertyNames(), function (nameValue) {
+                var property = value.getInstancePropertyByName(nameValue),
+                    propertyValue = property.getValueOrNativeNull();
+
+                if (propertyValue && propertyValue.isStructured()) {
+                    // Property value is structured so can be marked for GC.
+                    outgoingValues.push(propertyValue);
+                }
+            });
+
+            return outgoingValues;
         },
 
         /**
@@ -1443,6 +1466,13 @@ module.exports = require('pauser')([
          */
         isNumeric: function () {
             return false;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        isStructured: function () {
+            return true;
         },
 
         isTheClassOfArray: function () {

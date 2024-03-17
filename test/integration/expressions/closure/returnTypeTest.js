@@ -37,6 +37,30 @@ EOS
         });
     });
 
+    it('should be able to define both bindings and a return type', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$myAddend = 6;
+
+$getNumber = function ($myValue) use ($myAddend) : int {
+    return $myValue + $myAddend;
+};
+
+$result = [];
+
+$result['int'] = $getNumber(21);
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'int': 27
+        });
+    });
+
     it('should throw a TypeError when returning incorrect, uncoercible type in weak type-checking mode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

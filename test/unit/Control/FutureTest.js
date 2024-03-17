@@ -18,7 +18,8 @@ var expect = require('chai').expect,
     Coroutine = require('../../../src/Control/Coroutine'),
     Future = require('../../../src/Control/Future'),
     FutureFactory = require('../../../src/Control/FutureFactory'),
-    Pause = require('../../../src/Control/Pause');
+    Pause = require('../../../src/Control/Pause'),
+    Present = require('../../../src/Control/Present');
 
 describe('Future', function () {
     var callStack,
@@ -29,7 +30,9 @@ describe('Future', function () {
         futureFactory,
         futuresCreated,
         nestCoroutineForFuture,
+        newCoroutineForFuture,
         pauseFactory,
+        presentsCreated,
         rejectFuture,
         resolveFuture,
         state,
@@ -39,6 +42,7 @@ describe('Future', function () {
         callStack = sinon.createStubInstance(CallStack);
         controlScope = sinon.createStubInstance(ControlScope);
         futuresCreated = 0;
+        presentsCreated = 0;
         state = tools.createIsolatedState('async', {
             'call_stack': callStack,
             'control_scope': controlScope,
@@ -51,12 +55,21 @@ describe('Future', function () {
 
                 util.inherits(TrackedFuture, Future);
 
+                function TrackedPresent() {
+                    Present.apply(this, arguments);
+
+                    presentsCreated++;
+                }
+
+                util.inherits(TrackedPresent, Present);
+
                 return new FutureFactory(
                     get('pause_factory'),
                     get('value_factory'),
                     get('control_bridge'),
                     get('control_scope'),
-                    TrackedFuture
+                    TrackedFuture,
+                    TrackedPresent
                 );
             }
         });
@@ -66,16 +79,20 @@ describe('Future', function () {
         pauseFactory = state.getPauseFactory();
         valueFactory = state.getValueFactory();
 
+        controlScope.enterCoroutine.resetHistory();
+        controlScope.nestCoroutine.resetHistory();
+
         future = new Future(
             futureFactory,
             pauseFactory,
             valueFactory,
             controlBridge,
             controlScope,
-            function (resolve, reject, nestCoroutine) {
+            function (resolve, reject, nestCoroutine, newCoroutine) {
                 rejectFuture = reject;
                 resolveFuture = resolve;
                 nestCoroutineForFuture = nestCoroutine;
+                newCoroutineForFuture = newCoroutine;
             },
             coroutine
         );
@@ -116,6 +133,17 @@ describe('Future', function () {
 
         it('should not nest the next Coroutine by default', function () {
             expect(controlScope.nestCoroutine).not.to.have.been.called;
+        });
+
+        it('should expose a callback for entering a new Coroutine', function () {
+            newCoroutineForFuture({my: 'options'});
+
+            expect(controlScope.enterCoroutine).to.have.been.calledOnce;
+            expect(controlScope.enterCoroutine).to.have.been.calledWith({my: 'options'});
+        });
+
+        it('should not enter a new Coroutine by default', function () {
+            expect(controlScope.enterCoroutine).not.to.have.been.called;
         });
     });
 
@@ -413,15 +441,17 @@ describe('Future', function () {
             await expect(promise).to.have.been.rejectedWith('my error');
         });
 
-        it('should create no Future instances when not required', async function () {
+        it('should create no Future nor Present instances when not required', async function () {
             var promise;
             futuresCreated = 0;
+            presentsCreated = 0;
 
             promise = future.toPromise();
             resolveFuture('my result');
             await promise;
 
             expect(futuresCreated).to.equal(0);
+            expect(presentsCreated).to.equal(0);
         });
     });
 

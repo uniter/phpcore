@@ -59,25 +59,31 @@ describe('Coroutine', function () {
 
     describe('suspend()', function () {
         it('should save the CallStack', function () {
-            coroutine.suspend();
+            coroutine.suspend(false);
 
             expect(callStack.save).to.have.been.calledOnce;
         });
 
-        it('should clear the CallStack', function () {
-            coroutine.suspend();
+        it('should clear the CallStack when keepStack is false', function () {
+            coroutine.suspend(false);
 
             expect(callStack.clear).to.have.been.calledOnce;
         });
 
-        it('should clear the CallStack after saving', function () {
-            coroutine.suspend();
+        it('should not clear the CallStack when keepStack is true', function () {
+            coroutine.suspend(true);
+
+            expect(callStack.clear).not.to.have.been.called;
+        });
+
+        it('should clear the CallStack after saving when keepStack is false', function () {
+            coroutine.suspend(false);
 
             expect(callStack.clear).to.have.been.calledAfter(callStack.save);
         });
 
         it('should throw when the Coroutine has already been suspended', function () {
-            coroutine.suspend();
+            coroutine.suspend(false);
 
             expect(function () {
                 coroutine.suspend();

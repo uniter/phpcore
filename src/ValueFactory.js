@@ -77,7 +77,7 @@ module.exports = require('pauser')([
         },
         queueMacrotask = typeof requestIdleCallback !== 'undefined' ?
             function (callback) {
-                requestIdleCallback(callback);
+                requestIdleCallback(callback, {timeout: 0});
             } :
             function (callback) {
                 setTimeout(callback, 1);
@@ -771,7 +771,7 @@ module.exports = require('pauser')([
         createFuture: function (executor) {
             var factory = this;
 
-            return factory.futureFactory.createFuture(function (resolveFuture, rejectFuture, nestCoroutine) {
+            return factory.futureFactory.createFuture(function (resolveFuture, rejectFuture, nestCoroutine, newCoroutine) {
                 executor(
                     function resolve(result) {
                         // For Future-wrapped Values, we always want to coerce the eventual result to a Value.
@@ -780,7 +780,8 @@ module.exports = require('pauser')([
                     function reject(error) {
                         return rejectFuture(error);
                     },
-                    nestCoroutine
+                    nestCoroutine,
+                    newCoroutine
                 );
             });
         },
@@ -918,7 +919,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates an ObjectValue for a given native value and class
+         * Creates an ObjectValue for a given native value and class.
          *
          * @param {object} nativeValue
          * @param {Class} classObject
@@ -927,7 +928,25 @@ module.exports = require('pauser')([
         createObject: function (nativeValue, classObject) {
             var factory = this;
 
-            // Object ID tracking is incomplete: ID should be freed when all references are lost
+            return factory.createObjectWithID(
+                nativeValue,
+                classObject,
+                factory.nextObjectID++
+            );
+        },
+
+        /**
+         * Creates an ObjectValue for a given native value, class and ID.
+         *
+         * @param {object} nativeValue
+         * @param {Class} classObject
+         * @param {number} id
+         * @returns {ObjectValue}
+         */
+        createObjectWithID: function (nativeValue, classObject, id) {
+            var factory = this;
+
+            // Object ID tracking is incomplete: ID should be freed when all references are lost.
             return new ObjectValue(
                 factory,
                 factory.referenceFactory,
@@ -937,7 +956,7 @@ module.exports = require('pauser')([
                 factory.translator,
                 nativeValue,
                 classObject,
-                factory.nextObjectID++
+                id
             );
         },
 

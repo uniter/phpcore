@@ -715,6 +715,12 @@ describe('IntegerValue', function () {
         });
     });
 
+    describe('getOutgoingValues()', function () {
+        it('should return an empty array as scalars cannot refer to anything', function () {
+            expect(value.getOutgoingValues()).to.deep.equal([]);
+        });
+    });
+
     describe('getProxy()', function () {
         it('should return 27 when expected', function () {
             createValue(27);
@@ -1066,6 +1072,12 @@ describe('IntegerValue', function () {
     describe('isScalar()', function () {
         it('should return true', function () {
             expect(value.isScalar()).to.be.true;
+        });
+    });
+
+    describe('isStructured()', function () {
+        it('should return false', function () {
+            expect(value.isStructured()).to.be.false;
         });
     });
 

@@ -72,6 +72,7 @@ describe('FunctionSpec', function () {
         callStack.getCurrent.returns(sinon.createStubInstance(Call));
         callStack.getLastFilePath.returns('/path/to/my/module.php');
         callStack.getLastLine.returns(123);
+        callStack.isStrictTypesMode.returns(false);
         callStack.raiseTranslatedError
             .withArgs(PHPError.E_ERROR)
             .callsFake(function (level, translationKey, placeholderVariables) {
@@ -89,6 +90,7 @@ describe('FunctionSpec', function () {
             .callsFake(function (translationKey, placeholderVariables) {
                 return '[Translated] ' + translationKey + ' ' + JSON.stringify(placeholderVariables || {});
             });
+        namespaceScope.isGlobal.returns(false);
         valueFactory.setGlobalNamespace(globalNamespace);
 
         createSpec = function (returnByReference) {
@@ -210,13 +212,26 @@ describe('FunctionSpec', function () {
             expect(variable.setValue).to.have.been.calledWith(sinon.match.same(coercedValue));
         });
 
-        it('should return the result value when the function is return-by-value', function () {
+        it('should return the coerced value when the function is return-by-value', async function () {
+            var originalValue = valueFactory.createString('original value'),
+                coercedValue = valueFactory.createString('coerced value'),
+                variable = sinon.createStubInstance(Variable);
+            returnType.coerceValue
+                .withArgs(sinon.match.same(originalValue))
+                .returns(coercedValue);
+            variable.getValue.returns(originalValue);
+
+            expect(await spec.coerceReturnReference(variable).toPromise()).to.equal(coercedValue);
+        });
+
+        it('should not coerce the value when in strict-types mode', async function () {
             var value = valueFactory.createString('my value'),
                 variable = sinon.createStubInstance(Variable);
-            returnType.coerceValue.returnsArg(0);
+            callStack.isStrictTypesMode.returns(true);
             variable.getValue.returns(value);
 
-            expect(spec.coerceReturnReference(variable)).to.equal(value);
+            expect(await spec.coerceReturnReference(variable).toPromise()).to.equal(value);
+            expect(returnType.coerceValue).not.to.have.been.called;
         });
     });
 
@@ -504,16 +519,12 @@ describe('FunctionSpec', function () {
         });
 
         it('should return false for a userland function', function () {
-            namespaceScope.isGlobal.returns(false);
-
             expect(spec.isBuiltin()).to.be.false;
         });
     });
 
     describe('isUserland()', function () {
         it('should return true for a userland function', function () {
-            namespaceScope.isGlobal.returns(false);
-
             expect(spec.isUserland()).to.be.true;
         });
 
@@ -558,6 +569,7 @@ describe('FunctionSpec', function () {
             var caughtError = null,
                 errorClassObject = sinon.createStubInstance(Class),
                 errorValue = sinon.createStubInstance(ObjectValue);
+            errorValue.next.yields(errorValue);
             callStack.isUserland.returns(false);
             globalNamespace.getClass
                 .withArgs('ArgumentCountError')
@@ -597,6 +609,7 @@ describe('FunctionSpec', function () {
             var caughtError = null,
                 errorClassObject = sinon.createStubInstance(Class),
                 errorValue = sinon.createStubInstance(ObjectValue);
+            errorValue.next.yields(errorValue);
             callStack.isUserland.returns(false);
             globalNamespace.getClass
                 .withArgs('ArgumentCountError')
@@ -636,6 +649,7 @@ describe('FunctionSpec', function () {
                 errorClassObject = sinon.createStubInstance(Class),
                 errorValue = sinon.createStubInstance(ObjectValue),
                 parameter3 = sinon.createStubInstance(Parameter);
+            errorValue.next.yields(errorValue);
             callStack.isUserland.returns(false);
             globalNamespace.getClass
                 .withArgs('ArgumentCountError')
@@ -678,6 +692,7 @@ describe('FunctionSpec', function () {
             var caughtError = null,
                 errorClassObject = sinon.createStubInstance(Class),
                 errorValue = sinon.createStubInstance(ObjectValue);
+            errorValue.next.yields(errorValue);
             callStack.isUserland.returns(true);
             globalNamespace.getClass
                 .withArgs('ArgumentCountError')
@@ -717,6 +732,7 @@ describe('FunctionSpec', function () {
             var caughtError = null,
                 errorClassObject = sinon.createStubInstance(Class),
                 errorValue = sinon.createStubInstance(ObjectValue);
+            errorValue.next.yields(errorValue);
             callStack.isUserland.returns(true);
             callStack.getCallerFilePath.returns(null);
             callStack.getCallerLastLine.returns(null);
@@ -788,6 +804,7 @@ describe('FunctionSpec', function () {
             beforeEach(function () {
                 createSpec(true);
                 returnReference.isReferenceable.returns(true);
+                returnReference.toPromise.returns(Promise.resolve(returnReference));
                 returnType.allowsValue
                     .withArgs(sinon.match.same(returnValue))
                     .returns(futureFactory.createPresent(true));
@@ -821,7 +838,30 @@ describe('FunctionSpec', function () {
                     );
             });
 
-            it('should raise an error', async function () {
+            it('should correctly raise an error when userland', async function () {
+                try {
+                    await spec.validateReturnReference(returnReference, returnValue).toPromise();
+                } catch (error) {}
+
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_ERROR,
+                    'core.invalid_return_value_type',
+                    {
+                        func: 'myFunction',
+                        expectedType: 'float',
+                        actualType: 'string'
+                    },
+                    'TypeError',
+                    false,
+                    undefined,
+                    undefined
+                );
+            });
+
+            it('should correctly raise an error when builtin', async function () {
+                namespaceScope.isGlobal.returns(true);
+
                 try {
                     await spec.validateReturnReference(returnReference, returnValue).toPromise();
                 } catch (error) {}
@@ -860,7 +900,30 @@ describe('FunctionSpec', function () {
                     );
             });
 
-            it('should raise an error', async function () {
+            it('should correctly raise an error when userland', async function () {
+                try {
+                    await spec.validateReturnReference(returnReference, returnValue).toPromise();
+                } catch (error) {}
+
+                expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+                expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                    PHPError.E_ERROR,
+                    'core.invalid_return_value_type',
+                    {
+                        func: 'myFunction',
+                        expectedType: 'float',
+                        actualType: 'string'
+                    },
+                    'TypeError',
+                    false,
+                    undefined,
+                    undefined
+                );
+            });
+
+            it('should correctly raise an error when builtin', async function () {
+                namespaceScope.isGlobal.returns(true);
+
                 try {
                     await spec.validateReturnReference(returnReference, returnValue).toPromise();
                 } catch (error) {}
@@ -886,6 +949,7 @@ describe('FunctionSpec', function () {
             beforeEach(function () {
                 createSpec(true);
                 returnReference.isReferenceable.returns(false);
+                returnReference.toPromise.returns(Promise.resolve(returnReference));
                 returnType.allowsValue
                     .withArgs(sinon.match.same(returnValue))
                     .returns(futureFactory.createPresent(true));

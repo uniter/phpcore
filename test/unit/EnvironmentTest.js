@@ -251,6 +251,14 @@ describe('Environment', function () {
         });
     });
 
+    describe('getMode()', function () {
+        it('should return the mode from the state', function () {
+            state.getMode.returns('psync');
+
+            expect(environment.getMode()).to.equal('psync');
+        });
+    });
+
     describe('getOptions()', function () {
         it('should return the raw options object from the PHPState', function () {
             var options = {'my-option': 27};

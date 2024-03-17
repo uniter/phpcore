@@ -652,6 +652,7 @@ module.exports = require('pauser')([
             errorConfiguration,
             errorPromoter,
             errorReporting,
+            get('garbage.collector'),
             globalNamespace,
             globalScope,
             iniState,
@@ -1350,6 +1351,15 @@ module.exports = require('pauser')([
          */
         getLoader: function () {
             return this.loader;
+        },
+
+        /**
+         * Fetches the configured synchronicity mode.
+         *
+         * @returns {'async'|'psync'|'sync'}
+         */
+        getMode: function () {
+            return this.mode;
         },
 
         getModuleFactory: function () {

@@ -27,6 +27,7 @@ var expect = require('chai').expect,
     Flow = require('../../../../src/Control/Flow'),
     Future = require('../../../../src/Control/Future'),
     FutureFactory = require('../../../../src/Control/FutureFactory'),
+    GarbageCollector = require('../../../../src/Garbage/GarbageCollector'),
     Namespace = require('../../../../src/Namespace').sync(),
     Includer = require('../../../../src/Load/Includer').sync(),
     INIState = require('../../../../src/INIState'),
@@ -63,6 +64,7 @@ describe('FFI Internals', function () {
         evaluator,
         flow,
         futureFactory,
+        garbageCollector,
         globalNamespace,
         globalScope,
         includer,
@@ -103,6 +105,7 @@ describe('FFI Internals', function () {
         evaluator = sinon.createStubInstance(Evaluator);
         flow = sinon.createStubInstance(Flow);
         futureFactory = sinon.createStubInstance(FutureFactory);
+        garbageCollector = sinon.createStubInstance(GarbageCollector);
         globalNamespace = sinon.createStubInstance(Namespace);
         globalScope = sinon.createStubInstance(Scope);
         includer = sinon.createStubInstance(Includer);
@@ -142,6 +145,7 @@ describe('FFI Internals', function () {
                 errorConfiguration,
                 errorPromoter,
                 errorReporting,
+                garbageCollector,
                 globalNamespace,
                 globalScope,
                 iniState,
@@ -205,6 +209,10 @@ describe('FFI Internals', function () {
 
         it('should expose the FutureFactory publicly', function () {
             expect(internals.futureFactory).to.equal(futureFactory);
+        });
+
+        it('should expose the GarbageCollector publicly', function () {
+            expect(internals.garbageCollector).to.equal(garbageCollector);
         });
 
         it('should expose the global Namespace publicly', function () {

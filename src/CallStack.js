@@ -49,6 +49,21 @@ _.extend(CallStack.prototype, {
     },
 
     /**
+     * Enables strict-types mode for the module of the current call.
+     */
+    enableStrictTypes: function () {
+        // Note that when enabling, we enable strict-types mode for the callee's module and not the caller's,
+        // unlike when checking, where we check the caller instead.
+        var call = this.getUserlandCallee();
+
+        if (!call) {
+            throw new Exception('CallStack.enableStrictTypes() :: No userland callee');
+        }
+
+        call.enableStrictTypes();
+    },
+
+    /**
      * Fetches the previous Call near the top of the stack, or null if none
      *
      * @returns {Call|null}
@@ -446,6 +461,23 @@ _.extend(CallStack.prototype, {
      */
     instrumentCurrent: function (finder) {
         this.getCurrent().instrument(finder);
+    },
+
+    /**
+     * Determines whether the module of the caller is in strict-types mode.
+     *
+     * @returns {boolean}
+     */
+    isStrictTypesMode: function () {
+        // Note use of .getUserlandCallee() and not .getUserlandCaller()
+        // because at the point this is checked, the callee has not been pushed onto the stack.
+        var call = this.getUserlandCallee();
+
+        if (!call) {
+            throw new Exception('CallStack.isStrictTypesMode() :: No userland callee');
+        }
+
+        return call.isStrictTypesMode();
     },
 
     /**

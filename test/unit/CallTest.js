@@ -54,6 +54,14 @@ describe('Call', function () {
         );
     });
 
+    describe('enableStrictTypes()', function () {
+        it('should enable strict-types mode via the original NamespaceScope', function () {
+            call.enableStrictTypes();
+
+            expect(namespaceScope.enableStrictTypes).to.have.been.calledOnce;
+        });
+    });
+
     describe('enterIsolatedCall()', function () {
         it('should enter the isolated call correctly', function () {
             var enteredNamespaceScope = sinon.createStubInstance(NamespaceScope),
@@ -349,6 +357,20 @@ describe('Call', function () {
                 .returns('/my/module_path.php with some additional context');
 
             expect(call.getTraceFilePath()).to.equal('/my/module_path.php with some additional context');
+        });
+    });
+
+    describe('isStrictTypesMode()', function () {
+        it('should return true when the original NamespaceScope is in strict-types mode', function () {
+            namespaceScope.isStrictTypesMode.returns(true);
+
+            expect(call.isStrictTypesMode()).to.be.true;
+        });
+
+        it('should return false when the original NamespaceScope is in loose-types mode', function () {
+            namespaceScope.isStrictTypesMode.returns(false);
+
+            expect(call.isStrictTypesMode()).to.be.false;
         });
     });
 

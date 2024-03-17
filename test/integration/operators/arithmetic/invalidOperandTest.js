@@ -83,8 +83,10 @@ EOS
 */;}),//jshint ignore:line
             module = tools.asyncTranspile('/my/php_module.php', php),
             engine = module();
-        engine.defineNonCoercingFunction('get_my_object_class', function (objectValue) {
-            return objectValue.getValue().getClassName();
+        engine.defineNonCoercingFunction('get_my_object_class', function (objectReference) {
+            return objectReference.getValue().next(function (objectValue) {
+                return objectValue.getClassName();
+            });
         });
 
         expect((await doRun(engine)).getNative()).to.deep.equal([

@@ -1064,6 +1064,42 @@ describe('PHPState', function () {
         });
     });
 
+    describe('getMode()', function () {
+        it('should return "async" when expected', function () {
+            expect(state.getMode()).to.equal('async');
+        });
+
+        it('should return "psync" when expected', function () {
+            state = new PHPState(
+                runtime,
+                environmentFactory,
+                globalStackHooker,
+                installedBuiltinTypes,
+                stdin,
+                stdout,
+                stderr,
+                'psync'
+            );
+
+            expect(state.getMode()).to.equal('psync');
+        });
+
+        it('should return "sync" when expected', function () {
+            state = new PHPState(
+                runtime,
+                environmentFactory,
+                globalStackHooker,
+                installedBuiltinTypes,
+                stdin,
+                stdout,
+                stderr,
+                'sync'
+            );
+
+            expect(state.getMode()).to.equal('sync');
+        });
+    });
+
     describe('getOutput()', function () {
         it('should return an Output', function () {
             expect(state.getOutput()).to.be.an.instanceOf(Output);

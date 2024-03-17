@@ -46,13 +46,12 @@ describe('Opcode SignatureParser', function () {
         yourType = sinon.createStubInstance(TypeInterface);
 
         parameterFactory.createParameter.callsFake(
-            function (name, type, isInitial, isRequired, isVariadic, defaultArgument) {
+            function (name, type, isRequired, isVariadic, defaultArgument) {
                 var parameter = sinon.createStubInstance(Parameter);
 
                 parameter.getDefaultArgument.returns(defaultArgument);
                 parameter.getName.returns(name);
                 parameter.getType.returns(type);
-                parameter.isInitial.returns(isInitial);
                 parameter.isRequired.returns(isRequired);
                 parameter.isVariadic.returns(isVariadic);
 
@@ -111,12 +110,10 @@ describe('Opcode SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(2);
             expect(signature.getParameters()[0].getType()).to.equal(myType);
             expect(signature.getParameters()[0].getName()).to.equal('firstParam');
-            expect(signature.getParameters()[0].isInitial()).to.be.false;
             expect(signature.getParameters()[0].isRequired()).to.be.true;
             expect(signature.getParameters()[0].isVariadic()).to.be.false;
             expect(signature.getParameters()[1].getType()).to.equal(yourAndTheirUnionType);
             expect(signature.getParameters()[1].getName()).to.equal('secondParam');
-            expect(signature.getParameters()[1].isInitial()).to.be.false;
             expect(signature.getParameters()[1].isRequired()).to.be.true;
             expect(signature.getParameters()[1].isVariadic()).to.be.false;
             expect(signature.hasVariadicParameter()).to.be.false;
@@ -131,34 +128,30 @@ describe('Opcode SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(2);
             expect(signature.getParameters()[0].getType()).to.equal(myType);
             expect(signature.getParameters()[0].getName()).to.equal('firstParam');
-            expect(signature.getParameters()[0].isInitial()).to.be.false;
             expect(signature.getParameters()[0].isRequired()).to.be.true;
             expect(signature.getParameters()[0].isVariadic()).to.be.false;
             expect(signature.getParameters()[1].getType()).to.equal(yourAndNullUnionType);
             expect(signature.getParameters()[1].getName()).to.equal('secondParam');
             expect(signature.getParameters()[1].getDefaultArgument()).to.be.null;
-            expect(signature.getParameters()[1].isInitial()).to.be.false;
             expect(signature.getParameters()[1].isRequired()).to.be.false;
             expect(signature.getParameters()[1].isVariadic()).to.be.false;
             expect(signature.hasVariadicParameter()).to.be.false;
             expect(signature.getReturnType()).to.equal(anotherType);
         });
 
-        it('should be able to parse a signature with initial default arguments plus a return type', function () {
+        it('should be able to parse a signature using number type with default arguments plus a return type', function () {
             var signature = parser.parseSignature(
-                'my_type firstParam, initial your_type|number secondParam = 123 : another_type'
+                'my_type firstParam, your_type|number secondParam = 123 : another_type'
             );
 
             expect(signature.getParameterCount()).to.equal(2);
             expect(signature.getParameters()[0].getType()).to.equal(myType);
             expect(signature.getParameters()[0].getName()).to.equal('firstParam');
-            expect(signature.getParameters()[0].isInitial()).to.be.false;
             expect(signature.getParameters()[0].isRequired()).to.be.true;
             expect(signature.getParameters()[0].isVariadic()).to.be.false;
             expect(signature.getParameters()[1].getType()).to.equal(yourAndNumberUnionType);
             expect(signature.getParameters()[1].getName()).to.equal('secondParam');
             expect(signature.getParameters()[1].getDefaultArgument()).to.equal(123);
-            expect(signature.getParameters()[1].isInitial()).to.be.true;
             expect(signature.getParameters()[1].isRequired()).to.be.false;
             expect(signature.getParameters()[1].isVariadic()).to.be.false;
             expect(signature.hasVariadicParameter()).to.be.false;
@@ -171,12 +164,10 @@ describe('Opcode SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(2);
             expect(signature.getParameters()[0].getType()).to.equal(myType);
             expect(signature.getParameters()[0].getName()).to.equal('firstParam');
-            expect(signature.getParameters()[0].isInitial()).to.be.false;
             expect(signature.getParameters()[0].isRequired()).to.be.true;
             expect(signature.getParameters()[0].isVariadic()).to.be.false;
             expect(signature.getParameters()[1].getType()).to.equal(yourType);
             expect(signature.getParameters()[1].getName()).to.equal('secondParam');
-            expect(signature.getParameters()[1].isInitial()).to.be.false;
             expect(signature.getParameters()[1].isRequired()).to.be.true;
             expect(signature.getParameters()[1].isVariadic()).to.be.false;
             expect(signature.hasVariadicParameter()).to.be.false;
@@ -189,12 +180,10 @@ describe('Opcode SignatureParser', function () {
             expect(signature.getParameterCount()).to.equal(2);
             expect(signature.getParameters()[0].getType()).to.equal(myType);
             expect(signature.getParameters()[0].getName()).to.equal('firstParam');
-            expect(signature.getParameters()[0].isInitial()).to.be.false;
             expect(signature.getParameters()[0].isRequired()).to.be.true;
             expect(signature.getParameters()[0].isVariadic()).to.be.false;
             expect(signature.getParameters()[1].getType()).to.equal(yourType);
             expect(signature.getParameters()[1].getName()).to.equal('secondParam');
-            expect(signature.getParameters()[1].isInitial()).to.be.false;
             expect(signature.getParameters()[1].isRequired()).to.be.true;
             expect(signature.getParameters()[1].isVariadic()).to.be.true;
             expect(signature.hasVariadicParameter()).to.be.true;

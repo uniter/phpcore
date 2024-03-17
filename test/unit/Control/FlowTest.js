@@ -21,7 +21,8 @@ var expect = require('chai').expect,
     Flow = require('../../../src/Control/Flow'),
     FutureFactory = require('../../../src/Control/FutureFactory'),
     Pause = require('../../../src/Control/Pause'),
-    RealFuture = require('../../../src/Control/Future');
+    RealFuture = require('../../../src/Control/Future'),
+    RealPresent = require('../../../src/Control/Present');
 
 describe('Flow', function () {
     var callStack,
@@ -34,18 +35,24 @@ describe('Flow', function () {
         futuresCreated,
         hostScheduler,
         pauseFactory,
+        Present,
+        presentsCreated,
         realChainifier,
         state,
         valueFactory;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        chainifier = sinon.createStubInstance(Chainifier);
         controlScope = sinon.createStubInstance(ControlScope);
         futuresCreated = 0;
+        presentsCreated = 0;
         state = tools.createIsolatedState('async', {
             'call_stack': callStack,
             'control_scope': controlScope,
             'future_factory': function (set, get) {
+                var futureFactory;
+
                 function TrackedFuture() {
                     RealFuture.apply(this, arguments);
 
@@ -56,13 +63,27 @@ describe('Flow', function () {
 
                 Future = sinon.spy(TrackedFuture);
 
-                return new FutureFactory(
+                function TrackedPresent() {
+                    RealPresent.apply(this, arguments);
+
+                    presentsCreated++;
+                }
+
+                util.inherits(TrackedPresent, RealPresent);
+
+                Present = sinon.spy(TrackedPresent);
+
+                futureFactory = new FutureFactory(
                     get('pause_factory'),
                     get('value_factory'),
                     get('control_bridge'),
                     controlScope,
-                    Future
+                    Future,
+                    Present
                 );
+                futureFactory.setChainifier(chainifier);
+
+                return futureFactory;
             }
         });
         futureFactory = state.getFutureFactory();
@@ -70,7 +91,6 @@ describe('Flow', function () {
         pauseFactory = state.getPauseFactory();
         realChainifier = state.getService('chainifier');
         valueFactory = state.getValueFactory();
-        chainifier = sinon.createStubInstance(Chainifier);
 
         chainifier.chainify.callsFake(function (value) {
             return realChainifier.chainify(value);
@@ -121,6 +141,7 @@ describe('Flow', function () {
         it('should return the result when already chainable and resolved synchronously', function () {
             var value = valueFactory.createString('my value');
             futuresCreated = 0;
+            presentsCreated = 0;
 
             expect(
                 flow.chainifyCallbackFrom(
@@ -130,10 +151,12 @@ describe('Flow', function () {
                 )
             ).to.equal(value);
             expect(futuresCreated).to.equal(0, 'Should use no Futures at all');
+            expect(presentsCreated).to.equal(0, 'Should use no Presents at all');
         });
 
         it('should return the chainified result when not already chainable but resolved synchronously', async function () {
             futuresCreated = 0;
+            presentsCreated = 0;
 
             expect(
                 await flow.chainifyCallbackFrom(
@@ -143,11 +166,13 @@ describe('Flow', function () {
                 )
                     .toPromise()
             ).to.equal('my unchainable result');
-            expect(futuresCreated).to.equal(1, 'Should use a single Future');
+            expect(futuresCreated).to.equal(0, 'Should use no Futures at all');
+            expect(presentsCreated).to.equal(1, 'Should use a single Present');
         });
 
         it('should return the chainified result when not already chainable and resolved asynchronously', async function () {
             futuresCreated = 0;
+            presentsCreated = 0;
 
             expect(
                 await flow.chainifyCallbackFrom(
@@ -159,12 +184,14 @@ describe('Flow', function () {
                 )
                     .toPromise()
             ).to.equal('my unchainable result');
-            expect(futuresCreated).to.equal(1, 'Should use a single Future');
+            expect(futuresCreated).to.equal(1, 'Should use a single Future due to async resolve');
+            expect(presentsCreated).to.equal(0, 'Should use no Presents at all');
         });
 
         it('should return the chainified result when chainable but resolved asynchronously', async function () {
             var value = valueFactory.createString('my value');
             futuresCreated = 0;
+            presentsCreated = 0;
 
             expect(
                 await flow.chainifyCallbackFrom(
@@ -176,7 +203,8 @@ describe('Flow', function () {
                 )
                     .toPromise()
             ).to.equal(value);
-            expect(futuresCreated).to.equal(1, 'Should use a single Future');
+            expect(futuresCreated).to.equal(1, 'Should use a single Future due to async resolve');
+            expect(presentsCreated).to.equal(0, 'Should use no Presents at all');
         });
 
         it('should raise an error when resolved synchronously twice', async function () {
@@ -625,7 +653,7 @@ describe('Flow', function () {
                     return 'my string';
                 });
 
-                expect(result).to.be.an.instanceOf(Future);
+                expect(result).to.be.an.instanceOf(Present);
                 expect(await result.toPromise()).to.equal('my string');
             });
 
@@ -711,7 +739,7 @@ describe('Flow', function () {
                     return 'my string';
                 });
 
-                expect(result).to.be.an.instanceOf(Future);
+                expect(result).to.be.an.instanceOf(Present);
                 expect(await result.toPromise()).to.equal('my string');
             });
 
@@ -735,7 +763,7 @@ describe('Flow', function () {
                     return 'my string';
                 });
 
-                expect(result).to.be.an.instanceOf(Future);
+                expect(result).to.be.an.instanceOf(Present);
                 expect(await result.toPromise()).to.equal('my string');
             });
 

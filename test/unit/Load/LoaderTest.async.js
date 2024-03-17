@@ -120,6 +120,40 @@ describe('Loader (async mode)', function () {
             expect(controlScope.isNestingCoroutine()).to.be.true;
         });
 
+        it('should allow the load callback to enter a new Coroutine', async function () {
+            var enteredCoroutine = null;
+
+            await loader.load(
+                'include',
+                '/path/to/my/module.php',
+                {},
+                environment,
+                module,
+                enclosingScope,
+                function (path, promise) {
+                    var stubModule = sinon.stub();
+                    stubModule.returns(subEngine);
+
+                    // Pause before resolving, to test async behaviour.
+                    state.queueMicrotask(function () {
+                        var stubModule = sinon.stub();
+                        stubModule.returns(subEngine);
+
+                        // Enter a new coroutine.
+                        promise.newCoroutine();
+
+                        enteredCoroutine = controlScope.getCoroutine();
+
+                        promise.resolve(stubModule);
+                    });
+                }
+            )
+                .toPromise();
+
+            expect(controlScope.getCoroutine()).not.to.equal(enteredCoroutine);
+            expect(enteredCoroutine).not.to.be.null;
+        });
+
         it('should throw an error with the error when the load callback rejects with a normal JS error', function () {
             return expect(
                 loader.load(
@@ -149,6 +183,7 @@ describe('Loader (async mode)', function () {
             globalNamespace.getClass.withArgs('ParseError')
                 .returns(futureFactory.createPresent(parseErrorClassObject));
             parseErrorClassObject.instantiate.returns(parseErrorObjectValue);
+            parseErrorObjectValue.next.yields(parseErrorObjectValue);
 
             return loader.load(
                 'include',

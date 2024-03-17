@@ -296,6 +296,12 @@ describe('ResourceValue', function () {
         });
     });
 
+    describe('getOutgoingValues()', function () {
+        it('should return an empty array as resources cannot refer to anything', function () {
+            expect(value.getOutgoingValues()).to.deep.equal([]);
+        });
+    });
+
     describe('getProxy()', function () {
         it('should return the resource ID', function () {
             expect(value.getProxy()).to.equal(1234);
@@ -415,6 +421,12 @@ describe('ResourceValue', function () {
     describe('isScalar()', function () {
         it('should return false', function () {
             expect(value.isScalar()).to.be.false;
+        });
+    });
+
+    describe('isStructured()', function () {
+        it('should return false', function () {
+            expect(value.isStructured()).to.be.false;
         });
     });
 

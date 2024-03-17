@@ -23,6 +23,7 @@ var _ = require('microdash'),
  * @param {Userland} userland
  * @param {ExportRepository} exportRepository
  * @param {FFIFactory} ffiFactory
+ * @param {DestructibleObjectRepository} destructibleObjectRepository
  * @constructor
  */
 function ClassFactory(
@@ -35,12 +36,17 @@ function ClassFactory(
     futureFactory,
     userland,
     exportRepository,
-    ffiFactory
+    ffiFactory,
+    destructibleObjectRepository
 ) {
     /**
      * @type {CallStack}
      */
     this.callStack = callStack;
+    /**
+     * @type {DestructibleObjectRepository}
+     */
+    this.destructibleObjectRepository = destructibleObjectRepository;
     /**
      * @type {ExportRepository}
      */
@@ -87,6 +93,7 @@ _.extend(ClassFactory.prototype, {
      * @param {Namespace} namespace
      * @param {NamespaceScope} namespaceScope
      * @param {string} constructorName
+     * @param {boolean} hasDestructor
      * @param {Function} InternalClass
      * @param {Object} rootInternalPrototype
      * @param {Object} instanceProperties
@@ -104,6 +111,7 @@ _.extend(ClassFactory.prototype, {
         namespace,
         namespaceScope,
         constructorName,
+        hasDestructor,
         InternalClass,
         rootInternalPrototype,
         instanceProperties,
@@ -128,6 +136,7 @@ _.extend(ClassFactory.prototype, {
             factory.userland,
             name,
             constructorName,
+            hasDestructor,
             InternalClass,
             rootInternalPrototype,
             instanceProperties,
@@ -140,7 +149,8 @@ _.extend(ClassFactory.prototype, {
             valueCoercer,
             factory.ffiFactory,
             methodCaller,
-            instrumentation
+            instrumentation,
+            factory.destructibleObjectRepository
         );
     }
 });

@@ -104,6 +104,7 @@ var phpCommon = require('phpcommon'),
     CLOSURE_FACTORY = 'closure_factory',
     CONTROL_BRIDGE = 'control_bridge',
     CONTROL_SCOPE = 'control_scope',
+    DESTRUCTIBLE_OBJECT_REPOSITORY = 'garbage.destructible_object_repository',
     ELEMENT_PROVIDER_FACTORY = 'element_provider_factory',
     ERROR_REPORTING = 'error_reporting',
     FFI_EXPORT_FACTORY = 'ffi_export_factory',
@@ -117,6 +118,7 @@ var phpCommon = require('phpcommon'),
     FUNCTION_SIGNATURE_PARSER = 'function_signature_parser',
     FUNCTION_SPEC_FACTORY = 'function_spec_factory',
     FUTURE_FACTORY = 'future_factory',
+    GARBAGE_CACHE_INVALIDATOR = 'garbage.cache_invalidator',
     GLOBAL_SCOPE = 'global_scope',
     INSTRUMENTATION_FACTORY = 'instrumentation_factory',
     METHOD_PROMOTER = 'method_promoter',
@@ -126,7 +128,6 @@ var phpCommon = require('phpcommon'),
     OPCODE_EXECUTOR = 'opcode_executor',
     OPCODE_FACTORY = 'opcode_factory',
     OPCODE_FETCHER_REPOSITORY = 'opcode_fetcher_repository',
-    OPCODE_HANDLER_FACTORY = 'opcode_handler_factory',
     OPCODE_PARAMETER_FACTORY = 'opcode_parameter_factory',
     OPCODE_POOL = 'opcode_pool',
     OPCODE_RESCUER = 'opcode_rescuer',
@@ -209,7 +210,8 @@ module.exports = function (internals) {
                 get(FUTURE_FACTORY),
                 get(USERLAND),
                 get(FFI_EXPORT_REPOSITORY),
-                get(FFI_FACTORY)
+                get(FFI_FACTORY),
+                get(DESTRUCTIBLE_OBJECT_REPOSITORY)
             );
         },
 
@@ -460,8 +462,7 @@ module.exports = function (internals) {
 
         'typed_opcode_handler_factory': function () {
             return new TypedOpcodeHandlerFactory(
-                get(CONTROL_BRIDGE),
-                get(OPCODE_HANDLER_FACTORY)
+                get(CONTROL_BRIDGE)
             );
         },
 
@@ -492,7 +493,8 @@ module.exports = function (internals) {
                 get(VALUE_FACTORY),
                 get(REFERENCE_FACTORY),
                 get(FUTURE_FACTORY),
-                get(FLOW)
+                get(FLOW),
+                get(GARBAGE_CACHE_INVALIDATOR)
             );
         }
     };

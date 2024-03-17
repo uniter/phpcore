@@ -198,6 +198,15 @@ _.extend(Environment.prototype, {
         return this.state.getGlobal(name);
     },
 
+    /**
+     * Fetches the configured synchronicity mode.
+     *
+     * @returns {'async'|'psync'|'sync'}
+     */
+    getMode: function () {
+        return this.state.getMode();
+    },
+
     getOptions: function () {
         return this.state.getOptions();
     },

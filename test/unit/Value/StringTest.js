@@ -1246,6 +1246,14 @@ describe('StringValue', function () {
         });
     });
 
+    describe('getOutgoingValues()', function () {
+        it('should return an empty array as scalars cannot refer to anything', function () {
+            createValue('my string');
+
+            expect(value.getOutgoingValues()).to.deep.equal([]);
+        });
+    });
+
     describe('getProxy()', function () {
         it('should return "hello" when expected', function () {
             createValue('hello');
@@ -1473,6 +1481,8 @@ describe('StringValue', function () {
             globalNamespace.getClass.withArgs('My\\Space\\MyClass')
                 .returns(futureFactory.createPresent(classObject));
             newObjectValue = sinon.createStubInstance(ObjectValue);
+            newObjectValue.next.yields(newObjectValue);
+            newObjectValue.toPromise.returns(Promise.resolve(newObjectValue));
             classObject.instantiate.returns(newObjectValue);
         });
 
@@ -1657,6 +1667,14 @@ describe('StringValue', function () {
             createValue('my string');
 
             expect(value.isReferenceable()).to.be.false;
+        });
+    });
+
+    describe('isStructured()', function () {
+        it('should return false', function () {
+            createValue('my string');
+
+            expect(value.isStructured()).to.be.false;
         });
     });
 

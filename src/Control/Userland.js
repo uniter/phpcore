@@ -99,32 +99,8 @@ _.extend(Userland.prototype, {
         function doCall() {
             return userland.flow.maybeFuturise(
                 executor,
-                function (pause) {
-                    pause.next(
-                        function (/* result */) {
-                            /*
-                             * Note that the result passed here for the opcode we are about to resume
-                             * by re-calling the userland function has already been provided (see Pause),
-                             * so the result argument passed to this callback may be ignored.
-                             *
-                             * If the pause resulted in an error, then we also want to re-call
-                             * the function in order to resume with a throwInto at the correct opcode
-                             * (see catch handler below).
-                             */
-                            return doCall();
-                        },
-                        function (/* error */) {
-                            /*
-                             * Note that the error passed here for the opcode we are about to throwInto
-                             * by re-calling the userland function has already been provided (see Pause),
-                             * so the error argument passed to this callback may be ignored.
-                             *
-                             * Similar to the above, we want to re-call the function in order to resume
-                             * with a throwInto at the correct opcode.
-                             */
-                            return doCall();
-                        }
-                    );
+                function (pause, onResume) {
+                    onResume(doCall);
                 }
             );
         }
@@ -154,32 +130,8 @@ _.extend(Userland.prototype, {
         function doCall() {
             return userland.flow.maybeFuturise(
                 executor,
-                function (pause) {
-                    pause.next(
-                        function (/* result */) {
-                            /*
-                             * Note that the result passed here for the opcode we are about to resume
-                             * by re-calling the userland function has already been provided (see Pause),
-                             * so the result argument passed to this callback may be ignored.
-                             *
-                             * If the pause resulted in an error, then we also want to re-call
-                             * the function in order to resume with a throwInto at the correct opcode
-                             * (see catch handler below).
-                             */
-                            return doCall();
-                        },
-                        function (/* error */) {
-                            /*
-                             * Note that the error passed here for the opcode we are about to throwInto
-                             * by re-calling the userland function has already been provided (see Pause),
-                             * so the error argument passed to this callback may be ignored.
-                             *
-                             * Similar to the above, we want to re-call the function in order to resume
-                             * with a throwInto at the correct opcode.
-                             */
-                            return doCall();
-                        }
-                    );
+                function (pause, onResume) {
+                    onResume(doCall);
                 }
             );
         }

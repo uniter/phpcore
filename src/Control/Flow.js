@@ -58,6 +58,12 @@ function Flow(
      * @type {string}
      */
     this.mode = mode;
+    /**
+     * A pre-allocated Present that can be returned when a ChainableInterface is needed.
+     *
+     * @type {Present}
+     */
+    this.noopPresent = futureFactory.createPresent(null);
 }
 
 _.extend(Flow.prototype, {
@@ -330,6 +336,15 @@ _.extend(Flow.prototype, {
     },
 
     /**
+     * Returns a pre-allocated Present that can be returned when a ChainableInterface is needed.
+     *
+     * @returns {Present}
+     */
+    getNoopPresent: function () {
+        return this.noopPresent;
+    },
+
+    /**
      * Maps the given array of inputs to a Future via the given handler, settling any intermediate Futures.
      *
      * @param {*[]} inputs
@@ -443,7 +458,37 @@ _.extend(Flow.prototype, {
             }
 
             if (pauser) {
-                pauser(error);
+                pauser(
+                    error, // TODO: Look into not passing error(pause) here now we have onResume(...)?
+                    function onResume(reenter) {
+                        error.next(
+                            function (/* result */) {
+                                /*
+                                 * Note that the result passed here for the opcode we are about to resume
+                                 * by re-calling the userland function has already been provided (see Pause),
+                                 * so the result argument passed to this callback may be ignored.
+                                 *
+                                 * If the pause resulted in an error, then we also want to re-call
+                                 * the function in order to resume with a throwInto at the correct opcode
+                                 * (see catch handler below).
+                                 */
+                                return reenter();
+                            },
+                            function (/* error */) {
+                                /*
+                                 * Note that the error passed here for the opcode we are about to throwInto
+                                 * by re-calling the userland function has already been provided (see Pause),
+                                 * so the error argument passed to this callback may be ignored.
+                                 *
+                                 * Similar to the above, we want to re-call the function in order to resume
+                                 * with a throwInto at the correct opcode.
+                                 */
+
+                                return reenter();
+                            }
+                        );
+                    }
+                );
             }
 
             // We have intercepted a pause - it must be marked as complete so that the future

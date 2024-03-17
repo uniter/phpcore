@@ -69,6 +69,37 @@ EOS
         });
     });
 
+    it('should correctly handle including the same file multiple times via different paths', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+$result['with no parent dir symbols'] = include_once '/path/to/abc.php';
+$result['with parent dir symbols'] = include_once '/path/over/../to/my/../abc.php';
+
+return $result;
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            includeTransport = sinon.spy(function (path, promise, callerPath, valueFactory) {
+                setTimeout(function () {
+                    promise.resolve(valueFactory.createString('the one and only'));
+                });
+            }),
+            options = {
+                path: 'my/caller.php',
+                include: includeTransport
+            },
+            engine = module(options);
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'with no parent dir symbols': 'the one and only',
+            // include_once(...) returns with bool(true) if file has already been included.
+            'with parent dir symbols': true
+        });
+        expect(includeTransport).to.have.been.calledOnce;
+    });
+
     it('should support fetching the path from accessor returning future', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

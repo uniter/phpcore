@@ -37,6 +37,12 @@ describe('MissingValue', function () {
         value = new MissingValue(factory, referenceFactory, futureFactory, callStack, flow);
     });
 
+    describe('getOutgoingValues()', function () {
+        it('should return an empty array', function () {
+            expect(value.getOutgoingValues()).to.deep.equal([]);
+        });
+    });
+
     describe('getType()', function () {
         it('should return "null"', function () {
             expect(value.getType()).to.equal('null');
@@ -46,6 +52,12 @@ describe('MissingValue', function () {
     describe('getUnderlyingType()', function () {
         it('should return "missing"', function () {
             expect(value.getUnderlyingType()).to.equal('missing');
+        });
+    });
+
+    describe('isStructured()', function () {
+        it('should return false', function () {
+            expect(value.isStructured()).to.be.false;
         });
     });
 });

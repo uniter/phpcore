@@ -21,6 +21,7 @@ module.exports = require('pauser')([
      * @param {ReferenceFactory} referenceFactory
      * @param {FutureFactory} futureFactory
      * @param {Flow} flow
+     * @param {CacheInvalidator} garbageCacheInvalidator
      * @constructor
      */
     function VariableFactory(
@@ -29,7 +30,8 @@ module.exports = require('pauser')([
         valueFactory,
         referenceFactory,
         futureFactory,
-        flow
+        flow,
+        garbageCacheInvalidator
     ) {
         /**
          * @type {CallStack}
@@ -43,6 +45,10 @@ module.exports = require('pauser')([
          * @type {FutureFactory}
          */
         this.futureFactory = futureFactory;
+        /**
+         * @type {CacheInvalidator}
+         */
+        this.garbageCacheInvalidator = garbageCacheInvalidator;
         /**
          * @type {ReferenceFactory}
          */
@@ -73,6 +79,7 @@ module.exports = require('pauser')([
                 factory.referenceFactory,
                 factory.futureFactory,
                 factory.flow,
+                factory.garbageCacheInvalidator,
                 variableName
             );
         }

@@ -32,6 +32,7 @@ var _ = require('microdash'),
  * @param {ErrorConfiguration} errorConfiguration
  * @param {ErrorPromoter} errorPromoter
  * @param {ErrorReporting} errorReporting
+ * @param {GarbageCollector} garbageCollector
  * @param {Namespace} globalNamespace
  * @param {Scope} globalScope
  * @param {INIState} iniState
@@ -65,6 +66,7 @@ function Internals(
     errorConfiguration,
     errorPromoter,
     errorReporting,
+    garbageCollector,
     globalNamespace,
     globalScope,
     iniState,
@@ -137,6 +139,11 @@ function Internals(
      * @type {FutureFactory}
      */
     this.futureFactory = futureFactory;
+    /**
+     * @public
+     * @type {GarbageCollector}
+     */
+    this.garbageCollector = garbageCollector;
     /**
      * @public
      * @type {Namespace}

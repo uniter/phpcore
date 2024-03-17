@@ -25,6 +25,20 @@ describe('Opcode NativeType', function () {
     });
 
     describe('allowsValue()', function () {
+        describe('when "boolean"', function () {
+            it('should return true when given correct native type', function () {
+                createType('boolean');
+
+                expect(type.allowsValue(true)).to.be.true;
+            });
+
+            it('should return false when given an incorrect type', function () {
+                createType('boolean');
+
+                expect(type.allowsValue(1234)).to.be.false;
+            });
+        });
+
         describe('when "string"', function () {
             it('should return true when given correct native type', function () {
                 createType('string');
@@ -32,7 +46,7 @@ describe('Opcode NativeType', function () {
                 expect(type.allowsValue('my string')).to.be.true;
             });
 
-            it('should throw when given an incorrect type', function () {
+            it('should return false when given an incorrect type', function () {
                 createType('string');
 
                 expect(type.allowsValue(1234)).to.be.false;
@@ -46,7 +60,7 @@ describe('Opcode NativeType', function () {
                 expect(type.allowsValue(null)).to.be.true;
             });
 
-            it('should throw when given an incorrect type', function () {
+            it('should return false when given an incorrect type', function () {
                 createType('null');
 
                 expect(type.allowsValue('not null')).be.false;
@@ -60,15 +74,48 @@ describe('Opcode NativeType', function () {
                 expect(type.allowsValue(321)).to.be.true;
             });
 
-            it('should throw when given an incorrect type', function () {
+            it('should return false when given an incorrect type', function () {
                 createType('number');
 
                 expect(type.allowsValue('not a number')).be.false;
             });
         });
+
+        describe('when "undefined"', function () {
+            it('should return a value of correct native type', function () {
+                createType('undefined');
+
+                expect(type.allowsValue(undefined)).to.be.true;
+            });
+
+            it('should return false when given an incorrect type', function () {
+                createType('undefined');
+
+                expect(type.allowsValue('not undefined')).be.false;
+            });
+        });
     });
 
     describe('coerceValue()', function () {
+        describe('when "boolean"', function () {
+            it('should return a value of correct native type', function () {
+                createType('boolean');
+
+                expect(type.coerceValue(true)).to.equal(true);
+            });
+
+            it('should throw when given an incorrect type', function () {
+                createType('boolean');
+
+                expect(function () {
+                    type.coerceValue(1234);
+                }).to.throw(
+                    Exception,
+                    'Unexpected value of type "number" provided for NativeType<boolean>'
+                );
+            });
+        });
+
         describe('when "string"', function () {
             it('should return a value of correct native type', function () {
                 createType('string');
@@ -125,6 +172,25 @@ describe('Opcode NativeType', function () {
                 );
             });
         });
+
+        describe('when "undefined"', function () {
+            it('should return a value of correct native type', function () {
+                createType('undefined');
+
+                expect(type.coerceValue(undefined)).to.equal(undefined);
+            });
+
+            it('should throw when given an incorrect type', function () {
+                createType('undefined');
+
+                expect(function () {
+                    type.coerceValue('not undefined');
+                }).to.throw(
+                    Exception,
+                    'Unexpected value of type "string" provided for NativeType<undefined>'
+                );
+            });
+        });
     });
 
     describe('getDisplayName()', function () {
@@ -151,6 +217,12 @@ describe('Opcode NativeType', function () {
             createType('string');
 
             expect(type.getDisplayName()).to.equal('string');
+        });
+
+        it('should return the correct string for "undefined" native type', function () {
+            createType('undefined');
+
+            expect(type.getDisplayName()).to.equal('undefined');
         });
     });
 });

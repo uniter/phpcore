@@ -65,15 +65,6 @@ describe('ReferenceSlot', function () {
         });
     });
 
-    describe('getForAssignment()', function () {
-        it('should return the value of the slot', function () {
-            var result = sinon.createStubInstance(Value);
-            reference.setValue(result);
-
-            expect(reference.getForAssignment()).to.equal(result);
-        });
-    });
-
     describe('getNative()', function () {
         it('should return the native value of the slot', function () {
             reference.setValue(valueFactory.createString('the native value of my var'));

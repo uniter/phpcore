@@ -138,6 +138,13 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Enables strict-types mode for this scope's module.
+         */
+        enableStrictTypes: function () {
+            this.module.enableStrictTypes();
+        },
+
+        /**
          * Fetches a class with the given name relative to this namespace scope,
          * autoloading if necessary
          *
@@ -328,6 +335,15 @@ module.exports = require('pauser')([
          */
         isGlobal: function () {
             return this.global;
+        },
+
+        /**
+         * Determines whether this scope's module is in strict-types mode.
+         *
+         * @returns {boolean}
+         */
+        isStrictTypesMode: function () {
+            return this.module.isStrictTypesMode();
         },
 
         /**

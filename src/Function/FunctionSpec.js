@@ -105,7 +105,7 @@ function FunctionSpec(
 
 _.extend(FunctionSpec.prototype, {
     /**
-     * Coerces the given set of arguments for this function as needed
+     * Coerces the given set of arguments for this function as needed.
      *
      * @param {Reference[]|Value[]|Variable[]} argumentReferenceList
      * @returns {FutureInterface<Value[]>} Returns all arguments resolved to values
@@ -114,25 +114,25 @@ _.extend(FunctionSpec.prototype, {
         var coercedArguments = argumentReferenceList.slice(),
             spec = this;
 
-        return spec.flow.eachAsync(spec.parameterList, function (parameter, index) {
-            if (!parameter) {
-                // Parameter is omitted due to bundle-size optimisations or similar, ignore
-                return;
-            }
+        return spec.flow.eachAsync(coercedArguments, function (argumentReference, index) {
+            var parameter = spec.parameterList[index];
 
-            if (argumentReferenceList.length <= index) {
-                // Argument is not provided: do not attempt to fetch it
+            if (!parameter) {
+                // Parameter is omitted due to bundle-size optimisations or similar, no coercion
+                // to perform, but do ensure we have a value.
+                coercedArguments[index] = argumentReference.getValue();
+
                 return;
             }
 
             /*
-             * Coerce the argument as the parameter requires (eg. for scalar types in PHP 7+ weak type-checking mode).
+             * Coerce the argument as the parameter requires (e.g. for scalar types in PHP 7+ weak type-checking mode).
              *
              * Note that it will be resolved to a value at this point if not already.
              * For by-reference parameters in weak-type checking mode, the coerced value will be written back
              * to the reference, ie. <reference>.setValue(<coerced value>).
              */
-            return parameter.coerceArgument(argumentReferenceList[index])
+            return parameter.coerceArgument(argumentReference)
                 .next(function (coercedArgument) {
                     coercedArguments[index] = coercedArgument;
 
@@ -168,7 +168,11 @@ _.extend(FunctionSpec.prototype, {
             return value;
         }
 
-        // TODO: Don't perform this coercion in strict types mode when that is supported.
+        if (spec.callStack.isStrictTypesMode()) {
+            // No value coercion to perform in strict-types mode.
+            return value;
+        }
+
         value = value.next(function (presentValue) {
             /*
              * Coerce the result to match the return type: for example, when the return type
@@ -555,8 +559,9 @@ _.extend(FunctionSpec.prototype, {
                 },
                 'TypeError',
                 false,
-                spec.filePath,
-                spec.lineNumber
+                // Use the current file & line context and not that of this function spec when userland.
+                spec.isUserland() ? undefined : spec.filePath,
+                spec.isUserland() ? undefined : spec.lineNumber
             );
         });
     }

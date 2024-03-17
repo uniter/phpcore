@@ -35,14 +35,13 @@ _.extend(OpcodeHandlerTyper.prototype, {
      *
      * @param {string} signature
      * @param {Function} handler
-     * @param {string} opcodeFetcherType
      * @returns {Function}
      */
-    typeHandler: function (signature, handler, opcodeFetcherType) {
+    typeHandler: function (signature, handler) {
         var typer = this,
             opcodeSignature = typer.signatureParser.parseSignature(signature);
 
-        return typer.typedOpcodeHandlerFactory.typeHandler(opcodeSignature, handler, opcodeFetcherType);
+        return typer.typedOpcodeHandlerFactory.typeHandler(opcodeSignature, handler);
     }
 });
 
