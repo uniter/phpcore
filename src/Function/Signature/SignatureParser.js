@@ -185,6 +185,12 @@ _.extend(SignatureParser.prototype, {
                 valueProvider = function () {
                     return parser.globalNamespace.getConstant(match[11], false);
                 };
+            } else if (typeof match[12] !== 'undefined') {
+                // Parameter is optional but has no default value.
+                // Used to disallow null while keeping a parameter optional.
+                valueProvider = function () {
+                    return parser.valueFactory.createMissing();
+                };
             }
 
             spec = buildTypeSpecData(type, nullable);
@@ -199,7 +205,7 @@ _.extend(SignatureParser.prototype, {
         while (remainingSignature.length > 0 && !/^\s*:/.test(remainingSignature)) {
             // TODO: Support non-empty array literals as default values.
             match = remainingSignature.match(
-                /^\s*(?:(\?)\s*)?([\w\\]+(?:\|[\w\\]+)*)\s*(?:(&)\s*)?\$(\w+)(?:\s*=\s*(?:(-?\d*\.\d+)|(-?\d+)|(true|false)|(null)|"((?:[^\\"]|\\[\s\S])*)"|\[()]|([\w_]+)))?\s*(?:,\s*)?/i
+                /^\s*(?:(\?)\s*)?([\w\\]+(?:\|[\w\\]+)*)\s*(?:(&)\s*)?\$(\w+)(?:\s*=\s*(?:(-?\d*\.\d+)|(-?\d+)|(true|false)|(null)|"((?:[^\\"]|\\[\s\S])*)"|\[()]|([\w_]+)|(\?)))?\s*(?:,\s*)?/i
             );
 
             if (!match) {

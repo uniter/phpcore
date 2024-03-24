@@ -390,6 +390,28 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.value).to.be.null;
         });
 
+        it('should be able to parse a single optional parameter ("=?")', function () {
+            var defaultValue,
+                parameterSpecData,
+                signature = parser.parseSignature('callable $myParam = ? : bool');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(1);
+            expect(signature.getReturnTypeSpecData()).to.deep.equal({
+                type: 'scalar',
+                scalarType: 'bool',
+                nullable: false,
+            });
+            parameterSpecData = signature.getParametersSpecData()[0];
+            expect(parameterSpecData.type).to.equal('callable');
+            expect(parameterSpecData.nullable).to.be.false;
+            expect(parameterSpecData.name).to.equal('myParam');
+            expect(parameterSpecData.ref).to.be.false;
+            defaultValue = parameterSpecData.value();
+            // Optional parameters use the special Missing value as their default.
+            expect(defaultValue.getUnderlyingType()).to.equal('missing');
+        });
+
         it('should be able to parse a non-nullable union return type', function () {
             var signature = parser.parseSignature(': callable|iterable');
 

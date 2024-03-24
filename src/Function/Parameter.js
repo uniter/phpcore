@@ -321,7 +321,7 @@ _.extend(Parameter.prototype, {
                                 // null will need to have been given as the default value in order to be allowed
                                 argumentValue.getType() === 'null' &&
                                 parameter.defaultValueProvider &&
-                                parameter.defaultValueProvider().getType() === 'null'
+                                parameter.defaultValueProvider().getUnderlyingType() === 'null'
                             ),
                         callerFilePath = null,
                         callerLineNumber = null,

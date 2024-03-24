@@ -564,6 +564,50 @@ describe('Parameter', function () {
                 );
         });
 
+        it('should raise an error when argument is null but type does not allow null and is optional for builtin', function () {
+            var argumentReference = sinon.createStubInstance(Variable),
+                argumentValue = valueFactory.createMissing(),
+                defaultValue = valueFactory.createMissing();
+            typeObject.allowsValue
+                .withArgs(sinon.match.same(argumentValue))
+                .returns(futureFactory.createPresent(false)); // Type disallows null (e.g. a class type not prefixed with ? in PHP7+).
+            defaultValueProvider.returns(defaultValue); // Default is null, meaning null can be passed.
+            callStack.getCurrent.returns(sinon.createStubInstance(Call));
+            callStack.getCallerFilePath.returns('/my/caller/module.php');
+            callStack.getCallerLastLine.returns(12345);
+            parameter = new Parameter(
+                callStack,
+                valueFactory,
+                translator,
+                futureFactory,
+                flow,
+                userland,
+                'myParam',
+                6,
+                typeObject,
+                context,
+                namespaceScope,
+                true,
+                defaultValueProvider,
+                '/path/to/my/module.php',
+                101
+            );
+
+            return expect(parameter.validateArgument(argumentReference, argumentValue).toPromise())
+                .to.eventually.be.rejectedWith(
+                    'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
+                    '"index":7,' +
+                    '"name":"myParam",' +
+                    '"actualType":"null",' +
+                    '"callerFile":"/my/caller/module.php",' +
+                    '"callerLine":12345' +
+                    '} reportsOwnContext=yes ' +
+                    'context(#core.call_to_builtin with {"callerFile":"/my/caller/module.php","callerLine":12345})' +
+                    ' skipCurrentStackFrame=yes ' +
+                    '@ /my/caller/module.php:12345'
+                );
+        });
+
         // An example would be a parameter of array type with a default value of an array literal.
         it('should raise an error when argument is null but type does not allow null and default is not null for builtin', function () {
             var argumentReference = sinon.createStubInstance(Variable),
