@@ -367,7 +367,7 @@ describe('Call', function () {
             expect(call.isStrictTypesMode()).to.be.true;
         });
 
-        it('should return false when the original NamespaceScope is in loose-types mode', function () {
+        it('should return false when the original NamespaceScope is in weak type-checking mode', function () {
             namespaceScope.isStrictTypesMode.returns(false);
 
             expect(call.isStrictTypesMode()).to.be.false;

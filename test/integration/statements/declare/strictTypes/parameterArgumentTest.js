@@ -38,7 +38,7 @@ EOS
         });
     });
 
-    it('should be able to call a function with coercible type from loose-types mode when function definition is in strict-types mode', async function () {
+    it('should be able to call a function with coercible type from weak type-checking mode when function definition is in strict-types mode', async function () {
         var functionDefinition1Php = nowdoc(function () {/*<<<EOS
 <?php
 declare(strict_types=1);

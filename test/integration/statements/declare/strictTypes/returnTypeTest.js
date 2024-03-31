@@ -38,7 +38,7 @@ EOS
         });
     });
 
-    it('should be able to return from a function with coercible type from loose-types mode when caller is in strict-types mode', async function () {
+    it('should be able to return from a function with coercible type from weak type-checking mode when caller is in strict-types mode', async function () {
         var functionDefinitionPhp = nowdoc(function () {/*<<<EOS
 <?php
 function getNumber($myNumber) : int {
