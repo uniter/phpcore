@@ -81,10 +81,14 @@ describe('FunctionSpec', function () {
                 );
             });
         context.getName.returns('myFunction');
+        parameter1.getName.returns('myFirstParam');
         parameter1.isPassedByReference.returns(false);
         parameter1.isRequired.returns(true);
+        parameter1.isVariadic.returns(false);
+        parameter2.getName.returns('mySecondParam');
         parameter2.isPassedByReference.returns(false);
         parameter2.isRequired.returns(false);
+        parameter2.isVariadic.returns(false);
         returnType.getDisplayName.returns('float');
         translator.translate
             .callsFake(function (translationKey, placeholderVariables) {
@@ -305,22 +309,60 @@ describe('FunctionSpec', function () {
             scope = sinon.createStubInstance(Scope);
         });
 
-        it('should correctly load the arguments for all parameters', function () {
+        it('should correctly load the arguments for all parameters when all are positional', function () {
             var argumentReference1 = sinon.createStubInstance(Reference),
-                argumentReference2 = sinon.createStubInstance(Reference);
+                argumentReference2 = sinon.createStubInstance(Reference),
+                firstParameterVariable = sinon.createStubInstance(Variable),
+                secondParameterVariable = sinon.createStubInstance(Variable);
+            scope.getVariable.withArgs('myFirstParam').returns(firstParameterVariable);
+            scope.getVariable.withArgs('mySecondParam').returns(secondParameterVariable);
 
             spec.loadArguments([argumentReference1, argumentReference2], scope);
 
             expect(parameter1.loadArgument).to.have.been.calledOnce;
             expect(parameter1.loadArgument).to.have.been.calledWith(
                 sinon.match.same(argumentReference1),
-                sinon.match.same(scope)
+                sinon.match.same(firstParameterVariable)
             );
             expect(parameter2.loadArgument).to.have.been.calledOnce;
             expect(parameter2.loadArgument).to.have.been.calledWith(
                 sinon.match.same(argumentReference2),
-                sinon.match.same(scope)
+                sinon.match.same(secondParameterVariable)
             );
+        });
+
+        it('should correctly load the arguments for all parameters when one is variadic', function () {
+            var argumentReference1 = sinon.createStubInstance(Reference),
+                argumentReference2 = sinon.createStubInstance(Reference),
+                argumentReference3 = sinon.createStubInstance(Reference),
+                firstParameterVariable = sinon.createStubInstance(Variable),
+                secondParameterVariable = sinon.createStubInstance(Variable),
+                variadicArrayValue;
+            parameter2.isVariadic.returns(true);
+            scope.getVariable.withArgs('myFirstParam').returns(firstParameterVariable);
+            scope.getVariable.withArgs('mySecondParam').returns(secondParameterVariable);
+            argumentReference2.getValue.returns(valueFactory.createString('my first variadic arg'));
+            argumentReference3.getValue.returns(valueFactory.createString('my second variadic arg'));
+            parameter2.loadArgument.callsFake(function (argumentReference, reference) {
+                reference.setValue(argumentReference.getValue());
+            });
+            createSpec(false);
+
+            spec.loadArguments([argumentReference1, argumentReference2, argumentReference3], scope);
+
+            expect(parameter1.loadArgument).to.have.been.calledOnce;
+            expect(parameter1.loadArgument).to.have.been.calledWith(
+                sinon.match.same(argumentReference1),
+                sinon.match.same(firstParameterVariable)
+            );
+            expect(parameter2.loadArgument).to.have.been.calledTwice;
+            expect(secondParameterVariable.setValue).to.have.been.calledOnce;
+            variadicArrayValue = secondParameterVariable.setValue.args[0][0];
+            expect(variadicArrayValue.getType()).to.equal('array');
+            expect(variadicArrayValue.getNative()).to.deep.equal([
+                'my first variadic arg',
+                'my second variadic arg'
+            ]);
         });
     });
 
@@ -428,12 +470,23 @@ describe('FunctionSpec', function () {
     });
 
     describe('getParameters()', function () {
-        it('should return all parameters', function () {
+        it('should return all parameters when all are positional', function () {
             var parameters = spec.getParameters();
 
             expect(parameters).to.have.length(2);
             expect(parameters[0]).to.equal(parameter1);
             expect(parameters[1]).to.equal(parameter2);
+        });
+
+        it('should exclude the final parameter when variadic', function () {
+            var parameters;
+            parameter2.isVariadic.returns(true);
+            createSpec(false);
+
+            parameters = spec.getParameters();
+
+            expect(parameters).to.have.length(1);
+            expect(parameters[0]).to.equal(parameter1);
         });
     });
 

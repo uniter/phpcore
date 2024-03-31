@@ -94,12 +94,34 @@ function myFunction(&$myRef)
 myFunction(21);
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile('your_module.php', php),
+            module = tools.asyncTranspile('/path/to/your_module.php', php),
             engine = module();
 
         await expect(engine.execute()).to.eventually.be.rejectedWith(
             PHPFatalError,
-            'PHP Fatal error: Uncaught Error: Only variables can be passed by reference in your_module.php on line 7'
+            'PHP Fatal error: Uncaught Error: myFunction(): Argument #1 ($myRef) could not be passed by reference in /path/to/your_module.php on line 7'
+        );
+        expect(engine.getStderr().readAll()).to.equal(
+            nowdoc(function () {/*<<<EOS
+PHP Fatal error:  Uncaught Error: myFunction(): Argument #1 ($myRef) could not be passed by reference in /path/to/your_module.php:7
+Stack trace:
+#0 {main}
+  thrown in /path/to/your_module.php on line 7
+
+EOS
+*/;}) //jshint ignore:line
+        );
+        // NB: Stdout should have a leading newline written out just before the message.
+        expect(engine.getStdout().readAll()).to.equal(
+            nowdoc(function () {/*<<<EOS
+
+Fatal error: Uncaught Error: myFunction(): Argument #1 ($myRef) could not be passed by reference in /path/to/your_module.php:7
+Stack trace:
+#0 {main}
+  thrown in /path/to/your_module.php on line 7
+
+EOS
+*/;}) //jshint ignore:line
         );
     });
 

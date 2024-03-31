@@ -18,9 +18,9 @@ var _ = require('microdash'),
     CALL_TO_BUILTIN = 'core.call_to_builtin',
     DEFINED_IN_USERLAND = 'core.defined_in_userland',
     INSTANCE_OF_TYPE_ACTUAL = 'core.instance_of_type_actual',
+    INVALID_BY_REFERENCE_ARGUMENT = 'core.invalid_by_reference_argument',
     INVALID_VALUE_FOR_TYPE_BUILTIN = 'core.invalid_value_for_type_builtin',
     INVALID_VALUE_FOR_TYPE_USERLAND = 'core.invalid_value_for_type_userland',
-    ONLY_VARIABLES_BY_REFERENCE = 'core.only_variables_by_reference',
     UNKNOWN = 'core.unknown';
 
 /**
@@ -38,6 +38,7 @@ var _ = require('microdash'),
  * @param {FunctionContextInterface} context
  * @param {NamespaceScope} namespaceScope
  * @param {boolean} passedByReference
+ * @param {boolean} variadic
  * @param {Function|null} defaultValueProvider
  * @param {string|null} filePath
  * @param {number|null} lineNumber
@@ -56,6 +57,7 @@ function Parameter(
     context,
     namespaceScope,
     passedByReference,
+    variadic,
     defaultValueProvider,
     filePath,
     lineNumber
@@ -120,6 +122,10 @@ function Parameter(
      * @type {ValueFactory}
      */
     this.valueFactory = valueFactory;
+    /**
+     * @type {boolean}
+     */
+    this.variadic = variadic;
 }
 
 _.extend(Parameter.prototype, {
@@ -216,35 +222,45 @@ _.extend(Parameter.prototype, {
     },
 
     /**
-     * Declares a variable in the call scope for the parameter with the value or reference given as its argument.
+     * Determines whether this parameter is variadic.
+     *
+     * @returns {boolean}
+     */
+    isVariadic: function () {
+        return this.variadic;
+    },
+
+    /**
+     * Loads a reference or value argument for this parameter into:
+     * - The variable in the call scope (for a positional parameter), or
+     * - An element of the array (for a variadic parameter).
      *
      * @param {Reference[]|Value[]|Variable[]} argumentReferenceList
-     * @param {Scope} scope
+     * @param {Reference|Variable} reference Local variable defined by parameter or array element if variadic.
      */
-    loadArgument: function (argumentReference, scope) {
-        var spec = this,
-            localVariable = scope.getVariable(spec.name);
+    loadArgument: function (argumentReference, reference) {
+        var parameter = this;
 
-        if (!spec.passedByReference) {
+        if (!parameter.passedByReference) {
             // Most common case: argument is not provided by reference.
-            localVariable.setValue(argumentReference.getValue());
+            reference.setValue(argumentReference.getValue());
             return;
         }
 
-        if (!spec.defaultValueProvider) {
+        if (!parameter.defaultValueProvider) {
             // Argument is passed by reference, and has no default so must have had a reference provided.
-            localVariable.setReference(argumentReference.getReference());
+            reference.setReference(argumentReference.getReference());
             return;
         }
 
-        if (spec.valueFactory.isValue(argumentReference)) {
+        if (parameter.valueFactory.isValue(argumentReference)) {
             // Argument is passed by reference, but we're relying on its default value.
-            localVariable.setValue(argumentReference);
+            reference.setValue(argumentReference);
             return;
         }
 
         // Argument is passed by reference and a reference was passed.
-        localVariable.setReference(argumentReference.getReference());
+        reference.setReference(argumentReference.getReference());
     },
 
     /**
@@ -281,9 +297,10 @@ _.extend(Parameter.prototype, {
      *
      * @param {Reference|Value|Variable|null} argumentReference Raw reference or value of the argument
      * @param {Value|null} argumentValue Resolved value of the argument
+     * @param {number} argumentIndex
      * @returns {FutureInterface<void>} Resolved if the argument is valid or rejected with an Error otherwise
      */
-    validateArgument: function (argumentReference, argumentValue) {
+    validateArgument: function (argumentReference, argumentValue, argumentIndex) {
         var parameter = this;
 
         return parameter.flow.chainifyResultOf(function () {
@@ -291,12 +308,21 @@ _.extend(Parameter.prototype, {
                 // Parameter expects a reference but was given a value - error
                 parameter.callStack.raiseTranslatedError(
                     PHPError.E_ERROR,
-                    ONLY_VARIABLES_BY_REFERENCE,
-                    {},
+                    INVALID_BY_REFERENCE_ARGUMENT,
+                    {
+                        index: argumentIndex + 1,
+                        // Variadic parameters' names are not displayed.
+                        context: parameter.variadic ? '' : ' ($' + parameter.name + ')',
+                        func: parameter.context.getName()
+                    },
                     null,
                     false,
                     parameter.callStack.getCallerFilePath(),
-                    parameter.callStack.getCallerLastLine()
+                    parameter.callStack.getCallerLastLine(),
+                    null,
+                    null,
+                    // Unlike type errors, for this failure the frame is always skipped.
+                    true
                 );
             }
 
@@ -373,8 +399,9 @@ _.extend(Parameter.prototype, {
                             INVALID_VALUE_FOR_TYPE_USERLAND :
                             INVALID_VALUE_FOR_TYPE_BUILTIN,
                         {
-                            index: parameter.index + 1,
-                            name: parameter.name,
+                            index: argumentIndex + 1,
+                            // Variadic parameters' names are not displayed.
+                            context: parameter.variadic ? '' : ' ($' + parameter.name + ')',
                             func: parameter.context.getName(),
                             expectedType: expectedType,
                             actualType: actualType,

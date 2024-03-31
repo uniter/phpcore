@@ -22,6 +22,9 @@ var _ = require('microdash'),
     Signature = require('./Signature');
 
 /**
+ * Parses the signature of a built-in PHP function.
+ * Userland functions' signatures are instead parsed by PHPToAST and transpiled by PHPToJS.
+ *
  * @param {ValueFactory} valueFactory
  * @constructor
  */
@@ -127,30 +130,31 @@ _.extend(SignatureParser.prototype, {
          * @returns {{name: string, ref: boolean, type: string|undefined, value: Function|null}}
          */
         function buildParameterSpecData(match) {
-            var name = match[4],
+            var name = match[5],
                 passedByReference = Boolean(match[3]),
                 spec,
                 string,
                 type = match[2],
                 nullable = match[1] === '?',
-                valueProvider = null;
+                valueProvider = null,
+                variadic = match[4] === '...';
 
-            if (typeof match[5] !== 'undefined') {
+            if (typeof match[6] !== 'undefined') {
                 // Default value is an float literal.
                 valueProvider = function () {
-                    return parser.valueFactory.createFloat(Number(match[5]));
-                };
-            } else if (typeof match[6] !== 'undefined') {
-                // Default value is an integer literal.
-                valueProvider = function () {
-                    return parser.valueFactory.createInteger(Number(match[6]));
+                    return parser.valueFactory.createFloat(Number(match[6]));
                 };
             } else if (typeof match[7] !== 'undefined') {
-                // Default value is a boolean literal.
+                // Default value is an integer literal.
                 valueProvider = function () {
-                    return parser.valueFactory.createBoolean(match[7].toLowerCase() === 'true');
+                    return parser.valueFactory.createInteger(Number(match[7]));
                 };
             } else if (typeof match[8] !== 'undefined') {
+                // Default value is a boolean literal.
+                valueProvider = function () {
+                    return parser.valueFactory.createBoolean(match[8].toLowerCase() === 'true');
+                };
+            } else if (typeof match[9] !== 'undefined') {
                 // Default value is null.
                 valueProvider = function () {
                     return parser.valueFactory.createNull();
@@ -158,9 +162,9 @@ _.extend(SignatureParser.prototype, {
 
                 // A default value of null implicitly allows null as an argument.
                 nullable = true;
-            } else if (typeof match[9] !== 'undefined') {
+            } else if (typeof match[10] !== 'undefined') {
                 // Default value is a string literal.
-                string = match[9];
+                string = match[10];
 
                 try {
                     string = JSON.parse('"' + string + '"');
@@ -174,18 +178,18 @@ _.extend(SignatureParser.prototype, {
                 valueProvider = function () {
                     return parser.valueFactory.createString(string);
                 };
-            } else if (typeof match[10] !== 'undefined') {
+            } else if (typeof match[11] !== 'undefined') {
                 // Default value is an empty array literal.
                 valueProvider = function () {
                     // TODO: Support non-empty arrays.
                     return parser.valueFactory.createArray([]);
                 };
-            } else if (typeof match[11] !== 'undefined') {
+            } else if (typeof match[12] !== 'undefined') {
                 // Default value is a constant.
                 valueProvider = function () {
-                    return parser.globalNamespace.getConstant(match[11], false);
+                    return parser.globalNamespace.getConstant(match[12], false);
                 };
-            } else if (typeof match[12] !== 'undefined') {
+            } else if (typeof match[13] !== 'undefined') {
                 // Parameter is optional but has no default value.
                 // Used to disallow null while keeping a parameter optional.
                 valueProvider = function () {
@@ -198,6 +202,7 @@ _.extend(SignatureParser.prototype, {
             spec.name = name;
             spec.ref = passedByReference;
             spec.value = valueProvider;
+            spec.variadic = variadic;
 
             return spec;
         }
@@ -205,7 +210,7 @@ _.extend(SignatureParser.prototype, {
         while (remainingSignature.length > 0 && !/^\s*:/.test(remainingSignature)) {
             // TODO: Support non-empty array literals as default values.
             match = remainingSignature.match(
-                /^\s*(?:(\?)\s*)?([\w\\]+(?:\|[\w\\]+)*)\s*(?:(&)\s*)?\$(\w+)(?:\s*=\s*(?:(-?\d*\.\d+)|(-?\d+)|(true|false)|(null)|"((?:[^\\"]|\\[\s\S])*)"|\[()]|([\w_]+)|(\?)))?\s*(?:,\s*)?/i
+                /^\s*(?:(\?)\s*)?([\w\\]+(?:\|[\w\\]+)*)\s*(?:(&)\s*)?(\.{3})?\$(\w+)(?:\s*=\s*(?:(-?\d*\.\d+)|(-?\d+)|(true|false)|(null)|"((?:[^\\"]|\\[\s\S])*)"|\[()]|([\w_]+)|(\?)))?\s*(?:,\s*)?/i
             );
 
             if (!match) {

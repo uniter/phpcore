@@ -53,6 +53,21 @@ function FunctionSpec(
     filePath,
     lineNumber
 ) {
+    var parameter,
+        variadicParameter = null;
+
+    if (parameterList.length > 0) {
+        parameter = parameterList[parameterList.length - 1];
+
+        if (parameter.isVariadic()) {
+            variadicParameter = parameter;
+
+            // Remove the variadic parameter from the positional parameter list,
+            // as it will be handled specially.
+            parameterList.pop();
+        }
+    }
+
     /**
      * @type {CallStack}
      */
@@ -101,6 +116,10 @@ function FunctionSpec(
      * @type {ValueFactory}
      */
     this.valueFactory = valueFactory;
+    /**
+     * @type {Parameter|null}
+     */
+    this.variadicParameter = variadicParameter;
 }
 
 _.extend(FunctionSpec.prototype, {
@@ -112,12 +131,15 @@ _.extend(FunctionSpec.prototype, {
      */
     coerceArguments: function (argumentReferenceList) {
         var coercedArguments = argumentReferenceList.slice(),
-            spec = this;
+            spec = this,
+            parameterCount = spec.parameterList.length;
 
         return spec.flow.eachAsync(coercedArguments, function (argumentReference, index) {
             var parameter = spec.parameterList[index];
 
-            if (!parameter) {
+            if (index >= parameterCount && spec.variadicParameter) {
+                parameter = spec.variadicParameter;
+            } else if (!parameter) {
                 // Parameter is omitted due to bundle-size optimisations or similar, no coercion
                 // to perform, but do ensure we have a value.
                 coercedArguments[index] = argumentReference.getValue();
@@ -291,7 +313,8 @@ _.extend(FunctionSpec.prototype, {
     },
 
     /**
-     * Fetches the parameters of this function.
+     * Fetches the positional parameters of this function.
+     * If there is a variadic parameter at the end, it will not be included in this list.
      *
      * @returns {Parameter[]}
      */
@@ -398,11 +421,29 @@ _.extend(FunctionSpec.prototype, {
      * @param {Scope} scope
      */
     loadArguments: function (argumentReferenceList, scope) {
-        var spec = this;
+        var index,
+            spec = this,
+            variadicArgumentCount,
+            variadicArrayValue;
 
         _.each(spec.parameterList, function (parameter, index) {
-            parameter.loadArgument(argumentReferenceList[index], scope);
+            var localVariable = scope.getVariable(parameter.getName());
+
+            parameter.loadArgument(argumentReferenceList[index], localVariable);
         });
+
+        if (spec.variadicParameter) {
+            // Parameter is variadic: collect all remaining arguments, build an array containing them
+            // (with references if the parameter is by-reference) and store in the parameter's local variable.
+            variadicArgumentCount = argumentReferenceList.length;
+            variadicArrayValue = spec.valueFactory.createArray([]);
+
+            for (index = spec.parameterList.length; index < variadicArgumentCount; index++) {
+                spec.variadicParameter.loadArgument(argumentReferenceList[index], variadicArrayValue.getPushElement());
+            }
+
+            scope.getVariable(spec.variadicParameter.getName()).setValue(variadicArrayValue);
+        }
     },
 
     /**
@@ -461,9 +502,11 @@ _.extend(FunctionSpec.prototype, {
      * @returns {FutureInterface<void>} Resolved if the arguments are valid or rejected with an Error otherwise
      */
     validateArguments: function (argumentReferenceList, argumentValueList) {
-        var spec = this;
+        var positionalParameterCount,
+            resultChainable,
+            spec = this;
 
-        return spec.flow.eachAsync(spec.parameterList, function (parameter, index) {
+        resultChainable = spec.flow.eachAsync(spec.parameterList, function (parameter, index) {
             var expectedCount,
                 filePath = null,
                 lineNumber = null;
@@ -508,8 +551,29 @@ _.extend(FunctionSpec.prototype, {
             }
 
             // Validate the argument as the parameter requires.
-            return parameter.validateArgument(argumentReferenceList[index], argumentValueList[index]);
+            return parameter.validateArgument(argumentReferenceList[index], argumentValueList[index], index);
         });
+
+        if (spec.variadicParameter) {
+            positionalParameterCount = spec.parameterList.length;
+
+            if (argumentReferenceList.length > positionalParameterCount) {
+                resultChainable = resultChainable.next(function () {
+                    var variadicArgumentReferenceList = argumentReferenceList.slice(positionalParameterCount),
+                        variadicArgumentValueList = argumentValueList.slice(positionalParameterCount);
+
+                    return spec.flow.eachAsync(variadicArgumentReferenceList, function (argumentReference, index) {
+                        return spec.variadicParameter.validateArgument(
+                            argumentReference,
+                            variadicArgumentValueList[index],
+                            positionalParameterCount + index
+                        );
+                    });
+                });
+            }
+        }
+
+        return resultChainable;
     },
 
     /**

@@ -68,7 +68,8 @@ _.extend(ParameterListFactory.prototype, {
                 parameterType,
                 context,
                 namespaceScope,
-                parameterSpecData.ref,
+                Boolean(parameterSpecData.ref),
+                Boolean(parameterSpecData.variadic),
                 parameterSpecData.value || null,
                 filePath,
                 lineNumber

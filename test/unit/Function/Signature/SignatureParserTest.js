@@ -46,6 +46,7 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             expect(parameterSpecData.value).to.be.null;
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single by-reference required mixed parameter', function () {
@@ -60,6 +61,7 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.true; // Parameter argument is passed by-reference.
             expect(parameterSpecData.value).to.be.null;
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single by-reference optional mixed parameter', function () {
@@ -77,6 +79,7 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('int');
             expect(defaultValue.getNative()).to.equal(21);
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single by-value optional default-array parameter', function () {
@@ -94,6 +97,7 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('array');
             expect(defaultValue.getNative()).to.deep.equal([]);
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single by-value optional default-boolean parameter', function () {
@@ -111,6 +115,7 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('boolean');
             expect(defaultValue.getNative()).to.be.false;
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single by-value required callable parameter', function () {
@@ -125,6 +130,7 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             expect(parameterSpecData.value).to.be.null;
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single nullable required callable parameter', function () {
@@ -139,6 +145,7 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             expect(parameterSpecData.value).to.be.null;
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single nullable required callable parameter with erratic whitespace', function () {
@@ -153,6 +160,7 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             expect(parameterSpecData.value).to.be.null;
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single by-value optional default-float parameter', function () {
@@ -170,6 +178,7 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('float');
             expect(defaultValue.getNative()).to.equal(123.456);
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single by-value optional default-integer mixed parameter', function () {
@@ -187,6 +196,7 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('int');
             expect(defaultValue.getNative()).to.equal(5678);
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single by-value optional default-negative-integer mixed parameter', function () {
@@ -204,6 +214,7 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('int');
             expect(defaultValue.getNative()).to.equal(-5678);
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single by-value optional nullable boolean scalar parameter', function () {
@@ -222,6 +233,7 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('boolean');
             expect(defaultValue.getNative()).to.be.true;
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single by-value optional nullable integer scalar parameter', function () {
@@ -240,6 +252,7 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('int');
             expect(defaultValue.getNative()).to.equal(5678);
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single by-value required iterable parameter', function () {
@@ -254,6 +267,7 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             expect(parameterSpecData.value).to.be.null;
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single by-value required null parameter', function () {
@@ -268,6 +282,7 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             expect(parameterSpecData.value).to.be.null;
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single by-value optional default-null parameter', function () {
@@ -284,6 +299,7 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.ref).to.be.false;
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('null');
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single by-value optional default-null object parameter', function () {
@@ -300,6 +316,7 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.ref).to.be.false;
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('null');
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single by-value optional default-string parameter', function () {
@@ -317,6 +334,7 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('string');
             expect(defaultValue.getNative()).to.equal('my default string value');
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single parameter with named constant as default value', function () {
@@ -342,6 +360,7 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             expect(parameterSpecData.value()).to.equal(constantValue);
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single parameter with non-nullable union type', function () {
@@ -365,6 +384,7 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             expect(parameterSpecData.value).to.be.null;
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single parameter with nullable union type', function () {
@@ -388,6 +408,7 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.name).to.equal('myParam');
             expect(parameterSpecData.ref).to.be.false;
             expect(parameterSpecData.value).to.be.null;
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should be able to parse a single optional parameter ("=?")', function () {
@@ -410,6 +431,49 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             // Optional parameters use the special Missing value as their default.
             expect(defaultValue.getUnderlyingType()).to.equal('missing');
+            expect(parameterSpecData.variadic).to.be.false;
+        });
+
+        it('should be able to parse a by-value variadic parameter', function () {
+            var parameterSpecData,
+                signature = parser.parseSignature('int ...$myNumbers : bool');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(1);
+            expect(signature.getReturnTypeSpecData()).to.deep.equal({
+                type: 'scalar',
+                scalarType: 'bool',
+                nullable: false,
+            });
+            parameterSpecData = signature.getParametersSpecData()[0];
+            expect(parameterSpecData.type).to.equal('scalar');
+            expect(parameterSpecData.nullable).to.be.false;
+            expect(parameterSpecData.scalarType).to.equal('int');
+            expect(parameterSpecData.name).to.equal('myNumbers');
+            expect(parameterSpecData.ref).to.be.false;
+            expect(parameterSpecData.value).to.be.null;
+            expect(parameterSpecData.variadic).to.be.true;
+        });
+
+        it('should be able to parse a by-reference variadic parameter', function () {
+            var parameterSpecData,
+                signature = parser.parseSignature('int &...$myNumbers : bool');
+
+            expect(signature).to.be.an.instanceOf(Signature);
+            expect(signature.getParameterCount()).to.equal(1);
+            expect(signature.getReturnTypeSpecData()).to.deep.equal({
+                type: 'scalar',
+                scalarType: 'bool',
+                nullable: false,
+            });
+            parameterSpecData = signature.getParametersSpecData()[0];
+            expect(parameterSpecData.type).to.equal('scalar');
+            expect(parameterSpecData.nullable).to.be.false;
+            expect(parameterSpecData.scalarType).to.equal('int');
+            expect(parameterSpecData.name).to.equal('myNumbers');
+            expect(parameterSpecData.ref).to.be.true;
+            expect(parameterSpecData.value).to.be.null;
+            expect(parameterSpecData.variadic).to.be.true;
         });
 
         it('should be able to parse a non-nullable union return type', function () {
@@ -507,6 +571,7 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('array');
             expect(defaultValue.getNative()).to.deep.equal([]);
+            expect(parameterSpecData.variadic).to.be.false;
 
             parameterSpecData = signature.getParametersSpecData()[1];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
@@ -516,6 +581,7 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('boolean');
             expect(defaultValue.getNative()).to.be.true;
+            expect(parameterSpecData.variadic).to.be.false;
 
             parameterSpecData = signature.getParametersSpecData()[2];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
@@ -525,6 +591,7 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('float');
             expect(defaultValue.getNative()).to.equal(123.45);
+            expect(parameterSpecData.variadic).to.be.false;
 
             parameterSpecData = signature.getParametersSpecData()[3];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
@@ -534,6 +601,7 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('int');
             expect(defaultValue.getNative()).to.equal(1001);
+            expect(parameterSpecData.variadic).to.be.false;
 
             parameterSpecData = signature.getParametersSpecData()[4];
             expect(parameterSpecData.type).to.equal('class');
@@ -542,6 +610,7 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.name).to.equal('requiredObjectParam');
             expect(parameterSpecData.ref).to.be.false;
             expect(parameterSpecData.value).to.be.null;
+            expect(parameterSpecData.variadic).to.be.false;
 
             parameterSpecData = signature.getParametersSpecData()[5];
             expect(parameterSpecData.type).to.equal('class');
@@ -551,6 +620,7 @@ describe('SignatureParser', function () {
             expect(parameterSpecData.ref).to.be.false;
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('null');
+            expect(parameterSpecData.variadic).to.be.false;
 
             parameterSpecData = signature.getParametersSpecData()[6];
             expect(parameterSpecData.type).to.be.undefined; // "mixed" type is represented as undefined.
@@ -560,6 +630,7 @@ describe('SignatureParser', function () {
             defaultValue = parameterSpecData.value();
             expect(defaultValue.getType()).to.equal('string');
             expect(defaultValue.getNative()).to.equal('my default string value \\ with " \n escaped chars');
+            expect(parameterSpecData.variadic).to.be.false;
         });
 
         it('should throw an error when a union parameter type uses "?" nullable syntax', function () {
