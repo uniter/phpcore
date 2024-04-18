@@ -145,6 +145,8 @@ module.exports = function (internals) {
          * Used by "my_function(...)" syntax.
          */
         callFunction: internals.typeHandler(
+            // Note that arguments are snapshotted by FunctionSpec.coerceArguments(...)
+            // later on, as at that point we know whether a parameter is by-reference.
             'string name, slot ...argReferences : slot',
             function (name, argReferences) {
                 var namespaceScope = callStack.getEffectiveNamespaceScope(),

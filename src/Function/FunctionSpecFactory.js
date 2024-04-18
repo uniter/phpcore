@@ -23,6 +23,7 @@ var _ = require('microdash');
  * @param {ParameterListFactory} parameterListFactory
  * @param {ReturnTypeProvider} returnTypeProvider
  * @param {ValueFactory} valueFactory
+ * @param {ReferenceFactory} referenceFactory
  * @param {FutureFactory} futureFactory
  * @param {Flow} flow
  * @constructor
@@ -37,6 +38,7 @@ function FunctionSpecFactory(
     parameterListFactory,
     returnTypeProvider,
     valueFactory,
+    referenceFactory,
     futureFactory,
     flow
 ) {
@@ -72,6 +74,10 @@ function FunctionSpecFactory(
      * @type {ParameterListFactory}
      */
     this.parameterListFactory = parameterListFactory;
+    /**
+     * @type {ReferenceFactory}
+     */
+    this.referenceFactory = referenceFactory;
     /**
      * @type {ReturnTypeProvider}
      */
@@ -115,6 +121,7 @@ _.extend(FunctionSpecFactory.prototype, {
             factory.callStack,
             factory.translator,
             factory.valueFactory,
+            factory.referenceFactory,
             factory.futureFactory,
             factory.flow,
             context,
@@ -177,6 +184,7 @@ _.extend(FunctionSpecFactory.prototype, {
             factory.callStack,
             factory.translator,
             factory.valueFactory,
+            factory.referenceFactory,
             factory.futureFactory,
             factory.flow,
             context,
@@ -227,6 +235,7 @@ _.extend(FunctionSpecFactory.prototype, {
             factory.callStack,
             factory.translator,
             factory.valueFactory,
+            factory.referenceFactory,
             factory.futureFactory,
             factory.flow,
             context,
@@ -279,6 +288,7 @@ _.extend(FunctionSpecFactory.prototype, {
             factory.callStack,
             factory.translator,
             factory.valueFactory,
+            factory.referenceFactory,
             factory.futureFactory,
             factory.flow,
             context,

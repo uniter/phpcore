@@ -21,6 +21,7 @@ var expect = require('chai').expect,
     ObjectValue = require('../../../src/Value/Object').sync(),
     Parameter = require('../../../src/Function/Parameter'),
     ParameterListFactory = require('../../../src/Function/ParameterListFactory'),
+    ReferenceFactory = require('../../../src/ReferenceFactory').sync(),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
     ReturnTypeProvider = require('../../../src/Function/ReturnTypeProvider'),
     Translator = phpCommon.Translator,
@@ -35,6 +36,7 @@ describe('FunctionSpecFactory', function () {
         futureFactory,
         namespaceScope,
         parameterListFactory,
+        referenceFactory,
         returnTypeProvider,
         translator,
         typeFactory,
@@ -50,6 +52,7 @@ describe('FunctionSpecFactory', function () {
         futureFactory = sinon.createStubInstance(FutureFactory);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         parameterListFactory = sinon.createStubInstance(ParameterListFactory);
+        referenceFactory = sinon.createStubInstance(ReferenceFactory);
         returnTypeProvider = sinon.createStubInstance(ReturnTypeProvider);
         translator = sinon.createStubInstance(Translator);
         typeFactory = sinon.createStubInstance(TypeFactory);
@@ -69,6 +72,7 @@ describe('FunctionSpecFactory', function () {
             parameterListFactory,
             returnTypeProvider,
             valueFactory,
+            referenceFactory,
             futureFactory,
             flow
         );
@@ -96,6 +100,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(translator),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
                     sinon.match.same(functionContext),
@@ -186,6 +191,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(translator),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
                     sinon.match.same(closureContext),
@@ -228,6 +234,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(translator),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
                     sinon.match.same(closureContext),
@@ -269,6 +276,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(translator),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
                     sinon.match.same(closureContext),
@@ -346,6 +354,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(translator),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
                     sinon.match.same(functionContext),
@@ -424,6 +433,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(translator),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
                     sinon.match.same(methodContext),

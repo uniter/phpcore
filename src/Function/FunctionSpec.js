@@ -19,6 +19,8 @@ var _ = require('microdash'),
     TOO_FEW_ARGS_BUILTIN = 'core.too_few_args_builtin',
     TOO_FEW_ARGS_BUILTIN_SINGLE = 'core.too_few_args_builtin_single',
     PHPError = phpCommon.PHPError,
+    Reference = require('../Reference/Reference'),
+    ReferenceSnapshot = require('../Reference/ReferenceSnapshot'),
     UNKNOWN = 'core.unknown',
     Value = require('../Value').sync();
 
@@ -28,6 +30,7 @@ var _ = require('microdash'),
  * @param {CallStack} callStack
  * @param {Translator} translator
  * @param {ValueFactory} valueFactory
+ * @param {ReferenceFactory} referenceFactory
  * @param {FutureFactory} futureFactory
  * @param {Flow} flow
  * @param {FunctionContextInterface} context
@@ -43,6 +46,7 @@ function FunctionSpec(
     callStack,
     translator,
     valueFactory,
+    referenceFactory,
     futureFactory,
     flow,
     context,
@@ -101,6 +105,10 @@ function FunctionSpec(
      */
     this.parameterList = parameterList;
     /**
+     * @type {ReferenceFactory}
+     */
+    this.referenceFactory = referenceFactory;
+    /**
      * @type {boolean}
      */
     this.returnByReference = returnByReference;
@@ -152,13 +160,25 @@ _.extend(FunctionSpec.prototype, {
              *
              * Note that it will be resolved to a value at this point if not already.
              * For by-reference parameters in weak-type checking mode, the coerced value will be written back
-             * to the reference, ie. <reference>.setValue(<coerced value>).
+             * to the reference, i.e. <reference>.setValue(<coerced value>).
              */
             return parameter.coerceArgument(argumentReference)
                 .next(function (coercedArgument) {
                     coercedArguments[index] = coercedArgument;
 
-                    if (!parameter.isPassedByReference()) {
+                    if (parameter.isPassedByReference()) {
+                        if (
+                            argumentReference instanceof Reference &&
+                            !(argumentReference instanceof ReferenceSnapshot)
+                        ) {
+                            // Argument is a non-snapshot reference: wrap it in a snapshot
+                            // to allow consistent synchronous access to the snapshotted value.
+                            argumentReferenceList[index] = spec.referenceFactory.createSnapshot(
+                                argumentReference,
+                                coercedArgument
+                            );
+                        }
+                    } else {
                         // Arguments for this parameter are passed by value, so also
                         // overwrite with the coerced argument in the reference list passed to the function.
                         argumentReferenceList[index] = coercedArgument;

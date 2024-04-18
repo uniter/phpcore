@@ -26,7 +26,9 @@ var expect = require('chai').expect,
     Parameter = require('../../../src/Function/Parameter'),
     PHPError = phpCommon.PHPError,
     Reference = require('../../../src/Reference/Reference'),
+    ReferenceFactory = require('../../../src/ReferenceFactory').sync(),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
+    ReferenceSnapshot = require('../../../src/Reference/ReferenceSnapshot'),
     Scope = require('../../../src/Scope').sync(),
     TypeInterface = require('../../../src/Type/TypeInterface'),
     Translator = phpCommon.Translator,
@@ -43,6 +45,7 @@ describe('FunctionSpec', function () {
         parameter1,
         parameter2,
         parameterList,
+        referenceFactory,
         returnType,
         spec,
         state,
@@ -64,6 +67,7 @@ describe('FunctionSpec', function () {
         parameter1 = sinon.createStubInstance(Parameter);
         parameter2 = sinon.createStubInstance(Parameter);
         parameterList = [parameter1, parameter2];
+        referenceFactory = sinon.createStubInstance(ReferenceFactory);
         returnType = sinon.createStubInstance(TypeInterface);
         valueFactory = state.getValueFactory();
 
@@ -102,6 +106,7 @@ describe('FunctionSpec', function () {
                 callStack,
                 translator,
                 valueFactory,
+                referenceFactory,
                 futureFactory,
                 flow,
                 context,
@@ -118,18 +123,37 @@ describe('FunctionSpec', function () {
 
     describe('coerceArguments()', function () {
         var argument1,
-            argument2;
+            argument2,
+            coercedArgument1,
+            coercedArgument2,
+            snapshot1,
+            snapshot2;
 
         beforeEach(function () {
-            argument1 = valueFactory.createString('first uncoerced');
-            argument2 = valueFactory.createString('second uncoerced');
+            argument1 = sinon.createStubInstance(Reference);
+            argument2 = sinon.createStubInstance(Reference);
+            snapshot1 = sinon.createStubInstance(ReferenceSnapshot);
+            snapshot2 = sinon.createStubInstance(ReferenceSnapshot);
+
+            argument1.getValue.returns(valueFactory.createString('first uncoerced'));
+            argument2.getValue.returns(valueFactory.createString('second uncoerced'));
+
+            coercedArgument1 = valueFactory.createString('first coerced');
+            coercedArgument2 = valueFactory.createString('second coerced');
 
             parameter1.coerceArgument
                 .withArgs(sinon.match.same(argument1))
-                .returns(valueFactory.createString('first coerced'));
+                .returns(coercedArgument1);
             parameter2.coerceArgument
                 .withArgs(sinon.match.same(argument2))
-                .returns(valueFactory.createString('second coerced'));
+                .returns(coercedArgument2);
+
+            referenceFactory.createSnapshot
+                .withArgs(argument1, coercedArgument1)
+                .returns(snapshot1);
+            referenceFactory.createSnapshot
+                .withArgs(argument2, coercedArgument2)
+                .returns(snapshot2);
         });
 
         it('should return a new array of the coerced arguments', async function () {
@@ -176,8 +200,23 @@ describe('FunctionSpec', function () {
             expect(result[0].getNative()).to.equal('first coerced');
             expect(result[1].getNative()).to.equal('second coerced');
             expect(argumentReferences).to.have.length(2);
-            // Not overwritten, as we need to preserve the reference to pass through.
-            expect(argumentReferences[0].getNative()).to.equal('first uncoerced');
+            // Snapshotted, as we need to preserve both the reference and its snapshotted value to pass through.
+            expect(argumentReferences[0]).to.equal(snapshot1);
+            expect(argumentReferences[1].getNative()).to.equal('second coerced');
+        });
+
+        it('should overwrite by-value arguments in the reference list with their resolved values', async function () {
+            var argumentReferences,
+                result;
+            argumentReferences = [argument1, argument2];
+
+            result = await spec.coerceArguments(argumentReferences).toPromise();
+
+            expect(result).to.have.length(2);
+            expect(result[0].getNative()).to.equal('first coerced');
+            expect(result[1].getNative()).to.equal('second coerced');
+            expect(argumentReferences).to.have.length(2);
+            expect(argumentReferences[0].getNative()).to.equal('first coerced');
             expect(argumentReferences[1].getNative()).to.equal('second coerced');
         });
     });

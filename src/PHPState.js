@@ -546,6 +546,7 @@ module.exports = require('pauser')([
                 parameterListFactory,
                 get('return_type_provider'),
                 valueFactory,
+                referenceFactory,
                 futureFactory,
                 flow
             )),
