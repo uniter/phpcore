@@ -309,7 +309,7 @@ module.exports = require('pauser')([
 
             if (_.isArray(builtinTypes.classes)) {
                 // Allow the class set to be an array, for grouping classes
-                // so that they will load in a specific order (ie. when handling dependencies between them)
+                // so that they will load in a specific order (i.e. when handling dependencies between them)
                 _.each(builtinTypes.classes, function (classes) {
                     _.forOwn(classes, installClass);
                 });
@@ -907,7 +907,7 @@ module.exports = require('pauser')([
 
         /**
          * Defines a global function from a native JS one. If a fully-qualified name is provided
-         * with a namespace prefix, eg. `My\Lib\MyFunc` then it will be defined in the specified namespace
+         * with a namespace prefix, e.g. `My\Lib\MyFunc` then it will be defined in the specified namespace
          *
          * @param {string} name
          * @param {Function} fn
@@ -942,7 +942,7 @@ module.exports = require('pauser')([
 
         /**
          * Defines a global function from a native JS one. If a fully-qualified name is provided
-         * with a namespace prefix, eg. `My\Lib\MyFunc` then it will be defined in the specified namespace
+         * with a namespace prefix, e.g. `My\Lib\MyFunc` then it will be defined in the specified namespace
          *
          * @param {string} fqfn
          * @param {Function} definitionFactory
@@ -1029,7 +1029,7 @@ module.exports = require('pauser')([
 
         /**
          * Defines a global function from a native JS one. If a fully-qualified name is provided
-         * with a namespace prefix, eg. `My\Lib\MyFunc` then it will be defined in the specified namespace
+         * with a namespace prefix, e.g. `My\Lib\MyFunc` then it will be defined in the specified namespace
          *
          * @param {string} name
          * @param {Function} fn
@@ -1062,7 +1062,7 @@ module.exports = require('pauser')([
 
             if (isOverrideAllowed) {
                 // Opcode overriding is allowed, so provide the opcode group with the previous handlers
-                // for all of the opcode handlers they define, so that the previous versions may be called
+                // for all the opcode handlers they define, so that the previous versions may be called
                 internals.setPreviousOpcodes(state.coreBinder.getOpcodeHandlers(Object.keys(groupBuiltins)));
             }
 
@@ -1084,7 +1084,7 @@ module.exports = require('pauser')([
 
             if (isOverrideAllowed) {
                 // Service overriding is allowed, so provide the service group with the previous providers
-                // for all of the service providers they define, so that the previous versions may be called.
+                // for all the service providers they define, so that the previous versions may be called.
                 internals.setPreviousServiceProviders(state.container.getServiceProviders(Object.keys(groupBuiltins)));
             }
 
