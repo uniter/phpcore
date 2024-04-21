@@ -398,6 +398,22 @@ module.exports = require('pauser')([
             return container;
         }
 
+        /**
+         * Loads the OptionSet from the provided options.
+         *
+         * @returns {OptionSet}
+         */
+        function loadOptionSet() {
+            var optionSet;
+
+            // Make a copy of the options object so that we don't mutate it.
+            options = _.extend({}, options || {});
+
+            optionSet = new OptionSet(options);
+
+            return optionSet;
+        }
+
         var container = loadServiceContainer(this),
             get = container.getServiceFetcher(),
             /**
@@ -421,6 +437,7 @@ module.exports = require('pauser')([
             },
             state = this,
             environment = set('environment', environmentFactory.createEnvironment(state)),
+            optionSet = set('option_set', loadOptionSet()),
             callFactory = get('call_factory'),
             translator = get('translator'),
             iniState = new INIState(),
@@ -582,7 +599,6 @@ module.exports = require('pauser')([
             includer,
             onceIncluder,
             evaluator,
-            optionSet,
             output = get('output'),
             hostScheduler = get('host_scheduler'),
             opcodeHandlerFactory = get('opcode_handler_factory'),
@@ -604,11 +620,6 @@ module.exports = require('pauser')([
         valueFactory.setGlobalNamespace(globalNamespace);
         valueFactory.setNumericStringParser(get('numeric_string_parser'));
         valueFactory.setReferenceFactory(referenceFactory);
-
-        // Make a copy of the options object so we don't mutate it.
-        options = _.extend({}, options || {});
-
-        optionSet = set('option_set', new OptionSet(options));
 
         includer = new Includer(
             callStack,

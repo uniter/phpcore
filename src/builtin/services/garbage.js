@@ -13,6 +13,7 @@ var CacheInvalidator = require('../../Garbage/CacheInvalidator'),
     DestructibleObjectRepository = require('../../Garbage/DestructibleObjectRepository'),
     GarbageCollector = require('../../Garbage/GarbageCollector'),
     GarbageFactory = require('../../Garbage/GarbageFactory'),
+    NullCacheInvalidator = require('../../Garbage/NullCacheInvalidator'),
     ObjectDestructor = require('../../Garbage/ObjectDestructor'),
     ReferenceCache = require('../../Garbage/ReferenceCache'),
     ReferenceTreeWalker = require('../../Garbage/ReferenceTreeWalker'),
@@ -38,7 +39,12 @@ module.exports = function (internals) {
 
     return {
         'garbage.cache_invalidator': function () {
-            return new CacheInvalidator(get(REFERENCE_CACHE));
+            var optionSet = get('option_set'),
+                garbageCollectionEnabled = optionSet.getOption('garbageCollection') === true;
+
+            return garbageCollectionEnabled ?
+                new CacheInvalidator(get(REFERENCE_CACHE)) :
+                new NullCacheInvalidator();
         },
 
         'garbage.destructible_object_repository': function () {
