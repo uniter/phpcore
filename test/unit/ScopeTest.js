@@ -182,20 +182,10 @@ describe('Scope', function () {
             );
         });
 
-        it('should pass the unwrapped function to the ClosureFactory', function () {
-            scope.createClosure(namespaceScope, func);
-
-            expect(closureFactory.create).to.have.been.calledWith(
-                sinon.match.any,
-                sinon.match.same(func)
-            );
-        });
-
         it('should pass the NamespaceScope to the ClosureFactory', function () {
             scope.createClosure(namespaceScope, func);
 
             expect(closureFactory.create).to.have.been.calledWith(
-                sinon.match.any,
                 sinon.match.any,
                 sinon.match.same(namespaceScope)
             );
@@ -205,7 +195,6 @@ describe('Scope', function () {
             scope.createClosure(namespaceScope, func);
 
             expect(closureFactory.create).to.have.been.calledWith(
-                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.same(currentClass)
@@ -219,7 +208,6 @@ describe('Scope', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.any,
                 sinon.match.same(thisObject)
             );
         });
@@ -228,7 +216,6 @@ describe('Scope', function () {
             scope.createClosure(namespaceScope, func, [], {}, {}, {}, true);
 
             expect(closureFactory.create).to.have.been.calledWith(
-                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -246,6 +233,7 @@ describe('Scope', function () {
                     sinon.match.same(currentClass),
                     sinon.match.same(thisObject),
                     [],
+                    sinon.match.same(func),
                     {type: 'iterable'}, // Return type.
                     false, // TODO: Implement userland return-by-reference.
                     {'myRefBinding': sinon.match.same(referenceBinding)},
@@ -268,7 +256,6 @@ describe('Scope', function () {
             );
 
             expect(closureFactory.create).to.have.been.calledWith(
-                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,

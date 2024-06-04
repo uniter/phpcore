@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('./tools'),
+    Call = require('../../src/Call'),
     ControlBridge = require('../../src/Control/ControlBridge'),
     ControlFactory = require('../../src/Control/ControlFactory'),
     ControlScope = require('../../src/Control/ControlScope'),
@@ -879,6 +880,68 @@ describe('PHPState', function () {
             expect(parameters[0].getType().getDisplayName()).to.equal('iterable');
             expect(parameters[0].isPassedByReference()).to.be.true;
             expect(parameters[0].isRequired()).to.be.true;
+        });
+    });
+
+    describe('defineOverloadedFunction()', function () {
+        beforeEach(function () {
+            var call = sinon.createStubInstance(Call);
+
+            state.getCallStack().push(call);
+        });
+
+        it('should be able to define a coercing function', async function () {
+            var func,
+                resultValue1,
+                resultValue2;
+
+            state.defineOverloadedFunction('My\\Stuff\\my_overloaded_func', function (internals) {
+                internals.defineVariant(': string', function () {
+                    return 'No arguments for me';
+                });
+                internals.defineVariant('int $number : string', function (number) {
+                    return 'My number was: ' + number;
+                });
+                internals.defineVariant('string $first, string $second : string', function (firstString, secondString) {
+                    return 'I said ' + firstString + ', ' + secondString + '!';
+                });
+            });
+            func = state.getFunction('My\\Stuff\\my_overloaded_func');
+            resultValue1 = await func(valueFactory.createInteger(4)).toPromise();
+            resultValue2 = await func(valueFactory.createString('this'), valueFactory.createString('that')).toPromise();
+
+            expect(resultValue1.getType()).to.equal('string');
+            expect(resultValue1.getNative()).to.equal('My number was: 4');
+            expect(resultValue2.getType()).to.equal('string');
+            expect(resultValue2.getNative()).to.equal('I said this, that!');
+        });
+
+        it('should be able to define a non-coercing function', async function () {
+            var func,
+                resultValue1,
+                resultValue2;
+
+            state.defineOverloadedFunction('My\\Stuff\\my_overloaded_func', function (internals) {
+                internals.disableAutoCoercion();
+
+                internals.defineVariant(': string', function () {
+                    return 'No arguments for me';
+                });
+                internals.defineVariant('int $number : string', function (numberValue) {
+                    return 'My number was: ' + numberValue.getNative();
+                });
+                internals.defineVariant('string $first, string $second : string', function (firstValue, secondValue) {
+                    return 'I said ' + firstValue.getNative() + ', ' + secondValue.getNative() + '!';
+                });
+            });
+            func = state.getFunction('My\\Stuff\\my_overloaded_func');
+            resultValue1 = await func(valueFactory.createInteger(4)).toPromise();
+            resultValue2 = await func(valueFactory.createString('this'), valueFactory.createString('that')).toPromise();
+
+            expect(resultValue1.getType()).to.equal('string');
+            expect(resultValue1.getNative()).to.equal('My number was: 4');
+            expect(resultValue2.getType()).to.equal('string');
+            expect(resultValue2.getNative()).to.equal('I said this, that!');
         });
     });
 

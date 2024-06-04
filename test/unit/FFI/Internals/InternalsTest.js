@@ -35,6 +35,7 @@ var expect = require('chai').expect,
     OnceIncluder = require('../../../../src/Load/OnceIncluder').sync(),
     OptionSet = require('../../../../src/OptionSet'),
     Output = require('../../../../src/Output/Output'),
+    OverloadedTypedFunction = require('../../../../src/Function/Overloaded/OverloadedTypedFunction'),
     PHPState = require('../../../../src/PHPState').sync(),
     Reference = require('../../../../src/Reference/Reference'),
     ReferenceFactory = require('../../../../src/ReferenceFactory').sync(),
@@ -646,6 +647,21 @@ describe('FFI Internals', function () {
             expect(typedFunction).to.be.an.instanceOf(TypedFunction);
             expect(typedFunction.getSignature()).to.equal('iterable $myIterable = null');
             expect(typedFunction.getFunction()).to.equal(innerFunction);
+        });
+    });
+
+    describe('typeOverloadedFunction()', function () {
+        it('should return an OverloadedTypedFunction with the given variant TypedFunctions', function () {
+            var typedFunction1 = sinon.createStubInstance(TypedFunction),
+                typedFunction2 = sinon.createStubInstance(TypedFunction),
+                overloadedTypedFunction = internals.typeOverloadedFunction([typedFunction1, typedFunction2]),
+                typedFunctions;
+
+            expect(overloadedTypedFunction).to.be.an.instanceOf(OverloadedTypedFunction);
+            typedFunctions = overloadedTypedFunction.getTypedFunctions();
+            expect(typedFunctions).to.have.length(2);
+            expect(typedFunctions[0]).to.equal(typedFunction1);
+            expect(typedFunctions[1]).to.equal(typedFunction2);
         });
     });
 });

@@ -22,6 +22,7 @@ var expect = require('chai').expect,
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     FunctionSpec = require('../../src/Function/FunctionSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
+    OverloadedFunctionSpec = require('../../src/Function/Overloaded/OverloadedFunctionSpec'),
     Reference = require('../../src/Reference/Reference'),
     Scope = require('../../src/Scope').sync(),
     ScopeFactory = require('../../src/ScopeFactory'),
@@ -88,12 +89,14 @@ describe('FunctionFactory', function () {
 
     describe('create()', function () {
         var callCreate,
-            functionSpec;
+            overloadedFunctionSpec,
+            variantFunctionSpec;
 
         beforeEach(function () {
-            functionSpec = sinon.createStubInstance(FunctionSpec);
+            overloadedFunctionSpec = sinon.createStubInstance(OverloadedFunctionSpec);
+            variantFunctionSpec = sinon.createStubInstance(FunctionSpec);
 
-            functionSpec.coerceArguments
+            variantFunctionSpec.coerceArguments
                 .callsFake(function (argumentReferences) {
                     return futureFactory.createAsyncPresent(
                         argumentReferences.map(function (argumentReference) {
@@ -101,19 +104,21 @@ describe('FunctionFactory', function () {
                         })
                     );
                 });
-            functionSpec.coerceReturnReference.callsFake(function (returnReference) {
+            variantFunctionSpec.coerceReturnReference.callsFake(function (returnReference) {
                 return futureFactory.createPresent(returnReference);
             });
-            functionSpec.populateDefaultArguments.returnsArg(0);
-            functionSpec.getFunctionName.returns(name);
-            functionSpec.isReturnByReference.returns(false);
-            functionSpec.isUserland.returns(false);
+            variantFunctionSpec.populateDefaultArguments.returnsArg(0);
+            variantFunctionSpec.getFunction.returns(originalFunc);
+            variantFunctionSpec.getFunctionName.returns(name);
+            variantFunctionSpec.isReturnByReference.returns(false);
+            variantFunctionSpec.isUserland.returns(false);
+            overloadedFunctionSpec.resolveFunctionSpec.returns(variantFunctionSpec);
 
-            functionSpec.validateArguments
+            variantFunctionSpec.validateArguments
                 .callsFake(function () {
                     return futureFactory.createPresent();
                 });
-            functionSpec.validateReturnReference
+            variantFunctionSpec.validateReturnReference
                 .callsFake(function (returnReference, returnValue) {
                     return futureFactory.createPresent(returnValue);
                 });
@@ -122,11 +127,9 @@ describe('FunctionFactory', function () {
                 return factory.create(
                     namespaceScope,
                     currentClass,
-                    originalFunc,
-                    name,
                     currentObject || null,
                     staticClass || null,
-                    functionSpec
+                    overloadedFunctionSpec
                 );
             };
         });
@@ -168,7 +171,7 @@ describe('FunctionFactory', function () {
                 beforeEach(function () {
                     resultVariable = sinon.createStubInstance(Variable);
                     resultVariable.next.callsArgWith(0, resultVariable);
-                    functionSpec.isReturnByReference.returns(true);
+                    variantFunctionSpec.isReturnByReference.returns(true);
                     originalFunc.returns(resultVariable);
                 });
 
@@ -179,8 +182,8 @@ describe('FunctionFactory', function () {
                 it('should validate the eventual result Variable/reference via .validateReturnReference()', async function () {
                     await callCreate()().toPromise();
 
-                    expect(functionSpec.validateReturnReference).to.have.been.calledOnce;
-                    expect(functionSpec.validateReturnReference).to.have.been.calledWith(
+                    expect(variantFunctionSpec.validateReturnReference).to.have.been.calledOnce;
+                    expect(variantFunctionSpec.validateReturnReference).to.have.been.calledWith(
                         sinon.match.same(resultVariable)
                     );
                 });
@@ -188,8 +191,8 @@ describe('FunctionFactory', function () {
                 it('should validate the eventual result Value via .validateReturnReference()', async function () {
                     await callCreate()().toPromise();
 
-                    expect(functionSpec.validateReturnReference).to.have.been.calledOnce;
-                    expect(functionSpec.validateReturnReference).to.have.been.calledWith(
+                    expect(variantFunctionSpec.validateReturnReference).to.have.been.calledOnce;
+                    expect(variantFunctionSpec.validateReturnReference).to.have.been.calledWith(
                         sinon.match.any,
                         sinon.match.same(resultVariable)
                     );
@@ -256,6 +259,10 @@ describe('FunctionFactory', function () {
             it('should pass the arguments to the CallFactory', async function () {
                 var callArgs,
                     currentObject = sinon.createStubInstance(Value);
+                overloadedFunctionSpec.resolveFunctionSpec.resetBehavior();
+                overloadedFunctionSpec.resolveFunctionSpec
+                    .withArgs(2)
+                    .returns(variantFunctionSpec);
 
                 await callCreate(currentObject)(21, 27).toPromise();
 
@@ -364,18 +371,18 @@ describe('FunctionFactory', function () {
 
                 await wrappedFunc(argValue1, argValue2).toPromise();
 
-                expect(functionSpec.validateArguments).to.have.been.calledOnce;
-                expect(functionSpec.validateArguments).to.have.been.calledWith([
+                expect(variantFunctionSpec.validateArguments).to.have.been.calledOnce;
+                expect(variantFunctionSpec.validateArguments).to.have.been.calledWith([
                     sinon.match.same(argValue1),
                     sinon.match.same(argValue2)
                 ]);
-                expect(functionSpec.validateArguments)
-                    .to.have.been.calledAfter(functionSpec.coerceArguments);
+                expect(variantFunctionSpec.validateArguments)
+                    .to.have.been.calledAfter(variantFunctionSpec.coerceArguments);
             });
 
             it('should pop the call off the stack even when the argument validation throws', function () {
                 var error = new Error('argh');
-                functionSpec.validateArguments.returns(futureFactory.createRejection(error));
+                variantFunctionSpec.validateArguments.returns(futureFactory.createRejection(error));
 
                 return expect(callCreate()().toPromise())
                     .to.eventually.be.rejectedWith(error)
@@ -391,14 +398,14 @@ describe('FunctionFactory', function () {
 
                 await wrappedFunc(argValue1, argValue2).toPromise();
 
-                expect(functionSpec.populateDefaultArguments).to.have.been.calledOnce;
-                expect(functionSpec.populateDefaultArguments).to.have.been.calledWith([
+                expect(variantFunctionSpec.populateDefaultArguments).to.have.been.calledOnce;
+                expect(variantFunctionSpec.populateDefaultArguments).to.have.been.calledWith([
                     sinon.match.same(argValue1),
                     sinon.match.same(argValue2)
                 ]);
-                expect(functionSpec.populateDefaultArguments)
-                    .to.have.been.calledAfter(functionSpec.validateArguments);
-                expect(functionSpec.populateDefaultArguments)
+                expect(variantFunctionSpec.populateDefaultArguments)
+                    .to.have.been.calledAfter(variantFunctionSpec.validateArguments);
+                expect(variantFunctionSpec.populateDefaultArguments)
                     .to.have.been.calledBefore(callStack.pop);
             });
 
@@ -443,7 +450,7 @@ describe('FunctionFactory', function () {
             it('should load arguments via the FunctionSpec for a userland PHP function', async function () {
                 var argValue1 = valueFactory.createString('my first arg'),
                     argReference2 = sinon.createStubInstance(Reference);
-                functionSpec.isUserland.returns(true);
+                variantFunctionSpec.isUserland.returns(true);
                 argReference2.getValue.returns(valueFactory.createString('my second arg'));
 
                 await callCreate()(argValue1, argReference2).toPromise();
@@ -451,23 +458,19 @@ describe('FunctionFactory', function () {
                 expect(originalFunc).to.have.been.calledOnce;
                 expect(originalFunc.args[0]).to.deep.equal([]);
                 expect(originalFunc).to.have.been.calledOn(undefined);
-                expect(functionSpec.loadArguments).to.have.been.calledOnce;
-                expect(functionSpec.loadArguments).to.have.been.calledWith(
+                expect(variantFunctionSpec.loadArguments).to.have.been.calledOnce;
+                expect(variantFunctionSpec.loadArguments).to.have.been.calledWith(
                     [sinon.match.same(argValue1), sinon.match.same(argReference2)],
                     sinon.match.same(scope)
                 );
             });
 
             it('should have the FunctionSpec stored against it', function () {
-                expect(callCreate().functionSpec).to.equal(functionSpec);
+                expect(callCreate().functionSpec).to.equal(overloadedFunctionSpec);
             });
 
             it('should have the isPHPCoreWrapped flag set against it', function () {
                 expect(callCreate().isPHPCoreWrapped).to.be.true;
-            });
-
-            it('should have the original function stored against it', function () {
-                expect(callCreate().originalFunc).to.equal(originalFunc);
             });
         });
     });

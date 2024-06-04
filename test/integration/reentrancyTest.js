@@ -20,12 +20,12 @@ describe('PHP reentrancy integration', function () {
 
 do_pause_if_needed();
 
-function getTrace() {
+$getTrace = function () {
     return (new Exception)->getTraceAsString();
-}
+};
 
 return [
-    'trace' => getTrace()
+    'trace' => $getTrace()
 ];
 EOS
 */;}),//jshint ignore:line
@@ -48,7 +48,7 @@ EOS
 
         expect((await engine.execute()).getNative()).to.deep.equal({
             'trace': nowdoc(function () {/*<<<EOS
-#0 /path/to/my_module.php(10): getTrace()
+#0 /path/to/my_module.php(10): {closure}()
 #1 {main}
 EOS
 */;}), //jshint ignore:line

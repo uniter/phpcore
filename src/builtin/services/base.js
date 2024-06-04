@@ -40,6 +40,7 @@ var phpCommon = require('phpcommon'),
     FFICall = require('../../FFI/Call'),
     FFIExportFactory = require('../../FFI/Export/ExportFactory'),
     FFIExportRepository = require('../../FFI/Export/ExportRepository'),
+    FFIOverloadedFunctionInternalsClassFactory = require('../../FFI/Internals/OverloadedFunctionInternalsClassFactory'),
     FunctionFactory = require('../../FunctionFactory').sync(),
     Future = require('../../Control/Future'),
     FutureFactory = require('../../Control/FutureFactory'),
@@ -72,6 +73,7 @@ var phpCommon = require('phpcommon'),
     Output = require('../../Output/Output'),
     OutputBuffer = require('../../Output/OutputBuffer'),
     OutputFactory = require('../../Output/OutputFactory'),
+    OverloadedFunctionDefiner = require('../../Function/Overloaded/OverloadedFunctionDefiner'),
     Present = require('../../Control/Present'),
     Reference = require('../../Reference/Reference'),
     ReturnTypeProvider = require('../../Function/ReturnTypeProvider'),
@@ -110,6 +112,7 @@ var phpCommon = require('phpcommon'),
     FFI_EXPORT_FACTORY = 'ffi_export_factory',
     FFI_EXPORT_REPOSITORY = 'ffi_export_repository',
     FFI_FACTORY = 'ffi_factory',
+    FFI_INTERNALS = 'ffi_internals',
     FFI_PROXY_FACTORY = 'ffi_proxy_factory',
     FFI_UNWRAPPER_REPOSITORY = 'ffi_unwrapper_repository',
     FFI_VALUE_STORAGE = 'ffi_value_storage',
@@ -119,6 +122,8 @@ var phpCommon = require('phpcommon'),
     FUNCTION_SPEC_FACTORY = 'function_spec_factory',
     FUTURE_FACTORY = 'future_factory',
     GARBAGE_CACHE_INVALIDATOR = 'garbage.cache_invalidator',
+    GLOBAL_NAMESPACE = 'global_namespace',
+    GLOBAL_NAMESPACE_SCOPE = 'global_namespace_scope',
     GLOBAL_SCOPE = 'global_scope',
     INSTRUMENTATION_FACTORY = 'instrumentation_factory',
     METHOD_PROMOTER = 'method_promoter',
@@ -135,6 +140,7 @@ var phpCommon = require('phpcommon'),
     OPCODE_TYPE_FACTORY = 'opcode_type_factory',
     OPCODE_TYPE_PROVIDER = 'opcode_type_provider',
     OUTPUT_FACTORY = 'output_factory',
+    OVERLOADED_FUNCTION_DEFINER = 'overloaded_function_definer',
     PAUSE_FACTORY = 'pause_factory',
     REFERENCE_FACTORY = 'reference_factory',
     SCOPE_FACTORY = 'scope_factory',
@@ -268,6 +274,17 @@ module.exports = function (internals) {
             return new FFIExportRepository(get(FFI_EXPORT_FACTORY), get(FFI_VALUE_STORAGE));
         },
 
+        'ffi_overloaded_function_internals_class_factory': function () {
+            return new FFIOverloadedFunctionInternalsClassFactory(
+                get(FFI_INTERNALS),
+                get(VALUE_FACTORY),
+                get(FFI_FACTORY),
+                get(GLOBAL_NAMESPACE),
+                get(GLOBAL_NAMESPACE_SCOPE),
+                get(FUNCTION_SIGNATURE_PARSER)
+            );
+        },
+
         'function_factory': function () {
             return new FunctionFactory(
                 MethodSpec,
@@ -334,6 +351,7 @@ module.exports = function (internals) {
                 get(FLOW),
                 get(FUNCTION_FACTORY),
                 get(FUNCTION_SPEC_FACTORY),
+                get(OVERLOADED_FUNCTION_DEFINER),
                 get(VALUE_FACTORY),
                 get(CLASS_AUTOLOADER),
                 get(CLASS_DEFINER)
@@ -426,6 +444,13 @@ module.exports = function (internals) {
 
         'output_factory': function () {
             return new OutputFactory(OutputBuffer);
+        },
+
+        'overloaded_function_definer': function () {
+            return new OverloadedFunctionDefiner(
+                get(FUNCTION_SPEC_FACTORY),
+                get(FUNCTION_FACTORY)
+            );
         },
 
         'return_type_provider': function () {

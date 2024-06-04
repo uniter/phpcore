@@ -56,6 +56,7 @@ module.exports = require('pauser')([
     require('./Function/FunctionSpecFactory'),
     require('./Load/Includer'),
     require('./INIState'),
+    require('./Function/Overloaded/InvalidOverloadedFunctionSpec'),
     require('./Load/Loader'),
     require('./Load/LoadScope'),
     require('./Function/MethodContext'),
@@ -67,6 +68,8 @@ module.exports = require('pauser')([
     require('./Load/OnceIncluder'),
     require('./Core/Internals/OpcodeInternalsClassFactory'),
     require('./OptionSet'),
+    require('./Function/Overloaded/OverloadedFunctionSpec'),
+    require('./Function/Overloaded/OverloadedTypedFunction'),
     require('./Function/Parameter'),
     require('./Function/ParameterFactory'),
     require('./Function/ParameterListFactory'),
@@ -134,6 +137,7 @@ module.exports = require('pauser')([
     FunctionSpecFactory,
     Includer,
     INIState,
+    InvalidOverloadedFunctionSpec,
     Loader,
     LoadScope,
     MethodContext,
@@ -145,6 +149,8 @@ module.exports = require('pauser')([
     OnceIncluder,
     OpcodeInternalsClassFactory,
     OptionSet,
+    OverloadedFunctionSpec,
+    OverloadedTypedFunction,
     Parameter,
     ParameterFactory,
     ParameterListFactory,
@@ -167,6 +173,7 @@ module.exports = require('pauser')([
     ValueFactory
 ) {
     var THROWABLE_INTERFACE = 'Throwable',
+        Exception = phpCommon.Exception,
         hasOwn = {}.hasOwnProperty,
         setUpState = function (state, installedBuiltinTypes, optionGroups) {
             var globalNamespace = state.globalNamespace;
@@ -201,11 +208,22 @@ module.exports = require('pauser')([
                     } else if (fn instanceof TypedFunction) {
                         // Function was defined with a signature in order to specify parameters.
                         state.defineNonCoercingFunction(name, fn.getFunction(), fn.getSignature());
-                    } else {
+                    } else if (fn instanceof OverloadedTypedFunction) {
+                        // Function was overloaded with multiple signatures and their implementations.
+                        state.defineOverloadedFunction(name, function (internals) {
+                            internals.disableAutoCoercion();
+
+                            _.each(fn.getTypedFunctions(), function (typedFunction) {
+                                internals.defineVariant(typedFunction.getSignature(), typedFunction.getFunction());
+                            });
+                        });
+                    } else if (typeof fn === 'string') {
                         // Gather function aliases (strings) and install the aliases at the end
                         // (see below), to ensure that the original functions exist first
                         // as an alias can only be installed using an existing function's FunctionSpec
                         functionAliases[name] = fn;
+                    } else {
+                        throw new Exception('Invalid definition given for builtin function "' + name + '"');
                     }
                 });
 
@@ -333,8 +351,7 @@ module.exports = require('pauser')([
             _.each(installedBuiltinTypes.classGroups, installClassGroup);
             _.forOwn(installedBuiltinTypes.classes, installClass);
             _.each(installedBuiltinTypes.initialiserGroups, runInitialiserGroup);
-        },
-        Exception = phpCommon.Exception;
+        };
 
     /**
      * Encapsulates an internal PHP state, defining classes, functions, global variables etc.
@@ -558,6 +575,8 @@ module.exports = require('pauser')([
                 FunctionContext,
                 MethodContext,
                 ClosureContext,
+                OverloadedFunctionSpec,
+                InvalidOverloadedFunctionSpec,
                 callStack,
                 translator,
                 parameterListFactory,
@@ -593,6 +612,7 @@ module.exports = require('pauser')([
             ffiInternals,
             ffiClassInternalsClassFactory,
             ffiFunctionInternalsClassFactory,
+            ffiOverloadedFunctionInternalsClassFactory,
             opcodeInternalsClassFactory,
             globalsSuperGlobal = superGlobalScope.defineVariable('GLOBALS'),
             loader = new Loader(valueFactory, mode),
@@ -644,7 +664,7 @@ module.exports = require('pauser')([
             coreBinder
         );
 
-        ffiInternals = new FFIInternals(
+        ffiInternals = set('ffi_internals', new FFIInternals(
             mode,
             userland,
             flow,
@@ -676,7 +696,7 @@ module.exports = require('pauser')([
             translator,
             state,
             environment
-        );
+        ));
         ffiClassInternalsClassFactory = new FFIClassInternalsClassFactory(
             ffiInternals,
             ffiUnwrapperRepository,
@@ -692,6 +712,7 @@ module.exports = require('pauser')([
             globalNamespaceScope,
             functionSignatureParser
         );
+        ffiOverloadedFunctionInternalsClassFactory = get('ffi_overloaded_function_internals_class_factory');
         opcodeInternalsClassFactory = new OpcodeInternalsClassFactory(
             ffiInternals,
             opcodeHandlerFactory,
@@ -803,6 +824,10 @@ module.exports = require('pauser')([
         this.OpcodeInternals = opcodeInternalsClassFactory.create();
         this.options = options;
         this.optionSet = optionSet;
+        /**
+         * @type {OverloadedFunctionInternals}
+         */
+        this.OverloadedFunctionInternals = ffiOverloadedFunctionInternalsClassFactory.create();
         /**
          * @type {PauseFactory}
          */
@@ -1069,6 +1094,21 @@ module.exports = require('pauser')([
             _.forOwn(groupBuiltins, function (handler, name) {
                 state.coreBinder.defineOpcode(name, internals.createTracedHandler(handler), isOverrideAllowed);
             });
+        },
+
+        /**
+         * Defines a global function from a native JS one. If a fully-qualified name is provided
+         * with a namespace prefix, e.g. `My\Lib\MyFunc` then it will be defined in the specified namespace.
+         * The function will install multiple variants whose signatures must differ in parameter count.
+         *
+         * @param {string} fqfn Fully-Qualified Function Name
+         * @param {Function} definitionFactory
+         */
+        defineOverloadedFunction: function (fqfn, definitionFactory) {
+            var state = this,
+                functionInternals = new state.OverloadedFunctionInternals(fqfn);
+
+            functionInternals.defineFunction(definitionFactory);
         },
 
         /**

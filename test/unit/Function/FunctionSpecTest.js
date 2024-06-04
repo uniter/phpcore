@@ -39,6 +39,7 @@ describe('FunctionSpec', function () {
         context,
         createSpec,
         flow,
+        func,
         futureFactory,
         globalNamespace,
         namespaceScope,
@@ -61,6 +62,7 @@ describe('FunctionSpec', function () {
         });
         context = sinon.createStubInstance(FunctionContextInterface);
         flow = state.getFlow();
+        func = sinon.stub();
         futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
@@ -112,6 +114,7 @@ describe('FunctionSpec', function () {
                 context,
                 namespaceScope,
                 parameterList,
+                func,
                 returnType,
                 returnByReference,
                 '/path/to/my/module.php',
@@ -295,9 +298,7 @@ describe('FunctionSpec', function () {
             functionFactory.create
                 .withArgs(
                     sinon.match.same(namespaceScope),
-                    null, // Class (always null for normal functions)
-                    sinon.match.same(originalFunction),
-                    'myAliasFunc',
+                    null, // Class (always null for normal functions).
                     null,
                     null,
                     sinon.match.same(aliasFunctionSpec)
@@ -309,6 +310,7 @@ describe('FunctionSpec', function () {
                     sinon.match.same(namespaceScope),
                     'myAliasFunc',
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    sinon.match.same(func),
                     sinon.match.same(returnType),
                     false, // Return by value.
                     '/path/to/my/module.php',
@@ -321,7 +323,6 @@ describe('FunctionSpec', function () {
             expect(
                 spec.createAliasFunction(
                     'myAliasFunc',
-                    originalFunction,
                     functionSpecFactory,
                     functionFactory
                 )
@@ -460,6 +461,12 @@ describe('FunctionSpec', function () {
         });
     });
 
+    describe('getFunction()', function () {
+        it('should return the implementation of the resolved function/variant', function () {
+            expect(spec.getFunction()).to.equal(func);
+        });
+    });
+
     describe('getFunctionName()', function () {
         it('should correctly fetch the name from the context for a static call', function () {
             context.getName
@@ -493,6 +500,12 @@ describe('FunctionSpec', function () {
                 .returns('myFunction');
 
             expect(spec.getFunctionTraceFrameName(false)).to.equal('myFunction');
+        });
+    });
+
+    describe('getName()', function () {
+        it('should return the name of the function', function () {
+            expect(spec.getName()).to.equal('myFunction');
         });
     });
 
@@ -627,6 +640,12 @@ describe('FunctionSpec', function () {
         });
     });
 
+    describe('resolveFunctionSpec()', function () {
+        it('should return the same FunctionSpec as there can be no other variants', function () {
+            expect(spec.resolveFunctionSpec()).to.equal(spec);
+        });
+    });
+
     describe('validateArguments()', function () {
         var argumentReference1,
             argumentReference2,
@@ -669,7 +688,7 @@ describe('FunctionSpec', function () {
             errorClassObject.instantiate
                 .withArgs([
                     sinon.match(function (arg) {
-                        return arg.getNative() === '[Translated] core.too_few_args_builtin {' +
+                        return arg.getNative() === '[Translated] core.wrong_arg_count_builtin {' +
                             '"func":"myFunction",' +
                             '"bound":"[Translated] core.exactly {}",' +
                             '"expectedCount":2,' +
@@ -709,7 +728,7 @@ describe('FunctionSpec', function () {
             errorClassObject.instantiate
                 .withArgs([
                     sinon.match(function (arg) {
-                        return arg.getNative() === '[Translated] core.too_few_args_builtin_single {' +
+                        return arg.getNative() === '[Translated] core.wrong_arg_count_builtin_single {' +
                             '"func":"myFunction",' +
                             '"bound":"[Translated] core.at_least {}",' +
                             '"expectedCount":1,' +
@@ -749,7 +768,7 @@ describe('FunctionSpec', function () {
             errorClassObject.instantiate
                 .withArgs([
                     sinon.match(function (arg) {
-                        return arg.getNative() === '[Translated] core.too_few_args_builtin {' +
+                        return arg.getNative() === '[Translated] core.wrong_arg_count_builtin {' +
                             '"func":"myFunction",' +
                             '"bound":"[Translated] core.at_least {}",' +
                             '"expectedCount":2,' +
@@ -792,7 +811,7 @@ describe('FunctionSpec', function () {
             errorClassObject.instantiate
                 .withArgs([
                     sinon.match(function (arg) {
-                        return arg.getNative() === '[Translated] core.too_few_args_userland {' +
+                        return arg.getNative() === '[Translated] core.wrong_arg_count_userland {' +
                             '"func":"myFunction",' +
                             '"bound":"[Translated] core.exactly {}",' +
                             '"expectedCount":2,' +
@@ -834,7 +853,7 @@ describe('FunctionSpec', function () {
             errorClassObject.instantiate
                 .withArgs([
                     sinon.match(function (arg) {
-                        return arg.getNative() === '[Translated] core.too_few_args_userland {' +
+                        return arg.getNative() === '[Translated] core.wrong_arg_count_userland {' +
                             '"func":"myFunction",' +
                             '"bound":"[Translated] core.exactly {}",' +
                             '"expectedCount":2,' +

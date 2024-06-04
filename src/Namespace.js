@@ -43,6 +43,7 @@ module.exports = require('pauser')([
      * @param {NamespaceFactory} namespaceFactory
      * @param {FunctionFactory} functionFactory
      * @param {FunctionSpecFactory} functionSpecFactory
+     * @param {OverloadedFunctionDefiner} overloadedFunctionDefiner
      * @param {ClassAutoloader} classAutoloader
      * @param {ClassDefiner} classDefiner
      * @param {Namespace|null} parent
@@ -56,6 +57,7 @@ module.exports = require('pauser')([
         namespaceFactory,
         functionFactory,
         functionSpecFactory,
+        overloadedFunctionDefiner,
         classAutoloader,
         classDefiner,
         parent,
@@ -110,6 +112,10 @@ module.exports = require('pauser')([
          */
         this.namespaceFactory = namespaceFactory;
         /**
+         * @type {OverloadedFunctionDefiner}
+         */
+        this.overloadedFunctionDefiner = overloadedFunctionDefiner;
+        /**
          * @type {Namespace|null}
          */
         this.parent = parent;
@@ -139,7 +145,6 @@ module.exports = require('pauser')([
 
             namespace.functions[aliasName.toLowerCase()] = existingFunction.functionSpec.createAliasFunction(
                 aliasName,
-                existingFunction.originalFunc,
                 namespace.functionSpecFactory,
                 namespace.functionFactory
             );
@@ -238,7 +243,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Defines a new function within this namespace
+         * Defines a new function within this namespace.
          *
          * @param {string} name
          * @param {Function} func
@@ -259,11 +264,12 @@ module.exports = require('pauser')([
         ) {
             var functionSpec,
                 isBuiltin,
+                lowerName = name.toLowerCase(),
                 namespace = this,
                 originalSpec;
 
-            if (hasOwn.call(namespace.functions, name)) {
-                originalSpec = namespace.functions[name].functionSpec;
+            if (hasOwn.call(namespace.functions, lowerName)) {
+                originalSpec = namespace.functions[lowerName].functionSpec;
                 isBuiltin = originalSpec.isBuiltin();
 
                 namespace.callStack.raiseUncatchableFatalError(
@@ -286,23 +292,66 @@ module.exports = require('pauser')([
                 namespaceScope,
                 name,
                 parametersSpecData || [],
+                func,
                 returnTypeSpecData,
                 returnByReference,
                 namespace.callStack.getLastFilePath(),
                 lineNumber || null
             );
 
-            namespace.functions[name.toLowerCase()] = namespace.functionFactory.create(
+            namespace.functions[lowerName] = namespace.functionFactory.create(
                 namespaceScope,
                 // Class will always be null for 'normal' functions
                 // as defining a function inside a class will define it
                 // inside the current namespace instead.
                 null,
-                func,
-                name,
                 null,
                 null,
                 functionSpec
+            );
+        },
+
+        /**
+         * Defines a new overloaded function within this namespace.
+         *
+         * @param {string} name
+         * @param {OverloadedFunctionVariant[]} variants
+         * @param {NamespaceScope} namespaceScope
+         */
+        defineOverloadedFunction: function (
+            name,
+            variants,
+            namespaceScope
+        ) {
+            var isBuiltin,
+                lowerName = name.toLowerCase(),
+                namespace = this,
+                originalSpec;
+
+            if (hasOwn.call(namespace.functions, lowerName)) {
+                originalSpec = namespace.functions[lowerName].functionSpec;
+                isBuiltin = originalSpec.isBuiltin();
+
+                namespace.callStack.raiseUncatchableFatalError(
+                    isBuiltin ?
+                        CANNOT_REDECLARE_BUILTIN_FUNCTION :
+                        CANNOT_REDECLARE_USERLAND_FUNCTION,
+                    isBuiltin ?
+                        {
+                            functionName: namespace.getPrefix() + name
+                        } :
+                        {
+                            functionName: namespace.getPrefix() + name,
+                            originalFile: originalSpec.getFilePath(),
+                            originalLine: originalSpec.getLineNumber()
+                        }
+                );
+            }
+
+            namespace.functions[lowerName] = namespace.overloadedFunctionDefiner.defineFunction(
+                namespace.getPrefix() + name,
+                variants,
+                namespaceScope
             );
         },
 

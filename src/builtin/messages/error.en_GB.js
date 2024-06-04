@@ -44,12 +44,10 @@ module.exports = {
             'invalid_value_for_type_userland': '${func}(): Argument #${index}${context} must be ${expectedType}, ${actualType} given, called in ${callerFile} on line ${callerLine}',
             'method_called_on_non_object': '${method} method called on non-object',
             'nesting_level_too_deep': 'Nesting level too deep - recursive dependency?',
+            'no_overload_variant_for_parameter_count': '${func}() has no variant with exactly ${parameterCount} parameters',
             'no_parent_class': 'Cannot access parent:: when current class scope has no parent',
             'non_object_method_call': 'Call to a member function ${name}() on ${type}',
             'object_from_get_iterator_must_be_traversable': 'Objects returned by ${className}::getIterator() must be traversable or implement interface Iterator',
-            'too_few_args_builtin': '${func}() expects ${bound} ${expectedCount} arguments, ${actualCount} given',
-            'too_few_args_builtin_single': '${func}() expects ${bound} 1 argument, ${actualCount} given',
-            'too_few_args_userland': 'Too few arguments to function ${func}(), ${actualCount} passed in ${callerFile} on line ${callerLine} and ${bound} ${expectedCount} expected',
             'uncaught_throwable': 'Uncaught ${name}: ${message}',
             'uncaught_empty_throwable': 'Uncaught ${name}',
             'undeclared_static_property': 'Access to undeclared static property: ${className}::$${propertyName}',
@@ -59,7 +57,10 @@ module.exports = {
             'undefined_property': 'Undefined property: ${className}::$${propertyName}',
             'unsupported_operand_types': 'Unsupported operand types: ${left} ${operator} ${right}',
             'used_this_outside_object_context': 'Using $this when not in object context',
-            'value_not_callable': 'Value of type ${type} is not callable'
+            'value_not_callable': 'Value of type ${type} is not callable',
+            'wrong_arg_count_builtin': '${func}() expects ${bound} ${expectedCount} arguments, ${actualCount} given',
+            'wrong_arg_count_builtin_single': '${func}() expects ${bound} 1 argument, ${actualCount} given',
+            'wrong_arg_count_userland': 'Too few arguments to function ${func}(), ${actualCount} passed in ${callerFile} on line ${callerLine} and ${bound} ${expectedCount} expected'
         }
     }
 };

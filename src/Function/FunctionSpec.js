@@ -15,9 +15,9 @@ var _ = require('microdash'),
     EXACTLY = 'core.exactly',
     INVALID_RETURN_VALUE_TYPE = 'core.invalid_return_value_type',
     ONLY_REFERENCES_RETURNED_BY_REFERENCE = 'core.only_references_returned_by_reference',
-    TOO_FEW_ARGS_USERLAND = 'core.too_few_args_userland',
-    TOO_FEW_ARGS_BUILTIN = 'core.too_few_args_builtin',
-    TOO_FEW_ARGS_BUILTIN_SINGLE = 'core.too_few_args_builtin_single',
+    WRONG_ARG_COUNT_USERLAND = 'core.wrong_arg_count_userland',
+    WRONG_ARG_COUNT_BUILTIN = 'core.wrong_arg_count_builtin',
+    WRONG_ARG_COUNT_BUILTIN_SINGLE = 'core.wrong_arg_count_builtin_single',
     PHPError = phpCommon.PHPError,
     Reference = require('../Reference/Reference'),
     ReferenceSnapshot = require('../Reference/ReferenceSnapshot'),
@@ -36,6 +36,7 @@ var _ = require('microdash'),
  * @param {FunctionContextInterface} context
  * @param {NamespaceScope} namespaceScope
  * @param {Parameter[]} parameterList
+ * @param {Function} func
  * @param {TypeInterface|null} returnType
  * @param {boolean} returnByReference
  * @param {string|null} filePath
@@ -52,6 +53,7 @@ function FunctionSpec(
     context,
     namespaceScope,
     parameterList,
+    func,
     returnType,
     returnByReference,
     filePath,
@@ -88,6 +90,10 @@ function FunctionSpec(
      * @type {Flow}
      */
     this.flow = flow;
+    /**
+     * @type {Function}
+     */
+    this.func = func;
     /**
      * @type {FutureFactory}
      */
@@ -239,20 +245,20 @@ _.extend(FunctionSpec.prototype, {
     },
 
     /**
-     * Creates a new function (and its FunctionSpec) for an alias of the current FunctionSpec
+     * Creates a new function (and its FunctionSpec) for an alias of the current FunctionSpec.
      *
      * @param {string} aliasName
-     * @param {Function} func
      * @param {FunctionSpecFactory} functionSpecFactory
      * @param {FunctionFactory} functionFactory
      * @return {Function}
      */
-    createAliasFunction: function (aliasName, func, functionSpecFactory, functionFactory) {
+    createAliasFunction: function (aliasName, functionSpecFactory, functionFactory) {
         var spec = this,
             aliasFunctionSpec = functionSpecFactory.createAliasFunctionSpec(
                 spec.namespaceScope,
                 aliasName,
                 spec.parameterList,
+                spec.func,
                 spec.returnType,
                 spec.returnByReference,
                 spec.filePath,
@@ -265,8 +271,6 @@ _.extend(FunctionSpec.prototype, {
             // as defining a function inside a class will define it
             // inside the current namespace instead.
             null,
-            func,
-            aliasName,
             null,
             null,
             aliasFunctionSpec
@@ -281,6 +285,15 @@ _.extend(FunctionSpec.prototype, {
      */
     getFilePath: function () {
         return this.filePath;
+    },
+
+    /**
+     * Fetches the implementation of the resolved function/variant.
+     *
+     * @returns {Function}
+     */
+    getFunction: function () {
+        return this.func;
     },
 
     /**
@@ -311,6 +324,15 @@ _.extend(FunctionSpec.prototype, {
      */
     getLineNumber: function () {
         return this.lineNumber;
+    },
+
+    /**
+     * Fetches the name of the function.
+     *
+     * @returns {string}
+     */
+    getName: function () {
+        return this.context.getName();
     },
 
     /**
@@ -514,6 +536,15 @@ _.extend(FunctionSpec.prototype, {
     },
 
     /**
+     * Non-overloaded functions have no inner spec to resolve to.
+     *
+     * @returns {FunctionSpec}
+     */
+    resolveFunctionSpec: function () {
+        return this;
+    },
+
+    /**
      * Validates that the given set of arguments are valid for this function.
      * In weak type-checking mode, the arguments will also be coerced if needed.
      *
@@ -550,8 +581,8 @@ _.extend(FunctionSpec.prototype, {
                 throw spec.valueFactory.createTranslatedErrorObject(
                     'ArgumentCountError',
                     spec.callStack.isUserland() ?
-                        TOO_FEW_ARGS_USERLAND :
-                        (expectedCount === 1 ? TOO_FEW_ARGS_BUILTIN_SINGLE : TOO_FEW_ARGS_BUILTIN),
+                        WRONG_ARG_COUNT_USERLAND :
+                        (expectedCount === 1 ? WRONG_ARG_COUNT_BUILTIN_SINGLE : WRONG_ARG_COUNT_BUILTIN),
                     {
                         func: spec.context.getName(),
                         bound: spec.hasOptionalParameter() ?

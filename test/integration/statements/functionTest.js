@@ -30,7 +30,7 @@ EOS
         expect((await engine.execute()).getNative()).to.equal(null);
     });
 
-    it('should raise a fatal error when attempting to redefine a built-in function', async function () {
+    it('should raise a fatal error when attempting to redefine a built-in function in userland', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -46,7 +46,7 @@ EOS
         );
     });
 
-    it('should raise a fatal error when attempting to redefine a userland function', async function () {
+    it('should raise a fatal error when attempting to redefine a userland function with same case', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -63,6 +63,26 @@ EOS
             // Note that unlike built-ins, for userland functions
             // we can provide the previous declaration's context.
             'PHP Fatal error: Cannot redeclare my_func() (previously declared in /path/to/my_module.php:3) in /path/to/my_module.php on line 5'
+        );
+    });
+
+    it('should raise a fatal error when attempting to redefine a userland function with different case', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+function my_func() {}
+
+function my_FUnc() {}
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        await expect(engine.execute()).to.eventually.be.rejectedWith(
+            PHPFatalError,
+            // Note that unlike built-ins, for userland functions
+            // we can provide the previous declaration's context.
+            'PHP Fatal error: Cannot redeclare my_FUnc() (previously declared in /path/to/my_module.php:3) in /path/to/my_module.php on line 5'
         );
     });
 });

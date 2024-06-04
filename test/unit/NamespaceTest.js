@@ -25,6 +25,8 @@ var expect = require('chai').expect,
     Namespace = require('../../src/Namespace').sync(),
     NamespaceFactory = require('../../src/NamespaceFactory'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
+    OverloadedFunctionDefiner = require('../../src/Function/Overloaded/OverloadedFunctionDefiner'),
+    OverloadedFunctionVariant = require('../../src/Function/Overloaded/OverloadedFunctionVariant'),
     PHPError = phpCommon.PHPError,
     PHPFatalError = phpCommon.PHPFatalError;
 
@@ -43,6 +45,7 @@ describe('Namespace', function () {
         namespace,
         namespaceFactory,
         namespaceScope,
+        overloadedFunctionDefiner,
         state,
         valueFactory;
 
@@ -59,6 +62,7 @@ describe('Namespace', function () {
         futureFactory = state.getFutureFactory();
         namespaceFactory = sinon.createStubInstance(NamespaceFactory);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
+        overloadedFunctionDefiner = sinon.createStubInstance(OverloadedFunctionDefiner);
         valueFactory = state.getValueFactory();
 
         callStack.raiseTranslatedError
@@ -88,14 +92,14 @@ describe('Namespace', function () {
             return futureFactory.createPresent(classObject);
         });
 
-        functionFactory.create.callsFake(function (namespace, currentClass, func, name, currentObject) {
+        functionFactory.create.callsFake(function (namespace, currentClass, currentObject, staticClass, functionSpec) {
             var wrapperFunc = sinon.stub();
             wrapperFunc.testArgs = {
                 namespace: namespace,
                 currentClass: currentClass,
                 currentObject: currentObject,
-                func: func,
-                name: name
+                functionSpec: functionSpec,
+                staticClass: staticClass
             };
             return wrapperFunc;
         });
@@ -108,6 +112,7 @@ describe('Namespace', function () {
                 namespaceFactory,
                 functionFactory,
                 functionSpecFactory,
+                overloadedFunctionDefiner,
                 classAutoloader,
                 classDefiner,
                 parentNamespace || null,
@@ -139,6 +144,7 @@ describe('Namespace', function () {
                     sinon.match.same(namespaceScope),
                     'myOriginalFunc',
                     parametersSpecData,
+                    sinon.match.same(originalFunction),
                     {my: 'return type'},
                     true,
                     '/path/to/my_module.php',
@@ -149,8 +155,6 @@ describe('Namespace', function () {
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     null,
-                    sinon.match.same(originalFunction),
-                    'myOriginalFunc',
                     null,
                     null,
                     sinon.match.same(functionSpec)
@@ -170,7 +174,6 @@ describe('Namespace', function () {
             functionSpec.createAliasFunction
                 .withArgs(
                     'myAliasFunc',
-                    sinon.match.same(originalFunction),
                     sinon.match.same(functionSpecFactory),
                     sinon.match.same(functionFactory)
                 )
@@ -336,6 +339,7 @@ describe('Namespace', function () {
                     sinon.match.same(namespaceScope),
                     'myFunction',
                     parametersSpecData,
+                    sinon.match.same(originalFunction),
                     {my: 'return type'},
                     false,
                     '/path/to/my_module.php',
@@ -346,8 +350,6 @@ describe('Namespace', function () {
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     null,
-                    sinon.match.same(originalFunction),
-                    'myFunction',
                     null,
                     null,
                     sinon.match.same(functionSpec)
@@ -365,6 +367,269 @@ describe('Namespace', function () {
             );
 
             expect(namespace.getFunction('myFunction')).to.equal(wrappedFunction);
+        });
+
+        it('should raise an uncatchable fatal error when the function is already defined in userland with same case', function () {
+            var functionSpec = sinon.createStubInstance(FunctionSpec),
+                originalFunction = sinon.stub(),
+                parametersSpecData = [{name: 'param1'}, {name: 'param2'}],
+                wrappedFunction = sinon.stub();
+            functionSpec.getFilePath.returns('/my/module.php');
+            functionSpec.getLineNumber.returns(321);
+            functionSpec.isBuiltin.returns(false);
+            wrappedFunction.functionSpec = functionSpec;
+            callStack.getLastFilePath.returns('/path/to/my_module.php');
+            functionSpecFactory.createFunctionSpec
+                .withArgs(
+                    sinon.match.same(namespaceScope),
+                    'myFunction',
+                    parametersSpecData,
+                    sinon.match.same(originalFunction),
+                    {my: 'return type'},
+                    false,
+                    '/path/to/my_module.php',
+                    123
+                )
+                .returns(functionSpec);
+            functionFactory.create
+                .withArgs(
+                    sinon.match.same(namespaceScope),
+                    null,
+                    null,
+                    null,
+                    sinon.match.same(functionSpec)
+                )
+                .returns(wrappedFunction);
+            namespace.defineFunction(
+                'myFunction',
+                originalFunction,
+                namespaceScope,
+                parametersSpecData,
+                {my: 'return type'},
+                false,
+                123
+            );
+
+            expect(function () {
+                namespace.defineFunction(
+                    'myFunction',
+                    originalFunction,
+                    namespaceScope,
+                    parametersSpecData,
+                    {my: 'return type'},
+                    false,
+                    123
+                );
+            }).to.throw(
+                PHPFatalError,
+                'PHP Fatal error: Fake uncatchable fatal error for #core.cannot_redeclare_userland_function ' +
+                'with {"functionName":"myFunction","originalFile":"/my/module.php","originalLine":321} ' +
+                'in /path/to/my_module.php on line 1234'
+            );
+        });
+
+        it('should raise an uncatchable fatal error when the function is already defined in userland with different case', function () {
+            var functionSpec = sinon.createStubInstance(FunctionSpec),
+                originalFunction = sinon.stub(),
+                parametersSpecData = [{name: 'param1'}, {name: 'param2'}],
+                wrappedFunction = sinon.stub();
+            functionSpec.getFilePath.returns('/my/module.php');
+            functionSpec.getLineNumber.returns(321);
+            functionSpec.isBuiltin.returns(false);
+            wrappedFunction.functionSpec = functionSpec;
+            callStack.getLastFilePath.returns('/path/to/my_module.php');
+            functionSpecFactory.createFunctionSpec
+                .withArgs(
+                    sinon.match.same(namespaceScope),
+                    'myFUNCtion',
+                    parametersSpecData,
+                    sinon.match.same(originalFunction),
+                    {my: 'return type'},
+                    false,
+                    '/path/to/my_module.php',
+                    123
+                )
+                .returns(functionSpec);
+            functionFactory.create
+                .withArgs(
+                    sinon.match.same(namespaceScope),
+                    null,
+                    null,
+                    null,
+                    sinon.match.same(functionSpec)
+                )
+                .returns(wrappedFunction);
+            namespace.defineFunction(
+                'myFUNCtion', // Use a different case.
+                originalFunction,
+                namespaceScope,
+                parametersSpecData,
+                {my: 'return type'},
+                false,
+                123
+            );
+
+            expect(function () {
+                namespace.defineFunction(
+                    'myFunction',
+                    originalFunction,
+                    namespaceScope,
+                    parametersSpecData,
+                    {my: 'return type'},
+                    false,
+                    123
+                );
+            }).to.throw(
+                PHPFatalError,
+                'PHP Fatal error: Fake uncatchable fatal error for #core.cannot_redeclare_userland_function ' +
+                'with {"functionName":"myFunction","originalFile":"/my/module.php","originalLine":321} ' +
+                'in /path/to/my_module.php on line 1234'
+            );
+        });
+
+        it('should raise an uncatchable fatal error when the function is already defined as a builtin with different case', function () {
+            var functionSpec = sinon.createStubInstance(FunctionSpec),
+                originalFunction = sinon.stub(),
+                parametersSpecData = [{name: 'param1'}, {name: 'param2'}],
+                wrappedFunction = sinon.stub();
+            functionSpec.isBuiltin.returns(true);
+            wrappedFunction.functionSpec = functionSpec;
+            callStack.getLastFilePath.returns('/path/to/my_module.php');
+            functionSpecFactory.createFunctionSpec
+                .withArgs(
+                    sinon.match.same(namespaceScope),
+                    'myFUNCtion',
+                    parametersSpecData,
+                    sinon.match.same(originalFunction),
+                    {my: 'return type'},
+                    false,
+                    '/path/to/my_module.php',
+                    123
+                )
+                .returns(functionSpec);
+            functionFactory.create
+                .withArgs(
+                    sinon.match.same(namespaceScope),
+                    null,
+                    null,
+                    null,
+                    sinon.match.same(functionSpec)
+                )
+                .returns(wrappedFunction);
+            namespace.defineFunction(
+                'myFUNCtion', // Use a different case.
+                originalFunction,
+                namespaceScope,
+                parametersSpecData,
+                {my: 'return type'},
+                false,
+                123
+            );
+
+            expect(function () {
+                namespace.defineFunction(
+                    'myFunction',
+                    originalFunction,
+                    namespaceScope,
+                    parametersSpecData,
+                    {my: 'return type'},
+                    false,
+                    123
+                );
+            }).to.throw(
+                PHPFatalError,
+                'PHP Fatal error: Fake uncatchable fatal error for #core.cannot_redeclare_builtin_function ' +
+                'with {"functionName":"myFunction"} in /path/to/my_module.php on line 1234'
+            );
+        });
+    });
+
+    describe('defineOverloadedFunction()', function () {
+        it('should correctly define the function via OverloadedFunctionDefiner', function () {
+            var variant1 = sinon.createStubInstance(OverloadedFunctionVariant),
+                variant2 = sinon.createStubInstance(OverloadedFunctionVariant),
+                wrappedFunction = sinon.stub();
+            overloadedFunctionDefiner.defineFunction
+                .withArgs(
+                    'myFunction',
+                    [sinon.match.same(variant1), sinon.match.same(variant2)],
+                    sinon.match.same(namespaceScope)
+                )
+                .returns(wrappedFunction);
+
+            namespace.defineOverloadedFunction(
+                'myFunction',
+                [variant1, variant2],
+                namespaceScope
+            );
+
+            expect(namespace.getFunction('myFunction')).to.equal(wrappedFunction);
+        });
+
+        it('should raise an uncatchable fatal error when the function is already defined with same case', function () {
+            var functionSpec = sinon.createStubInstance(FunctionSpec),
+                variant1 = sinon.createStubInstance(OverloadedFunctionVariant),
+                variant2 = sinon.createStubInstance(OverloadedFunctionVariant),
+                wrappedFunction = sinon.stub();
+            functionSpec.isBuiltin.returns(true);
+            wrappedFunction.functionSpec = functionSpec;
+            overloadedFunctionDefiner.defineFunction
+                .withArgs(
+                    'myFunction',
+                    [sinon.match.same(variant1), sinon.match.same(variant2)],
+                    sinon.match.same(namespaceScope)
+                )
+                .returns(wrappedFunction);
+            namespace.defineOverloadedFunction(
+                'myFunction',
+                [variant1, variant2],
+                namespaceScope
+            );
+
+            expect(function () {
+                namespace.defineOverloadedFunction(
+                    'myFunction',
+                    [variant1, variant2],
+                    namespaceScope
+                );
+            }).to.throw(
+                PHPFatalError,
+                'PHP Fatal error: Fake uncatchable fatal error for #core.cannot_redeclare_builtin_function ' +
+                'with {"functionName":"myFunction"} in /path/to/my_module.php on line 1234'
+            );
+        });
+
+        it('should raise an uncatchable fatal error when the function is already defined with different case', function () {
+            var functionSpec = sinon.createStubInstance(FunctionSpec),
+                variant1 = sinon.createStubInstance(OverloadedFunctionVariant),
+                variant2 = sinon.createStubInstance(OverloadedFunctionVariant),
+                wrappedFunction = sinon.stub();
+            functionSpec.isBuiltin.returns(true);
+            wrappedFunction.functionSpec = functionSpec;
+            overloadedFunctionDefiner.defineFunction
+                .withArgs(
+                    'myFUNCtion',
+                    [sinon.match.same(variant1), sinon.match.same(variant2)],
+                    sinon.match.same(namespaceScope)
+                )
+                .returns(wrappedFunction);
+            namespace.defineOverloadedFunction(
+                'myFUNCtion', // Use a different case.
+                [variant1, variant2],
+                namespaceScope
+            );
+
+            expect(function () {
+                namespace.defineOverloadedFunction(
+                    'myFunction',
+                    [variant1, variant2],
+                    namespaceScope
+                );
+            }).to.throw(
+                PHPFatalError,
+                'PHP Fatal error: Fake uncatchable fatal error for #core.cannot_redeclare_builtin_function ' +
+                'with {"functionName":"myFunction"} in /path/to/my_module.php on line 1234'
+            );
         });
     });
 
@@ -617,6 +882,16 @@ describe('Namespace', function () {
 
         beforeEach(function () {
             func = sinon.stub();
+
+            functionSpecFactory.createFunctionSpec.callsFake(function (namespaceScope, name, parametersSpecData, func) {
+                var functionSpec = sinon.createStubInstance(FunctionSpec);
+
+                functionSpec.getFunction.returns(func);
+                functionSpec.getName.returns(name);
+
+                return functionSpec;
+            });
+
             createNamespace('My\\Stuff\\MyNamespace');
         });
 
@@ -629,20 +904,20 @@ describe('Namespace', function () {
         it('should retrieve the function with correct case', function () {
             namespace.defineFunction('myFunction', func, namespaceScope);
 
-            expect(namespace.getFunction('myFunction').testArgs.func).to.equal(func);
+            expect(namespace.getFunction('myFunction').testArgs.functionSpec.getFunction()).to.equal(func);
         });
 
         it('should retrieve the function case-insensitively', function () {
             namespace.defineFunction('myFunction', func, namespaceScope);
 
-            expect(namespace.getFunction('MYFUNctioN').testArgs.func).to.equal(func);
+            expect(namespace.getFunction('MYFUNctioN').testArgs.functionSpec.getFunction()).to.equal(func);
         });
 
         it('should fall back to the global namespace if the function does not exist in this one', function () {
             var theFunction = sinon.stub();
             globalNamespace.defineFunction('thefunction', theFunction, namespaceScope);
 
-            expect(namespace.getFunction('THEFunCTion').testArgs.func).to.equal(theFunction);
+            expect(namespace.getFunction('THEFunCTion').testArgs.functionSpec.getFunction()).to.equal(theFunction);
         });
 
         it('should allow functions in this namespace to override those in the global one', function () {
@@ -651,7 +926,8 @@ describe('Namespace', function () {
             globalNamespace.defineFunction('thefunction', functionInGlobalSpace, namespaceScope);
             namespace.defineFunction('theFunction', functionInThisSpace, namespaceScope);
 
-            expect(namespace.getFunction('theFunction').testArgs.func).to.equal(functionInThisSpace);
+            expect(namespace.getFunction('theFunction').testArgs.functionSpec.getFunction())
+                .to.equal(functionInThisSpace);
         });
 
         it('should raise an error when the function is not defined in the current nor global namespaces', function () {
@@ -681,19 +957,29 @@ describe('Namespace', function () {
 
         beforeEach(function () {
             func = sinon.stub();
+
+            functionSpecFactory.createFunctionSpec.callsFake(function (namespaceScope, name, parametersSpecData, func) {
+                var functionSpec = sinon.createStubInstance(FunctionSpec);
+
+                functionSpec.getFunction.returns(func);
+                functionSpec.getName.returns(name);
+
+                return functionSpec;
+            });
+
             createNamespace('MyNamespace');
         });
 
         it('should retrieve the function with correct case', function () {
             namespace.defineFunction('myFunction', func, namespaceScope);
 
-            expect(namespace.getOwnFunction('myFunction').testArgs.func).to.equal(func);
+            expect(namespace.getOwnFunction('myFunction').testArgs.functionSpec.getFunction()).to.equal(func);
         });
 
         it('should retrieve the function case-insensitively', function () {
             namespace.defineFunction('myFunction', func, namespaceScope);
 
-            expect(namespace.getOwnFunction('MYFUNctioN').testArgs.func).to.equal(func);
+            expect(namespace.getOwnFunction('MYFUNctioN').testArgs.functionSpec.getFunction()).to.equal(func);
         });
 
         it('should not fall back to the global namespace if the function does not exist in this one', function () {

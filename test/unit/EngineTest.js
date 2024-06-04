@@ -237,6 +237,21 @@ describe('Engine', function () {
         });
     });
 
+    describe('defineOverloadedFunction()', function () {
+        it('should define a function on the environment', function () {
+            var myFunctionDefinitionFactory = sinon.stub();
+            createEngine();
+
+            engine.defineOverloadedFunction('My\\Fqfn', myFunctionDefinitionFactory);
+
+            expect(environment.defineOverloadedFunction).to.have.been.calledOnce;
+            expect(environment.defineOverloadedFunction).to.have.been.calledWith(
+                'My\\Fqfn',
+                sinon.match.same(myFunctionDefinitionFactory)
+            );
+        });
+    });
+
     describe('defineSuperGlobal()', function () {
         it('should define the super global on the environment', function () {
             var value = valueFactory.createInteger(21);

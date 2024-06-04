@@ -11,7 +11,7 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
-    tools = require('./tools');
+    tools = require('../tools');
 
 describe('PHP function aliasing integration', function () {
     it('should support aliasing functions', function () {

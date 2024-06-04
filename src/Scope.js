@@ -144,6 +144,7 @@ module.exports = require('pauser')([
                 scope.currentClass,
                 thisObject,
                 parametersSpecData || [],
+                func,
                 returnTypeSpec,
                 false, // TODO: Implement userland return-by-reference.
                 referenceBindings,
@@ -154,7 +155,6 @@ module.exports = require('pauser')([
 
             return scope.closureFactory.create(
                 scope,
-                func,
                 namespaceScope,
                 scope.currentClass,
                 thisObject,

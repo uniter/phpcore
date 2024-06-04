@@ -92,14 +92,18 @@ module.exports = require('pauser')([
          *
          * @param {NamespaceScope} namespaceScope
          * @param {Class|null} currentClass Used by eg. self::
-         * @param {Function} func
-         * @param {string|null} name
          * @param {ObjectValue|null} currentObject
          * @param {Class|null} staticClass Used by eg. static::
-         * @param {FunctionSpec} functionSpec
+         * @param {FunctionSpec|OverloadedFunctionSpec} spec
          * @returns {Function}
          */
-        create: function (namespaceScope, currentClass, func, name, currentObject, staticClass, functionSpec) {
+        create: function (
+            namespaceScope,
+            currentClass,
+            currentObject,
+            staticClass,
+            spec
+        ) {
             var factory = this,
                 /**
                  * Wraps a function exposed to PHP-land.
@@ -108,6 +112,8 @@ module.exports = require('pauser')([
                  */
                 wrapperFunc = function () {
                     var argReferences = slice.call(arguments),
+                        functionSpec = spec.resolveFunctionSpec(argReferences.length),
+                        func = functionSpec.getFunction(),
                         thisObject = currentObject || this,
                         scope,
                         newStaticClass = null,
@@ -260,9 +266,8 @@ module.exports = require('pauser')([
                     return result;
                 };
 
-            wrapperFunc.functionSpec = functionSpec;
+            wrapperFunc.functionSpec = spec;
             wrapperFunc.isPHPCoreWrapped = true;
-            wrapperFunc.originalFunc = func;
 
             return wrapperFunc;
         },

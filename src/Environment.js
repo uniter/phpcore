@@ -164,6 +164,18 @@ _.extend(Environment.prototype, {
     },
 
     /**
+     * Defines a global function from a native JS one. If a fully-qualified name is provided
+     * with a namespace prefix, e.g. `My\Lib\MyFunc` then it will be defined in the specified namespace.
+     * The function will install multiple variants whose signatures must differ in parameter count.
+     *
+     * @param {string} fqfn Fully-Qualified Function Name
+     * @param {Function} definitionFactory
+     */
+    defineOverloadedFunction: function (fqfn, definitionFactory) {
+        this.state.defineOverloadedFunction(fqfn, definitionFactory);
+    },
+
+    /**
      * Defines a super global variable (available in all scopes implicitly,
      * unlike a normal global which is not available unless imported with a `global` statement)
      * and gives it the provided value. If a native value is given then it will be coerced to a PHP one.

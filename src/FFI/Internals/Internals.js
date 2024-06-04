@@ -10,6 +10,7 @@
 'use strict';
 
 var _ = require('microdash'),
+    OverloadedTypedFunction = require('../../Function/Overloaded/OverloadedTypedFunction'),
     TypedFunction = require('../../Function/TypedFunction');
 
 /**
@@ -484,6 +485,17 @@ _.extend(Internals.prototype, {
      */
     typeFunction: function (signature, func) {
         return new TypedFunction(signature, func);
+    },
+
+    /**
+     * Creates an OverloadedTypedFunction.
+     * Use .typeFunction(...) to construct each of the typed functions per parameter count.
+     *
+     * @param {TypedFunction[]} typedFunctions
+     * @returns {OverloadedTypedFunction}
+     */
+    typeOverloadedFunction: function (typedFunctions) {
+        return new OverloadedTypedFunction(typedFunctions);
     }
 });
 

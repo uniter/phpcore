@@ -18,6 +18,7 @@ var expect = require('chai').expect,
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     FunctionSpecFactory = require('../../src/Function/FunctionSpecFactory'),
     NamespaceFactory = require('../../src/NamespaceFactory'),
+    OverloadedFunctionDefiner = require('../../src/Function/Overloaded/OverloadedFunctionDefiner'),
     ValueFactory = require('../../src/ValueFactory').sync();
 
 describe('NamespaceFactory', function () {
@@ -29,6 +30,7 @@ describe('NamespaceFactory', function () {
         functionFactory,
         functionSpecFactory,
         Namespace,
+        overloadedFunctionDefiner,
         valueFactory;
 
     beforeEach(function () {
@@ -39,6 +41,7 @@ describe('NamespaceFactory', function () {
         functionFactory = sinon.createStubInstance(FunctionFactory);
         functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
         Namespace = sinon.stub();
+        overloadedFunctionDefiner = sinon.createStubInstance(OverloadedFunctionDefiner);
         valueFactory = sinon.createStubInstance(ValueFactory);
 
         factory = new NamespaceFactory(
@@ -47,6 +50,7 @@ describe('NamespaceFactory', function () {
             flow,
             functionFactory,
             functionSpecFactory,
+            overloadedFunctionDefiner,
             valueFactory,
             classAutoloader,
             classDefiner
@@ -137,10 +141,25 @@ describe('NamespaceFactory', function () {
             );
         });
 
+        it('should pass the OverloadedFunctionDefiner to the namespace', function () {
+            callCreate();
+
+            expect(Namespace).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(overloadedFunctionDefiner)
+            );
+        });
+
         it('should pass the ClassAutoloader to the namespace', function () {
             callCreate();
 
             expect(Namespace).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -162,6 +181,7 @@ describe('NamespaceFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
                 sinon.match.same(classDefiner)
             );
         });
@@ -170,6 +190,7 @@ describe('NamespaceFactory', function () {
             callCreate();
 
             expect(Namespace).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -196,6 +217,7 @@ describe('NamespaceFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
+                sinon.match.any,
                 null
             );
         });
@@ -204,6 +226,7 @@ describe('NamespaceFactory', function () {
             callCreate();
 
             expect(Namespace).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -223,6 +246,7 @@ describe('NamespaceFactory', function () {
             callCreate();
 
             expect(Namespace).to.have.been.calledWith(
+                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,

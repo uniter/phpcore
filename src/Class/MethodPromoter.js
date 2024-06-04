@@ -73,6 +73,7 @@ _.extend(MethodPromoter.prototype, {
             classObject,
             methodName,
             parametersSpecData,
+            methodDefinition.method,
             returnTypeSpecData,
             returnByReference,
             promoter.callStack.getLastFilePath(),
@@ -82,8 +83,6 @@ _.extend(MethodPromoter.prototype, {
         method = promoter.functionFactory.create(
             namespaceScope,
             classObject,
-            methodDefinition.method,
-            methodName,
             null, // Current object only applies to Closures, so nothing to set here.
             null, // No need to override the class for a method.
             functionSpec
