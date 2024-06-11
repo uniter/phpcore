@@ -32,6 +32,7 @@ var _ = require('microdash'),
  * @param {FutureFactory} futureFactory
  * @param {Flow} flow
  * @param {Userland} userland
+ * @param {ParameterFactory} parameterFactory
  * @param {string} name
  * @param {number} index
  * @param {TypeInterface} typeObject
@@ -51,6 +52,7 @@ function Parameter(
     futureFactory,
     flow,
     userland,
+    parameterFactory,
     name,
     index,
     typeObject,
@@ -74,6 +76,10 @@ function Parameter(
      * @type {Function|null}
      */
     this.defaultValueProvider = defaultValueProvider;
+    /**
+     * @type {ParameterFactory}
+     */
+    this.parameterFactory = parameterFactory;
     /**
      * @type {string|null}
      */
@@ -173,6 +179,29 @@ _.extend(Parameter.prototype, {
         });
 
         return value;
+    },
+
+    /**
+     * Creates an alias of this parameter, for an alias of its original function context.
+     *
+     * @param {FunctionContextInterface} aliasContext
+     * @returns {Parameter}
+     */
+    createAlias: function (aliasContext) {
+        var parameter = this;
+
+        return parameter.parameterFactory.createParameter(
+            parameter.name,
+            parameter.index,
+            parameter.typeObject,
+            aliasContext,
+            parameter.namespaceScope,
+            parameter.passedByReference,
+            parameter.variadic,
+            parameter.defaultValueProvider,
+            parameter.filePath,
+            parameter.lineNumber
+        );
     },
 
     /**

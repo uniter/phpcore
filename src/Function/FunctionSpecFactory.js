@@ -138,9 +138,12 @@ _.extend(FunctionSpecFactory.prototype, {
             factory.referenceFactory,
             factory.futureFactory,
             factory.flow,
+            factory,
             context,
             namespaceScope,
-            parameters,
+            parameters.map(function (parameter) {
+                return parameter !== null ? parameter.createAlias(context) : null;
+            }),
             func,
             returnType,
             returnByReference,
@@ -204,6 +207,7 @@ _.extend(FunctionSpecFactory.prototype, {
             factory.referenceFactory,
             factory.futureFactory,
             factory.flow,
+            factory,
             context,
             namespaceScope,
             parameters,
@@ -258,6 +262,7 @@ _.extend(FunctionSpecFactory.prototype, {
             factory.referenceFactory,
             factory.futureFactory,
             factory.flow,
+            factory,
             context,
             namespaceScope,
             parameters,
@@ -336,6 +341,7 @@ _.extend(FunctionSpecFactory.prototype, {
             factory.referenceFactory,
             factory.futureFactory,
             factory.flow,
+            factory,
             context,
             namespaceScope,
             parameters,
@@ -354,18 +360,21 @@ _.extend(FunctionSpecFactory.prototype, {
      * @param {Array.<number, FunctionSpec>} variantFunctionSpecsByParameterCount
      * @param {number} minimumParameterCount
      * @param {number} maximumParameterCount
+     * @param {NamespaceScope} namespaceScope
      * @returns {OverloadedFunctionSpec}
      */
     createOverloadedFunctionSpec: function (
         name,
         variantFunctionSpecsByParameterCount,
         minimumParameterCount,
-        maximumParameterCount
+        maximumParameterCount,
+        namespaceScope
     ) {
         var factory = this;
 
         return new factory.OverloadedFunctionSpec(
             factory,
+            namespaceScope,
             name,
             variantFunctionSpecsByParameterCount,
             minimumParameterCount,

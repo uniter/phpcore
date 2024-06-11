@@ -88,15 +88,26 @@ describe('FunctionSpecFactory', function () {
         var functionContext,
             functionSpec,
             parameter1,
+            parameter1Alias,
             parameter2,
+            parameter2Alias,
             returnType;
 
         beforeEach(function () {
             functionContext = sinon.createStubInstance(FunctionContext);
             functionSpec = sinon.createStubInstance(FunctionSpec);
             parameter1 = sinon.createStubInstance(Parameter);
+            parameter1Alias = sinon.createStubInstance(Parameter);
             parameter2 = sinon.createStubInstance(Parameter);
+            parameter2Alias = sinon.createStubInstance(Parameter);
             returnType = sinon.createStubInstance(TypeInterface);
+
+            parameter1.createAlias
+                .withArgs(sinon.match.same(functionContext))
+                .returns(parameter1Alias);
+            parameter2.createAlias
+                .withArgs(sinon.match.same(functionContext))
+                .returns(parameter2Alias);
 
             FunctionContext
                 .withArgs(sinon.match.same(namespaceScope), 'myFunction')
@@ -109,9 +120,10 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
+                    sinon.match.same(factory),
                     sinon.match.same(functionContext),
                     sinon.match.same(namespaceScope),
-                    [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    [sinon.match.same(parameter1Alias), sinon.match.same(parameter2Alias)],
                     sinon.match.same(returnType),
                     true,
                     '/path/to/my/module.php',
@@ -120,11 +132,42 @@ describe('FunctionSpecFactory', function () {
                 .returns(functionSpec);
         });
 
-        it('should return a correctly constructed FunctionSpec', function () {
+        it('should return a correctly constructed FunctionSpec when all parameters are present', function () {
             expect(factory.createAliasFunctionSpec(
                 namespaceScope,
                 'myFunction',
                 [parameter1, parameter2],
+                returnType,
+                true,
+                '/path/to/my/module.php',
+                123
+            )).to.equal(functionSpec);
+        });
+
+        it('should return a correctly constructed FunctionSpec when one parameter is optimised away', function () {
+            FunctionSpec
+                .withArgs(
+                    sinon.match.same(callStack),
+                    sinon.match.same(translator),
+                    sinon.match.same(valueFactory),
+                    sinon.match.same(referenceFactory),
+                    sinon.match.same(futureFactory),
+                    sinon.match.same(flow),
+                    sinon.match.same(factory),
+                    sinon.match.same(functionContext),
+                    sinon.match.same(namespaceScope),
+                    [null, sinon.match.same(parameter2Alias)],
+                    sinon.match.same(returnType),
+                    true,
+                    '/path/to/my/module.php',
+                    123
+                )
+                .returns(functionSpec);
+
+            expect(factory.createAliasFunctionSpec(
+                namespaceScope,
+                'myFunction',
+                [null, parameter2],
                 returnType,
                 true,
                 '/path/to/my/module.php',
@@ -201,6 +244,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
+                    sinon.match.same(factory),
                     sinon.match.same(closureContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
@@ -247,6 +291,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
+                    sinon.match.same(factory),
                     sinon.match.same(closureContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
@@ -292,6 +337,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
+                    sinon.match.same(factory),
                     sinon.match.same(closureContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
@@ -374,6 +420,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
+                    sinon.match.same(factory),
                     sinon.match.same(functionContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
@@ -475,6 +522,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
+                    sinon.match.same(factory),
                     sinon.match.same(methodContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
@@ -510,6 +558,7 @@ describe('FunctionSpecFactory', function () {
             OverloadedFunctionSpec
                 .withArgs(
                     sinon.match.same(factory),
+                    sinon.match.same(namespaceScope),
                     'myFunc',
                     {
                         3: sinon.match.same(variantFunctionSpec1),
@@ -528,7 +577,8 @@ describe('FunctionSpecFactory', function () {
                         6: variantFunctionSpec2
                     },
                     2,
-                    7
+                    7,
+                    namespaceScope
                 )
             ).to.equal(overloadedFunctionSpec);
         });

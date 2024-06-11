@@ -107,7 +107,8 @@ describe('OverloadedFunctionDefiner', function () {
                         3: sinon.match.same(functionSpec2)
                     }),
                     2,
-                    3
+                    3,
+                    sinon.match.same(namespaceScope)
                 )
                 .returns(overloadedFunctionSpec);
 

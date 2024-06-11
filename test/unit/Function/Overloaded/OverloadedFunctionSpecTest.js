@@ -11,24 +11,31 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    FunctionFactory = require('../../../../src/FunctionFactory').sync(),
     FunctionSpec = require('../../../../src/Function/FunctionSpec'),
     FunctionSpecFactory = require('../../../../src/Function/FunctionSpecFactory'),
     InvalidOverloadedFunctionSpec = require('../../../../src/Function/Overloaded/InvalidOverloadedFunctionSpec'),
+    NamespaceScope = require('../../../../src/NamespaceScope').sync(),
     OverloadedFunctionSpec = require('../../../../src/Function/Overloaded/OverloadedFunctionSpec');
 
 describe('OverloadedFunctionSpec', function () {
-    var functionSpec,
+    var functionFactory,
+        functionSpec,
         functionSpecFactory,
+        namespaceScope,
         variantFunctionSpec1,
         variantFunctionSpec2;
 
     beforeEach(function () {
+        functionFactory = sinon.createStubInstance(FunctionFactory);
         functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
+        namespaceScope = sinon.createStubInstance(NamespaceScope);
         variantFunctionSpec1 = sinon.createStubInstance(FunctionSpec);
         variantFunctionSpec2 = sinon.createStubInstance(FunctionSpec);
 
         functionSpec = new OverloadedFunctionSpec(
             functionSpecFactory,
+            namespaceScope,
             'myFunction',
             {
                 3: variantFunctionSpec1,
@@ -37,6 +44,43 @@ describe('OverloadedFunctionSpec', function () {
             3,
             5
         );
+    });
+
+    describe('createAliasFunction()', function () {
+        it('should return a correctly built alias function', function () {
+            var aliasFunction = sinon.stub(),
+                aliasFunctionSpec = sinon.createStubInstance(OverloadedFunctionSpec),
+                aliasVariantFunctionSpec1 = sinon.createStubInstance(FunctionSpec),
+                aliasVariantFunctionSpec2 = sinon.createStubInstance(FunctionSpec);
+            variantFunctionSpec1.createAliasFunctionSpec
+                .withArgs('myAlias')
+                .returns(aliasVariantFunctionSpec1);
+            variantFunctionSpec2.createAliasFunctionSpec
+                .withArgs('myAlias')
+                .returns(aliasVariantFunctionSpec2);
+            functionSpecFactory.createOverloadedFunctionSpec
+                .withArgs(
+                    'myAlias',
+                    {
+                        3: sinon.match.same(aliasVariantFunctionSpec1),
+                        5: sinon.match.same(aliasVariantFunctionSpec2)
+                    },
+                    3,
+                    5
+                )
+                .returns(aliasFunctionSpec);
+            functionFactory.create
+                .withArgs(
+                    sinon.match.same(namespaceScope),
+                    null,
+                    null,
+                    null,
+                    sinon.match.same(aliasFunctionSpec)
+                )
+                .returns(aliasFunction);
+
+            expect(functionSpec.createAliasFunction('myAlias', functionFactory)).to.equal(aliasFunction);
+        });
     });
 
     describe('getFunctionName()', function () {

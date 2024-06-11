@@ -17,6 +17,7 @@ var _ = require('microdash'),
  * Represents an overloaded PHP function.
  *
  * @param {FunctionSpecFactory} functionSpecFactory
+ * @param {NamespaceScope} namespaceScope
  * @param {string} name
  * @param {Array.<number, FunctionSpec>} variantFunctionSpecsByParameterCount
  * @param {number} minimumParameterCount
@@ -25,6 +26,7 @@ var _ = require('microdash'),
  */
 function OverloadedFunctionSpec(
     functionSpecFactory,
+    namespaceScope,
     name,
     variantFunctionSpecsByParameterCount,
     minimumParameterCount,
@@ -47,12 +49,53 @@ function OverloadedFunctionSpec(
      */
     this.name = name;
     /**
+     * @type {NamespaceScope}
+     */
+    this.namespaceScope = namespaceScope;
+    /**
      * @type {Array<number, FunctionSpec>}
      */
     this.variantFunctionSpecsByParameterCount = variantFunctionSpecsByParameterCount;
 }
 
 _.extend(OverloadedFunctionSpec.prototype, {
+    /**
+     * Creates a new function (and its FunctionSpec) for an alias of the current OverloadedFunctionSpec.
+     *
+     * @param {string} aliasName
+     * @param {FunctionFactory} functionFactory
+     * @return {Function}
+     */
+    createAliasFunction: function (aliasName, functionFactory) {
+        var spec = this,
+            aliasFunctionSpec,
+            aliasVariantFunctionSpecsByParameterCount = {};
+
+        _.forOwn(spec.variantFunctionSpecsByParameterCount, function (variantFunctionSpec, parameterCount) {
+            aliasVariantFunctionSpecsByParameterCount[parameterCount] = variantFunctionSpec.createAliasFunctionSpec(
+                aliasName
+            );
+        });
+
+        aliasFunctionSpec = spec.functionSpecFactory.createOverloadedFunctionSpec(
+            aliasName,
+            aliasVariantFunctionSpecsByParameterCount,
+            spec.minimumParameterCount,
+            spec.maximumParameterCount
+        );
+
+        return functionFactory.create(
+            spec.namespaceScope,
+            // Class will always be null for 'normal' functions
+            // as defining a function inside a class will define it
+            // inside the current namespace instead.
+            null,
+            null,
+            null,
+            aliasFunctionSpec
+        );
+    },
+
     /**
      * Fetches the fully-qualified name of the function.
      *

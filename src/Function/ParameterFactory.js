@@ -97,6 +97,7 @@ _.extend(ParameterFactory.prototype, {
             factory.futureFactory,
             factory.flow,
             factory.userland,
+            factory,
             name,
             index,
             typeObject,

@@ -96,7 +96,8 @@ _.extend(OverloadedFunctionDefiner.prototype, {
             name,
             variantFunctionSpecsByParameterCount,
             minimumParameterCount,
-            maximumParameterCount
+            maximumParameterCount,
+            namespaceScope
         );
 
         return definer.functionFactory.create(

@@ -33,6 +33,7 @@ var _ = require('microdash'),
  * @param {ReferenceFactory} referenceFactory
  * @param {FutureFactory} futureFactory
  * @param {Flow} flow
+ * @param {FunctionSpecFactory} functionSpecFactory
  * @param {FunctionContextInterface} context
  * @param {NamespaceScope} namespaceScope
  * @param {Parameter[]} parameterList
@@ -50,6 +51,7 @@ function FunctionSpec(
     referenceFactory,
     futureFactory,
     flow,
+    functionSpecFactory,
     context,
     namespaceScope,
     parameterList,
@@ -94,6 +96,10 @@ function FunctionSpec(
      * @type {Function}
      */
     this.func = func;
+    /**
+     * @type {FunctionSpecFactory}
+     */
+    this.functionSpecFactory = functionSpecFactory;
     /**
      * @type {FutureFactory}
      */
@@ -248,22 +254,12 @@ _.extend(FunctionSpec.prototype, {
      * Creates a new function (and its FunctionSpec) for an alias of the current FunctionSpec.
      *
      * @param {string} aliasName
-     * @param {FunctionSpecFactory} functionSpecFactory
      * @param {FunctionFactory} functionFactory
      * @return {Function}
      */
-    createAliasFunction: function (aliasName, functionSpecFactory, functionFactory) {
+    createAliasFunction: function (aliasName, functionFactory) {
         var spec = this,
-            aliasFunctionSpec = functionSpecFactory.createAliasFunctionSpec(
-                spec.namespaceScope,
-                aliasName,
-                spec.parameterList,
-                spec.func,
-                spec.returnType,
-                spec.returnByReference,
-                spec.filePath,
-                spec.lineNumber
-            );
+            aliasFunctionSpec = spec.createAliasFunctionSpec(aliasName);
 
         return functionFactory.create(
             spec.namespaceScope,
@@ -274,6 +270,27 @@ _.extend(FunctionSpec.prototype, {
             null,
             null,
             aliasFunctionSpec
+        );
+    },
+
+    /**
+     * Creates a new FunctionSpec for an alias of the current FunctionSpec.
+     *
+     * @param {string} aliasName
+     * @return {FunctionSpec}
+     */
+    createAliasFunctionSpec: function (aliasName) {
+        var spec = this;
+
+        return spec.functionSpecFactory.createAliasFunctionSpec(
+            spec.namespaceScope,
+            aliasName,
+            spec.parameterList,
+            spec.func,
+            spec.returnType,
+            spec.returnByReference,
+            spec.filePath,
+            spec.lineNumber
         );
     },
 

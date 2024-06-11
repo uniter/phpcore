@@ -145,7 +145,6 @@ module.exports = require('pauser')([
 
             namespace.functions[aliasName.toLowerCase()] = existingFunction.functionSpec.createAliasFunction(
                 aliasName,
-                namespace.functionSpecFactory,
                 namespace.functionFactory
             );
         },

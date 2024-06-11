@@ -19,6 +19,7 @@ var expect = require('chai').expect,
     FunctionContextInterface = require('../../../src/Function/FunctionContextInterface'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     Parameter = require('../../../src/Function/Parameter'),
+    ParameterFactory = require('../../../src/Function/ParameterFactory'),
     Reference = require('../../../src/Reference/Reference'),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
     Scope = require('../../../src/Scope').sync(),
@@ -36,6 +37,7 @@ describe('Parameter', function () {
         futureFactory,
         namespaceScope,
         parameter,
+        parameterFactory,
         state,
         translator,
         typeObject,
@@ -50,6 +52,7 @@ describe('Parameter', function () {
         });
         context = sinon.createStubInstance(FunctionContextInterface);
         defaultValueProvider = sinon.stub();
+        parameterFactory = sinon.createStubInstance(ParameterFactory);
         flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         namespaceScope = sinon.createStubInstance(NamespaceScope);
@@ -106,6 +109,7 @@ describe('Parameter', function () {
                 futureFactory,
                 flow,
                 userland,
+                parameterFactory,
                 'myParam',
                 6,
                 typeObject,
@@ -182,6 +186,29 @@ describe('Parameter', function () {
 
             expect(await parameter.coerceArgument(variable).toPromise()).to.equal(value);
             expect(typeObject.coerceValue).not.to.have.been.called;
+        });
+    });
+
+    describe('createAlias()', function () {
+        it('should create an alias for the parameter via ParameterFactory', function () {
+            var aliasParameter = sinon.createStubInstance(Parameter),
+                aliasContext = sinon.createStubInstance(FunctionContextInterface);
+            parameterFactory.createParameter
+                .withArgs(
+                    'myParam',
+                    6,
+                    sinon.match.same(typeObject),
+                    sinon.match.same(aliasContext),
+                    sinon.match.same(namespaceScope),
+                    true,
+                    false,
+                    sinon.match.same(defaultValueProvider),
+                    '/path/to/my/module.php',
+                    101
+                )
+                .returns(aliasParameter);
+
+            expect(parameter.createAlias(aliasContext)).to.equal(aliasParameter);
         });
     });
 
@@ -361,6 +388,7 @@ describe('Parameter', function () {
                 futureFactory,
                 flow,
                 userland,
+                parameterFactory,
                 'myParam',
                 6,
                 typeObject,
@@ -473,6 +501,7 @@ describe('Parameter', function () {
                 futureFactory,
                 flow,
                 userland,
+                parameterFactory,
                 'myParam',
                 6,
                 typeObject,
@@ -523,6 +552,7 @@ describe('Parameter', function () {
                 futureFactory,
                 flow,
                 userland,
+                parameterFactory,
                 'myParam',
                 6,
                 typeObject,
@@ -568,6 +598,7 @@ describe('Parameter', function () {
                 futureFactory,
                 flow,
                 userland,
+                parameterFactory,
                 'myParam',
                 6,
                 typeObject,
@@ -630,6 +661,7 @@ describe('Parameter', function () {
                 futureFactory,
                 flow,
                 userland,
+                parameterFactory,
                 'myParam',
                 6,
                 typeObject,

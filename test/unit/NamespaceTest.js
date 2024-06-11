@@ -174,7 +174,6 @@ describe('Namespace', function () {
             functionSpec.createAliasFunction
                 .withArgs(
                     'myAliasFunc',
-                    sinon.match.same(functionSpecFactory),
                     sinon.match.same(functionFactory)
                 )
                 .returns(aliasFunction);

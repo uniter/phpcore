@@ -40,6 +40,7 @@ describe('FunctionSpec', function () {
         createSpec,
         flow,
         func,
+        functionSpecFactory,
         futureFactory,
         globalNamespace,
         namespaceScope,
@@ -63,6 +64,7 @@ describe('FunctionSpec', function () {
         context = sinon.createStubInstance(FunctionContextInterface);
         flow = state.getFlow();
         func = sinon.stub();
+        functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
         futureFactory = state.getFutureFactory();
         globalNamespace = sinon.createStubInstance(Namespace);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
@@ -111,6 +113,7 @@ describe('FunctionSpec', function () {
                 referenceFactory,
                 futureFactory,
                 flow,
+                functionSpecFactory,
                 context,
                 namespaceScope,
                 parameterList,
@@ -285,14 +288,12 @@ describe('FunctionSpec', function () {
         var aliasFunction,
             aliasFunctionSpec,
             functionFactory,
-            functionSpecFactory,
             originalFunction;
 
         beforeEach(function () {
             aliasFunction = sinon.stub();
             aliasFunctionSpec = sinon.createStubInstance(FunctionSpec);
             functionFactory = sinon.createStubInstance(FunctionFactory);
-            functionSpecFactory = sinon.createStubInstance(FunctionSpecFactory);
             originalFunction = sinon.stub();
 
             functionFactory.create
@@ -323,10 +324,36 @@ describe('FunctionSpec', function () {
             expect(
                 spec.createAliasFunction(
                     'myAliasFunc',
-                    functionSpecFactory,
                     functionFactory
                 )
             ).to.equal(aliasFunction);
+        });
+    });
+
+    describe('createAliasFunctionSpec()', function () {
+        var aliasFunctionSpec,
+            functionFactory;
+
+        beforeEach(function () {
+            aliasFunctionSpec = sinon.createStubInstance(FunctionSpec);
+            functionFactory = sinon.createStubInstance(FunctionFactory);
+
+            functionSpecFactory.createAliasFunctionSpec
+                .withArgs(
+                    sinon.match.same(namespaceScope),
+                    'myAliasFunc',
+                    [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    sinon.match.same(func),
+                    sinon.match.same(returnType),
+                    false, // Return by value.
+                    '/path/to/my/module.php',
+                    1234
+                )
+                .returns(aliasFunctionSpec);
+        });
+
+        it('should return a correctly constructed alias FunctionSpec', function () {
+            expect(spec.createAliasFunctionSpec('myAliasFunc')).to.equal(aliasFunctionSpec);
         });
     });
 
