@@ -50,6 +50,7 @@ _.extend(LoadScope.prototype, {
      * @param {Object.<string, ReferenceSlot>=} referenceBindings
      * @param {Object.<string, Value>=} valueBindings
      * @param {boolean=} isStatic
+     * @param {Object=} returnTypeSpec
      * @param {number|null=} lineNumber
      * @returns {Closure}
      */
@@ -61,6 +62,7 @@ _.extend(LoadScope.prototype, {
         referenceBindings,
         valueBindings,
         isStatic,
+        returnTypeSpec,
         lineNumber
     ) {
         return this.effectiveScope.createClosure(
@@ -71,6 +73,7 @@ _.extend(LoadScope.prototype, {
             referenceBindings,
             valueBindings,
             isStatic,
+            returnTypeSpec,
             lineNumber
         );
     },

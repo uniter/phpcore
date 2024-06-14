@@ -22,8 +22,10 @@ module.exports = require('pauser')([
     require('./Value/Exit'),
     require('./FFI/Result'),
     require('./Value/Float'),
+    require('./Iterator/GeneratorIterator'),
     require('./Value/Integer'),
     require('./KeyValuePair'),
+    require('./Value/Missing'),
     require('./Value/Null'),
     require('./Value/Object'),
     require('./Control/Pause'),
@@ -47,8 +49,10 @@ module.exports = require('pauser')([
     ExitValue,
     FFIResult,
     FloatValue,
+    GeneratorIterator,
     IntegerValue,
     KeyValuePair,
+    MissingValue,
     NullValue,
     ObjectValue,
     Pause,
@@ -73,7 +77,7 @@ module.exports = require('pauser')([
         },
         queueMacrotask = typeof requestIdleCallback !== 'undefined' ?
             function (callback) {
-                requestIdleCallback(callback);
+                requestIdleCallback(callback, {timeout: 0});
             } :
             function (callback) {
                 setTimeout(callback, 1);
@@ -142,6 +146,12 @@ module.exports = require('pauser')([
          */
         this.futureFactory = null;
         /**
+         * Cache for the resolved Generator Class object, to save on expensive lookups.
+         *
+         * @type {Class|null}
+         */
+        this.generatorClass = null;
+        /**
          * Cache for the resolved JSObject Class object, for FFI to save on expensive lookups.
          *
          * @type {Class|null}
@@ -170,14 +180,21 @@ module.exports = require('pauser')([
          */
         this.globalNamespace = null;
         /**
+         * The single MissingValue for efficiency, created lazily in .createMissing(...).
+         * It must be created lazily there as it depends on CallStack, which due to a circular dependency
+         * is injected via setter: .setCallStack(...). That setter is not always called, e.g. by various unit tests,
+         * for simplicity.
+         *
+         * @type {MissingValue|null}
+         */
+        this.missingValue = null;
+        /**
          * @type {string}
          */
         this.mode = mode;
         /**
          * The single NullValue for efficiency, created lazily in .createNull(...).
-         * It must be created lazily there as it depends on CallStack, which due to a circular dependency
-         * is injected via setter: .setCallStack(...). That setter is not always called, eg. by various unit tests,
-         * for simplicity.
+         * See also .missingValue defined above.
          *
          * @type {NullValue|null}
          */
@@ -639,7 +656,7 @@ module.exports = require('pauser')([
         /**
          * Coerces a native JavaScript value to a suitable *Value object,
          * based on its type. For example, a string primitive value from JS
-         * will be coerced to a StringValue instance for PHP
+         * will be coerced to a StringValue instance for PHP.
          *
          * @param {*} nativeValue
          * @returns {Value}
@@ -647,8 +664,12 @@ module.exports = require('pauser')([
         createFromNative: function (nativeValue) {
             var factory = this;
 
-            if (nativeValue === null || typeof nativeValue === 'undefined') {
+            if (nativeValue === null) {
                 return factory.createNull();
+            }
+
+            if (typeof nativeValue === 'undefined') {
+                return factory.createMissing();
             }
 
             if (_.isString(nativeValue)) {
@@ -750,7 +771,7 @@ module.exports = require('pauser')([
         createFuture: function (executor) {
             var factory = this;
 
-            return factory.futureFactory.createFuture(function (resolveFuture, rejectFuture, nestCoroutine) {
+            return factory.futureFactory.createFuture(function (resolveFuture, rejectFuture, nestCoroutine, newCoroutine) {
                 executor(
                     function resolve(result) {
                         // For Future-wrapped Values, we always want to coerce the eventual result to a Value.
@@ -759,7 +780,8 @@ module.exports = require('pauser')([
                     function reject(error) {
                         return rejectFuture(error);
                     },
-                    nestCoroutine
+                    nestCoroutine,
+                    newCoroutine
                 );
             });
         },
@@ -785,6 +807,37 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Creates a Generator.
+         *
+         * @param {Call} call
+         * @param {Function} func
+         * @returns {ObjectValue<Generator>}
+         */
+        createGeneratorObject: function (call, func) {
+            var factory = this,
+                generatorClass = factory.generatorClass,
+                iterator = new GeneratorIterator(
+                    factory,
+                    factory.futureFactory,
+                    factory.callStack,
+                    factory.flow,
+                    call,
+                    func
+                );
+
+            // Cache the built-in Generator Class instance for future lookups.
+            if (!generatorClass) {
+                generatorClass = factory.globalNamespace.getClass('Generator').yieldSync();
+
+                factory.generatorClass = generatorClass;
+            }
+
+            return generatorClass.instantiateWithInternals([], {
+                'iterator': iterator
+            });
+        },
+
+        /**
          * Creates an IntegerValue
          *
          * @param {number} value
@@ -804,7 +857,30 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates a NullValue
+         * Creates a MissingValue.
+         *
+         * Note that there is only ever a single instance of MissingValue to save on memory usage.
+         *
+         * @return {MissingValue}
+         */
+        createMissing: function () {
+            var factory = this;
+
+            if (factory.missingValue === null) {
+                factory.missingValue = new MissingValue(
+                    factory,
+                    factory.referenceFactory,
+                    factory.futureFactory,
+                    factory.callStack,
+                    factory.flow
+                );
+            }
+
+            return factory.missingValue;
+        },
+
+        /**
+         * Creates a NullValue.
          *
          * Note that there is only ever a single instance of NullValue to save on memory usage.
          *
@@ -843,7 +919,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates an ObjectValue for a given native value and class
+         * Creates an ObjectValue for a given native value and class.
          *
          * @param {object} nativeValue
          * @param {Class} classObject
@@ -852,7 +928,25 @@ module.exports = require('pauser')([
         createObject: function (nativeValue, classObject) {
             var factory = this;
 
-            // Object ID tracking is incomplete: ID should be freed when all references are lost
+            return factory.createObjectWithID(
+                nativeValue,
+                classObject,
+                factory.nextObjectID++
+            );
+        },
+
+        /**
+         * Creates an ObjectValue for a given native value, class and ID.
+         *
+         * @param {object} nativeValue
+         * @param {Class} classObject
+         * @param {number} id
+         * @returns {ObjectValue}
+         */
+        createObjectWithID: function (nativeValue, classObject, id) {
+            var factory = this;
+
+            // Object ID tracking is incomplete: ID should be freed when all references are lost.
             return new ObjectValue(
                 factory,
                 factory.referenceFactory,
@@ -862,7 +956,7 @@ module.exports = require('pauser')([
                 factory.translator,
                 nativeValue,
                 classObject,
-                factory.nextObjectID++
+                id
             );
         },
 

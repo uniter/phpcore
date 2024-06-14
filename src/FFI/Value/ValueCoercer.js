@@ -42,7 +42,9 @@ _.extend(ValueCoercer.prototype, {
         }
 
         return coercer.flow.mapAsync(argumentReferences, function (argumentReference) {
-            return argumentReference.getValue()
+            // Note that if we called .getValue() at this point, any warnings/notices
+            // raised by FunctionSpec.coerceArguments() would be duplicated.
+            return argumentReference.getValueOrNull()
                 .next(function (argumentValue) {
                     return argumentValue.getNative();
                 });

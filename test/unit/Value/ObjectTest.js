@@ -21,7 +21,9 @@ var expect = require('chai').expect,
     Closure = require('../../../src/Closure').sync(),
     Exception = phpCommon.Exception,
     FunctionSpec = require('../../../src/Function/FunctionSpec'),
+    GeneratorIterator = require('../../../src/Iterator/GeneratorIterator'),
     IntegerValue = require('../../../src/Value/Integer').sync(),
+    KeyValuePair = require('../../../src/KeyValuePair'),
     MethodSpec = require('../../../src/MethodSpec'),
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
@@ -1662,6 +1664,8 @@ describe('ObjectValue', function () {
                 iteratorValue.classIs.withArgs('Iterator').returns(true);
                 iteratorValue.classIs.returns(false);
                 iteratorValue.getType.returns('object');
+                iteratorValue.next.yields(iteratorValue);
+                iteratorValue.toPromise.returns(Promise.resolve(iteratorValue));
                 classObject.callMethod.withArgs('getIterator')
                     .returns(futureFactory.createPresent(iteratorValue));
 
@@ -1677,6 +1681,8 @@ describe('ObjectValue', function () {
                 iteratorValue.classIs.withArgs('Iterator').returns(true);
                 iteratorValue.classIs.returns(false);
                 iteratorValue.getType.returns('object');
+                iteratorValue.next.yields(iteratorValue);
+                iteratorValue.toPromise.returns(Promise.resolve(iteratorValue));
                 classObject.callMethod.withArgs('getIterator')
                     .returns(futureFactory.createPresent(iteratorValue));
 
@@ -1736,6 +1742,16 @@ describe('ObjectValue', function () {
                 expect(exceptionClassObject.instantiate.args[0][0][0].getNative()).to.equal(
                     '[Translated] core.object_from_get_iterator_must_be_traversable {"className":"My\\\\Space\\\\AwesomeClass"}'
                 );
+            });
+        });
+
+        describe('when the object is a Generator', function () {
+            it('should return the internal GeneratorIterator', async function () {
+                var iterator = sinon.createStubInstance(GeneratorIterator);
+                classObject.is.withArgs('Generator').returns(true);
+                value.setInternalProperty('iterator', iterator);
+
+                expect(await value.getIterator().toPromise()).to.equal(iterator);
             });
         });
     });
@@ -1851,6 +1867,21 @@ describe('ObjectValue', function () {
         });
     });
 
+    describe('getOutgoingValues()', function () {
+        it('should return an array of all structured property values', function () {
+            var structuredValue = factory.createArray([
+                    new KeyValuePair(factory.createString('myKey'), factory.createString('my value'))
+                ]),
+                values;
+            value.getInstancePropertyByName(factory.createString('structuredProp')).setValue(structuredValue);
+
+            values = value.getOutgoingValues();
+
+            expect(values).to.have.length(1);
+            expect(values[0].getNative()).to.deep.equal(structuredValue.getNative());
+        });
+    });
+
     describe('getPropertyNames()', function () {
         it('should return all instance property names as native strings', function () {
             expect(value.getPropertyNames()).to.deep.equal([
@@ -1899,6 +1930,18 @@ describe('ObjectValue', function () {
                 .returns(thisObject);
 
             expect(value.getThisObject()).to.equal(thisObject);
+        });
+    });
+
+    describe('getType()', function () {
+        it('should return "object"', function () {
+            expect(value.getType()).to.equal('object');
+        });
+    });
+
+    describe('getUnderlyingType()', function () {
+        it('should return "object"', function () {
+            expect(value.getUnderlyingType()).to.equal('object');
         });
     });
 
@@ -2218,6 +2261,12 @@ describe('ObjectValue', function () {
     describe('isScalar()', function () {
         it('should return false', function () {
             expect(value.isScalar()).to.be.false;
+        });
+    });
+
+    describe('isStructured()', function () {
+        it('should return true', function () {
+            expect(value.isStructured()).to.be.true;
         });
     });
 

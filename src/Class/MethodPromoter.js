@@ -66,7 +66,6 @@ _.extend(MethodPromoter.prototype, {
             parametersSpecData = methodDefinition.args || [],
             // TODO: Userland return-by-reference (only NativeMethodDefinitionBuilder uses this at the moment).
             returnByReference = Boolean(methodDefinition.ref),
-            // TODO: Userland return types (only NativeMethodDefinitionBuilder uses this at the moment).
             returnTypeSpecData = methodDefinition.ret || null;
 
         functionSpec = promoter.functionSpecFactory.createMethodSpec(
@@ -74,6 +73,7 @@ _.extend(MethodPromoter.prototype, {
             classObject,
             methodName,
             parametersSpecData,
+            methodDefinition.method,
             returnTypeSpecData,
             returnByReference,
             promoter.callStack.getLastFilePath(),
@@ -83,8 +83,6 @@ _.extend(MethodPromoter.prototype, {
         method = promoter.functionFactory.create(
             namespaceScope,
             classObject,
-            methodDefinition.method,
-            methodName,
             null, // Current object only applies to Closures, so nothing to set here.
             null, // No need to override the class for a method.
             functionSpec

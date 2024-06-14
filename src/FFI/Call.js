@@ -9,7 +9,9 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    phpCommon = require('phpcommon'),
+    Exception = phpCommon.Exception;
 
 /**
  * @param {Value[]} args
@@ -23,6 +25,13 @@ function Call(args) {
 }
 
 _.extend(Call.prototype, {
+    /**
+     * FFI calls are always in weak type-checking mode.
+     */
+    enableStrictTypes: function () {
+        throw new Exception('FFI calls cannot be switched into strict-types mode');
+    },
+
     /**
      * Fetches the current class for the call, if any
      *
@@ -119,6 +128,15 @@ _.extend(Call.prototype, {
      */
     instrument: function () {
         throw new Error('Unable to instrument an FFI Call');
+    },
+
+    /**
+     * FFI calls are always in weak type-checking mode.
+     *
+     * @returns {boolean}
+     */
+    isStrictTypesMode: function () {
+        return false;
     },
 
     /**

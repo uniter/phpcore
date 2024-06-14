@@ -692,6 +692,12 @@ describe('FloatValue', function () {
         });
     });
 
+    describe('getOutgoingValues()', function () {
+        it('should return an empty array as scalars cannot refer to anything', function () {
+            expect(value.getOutgoingValues()).to.deep.equal([]);
+        });
+    });
+
     describe('getProxy()', function () {
         it('should return 21.5 when expected', function () {
             createValue(21.5);
@@ -723,6 +729,18 @@ describe('FloatValue', function () {
             }).to.throw(
                 'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
+        });
+    });
+
+    describe('getType()', function () {
+        it('should return "float"', function () {
+            expect(value.getType()).to.equal('float');
+        });
+    });
+
+    describe('getUnderlyingType()', function () {
+        it('should return "float"', function () {
+            expect(value.getUnderlyingType()).to.equal('float');
         });
     });
 
@@ -837,6 +855,12 @@ describe('FloatValue', function () {
     describe('isScalar()', function () {
         it('should return true', function () {
             expect(value.isScalar()).to.be.true;
+        });
+    });
+
+    describe('isStructured()', function () {
+        it('should return false', function () {
+            expect(value.isStructured()).to.be.false;
         });
     });
 

@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('./tools'),
+    Call = require('../../src/Call'),
     ControlBridge = require('../../src/Control/ControlBridge'),
     ControlFactory = require('../../src/Control/ControlFactory'),
     ControlScope = require('../../src/Control/ControlScope'),
@@ -882,6 +883,68 @@ describe('PHPState', function () {
         });
     });
 
+    describe('defineOverloadedFunction()', function () {
+        beforeEach(function () {
+            var call = sinon.createStubInstance(Call);
+
+            state.getCallStack().push(call);
+        });
+
+        it('should be able to define a coercing function', async function () {
+            var func,
+                resultValue1,
+                resultValue2;
+
+            state.defineOverloadedFunction('My\\Stuff\\my_overloaded_func', function (internals) {
+                internals.defineVariant(': string', function () {
+                    return 'No arguments for me';
+                });
+                internals.defineVariant('int $number : string', function (number) {
+                    return 'My number was: ' + number;
+                });
+                internals.defineVariant('string $first, string $second : string', function (firstString, secondString) {
+                    return 'I said ' + firstString + ', ' + secondString + '!';
+                });
+            });
+            func = state.getFunction('My\\Stuff\\my_overloaded_func');
+            resultValue1 = await func(valueFactory.createInteger(4)).toPromise();
+            resultValue2 = await func(valueFactory.createString('this'), valueFactory.createString('that')).toPromise();
+
+            expect(resultValue1.getType()).to.equal('string');
+            expect(resultValue1.getNative()).to.equal('My number was: 4');
+            expect(resultValue2.getType()).to.equal('string');
+            expect(resultValue2.getNative()).to.equal('I said this, that!');
+        });
+
+        it('should be able to define a non-coercing function', async function () {
+            var func,
+                resultValue1,
+                resultValue2;
+
+            state.defineOverloadedFunction('My\\Stuff\\my_overloaded_func', function (internals) {
+                internals.disableAutoCoercion();
+
+                internals.defineVariant(': string', function () {
+                    return 'No arguments for me';
+                });
+                internals.defineVariant('int $number : string', function (numberValue) {
+                    return 'My number was: ' + numberValue.getNative();
+                });
+                internals.defineVariant('string $first, string $second : string', function (firstValue, secondValue) {
+                    return 'I said ' + firstValue.getNative() + ', ' + secondValue.getNative() + '!';
+                });
+            });
+            func = state.getFunction('My\\Stuff\\my_overloaded_func');
+            resultValue1 = await func(valueFactory.createInteger(4)).toPromise();
+            resultValue2 = await func(valueFactory.createString('this'), valueFactory.createString('that')).toPromise();
+
+            expect(resultValue1.getType()).to.equal('string');
+            expect(resultValue1.getNative()).to.equal('My number was: 4');
+            expect(resultValue2.getType()).to.equal('string');
+            expect(resultValue2.getNative()).to.equal('I said this, that!');
+        });
+    });
+
     describe('defineServiceGroup()', function () {
         it('should allow defining custom services', function () {
             state.defineServiceGroup(function (internals) {
@@ -1061,6 +1124,42 @@ describe('PHPState', function () {
     describe('getLoader()', function () {
         it('should return a Loader', function () {
             expect(state.getLoader()).to.be.an.instanceOf(Loader);
+        });
+    });
+
+    describe('getMode()', function () {
+        it('should return "async" when expected', function () {
+            expect(state.getMode()).to.equal('async');
+        });
+
+        it('should return "psync" when expected', function () {
+            state = new PHPState(
+                runtime,
+                environmentFactory,
+                globalStackHooker,
+                installedBuiltinTypes,
+                stdin,
+                stdout,
+                stderr,
+                'psync'
+            );
+
+            expect(state.getMode()).to.equal('psync');
+        });
+
+        it('should return "sync" when expected', function () {
+            state = new PHPState(
+                runtime,
+                environmentFactory,
+                globalStackHooker,
+                installedBuiltinTypes,
+                stdin,
+                stdout,
+                stderr,
+                'sync'
+            );
+
+            expect(state.getMode()).to.equal('sync');
         });
     });
 

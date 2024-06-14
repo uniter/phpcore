@@ -237,6 +237,8 @@ describe('BarewordStringValue', function () {
         it('should fetch the constant from the class', async function () {
             var classObject = sinon.createStubInstance(Class),
                 resultValue = sinon.createStubInstance(Value);
+            resultValue.next.yields(resultValue);
+            resultValue.toPromise.returns(Promise.resolve(resultValue));
             namespaceScope.getClass
                 .withArgs('This\\SubSpace\\MyClass')
                 .returns(futureFactory.createPresent(classObject));
@@ -247,6 +249,24 @@ describe('BarewordStringValue', function () {
 
             expect(await value.getConstantByName('MY_CONST', namespaceScope).toPromise()).to.equal(resultValue);
         });
+
+        it('should not autoload when the special ::class constant for an undefined class', async function () {
+            var namespace,
+                resultValue;
+            namespace = sinon.createStubInstance(Namespace);
+            namespace.getPrefix.returns('Some\\SubSpace\\');
+            namespaceScope.resolveClass.withArgs('Some\\SubSpace\\SomeUndefinedClass').returns({
+                namespace: namespace,
+                name: 'SomeUndefinedClass'
+            });
+            createValue('Some\\SubSpace\\SomeUndefinedClass');
+
+            resultValue = await value.getConstantByName('class', namespaceScope).toPromise();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('Some\\SubSpace\\SomeUndefinedClass');
+            expect(namespaceScope.getClass).not.to.have.been.called;
+        });
     });
 
     describe('getDisplayType()', function () {
@@ -254,6 +274,14 @@ describe('BarewordStringValue', function () {
             createValue('mybarewordstring');
 
             expect(value.getDisplayType()).to.equal('string');
+        });
+    });
+
+    describe('getOutgoingValues()', function () {
+        it('should return an empty array as scalars cannot refer to anything', function () {
+            createValue('mybarewordstring');
+
+            expect(value.getOutgoingValues()).to.deep.equal([]);
         });
     });
 
@@ -271,6 +299,8 @@ describe('BarewordStringValue', function () {
         it('should fetch the property\'s value from the class', async function () {
             var classObject = sinon.createStubInstance(Class),
                 resultValue = sinon.createStubInstance(Value);
+            resultValue.next.yields(resultValue);
+            resultValue.toPromise.returns(Promise.resolve(resultValue));
             namespaceScope.getClass
                 .withArgs('This\\SubSpace\\MyClass')
                 .returns(futureFactory.createPresent(classObject));
@@ -285,6 +315,23 @@ describe('BarewordStringValue', function () {
                     namespaceScope
                 ).toPromise()
             ).to.equal(resultValue);
+        });
+    });
+
+    describe('getType()', function () {
+        it('should return "string"', function () {
+            createValue('mybareword');
+
+            // Note "string" and not "bareword" as for the underlying type below.
+            expect(value.getType()).to.equal('string');
+        });
+    });
+
+    describe('getUnderlyingType()', function () {
+        it('should return "bareword"', function () {
+            createValue('mybareword');
+
+            expect(value.getUnderlyingType()).to.equal('bareword');
         });
     });
 
@@ -306,6 +353,8 @@ describe('BarewordStringValue', function () {
                 .withArgs('My\\Space\\MyClass')
                 .returns(futureFactory.createPresent(classObject));
             newObjectValue = sinon.createStubInstance(ObjectValue);
+            newObjectValue.next.yields(newObjectValue);
+            newObjectValue.toPromise.returns(Promise.resolve(newObjectValue));
             classObject.instantiate.returns(newObjectValue);
         });
 
@@ -347,6 +396,14 @@ describe('BarewordStringValue', function () {
             createValue('mybarewordstring');
 
             expect(value.isScalar()).to.be.true;
+        });
+    });
+
+    describe('isStructured()', function () {
+        it('should return false', function () {
+            createValue('mybarewordstring');
+
+            expect(value.isStructured()).to.be.false;
         });
     });
 

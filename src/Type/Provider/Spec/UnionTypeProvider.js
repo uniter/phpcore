@@ -47,7 +47,7 @@ _.extend(UnionTypeProvider.prototype, {
             scalarSubTypesByValueType = {},
             scalarSubTypesByPriority = [];
 
-        _.each(typeSpecData.subTypes, function (subTypeSpecData) {
+        _.each(typeSpecData.types, function (subTypeSpecData) {
             var scalarValueTypeName,
                 subType = provider.specTypeProvider.createType(subTypeSpecData, namespaceScope);
 
@@ -58,6 +58,10 @@ _.extend(UnionTypeProvider.prototype, {
                 scalarSubTypesByPriority.push(subType);
             } else if (subTypeSpecData.type === 'class') {
                 classSubTypes.push(subType);
+            } else if (subTypeSpecData.type === 'null') {
+                // FIXME: Nullable types should always be represented as a union |null,
+                //        remove "nullable" and "nullIsAllowed" properties of *Types.
+                nullable = true;
             } else {
                 otherSubTypes.push(subType);
             }

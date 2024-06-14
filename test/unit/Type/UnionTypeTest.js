@@ -16,6 +16,7 @@ var expect = require('chai').expect,
     CallableType = require('../../../src/Type/CallableType'),
     Class = require('../../../src/Class').sync(),
     ClassType = require('../../../src/Type/ClassType'),
+    IterableType = require('../../../src/Type/IterableType'),
     ScalarType = require('../../../src/Type/ScalarType'),
     Translator = phpCommon.Translator,
     UnionType = require('../../../src/Type/UnionType');
@@ -188,10 +189,13 @@ describe('UnionType', function () {
         });
 
         it('should return the correct concatenated display string when nullable with multiple other types', function () {
+            var iterableType = sinon.createStubInstance(IterableType);
+            iterableType.getDisplayName.returns('iterable');
             createType(true);
+            otherSubTypes.push(iterableType);
 
             expect(type.getDisplayName()).to.equal(
-                'MyClass|callable|float|bool|null'
+                'MyClass|iterable|callable|float|bool|null'
             );
         });
 

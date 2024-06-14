@@ -11,14 +11,17 @@
 
 module.exports = require('pauser')([
     require('microdash'),
+    require('path'),
     require('phpcommon'),
     require('../Exception/LoadFailedException')
 ], function (
     _,
+    path,
     phpCommon,
     LoadFailedException
 ) {
     var hasOwn = {}.hasOwnProperty,
+        resolvePath = path.resolve,
         Exception = phpCommon.Exception,
         INCLUDE_OPTION = 'include',
         PHPError = phpCommon.PHPError;
@@ -80,7 +83,12 @@ module.exports = require('pauser')([
          * @returns {boolean}
          */
         hasModuleBeenIncluded: function (path) {
-            return hasOwn.call(this.includedPaths, path);
+            var includer = this,
+                // Resolve the path, as the eventual file is the one that must be unique.
+                // This will handle parent-directory ".." symbols, for example.
+                resolvedPath = resolvePath(path);
+
+            return hasOwn.call(includer.includedPaths, resolvedPath);
         },
 
         /**
@@ -93,7 +101,7 @@ module.exports = require('pauser')([
          * @param {string} includedPath
          * @param {Scope} enclosingScope
          * @param {Object} options
-         * @returns {Value}
+         * @returns {ChainableInterface<Value>}
          * @throws {Exception} When no include transport has been configured
          * @throws {Error} When the loader throws a generic error
          */
@@ -109,7 +117,9 @@ module.exports = require('pauser')([
             var includer = this,
                 includeFunction = includer.optionSet.getOption(INCLUDE_OPTION),
                 includeScope,
-                previousError;
+                previousError,
+                // Resolve the path first - see .hasModuleBeenIncluded(...).
+                resolvedPath = resolvePath(includedPath);
 
             if (!includeFunction) {
                 throw new Exception(
@@ -125,11 +135,11 @@ module.exports = require('pauser')([
                 type
             );
 
-            // Mark the module as included so we may avoid including it a second time
-            includer.includedPaths[includedPath] = true;
+            // Mark the module as included so we may avoid including it a second time.
+            includer.includedPaths[resolvedPath] = true;
 
-            return includer.valueFactory.coerce(
-                includer.loader.load(
+            return includer.loader
+                .load(
                     type,
                     includedPath,
                     options,
@@ -140,26 +150,36 @@ module.exports = require('pauser')([
                         return includeFunction(path, promise, parentPath, valueFactory);
                     }
                 )
-            ).catch(function (error) {
-                if (!(error instanceof LoadFailedException)) {
-                    // Rethrow for anything other than the expected possible exception(s) trying to load the module
-                    throw error;
-                }
+                .asValue()
+                .next(
+                    function (result) {
+                        if (result.getUnderlyingType() === 'missing') {
+                            return includer.valueFactory.createInteger(1);
+                        }
 
-                previousError = error.getPreviousError();
+                        return includer.valueFactory.coerce(result);
+                    },
+                    function (error) {
+                        if (!(error instanceof LoadFailedException)) {
+                            // Rethrow for anything other than the expected possible exception(s) trying to load the module
+                            throw error;
+                        }
 
-                includer.callStack.raiseError(
-                    PHPError.E_WARNING,
-                    type + '(' + includedPath + '): failed to open stream: ' +
-                    (previousError ? previousError.message : 'Unknown error')
+                        previousError = error.getPreviousError();
+
+                        includer.callStack.raiseError(
+                            PHPError.E_WARNING,
+                            type + '(' + includedPath + '): failed to open stream: ' +
+                            (previousError ? previousError.message : 'Unknown error')
+                        );
+                        includer.callStack.raiseError(
+                            errorLevel,
+                            type + '(): Failed opening \'' + includedPath + '\' for inclusion'
+                        );
+
+                        return includer.valueFactory.createBoolean(false);
+                    }
                 );
-                includer.callStack.raiseError(
-                    errorLevel,
-                    type + '(): Failed opening \'' + includedPath + '\' for inclusion'
-                );
-
-                return includer.valueFactory.createBoolean(false);
-            });
         }
     });
 

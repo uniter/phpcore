@@ -53,40 +53,40 @@ describe('Opcode SnapshotType', function () {
     });
 
     describe('allowsValue()', function () {
-        it('should return true for a Reference instance', function () {
-            var value = sinon.createStubInstance(Reference);
-
-            expect(type.allowsValue(value)).to.be.true;
-        });
-
         it('should return true for a ReferenceSnapshot instance', function () {
             var value = sinon.createStubInstance(ReferenceSnapshot);
 
             expect(type.allowsValue(value)).to.be.true;
         });
 
-        it('should return true for a ReferenceElement instance', function () {
+        it('should return true for a non-ReferenceSnapshot Reference instance', function () {
+            var value = sinon.createStubInstance(Reference);
+
+            expect(type.allowsValue(value)).to.be.true;
+        });
+
+        it('should return false for a ReferenceElement instance', function () {
             var value = sinon.createStubInstance(ReferenceElement);
 
-            expect(type.allowsValue(value)).to.be.true;
+            expect(type.allowsValue(value)).to.be.false;
         });
 
-        it('should return true for a KeyReferencePair instance', function () {
+        it('should return false for a KeyReferencePair instance', function () {
             var value = sinon.createStubInstance(KeyReferencePair);
 
-            expect(type.allowsValue(value)).to.be.true;
+            expect(type.allowsValue(value)).to.be.false;
         });
 
-        it('should return true for a KeyValuePair instance', function () {
+        it('should return false for a KeyValuePair instance', function () {
             var value = sinon.createStubInstance(KeyValuePair);
 
-            expect(type.allowsValue(value)).to.be.true;
+            expect(type.allowsValue(value)).to.be.false;
         });
 
-        it('should return true for a Value instance', function () {
+        it('should return false for a Value instance', function () {
             var value = sinon.createStubInstance(Value);
 
-            expect(type.allowsValue(value)).to.be.true;
+            expect(type.allowsValue(value)).to.be.false;
         });
 
         it('should return true for a Variable instance', function () {
@@ -101,34 +101,54 @@ describe('Opcode SnapshotType', function () {
     });
 
     describe('coerceValue()', function () {
-        it('should return the value when given a Value', function () {
-            var value = valueFactory.createString('my string');
-
-            expect(type.coerceValue(value)).to.equal(value);
-        });
-
         it('should return the snapshot when given a ReferenceSnapshot', function () {
             var snapshot = sinon.createStubInstance(ReferenceSnapshot);
 
             expect(type.coerceValue(snapshot)).to.equal(snapshot);
         });
 
-        it('should return the snapshot when given a ReferenceElement', function () {
+        it('should throw when given a ReferenceElement', function () {
             var element = sinon.createStubInstance(ReferenceElement);
 
-            expect(type.coerceValue(element)).to.equal(element);
+            expect(function () {
+                type.coerceValue(element);
+            }).to.throw(
+                Exception,
+                'Unexpected value provided for SnapshotType'
+            );
         });
 
-        it('should return the pair when given a KeyReferencePair', function () {
+        it('should throw when given a KeyReferencePair', function () {
             var pair = sinon.createStubInstance(KeyReferencePair);
 
-            expect(type.coerceValue(pair)).to.equal(pair);
+            expect(function () {
+                type.coerceValue(pair);
+            }).to.throw(
+                Exception,
+                'Unexpected value provided for SnapshotType'
+            );
         });
 
-        it('should return the pair when given a KeyValuePair', function () {
+        it('should throw when given a KeyValuePair', function () {
             var pair = sinon.createStubInstance(KeyValuePair);
 
-            expect(type.coerceValue(pair)).to.equal(pair);
+            expect(function () {
+                type.coerceValue(pair);
+            }).to.throw(
+                Exception,
+                'Unexpected value provided for SnapshotType'
+            );
+        });
+
+        it('should throw when given a Value', function () {
+            var value = valueFactory.createString('my string');
+
+            expect(function () {
+                type.coerceValue(value);
+            }).to.throw(
+                Exception,
+                'SnapshotType cannot accept Values'
+            );
         });
 
         it('should throw when given a native string', function () {

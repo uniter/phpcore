@@ -58,4 +58,16 @@ describe('ExitValue', function () {
             expect(value.getStatus()).to.equal(0);
         });
     });
+
+    describe('getType()', function () {
+        it('should return "exit"', function () {
+            expect(value.getType()).to.equal('exit');
+        });
+    });
+
+    describe('getUnderlyingType()', function () {
+        it('should return "exit"', function () {
+            expect(value.getUnderlyingType()).to.equal('exit');
+        });
+    });
 });

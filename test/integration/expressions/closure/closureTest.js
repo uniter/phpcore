@@ -12,7 +12,7 @@
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
     phpCommon = require('phpcommon'),
-    tools = require('../tools'),
+    tools = require('../../tools'),
     PHPFatalError = phpCommon.PHPFatalError;
 
 describe('PHP closure/anonymous function integration', function () {

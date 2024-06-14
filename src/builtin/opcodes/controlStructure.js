@@ -52,14 +52,15 @@ module.exports = function (internals) {
          * Defines a function with the given name for the current NamespaceScope.
          */
         defineFunction: internals.typeHandler(
-            'string name, any func, initial any parameters = null, initial number line = null',
-            function (name, func, parametersSpecData, lineNumber) {
+            'string name, any func, any parameters = null, any returnType = null, number line = null',
+            function (name, func, parametersSpecData, returnTypeSpec, lineNumber) {
                 var namespaceScope = callStack.getEffectiveNamespaceScope();
 
                 namespaceScope.defineFunction(
                     name,
                     func,
                     parametersSpecData,
+                    returnTypeSpec,
                     lineNumber
                 );
             }
@@ -78,6 +79,14 @@ module.exports = function (internals) {
                 return namespaceScope.defineClass(name, definition);
             }
         ),
+
+        /**
+         * Enables strict-types mode for the current module. The default is weak type-checking mode,
+         * so there is no opcode to reverse this behaviour.
+         */
+        enableStrictTypes: function () {
+            callStack.enableStrictTypes();
+        },
 
         /**
          * Immediately exits the currently executing PHP script. This is achieved
@@ -155,7 +164,7 @@ module.exports = function (internals) {
          * Imports a class into the current namespace scope, eg. from a PHP `use ...` statement,
          * optionally with an alias.
          */
-        useClass: internals.typeHandler('string name, initial string|null alias = null', function (name, alias) {
+        useClass: internals.typeHandler('string name, string|null alias = null', function (name, alias) {
             var namespaceScope = callStack.getEffectiveNamespaceScope();
 
             return namespaceScope.use(name, alias);

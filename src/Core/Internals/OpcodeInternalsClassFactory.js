@@ -214,7 +214,7 @@ _.extend(OpcodeInternalsClassFactory.prototype, {
                     throw new Exception('Opcode fetcher has not been set');
                 }
 
-                return factory.opcodeHandlerTyper.typeHandler(signature, handler, internals.opcodeFetcher);
+                return factory.opcodeHandlerTyper.typeHandler(signature, handler);
             }
         });
 

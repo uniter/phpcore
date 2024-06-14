@@ -68,10 +68,25 @@ describe('ControlScope', function () {
                 expect(coroutine).to.equal(createdCoroutine);
             });
 
-            it('should suspend the previous Coroutine', function () {
+            it('should suspend the previous Coroutine with keepStack as true when set explicitly', function () {
+                controlScope.enterCoroutine({keepStack: true});
+
+                expect(previousCoroutine.suspend).to.have.been.calledOnce;
+                expect(previousCoroutine.suspend).to.have.been.calledWith(true);
+            });
+
+            it('should suspend the previous Coroutine with keepStack as false when set explicitly', function () {
+                controlScope.enterCoroutine({keepStack: false});
+
+                expect(previousCoroutine.suspend).to.have.been.calledOnce;
+                expect(previousCoroutine.suspend).to.have.been.calledWith(false);
+            });
+
+            it('should suspend the previous Coroutine with keepStack as false by default', function () {
                 controlScope.enterCoroutine();
 
                 expect(previousCoroutine.suspend).to.have.been.calledOnce;
+                expect(previousCoroutine.suspend).to.have.been.calledWith(false);
             });
         });
 

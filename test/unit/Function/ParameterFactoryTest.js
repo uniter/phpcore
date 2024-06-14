@@ -67,7 +67,7 @@ describe('ParameterFactory', function () {
             typeObject = sinon.createStubInstance(TypeInterface);
         });
 
-        it('should return a correctly constructed Parameter', function () {
+        it('should return a correctly constructed positional Parameter', function () {
             var parameter = sinon.createStubInstance(Parameter);
             FakeParameter
                 .withArgs(
@@ -77,12 +77,14 @@ describe('ParameterFactory', function () {
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
                     sinon.match.same(userland),
+                    sinon.match.same(factory),
                     'myParameter',
                     4,
                     sinon.match.same(typeObject),
                     context,
                     sinon.match.same(namespaceScope),
                     true,
+                    false,
                     sinon.match.same(defaultValueProvider),
                     '/path/to/my/module.php',
                     21
@@ -96,9 +98,48 @@ describe('ParameterFactory', function () {
                 context,
                 namespaceScope,
                 true,
+                false,
                 defaultValueProvider,
                 '/path/to/my/module.php',
                 21
+            )).to.equal(parameter);
+        });
+
+        it('should return a correctly constructed variadic Parameter', function () {
+            var parameter = sinon.createStubInstance(Parameter);
+            FakeParameter
+                .withArgs(
+                    sinon.match.same(callStack),
+                    sinon.match.same(valueFactory),
+                    sinon.match.same(translator),
+                    sinon.match.same(futureFactory),
+                    sinon.match.same(flow),
+                    sinon.match.same(userland),
+                    sinon.match.same(factory),
+                    'myParameter',
+                    4,
+                    sinon.match.same(typeObject),
+                    context,
+                    sinon.match.same(namespaceScope),
+                    false,
+                    true,
+                    null,
+                    '/path/to/my/module.php',
+                    101
+                )
+                .returns(parameter);
+
+            expect(factory.createParameter(
+                'myParameter',
+                4,
+                typeObject,
+                context,
+                namespaceScope,
+                false,
+                true,
+                null,
+                '/path/to/my/module.php',
+                101
             )).to.equal(parameter);
         });
     });

@@ -161,6 +161,15 @@ describe('ReferenceSnapshot', function () {
 
                 expect(wrappedReference.raiseUndefined).to.have.been.calledOnce;
             });
+
+            it('should not raise undefined for the snapshotted reference on subsequent calls', function () {
+                createSnapshot();
+
+                snapshot.getValue();
+                snapshot.getValue();
+
+                expect(wrappedReference.raiseUndefined).to.have.been.calledOnce;
+            });
         });
     });
 
@@ -214,6 +223,78 @@ describe('ReferenceSnapshot', function () {
             createSnapshot();
 
             expect(snapshot.isReference()).to.be.false;
+        });
+    });
+
+    describe('isSet()', function () {
+        it('should return true when a set value was snapshotted', async function () {
+            createSnapshot();
+
+            expect(await snapshot.isSet().toPromise()).to.be.true;
+        });
+
+        it('should return false when an unset value was snapshotted', async function () {
+            value = valueFactory.createNull();
+            createSnapshot();
+
+            expect(await snapshot.isSet().toPromise()).to.be.false;
+        });
+
+        it('should return true when a set reference was snapshotted', async function () {
+            reference = sinon.createStubInstance(Reference);
+            reference.isSet.returns(futureFactory.createPresent(true));
+            value = null;
+            createSnapshot();
+
+            expect(await snapshot.isSet().toPromise()).to.be.true;
+        });
+
+        it('should return false when an unset reference was snapshotted', async function () {
+            reference = sinon.createStubInstance(Reference);
+            reference.isSet.returns(futureFactory.createPresent(false));
+            value = null;
+            createSnapshot();
+
+            expect(await snapshot.isSet().toPromise()).to.be.false;
+        });
+
+        it('should return true when using a synthetic reference that was set', async function () {
+            var syntheticReference = sinon.createStubInstance(Reference);
+            syntheticReference.isSet.returns(futureFactory.createPresent(true));
+            value = null;
+            wrappedReference.getReference.returns(syntheticReference);
+            createSnapshot();
+            snapshot.getReference();
+
+            expect(await snapshot.isSet().toPromise()).to.be.true;
+        });
+
+        it('should return false when using a synthetic reference that was unset', async function () {
+            var syntheticReference = sinon.createStubInstance(Reference);
+            syntheticReference.isSet.returns(futureFactory.createPresent(false));
+            value = null;
+            wrappedReference.getReference.returns(syntheticReference);
+            createSnapshot();
+            snapshot.getReference();
+
+            expect(await snapshot.isSet().toPromise()).to.be.false;
+        });
+
+        it('should return false when not defined', async function () {
+            value = null;
+            createSnapshot();
+
+            expect(await snapshot.isSet().toPromise()).to.be.false;
+        });
+    });
+
+    describe('raiseUndefined()', function () {
+        it('should raise undefined via the wrapped reference', function () {
+            createSnapshot();
+
+            snapshot.raiseUndefined();
+
+            expect(wrappedReference.raiseUndefined).to.have.been.calledOnce;
         });
     });
 

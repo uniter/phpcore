@@ -16,7 +16,23 @@ var _ = require('microdash'),
     RESUME_PLACEHOLDER_MARKER = '__isResumePlaceholder',
     createResumePlaceholder = function (trace) {
         function resumePlaceholder() {
+            var currentOpIndex = trace.currentOpIndex;
+
             trace.advanceOpIndex();
+
+            /*
+             * In this state, previous calculation op results will have been discarded,
+             * so there is no point in checking those, however control flow results
+             * and throws are kept for the entirety of the call trace.
+             */
+
+            if (hasOwn.call(trace.controlFlowResults, currentOpIndex)) {
+                return trace.controlFlowResults[currentOpIndex];
+            }
+
+            if (hasOwn.call(trace.opThrows, currentOpIndex)) {
+                throw trace.opThrows[currentOpIndex];
+            }
 
             return resumePlaceholder;
         }

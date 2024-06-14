@@ -62,7 +62,7 @@ describe('OpcodeInternalsClassFactory', function () {
                     callCreate();
                     internals.setOpcodeFetcher('my_fetcher_type');
                     opcodeHandlerTyper.typeHandler
-                        .withArgs('my_type myParam', sinon.match.same(handler), 'my_fetcher_type')
+                        .withArgs('my_type myParam', sinon.match.same(handler))
                         .returns(typedHandler);
 
                     expect(internals.typeHandler('my_type myParam', handler)).to.equal(typedHandler);

@@ -70,6 +70,7 @@ _.extend(ParameterFactory.prototype, {
      * @param {FunctionContextInterface} context
      * @param {NamespaceScope} namespaceScope
      * @param {boolean} passedByReference
+     * @param {boolean} variadic
      * @param {Function|null} defaultValueProvider
      * @param {string|null} filePath
      * @param {number|null} lineNumber
@@ -82,6 +83,7 @@ _.extend(ParameterFactory.prototype, {
         context,
         namespaceScope,
         passedByReference,
+        variadic,
         defaultValueProvider,
         filePath,
         lineNumber
@@ -95,12 +97,14 @@ _.extend(ParameterFactory.prototype, {
             factory.futureFactory,
             factory.flow,
             factory.userland,
+            factory,
             name,
             index,
             typeObject,
             context,
             namespaceScope,
             passedByReference,
+            variadic,
             defaultValueProvider,
             filePath,
             lineNumber

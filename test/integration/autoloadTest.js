@@ -11,6 +11,7 @@
 
 var expect = require('chai').expect,
     nowdoc = require('nowdoc'),
+    queueMicrotask = require('core-js-pure/actual/queue-microtask'),
     tools = require('./tools');
 
 describe('PHP class autoload integration', function () {
@@ -27,7 +28,7 @@ EOS
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             environment = tools.createAsyncEnvironment({
                 include: function (path, promise) {
-                    setTimeout(function () {
+                    queueMicrotask(function () {
                         promise.resolve(tools.asyncTranspile(path, nowdoc(function () {/*<<<EOS
 <?php
 class MyClass
@@ -39,7 +40,7 @@ class MyClass
 }
 EOS
 */;}))); //jshint ignore:line
-                    }, 10);
+                    });
                 }
             }),
             engine = module({}, environment);
@@ -60,7 +61,7 @@ EOS
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             environment = tools.createAsyncEnvironment({
                 include: function (path, promise) {
-                    setTimeout(function () {
+                    queueMicrotask(function () {
                         promise.resolve(tools.asyncTranspile(path, nowdoc(function () {/*<<<EOS
 <?php
 class MyClass
@@ -69,7 +70,7 @@ class MyClass
 }
 EOS
 */;}))); //jshint ignore:line
-                    }, 10);
+                    });
                 }
             }),
             engine = module({}, environment);
@@ -90,7 +91,7 @@ EOS
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             environment = tools.createAsyncEnvironment({
                 include: function (path, promise) {
-                    setTimeout(function () {
+                    queueMicrotask(function () {
                         promise.resolve(tools.asyncTranspile(path, nowdoc(function () {/*<<<EOS
 <?php
 class MyClass
@@ -99,7 +100,7 @@ class MyClass
 }
 EOS
 */;}))); //jshint ignore:line
-                    }, 10);
+                    });
                 }
             }),
             engine = module({}, environment);
@@ -120,7 +121,7 @@ EOS
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             environment = tools.createAsyncEnvironment({
                 include: function (path, promise) {
-                    setTimeout(function () {
+                    queueMicrotask(function () {
                         if (path === 'MyClass.php') {
                             promise.resolve(tools.asyncTranspile(path, nowdoc(function () {/*<<<EOS
 <?php
@@ -142,11 +143,68 @@ EOS
                         } else {
                             promise.reject();
                         }
-                    }, 10);
+                    });
                 }
             }),
             engine = module({}, environment);
 
         expect((await engine.execute()).getNative()).to.equal(21);
+    });
+
+    it('should correctly handle asynchronously autoloading an interface used multiple times in a class hierarchy', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+spl_autoload_register(function ($class) {
+    require $class . '.php';
+});
+
+$result = [];
+$myObject = new MyClass;
+$yourObject = new MyClass;
+
+$result['->getIt()'] = $myObject->getIt($yourObject);
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            environment = tools.createAsyncEnvironment({
+                include: function (path, promise) {
+                    queueMicrotask(function () {
+                        switch (path) {
+                            case 'MyClass.php':
+                                promise.resolve(tools.asyncTranspile(path, nowdoc(function () {/*<<<EOS
+<?php
+class MyClass implements MyInterface
+{
+    public function getIt(MyInterface $another)
+    {
+        return 21;
+    }
+}
+EOS
+*/;}))); //jshint ignore:line
+                                break;
+                            case 'MyInterface.php':
+                                promise.resolve(tools.asyncTranspile(path, nowdoc(function () {/*<<<EOS
+<?php
+interface MyInterface
+{
+    public function getIt(MyInterface $another);
+}
+EOS
+*/;}))); //jshint ignore:line
+                                break;
+                            default:
+                                promise.reject();
+                        }
+                    });
+                }
+            }),
+            engine = module({}, environment);
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            '->getIt()': 21
+        });
     });
 });

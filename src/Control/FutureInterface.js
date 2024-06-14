@@ -9,7 +9,12 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    throwUnimplemented = function (functionName) {
+        return function () {
+            throw new Error(functionName + '() :: Not implemented');
+        };
+    };
 
 /**
  * @interface
@@ -20,7 +25,19 @@ function FutureInterface() {
 }
 
 _.extend(FutureInterface.prototype, {
+    /**
+     * Determines whether this future is pending (not yet settled by being resolved or rejected).
+     *
+     * @returns {boolean}
+     */
+    isPending: throwUnimplemented('isPending'),
 
+    /**
+     * Determines whether this future has settled (been resolved or rejected).
+     *
+     * @returns {boolean}
+     */
+    isSettled: throwUnimplemented('isSettled')
 });
 
 module.exports = FutureInterface;

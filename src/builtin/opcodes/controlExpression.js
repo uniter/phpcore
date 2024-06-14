@@ -22,7 +22,8 @@ var phpCommon = require('phpcommon'),
  * @constructor
  */
 module.exports = function (internals) {
-    var callStack = internals.callStack;
+    var callStack = internals.callStack,
+        valueFactory = internals.valueFactory;
 
     internals.setOpcodeFetcher('controlExpression');
 
@@ -79,6 +80,33 @@ module.exports = function (internals) {
             }
 
             throw throwableValue;
+        }),
+
+        /**
+         * Handles the operand of a return statement inside a try {...} block.
+         * Exists because we must preserve the result through pauses etc.
+         * if there is a finally clause that does not override it.
+         *
+         * Used by "try {...}" blocks that contain a return statement.
+         */
+        tryReturn: internals.typeHandler('slot operand', function (operandReference) {
+            return operandReference;
+        }),
+
+        /**
+         * Used by generator functions.
+         */
+        wrapGenerator: internals.typeHandler('any func : any', function (func) {
+            return function generator() {
+                var currentCall = callStack.getCurrent();
+
+                return valueFactory.createGeneratorObject(currentCall, func)
+                    .next(function (generatorObjectValue) {
+                        currentCall.setGenerator(generatorObjectValue);
+
+                        return generatorObjectValue;
+                    });
+            };
         })
     };
 };

@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('./tools');
 
 describe('PHP class constant integration', function () {
-    it('should support the magic ::class constant', function () {
+    it('should support the magic ::class constant', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -27,23 +27,34 @@ namespace My\Awesome\Space
 
 namespace
 {
-    return My\Awesome\Space\MyClass::class;
+    $result = [];
+
+    $result['defined class'] = My\Awesome\Space\MyClass::class;
+    $result['undefined class by bareword'] = Your\Super\UndefinedClass::class;
+    $result['undefined class by string literal'] = 'Another\Super\UndefinedClass'::class;
+
+    return $result;
 }
 EOS
 */;}),//jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php);
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
 
-        expect(module().execute().getNative()).to.equal('My\\Awesome\\Space\\MyClass');
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'defined class': 'My\\Awesome\\Space\\MyClass',
+            'undefined class by bareword': 'Your\\Super\\UndefinedClass',
+            'undefined class by string literal': 'Another\\Super\\UndefinedClass'
+        });
     });
 
-    it('should support constants that reference constants of other, autoloaded classes', function () {
+    it('should support constants that reference constants of other, autoloaded classes', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
 namespace My\Stuff
 {
     spl_autoload_register(function ($className) {
-        // Note that the asynchronous call here will cause a pause to occur during autoloading
+        // Note that the asynchronous call here will cause a pause to occur during autoloading.
         switch (get_async($className)) {
             case 'My\Stuff\MyAutoloadedClass':
                 class MyAutoloadedClass
@@ -76,24 +87,18 @@ EOS
             engine = module();
         engine.defineFunction('get_async', function (internals) {
             return function (value) {
-                return internals.createFutureValue(function (resolve) {
-                    setImmediate(function () {
-                        resolve(value);
-                    });
-                });
+                return internals.createAsyncPresentValue(value);
             };
         });
 
-        return engine.execute().then(function (resultValue) {
-            expect(resultValue.getNative()).to.deep.equal({
-                'autoloaded constant': 21
-            });
-            expect(engine.getStderr().readAll()).to.equal('');
-            expect(engine.getStdout().readAll()).to.equal('');
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'autoloaded constant': 21
         });
+        expect(engine.getStderr().readAll()).to.equal('');
+        expect(engine.getStdout().readAll()).to.equal('');
     });
 
-    it('should lazily load constants', function () {
+    it('should lazily load constants', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -119,10 +124,10 @@ namespace
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal({
+        expect((await engine.execute()).getNative()).to.deep.equal({
             'defined constant': 21
         });
         expect(engine.getStderr().readAll()).to.equal('');

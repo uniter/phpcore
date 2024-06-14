@@ -11,11 +11,13 @@
 
 var _ = require('microdash'),
     expect = require('chai').expect,
+    hasOwn = {}.hasOwnProperty,
     sinon = require('sinon'),
     tools = require('./tools'),
     CallInstrumentation = require('../../src/Instrumentation/CallInstrumentation'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
+    DestructibleObjectRepository = require('../../src/Garbage/DestructibleObjectRepository'),
     ExportRepository = require('../../src/FFI/Export/ExportRepository'),
     FFIFactory = require('../../src/FFI/FFIFactory'),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
@@ -37,11 +39,13 @@ describe('Class', function () {
         classObject,
         constructorMethod,
         createClass,
+        destructibleObjectRepository,
         exportRepository,
         ffiFactory,
         flow,
         functionFactory,
         futureFactory,
+        hasDestructor,
         instrumentation,
         interfaceObject,
         methodCaller,
@@ -58,11 +62,13 @@ describe('Class', function () {
     beforeEach(function () {
         state = tools.createIsolatedState('async');
         callStack = sinon.createStubInstance(CallStack);
+        destructibleObjectRepository = sinon.createStubInstance(DestructibleObjectRepository);
         exportRepository = sinon.createStubInstance(ExportRepository);
         ffiFactory = sinon.createStubInstance(FFIFactory);
         flow = state.getFlow();
         functionFactory = sinon.createStubInstance(FunctionFactory);
         futureFactory = state.getFutureFactory();
+        hasDestructor = false;
         instrumentation = sinon.createStubInstance(CallInstrumentation);
         methodCaller = null;
         namespaceScope = sinon.createStubInstance(NamespaceScope);
@@ -132,6 +138,8 @@ describe('Class', function () {
         valueCoercer.isAutoCoercionEnabled.returns(false);
 
         createClass = function (constructorName, superClass, constants) {
+            var hasDestructor = hasOwn.call(InternalClass.prototype, '__destruct');
+
             classObject = new Class(
                 valueFactory,
                 valueProvider,
@@ -143,6 +151,7 @@ describe('Class', function () {
                 userland,
                 'My\\Class\\Path\\Here',
                 constructorName,
+                hasDestructor,
                 InternalClass,
                 InternalClass.prototype,
                 {
@@ -181,7 +190,8 @@ describe('Class', function () {
                 valueCoercer,
                 ffiFactory,
                 methodCaller,
-                instrumentation
+                instrumentation,
+                destructibleObjectRepository
             );
         };
         createClass('__construct', null);
@@ -1348,7 +1358,7 @@ describe('Class', function () {
     describe('internalConstruct()', function () {
         var objectValue;
 
-        beforeEach(async function () {
+        beforeEach(function () {
             objectValue = sinon.createStubInstance(ObjectValue);
 
             objectValue.declareProperty
@@ -1419,6 +1429,25 @@ describe('Class', function () {
             expect(instanceProperty.initialise).to.have.been.calledOnce;
             expect(instanceProperty.initialise.args[0][0].getType()).equal('string');
             expect(instanceProperty.initialise.args[0][0].getNative()).equal('my private instance prop value');
+        });
+
+        it('should register the ObjectValue with the DestructibleObjectRepository when the class has a destructor', async function () {
+            InternalClass.prototype.__destruct = sinon.stub();
+            createClass('__construct', null);
+            await classObject.initialiseInstancePropertyDefaults();
+
+            await classObject.internalConstruct(objectValue);
+
+            expect(destructibleObjectRepository.registerValue).to.have.been.calledOnce;
+            expect(destructibleObjectRepository.registerValue).to.have.been.calledWith(sinon.match.same(objectValue));
+        });
+
+        it('should not register the ObjectValue with the DestructibleObjectRepository when the class has no destructor', async function () {
+            await classObject.initialiseInstancePropertyDefaults();
+
+            await classObject.internalConstruct(objectValue);
+
+            expect(destructibleObjectRepository.registerValue).not.to.have.been.called;
         });
     });
 

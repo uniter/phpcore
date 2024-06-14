@@ -113,6 +113,7 @@ module.exports = require('pauser')([
          * @param {Object.<string, ReferenceSlot>=} referenceBindings
          * @param {Object.<string, Value>=} valueBindings
          * @param {boolean=} isStatic
+         * @param {Object=} returnTypeSpec
          * @param {number|null=} lineNumber
          * @returns {Closure}
          */
@@ -124,6 +125,7 @@ module.exports = require('pauser')([
             referenceBindings,
             valueBindings,
             isStatic,
+            returnTypeSpec,
             lineNumber
         ) {
             var functionSpec,
@@ -142,7 +144,8 @@ module.exports = require('pauser')([
                 scope.currentClass,
                 thisObject,
                 parametersSpecData || [],
-                null, // TODO: Implement userland return types.
+                func,
+                returnTypeSpec,
                 false, // TODO: Implement userland return-by-reference.
                 referenceBindings,
                 valueBindings,
@@ -152,7 +155,6 @@ module.exports = require('pauser')([
 
             return scope.closureFactory.create(
                 scope,
-                func,
                 namespaceScope,
                 scope.currentClass,
                 thisObject,
@@ -478,6 +480,15 @@ module.exports = require('pauser')([
             }
 
             return variable;
+        },
+
+        /**
+         * Fetches all variables defined for this scope.
+         *
+         * @return {Variable[]}
+         */
+        getVariables: function () {
+            return Object.values(this.variables);
         },
 
         /**

@@ -21,6 +21,7 @@ var expect = require('chai').expect,
     ObjectValue = require('../../../src/Value/Object').sync(),
     Parameter = require('../../../src/Function/Parameter'),
     ParameterListFactory = require('../../../src/Function/ParameterListFactory'),
+    ReferenceFactory = require('../../../src/ReferenceFactory').sync(),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
     ReturnTypeProvider = require('../../../src/Function/ReturnTypeProvider'),
     Translator = phpCommon.Translator,
@@ -35,6 +36,7 @@ describe('FunctionSpecFactory', function () {
         futureFactory,
         namespaceScope,
         parameterListFactory,
+        referenceFactory,
         returnTypeProvider,
         translator,
         typeFactory,
@@ -42,7 +44,9 @@ describe('FunctionSpecFactory', function () {
         ClosureContext,
         FunctionContext,
         FunctionSpec,
-        MethodContext;
+        InvalidOverloadedFunctionSpec,
+        MethodContext,
+        OverloadedFunctionSpec;
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
@@ -50,6 +54,7 @@ describe('FunctionSpecFactory', function () {
         futureFactory = sinon.createStubInstance(FutureFactory);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         parameterListFactory = sinon.createStubInstance(ParameterListFactory);
+        referenceFactory = sinon.createStubInstance(ReferenceFactory);
         returnTypeProvider = sinon.createStubInstance(ReturnTypeProvider);
         translator = sinon.createStubInstance(Translator);
         typeFactory = sinon.createStubInstance(TypeFactory);
@@ -57,18 +62,23 @@ describe('FunctionSpecFactory', function () {
         ClosureContext = sinon.stub();
         FunctionContext = sinon.stub();
         FunctionSpec = sinon.stub();
+        InvalidOverloadedFunctionSpec = sinon.stub();
         MethodContext = sinon.stub();
+        OverloadedFunctionSpec = sinon.stub();
 
         factory = new FunctionSpecFactory(
             FunctionSpec,
             FunctionContext,
             MethodContext,
             ClosureContext,
+            OverloadedFunctionSpec,
+            InvalidOverloadedFunctionSpec,
             callStack,
             translator,
             parameterListFactory,
             returnTypeProvider,
             valueFactory,
+            referenceFactory,
             futureFactory,
             flow
         );
@@ -78,15 +88,26 @@ describe('FunctionSpecFactory', function () {
         var functionContext,
             functionSpec,
             parameter1,
+            parameter1Alias,
             parameter2,
+            parameter2Alias,
             returnType;
 
         beforeEach(function () {
             functionContext = sinon.createStubInstance(FunctionContext);
             functionSpec = sinon.createStubInstance(FunctionSpec);
             parameter1 = sinon.createStubInstance(Parameter);
+            parameter1Alias = sinon.createStubInstance(Parameter);
             parameter2 = sinon.createStubInstance(Parameter);
+            parameter2Alias = sinon.createStubInstance(Parameter);
             returnType = sinon.createStubInstance(TypeInterface);
+
+            parameter1.createAlias
+                .withArgs(sinon.match.same(functionContext))
+                .returns(parameter1Alias);
+            parameter2.createAlias
+                .withArgs(sinon.match.same(functionContext))
+                .returns(parameter2Alias);
 
             FunctionContext
                 .withArgs(sinon.match.same(namespaceScope), 'myFunction')
@@ -96,11 +117,13 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(translator),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
+                    sinon.match.same(factory),
                     sinon.match.same(functionContext),
                     sinon.match.same(namespaceScope),
-                    [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    [sinon.match.same(parameter1Alias), sinon.match.same(parameter2Alias)],
                     sinon.match.same(returnType),
                     true,
                     '/path/to/my/module.php',
@@ -109,11 +132,42 @@ describe('FunctionSpecFactory', function () {
                 .returns(functionSpec);
         });
 
-        it('should return a correctly constructed FunctionSpec', function () {
+        it('should return a correctly constructed FunctionSpec when all parameters are present', function () {
             expect(factory.createAliasFunctionSpec(
                 namespaceScope,
                 'myFunction',
                 [parameter1, parameter2],
+                returnType,
+                true,
+                '/path/to/my/module.php',
+                123
+            )).to.equal(functionSpec);
+        });
+
+        it('should return a correctly constructed FunctionSpec when one parameter is optimised away', function () {
+            FunctionSpec
+                .withArgs(
+                    sinon.match.same(callStack),
+                    sinon.match.same(translator),
+                    sinon.match.same(valueFactory),
+                    sinon.match.same(referenceFactory),
+                    sinon.match.same(futureFactory),
+                    sinon.match.same(flow),
+                    sinon.match.same(factory),
+                    sinon.match.same(functionContext),
+                    sinon.match.same(namespaceScope),
+                    [null, sinon.match.same(parameter2Alias)],
+                    sinon.match.same(returnType),
+                    true,
+                    '/path/to/my/module.php',
+                    123
+                )
+                .returns(functionSpec);
+
+            expect(factory.createAliasFunctionSpec(
+                namespaceScope,
+                'myFunction',
+                [null, parameter2],
                 returnType,
                 true,
                 '/path/to/my/module.php',
@@ -171,7 +225,8 @@ describe('FunctionSpecFactory', function () {
 
         it('should return a correctly constructed FunctionSpec when there is a current class and object', function () {
             var classObject = sinon.createStubInstance(Class),
-                enclosingObject = sinon.createStubInstance(ObjectValue);
+                enclosingObject = sinon.createStubInstance(ObjectValue),
+                func = sinon.stub();
             ClosureContext
                 .withArgs(
                     sinon.match.same(namespaceScope),
@@ -186,11 +241,14 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(translator),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
+                    sinon.match.same(factory),
                     sinon.match.same(closureContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    sinon.match.same(func),
                     sinon.match.same(returnType),
                     false,
                     '/path/to/my/module.php',
@@ -203,6 +261,7 @@ describe('FunctionSpecFactory', function () {
                 classObject,
                 enclosingObject,
                 parametersSpecData,
+                func,
                 returnTypeSpecData,
                 false,
                 {'myRefBinding': referenceBinding},
@@ -213,7 +272,8 @@ describe('FunctionSpecFactory', function () {
         });
 
         it('should return a correctly constructed FunctionSpec when there is a current class but no object', function () {
-            var classObject = sinon.createStubInstance(Class);
+            var classObject = sinon.createStubInstance(Class),
+                func = sinon.stub();
             ClosureContext
                 .withArgs(
                     sinon.match.same(namespaceScope),
@@ -228,11 +288,14 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(translator),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
+                    sinon.match.same(factory),
                     sinon.match.same(closureContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    sinon.match.same(func),
                     sinon.match.same(returnType),
                     false,
                     '/path/to/my/module.php',
@@ -245,6 +308,7 @@ describe('FunctionSpecFactory', function () {
                 classObject,
                 null,
                 parametersSpecData,
+                func,
                 returnTypeSpecData,
                 false,
                 {'myRefBinding': referenceBinding},
@@ -255,6 +319,7 @@ describe('FunctionSpecFactory', function () {
         });
 
         it('should return a correctly constructed FunctionSpec when there is no current class or object', function () {
+            var func = sinon.stub();
             ClosureContext
                 .withArgs(
                     sinon.match.same(namespaceScope),
@@ -269,11 +334,14 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(translator),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
+                    sinon.match.same(factory),
                     sinon.match.same(closureContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    sinon.match.same(func),
                     sinon.match.same(returnType),
                     true,
                     '/path/to/my/module.php',
@@ -286,6 +354,7 @@ describe('FunctionSpecFactory', function () {
                 null,
                 null,
                 parametersSpecData,
+                func,
                 returnTypeSpecData,
                 true,
                 {'myRefBinding': referenceBinding},
@@ -297,7 +366,8 @@ describe('FunctionSpecFactory', function () {
     });
 
     describe('createFunctionSpec()', function () {
-        var functionContext,
+        var func,
+            functionContext,
             functionSpec,
             parameter1,
             parameter2,
@@ -306,6 +376,7 @@ describe('FunctionSpecFactory', function () {
             returnTypeSpecData;
 
         beforeEach(function () {
+            func = sinon.stub();
             functionContext = sinon.createStubInstance(FunctionContext);
             functionSpec = sinon.createStubInstance(FunctionSpec);
             parameter1 = sinon.createStubInstance(Parameter);
@@ -346,11 +417,14 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(translator),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
+                    sinon.match.same(factory),
                     sinon.match.same(functionContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    sinon.match.same(func),
                     sinon.match.same(returnType),
                     false,
                     '/path/to/my/module.php',
@@ -364,6 +438,7 @@ describe('FunctionSpecFactory', function () {
                 namespaceScope,
                 'myFunction',
                 parametersSpecData,
+                func,
                 returnTypeSpecData,
                 false,
                 '/path/to/my/module.php',
@@ -372,8 +447,27 @@ describe('FunctionSpecFactory', function () {
         });
     });
 
+    describe('createInvalidOverloadedFunctionSpec()', function () {
+        it('should return a correctly constructed InvalidOverloadedFunctionSpec', function () {
+            var invalidSpec = sinon.createStubInstance(InvalidOverloadedFunctionSpec),
+                overloadedFunctionSpec = sinon.createStubInstance(OverloadedFunctionSpec);
+            InvalidOverloadedFunctionSpec
+                .withArgs(
+                    sinon.match.same(callStack),
+                    sinon.match.same(translator),
+                    sinon.match.same(flow),
+                    sinon.match.same(overloadedFunctionSpec),
+                    21
+                )
+                .returns(invalidSpec);
+
+            expect(factory.createInvalidOverloadedFunctionSpec(overloadedFunctionSpec, 21)).to.equal(invalidSpec);
+        });
+    });
+
     describe('createMethodSpec()', function () {
         var classObject,
+            func,
             functionSpec,
             methodContext,
             parameter1,
@@ -385,6 +479,7 @@ describe('FunctionSpecFactory', function () {
         beforeEach(function () {
             classObject = sinon.createStubInstance(Class);
             methodContext = sinon.createStubInstance(MethodContext);
+            func = sinon.stub();
             functionSpec = sinon.createStubInstance(FunctionSpec);
             parameter1 = sinon.createStubInstance(Parameter);
             parameter2 = sinon.createStubInstance(Parameter);
@@ -424,11 +519,14 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(callStack),
                     sinon.match.same(translator),
                     sinon.match.same(valueFactory),
+                    sinon.match.same(referenceFactory),
                     sinon.match.same(futureFactory),
                     sinon.match.same(flow),
+                    sinon.match.same(factory),
                     sinon.match.same(methodContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1), sinon.match.same(parameter2)],
+                    sinon.match.same(func),
                     sinon.match.same(returnType),
                     true,
                     '/path/to/my/module.php',
@@ -443,11 +541,46 @@ describe('FunctionSpecFactory', function () {
                 classObject,
                 'myMethod',
                 parametersSpecData,
+                func,
                 returnTypeSpecData,
                 true,
                 '/path/to/my/module.php',
                 123
             )).to.equal(functionSpec);
+        });
+    });
+
+    describe('createOverloadedFunctionSpec()', function () {
+        it('should return a correctly constructed OverloadedFunctionSpec', function () {
+            var overloadedFunctionSpec = sinon.createStubInstance(OverloadedFunctionSpec),
+                variantFunctionSpec1 = sinon.createStubInstance(FunctionSpec),
+                variantFunctionSpec2 = sinon.createStubInstance(FunctionSpec);
+            OverloadedFunctionSpec
+                .withArgs(
+                    sinon.match.same(factory),
+                    sinon.match.same(namespaceScope),
+                    'myFunc',
+                    {
+                        3: sinon.match.same(variantFunctionSpec1),
+                        6: sinon.match.same(variantFunctionSpec2)
+                    },
+                    2,
+                    7
+                )
+                .returns(overloadedFunctionSpec);
+
+            expect(
+                factory.createOverloadedFunctionSpec(
+                    'myFunc',
+                    {
+                        3: variantFunctionSpec1,
+                        6: variantFunctionSpec2
+                    },
+                    2,
+                    7,
+                    namespaceScope
+                )
+            ).to.equal(overloadedFunctionSpec);
         });
     });
 });

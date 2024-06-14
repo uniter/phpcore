@@ -54,6 +54,14 @@ describe('Call', function () {
         );
     });
 
+    describe('enableStrictTypes()', function () {
+        it('should enable strict-types mode via the original NamespaceScope', function () {
+            call.enableStrictTypes();
+
+            expect(namespaceScope.enableStrictTypes).to.have.been.calledOnce;
+        });
+    });
+
     describe('enterIsolatedCall()', function () {
         it('should enter the isolated call correctly', function () {
             var enteredNamespaceScope = sinon.createStubInstance(NamespaceScope),
@@ -125,6 +133,24 @@ describe('Call', function () {
             scope.getTraceFrameName.returns('myFunc');
 
             expect(call.getFunctionName()).to.equal('myFunc');
+        });
+    });
+
+    describe('getGenerator()', function () {
+        it('should return the current Generator ObjectValue when one has been set', function () {
+            var generatorObjectValue = sinon.createStubInstance(ObjectValue);
+            call.setGenerator(generatorObjectValue);
+
+            expect(call.getGenerator()).to.equal(generatorObjectValue);
+        });
+
+        it('should throw when no Generator has been set', function () {
+            expect(function () {
+                call.getGenerator();
+            }).to.throw(
+                Exception,
+                'Call.getGenerator() :: Current call is not a generator'
+            );
         });
     });
 
@@ -331,6 +357,20 @@ describe('Call', function () {
                 .returns('/my/module_path.php with some additional context');
 
             expect(call.getTraceFilePath()).to.equal('/my/module_path.php with some additional context');
+        });
+    });
+
+    describe('isStrictTypesMode()', function () {
+        it('should return true when the original NamespaceScope is in strict-types mode', function () {
+            namespaceScope.isStrictTypesMode.returns(true);
+
+            expect(call.isStrictTypesMode()).to.be.true;
+        });
+
+        it('should return false when the original NamespaceScope is in weak type-checking mode', function () {
+            namespaceScope.isStrictTypesMode.returns(false);
+
+            expect(call.isStrictTypesMode()).to.be.false;
         });
     });
 

@@ -41,24 +41,6 @@ _.extend(Signature.prototype, {
     },
 
     /**
-     * Fetches the number of parameters whose arguments (if specified) must be specified initially.
-     *
-     * @returns {number}
-     */
-    getInitialParameterCount: function () {
-        var parameterIndex,
-            signature = this;
-
-        for (parameterIndex = signature.parameters.length - 1; parameterIndex >= 0; parameterIndex--) {
-            if (signature.parameters[parameterIndex].isInitial()) {
-                return parameterIndex + 1;
-            }
-        }
-
-        return 0;
-    },
-
-    /**
      * Fetches the number of parameters in this opcode signature.
      *
      * @returns {number}
@@ -86,15 +68,32 @@ _.extend(Signature.prototype, {
     },
 
     /**
+     * Fetches the final variadic parameter if this signature has one.
+     *
+     * @returns {Parameter|null}
+     */
+    getVariadicParameter: function () {
+        var signature = this,
+            parameter;
+
+        if (signature.parameters.length === 0) {
+            return null;
+        }
+
+        parameter = signature.parameters[signature.parameters.length - 1];
+
+        return parameter.isVariadic() ?
+            parameter :
+            null;
+    },
+
+    /**
      * Determines whether this signature has a final variadic parameter.
      *
      * @returns {boolean}
      */
     hasVariadicParameter: function () {
-        var signature = this;
-
-        return signature.parameters.length > 0 &&
-            signature.parameters[signature.parameters.length - 1].isVariadic();
+        return this.getVariadicParameter() !== null;
     }
 });
 

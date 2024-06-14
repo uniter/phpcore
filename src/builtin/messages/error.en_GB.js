@@ -23,6 +23,7 @@ module.exports = {
             'cannot_convert_object': 'Object of class ${className} could not be converted to ${type}',
             'cannot_declare_class_as_name_already_in_use': 'Cannot declare class ${className} because the name is already in use',
             'cannot_decrement': 'Cannot decrement ${type}',
+            'cannot_get_return_value_of_nonreturned_generator': 'Cannot get return value of a generator that hasn\'t returned',
             'cannot_increment': 'Cannot increment ${type}',
             'cannot_redeclare_builtin_function': 'Cannot redeclare ${functionName}()',
             // NB: This translation is in fact different to the above, by a comma
@@ -37,18 +38,16 @@ module.exports = {
             'class_name_not_valid': 'Class name must be a valid object or a string',
             'class_not_found': 'Class \'${name}\' not found',
             'function_name_must_be_string': 'Function name must be a string',
+            'invalid_by_reference_argument': '${func}(): Argument #${index}${context} could not be passed by reference',
             'invalid_return_value_type': '${func}(): Return value must be of type ${expectedType}, ${actualType} returned',
-            'invalid_value_for_type_builtin': '${func}(): Argument #${index} ($${name}) must be ${expectedType}, ${actualType} given',
-            'invalid_value_for_type_userland': '${func}(): Argument #${index} ($${name}) must be ${expectedType}, ${actualType} given, called in ${callerFile} on line ${callerLine}',
+            'invalid_value_for_type_builtin': '${func}(): Argument #${index}${context} must be ${expectedType}, ${actualType} given',
+            'invalid_value_for_type_userland': '${func}(): Argument #${index}${context} must be ${expectedType}, ${actualType} given, called in ${callerFile} on line ${callerLine}',
             'method_called_on_non_object': '${method} method called on non-object',
             'nesting_level_too_deep': 'Nesting level too deep - recursive dependency?',
+            'no_overload_variant_for_parameter_count': '${func}() has no variant with exactly ${parameterCount} parameters',
             'no_parent_class': 'Cannot access parent:: when current class scope has no parent',
             'non_object_method_call': 'Call to a member function ${name}() on ${type}',
             'object_from_get_iterator_must_be_traversable': 'Objects returned by ${className}::getIterator() must be traversable or implement interface Iterator',
-            'only_variables_by_reference': 'Only variables can be passed by reference',
-            'too_few_args_builtin': '${func}() expects ${bound} ${expectedCount} arguments, ${actualCount} given',
-            'too_few_args_builtin_single': '${func}() expects ${bound} 1 argument, ${actualCount} given',
-            'too_few_args_userland': 'Too few arguments to function ${func}(), ${actualCount} passed in ${callerFile} on line ${callerLine} and ${bound} ${expectedCount} expected',
             'uncaught_throwable': 'Uncaught ${name}: ${message}',
             'uncaught_empty_throwable': 'Uncaught ${name}',
             'undeclared_static_property': 'Access to undeclared static property: ${className}::$${propertyName}',
@@ -58,7 +57,10 @@ module.exports = {
             'undefined_property': 'Undefined property: ${className}::$${propertyName}',
             'unsupported_operand_types': 'Unsupported operand types: ${left} ${operator} ${right}',
             'used_this_outside_object_context': 'Using $this when not in object context',
-            'value_not_callable': 'Value of type ${type} is not callable'
+            'value_not_callable': 'Value of type ${type} is not callable',
+            'wrong_arg_count_builtin': '${func}() expects ${bound} ${expectedCount} arguments, ${actualCount} given',
+            'wrong_arg_count_builtin_single': '${func}() expects ${bound} 1 argument, ${actualCount} given',
+            'wrong_arg_count_userland': 'Too few arguments to function ${func}(), ${actualCount} passed in ${callerFile} on line ${callerLine} and ${bound} ${expectedCount} expected'
         }
     }
 };

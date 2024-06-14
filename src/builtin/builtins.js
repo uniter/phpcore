@@ -18,6 +18,8 @@ module.exports = require('pauser')([
     require('./constants/errorHandling'),
     require('./ini/errorHandling'),
     require('./messages/error.en_GB'),
+    require('./functions/optionsAndInfo/garbage'),
+    require('./services/garbage'),
     require('./opcodes/instrumentation'),
     require('./opcodes/loopStructure'),
     require('./messages/misc.en_GB'),
@@ -34,6 +36,7 @@ module.exports = require('pauser')([
     require('./classes/Error/CompileError'),
     require('./classes/Error'),
     require('./classes/Exception'),
+    require('./classes/Generator'),
     require('./interfaces/Iterator'),
     require('./interfaces/IteratorAggregate'),
     require('./classes/JSArray'),
@@ -51,6 +54,8 @@ module.exports = require('pauser')([
     errorHandlingConstants,
     errorHandlingDefaultINIOptions,
     errorMessages,
+    garbageOptionsAndInfoFunctions,
+    garbageServices,
     instrumentationOpcodeGroup,
     loopStructureOpcodeGroup,
     miscellaneousMessages,
@@ -67,6 +72,7 @@ module.exports = require('pauser')([
     CompileError,
     Error,
     Exception,
+    Generator,
     Iterator,
     IteratorAggregate,
     JSArray,
@@ -91,6 +97,7 @@ module.exports = require('pauser')([
             {'Traversable': Traversable},
             {'Iterator': Iterator},
             {'IteratorAggregate': IteratorAggregate},
+            {'Generator': Generator},
             {'JSArray': JSArray},
             {'JSObject': JSObject}
         ],
@@ -100,6 +107,7 @@ module.exports = require('pauser')([
         ],
         functionGroups: [
             configOptionsAndInfoFunctions,
+            garbageOptionsAndInfoFunctions,
             splFunctions
         ],
         defaultINIGroups: [
@@ -115,6 +123,7 @@ module.exports = require('pauser')([
         ],
         serviceGroups: [
             baseServiceGroup,
+            garbageServices,
             semanticsServiceGroup
         ],
         translationCatalogues: [

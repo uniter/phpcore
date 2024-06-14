@@ -27,6 +27,7 @@ var expect = require('chai').expect,
     Flow = require('../../../../src/Control/Flow'),
     Future = require('../../../../src/Control/Future'),
     FutureFactory = require('../../../../src/Control/FutureFactory'),
+    GarbageCollector = require('../../../../src/Garbage/GarbageCollector'),
     Namespace = require('../../../../src/Namespace').sync(),
     Includer = require('../../../../src/Load/Includer').sync(),
     INIState = require('../../../../src/INIState'),
@@ -34,6 +35,7 @@ var expect = require('chai').expect,
     OnceIncluder = require('../../../../src/Load/OnceIncluder').sync(),
     OptionSet = require('../../../../src/OptionSet'),
     Output = require('../../../../src/Output/Output'),
+    OverloadedTypedFunction = require('../../../../src/Function/Overloaded/OverloadedTypedFunction'),
     PHPState = require('../../../../src/PHPState').sync(),
     Reference = require('../../../../src/Reference/Reference'),
     ReferenceFactory = require('../../../../src/ReferenceFactory').sync(),
@@ -63,6 +65,7 @@ describe('FFI Internals', function () {
         evaluator,
         flow,
         futureFactory,
+        garbageCollector,
         globalNamespace,
         globalScope,
         includer,
@@ -103,6 +106,7 @@ describe('FFI Internals', function () {
         evaluator = sinon.createStubInstance(Evaluator);
         flow = sinon.createStubInstance(Flow);
         futureFactory = sinon.createStubInstance(FutureFactory);
+        garbageCollector = sinon.createStubInstance(GarbageCollector);
         globalNamespace = sinon.createStubInstance(Namespace);
         globalScope = sinon.createStubInstance(Scope);
         includer = sinon.createStubInstance(Includer);
@@ -142,6 +146,7 @@ describe('FFI Internals', function () {
                 errorConfiguration,
                 errorPromoter,
                 errorReporting,
+                garbageCollector,
                 globalNamespace,
                 globalScope,
                 iniState,
@@ -205,6 +210,10 @@ describe('FFI Internals', function () {
 
         it('should expose the FutureFactory publicly', function () {
             expect(internals.futureFactory).to.equal(futureFactory);
+        });
+
+        it('should expose the GarbageCollector publicly', function () {
+            expect(internals.garbageCollector).to.equal(garbageCollector);
         });
 
         it('should expose the global Namespace publicly', function () {
@@ -638,6 +647,21 @@ describe('FFI Internals', function () {
             expect(typedFunction).to.be.an.instanceOf(TypedFunction);
             expect(typedFunction.getSignature()).to.equal('iterable $myIterable = null');
             expect(typedFunction.getFunction()).to.equal(innerFunction);
+        });
+    });
+
+    describe('typeOverloadedFunction()', function () {
+        it('should return an OverloadedTypedFunction with the given variant TypedFunctions', function () {
+            var typedFunction1 = sinon.createStubInstance(TypedFunction),
+                typedFunction2 = sinon.createStubInstance(TypedFunction),
+                overloadedTypedFunction = internals.typeOverloadedFunction([typedFunction1, typedFunction2]),
+                typedFunctions;
+
+            expect(overloadedTypedFunction).to.be.an.instanceOf(OverloadedTypedFunction);
+            typedFunctions = overloadedTypedFunction.getTypedFunctions();
+            expect(typedFunctions).to.have.length(2);
+            expect(typedFunctions[0]).to.equal(typedFunction1);
+            expect(typedFunctions[1]).to.equal(typedFunction2);
         });
     });
 });

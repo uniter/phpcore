@@ -290,6 +290,7 @@ module.exports = require('pauser')([
                 factory.flow,
                 wrappedReference,
                 value || null,
+                // If the wrapped reference has a reference rather than a value assigned, extract and use it here.
                 wrappedReference.isReference() ? wrappedReference.getReference() : null
             );
         },

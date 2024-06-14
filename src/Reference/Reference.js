@@ -85,14 +85,6 @@ _.extend(Reference.prototype, {
     clearReference: throwUnimplemented('clearReference'),
 
     /**
-     * Fetches the value of this reference when it is being assigned to a variable or another reference.
-     * This is used to implement the copy-on-assignment behaviour of PHP arrays
-     *
-     * @returns {Value}
-     */
-    getForAssignment: throwUnimplemented('getForAssignment'),
-
-    /**
      * Fetches the native value of the PHP value being referred to
      *
      * @returns {*}

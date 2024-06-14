@@ -15,8 +15,10 @@ var expect = require('chai').expect,
     tools = require('./tools'),
     util = require('util'),
     BarewordStringValue = require('../../src/Value/BarewordString').sync(),
+    Call = require('../../src/Call'),
     CallFactory = require('../../src/CallFactory'),
     CallStack = require('../../src/CallStack'),
+    Chainifier = require('../../src/Control/Chain/Chainifier'),
     Class = require('../../src/Class').sync(),
     Closure = require('../../src/Closure').sync(),
     ArrayIterator = require('../../src/Iterator/ArrayIterator'),
@@ -27,12 +29,14 @@ var expect = require('chai').expect,
     FFIResult = require('../../src/FFI/Result'),
     Future = require('../../src/Control/Future'),
     FutureFactory = require('../../src/Control/FutureFactory'),
+    GeneratorIterator = require('../../src/Iterator/GeneratorIterator'),
     IntegerValue = require('../../src/Value/Integer').sync(),
     Namespace = require('../../src/Namespace').sync(),
     NullValue = require('../../src/Value/Null').sync(),
     NumericStringParser = require('../../src/Semantics/NumericStringParser'),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPObject = require('../../src/FFI/Value/PHPObject').sync(),
+    Present = require('../../src/Control/Present'),
     Translator = phpCommon.Translator,
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync(),
@@ -41,6 +45,7 @@ var expect = require('chai').expect,
 describe('ValueFactory', function () {
     var callFactory,
         callStack,
+        chainifier,
         controlScope,
         elementProvider,
         errorPromoter,
@@ -50,6 +55,8 @@ describe('ValueFactory', function () {
         futuresCreated,
         globalNamespace,
         numericStringParser,
+        presentsCreated,
+        realChainifier,
         referenceFactory,
         state,
         translator,
@@ -57,10 +64,14 @@ describe('ValueFactory', function () {
 
     beforeEach(function () {
         callStack = sinon.createStubInstance(CallStack);
+        chainifier = sinon.createStubInstance(Chainifier);
         futuresCreated = 0;
+        presentsCreated = 0;
         state = tools.createIsolatedState('async', {
             'call_stack': callStack,
             'future_factory': function (set, get) {
+                var futureFactory;
+
                 function TrackedFuture() {
                     Future.apply(this, arguments);
 
@@ -69,13 +80,25 @@ describe('ValueFactory', function () {
 
                 util.inherits(TrackedFuture, Future);
 
-                return new FutureFactory(
+                function TrackedPresent() {
+                    Present.apply(this, arguments);
+
+                    presentsCreated++;
+                }
+
+                util.inherits(TrackedPresent, Present);
+
+                futureFactory = new FutureFactory(
                     get('pause_factory'),
                     get('value_factory'),
                     get('control_bridge'),
                     get('control_scope'),
-                    TrackedFuture
+                    TrackedFuture,
+                    TrackedPresent
                 );
+                futureFactory.setChainifier(chainifier);
+
+                return futureFactory;
             }
         });
         callFactory = sinon.createStubInstance(CallFactory);
@@ -89,6 +112,11 @@ describe('ValueFactory', function () {
         translator = sinon.createStubInstance(Translator);
         elementProvider = new ElementProvider(referenceFactory);
         valueStorage = new ValueStorage();
+        realChainifier = state.getService('chainifier');
+
+        chainifier.chainify.callsFake(function (value) {
+            return realChainifier.chainify(value);
+        });
 
         translator.translate
             .callsFake(function (translationKey, placeholderVariables) {
@@ -451,6 +479,8 @@ describe('ValueFactory', function () {
             globalNamespace.getClass.withArgs('My\\Stuff\\MyErrorClass')
                 .returns(futureFactory.createPresent(myClassObject));
 
+            objectValue.next.yields(objectValue);
+            objectValue.toPromise.returns(Promise.resolve(objectValue));
             objectValue.getInternalProperty
                 .withArgs('reportsOwnContext')
                 .returns(false);
@@ -836,6 +866,23 @@ describe('ValueFactory', function () {
 
             expect(controlScope.isNestingCoroutine()).to.be.true;
         });
+
+        it('should allow a new Coroutine to be entered', async function () {
+            var enteredCoroutine = null,
+                value = factory.createFuture(function (resolve, reject, nestCoroutine, newCoroutine) {
+                    state.queueMicrotask(function () {
+                        newCoroutine();
+                        enteredCoroutine = controlScope.getCoroutine();
+
+                        resolve(21);
+                    });
+                });
+
+            await value.toPromise();
+
+            expect(controlScope.getCoroutine()).not.to.equal(enteredCoroutine);
+            expect(enteredCoroutine).not.to.be.null;
+        });
     });
 
     describe('createFutureChain()', function () {
@@ -877,12 +924,71 @@ describe('ValueFactory', function () {
         });
     });
 
+    describe('createGeneratorObject()', function () {
+        var call,
+            generatorClassObject,
+            innerFunction,
+            objectValue;
+
+        beforeEach(function () {
+            call = sinon.createStubInstance(Call);
+            generatorClassObject = sinon.createStubInstance(Class);
+            innerFunction = sinon.stub();
+            objectValue = sinon.createStubInstance(ObjectValue);
+        });
+
+        it('should correctly create an ObjectValue of class Generator', function () {
+            var iterator;
+            globalNamespace.getClass
+                .withArgs('Generator')
+                .returns(futureFactory.createPresent(generatorClassObject));
+            generatorClassObject.instantiateWithInternals
+                .returns(objectValue);
+
+            expect(factory.createGeneratorObject(call, innerFunction)).to.equal(objectValue);
+            iterator = generatorClassObject.instantiateWithInternals.args[0][1].iterator;
+            expect(iterator).to.be.an.instanceOf(GeneratorIterator);
+            expect(iterator.getInnerFunction()).to.equal(innerFunction);
+            expect(iterator.getFunctionCall()).to.equal(call);
+        });
+
+        it('should cache the internal Class instance for Closure for efficiency', function () {
+            globalNamespace.getClass
+                .withArgs('Generator')
+                .returns(futureFactory.createPresent(generatorClassObject));
+            generatorClassObject.instantiateWithInternals
+                .returns(objectValue);
+
+            factory.createGeneratorObject(call, innerFunction);
+            factory.createGeneratorObject(call, innerFunction);
+
+            expect(globalNamespace.getClass).to.have.been.calledOnce;
+        });
+    });
+
     describe('createInteger()', function () {
         it('should return an IntegerValue with the specified value', function () {
             var value = factory.createInteger(123);
 
             expect(value.getType()).to.equal('int');
             expect(value.getNative()).to.equal(123);
+        });
+    });
+
+    describe('createMissing()', function () {
+        it('should return a MissingValue', function () {
+            var value = factory.createMissing();
+
+            expect(value.getUnderlyingType()).to.equal('missing');
+            expect(value.getNative()).to.be.null;
+        });
+
+        it('should always return the same MissingValue for efficiency', function () {
+            var firstMissingValue = factory.createMissing(),
+                secondMissingValue = factory.createMissing();
+
+            expect(secondMissingValue.getUnderlyingType()).to.equal('missing');
+            expect(secondMissingValue).to.equal(firstMissingValue);
         });
     });
 
@@ -947,6 +1053,20 @@ describe('ValueFactory', function () {
         });
     });
 
+    describe('createObjectWithID()', function () {
+        it('should return a correctly constructed ObjectValue', function () {
+            var classObject = sinon.createStubInstance(Class),
+                nativeObject = {myProp: 'my value'},
+                value;
+
+            value = factory.createObjectWithID(nativeObject, classObject, 1234);
+
+            expect(value.getType()).to.equal('object');
+            expect(value.getObject()).to.equal(nativeObject);
+            expect(value.getID()).to.equal(1234);
+        });
+    });
+
     describe('createResource()', function () {
         it('should return a correctly constructed ResourceValue', function () {
             var resource = {my: 'resource'},
@@ -1002,6 +1122,8 @@ describe('ValueFactory', function () {
             globalNamespace.getClass.withArgs('My\\Stuff\\MyErrorClass')
                 .returns(futureFactory.createPresent(myClassObject));
 
+            objectValue.next.yields(objectValue);
+            objectValue.toPromise.returns(Promise.resolve(objectValue));
             objectValue.getInternalProperty
                 .withArgs('reportsOwnContext')
                 .returns(false);
@@ -1115,6 +1237,8 @@ describe('ValueFactory', function () {
             globalNamespace.getClass.withArgs('My\\Stuff\\MyErrorClass')
                 .returns(futureFactory.createPresent(myClassObject));
 
+            objectValue.next.yields(objectValue);
+            objectValue.toPromise.returns(Promise.resolve(objectValue));
             objectValue.getInternalProperty
                 .withArgs('reportsOwnContext')
                 .returns(false);
@@ -1217,6 +1341,8 @@ describe('ValueFactory', function () {
         beforeEach(function () {
             myClassObject = sinon.createStubInstance(Class);
             objectValue = sinon.createStubInstance(ObjectValue);
+            objectValue.next.yields(objectValue);
+            objectValue.toPromise.returns(Promise.resolve(objectValue));
             globalNamespace.getClass.withArgs('My\\Stuff\\MyClass')
                 .returns(futureFactory.createPresent(myClassObject));
             myClassObject.getSuperClass.returns(null);

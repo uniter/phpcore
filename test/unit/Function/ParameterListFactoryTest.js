@@ -44,16 +44,20 @@ describe('ParameterListFactory', function () {
             functionContext,
             parameter1,
             parameter2,
+            parameter3,
             secondParameterDefaultValueProvider,
-            secondParameterType;
+            secondParameterType,
+            thirdParameterType;
 
         beforeEach(function () {
             functionContext = sinon.createStubInstance(FunctionContextInterface);
             firstParameterType = sinon.createStubInstance(TypeInterface);
             parameter1 = sinon.createStubInstance(Parameter);
             parameter2 = sinon.createStubInstance(Parameter);
+            parameter3 = sinon.createStubInstance(Parameter);
             secondParameterDefaultValueProvider = sinon.stub().returns(valueFactory.createString('my default value'));
             secondParameterType = sinon.createStubInstance(TypeInterface);
+            thirdParameterType = sinon.createStubInstance(TypeInterface);
 
             parameterFactory.createParameter
                 .withArgs(
@@ -62,6 +66,7 @@ describe('ParameterListFactory', function () {
                     sinon.match.same(firstParameterType),
                     sinon.match.same(functionContext),
                     sinon.match.same(namespaceScope),
+                    false,
                     false,
                     null,
                     '/path/to/my/module.php',
@@ -76,11 +81,26 @@ describe('ParameterListFactory', function () {
                     sinon.match.same(functionContext),
                     sinon.match.same(namespaceScope),
                     true,
+                    false,
                     sinon.match.same(secondParameterDefaultValueProvider),
                     '/path/to/my/module.php',
                     123
                 )
                 .returns(parameter2);
+            parameterFactory.createParameter
+                .withArgs(
+                    'thirdParam',
+                    2,
+                    sinon.match.same(thirdParameterType),
+                    sinon.match.same(functionContext),
+                    sinon.match.same(namespaceScope),
+                    false,
+                    true,
+                    null,
+                    '/path/to/my/module.php',
+                    123
+                )
+                .returns(parameter3);
         });
 
         it('should return a correctly constructed array of Parameters when none are omitted', function () {
@@ -88,12 +108,16 @@ describe('ParameterListFactory', function () {
                 parametersSpecData = [
                     {
                         name: 'firstParam',
-                        ref: false // Whether the parameter is passed by-reference
+                        ref: false // Whether the parameter is passed by-reference.
                     },
                     {
                         name: 'secondParam',
                         ref: true,
                         value: secondParameterDefaultValueProvider
+                    },
+                    {
+                        name: 'thirdParam',
+                        variadic: true
                     }
                 ];
 
@@ -109,6 +133,12 @@ describe('ParameterListFactory', function () {
                     sinon.match.same(namespaceScope)
                 )
                 .returns(secondParameterType);
+            parameterTypeFactory.createParameterType
+                .withArgs(
+                    parametersSpecData[2],
+                    sinon.match.same(namespaceScope)
+                )
+                .returns(thirdParameterType);
 
             parameters = factory.createParameterList(
                 functionContext,
@@ -118,9 +148,10 @@ describe('ParameterListFactory', function () {
                 123
             );
 
-            expect(parameters).to.have.length(2);
+            expect(parameters).to.have.length(3);
             expect(parameters[0]).to.equal(parameter1);
             expect(parameters[1]).to.equal(parameter2);
+            expect(parameters[2]).to.equal(parameter3);
         });
 
         it('should return a correctly constructed array of Parameters when one is omitted', function () {
@@ -128,7 +159,7 @@ describe('ParameterListFactory', function () {
                 parametersSpecData = [
                     // Omit the first parameter - this could happen if the parameter has no type
                     // or default value, to reduce bundle size, at the expense of breaking the ability
-                    // to fetch the parameter's name via reflection
+                    // to fetch the parameter's name via reflection.
                     null,
                     {
                         name: 'secondParam',

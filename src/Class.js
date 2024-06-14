@@ -74,6 +74,7 @@ module.exports = require('pauser')([
      * @param {Userland} userland
      * @param {string} name Fully-qualified class name (FQCN)
      * @param {string|null} constructorName
+     * @param {boolean} hasDestructor
      * @param {Function} InternalClass
      * @param {Object} rootInternalPrototype
      * @param {Object} instancePropertiesData
@@ -87,6 +88,7 @@ module.exports = require('pauser')([
      * @param {FFIFactory} ffiFactory
      * @param {Function|null} methodCaller Custom method call handler
      * @param {CallInstrumentation} instrumentation
+     * @param {DestructibleObjectRepository} destructibleObjectRepository
      * @constructor
      */
     function Class(
@@ -100,6 +102,7 @@ module.exports = require('pauser')([
         userland,
         name,
         constructorName,
+        hasDestructor,
         InternalClass,
         rootInternalPrototype,
         instancePropertiesData,
@@ -112,7 +115,8 @@ module.exports = require('pauser')([
         valueCoercer,
         ffiFactory,
         methodCaller,
-        instrumentation
+        instrumentation,
+        destructibleObjectRepository
     ) {
         var classObject = this,
             staticProperties = {};
@@ -257,6 +261,17 @@ module.exports = require('pauser')([
                 data[VISIBILITY]
             );
         });
+
+        /**
+         * @type {Function}
+         */
+        this.internalInstantiator = hasDestructor ?
+            function (objectValue) {
+                destructibleObjectRepository.registerValue(objectValue);
+            } :
+            function () {
+                // No destructor defined, nothing special to do.
+            };
     }
 
     _.extend(Class.prototype, {
@@ -1029,6 +1044,10 @@ module.exports = require('pauser')([
             _.forOwn(classObject.instancePropertyDefaults, function (propertyValue, name) {
                 properties[name].initialise(propertyValue);
             });
+
+            // Use the optimised instantiator created inside this internal Class' constructor
+            // to handle destructors, if applicable.
+            classObject.internalInstantiator(objectValue);
         },
 
         /**

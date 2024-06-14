@@ -19,6 +19,7 @@ var expect = require('chai').expect,
     FunctionContextInterface = require('../../../src/Function/FunctionContextInterface'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     Parameter = require('../../../src/Function/Parameter'),
+    ParameterFactory = require('../../../src/Function/ParameterFactory'),
     Reference = require('../../../src/Reference/Reference'),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
     Scope = require('../../../src/Scope').sync(),
@@ -36,6 +37,7 @@ describe('Parameter', function () {
         futureFactory,
         namespaceScope,
         parameter,
+        parameterFactory,
         state,
         translator,
         typeObject,
@@ -50,6 +52,7 @@ describe('Parameter', function () {
         });
         context = sinon.createStubInstance(FunctionContextInterface);
         defaultValueProvider = sinon.stub();
+        parameterFactory = sinon.createStubInstance(ParameterFactory);
         flow = state.getFlow();
         futureFactory = state.getFutureFactory();
         namespaceScope = sinon.createStubInstance(NamespaceScope);
@@ -61,6 +64,7 @@ describe('Parameter', function () {
 
         callStack.getCallerFilePath.returns(null);
         callStack.getCallerLastLine.returns(null);
+        callStack.isStrictTypesMode.returns(false);
         callStack.isUserland.returns(false);
         callStack.raiseTranslatedError.callsFake(function (
             level,
@@ -97,7 +101,7 @@ describe('Parameter', function () {
             return flow.maybeFuturise(executor);
         });
 
-        createParameter = function (passedByReference) {
+        createParameter = function (passedByReference, variadic) {
             parameter = new Parameter(
                 callStack,
                 valueFactory,
@@ -105,12 +109,14 @@ describe('Parameter', function () {
                 futureFactory,
                 flow,
                 userland,
+                parameterFactory,
                 'myParam',
                 6,
                 typeObject,
                 context,
                 namespaceScope,
                 Boolean(passedByReference),
+                Boolean(variadic),
                 defaultValueProvider,
                 '/path/to/my/module.php',
                 101
@@ -166,6 +172,44 @@ describe('Parameter', function () {
 
             expect(await parameter.coerceArgument(variable).toPromise()).to.equal(value);
         });
+
+        it('should not coerce in strict types mode', async function () {
+            var value = valueFactory.createString('my value'),
+                variable = sinon.createStubInstance(Variable);
+            callStack.isStrictTypesMode.returns(true);
+            // Stub anyway despite not being expected, so that test would fail gracefully.
+            typeObject.coerceValue.callsFake(function (value) {
+                return futureFactory.createPresent(value);
+            });
+            variable.getValue.returns(value);
+            createParameter(false);
+
+            expect(await parameter.coerceArgument(variable).toPromise()).to.equal(value);
+            expect(typeObject.coerceValue).not.to.have.been.called;
+        });
+    });
+
+    describe('createAlias()', function () {
+        it('should create an alias for the parameter via ParameterFactory', function () {
+            var aliasParameter = sinon.createStubInstance(Parameter),
+                aliasContext = sinon.createStubInstance(FunctionContextInterface);
+            parameterFactory.createParameter
+                .withArgs(
+                    'myParam',
+                    6,
+                    sinon.match.same(typeObject),
+                    sinon.match.same(aliasContext),
+                    sinon.match.same(namespaceScope),
+                    true,
+                    false,
+                    sinon.match.same(defaultValueProvider),
+                    '/path/to/my/module.php',
+                    101
+                )
+                .returns(aliasParameter);
+
+            expect(parameter.createAlias(aliasContext)).to.equal(aliasParameter);
+        });
     });
 
     describe('getLineNumber()', function () {
@@ -214,12 +258,7 @@ describe('Parameter', function () {
             argumentReference.getReference.returns(argumentReferenceSlot);
             argumentReference.getValue.returns(argumentValue);
 
-            scope.getVariable.callsFake(function (name) {
-                localVariable = sinon.createStubInstance(Variable);
-                localVariable.getName.returns(name);
-
-                return localVariable;
-            });
+            localVariable = sinon.createStubInstance(Variable);
         });
 
         describe('when passed by value', function () {
@@ -227,22 +266,15 @@ describe('Parameter', function () {
                 createParameter(false);
             });
 
-            it('should declare the local variable', function () {
-                parameter.loadArgument(argumentReference, scope);
-
-                expect(scope.getVariable).to.have.been.calledOnce;
-                expect(scope.getVariable).to.have.been.calledWith('myParam');
-            });
-
             it('should set the value of the local variable to the value of the reference', function () {
-                parameter.loadArgument(argumentReference, scope);
+                parameter.loadArgument(argumentReference, localVariable);
 
                 expect(localVariable.setValue).to.have.been.calledOnce;
                 expect(localVariable.setValue.args[0][0].getNative()).to.equal('my argument');
             });
 
             it('should not set the reference of the local variable', function () {
-                parameter.loadArgument(argumentReference, scope);
+                parameter.loadArgument(argumentReference, localVariable);
 
                 expect(localVariable.setReference).not.to.have.been.called;
             });
@@ -254,15 +286,8 @@ describe('Parameter', function () {
                 createParameter(true);
             });
 
-            it('should declare the local variable', function () {
-                parameter.loadArgument(argumentReference, scope);
-
-                expect(scope.getVariable).to.have.been.calledOnce;
-                expect(scope.getVariable).to.have.been.calledWith('myParam');
-            });
-
             it('should set the reference of the local variable to the reference slot', function () {
-                parameter.loadArgument(argumentReference, scope);
+                parameter.loadArgument(argumentReference, localVariable);
 
                 expect(localVariable.setReference).to.have.been.calledOnce;
                 expect(localVariable.setReference).to.have.been.calledWith(
@@ -271,7 +296,7 @@ describe('Parameter', function () {
             });
 
             it('should not set the value of the local variable', function () {
-                parameter.loadArgument(argumentReference, scope);
+                parameter.loadArgument(argumentReference, localVariable);
 
                 expect(localVariable.setValue).not.to.have.been.called;
             });
@@ -282,22 +307,15 @@ describe('Parameter', function () {
                 createParameter(true);
             });
 
-            it('should declare the local variable', function () {
-                parameter.loadArgument(argumentValue, scope);
-
-                expect(scope.getVariable).to.have.been.calledOnce;
-                expect(scope.getVariable).to.have.been.calledWith('myParam');
-            });
-
             it('should set the value of the local variable to the value', function () {
-                parameter.loadArgument(argumentValue, scope);
+                parameter.loadArgument(argumentValue, localVariable);
 
                 expect(localVariable.setValue).to.have.been.calledOnce;
                 expect(localVariable.setValue.args[0][0].getNative()).to.equal('my argument');
             });
 
             it('should not set the reference of the local variable', function () {
-                parameter.loadArgument(argumentValue, scope);
+                parameter.loadArgument(argumentValue, localVariable);
 
                 expect(localVariable.setReference).not.to.have.been.called;
             });
@@ -308,15 +326,8 @@ describe('Parameter', function () {
                 createParameter(true);
             });
 
-            it('should declare the local variable', function () {
-                parameter.loadArgument(argumentReference, scope);
-
-                expect(scope.getVariable).to.have.been.calledOnce;
-                expect(scope.getVariable).to.have.been.calledWith('myParam');
-            });
-
             it('should set the reference of the local variable to the reference slot', function () {
-                parameter.loadArgument(argumentReference, scope);
+                parameter.loadArgument(argumentReference, localVariable);
 
                 expect(localVariable.setReference).to.have.been.calledOnce;
                 expect(localVariable.setReference).to.have.been.calledWith(
@@ -325,7 +336,7 @@ describe('Parameter', function () {
             });
 
             it('should not set the value of the local variable', function () {
-                parameter.loadArgument(argumentReference, scope);
+                parameter.loadArgument(argumentReference, localVariable);
 
                 expect(localVariable.setValue).not.to.have.been.called;
             });
@@ -377,12 +388,14 @@ describe('Parameter', function () {
                 futureFactory,
                 flow,
                 userland,
+                parameterFactory,
                 'myParam',
                 6,
                 typeObject,
                 context,
                 namespaceScope,
                 true,
+                false,
                 null,
                 '/path/to/my/module.php',
                 101
@@ -396,13 +409,28 @@ describe('Parameter', function () {
         });
     });
 
+    describe('isVariadic()', function () {
+        it('should return true when variadic', function () {
+            createParameter(false, true);
+
+            expect(parameter.isVariadic()).to.be.true;
+        });
+
+        it('should return false when positional', function () {
+            createParameter(false, false);
+
+            expect(parameter.isVariadic()).to.be.false;
+        });
+    });
+
     describe('validateArgument()', function () {
         it('should raise an error when parameter expects a reference but a value was given as argument', function () {
             var argumentValue = valueFactory.createString('my arg');
 
-            return expect(parameter.validateArgument(argumentValue).toPromise())
+            return expect(parameter.validateArgument(argumentValue, argumentValue, 6).toPromise())
                 .to.eventually.be.rejectedWith(
-                    'Fake PHP Fatal error [null] for #core.only_variables_by_reference with {} reportsOwnContext=no skipCurrentStackFrame=no ' +
+                    'Fake PHP Fatal error [null] for #core.invalid_by_reference_argument with ' +
+                    '{"index":7,"context":" ($myParam)"} reportsOwnContext=no skipCurrentStackFrame=yes ' +
                     '@ null:null'
                 );
         });
@@ -419,11 +447,11 @@ describe('Parameter', function () {
             callStack.getCallerFilePath.returns('/my/caller/module.php');
             callStack.getCallerLastLine.returns(12345);
 
-            return expect(parameter.validateArgument(argumentReference, argumentValue).toPromise())
+            return expect(parameter.validateArgument(argumentReference, argumentValue, 6).toPromise())
                 .to.eventually.be.rejectedWith(
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
-                    '"name":"myParam",' +
+                    '"context":" ($myParam)",' +
                     '"actualType":"string",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345' +
@@ -447,11 +475,11 @@ describe('Parameter', function () {
             callStack.getCallerLastLine.returns(12345);
             callStack.isUserland.returns(true);
 
-            return expect(parameter.validateArgument(argumentReference, argumentValue).toPromise())
+            return expect(parameter.validateArgument(argumentReference, argumentValue, 6).toPromise())
                 .to.eventually.be.rejectedWith(
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_userland with {' +
                     '"index":7,' +
-                    '"name":"myParam",' +
+                    '"context":" ($myParam)",' +
                     '"actualType":"string",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345' +
@@ -473,12 +501,14 @@ describe('Parameter', function () {
                 futureFactory,
                 flow,
                 userland,
+                parameterFactory,
                 'myParam',
                 6,
                 typeObject,
                 context,
                 namespaceScope,
                 true,
+                false,
                 defaultValueProvider,
                 null,
                 null
@@ -491,11 +521,11 @@ describe('Parameter', function () {
             callStack.getCallerFilePath.returns(null);
             callStack.getCallerLastLine.returns(null);
 
-            return expect(parameter.validateArgument(argumentReference, argumentValue).toPromise())
+            return expect(parameter.validateArgument(argumentReference, argumentValue, 6).toPromise())
                 .to.eventually.be.rejectedWith(
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
-                    '"name":"myParam",' +
+                    '"context":" ($myParam)",' +
                     '"actualType":"string",' +
                     '"callerFile":"[Translated] core.unknown {}",' +
                     '"callerLine":"[Translated] core.unknown {}"' +
@@ -522,22 +552,70 @@ describe('Parameter', function () {
                 futureFactory,
                 flow,
                 userland,
+                parameterFactory,
                 'myParam',
                 6,
                 typeObject,
                 context,
                 namespaceScope,
                 true,
+                false,
                 null, // No default given, so null has not been allowed.
                 '/path/to/my/module.php',
                 101
             );
 
-            return expect(parameter.validateArgument(argumentReference, argumentValue).toPromise())
+            return expect(parameter.validateArgument(argumentReference, argumentValue, 6).toPromise())
                 .to.eventually.be.rejectedWith(
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
-                    '"name":"myParam",' +
+                    '"context":" ($myParam)",' +
+                    '"actualType":"null",' +
+                    '"callerFile":"/my/caller/module.php",' +
+                    '"callerLine":12345' +
+                    '} reportsOwnContext=yes ' +
+                    'context(#core.call_to_builtin with {"callerFile":"/my/caller/module.php","callerLine":12345})' +
+                    ' skipCurrentStackFrame=yes ' +
+                    '@ /my/caller/module.php:12345'
+                );
+        });
+
+        it('should raise an error when argument is null but type does not allow null and is optional for builtin', function () {
+            var argumentReference = sinon.createStubInstance(Variable),
+                argumentValue = valueFactory.createMissing(),
+                defaultValue = valueFactory.createMissing();
+            typeObject.allowsValue
+                .withArgs(sinon.match.same(argumentValue))
+                .returns(futureFactory.createPresent(false)); // Type disallows null (e.g. a class type not prefixed with ? in PHP7+).
+            defaultValueProvider.returns(defaultValue); // Default is null, meaning null can be passed.
+            callStack.getCurrent.returns(sinon.createStubInstance(Call));
+            callStack.getCallerFilePath.returns('/my/caller/module.php');
+            callStack.getCallerLastLine.returns(12345);
+            parameter = new Parameter(
+                callStack,
+                valueFactory,
+                translator,
+                futureFactory,
+                flow,
+                userland,
+                parameterFactory,
+                'myParam',
+                6,
+                typeObject,
+                context,
+                namespaceScope,
+                true,
+                false,
+                defaultValueProvider,
+                '/path/to/my/module.php',
+                101
+            );
+
+            return expect(parameter.validateArgument(argumentReference, argumentValue, 6).toPromise())
+                .to.eventually.be.rejectedWith(
+                    'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
+                    '"index":7,' +
+                    '"context":" ($myParam)",' +
                     '"actualType":"null",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345' +
@@ -560,11 +638,11 @@ describe('Parameter', function () {
             callStack.getCallerFilePath.returns('/my/caller/module.php');
             callStack.getCallerLastLine.returns(12345);
 
-            return expect(parameter.validateArgument(argumentReference, argumentValue).toPromise())
+            return expect(parameter.validateArgument(argumentReference, argumentValue, 6).toPromise())
                 .to.eventually.be.rejectedWith(
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
-                    '"name":"myParam",' +
+                    '"context":" ($myParam)",' +
                     '"actualType":"null",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345' +
@@ -583,18 +661,20 @@ describe('Parameter', function () {
                 futureFactory,
                 flow,
                 userland,
+                parameterFactory,
                 'myParam',
                 6,
                 typeObject,
                 context,
                 namespaceScope,
                 true,
+                false,
                 null, // Don't provide a default value, making the parameter required
                 '/path/to/my/module.php',
                 101
             );
 
-            return expect(parameter.validateArgument(null).toPromise())
+            return expect(parameter.validateArgument(null, null, 6).toPromise())
                 .to.eventually.be.rejectedWith(
                     Exception,
                     'Missing argument for required parameter "myParam"'

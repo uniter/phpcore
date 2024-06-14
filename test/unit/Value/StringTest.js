@@ -1161,6 +1161,17 @@ describe('StringValue', function () {
 
             expect(await value.getConstantByName('MY_CONST', namespaceScope).toPromise()).to.equal(resultValue);
         });
+
+        it('should not autoload when the special ::class constant for an undefined class', async function () {
+            var resultValue;
+            createValue('Some\\SubSpace\\SomeUndefinedClass');
+
+            resultValue = await value.getConstantByName('class', namespaceScope).toPromise();
+
+            expect(resultValue.getType()).to.equal('string');
+            expect(resultValue.getNative()).to.equal('Some\\SubSpace\\SomeUndefinedClass');
+            expect(namespaceScope.getClass).not.to.have.been.called;
+        });
     });
 
     describe('getDisplayType()', function () {
@@ -1235,6 +1246,14 @@ describe('StringValue', function () {
         });
     });
 
+    describe('getOutgoingValues()', function () {
+        it('should return an empty array as scalars cannot refer to anything', function () {
+            createValue('my string');
+
+            expect(value.getOutgoingValues()).to.deep.equal([]);
+        });
+    });
+
     describe('getProxy()', function () {
         it('should return "hello" when expected', function () {
             createValue('hello');
@@ -1275,6 +1294,22 @@ describe('StringValue', function () {
                     namespaceScope
                 ).toPromise()
             ).to.equal(resultValue);
+        });
+    });
+
+    describe('getType()', function () {
+        it('should return "string"', function () {
+            createValue('my string');
+
+            expect(value.getType()).to.equal('string');
+        });
+    });
+
+    describe('getUnderlyingType()', function () {
+        it('should return "string"', function () {
+            createValue('my string');
+
+            expect(value.getUnderlyingType()).to.equal('string');
         });
     });
 
@@ -1446,6 +1481,8 @@ describe('StringValue', function () {
             globalNamespace.getClass.withArgs('My\\Space\\MyClass')
                 .returns(futureFactory.createPresent(classObject));
             newObjectValue = sinon.createStubInstance(ObjectValue);
+            newObjectValue.next.yields(newObjectValue);
+            newObjectValue.toPromise.returns(Promise.resolve(newObjectValue));
             classObject.instantiate.returns(newObjectValue);
         });
 
@@ -1630,6 +1667,14 @@ describe('StringValue', function () {
             createValue('my string');
 
             expect(value.isReferenceable()).to.be.false;
+        });
+    });
+
+    describe('isStructured()', function () {
+        it('should return false', function () {
+            createValue('my string');
+
+            expect(value.isStructured()).to.be.false;
         });
     });
 

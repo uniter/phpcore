@@ -199,7 +199,7 @@ _.extend(UnionType.prototype, {
             scalarSubTypes = slice.call(typeObject.scalarSubTypesByPriority);
 
         otherSubTypes.sort(function (subTypeA, subTypeB) {
-            return subTypeA.getDisplayName().localeCompare(subTypeB.getDisplayName());
+            return subTypeB.getDisplayName().localeCompare(subTypeA.getDisplayName());
         });
 
         scalarSubTypes.sort(function (subTypeA, subTypeB) {

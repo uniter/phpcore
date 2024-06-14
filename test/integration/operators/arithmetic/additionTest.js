@@ -47,10 +47,30 @@ EOS
         });
     });
 
-    it('should correctly handle passing a variable as operand that is then re-assigned within a later operand', async function () {
+    it('should correctly handle passing a previously undefined variable as operand that is then re-assigned within a later operand', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
+
+$result['assignment within operand'] = ${($myVar = 21) && false ?: 'myVar'} + ${($myVar = 32) && false ?: 'myVar'};
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php);
+
+        expect((await module().execute()).getNative()).to.deep.equal({
+            // Value should be resolved within the operand.
+            'assignment within operand': 53
+        });
+    });
+
+    it('should correctly handle passing a previously defined variable as operand that is then re-assigned within a later operand', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+$myVar = 1001;
 
 $result['assignment within operand'] = ${($myVar = 21) && false ?: 'myVar'} + ${($myVar = 32) && false ?: 'myVar'};
 

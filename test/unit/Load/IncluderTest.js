@@ -30,6 +30,7 @@ describe('Includer', function () {
     var callStack,
         enclosingScope,
         environment,
+        futureFactory,
         includer,
         loader,
         module,
@@ -46,6 +47,7 @@ describe('Includer', function () {
         });
         enclosingScope = sinon.createStubInstance(Scope);
         environment = sinon.createStubInstance(Environment);
+        futureFactory = state.getFutureFactory();
         includer = sinon.createStubInstance(Includer);
         loader = sinon.createStubInstance(Loader);
         module = sinon.createStubInstance(Module);
@@ -61,6 +63,8 @@ describe('Includer', function () {
             });
         module.getFilePath.returns('/path/to/my/module.php');
 
+        loader.load.returns(futureFactory.createPresent(null));
+
         includer = new Includer(
             callStack,
             valueFactory,
@@ -69,6 +73,59 @@ describe('Includer', function () {
             optionSet,
             state.getFlow()
         );
+    });
+
+    describe('hasModuleBeenIncluded()', function () {
+        var callInclude;
+
+        beforeEach(function () {
+            var includeOption = sinon.stub();
+
+            optionSet.getOption
+                .withArgs('include')
+                .returns(includeOption);
+
+            callInclude = function (includedPath, type, errorLevel, options) {
+                return includer.include(
+                    type || 'include',
+                    errorLevel || PHPError.E_WARNING,
+                    environment,
+                    module,
+                    includedPath,
+                    enclosingScope,
+                    options || {}
+                ).yieldSync();
+            };
+        });
+
+        it('should return true when a module has been included once', function () {
+            callInclude('/my/included_path.php');
+
+            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.true;
+        });
+
+        it('should return true when a module has been included multiple times', function () {
+            callInclude('/my/included_path.php');
+            callInclude('/my/included_path.php'); // Second include of the same module
+
+            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.true;
+        });
+
+        it('should resolve the include path', function () {
+            callInclude('/my/stuff/here/../../included_path.php');
+
+            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.true;
+        });
+
+        it('should resolve the given path', function () {
+            callInclude('/my/included_path.php');
+
+            expect(includer.hasModuleBeenIncluded('/my/stuff/here/../../included_path.php')).to.be.true;
+        });
+
+        it('should return false when a module has not been included', function () {
+            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.false;
+        });
     });
 
     describe('include()', function () {
@@ -214,6 +271,16 @@ describe('Includer', function () {
                     .to.equal(resultValue);
             });
 
+            it('should return int(1) when the Loader returns a MissingValue', function () {
+                var resultValue;
+                loader.load.returns(valueFactory.createMissing());
+
+                resultValue = callInclude('/some/path/to/my_included_module.php');
+
+                expect(resultValue.getType()).to.equal('int');
+                expect(resultValue.getNative()).to.equal(1);
+            });
+
             describe('on LoadFailedException', function () {
                 it('should return bool(false)', function () {
                     loader.load.returns(valueFactory.createRejection(new LoadFailedException(new Error('Oh dear'))));
@@ -270,47 +337,6 @@ describe('Includer', function () {
                     callInclude('/some/path/to/my_included_module.php');
                 }).to.throw('Bang!');
             });
-        });
-    });
-
-    describe('hasModuleBeenIncluded()', function () {
-        var callInclude;
-
-        beforeEach(function () {
-            var includeOption = sinon.stub();
-
-            optionSet.getOption
-                .withArgs('include')
-                .returns(includeOption);
-
-            callInclude = function (includedPath, type, errorLevel, options) {
-                return includer.include(
-                    type || 'include',
-                    errorLevel || PHPError.E_WARNING,
-                    environment,
-                    module,
-                    includedPath,
-                    enclosingScope,
-                    options || {}
-                ).yieldSync();
-            };
-        });
-
-        it('should return true when a module has been included once', function () {
-            callInclude('/my/included_path.php');
-
-            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.true;
-        });
-
-        it('should return true when a module has been included multiple times', function () {
-            callInclude('/my/included_path.php');
-            callInclude('/my/included_path.php'); // Second include of the same module
-
-            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.true;
-        });
-
-        it('should return false when a module has not been included', function () {
-            expect(includer.hasModuleBeenIncluded('/my/included_path.php')).to.be.false;
         });
     });
 });

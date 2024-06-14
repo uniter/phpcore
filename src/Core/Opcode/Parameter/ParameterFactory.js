@@ -30,7 +30,6 @@ _.extend(ParameterFactory.prototype, {
      *
      * @param {string} name
      * @param {TypeInterface} type
-     * @param {boolean} isInitial
      * @param {boolean} isRequired
      * @param {boolean} isVariadic
      * @param {*} defaultArgument
@@ -39,12 +38,11 @@ _.extend(ParameterFactory.prototype, {
     createParameter: function (
         name,
         type,
-        isInitial,
         isRequired,
         isVariadic,
         defaultArgument
     ) {
-        return new this.Parameter(name, type, isInitial, isRequired, isVariadic, defaultArgument);
+        return new this.Parameter(name, type, isRequired, isVariadic, defaultArgument);
     }
 });
 

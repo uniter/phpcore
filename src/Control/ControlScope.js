@@ -39,11 +39,14 @@ _.extend(ControlScope.prototype, {
     /**
      * Enters a new coroutine, or continues the current one if we are nesting.
      *
+     * @param {{keepStack: boolean}} options
      * @returns {Coroutine}
      */
-    enterCoroutine: function () {
+    enterCoroutine: function (options) {
         var scope = this,
             newCoroutine;
+
+        options = options || {};
 
         if (scope.nestNextCoroutine) {
             scope.nestNextCoroutine = false;
@@ -58,7 +61,7 @@ _.extend(ControlScope.prototype, {
         newCoroutine = scope.coroutineFactory.createCoroutine();
 
         if (scope.currentCoroutine !== null) {
-            scope.currentCoroutine.suspend();
+            scope.currentCoroutine.suspend(Boolean(options.keepStack));
         }
 
         scope.currentCoroutine = newCoroutine;

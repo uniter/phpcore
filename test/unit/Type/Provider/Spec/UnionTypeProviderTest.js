@@ -44,13 +44,14 @@ describe('UnionTypeProvider', function () {
                 provider.createType(
                     {
                         type: 'union',
-                        subTypes: [
+                        types: [
                             {type: 'callable'},
-                            {type: 'iterable'}
+                            {type: 'iterable'},
+                            {type: 'null'}
                         ]
                     },
                     namespaceScope,
-                    true // Must have included "|null".
+                    false // TODO: Remove this concept as it is inconsistent with |null.
                 )
             ).to.equal(unionType);
             expect(typeFactory.createUnionType).to.have.been.calledWith(
@@ -71,13 +72,13 @@ describe('UnionTypeProvider', function () {
                 provider.createType(
                     {
                         type: 'union',
-                        subTypes: [
+                        types: [
                             {type: 'callable'},
                             {type: 'iterable'}
                         ]
                     },
                     namespaceScope,
-                    false // Must not have included "|null".
+                    false // TODO: Remove this concept as it is inconsistent with |null.
                 )
             ).to.equal(unionType);
             expect(typeFactory.createUnionType).to.have.been.calledWith(
@@ -129,13 +130,13 @@ describe('UnionTypeProvider', function () {
                 provider.createType(
                     {
                         type: 'union',
-                        subTypes: [
+                        types: [
                             {type: 'scalar', scalarType: 'bool'},
                             {type: 'scalar', scalarType: 'float'}
                         ]
                     },
                     namespaceScope,
-                    false
+                    false // TODO: Remove this concept as it is inconsistent with |null.
                 );
 
                 expect(typeFactory.createUnionType).to.have.been.calledOnce;
@@ -151,13 +152,13 @@ describe('UnionTypeProvider', function () {
                 provider.createType(
                     {
                         type: 'union',
-                        subTypes: [
+                        types: [
                             {type: 'scalar', scalarType: 'bool'},
                             {type: 'scalar', scalarType: 'float'}
                         ]
                     },
                     namespaceScope,
-                    false
+                    false // TODO: Remove this concept as it is inconsistent with |null.
                 );
 
                 expect(typeFactory.createUnionType).to.have.been.calledOnce;
@@ -174,13 +175,13 @@ describe('UnionTypeProvider', function () {
                 provider.createType(
                     {
                         type: 'union',
-                        subTypes: [
+                        types: [
                             {type: 'scalar', scalarType: 'bool'},
                             {type: 'class'}
                         ]
                     },
                     namespaceScope,
-                    false
+                    false // TODO: Remove this concept as it is inconsistent with |null.
                 );
 
                 expect(typeFactory.createUnionType).to.have.been.calledOnce;
@@ -197,13 +198,13 @@ describe('UnionTypeProvider', function () {
                 provider.createType(
                     {
                         type: 'union',
-                        subTypes: [
+                        types: [
                             {type: 'scalar', scalarType: 'bool'},
                             {type: 'callable'}
                         ]
                     },
                     namespaceScope,
-                    false
+                    false // TODO: Remove this concept as it is inconsistent with |null.
                 );
 
                 expect(typeFactory.createUnionType).to.have.been.calledOnce;

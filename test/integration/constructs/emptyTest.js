@@ -278,11 +278,7 @@ EOS
             engine = module();
         engine.defineFunction('get_async', function (internals) {
             return function (value) {
-                return internals.createFutureValue(function (resolve) {
-                    setImmediate(function () {
-                        resolve(value);
-                    });
-                });
+                return internals.createAsyncPresentValue(value);
             };
         });
 

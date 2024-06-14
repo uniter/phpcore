@@ -9,7 +9,9 @@
 
 'use strict';
 
-var _ = require('microdash');
+var _ = require('microdash'),
+    hasOwn = {}.hasOwnProperty,
+    MAGIC_DESTRUCT = '__destruct';
 
 /**
  * @param {string} name
@@ -262,6 +264,15 @@ _.extend(ClassDefinition.prototype, {
      */
     getValueCoercer: function () {
         return this.valueCoercer;
+    },
+
+    /**
+     * Determines whether this class defines a destructor.
+     *
+     * @returns {boolean}
+     */
+    hasDestructor: function () {
+        return hasOwn.call(this.methods, MAGIC_DESTRUCT);
     }
 });
 

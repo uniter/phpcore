@@ -64,7 +64,6 @@ describe('ClosureFactory', function () {
             callCreate = function (dontUseScopeClass, dontUseThisObject) {
                 return factory.create(
                     enclosingScope,
-                    unwrappedFunction,
                     namespaceScope,
                     dontUseScopeClass ? null : scopeClass,
                     dontUseThisObject ? null : thisObject,
@@ -95,7 +94,6 @@ describe('ClosureFactory', function () {
         it('should pass the Class of `$this` object to the FunctionFactory when not provided', function () {
             factory.create(
                 enclosingScope,
-                unwrappedFunction,
                 namespaceScope,
                 null,
                 thisObject
@@ -111,7 +109,6 @@ describe('ClosureFactory', function () {
         it('should pass null as scope Class to the FunctionFactory when not provided and no `$this`', function () {
             factory.create(
                 enclosingScope,
-                unwrappedFunction,
                 namespaceScope,
                 null,
                 null
@@ -127,7 +124,6 @@ describe('ClosureFactory', function () {
         it('should pass null as scope Class to the FunctionFactory when NullValue provided and no `$this`', function () {
             factory.create(
                 enclosingScope,
-                unwrappedFunction,
                 namespaceScope,
                 null,
                 valueFactory.createNull()
@@ -140,36 +136,11 @@ describe('ClosureFactory', function () {
             );
         });
 
-        it('should pass the unwrapped function to the FunctionFactory', function () {
-            callCreate();
-
-            expect(functionFactory.create).to.have.been.calledOnce;
-            expect(functionFactory.create).to.have.been.calledWith(
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.same(unwrappedFunction)
-            );
-        });
-
-        it('should pass null as the function name to the FunctionFactory, as closures have no name', function () {
-            callCreate();
-
-            expect(functionFactory.create).to.have.been.calledOnce;
-            expect(functionFactory.create).to.have.been.calledWith(
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.any,
-                null
-            );
-        });
-
         it('should pass null as the $this object to FunctionFactory - will be specified on invocation', function () {
             callCreate();
 
             expect(functionFactory.create).to.have.been.calledOnce;
             expect(functionFactory.create).to.have.been.calledWith(
-                sinon.match.any,
-                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 null
@@ -185,8 +156,6 @@ describe('ClosureFactory', function () {
 
             expect(functionFactory.create).to.have.been.calledOnce;
             expect(functionFactory.create).to.have.been.calledWith(
-                sinon.match.any,
-                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -206,8 +175,6 @@ describe('ClosureFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.any,
-                sinon.match.any,
                 sinon.match.same(scopeClass)
             );
         });
@@ -217,8 +184,6 @@ describe('ClosureFactory', function () {
 
             expect(functionFactory.create).to.have.been.calledOnce;
             expect(functionFactory.create).to.have.been.calledWith(
-                sinon.match.any,
-                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -234,8 +199,6 @@ describe('ClosureFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.any,
-                sinon.match.any,
                 sinon.match.same(thisObjectClass)
             );
         });
@@ -248,8 +211,6 @@ describe('ClosureFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.any,
-                sinon.match.any,
                 null
             );
         });
@@ -259,8 +220,6 @@ describe('ClosureFactory', function () {
 
             expect(functionFactory.create).to.have.been.calledOnce;
             expect(functionFactory.create).to.have.been.calledWith(
-                sinon.match.any,
-                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -311,25 +270,11 @@ describe('ClosureFactory', function () {
             );
         });
 
-        it('should pass the unwrapped function to the Closure', function () {
-            callCreate();
-
-            expect(Closure).to.have.been.calledOnce;
-            expect(Closure).to.have.been.calledWith(
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.any,
-                sinon.match.same(unwrappedFunction)
-            );
-        });
-
         it('should pass the created wrapped function to the Closure', function () {
             callCreate();
 
             expect(Closure).to.have.been.calledOnce;
             expect(Closure).to.have.been.calledWith(
-                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -348,7 +293,6 @@ describe('ClosureFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match.any,
                 sinon.match.same(thisObject)
             );
         });
@@ -358,7 +302,6 @@ describe('ClosureFactory', function () {
 
             expect(Closure).to.have.been.calledOnce;
             expect(Closure).to.have.been.calledWith(
-                sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,

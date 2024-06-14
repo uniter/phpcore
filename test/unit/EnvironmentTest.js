@@ -206,6 +206,20 @@ describe('Environment', function () {
         });
     });
 
+    describe('defineOverloadedFunction()', function () {
+        it('should define a function on the PHPState', function () {
+            var myFunctionDefinitionFactory = sinon.stub();
+
+            environment.defineOverloadedFunction('My\\Fqfn', myFunctionDefinitionFactory);
+
+            expect(state.defineOverloadedFunction).to.have.been.calledOnce;
+            expect(state.defineOverloadedFunction).to.have.been.calledWith(
+                'My\\Fqfn',
+                sinon.match.same(myFunctionDefinitionFactory)
+            );
+        });
+    });
+
     describe('defineSuperGlobal()', function () {
         it('should define the super global on the state', function () {
             var value = sinon.createStubInstance(Value);
@@ -248,6 +262,14 @@ describe('Environment', function () {
             state.getGlobal.withArgs('myGlobal').returns(valueFactory.createInteger(1234));
 
             expect(environment.getGlobal('myGlobal').getNative()).to.equal(1234);
+        });
+    });
+
+    describe('getMode()', function () {
+        it('should return the mode from the state', function () {
+            state.getMode.returns('psync');
+
+            expect(environment.getMode()).to.equal('psync');
         });
     });
 

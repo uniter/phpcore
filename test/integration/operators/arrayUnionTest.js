@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP array union operator "+" integration', function () {
-    it('should merge the arrays correctly giving precedence to the left-hand array in sync mode', async function () {
+    it('should merge the arrays correctly giving precedence to the left-hand array in sync mode', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -32,10 +32,10 @@ $result['two associative arrays'] = $associativeArray1 + $associativeArray2;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            module = tools.syncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect((await engine.execute()).getNative()).to.deep.equal({
+        expect(engine.execute().getNative()).to.deep.equal({
             'two indexed arrays': ['first', 'second', 'fifth'], // Array 1's keys should take precedence.
 
             'two associative arrays': {
@@ -68,11 +68,7 @@ EOS
             engine = module();
         engine.defineFunction('get_async', function (internals) {
             return function (value) {
-                return internals.createFutureValue(function (resolve) {
-                    setImmediate(function () {
-                        resolve(value);
-                    });
-                });
+                return internals.createAsyncPresentValue(value);
             };
         });
 

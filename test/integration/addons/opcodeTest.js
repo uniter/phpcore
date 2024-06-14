@@ -69,7 +69,7 @@ EOS
         expect(engine.getStdout().readAll()).to.equal('Logged: 242');
     });
 
-    it('should support installing an addon that hooks an opcode', async function () {
+    it('should support installing an addon that hooks an existing opcode', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -113,7 +113,7 @@ EOS
                             // Override the standard built-in callFunction() opcode's handler. This opcode
                             // is used every time a function is called, like the three times in our test.
                             callFunction: internals.typeHandler(
-                                'string name, snapshot ...argReferences : ref|val',
+                                'string name, slot ...argReferences : slot',
                                 function (name, argReferences) {
                                     // Note that for async mode, the result may be a Future or FutureValue.
                                     return internals.callPreviousHandler('callFunction', [name, argReferences])

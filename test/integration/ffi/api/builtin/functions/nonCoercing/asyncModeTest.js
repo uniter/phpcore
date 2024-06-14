@@ -88,22 +88,25 @@ EOS
             return function (objectArgReference) {
                 return internals.createFFIResult(function () {
                     throw new Error('This test should run in async mode and use the async callback');
-                }, function () {
-                    var asyncObject = internals.valueHelper.toValueWithAsyncApi(objectArgReference.getValue());
-
+                }, async function () {
                     /*
                      * - Uses Promise chaining
-                     * - `objectArgReference.getValue()` returns a CustomBuiltin/ObjectValue, which is a facade
+                     * - `objectArgReference.getValue()` returns a Future<AsyncObjectValue>, which is a facade
                      *   that provides a minimal interface.
-                     * - `CustomBuiltin/ObjectValue.callMethod(...)` then returns a Promise, resolved
+                     * - `AsyncObjectValue.callMethod(...)` then returns a Promise, resolved
                      *   with the value returned from `get_async(...)` (see PHP snippet above)
                      * - Using Promise chaining, we add 2 to the value and return the resulting Promise.
                      * - As .add(...) returns a Promise (via the facade), operator overloading
                      *   is able to handle a sleep from inside a magic `+` operator method, for example.
                      */
-                    return asyncObject.callMethod('getIt').then(function (value) {
-                        return value.add(internals.valueFactory.createInteger(2));
-                    });
+                    var asyncObject = await objectArgReference.getValue()
+                            .next(function (objectArg) {
+                                return internals.valueHelper.toValueWithAsyncApi(objectArg);
+                            })
+                            .toPromise(),
+                        value = await asyncObject.callMethod('getIt');
+
+                    return value.add(internals.valueFactory.createInteger(2));
                 });
             };
         });

@@ -40,6 +40,7 @@ var phpCommon = require('phpcommon'),
     FFICall = require('../../FFI/Call'),
     FFIExportFactory = require('../../FFI/Export/ExportFactory'),
     FFIExportRepository = require('../../FFI/Export/ExportRepository'),
+    FFIOverloadedFunctionInternalsClassFactory = require('../../FFI/Internals/OverloadedFunctionInternalsClassFactory'),
     FunctionFactory = require('../../FunctionFactory').sync(),
     Future = require('../../Control/Future'),
     FutureFactory = require('../../Control/FutureFactory'),
@@ -55,6 +56,7 @@ var phpCommon = require('phpcommon'),
     NamespaceFactory = require('../../NamespaceFactory'),
     NativeDefinitionBuilder = require('../../Class/Definition/NativeDefinitionBuilder'),
     NativeMethodDefinitionBuilder = require('../../Class/Definition/NativeMethodDefinitionBuilder'),
+    NullTypeProvider = require('../../Type/Provider/Spec/NullTypeProvider'),
     ObjectTypeProvider = require('../../Type/Provider/Spec/ObjectTypeProvider'),
     OpcodeExecutor = require('../../Core/Opcode/Handler/OpcodeExecutor'),
     OpcodeFactory = require('../../Core/Opcode/Opcode/OpcodeFactory'),
@@ -71,6 +73,8 @@ var phpCommon = require('phpcommon'),
     Output = require('../../Output/Output'),
     OutputBuffer = require('../../Output/OutputBuffer'),
     OutputFactory = require('../../Output/OutputFactory'),
+    OverloadedFunctionDefiner = require('../../Function/Overloaded/OverloadedFunctionDefiner'),
+    Present = require('../../Control/Present'),
     Reference = require('../../Reference/Reference'),
     ReturnTypeProvider = require('../../Function/ReturnTypeProvider'),
     ScalarTypeProvider = require('../../Type/Provider/Spec/ScalarTypeProvider'),
@@ -89,6 +93,7 @@ var phpCommon = require('phpcommon'),
     ValueProvider = require('../../Value/ValueProvider'),
     Variable = require('../../Variable').sync(),
     VariableFactory = require('../../VariableFactory').sync(),
+    VoidTypeProvider = require('../../Type/Provider/Spec/VoidTypeProvider'),
 
     ARRAY_CHAINIFIER = 'array_chainifier',
     CALL_FACTORY = 'call_factory',
@@ -101,11 +106,13 @@ var phpCommon = require('phpcommon'),
     CLOSURE_FACTORY = 'closure_factory',
     CONTROL_BRIDGE = 'control_bridge',
     CONTROL_SCOPE = 'control_scope',
+    DESTRUCTIBLE_OBJECT_REPOSITORY = 'garbage.destructible_object_repository',
     ELEMENT_PROVIDER_FACTORY = 'element_provider_factory',
     ERROR_REPORTING = 'error_reporting',
     FFI_EXPORT_FACTORY = 'ffi_export_factory',
     FFI_EXPORT_REPOSITORY = 'ffi_export_repository',
     FFI_FACTORY = 'ffi_factory',
+    FFI_INTERNALS = 'ffi_internals',
     FFI_PROXY_FACTORY = 'ffi_proxy_factory',
     FFI_UNWRAPPER_REPOSITORY = 'ffi_unwrapper_repository',
     FFI_VALUE_STORAGE = 'ffi_value_storage',
@@ -114,6 +121,9 @@ var phpCommon = require('phpcommon'),
     FUNCTION_SIGNATURE_PARSER = 'function_signature_parser',
     FUNCTION_SPEC_FACTORY = 'function_spec_factory',
     FUTURE_FACTORY = 'future_factory',
+    GARBAGE_CACHE_INVALIDATOR = 'garbage.cache_invalidator',
+    GLOBAL_NAMESPACE = 'global_namespace',
+    GLOBAL_NAMESPACE_SCOPE = 'global_namespace_scope',
     GLOBAL_SCOPE = 'global_scope',
     INSTRUMENTATION_FACTORY = 'instrumentation_factory',
     METHOD_PROMOTER = 'method_promoter',
@@ -123,7 +133,6 @@ var phpCommon = require('phpcommon'),
     OPCODE_EXECUTOR = 'opcode_executor',
     OPCODE_FACTORY = 'opcode_factory',
     OPCODE_FETCHER_REPOSITORY = 'opcode_fetcher_repository',
-    OPCODE_HANDLER_FACTORY = 'opcode_handler_factory',
     OPCODE_PARAMETER_FACTORY = 'opcode_parameter_factory',
     OPCODE_POOL = 'opcode_pool',
     OPCODE_RESCUER = 'opcode_rescuer',
@@ -131,6 +140,7 @@ var phpCommon = require('phpcommon'),
     OPCODE_TYPE_FACTORY = 'opcode_type_factory',
     OPCODE_TYPE_PROVIDER = 'opcode_type_provider',
     OUTPUT_FACTORY = 'output_factory',
+    OVERLOADED_FUNCTION_DEFINER = 'overloaded_function_definer',
     PAUSE_FACTORY = 'pause_factory',
     REFERENCE_FACTORY = 'reference_factory',
     SCOPE_FACTORY = 'scope_factory',
@@ -206,7 +216,8 @@ module.exports = function (internals) {
                 get(FUTURE_FACTORY),
                 get(USERLAND),
                 get(FFI_EXPORT_REPOSITORY),
-                get(FFI_FACTORY)
+                get(FFI_FACTORY),
+                get(DESTRUCTIBLE_OBJECT_REPOSITORY)
             );
         },
 
@@ -228,7 +239,7 @@ module.exports = function (internals) {
         },
 
         'control_bridge': function () {
-            return new ControlBridge(Future, Reference, Value, Variable);
+            return new ControlBridge(Future, Present, Reference, Value, Variable);
         },
 
         'control_factory': function () {
@@ -263,6 +274,17 @@ module.exports = function (internals) {
             return new FFIExportRepository(get(FFI_EXPORT_FACTORY), get(FFI_VALUE_STORAGE));
         },
 
+        'ffi_overloaded_function_internals_class_factory': function () {
+            return new FFIOverloadedFunctionInternalsClassFactory(
+                get(FFI_INTERNALS),
+                get(VALUE_FACTORY),
+                get(FFI_FACTORY),
+                get(GLOBAL_NAMESPACE),
+                get(GLOBAL_NAMESPACE_SCOPE),
+                get(FUNCTION_SIGNATURE_PARSER)
+            );
+        },
+
         'function_factory': function () {
             return new FunctionFactory(
                 MethodSpec,
@@ -280,14 +302,17 @@ module.exports = function (internals) {
             return new SignatureParser(get(VALUE_FACTORY));
         },
 
-        'future_factory': function () {
-            return new FutureFactory(
+        'future_factory': function (set) {
+            var futureFactory = set(new FutureFactory(
                 get(PAUSE_FACTORY),
                 get(VALUE_FACTORY),
                 get(CONTROL_BRIDGE),
                 get(CONTROL_SCOPE),
-                Future
-            );
+                Future,
+                Present
+            ));
+
+            futureFactory.setChainifier(get(CHAINIFIER));
         },
 
         'global_namespace': function (set) {
@@ -326,6 +351,7 @@ module.exports = function (internals) {
                 get(FLOW),
                 get(FUNCTION_FACTORY),
                 get(FUNCTION_SPEC_FACTORY),
+                get(OVERLOADED_FUNCTION_DEFINER),
                 get(VALUE_FACTORY),
                 get(CLASS_AUTOLOADER),
                 get(CLASS_DEFINER)
@@ -420,6 +446,13 @@ module.exports = function (internals) {
             return new OutputFactory(OutputBuffer);
         },
 
+        'overloaded_function_definer': function () {
+            return new OverloadedFunctionDefiner(
+                get(FUNCTION_SPEC_FACTORY),
+                get(FUNCTION_FACTORY)
+            );
+        },
+
         'return_type_provider': function () {
             return new ReturnTypeProvider(get(SPEC_TYPE_PROVIDER));
         },
@@ -433,9 +466,11 @@ module.exports = function (internals) {
             provider.addNamedProvider(new ClassTypeProvider(typeFactory));
             provider.addNamedProvider(new IterableTypeProvider(typeFactory));
             provider.addNamedProvider(new MixedTypeProvider(typeFactory));
+            provider.addNamedProvider(new NullTypeProvider(typeFactory));
             provider.addNamedProvider(new ObjectTypeProvider(typeFactory));
             provider.addNamedProvider(new ScalarTypeProvider(typeFactory));
             provider.addNamedProvider(new UnionTypeProvider(typeFactory, provider));
+            provider.addNamedProvider(new VoidTypeProvider(typeFactory));
         },
 
         'stdout_buffer': function () {
@@ -452,8 +487,7 @@ module.exports = function (internals) {
 
         'typed_opcode_handler_factory': function () {
             return new TypedOpcodeHandlerFactory(
-                get(CONTROL_BRIDGE),
-                get(OPCODE_HANDLER_FACTORY)
+                get(CONTROL_BRIDGE)
             );
         },
 
@@ -484,7 +518,8 @@ module.exports = function (internals) {
                 get(VALUE_FACTORY),
                 get(REFERENCE_FACTORY),
                 get(FUTURE_FACTORY),
-                get(FLOW)
+                get(FLOW),
+                get(GARBAGE_CACHE_INVALIDATOR)
             );
         }
     };

@@ -262,6 +262,7 @@ describe('Loader (sync mode)', function () {
             globalNamespace.getClass.withArgs('ParseError')
                 .returns(futureFactory.createPresent(parseErrorClassObject));
             parseErrorClassObject.instantiate.returns(parseErrorObjectValue);
+            parseErrorObjectValue.next.yields(parseErrorObjectValue);
 
             try {
                 loader.load(

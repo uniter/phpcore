@@ -16,7 +16,10 @@ var _ = require('microdash'),
     KeyReferencePair = require('../../KeyReferencePair'),
     KeyValuePair = require('../../KeyValuePair'),
     List = require('../../List'),
+    Reference = require('../../Reference/Reference'),
     ReferenceElement = require('../../Element/ReferenceElement'),
+    ReferenceSnapshot = require('../../Reference/ReferenceSnapshot'),
+    Variable = require('../../Variable').sync(),
 
     NO_PARENT_CLASS = 'core.no_parent_class',
     TICK_OPTION = 'tick';
@@ -142,7 +145,9 @@ module.exports = function (internals) {
          * Used by "my_function(...)" syntax.
          */
         callFunction: internals.typeHandler(
-            'string name, snapshot ...argReferences : ref|val',
+            // Note that arguments are snapshotted by FunctionSpec.coerceArguments(...)
+            // later on, as at that point we know whether a parameter is by-reference.
+            'string name, slot ...argReferences : slot',
             function (name, argReferences) {
                 var namespaceScope = callStack.getEffectiveNamespaceScope(),
                     barewordString = valueFactory.createBarewordString(name, namespaceScope);
@@ -158,7 +163,7 @@ module.exports = function (internals) {
          * Used by "$myObject->myMethod(...)" syntax.
          */
         callInstanceMethod: internals.typeHandler(
-            'val object, string method, snapshot ...argReferences : ref|val',
+            'val object, string method, slot ...argReferences : slot',
             function (objectValue, methodName, argReferences) {
                 return objectValue.callMethod(methodName, argReferences);
             }
@@ -170,7 +175,7 @@ module.exports = function (internals) {
          * Used by "MyClass::myMethod(...)" syntax.
          */
         callStaticMethod: internals.typeHandler(
-            'val class, string method, bool isForwarding, snapshot ...argReferences : ref|val',
+            'val class, string method, bool isForwarding, slot ...argReferences : slot',
             function (classValue, methodName, isForwarding, argReferences) {
                 // TODO: Remove need for wrapping this as a *Value
                 var methodValue = valueFactory.createString(methodName);
@@ -186,7 +191,7 @@ module.exports = function (internals) {
          * Used by "$myObject->$myMethodName(...)" syntax.
          */
         callVariableFunction: internals.typeHandler(
-            'val name, snapshot ...argReferences : ref|val',
+            'val name, slot ...argReferences : slot',
             function (nameValue, argReferences) {
                 // NB: Make sure we do not coerce argument references to their values,
                 //     in case any of the parameters are passed by reference.
@@ -201,7 +206,7 @@ module.exports = function (internals) {
          * Used by "$myObject->$myMethod(...)" syntax.
          */
         callVariableInstanceMethod: internals.typeHandler(
-            'val object, val methodName, snapshot ...argReferences : ref|val',
+            'val object, val methodName, slot ...argReferences : slot',
             function (objectValue, methodNameValue, argReferences) {
                 var methodName = methodNameValue.getNative();
 
@@ -216,7 +221,7 @@ module.exports = function (internals) {
          * Used by "MyClass::$myMethodName(...)" syntax.
          */
         callVariableStaticMethod: internals.typeHandler(
-            'val class, val methodName, bool isForwarding, snapshot ...argReferences : ref|val',
+            'val class, val methodName, bool isForwarding, slot ...argReferences : slot',
             function (classNameValue, methodNameValue, isForwarding, argReferences) {
                 return classNameValue.callStaticMethod(methodNameValue, argReferences, isForwarding);
             }
@@ -318,7 +323,7 @@ module.exports = function (internals) {
          * Used by array literal syntax "[...]".
          */
         createArray: internals.typeHandler(
-            'snapshot ...elements : val',
+            'element ...elements : val',
             function (elementSnapshots) {
                 return valueProvider.createFutureArray(elementSnapshots);
             }
@@ -352,10 +357,18 @@ module.exports = function (internals) {
          * @param {Array=} parametersSpecData
          * @param {Array=} bindingsSpecData
          * @param {boolean=} isStatic
+         * @param {Object=} returnTypeSpec
          * @param {number=} lineNumber
          * @returns {ObjectValue}
          */
-        createClosure: function (func, parametersSpecData, bindingsSpecData, isStatic, lineNumber) {
+        createClosure: function (
+            func,
+            parametersSpecData,
+            bindingsSpecData,
+            isStatic,
+            returnTypeSpec,
+            lineNumber
+        ) {
             var namespaceScope = callStack.getEffectiveNamespaceScope(),
                 referenceBindings = {},
                 scope = callStack.getCurrentScope(),
@@ -382,6 +395,7 @@ module.exports = function (internals) {
                             referenceBindings,
                             valueBindings,
                             !!isStatic,
+                            returnTypeSpec || null,
                             lineNumber || null
                         )
                     );
@@ -404,7 +418,7 @@ module.exports = function (internals) {
          * @returns {ChainableInterface<ObjectValue>}
          */
         createInstance: internals.typeHandler(
-            'val className, snapshot ...args : val',
+            'val className, slot ...args : val',
             function (classNameValue, args) {
                 return classNameValue.instantiate(args);
             }
@@ -454,7 +468,7 @@ module.exports = function (internals) {
          * Used by list syntax "list(...) = ...".
          */
         createList: internals.typeHandler(
-            'snapshot ...elements : list',
+            'element ...elements : list',
             function (elementSnapshots) {
                 return new List(valueFactory, flow, elementSnapshots);
             }
@@ -567,6 +581,18 @@ module.exports = function (internals) {
         ),
 
         /**
+         * Fetches the name of the class of a value or bareword.
+         *
+         * Used by `::class`.
+         */
+        getClassNameConstant: internals.typeHandler(
+            'val className : val',
+            function (classNameValue) {
+                return classNameValue.getConstantByName('class');
+            }
+        ),
+
+        /**
          * Fetches the name of the current class, or an empty string if there is none
          *
          * Used by `self::` inside property or constant definitions and by `__CLASS__`.
@@ -658,7 +684,7 @@ module.exports = function (internals) {
          * @returns {ChainableInterface<ElementReference|ReferenceSnapshot>}
          */
         getElement: internals.typeHandler(
-            'ref|val array, any nativeKey : ref',
+            'slot array, any nativeKey : ref',
             function (arrayReference, nativeKey) {
                 // TODO: Remove need for this to be wrapped as a Value.
                 var keyValue = valueFactory.coerce(nativeKey);
@@ -859,7 +885,7 @@ module.exports = function (internals) {
          * @returns {ChainableInterface<ElementReference>}
          */
         getVariableElement: internals.typeHandler(
-            'snapshot array, val key : ref',
+            'slot array, val key : ref',
             function (arrayReference, keyValue) {
                 return internals.implyArray(arrayReference)
                     .next(function (arrayValue) {
@@ -930,7 +956,7 @@ module.exports = function (internals) {
          *
          * Used by the `+$val` operator.
          */
-        identity: internals.typeHandler('val value', function (value) {
+        identity: internals.typeHandler('val value : val', function (value) {
             return value.identity();
         }),
 
@@ -939,7 +965,7 @@ module.exports = function (internals) {
          *
          * Used by the "global $myVar;" statement.
          */
-        importGlobal: internals.typeHandler('string name', function (name) {
+        importGlobal: internals.typeHandler('string name : void', function (name) {
             callStack.getCurrentScope().importGlobal(name);
         }),
 
@@ -1016,7 +1042,9 @@ module.exports = function (internals) {
             function (targetReference, sourceValue) {
                 // The result of an assignment is the value assigned. Also note that either operand
                 // could evaluate to a Future, for handling async operation.
-                return targetReference.setValue(targetReference.getValue().add(sourceValue));
+                return targetReference.getValue().add(sourceValue).next(function (resultValue) {
+                    return targetReference.setValue(resultValue);
+                });
             }
         ),
 
@@ -1054,7 +1082,7 @@ module.exports = function (internals) {
 
                         // Fetch value from reference:
                         return reference
-                            // ... allowing for pauses (eg. AccessorReference)
+                            // ... allowing for pauses (e.g. AccessorReference)
                             .getValue()
                             .next(function (value) {
                                 // ... and coerce to string values, allowing for pauses
@@ -1331,7 +1359,7 @@ module.exports = function (internals) {
          * Used by the `%=` operator.
          */
         moduloWith: internals.typeHandler(
-            'snapshot target, val source',
+            'snapshot target, val source : val',
             function (targetReference, sourceValue) {
                 return targetReference.setValue(targetReference.getValue().modulo(sourceValue));
             }
@@ -1515,7 +1543,7 @@ module.exports = function (internals) {
          * @returns {ChainableInterface<ElementReference>}
          */
         pushElement: internals.typeHandler(
-            'ref|val array : ref',
+            'slot array : ref',
             function (arrayReference) {
                 return internals.implyArray(arrayReference)
                     .next(function (arrayValue) {
@@ -1671,6 +1699,51 @@ module.exports = function (internals) {
         ),
 
         /**
+         * Snapshots the given reference if applicable.
+         *
+         * Snapshots are used to preserve evaluation order: if a variable is passed as an argument
+         * but later assigned to within a subsequent argument, the first argument should still pass
+         * the value that the reference had at that point, prior to the assignment.
+         *
+         * @param {Reference|Value|Variable} sourceReference
+         * @returns {ReferenceSnapshot|Value}
+         */
+        snapshot: function (sourceReference) {
+            var resolvedValue;
+
+            if (valueFactory.isValue(sourceReference)) {
+                // Fastest case: a Value was given, there is no reference or variable to fetch it from.
+
+                return sourceReference; // No need to wrap a plain Value in a ReferenceSnapshot.
+            }
+
+            if (sourceReference instanceof ReferenceSnapshot) {
+                // Value is already a snapshot: nothing to do.
+                return sourceReference;
+            }
+
+            resolvedValue = sourceReference.getValueOrNativeNull();
+
+            if (resolvedValue === null) {
+                // Undefined: return a ReferenceSnapshot that indicates this.
+                return referenceFactory.createSnapshot(sourceReference);
+            }
+
+            if ((sourceReference instanceof Reference) || (sourceReference instanceof Variable)) {
+                return resolvedValue
+                    .next(function (presentValue) {
+                        /*
+                         * Wrap the result in a ReferenceSnapshot, so that we have access
+                         * to the original Reference or Variable and the Value it resolved to at that point in time.
+                         */
+                        return referenceFactory.createSnapshot(sourceReference, presentValue);
+                    });
+            }
+
+            throw new Exception('Unexpected value provided to snapshot() opcode');
+        },
+
+        /**
          * Subtracts a Value from another, returning the result wrapped as a Value.
          *
          * Used by `$var1 - $var2` expressions.
@@ -1753,6 +1826,32 @@ module.exports = function (internals) {
             return flow.eachAsync(references, function (reference) {
                 return reference.unset();
             });
-        })
+        }),
+
+        /**
+         * Used by "yield <value>" expressions.
+         */
+        yield_: internals.typeHandler(
+            'val value',
+            function (valueSnapshot) {
+                var generatorObjectValue = callStack.getGenerator(),
+                    iterator = generatorObjectValue.getInternalProperty('iterator');
+
+                return iterator.yieldValue(null, valueSnapshot.getValue());
+            }
+        ),
+
+        /**
+         * Used by "yield <key> => <value>" expressions.
+         */
+        yieldWithKey: internals.typeHandler(
+            'val key, val value',
+            function (keySnapshot, valueSnapshot) {
+                var generatorObjectValue = callStack.getGenerator(),
+                    iterator = generatorObjectValue.getInternalProperty('iterator');
+
+                return iterator.yieldValue(keySnapshot.getValue(), valueSnapshot.getValue());
+            }
+        )
     };
 };

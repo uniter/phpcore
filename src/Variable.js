@@ -30,6 +30,7 @@ module.exports = require('pauser')([
      * @param {ReferenceFactory} referenceFactory
      * @param {FutureFactory} futureFactory
      * @param {Flow} flow
+     * @param {CacheInvalidator} garbageCacheInvalidator
      * @param {string} name
      * @constructor
      * @implements {ChainableInterface}
@@ -40,6 +41,7 @@ module.exports = require('pauser')([
         referenceFactory,
         futureFactory,
         flow,
+        garbageCacheInvalidator,
         name
     ) {
         /**
@@ -54,6 +56,10 @@ module.exports = require('pauser')([
          * @type {FutureFactory}
          */
         this.futureFactory = futureFactory;
+        /**
+         * @type {CacheInvalidator}
+         */
+        this.garbageCacheInvalidator = garbageCacheInvalidator;
         /**
          * @type {string}
          */
@@ -356,6 +362,19 @@ module.exports = require('pauser')([
             var assignedValue,
                 variable = this;
 
+            if (variable.value) {
+                variable.garbageCacheInvalidator.markValueForInvalidation(variable.value);
+            }
+
+            /*
+             * Note that technically we should only do this if this variable does not have
+             * a reference assigned, as the ReferenceSlot should then handle the invalidation.
+             *
+             * However, that would introduce an additional branch in this hot code path,
+             * references are not used often, and invalidation is relatively quick for the moment.
+             */
+            variable.garbageCacheInvalidator.markValueForInvalidation(value);
+
             if (variable.name === 'this' && value.getType() === 'null') {
                 // Normalise the value of $this to either be set to an ObjectValue
                 // or be unset
@@ -412,6 +431,10 @@ module.exports = require('pauser')([
          */
         unset: function () {
             var variable = this;
+
+            if (variable.value) {
+                variable.garbageCacheInvalidator.markValueForInvalidation(variable.value);
+            }
 
             variable.value = variable.reference = null;
 

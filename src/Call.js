@@ -57,6 +57,10 @@ function Call(
      */
     this.finder = null;
     /**
+     * @type {ObjectValue<Generator>|null}
+     */
+    this.generator = null;
+    /**
      * @type {InstrumentationFactory}
      */
     this.instrumentationFactory = instrumentationFactory;
@@ -83,6 +87,13 @@ function Call(
 }
 
 _.extend(Call.prototype, {
+    /**
+     * Enables strict-types mode for the module this call was performed in.
+     */
+    enableStrictTypes: function () {
+        this.originalNamespaceScope.enableStrictTypes();
+    },
+
     /**
      * Enters an isolated call within this outer one, making the given NamespaceScope
      * and CallInstrumentation the current ones.
@@ -159,6 +170,21 @@ _.extend(Call.prototype, {
      */
     getFunctionName: function () {
         return this.scope.getTraceFrameName();
+    },
+
+    /**
+     * Fetches the Generator instance for this call.
+     *
+     * @returns {ObjectValue<Generator>}
+     */
+    getGenerator: function () {
+        var call = this;
+
+        if (!call.generator) {
+            throw new Exception('Call.getGenerator() :: Current call is not a generator');
+        }
+
+        return call.generator;
     },
 
     /**
@@ -297,6 +323,15 @@ _.extend(Call.prototype, {
     },
 
     /**
+     * Determines whether the module this call was performed in is in strict-types mode.
+     *
+     * @returns {boolean}
+     */
+    isStrictTypesMode: function () {
+        return this.originalNamespaceScope.isStrictTypesMode();
+    },
+
+    /**
      * Determines whether this call is to a userland function (defined inside PHP-land) or not.
      *
      * @returns {boolean}
@@ -344,6 +379,15 @@ _.extend(Call.prototype, {
      */
     resume: function (resultValue) {
         this.trace.resume(resultValue);
+    },
+
+    /**
+     * Sets the Generator instance for this call.
+     *
+     * @param {ObjectValue<Generator>} generator
+     */
+    setGenerator: function (generator) {
+        this.generator = generator;
     },
 
     /**

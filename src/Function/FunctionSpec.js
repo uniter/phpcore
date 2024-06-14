@@ -15,10 +15,12 @@ var _ = require('microdash'),
     EXACTLY = 'core.exactly',
     INVALID_RETURN_VALUE_TYPE = 'core.invalid_return_value_type',
     ONLY_REFERENCES_RETURNED_BY_REFERENCE = 'core.only_references_returned_by_reference',
-    TOO_FEW_ARGS_USERLAND = 'core.too_few_args_userland',
-    TOO_FEW_ARGS_BUILTIN = 'core.too_few_args_builtin',
-    TOO_FEW_ARGS_BUILTIN_SINGLE = 'core.too_few_args_builtin_single',
+    WRONG_ARG_COUNT_USERLAND = 'core.wrong_arg_count_userland',
+    WRONG_ARG_COUNT_BUILTIN = 'core.wrong_arg_count_builtin',
+    WRONG_ARG_COUNT_BUILTIN_SINGLE = 'core.wrong_arg_count_builtin_single',
     PHPError = phpCommon.PHPError,
+    Reference = require('../Reference/Reference'),
+    ReferenceSnapshot = require('../Reference/ReferenceSnapshot'),
     UNKNOWN = 'core.unknown',
     Value = require('../Value').sync();
 
@@ -28,11 +30,14 @@ var _ = require('microdash'),
  * @param {CallStack} callStack
  * @param {Translator} translator
  * @param {ValueFactory} valueFactory
+ * @param {ReferenceFactory} referenceFactory
  * @param {FutureFactory} futureFactory
  * @param {Flow} flow
+ * @param {FunctionSpecFactory} functionSpecFactory
  * @param {FunctionContextInterface} context
  * @param {NamespaceScope} namespaceScope
  * @param {Parameter[]} parameterList
+ * @param {Function} func
  * @param {TypeInterface|null} returnType
  * @param {boolean} returnByReference
  * @param {string|null} filePath
@@ -43,16 +48,34 @@ function FunctionSpec(
     callStack,
     translator,
     valueFactory,
+    referenceFactory,
     futureFactory,
     flow,
+    functionSpecFactory,
     context,
     namespaceScope,
     parameterList,
+    func,
     returnType,
     returnByReference,
     filePath,
     lineNumber
 ) {
+    var parameter,
+        variadicParameter = null;
+
+    if (parameterList.length > 0) {
+        parameter = parameterList[parameterList.length - 1];
+
+        if (parameter.isVariadic()) {
+            variadicParameter = parameter;
+
+            // Remove the variadic parameter from the positional parameter list,
+            // as it will be handled specially.
+            parameterList.pop();
+        }
+    }
+
     /**
      * @type {CallStack}
      */
@@ -70,6 +93,14 @@ function FunctionSpec(
      */
     this.flow = flow;
     /**
+     * @type {Function}
+     */
+    this.func = func;
+    /**
+     * @type {FunctionSpecFactory}
+     */
+    this.functionSpecFactory = functionSpecFactory;
+    /**
      * @type {FutureFactory}
      */
     this.futureFactory = futureFactory;
@@ -86,6 +117,10 @@ function FunctionSpec(
      */
     this.parameterList = parameterList;
     /**
+     * @type {ReferenceFactory}
+     */
+    this.referenceFactory = referenceFactory;
+    /**
      * @type {boolean}
      */
     this.returnByReference = returnByReference;
@@ -101,42 +136,61 @@ function FunctionSpec(
      * @type {ValueFactory}
      */
     this.valueFactory = valueFactory;
+    /**
+     * @type {Parameter|null}
+     */
+    this.variadicParameter = variadicParameter;
 }
 
 _.extend(FunctionSpec.prototype, {
     /**
-     * Coerces the given set of arguments for this function as needed
+     * Coerces the given set of arguments for this function as needed.
      *
      * @param {Reference[]|Value[]|Variable[]} argumentReferenceList
      * @returns {FutureInterface<Value[]>} Returns all arguments resolved to values
      */
     coerceArguments: function (argumentReferenceList) {
         var coercedArguments = argumentReferenceList.slice(),
-            spec = this;
+            spec = this,
+            parameterCount = spec.parameterList.length;
 
-        return spec.flow.eachAsync(spec.parameterList, function (parameter, index) {
-            if (!parameter) {
-                // Parameter is omitted due to bundle-size optimisations or similar, ignore
-                return;
-            }
+        return spec.flow.eachAsync(coercedArguments, function (argumentReference, index) {
+            var parameter = spec.parameterList[index];
 
-            if (argumentReferenceList.length <= index) {
-                // Argument is not provided: do not attempt to fetch it
+            if (index >= parameterCount && spec.variadicParameter) {
+                parameter = spec.variadicParameter;
+            } else if (!parameter) {
+                // Parameter is omitted due to bundle-size optimisations or similar, no coercion
+                // to perform, but do ensure we have a value.
+                coercedArguments[index] = argumentReference.getValue();
+
                 return;
             }
 
             /*
-             * Coerce the argument as the parameter requires (eg. for scalar types in PHP 7+ weak type-checking mode).
+             * Coerce the argument as the parameter requires (e.g. for scalar types in PHP 7+ weak type-checking mode).
              *
              * Note that it will be resolved to a value at this point if not already.
              * For by-reference parameters in weak-type checking mode, the coerced value will be written back
-             * to the reference, ie. <reference>.setValue(<coerced value>).
+             * to the reference, i.e. <reference>.setValue(<coerced value>).
              */
-            return parameter.coerceArgument(argumentReferenceList[index])
+            return parameter.coerceArgument(argumentReference)
                 .next(function (coercedArgument) {
                     coercedArguments[index] = coercedArgument;
 
-                    if (!parameter.isPassedByReference()) {
+                    if (parameter.isPassedByReference()) {
+                        if (
+                            argumentReference instanceof Reference &&
+                            !(argumentReference instanceof ReferenceSnapshot)
+                        ) {
+                            // Argument is a non-snapshot reference: wrap it in a snapshot
+                            // to allow consistent synchronous access to the snapshotted value.
+                            argumentReferenceList[index] = spec.referenceFactory.createSnapshot(
+                                argumentReference,
+                                coercedArgument
+                            );
+                        }
+                    } else {
                         // Arguments for this parameter are passed by value, so also
                         // overwrite with the coerced argument in the reference list passed to the function.
                         argumentReferenceList[index] = coercedArgument;
@@ -168,7 +222,11 @@ _.extend(FunctionSpec.prototype, {
             return value;
         }
 
-        // TODO: Don't perform this coercion in strict types mode when that is supported.
+        if (spec.callStack.isStrictTypesMode()) {
+            // No value coercion to perform in strict-types mode.
+            return value;
+        }
+
         value = value.next(function (presentValue) {
             /*
              * Coerce the result to match the return type: for example, when the return type
@@ -193,25 +251,15 @@ _.extend(FunctionSpec.prototype, {
     },
 
     /**
-     * Creates a new function (and its FunctionSpec) for an alias of the current FunctionSpec
+     * Creates a new function (and its FunctionSpec) for an alias of the current FunctionSpec.
      *
      * @param {string} aliasName
-     * @param {Function} func
-     * @param {FunctionSpecFactory} functionSpecFactory
      * @param {FunctionFactory} functionFactory
      * @return {Function}
      */
-    createAliasFunction: function (aliasName, func, functionSpecFactory, functionFactory) {
+    createAliasFunction: function (aliasName, functionFactory) {
         var spec = this,
-            aliasFunctionSpec = functionSpecFactory.createAliasFunctionSpec(
-                spec.namespaceScope,
-                aliasName,
-                spec.parameterList,
-                spec.returnType,
-                spec.returnByReference,
-                spec.filePath,
-                spec.lineNumber
-            );
+            aliasFunctionSpec = spec.createAliasFunctionSpec(aliasName);
 
         return functionFactory.create(
             spec.namespaceScope,
@@ -219,11 +267,30 @@ _.extend(FunctionSpec.prototype, {
             // as defining a function inside a class will define it
             // inside the current namespace instead.
             null,
-            func,
-            aliasName,
             null,
             null,
             aliasFunctionSpec
+        );
+    },
+
+    /**
+     * Creates a new FunctionSpec for an alias of the current FunctionSpec.
+     *
+     * @param {string} aliasName
+     * @return {FunctionSpec}
+     */
+    createAliasFunctionSpec: function (aliasName) {
+        var spec = this;
+
+        return spec.functionSpecFactory.createAliasFunctionSpec(
+            spec.namespaceScope,
+            aliasName,
+            spec.parameterList,
+            spec.func,
+            spec.returnType,
+            spec.returnByReference,
+            spec.filePath,
+            spec.lineNumber
         );
     },
 
@@ -235,6 +302,15 @@ _.extend(FunctionSpec.prototype, {
      */
     getFilePath: function () {
         return this.filePath;
+    },
+
+    /**
+     * Fetches the implementation of the resolved function/variant.
+     *
+     * @returns {Function}
+     */
+    getFunction: function () {
+        return this.func;
     },
 
     /**
@@ -268,6 +344,15 @@ _.extend(FunctionSpec.prototype, {
     },
 
     /**
+     * Fetches the name of the function.
+     *
+     * @returns {string}
+     */
+    getName: function () {
+        return this.context.getName();
+    },
+
+    /**
      * Fetches the parameter of this function at the specified 0-based position
      * in the parameter list.
      * Note that some of its parameters and return type may not be given
@@ -287,7 +372,8 @@ _.extend(FunctionSpec.prototype, {
     },
 
     /**
-     * Fetches the parameters of this function.
+     * Fetches the positional parameters of this function.
+     * If there is a variadic parameter at the end, it will not be included in this list.
      *
      * @returns {Parameter[]}
      */
@@ -394,11 +480,29 @@ _.extend(FunctionSpec.prototype, {
      * @param {Scope} scope
      */
     loadArguments: function (argumentReferenceList, scope) {
-        var spec = this;
+        var index,
+            spec = this,
+            variadicArgumentCount,
+            variadicArrayValue;
 
         _.each(spec.parameterList, function (parameter, index) {
-            parameter.loadArgument(argumentReferenceList[index], scope);
+            var localVariable = scope.getVariable(parameter.getName());
+
+            parameter.loadArgument(argumentReferenceList[index], localVariable);
         });
+
+        if (spec.variadicParameter) {
+            // Parameter is variadic: collect all remaining arguments, build an array containing them
+            // (with references if the parameter is by-reference) and store in the parameter's local variable.
+            variadicArgumentCount = argumentReferenceList.length;
+            variadicArrayValue = spec.valueFactory.createArray([]);
+
+            for (index = spec.parameterList.length; index < variadicArgumentCount; index++) {
+                spec.variadicParameter.loadArgument(argumentReferenceList[index], variadicArrayValue.getPushElement());
+            }
+
+            scope.getVariable(spec.variadicParameter.getName()).setValue(variadicArrayValue);
+        }
     },
 
     /**
@@ -449,6 +553,15 @@ _.extend(FunctionSpec.prototype, {
     },
 
     /**
+     * Non-overloaded functions have no inner spec to resolve to.
+     *
+     * @returns {FunctionSpec}
+     */
+    resolveFunctionSpec: function () {
+        return this;
+    },
+
+    /**
      * Validates that the given set of arguments are valid for this function.
      * In weak type-checking mode, the arguments will also be coerced if needed.
      *
@@ -457,9 +570,11 @@ _.extend(FunctionSpec.prototype, {
      * @returns {FutureInterface<void>} Resolved if the arguments are valid or rejected with an Error otherwise
      */
     validateArguments: function (argumentReferenceList, argumentValueList) {
-        var spec = this;
+        var positionalParameterCount,
+            resultChainable,
+            spec = this;
 
-        return spec.flow.eachAsync(spec.parameterList, function (parameter, index) {
+        resultChainable = spec.flow.eachAsync(spec.parameterList, function (parameter, index) {
             var expectedCount,
                 filePath = null,
                 lineNumber = null;
@@ -483,8 +598,8 @@ _.extend(FunctionSpec.prototype, {
                 throw spec.valueFactory.createTranslatedErrorObject(
                     'ArgumentCountError',
                     spec.callStack.isUserland() ?
-                        TOO_FEW_ARGS_USERLAND :
-                        (expectedCount === 1 ? TOO_FEW_ARGS_BUILTIN_SINGLE : TOO_FEW_ARGS_BUILTIN),
+                        WRONG_ARG_COUNT_USERLAND :
+                        (expectedCount === 1 ? WRONG_ARG_COUNT_BUILTIN_SINGLE : WRONG_ARG_COUNT_BUILTIN),
                     {
                         func: spec.context.getName(),
                         bound: spec.hasOptionalParameter() ?
@@ -504,8 +619,29 @@ _.extend(FunctionSpec.prototype, {
             }
 
             // Validate the argument as the parameter requires.
-            return parameter.validateArgument(argumentReferenceList[index], argumentValueList[index]);
+            return parameter.validateArgument(argumentReferenceList[index], argumentValueList[index], index);
         });
+
+        if (spec.variadicParameter) {
+            positionalParameterCount = spec.parameterList.length;
+
+            if (argumentReferenceList.length > positionalParameterCount) {
+                resultChainable = resultChainable.next(function () {
+                    var variadicArgumentReferenceList = argumentReferenceList.slice(positionalParameterCount),
+                        variadicArgumentValueList = argumentValueList.slice(positionalParameterCount);
+
+                    return spec.flow.eachAsync(variadicArgumentReferenceList, function (argumentReference, index) {
+                        return spec.variadicParameter.validateArgument(
+                            argumentReference,
+                            variadicArgumentValueList[index],
+                            positionalParameterCount + index
+                        );
+                    });
+                });
+            }
+        }
+
+        return resultChainable;
     },
 
     /**
@@ -555,8 +691,9 @@ _.extend(FunctionSpec.prototype, {
                 },
                 'TypeError',
                 false,
-                spec.filePath,
-                spec.lineNumber
+                // Use the current file & line context and not that of this function spec when userland.
+                spec.isUserland() ? undefined : spec.filePath,
+                spec.isUserland() ? undefined : spec.lineNumber
             );
         });
     }

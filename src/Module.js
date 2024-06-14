@@ -24,12 +24,23 @@ function Module(scopeFactory, namespace, filePath, global) {
      */
     this.filePath = filePath || null;
     /**
+     * @type {boolean}
+     */
+    this.strictTypesMode = false;
+    /**
      * @type {NamespaceScope}
      */
     this.topLevelNamespaceScope = scopeFactory.createNamespaceScope(namespace, this, global);
 }
 
 _.extend(Module.prototype, {
+    /**
+     * Enables strict-types mode for this module.
+     */
+    enableStrictTypes: function () {
+        this.strictTypesMode = true;
+    },
+
     /**
      * Fetches the path to the file this module is defined in, or null if none.
      *
@@ -46,6 +57,15 @@ _.extend(Module.prototype, {
      */
     getTopLevelNamespaceScope: function () {
         return this.topLevelNamespaceScope;
+    },
+
+    /**
+     * Determines whether this module is in strict-types mode.
+     *
+     * @returns {boolean}
+     */
+    isStrictTypesMode: function () {
+        return this.strictTypesMode;
     }
 });
 

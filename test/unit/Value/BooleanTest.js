@@ -648,6 +648,12 @@ describe('BooleanValue', function () {
         });
     });
 
+    describe('getOutgoingValues()', function () {
+        it('should return an empty array as scalars cannot refer to anything', function () {
+            expect(value.getOutgoingValues()).to.deep.equal([]);
+        });
+    });
+
     describe('getProxy()', function () {
         it('should return true when true', function () {
             createValue(true);
@@ -679,6 +685,18 @@ describe('BooleanValue', function () {
             }).to.throw(
                 'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
+        });
+    });
+
+    describe('getType()', function () {
+        it('should return "boolean"', function () {
+            expect(value.getType()).to.equal('boolean');
+        });
+    });
+
+    describe('getUnderlyingType()', function () {
+        it('should return "boolean"', function () {
+            expect(value.getUnderlyingType()).to.equal('boolean');
         });
     });
 
@@ -788,6 +806,12 @@ describe('BooleanValue', function () {
     describe('isScalar()', function () {
         it('should return true', function () {
             expect(value.isScalar()).to.be.true;
+        });
+    });
+
+    describe('isStructured()', function () {
+        it('should return false', function () {
+            expect(value.isStructured()).to.be.false;
         });
     });
 

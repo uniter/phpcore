@@ -42,6 +42,7 @@ describe('NamespaceScope', function () {
             throw new Error('PHP Fatal error: [' + translationKey + '] ' + JSON.stringify(placeholderVariables || {}));
         });
         globalNamespace.hasClass.returns(false);
+        module.isStrictTypesMode.returns(false);
 
         scope = new NamespaceScope(
             scopeFactory,
@@ -57,12 +58,14 @@ describe('NamespaceScope', function () {
     describe('defineFunction()', function () {
         it('should define the function on the Namespace', function () {
             var myFunc = sinon.stub(),
-                parametersSpecData = [{name: 'param1'}, {name: 'param2'}];
+                parametersSpecData = [{name: 'param1'}, {name: 'param2'}],
+                returnTypeSpec = {type: 'iterable'};
 
             scope.defineFunction(
                 'myFunc',
                 myFunc,
                 parametersSpecData,
+                returnTypeSpec,
                 1234
             );
 
@@ -72,10 +75,18 @@ describe('NamespaceScope', function () {
                 sinon.match.same(myFunc),
                 sinon.match.same(scope),
                 parametersSpecData,
-                null, // TODO: Implement userland return types.
+                returnTypeSpec,
                 false, // TODO: Implement userland return-by-reference.
                 1234
             );
+        });
+    });
+
+    describe('enableStrictTypes()', function () {
+        it('should enable strict-types mode for the module', function () {
+            scope.enableStrictTypes();
+
+            expect(module.enableStrictTypes).to.have.been.calledOnce;
         });
     });
 
@@ -318,6 +329,18 @@ describe('NamespaceScope', function () {
 
         it('should return false for a normal NamespaceScope', function () {
             expect(scope.isGlobal()).to.be.false;
+        });
+    });
+
+    describe('isStrictTypesMode()', function () {
+        it('should return true when the module is in strict-types mode', function () {
+            module.isStrictTypesMode.returns(true);
+
+            expect(scope.isStrictTypesMode()).to.be.true;
+        });
+
+        it('should return false when the module is in weak type-checking mode', function () {
+            expect(scope.isStrictTypesMode()).to.be.false;
         });
     });
 

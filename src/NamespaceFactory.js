@@ -19,6 +19,7 @@ var _ = require('microdash');
  * @param {Flow} flow
  * @param {FunctionFactory} functionFactory
  * @param {FunctionSpecFactory} functionSpecFactory
+ * @param {OverloadedFunctionDefiner} overloadedFunctionDefiner
  * @param {ValueFactory} valueFactory
  * @param {ClassAutoloader} classAutoloader
  * @param {ClassDefiner} classDefiner
@@ -30,6 +31,7 @@ function NamespaceFactory(
     flow,
     functionFactory,
     functionSpecFactory,
+    overloadedFunctionDefiner,
     valueFactory,
     classAutoloader,
     classDefiner
@@ -63,6 +65,10 @@ function NamespaceFactory(
      */
     this.Namespace = Namespace;
     /**
+     * @type {OverloadedFunctionDefiner}
+     */
+    this.overloadedFunctionDefiner = overloadedFunctionDefiner;
+    /**
      * @type {ValueFactory}
      */
     this.valueFactory = valueFactory;
@@ -86,6 +92,7 @@ _.extend(NamespaceFactory.prototype, {
             factory,
             factory.functionFactory,
             factory.functionSpecFactory,
+            factory.overloadedFunctionDefiner,
             factory.classAutoloader,
             factory.classDefiner,
             parentNamespace || null,

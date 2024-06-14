@@ -63,6 +63,32 @@ describe('CallStack', function () {
         });
     });
 
+    describe('enableStrictTypes()', function () {
+        it('should enable strict types for the userland callee only', function () {
+            var initialCall = sinon.createStubInstance(Call),
+                userlandCall1 = sinon.createStubInstance(Call),
+                userlandCall2 = sinon.createStubInstance(Call);
+            initialCall.isUserland.returns(false);
+            userlandCall1.isUserland.returns(true);
+            userlandCall2.isUserland.returns(true);
+            callStack.push(initialCall);
+            callStack.push(userlandCall1);
+            callStack.push(userlandCall2);
+
+            callStack.enableStrictTypes();
+
+            expect(initialCall.enableStrictTypes).not.to.have.been.called;
+            expect(userlandCall1.enableStrictTypes).not.to.have.been.called;
+            expect(userlandCall2.enableStrictTypes).to.have.been.calledOnce;
+        });
+
+        it('should raise an error when there is no userland callee on the call stack', function () {
+            expect(function () {
+                callStack.enableStrictTypes();
+            }).to.throw(Exception, 'CallStack.enableStrictTypes() :: No userland callee');
+        });
+    });
+
     describe('getCaller()', function () {
         it('should return the caller call when there is one', function () {
             var callerCall = sinon.createStubInstance(Call),
@@ -244,6 +270,32 @@ describe('CallStack', function () {
             }).to.throw(
                 Exception,
                 'CallStack.getEffectiveNamespaceScope() :: No current call'
+            );
+        });
+    });
+
+    describe('getGenerator()', function () {
+        var currentCall;
+
+        beforeEach(function () {
+            currentCall = sinon.createStubInstance(Call);
+            currentCall.isUserland.returns(false);
+        });
+
+        it('should return the current Generator ObjectValue from the current call', function () {
+            var generatorObjectValue = sinon.createStubInstance(ObjectValue);
+            callStack.push(currentCall);
+            currentCall.getGenerator.returns(generatorObjectValue);
+
+            expect(callStack.getGenerator()).to.equal(generatorObjectValue);
+        });
+
+        it('should throw when there is no userland callee', function () {
+            expect(function () {
+                callStack.getGenerator();
+            }).to.throw(
+                Exception,
+                'CallStack.getGenerator() :: No userland callee'
             );
         });
     });
@@ -693,6 +745,48 @@ describe('CallStack', function () {
         });
     });
 
+    describe('isStrictTypesMode()', function () {
+        it('should return true when the userland callee is in strict types mode', function () {
+            var initialCall = sinon.createStubInstance(Call),
+                userlandCall1 = sinon.createStubInstance(Call),
+                userlandCall2 = sinon.createStubInstance(Call);
+            initialCall.isStrictTypesMode.returns(false);
+            initialCall.isUserland.returns(false);
+            userlandCall1.isStrictTypesMode.returns(false);
+            userlandCall1.isUserland.returns(true);
+            userlandCall2.isStrictTypesMode.returns(true);
+            userlandCall2.isUserland.returns(true);
+            callStack.push(initialCall);
+            callStack.push(userlandCall1);
+            callStack.push(userlandCall2);
+
+            expect(callStack.isStrictTypesMode()).to.be.true;
+        });
+
+        it('should return false when the userland callee is the only one not in strict types mode', function () {
+            var initialCall = sinon.createStubInstance(Call),
+                userlandCall1 = sinon.createStubInstance(Call),
+                userlandCall2 = sinon.createStubInstance(Call);
+            initialCall.isStrictTypesMode.returns(true);
+            initialCall.isUserland.returns(false);
+            userlandCall1.isStrictTypesMode.returns(true);
+            userlandCall1.isUserland.returns(true);
+            userlandCall2.isStrictTypesMode.returns(false);
+            userlandCall2.isUserland.returns(true);
+            callStack.push(initialCall);
+            callStack.push(userlandCall1);
+            callStack.push(userlandCall2);
+
+            expect(callStack.isStrictTypesMode()).to.be.false;
+        });
+
+        it('should raise an error when there is no userland callee on the call stack', function () {
+            expect(function () {
+                callStack.isStrictTypesMode();
+            }).to.throw(Exception, 'CallStack.isStrictTypesMode() :: No userland callee');
+        });
+    });
+
     describe('isUserland()', function () {
         it('should return true when the current call is userland', function () {
             var initialCall = sinon.createStubInstance(Call),
@@ -913,6 +1007,8 @@ describe('CallStack', function () {
             var caughtError = null,
                 errorClassObject = sinon.createStubInstance(Class),
                 errorValue = sinon.createStubInstance(ObjectValue);
+            errorValue.next.yields(errorValue);
+            errorValue.toPromise.returns(Promise.resolve(errorValue));
             globalNamespace.getClass
                 .withArgs('MySubError')
                 .returns(futureFactory.createPresent(errorClassObject));
@@ -968,6 +1064,8 @@ describe('CallStack', function () {
             var caughtError = null,
                 errorClassObject = sinon.createStubInstance(Class),
                 errorValue = sinon.createStubInstance(ObjectValue);
+            errorValue.next.yields(errorValue);
+            errorValue.toPromise.returns(Promise.resolve(errorValue));
             globalNamespace.getClass
                 .withArgs('MySubError')
                 .returns(futureFactory.createPresent(errorClassObject));

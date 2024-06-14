@@ -55,18 +55,16 @@ _.extend(SignatureParser.prototype, {
          * @returns {Parameter}
          */
         function buildParameter(match) {
-            var isRequired = typeof match[5] === 'undefined',
-                defaultArgument = isRequired ? null : JSON.parse(match[5]),
-                name = match[4],
-                isInitial = match[1] === 'initial',
-                isVariadic = Boolean(match[3]),
-                typeName = match[2],
+            var isRequired = typeof match[4] === 'undefined',
+                defaultArgument = isRequired ? null : JSON.parse(match[4]),
+                name = match[3],
+                isVariadic = Boolean(match[2]),
+                typeName = match[1],
                 type = parser.typeProvider.provideType(typeName);
 
             return parser.parameterFactory.createParameter(
                 name,
                 type,
-                isInitial,
                 isRequired,
                 isVariadic,
                 defaultArgument
@@ -75,7 +73,7 @@ _.extend(SignatureParser.prototype, {
 
         while (remainingSignature.length > 0 && !/^\s*:/.test(remainingSignature)) {
             match = remainingSignature.match(
-                /^\s*(initial)?\s*(\w+(?:\|\w+)*)\s+(\.{3})?(\w+)(?:\s*=\s*([^,\s]+))?\s*(?:,\s*)?/i
+                /^\s*(\w+(?:\|\w+)*)\s+(\.{3})?(\w+)(?:\s*=\s*([^,\s]+))?\s*(?:,\s*)?/i
             );
 
             if (!match) {

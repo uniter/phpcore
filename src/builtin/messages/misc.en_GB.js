@@ -16,6 +16,7 @@ module.exports = {
     'en_GB': {
         'core': {
             'at_least': 'at least',
+            'at_most': 'at most',
 
             // For appending to errors raised for builtin & userland functions respectively (see Parameter).
             'call_to_builtin': ' in ${callerFile}:${callerLine}',

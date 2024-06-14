@@ -10,8 +10,10 @@
 'use strict';
 
 var expect = require('chai').expect,
+    sinon = require('sinon'),
     tools = require('../../tools'),
-    ValueCoercer = require('../../../../src/FFI/Value/ValueCoercer');
+    ValueCoercer = require('../../../../src/FFI/Value/ValueCoercer'),
+    Variable = require('../../../../src/Variable').sync();
 
 describe('FFI ValueCoercer', function () {
     var createCoercer,
@@ -42,6 +44,20 @@ describe('FFI ValueCoercer', function () {
 
                 expect(await valueCoercer.coerceArguments([argumentValue1, argumentValue2]).toPromise())
                     .to.deep.equal(['first arg', 'second arg']);
+            });
+
+            it('should not raise notices/warnings on undefined references', async function () {
+                var variable1 = sinon.createStubInstance(Variable),
+                    variable2 = sinon.createStubInstance(Variable),
+                    argumentValue1 = valueFactory.createString('first arg'),
+                    argumentValue2 = valueFactory.createString('second arg');
+                variable1.getValueOrNull.returns(argumentValue1);
+                variable2.getValueOrNull.returns(argumentValue2);
+
+                expect(await valueCoercer.coerceArguments([variable1, variable2]).toPromise())
+                    .to.deep.equal(['first arg', 'second arg']);
+                expect(variable1.getValueOrNull).to.have.been.calledOnce;
+                expect(variable2.getValueOrNull).to.have.been.calledOnce;
             });
         });
 

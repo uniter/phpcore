@@ -14,10 +14,7 @@ module.exports = require('pauser')([
     require('./builtin/builtins'),
     require('phpcommon'),
     require('./Reference/AccessorReference'),
-    require('./CallStack'),
-    require('./Closure'),
     require('./Function/ClosureContext'),
-    require('./ClosureFactory'),
     require('./Service/Container'),
     require('./Core/Core'),
     require('./Core/CoreBinder'),
@@ -51,11 +48,11 @@ module.exports = require('pauser')([
     require('./FFI/Value/ValueStorage'),
     require('./Control/Flow'),
     require('./Function/FunctionContext'),
-    require('./FunctionFactory'),
     require('./Function/FunctionSpec'),
     require('./Function/FunctionSpecFactory'),
     require('./Load/Includer'),
     require('./INIState'),
+    require('./Function/Overloaded/InvalidOverloadedFunctionSpec'),
     require('./Load/Loader'),
     require('./Load/LoadScope'),
     require('./Function/MethodContext'),
@@ -67,6 +64,8 @@ module.exports = require('pauser')([
     require('./Load/OnceIncluder'),
     require('./Core/Internals/OpcodeInternalsClassFactory'),
     require('./OptionSet'),
+    require('./Function/Overloaded/OverloadedFunctionSpec'),
+    require('./Function/Overloaded/OverloadedTypedFunction'),
     require('./Function/Parameter'),
     require('./Function/ParameterFactory'),
     require('./Function/ParameterListFactory'),
@@ -92,10 +91,7 @@ module.exports = require('pauser')([
     builtinTypes,
     phpCommon,
     AccessorReference,
-    CallStack,
-    Closure,
     ClosureContext,
-    ClosureFactory,
     Container,
     Core,
     CoreBinder,
@@ -129,11 +125,11 @@ module.exports = require('pauser')([
     FFIValueStorage,
     Flow,
     FunctionContext,
-    FunctionFactory,
     FunctionSpec,
     FunctionSpecFactory,
     Includer,
     INIState,
+    InvalidOverloadedFunctionSpec,
     Loader,
     LoadScope,
     MethodContext,
@@ -145,6 +141,8 @@ module.exports = require('pauser')([
     OnceIncluder,
     OpcodeInternalsClassFactory,
     OptionSet,
+    OverloadedFunctionSpec,
+    OverloadedTypedFunction,
     Parameter,
     ParameterFactory,
     ParameterListFactory,
@@ -167,6 +165,7 @@ module.exports = require('pauser')([
     ValueFactory
 ) {
     var THROWABLE_INTERFACE = 'Throwable',
+        Exception = phpCommon.Exception,
         hasOwn = {}.hasOwnProperty,
         setUpState = function (state, installedBuiltinTypes, optionGroups) {
             var globalNamespace = state.globalNamespace;
@@ -201,11 +200,22 @@ module.exports = require('pauser')([
                     } else if (fn instanceof TypedFunction) {
                         // Function was defined with a signature in order to specify parameters.
                         state.defineNonCoercingFunction(name, fn.getFunction(), fn.getSignature());
-                    } else {
+                    } else if (fn instanceof OverloadedTypedFunction) {
+                        // Function was overloaded with multiple signatures and their implementations.
+                        state.defineOverloadedFunction(name, function (internals) {
+                            internals.disableAutoCoercion();
+
+                            _.each(fn.getTypedFunctions(), function (typedFunction) {
+                                internals.defineVariant(typedFunction.getSignature(), typedFunction.getFunction());
+                            });
+                        });
+                    } else if (typeof fn === 'string') {
                         // Gather function aliases (strings) and install the aliases at the end
                         // (see below), to ensure that the original functions exist first
                         // as an alias can only be installed using an existing function's FunctionSpec
                         functionAliases[name] = fn;
+                    } else {
+                        throw new Exception('Invalid definition given for builtin function "' + name + '"');
                     }
                 });
 
@@ -309,7 +319,7 @@ module.exports = require('pauser')([
 
             if (_.isArray(builtinTypes.classes)) {
                 // Allow the class set to be an array, for grouping classes
-                // so that they will load in a specific order (ie. when handling dependencies between them)
+                // so that they will load in a specific order (i.e. when handling dependencies between them)
                 _.each(builtinTypes.classes, function (classes) {
                     _.forOwn(classes, installClass);
                 });
@@ -333,8 +343,7 @@ module.exports = require('pauser')([
             _.each(installedBuiltinTypes.classGroups, installClassGroup);
             _.forOwn(installedBuiltinTypes.classes, installClass);
             _.each(installedBuiltinTypes.initialiserGroups, runInitialiserGroup);
-        },
-        Exception = phpCommon.Exception;
+        };
 
     /**
      * Encapsulates an internal PHP state, defining classes, functions, global variables etc.
@@ -398,6 +407,22 @@ module.exports = require('pauser')([
             return container;
         }
 
+        /**
+         * Loads the OptionSet from the provided options.
+         *
+         * @returns {OptionSet}
+         */
+        function loadOptionSet() {
+            var optionSet;
+
+            // Make a copy of the options object so that we don't mutate it.
+            options = _.extend({}, options || {});
+
+            optionSet = new OptionSet(options);
+
+            return optionSet;
+        }
+
         var container = loadServiceContainer(this),
             get = container.getServiceFetcher(),
             /**
@@ -421,6 +446,7 @@ module.exports = require('pauser')([
             },
             state = this,
             environment = set('environment', environmentFactory.createEnvironment(state)),
+            optionSet = set('option_set', loadOptionSet()),
             callFactory = get('call_factory'),
             translator = get('translator'),
             iniState = new INIState(),
@@ -541,11 +567,14 @@ module.exports = require('pauser')([
                 FunctionContext,
                 MethodContext,
                 ClosureContext,
+                OverloadedFunctionSpec,
+                InvalidOverloadedFunctionSpec,
                 callStack,
                 translator,
                 parameterListFactory,
                 get('return_type_provider'),
                 valueFactory,
+                referenceFactory,
                 futureFactory,
                 flow
             )),
@@ -575,13 +604,13 @@ module.exports = require('pauser')([
             ffiInternals,
             ffiClassInternalsClassFactory,
             ffiFunctionInternalsClassFactory,
+            ffiOverloadedFunctionInternalsClassFactory,
             opcodeInternalsClassFactory,
             globalsSuperGlobal = superGlobalScope.defineVariable('GLOBALS'),
             loader = new Loader(valueFactory, mode),
             includer,
             onceIncluder,
             evaluator,
-            optionSet,
             output = get('output'),
             hostScheduler = get('host_scheduler'),
             opcodeHandlerFactory = get('opcode_handler_factory'),
@@ -603,11 +632,6 @@ module.exports = require('pauser')([
         valueFactory.setGlobalNamespace(globalNamespace);
         valueFactory.setNumericStringParser(get('numeric_string_parser'));
         valueFactory.setReferenceFactory(referenceFactory);
-
-        // Make a copy of the options object so we don't mutate it.
-        options = _.extend({}, options || {});
-
-        optionSet = set('option_set', new OptionSet(options));
 
         includer = new Includer(
             callStack,
@@ -632,7 +656,7 @@ module.exports = require('pauser')([
             coreBinder
         );
 
-        ffiInternals = new FFIInternals(
+        ffiInternals = set('ffi_internals', new FFIInternals(
             mode,
             userland,
             flow,
@@ -652,6 +676,7 @@ module.exports = require('pauser')([
             errorConfiguration,
             errorPromoter,
             errorReporting,
+            get('garbage.collector'),
             globalNamespace,
             globalScope,
             iniState,
@@ -663,7 +688,7 @@ module.exports = require('pauser')([
             translator,
             state,
             environment
-        );
+        ));
         ffiClassInternalsClassFactory = new FFIClassInternalsClassFactory(
             ffiInternals,
             ffiUnwrapperRepository,
@@ -679,6 +704,7 @@ module.exports = require('pauser')([
             globalNamespaceScope,
             functionSignatureParser
         );
+        ffiOverloadedFunctionInternalsClassFactory = get('ffi_overloaded_function_internals_class_factory');
         opcodeInternalsClassFactory = new OpcodeInternalsClassFactory(
             ffiInternals,
             opcodeHandlerFactory,
@@ -791,6 +817,10 @@ module.exports = require('pauser')([
         this.options = options;
         this.optionSet = optionSet;
         /**
+         * @type {OverloadedFunctionInternals}
+         */
+        this.OverloadedFunctionInternals = ffiOverloadedFunctionInternalsClassFactory.create();
+        /**
          * @type {PauseFactory}
          */
         this.pauseFactory = pauseFactory;
@@ -894,7 +924,7 @@ module.exports = require('pauser')([
 
         /**
          * Defines a global function from a native JS one. If a fully-qualified name is provided
-         * with a namespace prefix, eg. `My\Lib\MyFunc` then it will be defined in the specified namespace
+         * with a namespace prefix, e.g. `My\Lib\MyFunc` then it will be defined in the specified namespace
          *
          * @param {string} name
          * @param {Function} fn
@@ -929,7 +959,7 @@ module.exports = require('pauser')([
 
         /**
          * Defines a global function from a native JS one. If a fully-qualified name is provided
-         * with a namespace prefix, eg. `My\Lib\MyFunc` then it will be defined in the specified namespace
+         * with a namespace prefix, e.g. `My\Lib\MyFunc` then it will be defined in the specified namespace
          *
          * @param {string} fqfn
          * @param {Function} definitionFactory
@@ -1016,7 +1046,7 @@ module.exports = require('pauser')([
 
         /**
          * Defines a global function from a native JS one. If a fully-qualified name is provided
-         * with a namespace prefix, eg. `My\Lib\MyFunc` then it will be defined in the specified namespace
+         * with a namespace prefix, e.g. `My\Lib\MyFunc` then it will be defined in the specified namespace
          *
          * @param {string} name
          * @param {Function} fn
@@ -1049,13 +1079,28 @@ module.exports = require('pauser')([
 
             if (isOverrideAllowed) {
                 // Opcode overriding is allowed, so provide the opcode group with the previous handlers
-                // for all of the opcode handlers they define, so that the previous versions may be called
+                // for all the opcode handlers they define, so that the previous versions may be called
                 internals.setPreviousOpcodes(state.coreBinder.getOpcodeHandlers(Object.keys(groupBuiltins)));
             }
 
             _.forOwn(groupBuiltins, function (handler, name) {
                 state.coreBinder.defineOpcode(name, internals.createTracedHandler(handler), isOverrideAllowed);
             });
+        },
+
+        /**
+         * Defines a global function from a native JS one. If a fully-qualified name is provided
+         * with a namespace prefix, e.g. `My\Lib\MyFunc` then it will be defined in the specified namespace.
+         * The function will install multiple variants whose signatures must differ in parameter count.
+         *
+         * @param {string} fqfn Fully-Qualified Function Name
+         * @param {Function} definitionFactory
+         */
+        defineOverloadedFunction: function (fqfn, definitionFactory) {
+            var state = this,
+                functionInternals = new state.OverloadedFunctionInternals(fqfn);
+
+            functionInternals.defineFunction(definitionFactory);
         },
 
         /**
@@ -1071,7 +1116,7 @@ module.exports = require('pauser')([
 
             if (isOverrideAllowed) {
                 // Service overriding is allowed, so provide the service group with the previous providers
-                // for all of the service providers they define, so that the previous versions may be called.
+                // for all the service providers they define, so that the previous versions may be called.
                 internals.setPreviousServiceProviders(state.container.getServiceProviders(Object.keys(groupBuiltins)));
             }
 
@@ -1350,6 +1395,15 @@ module.exports = require('pauser')([
          */
         getLoader: function () {
             return this.loader;
+        },
+
+        /**
+         * Fetches the configured synchronicity mode.
+         *
+         * @returns {'async'|'psync'|'sync'}
+         */
+        getMode: function () {
+            return this.mode;
         },
 
         getModuleFactory: function () {

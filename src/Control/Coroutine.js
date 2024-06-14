@@ -58,8 +58,10 @@ _.extend(Coroutine.prototype, {
 
     /**
      * Suspends this coroutine, for later resumption.
+     *
+     * @param {boolean} keepStack
      */
-    suspend: function () {
+    suspend: function (keepStack) {
         var coroutine = this;
 
         if (coroutine.suspended) {
@@ -69,7 +71,9 @@ _.extend(Coroutine.prototype, {
         coroutine.savedCallStack = coroutine.callStack.save();
 
         // Clear the call stack at this point, unlike .save().
-        coroutine.callStack.clear();
+        if (!keepStack) {
+            coroutine.callStack.clear();
+        }
 
         coroutine.suspended = true;
     }

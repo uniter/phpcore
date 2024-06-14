@@ -11,12 +11,15 @@
 
 var _ = require('microdash'),
     AnyType = require('./AnyType'),
+    ElementType = require('./ElementType'),
     ListType = require('./ListType'),
     NativeType = require('./NativeType'),
     ReferenceType = require('./ReferenceType'),
+    SlotType = require('./SlotType'),
     SnapshotType = require('./SnapshotType'),
     UnionType = require('./UnionType'),
-    ValueType = require('./ValueType');
+    ValueType = require('./ValueType'),
+    VoidType = require('./VoidType');
 
 /**
  * Creates type objects for opcodes.
@@ -50,6 +53,17 @@ _.extend(TypeFactory.prototype, {
     },
 
     /**
+     * Creates a new ElementType.
+     *
+     * @returns {ElementType}
+     */
+    createElementType: function () {
+        var factory = this;
+
+        return new ElementType(factory.valueFactory);
+    },
+
+    /**
      * Creates a new ListType.
      *
      * @returns {ListType}
@@ -75,6 +89,17 @@ _.extend(TypeFactory.prototype, {
      */
     createReferenceType: function () {
         return new ReferenceType();
+    },
+
+    /**
+     * Creates a new SlotType.
+     *
+     * @returns {SlotType}
+     */
+    createSlotType: function () {
+        var factory = this;
+
+        return new SlotType(factory.valueFactory);
     },
 
     /**
@@ -105,6 +130,15 @@ _.extend(TypeFactory.prototype, {
      */
     createValueType: function () {
         return new ValueType(this.valueFactory);
+    },
+
+    /**
+     * Creates a new VoidType.
+     *
+     * @returns {VoidType}
+     */
+    createVoidType: function () {
+        return new VoidType();
     }
 });
 

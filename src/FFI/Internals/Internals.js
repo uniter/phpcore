@@ -10,6 +10,7 @@
 'use strict';
 
 var _ = require('microdash'),
+    OverloadedTypedFunction = require('../../Function/Overloaded/OverloadedTypedFunction'),
     TypedFunction = require('../../Function/TypedFunction');
 
 /**
@@ -32,6 +33,7 @@ var _ = require('microdash'),
  * @param {ErrorConfiguration} errorConfiguration
  * @param {ErrorPromoter} errorPromoter
  * @param {ErrorReporting} errorReporting
+ * @param {GarbageCollector} garbageCollector
  * @param {Namespace} globalNamespace
  * @param {Scope} globalScope
  * @param {INIState} iniState
@@ -65,6 +67,7 @@ function Internals(
     errorConfiguration,
     errorPromoter,
     errorReporting,
+    garbageCollector,
     globalNamespace,
     globalScope,
     iniState,
@@ -137,6 +140,11 @@ function Internals(
      * @type {FutureFactory}
      */
     this.futureFactory = futureFactory;
+    /**
+     * @public
+     * @type {GarbageCollector}
+     */
+    this.garbageCollector = garbageCollector;
     /**
      * @public
      * @type {Namespace}
@@ -477,6 +485,17 @@ _.extend(Internals.prototype, {
      */
     typeFunction: function (signature, func) {
         return new TypedFunction(signature, func);
+    },
+
+    /**
+     * Creates an OverloadedTypedFunction.
+     * Use .typeFunction(...) to construct each of the typed functions per parameter count.
+     *
+     * @param {TypedFunction[]} typedFunctions
+     * @returns {OverloadedTypedFunction}
+     */
+    typeOverloadedFunction: function (typedFunctions) {
+        return new OverloadedTypedFunction(typedFunctions);
     }
 });
 

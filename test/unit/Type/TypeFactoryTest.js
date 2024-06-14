@@ -18,11 +18,13 @@ var expect = require('chai').expect,
     IterableType = require('../../../src/Type/IterableType'),
     MixedType = require('../../../src/Type/MixedType'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
+    NullType = require('../../../src/Type/NullType'),
     ObjectType = require('../../../src/Type/ObjectType'),
     ScalarType = require('../../../src/Type/ScalarType'),
     TypeFactory = require('../../../src/Type/TypeFactory'),
     TypeInterface = require('../../../src/Type/TypeInterface'),
-    UnionType = require('../../../src/Type/UnionType');
+    UnionType = require('../../../src/Type/UnionType'),
+    VoidType = require('../../../src/Type/VoidType');
 
 describe('TypeFactory', function () {
     var factory,
@@ -135,6 +137,14 @@ describe('TypeFactory', function () {
         });
     });
 
+    describe('createNullType()', function () {
+        it('should return a NullType', function () {
+            var type = factory.createNullType();
+
+            expect(type).to.be.an.instanceOf(NullType);
+        });
+    });
+
     describe('createObjectType()', function () {
         it('should return an ObjectType that allows null when specified', function () {
             var type = factory.createObjectType(true);
@@ -242,7 +252,15 @@ describe('TypeFactory', function () {
                     true
                 );
 
-            expect(type.getDisplayName()).to.equal('MyClass|YourClass|callable|iterable|string|int|null');
+            expect(type.getDisplayName()).to.equal('MyClass|YourClass|iterable|callable|string|int|null');
+        });
+    });
+
+    describe('createVoidType()', function () {
+        it('should return a VoidType', function () {
+            var type = factory.createVoidType();
+
+            expect(type).to.be.an.instanceOf(VoidType);
         });
     });
 });

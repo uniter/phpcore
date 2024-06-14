@@ -973,6 +973,22 @@ describe('ArrayValue', function () {
         });
     });
 
+    describe('getOutgoingValues()', function () {
+        it('should return an array of all structured element values', function () {
+            var structuredValue = factory.createArray([
+                    new KeyValuePair(factory.createString('myKey'), factory.createString('my value'))
+                ]),
+                values;
+            value.getElementByKey(factory.createString('structuredEl')).setValue(structuredValue);
+
+            values = value.getOutgoingValues();
+
+            expect(values).to.have.length(1);
+            // Array will have been copied on assignment, so we cannot compare the value objects themselves.
+            expect(values[0].getNative()).to.deep.equal(structuredValue.getNative());
+        });
+    });
+
     describe('getProxy()', function () {
         it('should unwrap to a native array when the array has no non-numeric keys', function () {
             var result;
@@ -1058,6 +1074,18 @@ describe('ArrayValue', function () {
             }).to.throw(
                 'Fake PHP Fatal error for #core.class_name_not_valid with {}'
             );
+        });
+    });
+
+    describe('getType()', function () {
+        it('should return "array"', function () {
+            expect(value.getType()).to.equal('array');
+        });
+    });
+
+    describe('getUnderlyingType()', function () {
+        it('should return "array"', function () {
+            expect(value.getUnderlyingType()).to.equal('array');
         });
     });
 
@@ -1289,6 +1317,12 @@ describe('ArrayValue', function () {
     describe('isScalar()', function () {
         it('should return false', function () {
             expect(value.isScalar()).to.be.false;
+        });
+    });
+
+    describe('isStructured()', function () {
+        it('should return true', function () {
+            expect(value.isStructured()).to.be.true;
         });
     });
 

@@ -426,7 +426,9 @@ module.exports = require('pauser')([
 
         /**
          * Fetches a copy of this array, as in PHP arrays are always passed by value
-         * and not by reference
+         * and not by reference.
+         *
+         * TODO: Implement copy-on-write to be more resource-efficient.
          *
          * @return {ArrayValue}
          */
@@ -576,6 +578,17 @@ module.exports = require('pauser')([
             return this.value.length;
         },
 
+        /**
+         * {@inheritdoc}
+         */
+        getOutgoingValues: function () {
+            // Note that we ignore keys as they can only be scalar.
+            return this.getValues().filter(function (outgoingValue) {
+                // Property value is structured so can be marked for GC.
+                return outgoingValue.isStructured();
+            });
+        },
+
         getPointer: function () {
             return this.pointer;
         },
@@ -711,6 +724,13 @@ module.exports = require('pauser')([
          */
         isNumeric: function () {
             return false;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        isStructured: function () {
+            return true;
         },
 
         /**

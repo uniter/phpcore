@@ -853,7 +853,7 @@ module.exports = require('pauser')([
 
         /**
          * Returns either the current value or one based on it as part of an assignment.
-         * Objects are passed around by reference so this should just return this
+         * Objects are passed around by reference so this should just return this.
          *
          * @returns {Value}
          */
@@ -878,6 +878,29 @@ module.exports = require('pauser')([
          */
         getKeys: function () {
             return this.getInstancePropertyNames();
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        getOutgoingValues: function () {
+            // NB: Don't include values via the class, e.g. static property values,
+            //     as those will be captured separately during GC root discovery.
+
+            var outgoingValues = [],
+                value = this;
+
+            _.each(value.getInstancePropertyNames(), function (nameValue) {
+                var property = value.getInstancePropertyByName(nameValue),
+                    propertyValue = property.getValueOrNativeNull();
+
+                if (propertyValue && propertyValue.isStructured()) {
+                    // Property value is structured so can be marked for GC.
+                    outgoingValues.push(propertyValue);
+                }
+            });
+
+            return outgoingValues;
         },
 
         /**
@@ -1090,10 +1113,11 @@ module.exports = require('pauser')([
          * or the object itself if it implements Traversable via Iterator or IteratorAggregate.
          * Used by transpiled foreach loops over objects implementing Iterator.
          *
-         * @returns {ChainableInterface<ArrayIterator|ObjectValue>}
+         * @returns {ChainableInterface<ArrayIterator|GeneratorIterator|ObjectValue>}
          */
         getIterator: function () {
             var value = this,
+                iterator,
                 iteratorFutureValue = value;
 
             value.pointer = 0;
@@ -1114,6 +1138,10 @@ module.exports = require('pauser')([
 
                         return iteratorValue;
                     });
+            } else if (value.classIs('Generator')) {
+                iterator = value.getInternalProperty('iterator');
+
+                return value.futureFactory.createPresent(iterator);
             } else if (!value.classIs('Iterator')) {
                 // Objects not implementing Traversable are iterated like arrays
                 return value.futureFactory.createPresent(value.factory.createArrayIterator(value));
@@ -1438,6 +1466,13 @@ module.exports = require('pauser')([
          */
         isNumeric: function () {
             return false;
+        },
+
+        /**
+         * {@inheritdoc}
+         */
+        isStructured: function () {
+            return true;
         },
 
         isTheClassOfArray: function () {
