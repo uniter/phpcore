@@ -16,7 +16,7 @@ var expect = require('chai').expect,
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     ClassAutoloader = require('../../src/ClassAutoloader').sync(),
-    ClassDefiner = require('../../src/Class/ClassDefiner'),
+    ClassDefiner = require('../../src/OOP/Class/ClassDefiner'),
     ExportRepository = require('../../src/FFI/Export/ExportRepository'),
     FFIFactory = require('../../src/FFI/FFIFactory'),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
@@ -28,7 +28,9 @@ var expect = require('chai').expect,
     OverloadedFunctionDefiner = require('../../src/Function/Overloaded/OverloadedFunctionDefiner'),
     OverloadedFunctionVariant = require('../../src/Function/Overloaded/OverloadedFunctionVariant'),
     PHPError = phpCommon.PHPError,
-    PHPFatalError = phpCommon.PHPFatalError;
+    PHPFatalError = phpCommon.PHPFatalError,
+    Trait = require('../../src/OOP/Trait/Trait'),
+    TraitDefiner = require('../../src/OOP/Trait/TraitDefiner');
 
 describe('Namespace', function () {
     var callStack,
@@ -47,6 +49,7 @@ describe('Namespace', function () {
         namespaceScope,
         overloadedFunctionDefiner,
         state,
+        traitDefiner,
         valueFactory;
 
     beforeEach(function () {
@@ -63,7 +66,13 @@ describe('Namespace', function () {
         namespaceFactory = sinon.createStubInstance(NamespaceFactory);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         overloadedFunctionDefiner = sinon.createStubInstance(OverloadedFunctionDefiner);
+        traitDefiner = sinon.createStubInstance(TraitDefiner);
         valueFactory = state.getValueFactory();
+
+        callStack.getLastFilePath.returns('/path/to/my_module.php');
+        namespaceScope.hasClass.returns(false);
+        namespaceScope.hasTrait.returns(false);
+        namespaceScope.isNameInUse.returns(false);
 
         callStack.raiseTranslatedError
             .withArgs(PHPError.E_ERROR)
@@ -92,6 +101,18 @@ describe('Namespace', function () {
             return futureFactory.createPresent(classObject);
         });
 
+        traitDefiner.defineTrait.callsFake(function (
+            name,
+            definition,
+            namespace
+        ) {
+            var traitObject = sinon.createStubInstance(Trait);
+
+            traitObject.getName.returns(namespace.getPrefix() + name);
+
+            return futureFactory.createPresent(traitObject);
+        });
+
         functionFactory.create.callsFake(function (namespace, currentClass, currentObject, staticClass, functionSpec) {
             var wrapperFunc = sinon.stub();
             wrapperFunc.testArgs = {
@@ -115,18 +136,16 @@ describe('Namespace', function () {
                 overloadedFunctionDefiner,
                 classAutoloader,
                 classDefiner,
+                traitDefiner,
                 parentNamespace || null,
                 name || ''
             );
         });
 
-        namespaceScope.hasClass.returns(false);
-
         globalNamespace = namespaceFactory.create();
         namespace = globalNamespace;
         createNamespace = function (name) {
             namespace = globalNamespace.getDescendant(name);
-
             return namespace;
         };
     });
@@ -193,9 +212,12 @@ describe('Namespace', function () {
     });
 
     describe('defineClass()', function () {
-        it('should raise an uncatchable fatal error when the class is already defined', function () {
-            namespace.defineClass('MyClass', function () {}, namespaceScope);
+        it('should raise an uncatchable fatal error when the class is already defined', async function () {
+            await namespace.defineClass('MyClass', function () {}, namespaceScope).toPromise();
             namespaceScope.hasClass
+                .withArgs('MyClass')
+                .returns(true);
+            namespaceScope.isNameInUse
                 .withArgs('MyClass')
                 .returns(true);
 
@@ -211,26 +233,29 @@ describe('Namespace', function () {
         it('should raise an uncatchable fatal error when the name is already used by an import', function () {
             namespaceScope.hasClass
                 .withArgs('MyClass')
+                .returns(false);
+            namespaceScope.isNameInUse
+                .withArgs('MyClass')
                 .returns(true);
 
             expect(function () {
                 namespace.defineClass('MyClass', function () {}, namespaceScope);
             }).to.throw(
                 PHPFatalError,
-                // NB: This is not quite the same translation as above: "cannot_declare..." vs. "cannot_redeclare..."
+                // NB: This is not quite the same translation as above: "cannot_declare..." vs. "cannot_redeclare...".
                 'PHP Fatal error: Fake uncatchable fatal error for #core.cannot_declare_class_as_name_already_in_use ' +
                 'with {"className":"MyClass"} in /path/to/my_module.php on line 1234'
             );
         });
 
-        it('should invoke the ClassDefiner correctly when no custom method caller is given', function () {
+        it('should invoke the ClassDefiner correctly when no custom method caller is given', async function () {
             var definition = {
                     interfaces: ['Throwable'],
                     properties: {},
                     methods: []
                 };
 
-            namespace.defineClass('MyInvalidThrowable', definition, namespaceScope, true);
+            await namespace.defineClass('MyInvalidThrowable', definition, namespaceScope, true).toPromise();
 
             expect(classDefiner.defineClass).to.have.been.calledOnce;
             expect(classDefiner.defineClass).to.have.been.calledWith(
@@ -238,12 +263,12 @@ describe('Namespace', function () {
                 sinon.match.same(definition),
                 sinon.match.same(namespace),
                 sinon.match.same(namespaceScope),
-                true, // Auto-coercion enabled
+                true, // Auto-coercion enabled.
                 null // Note it should be null and not undefined.
             );
         });
 
-        it('should invoke the ClassDefiner correctly when a custom method caller is given', function () {
+        it('should invoke the ClassDefiner correctly when a custom method caller is given', async function () {
             var definition = {
                     interfaces: ['Throwable'],
                     properties: {},
@@ -251,7 +276,7 @@ describe('Namespace', function () {
                 },
                 methodCaller = sinon.stub();
 
-            namespace.defineClass('MyInvalidThrowable', definition, namespaceScope, true, methodCaller);
+            await namespace.defineClass('MyInvalidThrowable', definition, namespaceScope, true, methodCaller).toPromise();
 
             expect(classDefiner.defineClass).to.have.been.calledOnce;
             expect(classDefiner.defineClass).to.have.been.calledWith(
@@ -265,7 +290,7 @@ describe('Namespace', function () {
         });
 
         it('should not raise an uncatchable fatal error when a PHP-defined class attempts to implement an interface named Throwable from a non-global namespace', function () {
-            namespaceScope.resolveClass
+            namespaceScope.resolveName
                 .withArgs('Throwable')
                 .returns({
                     namespace: globalNamespace.getDescendant('Not\\TheGlobal'),
@@ -628,6 +653,84 @@ describe('Namespace', function () {
                 PHPFatalError,
                 'PHP Fatal error: Fake uncatchable fatal error for #core.cannot_redeclare_builtin_function ' +
                 'with {"functionName":"myFunction"} in /path/to/my_module.php on line 1234'
+            );
+        });
+    });
+
+    describe('defineTrait()', function () {
+        it('should raise an uncatchable fatal error when the trait is already defined', async function () {
+            await namespace.defineTrait('MyTrait', function () {}, namespaceScope).toPromise();
+            namespaceScope.hasTrait
+                .withArgs('MyTrait')
+                .returns(true);
+            namespaceScope.isNameInUse
+                .withArgs('MyTrait')
+                .returns(true);
+
+            expect(function () {
+                namespace.defineTrait(
+                    'MyTrait',
+                    {},
+                    namespaceScope
+                );
+            }).to.throw(
+                PHPFatalError,
+                'PHP Fatal error: Fake uncatchable fatal error for #core.cannot_redeclare_trait_as_name_already_in_use ' +
+                'with {"traitName":"MyTrait"} in /path/to/my_module.php on line 1234'
+            );
+        });
+
+        it('should raise an uncatchable fatal error when the name is already used by an import', function () {
+            namespaceScope.hasTrait
+                .withArgs('MyTrait')
+                .returns(false);
+            namespaceScope.isNameInUse
+                .withArgs('MyTrait')
+                .returns(true);
+
+            expect(function () {
+                namespace.defineTrait('MyTrait', {}, namespaceScope);
+            }).to.throw(
+                PHPFatalError,
+                // NB: This is not quite the same translation as above: "cannot_declare..." vs. "cannot_redeclare...".
+                'PHP Fatal error: Fake uncatchable fatal error for #core.cannot_declare_trait_as_name_already_in_use ' +
+                'with {"traitName":"MyTrait"} in /path/to/my_module.php on line 1234'
+            );
+        });
+
+        it('should invoke the TraitDefiner correctly when no auto-coercion is enabled', async function () {
+            var definition = {
+                    properties: {},
+                    methods: []
+                };
+
+            await namespace.defineTrait('MyTrait', definition, namespaceScope, false).toPromise();
+
+            expect(traitDefiner.defineTrait).to.have.been.calledOnce;
+            expect(traitDefiner.defineTrait).to.have.been.calledWith(
+                'MyTrait',
+                sinon.match.same(definition),
+                sinon.match.same(namespace),
+                sinon.match.same(namespaceScope),
+                false
+            );
+        });
+
+        it('should invoke the TraitDefiner correctly when auto-coercion is enabled', async function () {
+            var definition = {
+                    properties: {},
+                    methods: []
+                };
+
+            await namespace.defineTrait('MyTrait', definition, namespaceScope, true).toPromise();
+
+            expect(traitDefiner.defineTrait).to.have.been.calledOnce;
+            expect(traitDefiner.defineTrait).to.have.been.calledWith(
+                'MyTrait',
+                sinon.match.same(definition),
+                sinon.match.same(namespace),
+                sinon.match.same(namespaceScope),
+                true
             );
         });
     });
@@ -1001,31 +1104,123 @@ describe('Namespace', function () {
         });
     });
 
+    describe('getTrait()', function () {
+        describe('when the current namespace is the global namespace', function () {
+            it('should correctly fetch an unqualified trait name from the global namespace', async function () {
+                var traitObject;
+                await namespace.defineTrait('MyTrait', function () {}, namespaceScope).toPromise();
+
+                traitObject = await namespace.getTrait('MyTrait').toPromise();
+
+                expect(traitObject.getName()).to.equal('MyTrait');
+            });
+
+            it('should correctly fetch a trait name qualified by just a leading slash from the global namespace', async function () {
+                var traitObject;
+                await namespace.defineTrait('MyTrait', function () {}, namespaceScope).toPromise();
+
+                traitObject = await namespace.getTrait('\\MyTrait').toPromise();
+
+                expect(traitObject.getName()).to.equal('MyTrait');
+            });
+
+            it('should correctly fetch a fully-qualified trait name from the relevant sub-namespace', async function () {
+                var traitObject;
+                await globalNamespace.getDescendant('My\\Stuff')
+                    .defineTrait('MyTrait', function () {}, namespaceScope)
+                    .toPromise();
+
+                // NB: Unlike the test below, this one has a leading slash to make it fully-qualified.
+                traitObject = await namespace.getTrait('\\My\\Stuff\\MyTrait').toPromise();
+
+                expect(traitObject.getName()).to.equal('My\\Stuff\\MyTrait');
+            });
+
+            it('should correctly fetch a relatively-qualified trait name from the relevant sub-namespace', async function () {
+                var traitObject;
+                await globalNamespace.getDescendant('My\\Stuff')
+                    .defineTrait('MyTrait', function () {}, namespaceScope)
+                    .toPromise();
+
+                // NB: Unlike the test above, this one has no leading slash to make it relatively-qualified.
+                traitObject = await namespace.getTrait('My\\Stuff\\MyTrait').toPromise();
+
+                expect(traitObject.getName()).to.equal('My\\Stuff\\MyTrait');
+            });
+
+            describe('for an undefined trait being successfully autoloaded', function () {
+                beforeEach(function () {
+                    // Fake a successful autoloading.
+                    classAutoloader.autoloadClass.callsFake(function () {
+                        return globalNamespace.getDescendant('My\\Lib')
+                            .defineTrait('MyAutoloadedTrait', function () {}, namespaceScope);
+                    });
+                });
+
+                it('should invoke the autoloader correctly', async function () {
+                    await namespace.getTrait('My\\Lib\\MyAutoloadedTrait').toPromise();
+
+                    expect(classAutoloader.autoloadClass).to.have.been.calledOnce;
+                    expect(classAutoloader.autoloadClass).to.have.been.calledWith('My\\Lib\\MyAutoloadedTrait');
+                });
+
+                it('should return the autoloaded trait', async function () {
+                    var traitObject = await namespace.getTrait('My\\Lib\\MyAutoloadedTrait').toPromise();
+
+                    expect(traitObject.getName()).to.equal('My\\Lib\\MyAutoloadedTrait');
+                });
+
+                it('should not raise any error', function () {
+                    return expect(namespace.getTrait('My\\Lib\\MyAutoloadedTrait').toPromise()).not.to.be.rejected;
+                });
+            });
+
+            describe('for an undefined trait that is not successfully autoloaded', function () {
+                it('should invoke the autoloader correctly', function () {
+                    try {
+                        namespace.getTrait('My\\Lib\\MyAutoloadedTrait');
+                    } catch (e) {}
+
+                    expect(classAutoloader.autoloadClass).to.have.been.calledOnce;
+                    expect(classAutoloader.autoloadClass).to.have.been.calledWith('My\\Lib\\MyAutoloadedTrait');
+                });
+
+                it('should raise a "trait not found" error', function () {
+                    return expect(namespace.getTrait('My\\Lib\\MyAutoloadedTrait').toPromise()).to.eventually.be.rejectedWith(
+                        'Fake PHP Fatal error for #core.trait_not_found with {"name":"My\\\\Lib\\\\MyAutoloadedTrait"}'
+                    );
+                });
+            });
+        });
+    });
+
     describe('hasClass()', function () {
         describe('when the current namespace is the global namespace', function () {
-            it('should correctly detect an unqualified class from the global namespace', function () {
-                namespace.defineClass('MyClass', function () {}, namespaceScope);
+            it('should correctly detect an unqualified class from the global namespace', async function () {
+                await namespace.defineClass('MyClass', function () {}, namespaceScope).toPromise();
 
                 expect(namespace.hasClass('MyClass')).to.be.true;
             });
 
-            it('should correctly detect a class with name qualified by just a leading slash from the global namespace', function () {
-                namespace.defineClass('MyClass', function () {}, namespaceScope);
+            it('should correctly detect a class with name qualified by just a leading slash from the global namespace', async function () {
+                await namespace.defineClass('MyClass', function () {}, namespaceScope).toPromise();
 
                 expect(namespace.hasClass('\\MyClass')).to.be.true;
             });
 
-            it('should correctly detect a fully-qualified class from the relevant sub-namespace', function () {
-                globalNamespace.getDescendant('My\\Stuff')
-                    .defineClass('MyClass', function () {}, namespaceScope);
+            it('should correctly detect a fully-qualified class from the relevant sub-namespace', async function () {
+                await globalNamespace.getDescendant('My\\Stuff')
+                    .defineClass('MyClass', function () {}, namespaceScope)
+                    .toPromise();
 
                 // NB: Unlike the test below, this one has a leading slash to make it fully-qualified
                 expect(namespace.hasClass('\\My\\Stuff\\MyClass')).to.be.true;
             });
 
-            it('should correctly detect a relatively-qualified class from the relevant sub-namespace', function () {
-                globalNamespace.getDescendant('My\\Stuff')
-                    .defineClass('MyClass', function () {}, namespaceScope);
+            it('should correctly detect a relatively-qualified class from the relevant sub-namespace', async function () {
+                await globalNamespace.getDescendant('My\\Stuff')
+                    .defineClass('MyClass', function () {}, namespaceScope)
+                    .toPromise();
 
                 // NB: Unlike the test above, this one has no leading slash to make it relatively-qualified
                 expect(namespace.hasClass('My\\Stuff\\MyClass')).to.be.true;
@@ -1049,31 +1244,33 @@ describe('Namespace', function () {
                 createNamespace('My\\Sub\\Space');
             });
 
-            it('should correctly detect an unqualified class from the current namespace', function () {
-                namespace.defineClass('MyClass', function () {}, namespaceScope);
+            it('should correctly detect an unqualified class from the current namespace', async function () {
+                await namespace.defineClass('MyClass', function () {}, namespaceScope).toPromise();
 
                 expect(namespace.hasClass('MyClass')).to.be.true;
             });
 
-            it('should correctly detect a class with name qualified by just a leading slash from the global namespace', function () {
-                globalNamespace.defineClass('MyClass', function () {}, namespaceScope);
+            it('should correctly detect a class with name qualified by just a leading slash from the global namespace', async function () {
+                await globalNamespace.defineClass('MyClass', function () {}, namespaceScope).toPromise();
 
                 expect(namespace.hasClass('\\MyClass')).to.be.true;
             });
 
-            it('should correctly detect a fully-qualified class from the relevant sub-namespace, relative to global', function () {
-                globalNamespace.getDescendant('My\\Stuff')
-                    .defineClass('MyClass', function () {}, namespaceScope);
+            it('should correctly detect a fully-qualified class from the relevant sub-namespace, relative to global', async function () {
+                await globalNamespace.getDescendant('My\\Stuff')
+                    .defineClass('MyClass', function () {}, namespaceScope)
+                    .toPromise();
 
-                // NB: Unlike the test below, this one has a leading slash to make it fully-qualified
+                // NB: Unlike the test below, this one has a leading slash to make it fully-qualified.
                 expect(namespace.hasClass('\\My\\Stuff\\MyClass')).to.be.true;
             });
 
-            it('should correctly detect a relatively-qualified class from the relevant sub-namespace, relative to current', function () {
-                globalNamespace.getDescendant('My\\Sub\\Space\\Your\\Stuff')
-                    .defineClass('YourClass', function () {}, namespaceScope);
+            it('should correctly fetch a relatively-qualified class from the relevant sub-namespace, relative to current', async function () {
+                await globalNamespace.getDescendant('My\\Sub\\Space\\Your\\Stuff')
+                    .defineClass('YourClass', function () {}, namespaceScope)
+                    .toPromise();
 
-                // NB: Unlike the test above, this one has no leading slash to make it relatively-qualified
+                // NB: Unlike the test above, this one has no leading slash to make it relatively-qualified.
                 expect(namespace.hasClass('Your\\Stuff\\YourClass')).to.be.true;
             });
 
@@ -1192,6 +1389,72 @@ describe('Namespace', function () {
             describe('for an undefined function', function () {
                 it('should return false', function () {
                     expect(namespace.hasFunction('Your\\Stuff\\YourFunction')).to.be.false;
+                });
+            });
+        });
+    });
+
+    describe('hasTrait()', function () {
+        describe('when the current namespace is the global namespace', function () {
+            it('should correctly detect an unqualified trait from the global namespace', async function () {
+                await namespace.defineTrait('MyTrait', function () {}, namespaceScope).toPromise();
+                namespaceScope.hasTrait
+                    .withArgs('MyTrait')
+                    .returns(true);
+
+                expect(namespace.hasTrait('MyTrait')).to.be.true;
+            });
+
+            it('should correctly detect a trait with name qualified by just a leading slash from the global namespace', async function () {
+                await namespace.defineTrait('MyTrait', function () {}, namespaceScope).toPromise();
+                namespaceScope.hasTrait
+                    .withArgs('MyTrait')
+                    .returns(true);
+
+                expect(namespace.hasTrait('\\MyTrait')).to.be.true;
+            });
+
+            it('should correctly detect a fully-qualified trait from the relevant sub-namespace', async function () {
+                await globalNamespace.getDescendant('My\\Stuff')
+                    .defineTrait('MyTrait', function () {}, namespaceScope)
+                    .toPromise();
+                namespaceScope.hasTrait
+                    .withArgs('My\\Stuff\\MyTrait')
+                    .returns(true);
+
+                // NB: Unlike the test below, this one has a leading slash to make it fully-qualified.
+                expect(namespace.hasTrait('\\My\\Stuff\\MyTrait')).to.be.true;
+            });
+
+            it('should correctly detect a relatively-qualified trait from the relevant sub-namespace', async function () {
+                await globalNamespace.getDescendant('My\\Stuff')
+                    .defineTrait('MyTrait', function () {}, namespaceScope)
+                    .toPromise();
+                namespaceScope.hasTrait
+                    .withArgs('My\\Stuff\\MyTrait')
+                    .returns(true);
+
+                // NB: Unlike the test above, this one has no leading slash to make it relatively-qualified.
+                expect(namespace.hasTrait('My\\Stuff\\MyTrait')).to.be.true;
+            });
+
+            describe('for an undefined trait', function () {
+                it('should not invoke the autoloader', function () {
+                    namespaceScope.hasTrait
+                        .withArgs('My\\Lib\\MyAutoloadedTrait')
+                        .returns(false);
+
+                    namespace.hasTrait('My\\Lib\\MyAutoloadedTrait');
+
+                    expect(classAutoloader.autoloadClass).not.to.have.been.called;
+                });
+
+                it('should return false', function () {
+                    namespaceScope.hasTrait
+                        .withArgs('My\\Lib\\MyAutoloadedTrait')
+                        .returns(false);
+
+                    expect(namespace.hasTrait('My\\Lib\\MyAutoloadedTrait')).to.be.false;
                 });
             });
         });

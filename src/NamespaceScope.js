@@ -115,6 +115,7 @@ module.exports = require('pauser')([
          * @param {Function} func
          * @param {Array=} parametersSpecData
          * @param {Object=} returnTypeSpec
+         * @param {boolean=} returnByReference
          * @param {number=} lineNumber
          */
         defineFunction: function (
@@ -122,6 +123,7 @@ module.exports = require('pauser')([
             func,
             parametersSpecData,
             returnTypeSpec,
+            returnByReference,
             lineNumber
         ) {
             var namespaceScope = this;
@@ -132,9 +134,27 @@ module.exports = require('pauser')([
                 namespaceScope,
                 parametersSpecData,
                 returnTypeSpec || null,
-                false, // TODO: Implement userland return-by-reference.
+                Boolean(returnByReference),
                 lineNumber
             );
+        },
+
+        /**
+         * Defines a trait in the current namespace, either from a JS class/function or from a transpiled PHP trait.
+         *
+         * @param {string} name
+         * @param {Function|object} definition Either a Function for a native JS class or a transpiled definition object
+         * @param {boolean=} autoCoercionEnabled Whether the trait should be auto-coercing
+         * @returns {ChainableInterface<Trait>} Returns a future that resolves to the internal Trait instance created
+         */
+        defineTrait: function (
+            name,
+            definition,
+            autoCoercionEnabled
+        ) {
+            var namespaceScope = this;
+
+            return namespaceScope.namespace.defineTrait(name, definition, namespaceScope, autoCoercionEnabled);
         },
 
         /**
@@ -152,7 +172,7 @@ module.exports = require('pauser')([
          * @returns {ChainableInterface<Class>}
          */
         getClass: function (name) {
-            var resolvedClass = this.resolveClass(name);
+            var resolvedClass = this.resolveName(name);
 
             // Note that as userland autoloaders may have been registered, this may result in a pause
             return resolvedClass.namespace.getClass(resolvedClass.name);
@@ -310,6 +330,20 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Fetches a trait with the given name relative to this namespace scope,
+         * autoloading if necessary.
+         *
+         * @param {string} name
+         * @returns {ChainableInterface<Trait>}
+         */
+        getTrait: function (name) {
+            var resolvedTrait = this.resolveName(name);
+
+            // Note that as userland autoloaders may have been registered, this may result in a pause.
+            return resolvedTrait.namespace.getTrait(resolvedTrait.name);
+        },
+
+        /**
          * Determines whether the specified class is defined for this namespace scope,
          * taking any imports/aliases via `use` into account
          *
@@ -318,7 +352,7 @@ module.exports = require('pauser')([
          */
         hasClass: function (name) {
             var scope = this,
-                resolvedClass = scope.resolveClass(name);
+                resolvedClass = scope.resolveName(name);
 
             // Check whether the entire class name is aliased
             if (hasOwn.call(scope.imports, name.toLowerCase())) {
@@ -326,6 +360,25 @@ module.exports = require('pauser')([
             }
 
             return resolvedClass.namespace.hasClass(resolvedClass.name);
+        },
+
+        /**
+         * Determines whether the specified trait is defined for this namespace scope,
+         * taking any imports/aliases via `use` into account.
+         *
+         * @param {string} name
+         * @returns {boolean}
+         */
+        hasTrait: function (name) {
+            var scope = this,
+                resolvedTrait = scope.resolveName(name);
+
+            // Check whether the entire trait name is aliased.
+            if (hasOwn.call(scope.imports, name.toLowerCase())) {
+                return true;
+            }
+
+            return resolvedTrait.namespace.hasTrait(resolvedTrait.name);
         },
 
         /**
@@ -338,6 +391,17 @@ module.exports = require('pauser')([
         },
 
         /**
+         * Determines whether the specified class, interface, trait or enum is defined for this namespace scope,
+         * taking any imports/aliases via `use` into account.
+         *
+         * @param {string} name
+         * @returns {boolean}
+         */
+        isNameInUse: function (name) {
+            return this.hasClass(name) || this.hasTrait(name);
+        },
+
+        /**
          * Determines whether this scope's module is in strict-types mode.
          *
          * @returns {boolean}
@@ -347,13 +411,13 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Resolves a potentially relatively- or fully-qualified class path
-         * to the Namespace instance it should be defined by and its name
+         * Resolves a potentially relatively- or fully-qualified class, interface, trait or enum path
+         * to the Namespace instance it should be defined by and its name.
          *
          * @param {string} name
          * @returns {{namespace: Namespace, name: string}}
          */
-        resolveClass: function (name) {
+        resolveName: function (name) {
             var loweredPrefix,
                 match,
                 scope = this,
@@ -361,13 +425,13 @@ module.exports = require('pauser')([
                 path,
                 prefix;
 
-            // Check whether the entire class name is aliased
+            // Check whether the entire name is aliased.
             if (hasOwn.call(scope.imports, name.toLowerCase())) {
                 name = scope.imports[name.toLowerCase()];
                 namespace = scope.globalNamespace;
             }
 
-            // Check whether the class path is absolute, so no 'use's apply
+            // Check whether the path is absolute, so no 'use's apply.
             if (name.charAt(0) === '\\') {
                 match = name.match(/^\\(.*?)\\([^\\]+)$/);
 
@@ -376,11 +440,11 @@ module.exports = require('pauser')([
                     name = match[2];
                     namespace = scope.globalNamespace.getDescendant(path);
                 } else {
-                    // A class in the global namespace with explicit absolute path, eg. `\MyClass`
+                    // A name in the global namespace with explicit absolute path, e.g. `\MyClass`.
                     name = name.substr(1);
                     namespace = scope.globalNamespace;
                 }
-            // Check whether the namespace prefix is an alias
+            // Check whether the namespace prefix is an alias.
             } else {
                 match = name.match(/^([^\\]+)(.*?)\\([^\\]+)$/);
 
@@ -392,13 +456,13 @@ module.exports = require('pauser')([
 
                     if (loweredPrefix === NAMESPACE) {
                         // Reference uses the special "namespace" keyword as a prefix:
-                        // resolve relative to the current namespace
+                        // resolve relative to the current namespace.
                         namespace = namespace.getDescendant(path.replace(/^\\/, ''));
                     } else if (hasOwn.call(scope.imports, loweredPrefix)) {
                         namespace = scope.globalNamespace.getDescendant(scope.imports[loweredPrefix].substr(1) + path);
                     } else {
                         // Not an alias: look up the namespace path relative to this namespace
-                        // (ie. 'namespace Test { Our\Func(); }' -> '\Test\Our\Func();')
+                        // (i.e. 'namespace Test { Our\Func(); }' -> '\Test\Our\Func();').
                         namespace = namespace.getDescendant(prefix + path);
                     }
                 }
@@ -408,8 +472,8 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Imports a class into the current namespace scope, eg. from a PHP `use ...` statement,
-         * optionally with an alias
+         * Imports a class, interface, trait or enum into the current namespace scope,
+         * e.g. from a PHP `use ...` statement, optionally with an alias.
          *
          * @param {string} source
          * @param {string=} alias
@@ -426,7 +490,7 @@ module.exports = require('pauser')([
                 normalizedSource = '\\' + normalizedSource;
             }
 
-            if (scope.hasClass(alias.toLowerCase())) {
+            if (scope.isNameInUse(alias.toLowerCase())) {
                 scope.callStack.raiseUncatchableFatalError(CANNOT_USE_AS_NAME_ALREADY_IN_USE, {
                     alias: alias,
                     source: source

@@ -90,7 +90,9 @@ module.exports = require('pauser')([
          * @returns {ChainableInterface<Value>}
          */
         asArrayElement: function () {
-            return this.getValue().getForAssignment();
+            return this.getValue().next(function (value) {
+                return value.getForAssignment();
+            });
         },
 
         /**

@@ -157,6 +157,7 @@ _.extend(FunctionSpecFactory.prototype, {
      *
      * @param {NamespaceScope} namespaceScope
      * @param {Class|null} classObject
+     * @param {Trait|null} traitObject Trait object if inside a trait method, null otherwise.
      * @param {ObjectValue|null} enclosingObject
      * @param {Array} parametersSpecData
      * @param {Function} func
@@ -171,6 +172,7 @@ _.extend(FunctionSpecFactory.prototype, {
     createClosureSpec: function (
         namespaceScope,
         classObject,
+        traitObject,
         enclosingObject,
         parametersSpecData,
         func,
@@ -185,6 +187,7 @@ _.extend(FunctionSpecFactory.prototype, {
             context = new factory.ClosureContext(
                 namespaceScope,
                 classObject,
+                traitObject,
                 enclosingObject,
                 referenceBindings,
                 valueBindings
@@ -301,6 +304,7 @@ _.extend(FunctionSpecFactory.prototype, {
      *
      * @param {NamespaceScope} namespaceScope
      * @param {Class} classObject
+     * @param {Trait|null} traitObject Trait object if a trait method, null otherwise.
      * @param {string} methodName
      * @param {Array} parametersSpecData
      * @param {Function} func
@@ -313,6 +317,7 @@ _.extend(FunctionSpecFactory.prototype, {
     createMethodSpec: function (
         namespaceScope,
         classObject,
+        traitObject,
         methodName,
         parametersSpecData,
         func,
@@ -322,7 +327,7 @@ _.extend(FunctionSpecFactory.prototype, {
         lineNumber
     ) {
         var factory = this,
-            context = new factory.MethodContext(classObject, methodName),
+            context = new factory.MethodContext(classObject, traitObject, methodName),
             parameters = factory.parameterListFactory.createParameterList(
                 context,
                 parametersSpecData,

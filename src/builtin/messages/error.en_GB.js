@@ -22,12 +22,14 @@ module.exports = {
             'cannot_access_when_no_active_class': 'Cannot access ${className}:: when no class scope is active',
             'cannot_convert_object': 'Object of class ${className} could not be converted to ${type}',
             'cannot_declare_class_as_name_already_in_use': 'Cannot declare class ${className} because the name is already in use',
+            'cannot_declare_trait_as_name_already_in_use': 'Cannot declare trait ${className} because the name is already in use',
             'cannot_decrement': 'Cannot decrement ${type}',
             'cannot_get_return_value_of_nonreturned_generator': 'Cannot get return value of a generator that hasn\'t returned',
             'cannot_increment': 'Cannot increment ${type}',
             'cannot_redeclare_builtin_function': 'Cannot redeclare ${functionName}()',
-            // NB: This translation is in fact different to the above, by a comma
+            // NB: These translations are in fact different to the above, by a comma.
             'cannot_redeclare_class_as_name_already_in_use': 'Cannot declare class ${className}, because the name is already in use',
+            'cannot_redeclare_trait_as_name_already_in_use': 'Cannot declare trait ${className}, because the name is already in use',
             'cannot_redeclare_userland_function': 'Cannot redeclare ${functionName}() (previously declared in ${originalFile}:${originalLine})',
             'cannot_implement_throwable': 'Class ${className} cannot implement interface Throwable, extend Exception or Error instead',
             'cannot_perform_bitwise_not': 'Cannot perform bitwise not on ${type}',
@@ -48,6 +50,7 @@ module.exports = {
             'no_parent_class': 'Cannot access parent:: when current class scope has no parent',
             'non_object_method_call': 'Call to a member function ${name}() on ${type}',
             'object_from_get_iterator_must_be_traversable': 'Objects returned by ${className}::getIterator() must be traversable or implement interface Iterator',
+            'trait_not_found': 'Trait \'${name}\' not found',
             'uncaught_throwable': 'Uncaught ${name}: ${message}',
             'uncaught_empty_throwable': 'Uncaught ${name}',
             'undeclared_static_property': 'Access to undeclared static property: ${className}::$${propertyName}',

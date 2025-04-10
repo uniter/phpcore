@@ -87,18 +87,15 @@ module.exports = require('pauser')([
         /**
          * Invokes this closure with the provided arguments, returning its result.
          *
-         * @param {Value[]} args
+         * @param {Reference[]|Value[]} args
          * @param {ObjectValue|undefined} thisObject
-         * @returns {ChainableInterface<Value>}
+         * @returns {ChainableInterface<Reference|Value>}
          */
         invoke: function (args, thisObject) {
-            // Store the current PHP thisObj to set for the closure
             var closure = this;
 
             // Note that the wrapped function could return a Future for async handling.
-            return closure.valueFactory.coerce(
-                closure.wrappedFunction.apply(thisObject || closure.thisObject, args)
-            );
+            return closure.wrappedFunction.apply(thisObject || closure.thisObject, args);
         }
     });
 

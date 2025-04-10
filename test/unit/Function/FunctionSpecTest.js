@@ -30,6 +30,7 @@ var expect = require('chai').expect,
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
     ReferenceSnapshot = require('../../../src/Reference/ReferenceSnapshot'),
     Scope = require('../../../src/Scope').sync(),
+    Trait = require('../../../src/OOP/Trait/Trait'),
     TypeInterface = require('../../../src/Type/TypeInterface'),
     Translator = phpCommon.Translator,
     Variable = require('../../../src/Variable').sync();
@@ -911,11 +912,13 @@ describe('FunctionSpec', function () {
 
     describe('validateReturnReference()', function () {
         var returnReference,
-            returnValue;
+            returnValue,
+            syntheticReference;
 
         beforeEach(function () {
             returnReference = sinon.createStubInstance(Variable);
             returnValue = valueFactory.createString('my return value');
+            syntheticReference = sinon.createStubInstance(ReferenceSlot);
         });
 
         describe('when the spec has a return type, is return-by-value and the return value is allowed', function () {
@@ -1087,15 +1090,22 @@ describe('FunctionSpec', function () {
             beforeEach(function () {
                 createSpec(true);
                 returnReference.isReferenceable.returns(false);
-                returnReference.toPromise.returns(Promise.resolve(returnReference));
+                referenceFactory.createReferenceSlot.returns(syntheticReference);
+                syntheticReference.setValue.returns(syntheticReference);
+                syntheticReference.toPromise.returns(Promise.resolve(syntheticReference));
                 returnType.allowsValue
                     .withArgs(sinon.match.same(returnValue))
                     .returns(futureFactory.createPresent(true));
+                returnReference.toPromise.returns(Promise.resolve(returnReference));
             });
 
-            it('should return the return reference', async function () {
-                expect(await spec.validateReturnReference(returnReference, returnValue).toPromise())
-                    .to.equal(returnReference);
+            it('should return the synthetic reference', async function () {
+                const result = await spec.validateReturnReference(returnReference, returnValue).toPromise();
+
+                expect(result).to.equal(syntheticReference);
+                expect(referenceFactory.createReferenceSlot).to.have.been.calledOnce;
+                expect(syntheticReference.setValue).to.have.been.calledOnce;
+                expect(syntheticReference.setValue).to.have.been.calledWith(sinon.match.same(returnValue));
             });
 
             it('should raise a notice', async function () {
@@ -1143,6 +1153,26 @@ describe('FunctionSpec', function () {
 
                 expect(callStack.raiseTranslatedError).not.to.have.been.called;
             });
+        });
+    });
+
+    describe('getTrait()', function () {
+        var traitObject;
+
+        beforeEach(function () {
+            traitObject = sinon.createStubInstance(Trait);
+        });
+
+        it('should return null when the function does not belong to a trait', function () {
+            context.getTrait.returns(null);
+
+            expect(spec.getTrait()).to.be.null;
+        });
+
+        it('should return the trait object when the function belongs to a trait', function () {
+            context.getTrait.returns(traitObject);
+
+            expect(spec.getTrait()).to.equal(traitObject);
         });
     });
 });

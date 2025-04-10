@@ -172,6 +172,32 @@ describe('ValueFactory', function () {
 
             await expect(resultFuture.toPromise()).to.eventually.be.rejectedWith('Bang!');
         });
+
+        it('should not treat non-Promise objects with a .then() method as promises', function () {
+            var JSObjectClass = sinon.createStubInstance(Class),
+                nonPromiseObject = {
+                    then: function () {
+                        return 21;
+                    }
+                },
+                objectValue;
+            JSObjectClass.exportInstanceForJS
+                .callsFake(function (instance) {
+                    return instance.getObject();
+                });
+            JSObjectClass.getName.returns('JSObject');
+            JSObjectClass.getSuperClass.returns(null);
+            JSObjectClass.is.withArgs('JSObject').returns(true);
+            JSObjectClass.is.returns(false);
+            globalNamespace.getClass.withArgs('JSObject')
+                .returns(futureFactory.createPresent(JSObjectClass));
+
+            objectValue = factory.coerce(nonPromiseObject);
+
+            expect(objectValue).to.be.an.instanceOf(ObjectValue);
+            expect(objectValue.classIs('JSObject')).to.be.true;
+            expect(objectValue.getNative()).to.equal(nonPromiseObject);
+        });
     });
 
     describe('coerceList()', function () {

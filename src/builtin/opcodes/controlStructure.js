@@ -52,8 +52,8 @@ module.exports = function (internals) {
          * Defines a function with the given name for the current NamespaceScope.
          */
         defineFunction: internals.typeHandler(
-            'string name, any func, any parameters = null, any returnType = null, number line = null',
-            function (name, func, parametersSpecData, returnTypeSpec, lineNumber) {
+            'string name, any func, any parameters = null, any returnType = null, number line = null, bool returnByReference = false',
+            function (name, func, parametersSpecData, returnTypeSpec, lineNumber, returnByReference) {
                 var namespaceScope = callStack.getEffectiveNamespaceScope();
 
                 namespaceScope.defineFunction(
@@ -61,6 +61,7 @@ module.exports = function (internals) {
                     func,
                     parametersSpecData,
                     returnTypeSpec,
+                    returnByReference,
                     lineNumber
                 );
             }
@@ -79,6 +80,19 @@ module.exports = function (internals) {
                 return namespaceScope.defineClass(name, definition);
             }
         ),
+
+        /**
+         * Defines a trait transpiled from PHP in the current namespace.
+         *
+         * @param {string} name
+         * @param {object} definition Transpiled trait definition object
+         * @returns {ChainableInterface<Trait>}
+         */
+        defineTrait: function (name, definition) {
+            var namespaceScope = callStack.getEffectiveNamespaceScope();
+
+            return namespaceScope.defineTrait(name, definition);
+        },
 
         /**
          * Enables strict-types mode for the current module. The default is weak type-checking mode,

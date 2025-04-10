@@ -9,9 +9,7 @@
 
 'use strict';
 
-var _ = require('microdash'),
-    phpCommon = require('phpcommon'),
-    Exception = phpCommon.Exception;
+var _ = require('microdash');
 
 /**
  * @param {CallStack} callStack
@@ -74,24 +72,17 @@ _.extend(Userland.prototype, {
      * such as a default class property value provider function.
      *
      * @param {Function} executor
-     * @param {NamespaceScope=} namespaceScope
-     * @param {CallInstrumentation=} instrumentation
+     * @param {IsolatedScope=} isolatedScope
      * @returns {ChainableInterface}
      */
-    enterIsolated: function (executor, namespaceScope, instrumentation) {
+    enterIsolated: function (executor, isolatedScope) {
         var userland = this,
             call = userland.callStack.getCurrent(),
             isolatedTrace = userland.controlFactory.createTrace(),
             originalTrace;
 
-        if (namespaceScope) {
-            if (!instrumentation) {
-                throw new Exception(
-                    'Userland.enterIsolated() :: Instrumentation must be provided along with NamespaceScope'
-                );
-            }
-
-            call.enterIsolatedCall(namespaceScope, instrumentation);
+        if (isolatedScope) {
+            call.enterIsolatedCall(isolatedScope);
         }
 
         originalTrace = call.setTrace(isolatedTrace);
@@ -100,6 +91,8 @@ _.extend(Userland.prototype, {
             return userland.flow.maybeFuturise(
                 executor,
                 function (pause, onResume) {
+                    // The executor is expected to be pure, as it should just be a constant value,
+                    // so on resume we can just call it again.
                     onResume(doCall);
                 }
             );
@@ -111,8 +104,8 @@ _.extend(Userland.prototype, {
             .finally(function () {
                 call.setTrace(originalTrace);
 
-                if (namespaceScope) {
-                    call.leaveIsolatedCall(namespaceScope, instrumentation);
+                if (isolatedScope) {
+                    call.leaveIsolatedCall(isolatedScope);
                 }
             });
     },

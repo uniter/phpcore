@@ -69,6 +69,10 @@ function Call(
      */
     this.isolatedCallStack = [];
     /**
+     * @type {IsolatedScope|null}
+     */
+    this.isolatedScope = null;
+    /**
      * @type {Class|null}
      */
     this.newStaticClass = newStaticClass;
@@ -98,31 +102,46 @@ _.extend(Call.prototype, {
      * Enters an isolated call within this outer one, making the given NamespaceScope
      * and CallInstrumentation the current ones.
      *
-     * @param {NamespaceScope} namespaceScope
-     * @param {CallInstrumentation} instrumentation
+     * @param {IsolatedScope} isolatedScope
      */
-    enterIsolatedCall: function (namespaceScope, instrumentation) {
-        var call = this;
+    enterIsolatedCall: function (isolatedScope) {
+        var call = this,
+            namespaceScope = isolatedScope.getNamespaceScope();
 
         call.isolatedCallStack.push({
             enteredNamespaceScope: call.enteredNamespaceScope,
             effectiveNamespaceScope: call.effectiveNamespaceScope,
-            finder: call.finder
+            finder: call.finder,
+            isolatedScope: call.isolatedScope
         });
         call.enteredNamespaceScope = namespaceScope;
         call.effectiveNamespaceScope = namespaceScope;
         call.entryLineNumber = call.finder ? call.finder() : null;
-        call.finder = instrumentation.getFinder();
+        call.finder = isolatedScope.getFinder();
+        call.isolatedScope = isolatedScope;
         call.exitLineNumber = null;
     },
 
     /**
-     * Fetches the current class for the call, if any
+     * Fetches the current class for the call or evaluation, if any.
      *
      * @returns {Class|null}
      */
     getCurrentClass: function () {
-        return this.scope.getCurrentClass();
+        return this.isolatedScope ?
+            this.isolatedScope.getClass() :
+            this.scope.getCurrentClass();
+    },
+
+    /**
+     * Fetches the current trait for the call or evaluation, if any.
+     *
+     * @returns {Trait|null}
+     */
+    getCurrentTrait: function () {
+        return this.isolatedScope ?
+            this.isolatedScope.getTrait() :
+            this.scope.getCurrentTrait();
     },
 
     /**
@@ -345,23 +364,18 @@ _.extend(Call.prototype, {
     /**
      * Leaves the current isolated call, returning to the previous one (or the original).
      *
-     * @param {NamespaceScope} namespaceScope
-     * @param {CallInstrumentation} instrumentation
+     * @param {IsolatedScope} isolatedScope
      */
-    leaveIsolatedCall: function (namespaceScope, instrumentation) {
+    leaveIsolatedCall: function (isolatedScope) {
         var call = this,
             previousState;
 
         if (call.isolatedCallStack.length === 0) {
-            throw new Exception('Call.leaveIsolatedCall() :: NamespaceScope stack is empty');
+            throw new Exception('Call.leaveIsolatedCall() :: Isolated call stack is empty');
         }
 
-        if (call.enteredNamespaceScope !== namespaceScope) {
-            throw new Exception('Call.leaveIsolatedCall() :: Incorrect NamespaceScope provided');
-        }
-
-        if (call.finder !== instrumentation.getFinder()) {
-            throw new Exception('Call.leaveIsolatedCall() :: Incorrect CallInstrumentation provided');
+        if (call.isolatedScope !== isolatedScope) {
+            throw new Exception('Call.leaveIsolatedCall() :: Incorrect IsolatedScope provided');
         }
 
         previousState = call.isolatedCallStack.pop();
@@ -370,6 +384,7 @@ _.extend(Call.prototype, {
         call.effectiveNamespaceScope = previousState.effectiveNamespaceScope;
         call.finder = previousState.finder;
         call.exitLineNumber = call.finder ? call.finder() : null;
+        call.isolatedScope = previousState.isolatedScope;
     },
 
     /**

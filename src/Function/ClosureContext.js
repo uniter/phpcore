@@ -21,6 +21,7 @@ var _ = require('microdash'),
  *
  * @param {NamespaceScope} namespaceScope
  * @param {Class|null} classObject Used when the closure is defined inside a class
+ * @param {Trait|null} traitObject Trait object if inside a trait method, null otherwise.
  * @param {ObjectValue|null} enclosingObject Used when the closure is defined inside an instance method
  * @param {Object.<string, ReferenceSlot>} referenceBindings
  * @param {Object.<string, Value>} valueBindings
@@ -30,6 +31,7 @@ var _ = require('microdash'),
 function ClosureContext(
     namespaceScope,
     classObject,
+    traitObject,
     enclosingObject,
     referenceBindings,
     valueBindings
@@ -50,6 +52,10 @@ function ClosureContext(
      * @type {Object<string, ReferenceSlot>}
      */
     this.referenceBindings = referenceBindings;
+    /**
+     * @type {Trait|null}
+     */
+    this.traitObject = traitObject;
     /**
      * @type {Object<string, Value>}
      */
@@ -99,6 +105,13 @@ _.extend(ClosureContext.prototype, {
         }
 
         return name;
+    },
+
+    /**
+     * @inheritDoc
+     */
+    getTrait: function () {
+        return this.traitObject; // Closures may be defined inside methods of traits.
     },
 
     /**

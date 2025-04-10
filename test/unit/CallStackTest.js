@@ -26,6 +26,7 @@ var expect = require('chai').expect,
     PHPFatalError = phpCommon.PHPFatalError,
     Scope = require('../../src/Scope').sync(),
     Trace = require('../../src/Control/Trace'),
+    Trait = require('../../src/OOP/Trait/Trait'),
     Translator = phpCommon.Translator,
     Value = require('../../src/Value').sync();
 
@@ -194,6 +195,23 @@ describe('CallStack', function () {
 
         it('should return null when there is no call on the stack', function () {
             expect(callStack.getCurrentClass()).to.equal(null);
+        });
+    });
+
+    describe('getCurrentTrait()', function () {
+        it('should return the current trait for the current Call when there are 3 on the stack', function () {
+            var currentCall = sinon.createStubInstance(Call),
+                currentTrait = sinon.createStubInstance(Trait);
+            currentCall.getCurrentTrait.returns(currentTrait);
+            callStack.push(sinon.createStubInstance(Call));
+            callStack.push(sinon.createStubInstance(Call));
+            callStack.push(currentCall);
+
+            expect(callStack.getCurrentTrait()).to.equal(currentTrait);
+        });
+
+        it('should return null when there is no call on the stack', function () {
+            expect(callStack.getCurrentTrait()).to.equal(null);
         });
     });
 

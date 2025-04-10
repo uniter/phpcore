@@ -56,6 +56,7 @@ _.extend(UserlandDefinitionBuilder.prototype, {
      * @param {Namespace} namespace
      * @param {NamespaceScope} namespaceScope
      * @param {Class[]} interfaces
+     * @param {Trait[]} traits
      * @returns {ClassDefinition}
      */
     buildDefinition: function (
@@ -64,10 +65,11 @@ _.extend(UserlandDefinitionBuilder.prototype, {
         superClass,
         namespace,
         namespaceScope,
-        interfaces
+        interfaces,
+        traits
     ) {
         var builder = this,
-            constants,
+            constants = {},
             constructorName = null,
             instanceProperties,
             instrumentation,
@@ -125,7 +127,12 @@ _.extend(UserlandDefinitionBuilder.prototype, {
 
         instanceProperties = definition.properties;
         staticProperties = definition.staticProperties;
-        constants = definition.constants;
+
+        _.forOwn(definition.constants, function (valueProvider, constantName) {
+            constants[constantName] = {
+                value: valueProvider
+            };
+        });
 
         // Record the prototype object that we should stop at when walking up the chain.
         rootInternalPrototype = InternalClass.prototype;
@@ -138,6 +145,7 @@ _.extend(UserlandDefinitionBuilder.prototype, {
             namespaceScope,
             superClass,
             interfaces,
+            traits,
             constants,
             constructorName,
             InternalClass,

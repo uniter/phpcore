@@ -12,18 +12,18 @@
 var expect = require('chai').expect,
     phpCommon = require('phpcommon'),
     sinon = require('sinon'),
-    tools = require('../../tools'),
-    CallInstrumentation = require('../../../../src/Instrumentation/CallInstrumentation'),
-    CallStack = require('../../../../src/CallStack'),
-    Class = require('../../../../src/Class').sync(),
-    ClassDefinition = require('../../../../src/Class/Definition/ClassDefinition'),
-    FFIFactory = require('../../../../src/FFI/FFIFactory'),
-    Namespace = require('../../../../src/Namespace').sync(),
-    NamespaceScope = require('../../../../src/NamespaceScope').sync(),
+    tools = require('../../../tools'),
+    CallInstrumentation = require('../../../../../src/Instrumentation/CallInstrumentation'),
+    CallStack = require('../../../../../src/CallStack'),
+    Class = require('../../../../../src/Class').sync(),
+    ClassDefinition = require('../../../../../src/OOP/Class/Definition/ClassDefinition'),
+    FFIFactory = require('../../../../../src/FFI/FFIFactory'),
+    Namespace = require('../../../../../src/Namespace').sync(),
+    NamespaceScope = require('../../../../../src/NamespaceScope').sync(),
     PHPError = phpCommon.PHPError,
     PHPFatalError = phpCommon.PHPFatalError,
-    UserlandDefinitionBuilder = require('../../../../src/Class/Definition/UserlandDefinitionBuilder'),
-    ValueCoercer = require('../../../../src/FFI/Value/ValueCoercer');
+    UserlandDefinitionBuilder = require('../../../../../src/OOP/Class/Definition/UserlandDefinitionBuilder'),
+    ValueCoercer = require('../../../../../src/FFI/Value/ValueCoercer');
 
 describe('UserlandDefinitionBuilder', function () {
     var builder,
@@ -171,7 +171,9 @@ describe('UserlandDefinitionBuilder', function () {
             it('should have the constants of the class definition', function () {
                 callBuildDefinition();
 
-                expect(definition.getConstants().MY_CONST).to.equal(myConstantFactoryFunction);
+                expect(definition.getConstants().MY_CONST).to.deep.equal({
+                    value: myConstantFactoryFunction
+                });
             });
 
             it('should have null for class constructor name when none defined', function () {

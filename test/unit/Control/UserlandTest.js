@@ -10,14 +10,12 @@
 'use strict';
 
 var expect = require('chai').expect,
-    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('../tools'),
     Call = require('../../../src/Call'),
-    CallInstrumentation = require('../../../src/Instrumentation/CallInstrumentation'),
     CallStack = require('../../../src/CallStack'),
     ControlScope = require('../../../src/Control/ControlScope'),
-    Exception = phpCommon.Exception,
+    IsolatedScope = require('../../../src/OOP/Class/IsolatedScope'),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     OpcodePool = require('../../../src/Core/Opcode/Opcode/OpcodePool'),
     Pause = require('../../../src/Control/Pause'),
@@ -168,44 +166,28 @@ describe('Userland', function () {
                 expect(controlScope.markPaused).to.have.been.calledWith(sinon.match.same(pause));
             });
 
-            it('should throw if a NamespaceScope is given without instrumentation', async function () {
-                var executor = sinon.stub(),
-                    namespaceScope = sinon.createStubInstance(NamespaceScope);
-
-                expect(function () {
-                    userland.enterIsolated(executor, namespaceScope);
-                }).to.throw(
-                    Exception,
-                    'Userland.enterIsolated() :: Instrumentation must be provided along with NamespaceScope'
-                );
-            });
-
             it('should enter an isolated call when given before calling the executor', async function () {
                 var executor = sinon.stub(),
-                    instrumentation = sinon.createStubInstance(CallInstrumentation),
-                    namespaceScope = sinon.createStubInstance(NamespaceScope);
+                    isolatedScope = sinon.createStubInstance(IsolatedScope);
 
-                await userland.enterIsolated(executor, namespaceScope, instrumentation).toPromise();
+                await userland.enterIsolated(executor, isolatedScope).toPromise();
 
                 expect(call.enterIsolatedCall).to.have.been.calledOnce;
                 expect(call.enterIsolatedCall).to.have.been.calledWith(
-                    sinon.match.same(namespaceScope),
-                    sinon.match.same(instrumentation)
+                    sinon.match.same(isolatedScope)
                 );
                 expect(call.enterIsolatedCall).to.have.been.calledBefore(executor);
             });
 
             it('should leave an isolated call when given after calling the executor', async function () {
                 var executor = sinon.stub(),
-                    instrumentation = sinon.createStubInstance(CallInstrumentation),
-                    namespaceScope = sinon.createStubInstance(NamespaceScope);
+                    isolatedScope = sinon.createStubInstance(IsolatedScope);
 
-                await userland.enterIsolated(executor, namespaceScope, instrumentation).toPromise();
+                await userland.enterIsolated(executor, isolatedScope).toPromise();
 
                 expect(call.leaveIsolatedCall).to.have.been.calledOnce;
                 expect(call.leaveIsolatedCall).to.have.been.calledWith(
-                    sinon.match.same(namespaceScope),
-                    sinon.match.same(instrumentation)
+                    sinon.match.same(isolatedScope)
                 );
                 expect(call.leaveIsolatedCall).to.have.been.calledAfter(executor);
             });
@@ -308,44 +290,28 @@ describe('Userland', function () {
                 expect(resultValue.getNative()).to.equal('my result');
             });
 
-            it('should throw if a NamespaceScope is given without instrumentation', async function () {
-                var executor = sinon.stub(),
-                    namespaceScope = sinon.createStubInstance(NamespaceScope);
-
-                expect(function () {
-                    userland.enterIsolated(executor, namespaceScope);
-                }).to.throw(
-                    Exception,
-                    'Userland.enterIsolated() :: Instrumentation must be provided along with NamespaceScope'
-                );
-            });
-
             it('should enter an isolated call when given before calling the executor', function () {
                 var executor = sinon.stub(),
-                    instrumentation = sinon.createStubInstance(CallInstrumentation),
-                    namespaceScope = sinon.createStubInstance(NamespaceScope);
+                    isolatedScope = sinon.createStubInstance(IsolatedScope);
 
-                userland.enterIsolated(executor, namespaceScope, instrumentation);
+                userland.enterIsolated(executor, isolatedScope);
 
                 expect(call.enterIsolatedCall).to.have.been.calledOnce;
                 expect(call.enterIsolatedCall).to.have.been.calledWith(
-                    sinon.match.same(namespaceScope),
-                    sinon.match.same(instrumentation)
+                    sinon.match.same(isolatedScope)
                 );
                 expect(call.enterIsolatedCall).to.have.been.calledBefore(executor);
             });
 
             it('should leave an isolated call when given after calling the executor', function () {
                 var executor = sinon.stub(),
-                    instrumentation = sinon.createStubInstance(CallInstrumentation),
-                    namespaceScope = sinon.createStubInstance(NamespaceScope);
+                    isolatedScope = sinon.createStubInstance(IsolatedScope);
 
-                userland.enterIsolated(executor, namespaceScope, instrumentation);
+                userland.enterIsolated(executor, isolatedScope);
 
                 expect(call.leaveIsolatedCall).to.have.been.calledOnce;
                 expect(call.leaveIsolatedCall).to.have.been.calledWith(
-                    sinon.match.same(namespaceScope),
-                    sinon.match.same(instrumentation)
+                    sinon.match.same(isolatedScope)
                 );
                 expect(call.leaveIsolatedCall).to.have.been.calledAfter(executor);
             });

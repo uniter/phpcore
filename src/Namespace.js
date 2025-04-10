@@ -18,11 +18,14 @@ module.exports = require('pauser')([
 ) {
     var CALL_TO_UNDEFINED_FUNCTION = 'core.call_to_undefined_function',
         CANNOT_DECLARE_CLASS_AS_NAME_ALREADY_IN_USE = 'core.cannot_declare_class_as_name_already_in_use',
+        CANNOT_DECLARE_TRAIT_AS_NAME_ALREADY_IN_USE = 'core.cannot_declare_trait_as_name_already_in_use',
         CANNOT_REDECLARE_BUILTIN_FUNCTION = 'core.cannot_redeclare_builtin_function',
         CANNOT_REDECLARE_CLASS_AS_NAME_ALREADY_IN_USE = 'core.cannot_redeclare_class_as_name_already_in_use',
+        CANNOT_REDECLARE_TRAIT_AS_NAME_ALREADY_IN_USE = 'core.cannot_redeclare_trait_as_name_already_in_use',
         CANNOT_REDECLARE_USERLAND_FUNCTION = 'core.cannot_redeclare_userland_function',
         CLASS_NOT_FOUND = 'core.class_not_found',
         CONSTANT_ALREADY_DEFINED = 'core.constant_already_defined',
+        TRAIT_NOT_FOUND = 'core.trait_not_found',
         UNDEFINED_CONSTANT = 'core.undefined_constant',
 
         hasOwn = {}.hasOwnProperty,
@@ -46,6 +49,7 @@ module.exports = require('pauser')([
      * @param {OverloadedFunctionDefiner} overloadedFunctionDefiner
      * @param {ClassAutoloader} classAutoloader
      * @param {ClassDefiner} classDefiner
+     * @param {TraitDefiner} traitDefiner
      * @param {Namespace|null} parent
      * @param {string} name
      * @constructor
@@ -60,6 +64,7 @@ module.exports = require('pauser')([
         overloadedFunctionDefiner,
         classAutoloader,
         classDefiner,
+        traitDefiner,
         parent,
         name
     ) {
@@ -120,6 +125,14 @@ module.exports = require('pauser')([
          */
         this.parent = parent;
         /**
+         * @type {TraitDefiner}
+         */
+        this.traitDefiner = traitDefiner;
+        /**
+         * @type {Object.<string, Trait>}
+         */
+        this.traits = {};
+        /**
          * @type {ValueFactory}
          */
         this.valueFactory = valueFactory;
@@ -178,7 +191,7 @@ module.exports = require('pauser')([
             autoCoercionEnabled = Boolean(autoCoercionEnabled);
             methodCaller = methodCaller || null;
 
-            if (namespaceScope.hasClass(name)) {
+            if (namespaceScope.isNameInUse(name)) {
                 namespace.callStack.raiseUncatchableFatalError(
                     namespace.hasClass(name) ?
                         CANNOT_REDECLARE_CLASS_AS_NAME_ALREADY_IN_USE :
@@ -352,6 +365,55 @@ module.exports = require('pauser')([
                 variants,
                 namespaceScope
             );
+        },
+
+        /**
+         * Defines a trait in the current namespace, either from a JS trait/function or from a transpiled PHP trait,
+         * where PHPToJS has generated an object containing all the information related to the trait.
+         *
+         * @param {string} name
+         * @param {Function|object} definition Either a Function for a native JS class or a transpiled definition object
+         * @param {NamespaceScope} namespaceScope
+         * @param {boolean=} autoCoercionEnabled Whether the trait should be auto-coercing
+         * @returns {ChainableInterface<Trait>}
+         */
+        defineTrait: function (
+            name,
+            definition,
+            namespaceScope,
+            autoCoercionEnabled
+        ) {
+            var
+                // TODO: Should we parse the name here to allow for nested namespace paths?
+                lowerName = name.toLowerCase(),
+                namespace = this;
+
+            autoCoercionEnabled = Boolean(autoCoercionEnabled);
+
+            if (namespaceScope.isNameInUse(name)) {
+                namespace.callStack.raiseUncatchableFatalError(
+                    namespace.hasTrait(name) ?
+                        CANNOT_REDECLARE_TRAIT_AS_NAME_ALREADY_IN_USE :
+                        CANNOT_DECLARE_TRAIT_AS_NAME_ALREADY_IN_USE,
+                    {
+                        traitName: namespace.getPrefix() + name
+                    }
+                );
+            }
+
+            return namespace.traitDefiner.defineTrait(
+                name,
+                definition,
+                namespace,
+                namespaceScope,
+                autoCoercionEnabled
+            )
+                .next(function (traitObject) {
+                    // TODO: What happens if during this trait load it is requested again? Add integration test.
+                    namespace.traits[lowerName] = traitObject;
+
+                    return traitObject;
+                });
         },
 
         /**
@@ -584,7 +646,47 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Determines whether or not the given class exists in this namespace (or a descendant of it)
+         * Fetches a trait definition from within this namespace or a descendant.
+         * If applicable, the autoloader will be invoked.
+         *
+         * @param {string} name
+         * @param {boolean} autoload Whether to attempt to autoload the trait if it is not defined
+         * @returns {ChainableInterface<Trait>}
+         */
+        getTrait: function (name, autoload) {
+            var namespace = this,
+                parsed = namespace.parseName(name),
+                lowerName = parsed.name.toLowerCase();
+
+            if (hasOwn.call(parsed.namespace.traits, lowerName)) {
+                // Trait already exists; just return it.
+                // TODO: Make Trait implement ChainableInterface to avoid always Present-wrapping.
+                return namespace.flow.chainify(parsed.namespace.traits[lowerName]);
+            }
+
+            // Otherwise the trait must be successfully autoloaded or we fail.
+
+            return namespace.flow.chainifyCallbackFrom(function (resolve) {
+                if (autoload !== false) {
+                    // Try to autoload the trait.
+                    resolve(namespace.classAutoloader.autoloadClass(parsed.namespace.getPrefix() + parsed.name));
+                } else {
+                    resolve();
+                }
+            }).next(function () {
+                // Raise an error if it is still not defined.
+                if (!parsed.namespace.hasTrait(lowerName)) {
+                    namespace.callStack.raiseTranslatedError(PHPError.E_ERROR, TRAIT_NOT_FOUND, {
+                        name: parsed.namespace.getPrefix() + parsed.name
+                    });
+                }
+
+                return parsed.namespace.getTrait(lowerName);
+            });
+        },
+
+        /**
+         * Determines whether the given class exists in this namespace (or a descendant of it)
          * without invoking the autoloader if it does not
          *
          * @param {string} name
@@ -622,6 +724,32 @@ module.exports = require('pauser')([
                 lowerName = parsed.name.toLowerCase();
 
             return hasOwn.call(parsed.namespace.functions, lowerName);
+        },
+
+        /**
+         * Determines whether the given trait exists in this namespace (or a descendant of it),
+         * without invoking the autoloader if it does not.
+         *
+         * @param {string} name
+         * @returns {boolean}
+         */
+        hasTrait: function (name) {
+            var namespace = this,
+                parsed = namespace.parseName(name),
+                lowerName = parsed.name.toLowerCase();
+
+            return hasOwn.call(parsed.namespace.traits, lowerName);
+        },
+
+        /**
+         * Determines whether the given class, interface, trait or enum exists in this namespace
+         * (or a descendant of it), without invoking the autoloader if it does not.
+         *
+         * @param {string} name
+         * @returns {boolean}
+         */
+        isNameInUse: function (name) {
+            return this.hasClass(name) || this.hasTrait(name);
         },
 
         /**

@@ -12,10 +12,10 @@
 var _ = require('microdash'),
     slice = [].slice,
     IS_STATIC = 'isStatic',
-    TypedFunction = require('../../Function/TypedFunction');
+    TypedFunction = require('../Function/TypedFunction');
 
 /**
- * Builds definitions for methods of native classes (those defined using JavaScript code).
+ * Builds definitions for methods of native classes or traits (those defined using JavaScript code).
  *
  * @param {SignatureParser} signatureParser
  * @constructor
@@ -29,7 +29,7 @@ function NativeMethodDefinitionBuilder(signatureParser) {
 
 _.extend(NativeMethodDefinitionBuilder.prototype, {
     /**
-     * Builds the definition for a method of a native class.
+     * Builds the definition for a method of a native class or trait.
      *
      * @param {Function|TypedFunction|*} method Potential method
      * @param {ValueCoercer} valueCoercer

@@ -53,6 +53,7 @@ _.extend(NativeDefinitionBuilder.prototype, {
      * @param {Namespace} namespace
      * @param {NamespaceScope} namespaceScope
      * @param {Class[]} interfaces
+     * @param {Trait[]} traits
      * @param {boolean} autoCoercionEnabled Whether the class should be auto-coercing
      * @param {Function|null} methodCaller Custom method call handler
      * @returns {ClassDefinition}
@@ -64,11 +65,12 @@ _.extend(NativeDefinitionBuilder.prototype, {
         namespace,
         namespaceScope,
         interfaces,
+        traits,
         autoCoercionEnabled,
         methodCaller
     ) {
         var builder = this,
-            constants,
+            constants = {},
             constructorName = null,
             hasMagicConstructor = false,
             methodData = {},
@@ -168,7 +170,11 @@ _.extend(NativeDefinitionBuilder.prototype, {
             return methods;
         }
 
-        constants = definition.constants;
+        _.forOwn(definition.constants, function (valueProvider, constantName) {
+            constants[constantName] = {
+                value: valueProvider
+            };
+        });
 
         return new ClassDefinition(
             name,
@@ -176,6 +182,7 @@ _.extend(NativeDefinitionBuilder.prototype, {
             namespaceScope,
             superClass,
             interfaces,
+            traits,
             constants,
             constructorName,
             InternalClass,

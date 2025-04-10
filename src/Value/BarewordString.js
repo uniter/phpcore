@@ -106,7 +106,7 @@ module.exports = require('pauser')([
          */
         getCallableName: function () {
             var rightValue = this,
-                resolvedClass = rightValue.namespaceScope.resolveClass(rightValue.value);
+                resolvedClass = rightValue.namespaceScope.resolveName(rightValue.value);
 
             return resolvedClass.namespace.getPrefix() + resolvedClass.name;
         },

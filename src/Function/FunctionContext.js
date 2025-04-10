@@ -65,6 +65,13 @@ _.extend(FunctionContext.prototype, {
     },
 
     /**
+     * @inheritDoc
+     */
+    getTrait: function () {
+        return null; // Functions do not belong to traits.
+    },
+
+    /**
      * Fetches the name of the function
      * (eg. as used by __FUNCTION__)
      *

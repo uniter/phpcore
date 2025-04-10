@@ -42,7 +42,7 @@ module.exports = function (internals) {
          */
         caught: function (throwableClassName, error) {
             var namespaceScope = callStack.getEffectiveNamespaceScope(),
-                resolvedClass = namespaceScope.resolveClass(throwableClassName),
+                resolvedClass = namespaceScope.resolveName(throwableClassName),
                 resolvedThrowableClassName = resolvedClass.namespace.getPrefix() + resolvedClass.name;
 
             // TODO: Handle non-Throwable instances being thrown at this point?

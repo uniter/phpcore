@@ -397,6 +397,32 @@ EOS
         });
     });
 
+    it('should support accessing members on new without parentheses', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+class MyClass
+{
+    const MY_CONST = 42;
+    public $myProp = 21;
+}
+
+$result = [];
+
+$result['const read'] = new MyClass()::MY_CONST;
+$result['public property read'] = new MyClass()->myProp;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'const read': 42,
+            'public property read': 21
+        });
+    });
+
     it('should raise a fatal error on attempting to instantiate an undefined class', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

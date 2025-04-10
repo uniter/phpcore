@@ -29,6 +29,7 @@ var _ = require('microdash'),
     Reference = require('../../src/Reference/Reference'),
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
     StaticPropertyReference = require('../../src/Reference/StaticProperty'),
+    Trait = require('../../src/OOP/Trait/Trait'),
     UndeclaredStaticPropertyReference = require('../../src/Reference/UndeclaredStaticProperty'),
     Value = require('../../src/Value').sync(),
     Userland = require('../../src/Control/Userland'),
@@ -622,8 +623,10 @@ describe('Class', function () {
         it('should be able to fetch a constant defined by the current class', async function () {
             var value;
             createClass('__construct', superClass, {
-                'MY_CONST': function () {
-                    return valueFactory.createString('my value');
+                MY_CONST: {
+                    value: function () {
+                        return valueFactory.createString('my value');
+                    }
                 }
             });
 
@@ -634,8 +637,10 @@ describe('Class', function () {
 
         it('should evaluate a constant defined by the current class within an isolated call', async function () {
             createClass('__construct', superClass, {
-                'MY_CONST': function () {
-                    return valueFactory.createString('my value');
+                MY_CONST: {
+                    value: function () {
+                        return valueFactory.createString('my value');
+                    }
                 }
             });
 
@@ -644,8 +649,11 @@ describe('Class', function () {
             expect(userland.enterIsolated).to.have.been.calledOnce;
             expect(userland.enterIsolated).to.have.been.calledWith(
                 sinon.match.func,
-                sinon.match.same(namespaceScope),
-                sinon.match.same(instrumentation)
+                sinon.match(function (isolatedScope) {
+                    return isolatedScope.getNamespaceScope() === namespaceScope &&
+                        isolatedScope.getInstrumentation() === instrumentation &&
+                        isolatedScope.getClass() === classObject;
+                })
             );
         });
 
@@ -676,8 +684,10 @@ describe('Class', function () {
         it('should cache the constant\'s value', async function () {
             var value;
             createClass('__construct', superClass, {
-                'MY_CONST': function () {
-                    return valueFactory.createString('my value');
+                MY_CONST: {
+                    value: function () {
+                        return valueFactory.createString('my value');
+                    }
                 }
             });
 
@@ -691,6 +701,30 @@ describe('Class', function () {
 
             await expect(classObject.getConstantByName('MY_CONST').toPromise()).to.eventually.be.rejectedWith(
                 'Fake PHP Fatal error for #core.undefined_class_constant with {"name":"MY_CONST"}'
+            );
+        });
+
+        it('should use the correct IsolatedScope when constant is from a trait', async function () {
+            var traitObject = sinon.createStubInstance(Trait),
+                constantValue = valueFactory.createString('my trait constant value'),
+                value,
+                valueProviderFunc = sinon.stub().returns(constantValue);
+
+            createClass('__construct', null, {
+                'TRAIT_CONST': {
+                    value: valueProviderFunc,
+                    traitObject: traitObject
+                }
+            });
+
+            value = await classObject.getConstantByName('TRAIT_CONST').toPromise();
+
+            expect(value.getNative()).to.equal('my trait constant value');
+            expect(userland.enterIsolated).to.have.been.calledWith(
+                sinon.match.func,
+                sinon.match(function (scope) {
+                    return scope.traitObject === traitObject;
+                })
             );
         });
     });
@@ -984,8 +1018,11 @@ describe('Class', function () {
 
                 expect(userland.enterIsolated).to.always.have.been.calledWith(
                     sinon.match.func,
-                    sinon.match.same(namespaceScope),
-                    sinon.match.same(instrumentation)
+                    sinon.match(function (isolatedScope) {
+                        return isolatedScope.getNamespaceScope() === namespaceScope &&
+                            isolatedScope.getInstrumentation() === instrumentation &&
+                            isolatedScope.getClass() === classObject;
+                    })
                 );
             });
         });

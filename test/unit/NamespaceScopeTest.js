@@ -16,7 +16,8 @@ var expect = require('chai').expect,
     Class = require('../../src/Class').sync(),
     Module = require('../../src/Module'),
     Namespace = require('../../src/Namespace').sync(),
-    NamespaceScope = require('../../src/NamespaceScope').sync();
+    NamespaceScope = require('../../src/NamespaceScope').sync(),
+    Trait = require('../../src/OOP/Trait/Trait');
 
 describe('NamespaceScope', function () {
     var callStack,
@@ -42,6 +43,7 @@ describe('NamespaceScope', function () {
             throw new Error('PHP Fatal error: [' + translationKey + '] ' + JSON.stringify(placeholderVariables || {}));
         });
         globalNamespace.hasClass.returns(false);
+        globalNamespace.hasTrait.returns(false);
         module.isStrictTypesMode.returns(false);
 
         scope = new NamespaceScope(
@@ -56,7 +58,7 @@ describe('NamespaceScope', function () {
     });
 
     describe('defineFunction()', function () {
-        it('should define the function on the Namespace', function () {
+        it('should define the function on the Namespace when return-by-value', function () {
             var myFunc = sinon.stub(),
                 parametersSpecData = [{name: 'param1'}, {name: 'param2'}],
                 returnTypeSpec = {type: 'iterable'};
@@ -66,6 +68,7 @@ describe('NamespaceScope', function () {
                 myFunc,
                 parametersSpecData,
                 returnTypeSpec,
+                false,
                 1234
             );
 
@@ -76,8 +79,72 @@ describe('NamespaceScope', function () {
                 sinon.match.same(scope),
                 parametersSpecData,
                 returnTypeSpec,
-                false, // TODO: Implement userland return-by-reference.
+                false,
                 1234
+            );
+        });
+
+        it('should define the function on the Namespace when return-by-reference', function () {
+            var myFunc = sinon.stub(),
+                parametersSpecData = [{name: 'param1'}, {name: 'param2'}],
+                returnTypeSpec = {type: 'iterable'};
+
+            scope.defineFunction(
+                'myFunc',
+                myFunc,
+                parametersSpecData,
+                returnTypeSpec,
+                true,
+                1234
+            );
+
+            expect(namespace.defineFunction).to.have.been.calledOnce;
+            expect(namespace.defineFunction).to.have.been.calledWith(
+                'myFunc',
+                sinon.match.same(myFunc),
+                sinon.match.same(scope),
+                parametersSpecData,
+                returnTypeSpec,
+                true,
+                1234
+            );
+        });
+    });
+
+    describe('defineTrait()', function () {
+        it('should define the trait on the Namespace when auto-coercing', function () {
+            var definition = {};
+
+            scope.defineTrait(
+                'myTrait',
+                definition,
+                true
+            );
+
+            expect(namespace.defineTrait).to.have.been.calledOnce;
+            expect(namespace.defineTrait).to.have.been.calledWith(
+                'myTrait',
+                sinon.match.same(definition),
+                sinon.match.same(scope),
+                true
+            );
+        });
+
+        it('should define the trait on the Namespace when non-auto-coercing', function () {
+            var definition = {};
+
+            scope.defineTrait(
+                'myTrait',
+                definition,
+                false
+            );
+
+            expect(namespace.defineTrait).to.have.been.calledOnce;
+            expect(namespace.defineTrait).to.have.been.calledWith(
+                'myTrait',
+                sinon.match.same(definition),
+                sinon.match.same(scope),
+                false
             );
         });
     });
@@ -255,6 +322,63 @@ describe('NamespaceScope', function () {
         });
     });
 
+    describe('getTrait()', function () {
+        it('should support fetching a trait with no imports involved', async function () {
+            var myTrait = sinon.createStubInstance(Trait);
+            namespace.getTrait
+                .withArgs('MyTrait')
+                .returns(futureFactory.createPresent(myTrait));
+
+            expect(await scope.getTrait('MyTrait').toPromise()).to.equal(myTrait);
+        });
+
+        it('should support fetching a trait with whole name aliased case-insensitively', async function () {
+            var myTrait = sinon.createStubInstance(Trait);
+            globalNamespace.getTrait
+                .withArgs('MyTrait')
+                .returns(futureFactory.createPresent(myTrait));
+            scope.use('MyTrait', 'AnAliasForMyTrait');
+
+            expect(await scope.getTrait('analiasFORMYTrAiT').toPromise()).to.equal(myTrait);
+        });
+
+        it('should support fetching a relative trait path with prefix aliased case-insensitively', async function () {
+            var myTrait = sinon.createStubInstance(Trait),
+                subNamespace = sinon.createStubInstance(Namespace);
+            globalNamespace.getDescendant
+                .withArgs('The\\Namespace\\Of\\My')
+                .returns(subNamespace);
+            subNamespace.getTrait.withArgs('PhpTrait')
+                .returns(futureFactory.createPresent(myTrait));
+            scope.use('The\\Namespace\\Of', 'TheAliasOfIt');
+
+            expect(await scope.getTrait('thealIASOFit\\My\\PhpTrait').toPromise()).to.equal(myTrait);
+        });
+
+        it('should support fetching an absolute trait path', async function () {
+            var myTrait = sinon.createStubInstance(Trait),
+                subNamespace = sinon.createStubInstance(Namespace);
+            globalNamespace.getDescendant
+                .withArgs('The\\Absolute\\Path\\To\\My')
+                .returns(subNamespace);
+            subNamespace.getTrait
+                .withArgs('PhpTrait')
+                .returns(futureFactory.createPresent(myTrait));
+            scope.use('I\\Should\\Be\\Ignored', 'The');
+
+            expect(await scope.getTrait('\\The\\Absolute\\Path\\To\\My\\PhpTrait').toPromise()).to.equal(myTrait);
+        });
+
+        it('should support fetching an absolute path to a trait in the global namespace', async function () {
+            var myTrait = sinon.createStubInstance(Trait);
+            globalNamespace.getTrait
+                .withArgs('MyTrait')
+                .returns(futureFactory.createPresent(myTrait));
+
+            expect(await scope.getTrait('\\MyTrait').toPromise()).to.equal(myTrait);
+        });
+    });
+
     describe('hasClass()', function () {
         it('should return true when the given path has already been aliased', function () {
             scope.use('My\\App\\Stuff', 'MyStuff');
@@ -312,6 +436,63 @@ describe('NamespaceScope', function () {
         });
     });
 
+    describe('hasTrait()', function () {
+        it('should return true when the given path has already been aliased', function () {
+            scope.use('My\\App\\Stuff', 'MyStuff');
+
+            expect(scope.hasTrait('MyStuff')).to.be.true;
+        });
+
+        it('should return true when the given path is absolute and references a trait defined in the global namespace', function () {
+            globalNamespace.hasTrait
+                .withArgs('MyTrait')
+                .returns(true);
+
+            expect(scope.hasTrait('\\MyTrait')).to.be.true;
+        });
+
+        it('should return true when the given path is absolute and references a trait defined in a sub-namespace of the global one', function () {
+            var subNamespace = sinon.createStubInstance(Namespace);
+            globalNamespace.getDescendant
+                .withArgs('Some\\Sub')
+                .returns(subNamespace);
+            subNamespace.hasTrait
+                .withArgs('MyTrait')
+                .returns(true);
+
+            expect(scope.hasTrait('\\Some\\Sub\\MyTrait')).to.be.true;
+        });
+
+        it('should return true when the given path is relative and references a trait defined in a sub-namespace of this one', function () {
+            var subNamespace = sinon.createStubInstance(Namespace);
+            namespace.getDescendant
+                .withArgs('Some\\Sub')
+                .returns(subNamespace);
+            subNamespace.hasTrait
+                .withArgs('MyTrait')
+                .returns(true);
+
+            expect(scope.hasTrait('Some\\Sub\\MyTrait')).to.be.true;
+        });
+
+        it('should return true when the given path is relative and references a trait defined in a sub-namespace of this one via an alias', function () {
+            var subNamespace = sinon.createStubInstance(Namespace);
+            globalNamespace.getDescendant
+                .withArgs('Some\\Sub')
+                .returns(subNamespace);
+            subNamespace.hasTrait
+                .withArgs('MyTrait')
+                .returns(true);
+            scope.use('Some', 'IndirectlySome');
+
+            expect(scope.hasTrait('IndirectlySome\\Sub\\MyTrait')).to.be.true;
+        });
+
+        it('should return false when the given trait is not defined', function () {
+            expect(scope.hasTrait('\\SomeUndefinedTrait')).to.be.false;
+        });
+    });
+
     describe('isGlobal()', function () {
         it('should return true when this is the special invisible global NamespaceScope', function () {
             var scope = new NamespaceScope(
@@ -332,6 +513,34 @@ describe('NamespaceScope', function () {
         });
     });
 
+    describe('isNameInUse()', function () {
+        it('should return true when the name is already in use by an import', function () {
+            scope.use('My\\App\\Stuff', 'MyStuff');
+
+            expect(scope.isNameInUse('MyStuff')).to.be.true;
+        });
+
+        it('should return true when the given path is absolute and references a class defined in the global namespace', function () {
+            globalNamespace.hasClass
+                .withArgs('MyClass')
+                .returns(true);
+
+            expect(scope.isNameInUse('\\MyClass')).to.be.true;
+        });
+
+        it('should return true when the given path is absolute and references a trait defined in the global namespace', function () {
+            globalNamespace.hasTrait
+                .withArgs('MyTrait')
+                .returns(true);
+
+            expect(scope.isNameInUse('\\MyTrait')).to.be.true;
+        });
+
+        it('should return false when the name is not in use', function () {
+            expect(scope.isNameInUse('\\SomeUndefinedClass')).to.be.false;
+        });
+    });
+
     describe('isStrictTypesMode()', function () {
         it('should return true when the module is in strict-types mode', function () {
             module.isStrictTypesMode.returns(true);
@@ -344,9 +553,9 @@ describe('NamespaceScope', function () {
         });
     });
 
-    describe('resolveClass()', function () {
+    describe('resolveName()', function () {
         it('should support resolving a class with no imports involved', function () {
-            var result = scope.resolveClass('MyClass');
+            var result = scope.resolveName('MyClass');
 
             expect(result.namespace).to.equal(namespace);
             expect(result.name).to.equal('MyClass');
@@ -356,7 +565,7 @@ describe('NamespaceScope', function () {
             var result;
             scope.use('MyClass', 'AnAliasForMyClass');
 
-            result = scope.resolveClass('analiasFORMYClAsS');
+            result = scope.resolveName('analiasFORMYClAsS');
 
             expect(result.namespace).to.equal(globalNamespace);
             expect(result.name).to.equal('MyClass');
@@ -368,7 +577,7 @@ describe('NamespaceScope', function () {
             globalNamespace.getDescendant.withArgs('The\\Namespace\\Of\\My').returns(subNamespace);
             scope.use('The\\Namespace\\Of', 'TheAliasOfIt');
 
-            result = scope.resolveClass('thealIASOFit\\My\\PhpClass');
+            result = scope.resolveName('thealIASOFit\\My\\PhpClass');
 
             expect(result.namespace).to.equal(subNamespace);
             expect(result.name).to.equal('PhpClass');
@@ -381,7 +590,7 @@ describe('NamespaceScope', function () {
                 .withArgs('Some\\Sub')
                 .returns(subNamespace);
 
-            result = scope.resolveClass('Some\\Sub\\MyClass');
+            result = scope.resolveName('Some\\Sub\\MyClass');
 
             expect(result.namespace).to.equal(subNamespace);
             expect(result.name).to.equal('MyClass');
@@ -393,14 +602,14 @@ describe('NamespaceScope', function () {
             globalNamespace.getDescendant.withArgs('The\\Absolute\\Path\\To\\My').returns(subNamespace);
             scope.use('I\\Should\\Be\\Ignored', 'The');
 
-            result = scope.resolveClass('\\The\\Absolute\\Path\\To\\My\\AbsPhpClass');
+            result = scope.resolveName('\\The\\Absolute\\Path\\To\\My\\AbsPhpClass');
 
             expect(result.namespace).to.equal(subNamespace);
             expect(result.name).to.equal('AbsPhpClass');
         });
 
         it('should support resolving an absolute path to a class in the global namespace', function () {
-            var result = scope.resolveClass('\\MyClass');
+            var result = scope.resolveName('\\MyClass');
 
             expect(result.namespace).to.equal(globalNamespace);
             expect(result.name).to.equal('MyClass');
@@ -412,7 +621,7 @@ describe('NamespaceScope', function () {
             namespace.getDescendant.withArgs('Stuff\\Here').returns(subNamespace);
             scope.use('Some\\Other\\StuffNamespace', 'Stuff');
 
-            result = scope.resolveClass('namespace\\Stuff\\Here\\MyClass');
+            result = scope.resolveName('namespace\\Stuff\\Here\\MyClass');
 
             expect(result.namespace).to.equal(subNamespace);
             expect(result.name).to.equal('MyClass');
@@ -424,7 +633,7 @@ describe('NamespaceScope', function () {
             namespace.getDescendant.withArgs('Stuff\\Here').returns(subNamespace);
             scope.use('Some\\Other\\StuffNamespace', 'Stuff');
 
-            result = scope.resolveClass('naMESPaCe\\Stuff\\Here\\MyClass');
+            result = scope.resolveName('naMESPaCe\\Stuff\\Here\\MyClass');
 
             expect(result.namespace).to.equal(subNamespace);
             expect(result.name).to.equal('MyClass');

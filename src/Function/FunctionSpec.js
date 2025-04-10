@@ -412,6 +412,15 @@ _.extend(FunctionSpec.prototype, {
     },
 
     /**
+     * Fetches the trait object that this method belongs to, or null if it belongs to a class directly.
+     *
+     * @returns {Trait|null}
+     */
+    getTrait: function () {
+        return this.context.getTrait();
+    },
+
+    /**
      * Fetches the name of this function, without any qualifying namespace and/or class prefix
      *
      * @returns {string}
@@ -652,7 +661,8 @@ _.extend(FunctionSpec.prototype, {
      * @returns {ChainableInterface<Reference|Value|Variable>} Resolved with the return value or reference if valid or rejected with an Error otherwise
      */
     validateReturnReference: function (returnReference, returnValue) {
-        var spec = this;
+        var spec = this,
+            syntheticReference;
 
         if (!spec.returnType) {
             // Function has no return type declared, so there is nothing to check.
@@ -670,6 +680,11 @@ _.extend(FunctionSpec.prototype, {
                 PHPError.E_NOTICE,
                 ONLY_REFERENCES_RETURNED_BY_REFERENCE
             );
+
+            // Synthesise a reference to hold the return value, as the caller is expecting a reference.
+            syntheticReference = spec.referenceFactory.createReferenceSlot();
+            syntheticReference.setValue(returnValue);
+            returnReference = syntheticReference;
         }
 
         return spec.returnType.allowsValue(returnValue).next(function (allowed) {

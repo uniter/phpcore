@@ -18,6 +18,7 @@ var expect = require('chai').expect,
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
+    Trait = require('../../../src/OOP/Trait/Trait'),
     Value = require('../../../src/Value').sync();
 
 describe('ClosureContext', function () {
@@ -26,6 +27,7 @@ describe('ClosureContext', function () {
         enclosingObject,
         namespaceScope,
         referenceBinding,
+        traitObject,
         valueBinding;
 
     beforeEach(function () {
@@ -33,6 +35,7 @@ describe('ClosureContext', function () {
         enclosingObject = sinon.createStubInstance(ObjectValue);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         referenceBinding = sinon.createStubInstance(ReferenceSlot);
+        traitObject = sinon.createStubInstance(Trait);
         valueBinding = sinon.createStubInstance(Value);
 
         classObject.getName.returns('Your\\Lib\\YourNamespace\\YourClass');
@@ -41,6 +44,7 @@ describe('ClosureContext', function () {
         context = new ClosureContext(
             namespaceScope,
             classObject,
+            traitObject,
             enclosingObject,
             {
                 'myRefBinding': referenceBinding
@@ -80,7 +84,7 @@ describe('ClosureContext', function () {
         });
 
         it('should return the correct string including the class and namespace when there is a current class but no object', function () {
-            var context = new ClosureContext(namespaceScope, classObject, null);
+            var context = new ClosureContext(namespaceScope, classObject, traitObject, null);
 
             expect(context.getTraceFrameName()).to.equal(
                 // Note that "::" is used as the delimiter rather than "->".
@@ -89,9 +93,21 @@ describe('ClosureContext', function () {
         });
 
         it('should return the correct string including the namespace prefix when there is no current class', function () {
-            var context = new ClosureContext(namespaceScope, null, null);
+            var context = new ClosureContext(namespaceScope, null, null, null);
 
             expect(context.getTraceFrameName()).to.equal('My\\Lib\\MyNamespace\\{closure}');
+        });
+    });
+
+    describe('getTrait()', function () {
+        it('should return the trait object when the closure is defined inside a trait', function () {
+            expect(context.getTrait()).to.equal(traitObject);
+        });
+
+        it('should return null when the closure is not defined inside a trait', function () {
+            var context = new ClosureContext(namespaceScope, classObject, null, enclosingObject);
+
+            expect(context.getTrait()).to.be.null;
         });
     });
 

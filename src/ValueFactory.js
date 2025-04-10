@@ -11,7 +11,6 @@
 
 module.exports = require('pauser')([
     require('microdash'),
-    require('is-promise'),
     require('phpcommon'),
     require('core-js-pure/actual/queue-microtask'),
     require('./Iterator/ArrayIterator'),
@@ -38,7 +37,6 @@ module.exports = require('pauser')([
     require('./Variable')
 ], function (
     _,
-    isPromise,
     phpCommon,
     queueMicrotask,
     ArrayIterator,
@@ -255,7 +253,7 @@ module.exports = require('pauser')([
                 return value.getValue();
             }
 
-            if (isPromise(value)) {
+            if (factory.controlBridge.isPromise(value)) {
                 // Value is a Promise that we need to settle first.
                 return factory.futureFactory
                     .createFuture(function (resolve, reject) {

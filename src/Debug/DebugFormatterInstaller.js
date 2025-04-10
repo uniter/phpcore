@@ -43,7 +43,13 @@ _.extend(DebugFormatterInstaller.prototype, {
             installer.window.devtoolsFormatters = [];
         }
 
-        installer.window.devtoolsFormatters.push(debugFormatter);
+        // Firefox does not call the formatter methods with the given object as the context,
+        // so we need to bind them to the formatter instance.
+        installer.window.devtoolsFormatters.push({
+            body: (value) => debugFormatter.body(value),
+            hasBody: (value) => debugFormatter.hasBody(value),
+            header: (value) => debugFormatter.header(value),
+        });
     }
 });
 

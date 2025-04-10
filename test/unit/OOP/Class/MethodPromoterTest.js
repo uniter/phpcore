@@ -11,13 +11,14 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
-    CallStack = require('../../../src/CallStack'),
-    Class = require('../../../src/Class').sync(),
-    FunctionFactory = require('../../../src/FunctionFactory').sync(),
-    FunctionSpec = require('../../../src/Function/FunctionSpec'),
-    FunctionSpecFactory = require('../../../src/Function/FunctionSpecFactory'),
-    MethodPromoter = require('../../../src/Class/MethodPromoter'),
-    NamespaceScope = require('../../../src/NamespaceScope').sync();
+    CallStack = require('../../../../src/CallStack'),
+    Class = require('../../../../src/Class').sync(),
+    FunctionFactory = require('../../../../src/FunctionFactory').sync(),
+    FunctionSpec = require('../../../../src/Function/FunctionSpec'),
+    FunctionSpecFactory = require('../../../../src/Function/FunctionSpecFactory'),
+    MethodPromoter = require('../../../../src/OOP/Class/MethodPromoter'),
+    NamespaceScope = require('../../../../src/NamespaceScope').sync(),
+    Trait = require('../../../../src/OOP/Trait/Trait');
 
 describe('MethodPromoter', function () {
     var callStack,
@@ -65,6 +66,7 @@ describe('MethodPromoter', function () {
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     sinon.match.same(classObject),
+                    null,
                     'myMethod',
                     [sinon.match.same(parameter1SpecData), sinon.match.same(parameter2SpecData)],
                     sinon.match.same(unwrappedMethod),
@@ -98,6 +100,7 @@ describe('MethodPromoter', function () {
                     ret: returnTypeSpecData
                 },
                 classObject,
+                null,
                 namespaceScope,
                 sharedMethodData
             );
@@ -119,6 +122,7 @@ describe('MethodPromoter', function () {
                     ret: returnTypeSpecData
                 },
                 classObject,
+                null,
                 namespaceScope,
                 sharedMethodData
             );
@@ -135,6 +139,7 @@ describe('MethodPromoter', function () {
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     sinon.match.same(classObject),
+                    null,
                     'myMethod',
                     [],
                     sinon.match.same(unwrappedMethod),
@@ -151,6 +156,7 @@ describe('MethodPromoter', function () {
                     method: unwrappedMethod
                 },
                 classObject,
+                null,
                 namespaceScope,
                 sharedMethodData
             );
@@ -158,6 +164,45 @@ describe('MethodPromoter', function () {
             expect(result).to.equal(wrappedMethod);
             expect(result.data).to.equal(sharedMethodData);
             expect(result.isStatic).to.be.undefined;
+        });
+
+        it('should pass the trait instance to FunctionSpecFactory when promoting a trait method', function () {
+            var result,
+                trait = sinon.createStubInstance(Trait);
+            functionSpecFactory.createMethodSpec
+                .withArgs(
+                    sinon.match.same(namespaceScope),
+                    sinon.match.same(classObject),
+                    sinon.match.same(trait),
+                    'myMethod',
+                    [sinon.match.same(parameter1SpecData), sinon.match.same(parameter2SpecData)],
+                    sinon.match.same(unwrappedMethod),
+                    returnTypeSpecData,
+                    false,
+                    '/path/to/my_module.php',
+                    123
+                )
+                .returns(functionSpec);
+
+            result = promoter.promote(
+                'myMethod',
+                {
+                    args: [parameter1SpecData, parameter2SpecData],
+                    isStatic: false,
+                    line: 123,
+                    method: unwrappedMethod,
+                    ref: false,
+                    ret: returnTypeSpecData
+                },
+                classObject,
+                trait,
+                namespaceScope,
+                sharedMethodData
+            );
+
+            expect(result).to.equal(wrappedMethod);
+            expect(result.data).to.equal(sharedMethodData);
+            expect(result.isStatic).to.be.false;
         });
     });
 });

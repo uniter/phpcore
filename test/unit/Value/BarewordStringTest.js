@@ -220,7 +220,7 @@ describe('BarewordStringValue', function () {
         beforeEach(function () {
             namespace = sinon.createStubInstance(Namespace);
             namespace.getPrefix.returns('Full\\Path\\To\\Mine\\');
-            namespaceScope.resolveClass.withArgs('Mine\\MyClass').returns({
+            namespaceScope.resolveName.withArgs('Mine\\MyClass').returns({
                 namespace: namespace,
                 name: 'MyClass'
             });
@@ -255,7 +255,7 @@ describe('BarewordStringValue', function () {
                 resultValue;
             namespace = sinon.createStubInstance(Namespace);
             namespace.getPrefix.returns('Some\\SubSpace\\');
-            namespaceScope.resolveClass.withArgs('Some\\SubSpace\\SomeUndefinedClass').returns({
+            namespaceScope.resolveName.withArgs('Some\\SubSpace\\SomeUndefinedClass').returns({
                 namespace: namespace,
                 name: 'SomeUndefinedClass'
             });
@@ -413,7 +413,7 @@ describe('BarewordStringValue', function () {
         beforeEach(function () {
             namespace = sinon.createStubInstance(Namespace);
             namespace.getPrefix.returns('Full\\Path\\To\\Mine\\');
-            namespaceScope.resolveClass.withArgs('Mine\\MyClass').returns({
+            namespaceScope.resolveName.withArgs('Mine\\MyClass').returns({
                 namespace: namespace,
                 name: 'MyClass'
             });

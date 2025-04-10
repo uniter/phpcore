@@ -10,7 +10,6 @@
 'use strict';
 
 var _ = require('microdash'),
-    isPromise = require('is-promise'),
     phpCommon = require('phpcommon'),
     Exception = phpCommon.Exception,
     Promise = require('lie');
@@ -23,14 +22,19 @@ var _ = require('microdash'),
  * @param {Function} syncCallback
  * @param {Function=} asyncCallback
  * @param {ValueFactory} valueFactory
+ * @param {ControlBridge} controlBridge
  * @param {string} mode
  * @constructor
  */
-function Result(syncCallback, asyncCallback, valueFactory, mode) {
+function Result(syncCallback, asyncCallback, valueFactory, controlBridge, mode) {
     /**
      * @type {Function|null}
      */
     this.asyncCallback = asyncCallback;
+    /**
+     * @type {ControlBridge}
+     */
+    this.controlBridge = controlBridge;
     /**
      * @type {string}
      */
@@ -53,13 +57,14 @@ _.extend(Result.prototype, {
      * @returns {Promise}
      */
     getAsync: function () {
-        var promise;
+        var promise,
+            result = this;
 
-        if (this.asyncCallback) {
+        if (result.asyncCallback) {
             // We have an async callback - it must return a valid Promise (thenable)
-            promise = this.asyncCallback();
+            promise = result.asyncCallback();
 
-            if (!isPromise(promise)) {
+            if (!result.controlBridge.isPromise(promise)) {
                 throw new Exception('Async callback did not return a Promise');
             }
 
@@ -68,7 +73,7 @@ _.extend(Result.prototype, {
 
         // Otherwise if no async callback was provided, fall back to using the sync one
         // but maintain the same API by wrapping it in a resolved Promise
-        return Promise.resolve(this.getSync());
+        return Promise.resolve(result.getSync());
     },
 
     /**

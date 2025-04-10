@@ -21,7 +21,9 @@ var _ = require('microdash'),
     ReferenceSnapshot = require('../../Reference/ReferenceSnapshot'),
     Variable = require('../../Variable').sync(),
 
+    CANNOT_ACCESS_WHEN_NO_ACTIVE_CLASS = 'core.cannot_access_when_no_active_class',
     NO_PARENT_CLASS = 'core.no_parent_class',
+    ONLY_VARIABLES_ASSIGNED_BY_REFERENCE = 'core.only_variables_assigned_by_reference',
     TICK_OPTION = 'tick';
 
 /**
@@ -359,6 +361,7 @@ module.exports = function (internals) {
          * @param {boolean=} isStatic
          * @param {Object=} returnTypeSpec
          * @param {number=} lineNumber
+         * @param {boolean=} returnByReference
          * @returns {ObjectValue}
          */
         createClosure: function (
@@ -367,7 +370,8 @@ module.exports = function (internals) {
             bindingsSpecData,
             isStatic,
             returnTypeSpec,
-            lineNumber
+            lineNumber,
+            returnByReference
         ) {
             var namespaceScope = callStack.getEffectiveNamespaceScope(),
                 referenceBindings = {},
@@ -396,6 +400,7 @@ module.exports = function (internals) {
                             valueBindings,
                             !!isStatic,
                             returnTypeSpec || null,
+                            Boolean(returnByReference),
                             lineNumber || null
                         )
                     );
@@ -595,24 +600,35 @@ module.exports = function (internals) {
         /**
          * Fetches the name of the current class, or an empty string if there is none
          *
-         * Used by `self::` inside property or constant definitions and by `__CLASS__`.
+         * Used by the magic __CLASS__ constant.
          *
          * @returns {StringValue}
          */
         getClassName: function () {
-            return callStack.getCurrentScope().getClassName();
+            var classObject = callStack.getCurrentClass();
+
+            return valueFactory.createString(classObject ? classObject.getName() : '');
         },
 
         /**
          * Fetches the name of the class in which the current scope's function is defined
          *
-         * Used by `self::` inside methods.
+         * Used by `self::`.
          *
          * @returns {StringValue}
          * @throws {PHPFatalError} When there is no current class scope
          */
         getClassNameOrThrow: function () {
-            return callStack.getCurrentScope().getClassNameOrThrow();
+            var classObject = callStack.getCurrentClass();
+
+            if (!classObject) {
+                // PHP Fatal error: Uncaught Error: Cannot access self:: when no class scope is active.
+                callStack.raiseTranslatedError(PHPError.E_ERROR, CANNOT_ACCESS_WHEN_NO_ACTIVE_CLASS, {
+                    className: 'self'
+                });
+            }
+
+            return valueFactory.createString(classObject.getName());
         },
 
         /**
@@ -625,21 +641,6 @@ module.exports = function (internals) {
 
             return namespaceScope.getConstant(name);
         }),
-
-        /**
-         * Fetches a constant of the current class.
-         *
-         * Used by static property initialisers and class constants.
-         *
-         * @param {Class} currentClass
-         */
-        getCurrentClassConstant: internals.typeHandler(
-            // TODO: Add a "Class" opcode parameter type?
-            'any currentClass, string constantName : val',
-            function (currentClass, constantName) {
-                return currentClass.getConstantByName(constantName);
-            }
-        ),
 
         /**
          * Fetches the reference of the element this iterator is currently pointing at.
@@ -753,7 +754,9 @@ module.exports = function (internals) {
         },
 
         /**
-         * Fetches the path to the directory containing the current script, wrapped as a StringValue
+         * Fetches the path to the directory containing the current script, wrapped as a StringValue.
+         *
+         * Used by the magic __DIR__ constant.
          *
          * @returns {StringValue}
          */
@@ -826,12 +829,11 @@ module.exports = function (internals) {
          *
          * Used by `parent::` inside property or constant definitions.
          *
-         * @param {Class} classObject
          * @returns {StringValue}
          * @throws {PHPFatalError} When there is no parent class
          */
-        getSuperClassName: function (classObject) {
-            var superClass = classObject.getSuperClass();
+        getSuperClassName: function () {
+            var superClass = callStack.getCurrentClass().getSuperClass();
 
             if (!superClass) {
                 // Fatal error: Uncaught Error: Cannot access parent:: when current class scope has no parent
@@ -851,6 +853,19 @@ module.exports = function (internals) {
          */
         getSuperClassNameOrThrow: function () {
             return callStack.getCurrentScope().getParentClassNameOrThrow();
+        },
+
+        /**
+         * Fetches the name of the current trait.
+         *
+         * Used by the magic __TRAIT__ constant.
+         *
+         * @returns {StringValue}
+         */
+        getTraitName: function () {
+            var traitObject = callStack.getCurrentTrait();
+
+            return valueFactory.createString(traitObject ? traitObject.getName() : '');
         },
 
         /**
@@ -1614,14 +1629,24 @@ module.exports = function (internals) {
          * Used by the reference assignment operator "=&".
          */
         setReference: internals.typeHandler(
-            'ref target, ref source : val',
+            'ref target, slot source : val',
             function (targetReference, sourceReference) {
-                var reference = sourceReference.getReference();
+                var reference;
 
+                if (!sourceReference.isReferenceable()) {
+                    callStack.raiseTranslatedError(PHPError.E_NOTICE, ONLY_VARIABLES_ASSIGNED_BY_REFERENCE);
+
+                    // Assign the source value to the target reference anyway.
+                    targetReference.setValue(sourceReference);
+
+                    return sourceReference;
+                }
+
+                reference = sourceReference.getReference();
                 targetReference.setReference(reference);
 
                 // TODO: Check this is valid - we may need to detect where a reference-assignment is read
-                //       at transpiler stage and output a getValue(...) call.
+                //       at transpiler stage and output a getValue(...) opcode instead.
                 return reference.getValue();
             }
         ),

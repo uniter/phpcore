@@ -24,6 +24,7 @@ var expect = require('chai').expect,
     ReferenceFactory = require('../../../src/ReferenceFactory').sync(),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
     ReturnTypeProvider = require('../../../src/Function/ReturnTypeProvider'),
+    Trait = require('../../../src/OOP/Trait/Trait'),
     Translator = phpCommon.Translator,
     TypeFactory = require('../../../src/Type/TypeFactory'),
     TypeInterface = require('../../../src/Type/TypeInterface'),
@@ -85,7 +86,8 @@ describe('FunctionSpecFactory', function () {
     });
 
     describe('createAliasFunctionSpec()', function () {
-        var functionContext,
+        var func,
+            functionContext,
             functionSpec,
             parameter1,
             parameter1Alias,
@@ -94,6 +96,7 @@ describe('FunctionSpecFactory', function () {
             returnType;
 
         beforeEach(function () {
+            func = sinon.stub();
             functionContext = sinon.createStubInstance(FunctionContext);
             functionSpec = sinon.createStubInstance(FunctionSpec);
             parameter1 = sinon.createStubInstance(Parameter);
@@ -124,6 +127,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(functionContext),
                     sinon.match.same(namespaceScope),
                     [sinon.match.same(parameter1Alias), sinon.match.same(parameter2Alias)],
+                    sinon.match.same(func),
                     sinon.match.same(returnType),
                     true,
                     '/path/to/my/module.php',
@@ -137,6 +141,7 @@ describe('FunctionSpecFactory', function () {
                 namespaceScope,
                 'myFunction',
                 [parameter1, parameter2],
+                func,
                 returnType,
                 true,
                 '/path/to/my/module.php',
@@ -157,6 +162,7 @@ describe('FunctionSpecFactory', function () {
                     sinon.match.same(functionContext),
                     sinon.match.same(namespaceScope),
                     [null, sinon.match.same(parameter2Alias)],
+                    sinon.match.same(func),
                     sinon.match.same(returnType),
                     true,
                     '/path/to/my/module.php',
@@ -168,6 +174,7 @@ describe('FunctionSpecFactory', function () {
                 namespaceScope,
                 'myFunction',
                 [null, parameter2],
+                func,
                 returnType,
                 true,
                 '/path/to/my/module.php',
@@ -178,6 +185,7 @@ describe('FunctionSpecFactory', function () {
 
     describe('createClosureSpec()', function () {
         var closureContext,
+            func,
             functionSpec,
             parameter1,
             parameter2,
@@ -189,6 +197,7 @@ describe('FunctionSpecFactory', function () {
 
         beforeEach(function () {
             closureContext = sinon.createStubInstance(ClosureContext);
+            func = sinon.stub();
             functionSpec = sinon.createStubInstance(FunctionSpec);
             parameter1 = sinon.createStubInstance(Parameter);
             parameter2 = sinon.createStubInstance(Parameter);
@@ -204,7 +213,7 @@ describe('FunctionSpecFactory', function () {
             parametersSpecData = [
                 {
                     name: 'firstParam',
-                    ref: false // Whether the parameter is passed by-reference
+                    ref: false // Whether the parameter is passed by-reference.
                 },
                 {
                     name: 'secondParam',
@@ -224,13 +233,14 @@ describe('FunctionSpecFactory', function () {
         });
 
         it('should return a correctly constructed FunctionSpec when there is a current class and object', function () {
-            var classObject = sinon.createStubInstance(Class),
+            const classObject = sinon.createStubInstance(Class),
                 enclosingObject = sinon.createStubInstance(ObjectValue),
-                func = sinon.stub();
+                traitObject = sinon.createStubInstance(Trait);
             ClosureContext
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     sinon.match.same(classObject),
+                    sinon.match.same(traitObject),
                     sinon.match.same(enclosingObject),
                     {'myRefBinding': sinon.match.same(referenceBinding)},
                     {'myValueBinding': sinon.match.same(valueBinding)}
@@ -259,6 +269,7 @@ describe('FunctionSpecFactory', function () {
             expect(factory.createClosureSpec(
                 namespaceScope,
                 classObject,
+                traitObject,
                 enclosingObject,
                 parametersSpecData,
                 func,
@@ -272,12 +283,13 @@ describe('FunctionSpecFactory', function () {
         });
 
         it('should return a correctly constructed FunctionSpec when there is a current class but no object', function () {
-            var classObject = sinon.createStubInstance(Class),
-                func = sinon.stub();
+            const classObject = sinon.createStubInstance(Class),
+                traitObject = sinon.createStubInstance(Trait);
             ClosureContext
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     sinon.match.same(classObject),
+                    sinon.match.same(traitObject),
                     null,
                     {'myRefBinding': sinon.match.same(referenceBinding)},
                     {'myValueBinding': sinon.match.same(valueBinding)}
@@ -306,6 +318,7 @@ describe('FunctionSpecFactory', function () {
             expect(factory.createClosureSpec(
                 namespaceScope,
                 classObject,
+                traitObject,
                 null,
                 parametersSpecData,
                 func,
@@ -319,10 +332,10 @@ describe('FunctionSpecFactory', function () {
         });
 
         it('should return a correctly constructed FunctionSpec when there is no current class or object', function () {
-            var func = sinon.stub();
             ClosureContext
                 .withArgs(
                     sinon.match.same(namespaceScope),
+                    null,
                     null,
                     null,
                     {'myRefBinding': sinon.match.same(referenceBinding)},
@@ -351,6 +364,7 @@ describe('FunctionSpecFactory', function () {
 
             expect(factory.createClosureSpec(
                 namespaceScope,
+                null,
                 null,
                 null,
                 parametersSpecData,
@@ -391,7 +405,7 @@ describe('FunctionSpecFactory', function () {
             parametersSpecData = [
                 {
                     name: 'firstParam',
-                    ref: false // Whether the parameter is passed by-reference
+                    ref: false // Whether the parameter is passed by-reference.
                 },
                 {
                     name: 'secondParam',
@@ -510,9 +524,16 @@ describe('FunctionSpecFactory', function () {
                     123
                 )
                 .returns([parameter1, parameter2]);
+        });
 
+        it('should return a correctly constructed FunctionSpec', function () {
+            const traitObject = null;
             MethodContext
-                .withArgs(sinon.match.same(classObject), 'myMethod')
+                .withArgs(
+                    sinon.match.same(classObject),
+                    sinon.match.same(traitObject),
+                    'myMethod'
+                )
                 .returns(methodContext);
             FunctionSpec
                 .withArgs(
@@ -533,12 +554,11 @@ describe('FunctionSpecFactory', function () {
                     123
                 )
                 .returns(functionSpec);
-        });
 
-        it('should return a correctly constructed FunctionSpec', function () {
             expect(factory.createMethodSpec(
                 namespaceScope,
                 classObject,
+                traitObject,
                 'myMethod',
                 parametersSpecData,
                 func,

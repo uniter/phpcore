@@ -42,6 +42,15 @@ _.extend(Call.prototype, {
     },
 
     /**
+     * Fetches the current trait for the call, if any.
+     *
+     * @returns {Trait|null}
+     */
+    getCurrentTrait: function () {
+        return null;
+    },
+
+    /**
      * Fetches the path to the file this call was made from
      *
      * @returns {string|null}
@@ -170,6 +179,9 @@ _.extend(Call.prototype, {
         return false;
     },
 
+    /**
+     * Throws an error into a paused call's trace, which doesn't apply to FFI calls.
+     */
     throwInto: function () {
         // TODO: Confirm this should be empty rather than throw?
     }

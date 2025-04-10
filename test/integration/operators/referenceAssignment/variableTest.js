@@ -148,4 +148,35 @@ EOS
         expect(engine.getStderr().readAll()).to.equal('');
         expect(engine.getStdout().readAll()).to.equal('');
     });
+
+    it('should raise a notice when a non-return-by-reference function call return value is assigned by reference', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+ini_set('error_reporting', E_ALL);
+
+function myFunc() {
+    return 21;
+}
+
+$result = [];
+
+$myRefVar =& myFunc(); // This should raise a notice.
+$result['myRefVar'] = $myRefVar;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'myRefVar': 21
+        });
+        expect(engine.getStderr().readAll()).to.equal(
+            'PHP Notice:  Only variables should be assigned by reference in /path/to/my_module.php on line 10\n'
+        );
+        expect(engine.getStdout().readAll()).to.equal(
+            '\nNotice: Only variables should be assigned by reference in /path/to/my_module.php on line 10\n'
+        );
+    });
 });

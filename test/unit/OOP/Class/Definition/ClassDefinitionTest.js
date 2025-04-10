@@ -11,12 +11,13 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
-    ClassDefinition = require('../../../../src/Class/Definition/ClassDefinition'),
-    CallInstrumentation = require('../../../../src/Instrumentation/CallInstrumentation'),
-    Class = require('../../../../src/Class').sync(),
-    Namespace = require('../../../../src/Namespace').sync(),
-    NamespaceScope = require('../../../../src/NamespaceScope').sync(),
-    ValueCoercer = require('../../../../src/FFI/Value/ValueCoercer');
+    ClassDefinition = require('../../../../../src/OOP/Class/Definition/ClassDefinition'),
+    CallInstrumentation = require('../../../../../src/Instrumentation/CallInstrumentation'),
+    Class = require('../../../../../src/Class').sync(),
+    Namespace = require('../../../../../src/Namespace').sync(),
+    NamespaceScope = require('../../../../../src/NamespaceScope').sync(),
+    Trait = require('../../../../../src/OOP/Trait/Trait'),
+    ValueCoercer = require('../../../../../src/FFI/Value/ValueCoercer');
 
 describe('ClassDefinition', function () {
     var definition,
@@ -53,6 +54,7 @@ describe('ClassDefinition', function () {
             namespaceScope,
             superClass,
             [interface1, interface2],
+            [],
             {},
             '__construct',
             InternalClass,
@@ -82,6 +84,38 @@ describe('ClassDefinition', function () {
 
         it('should return false when the class does not define a __destruct() method', function () {
             expect(definition.hasDestructor()).to.be.false;
+        });
+    });
+
+    describe('getTraits()', function () {
+        it('should fetch the traits used by the class', function () {
+            var trait1 = sinon.createStubInstance(Trait),
+                trait2 = sinon.createStubInstance(Trait);
+            definition = new ClassDefinition(
+                'MyClass',
+                namespace,
+                namespaceScope,
+                superClass,
+                [interface1, interface2],
+                [trait1, trait2],
+                {},
+                '__construct',
+                InternalClass,
+                {},
+                methods,
+                rootInternalPrototype,
+                {},
+                {},
+                valueCoercer,
+                methodCaller,
+                instrumentation
+            );
+
+            expect(definition.getTraits()).to.deep.equal([trait1, trait2]);
+        });
+
+        it('should return an empty array when no traits are used', function () {
+            expect(definition.getTraits()).to.deep.equal([]);
         });
     });
 });

@@ -32,7 +32,7 @@ _.extend(ClassTypeProvider.prototype, {
     createType: function (typeSpecData, namespaceScope, nullable) {
         // We must now resolve the class name given relative to the current namespace scope,
         // as it may be a relative class name that relies on the current namespace or a `use` import.
-        var resolvedClass = namespaceScope.resolveClass(typeSpecData.className);
+        var resolvedClass = namespaceScope.resolveName(typeSpecData.className);
 
         return this.typeFactory.createClassType(
             resolvedClass.namespace.getPrefix() + resolvedClass.name,

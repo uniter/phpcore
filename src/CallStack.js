@@ -121,6 +121,7 @@ _.extend(CallStack.prototype, {
 
     /**
      * Fetches the class that defines the current function being executed
+     * or the current value being evaluated, if any.
      *
      * @returns {Class|null}
      */
@@ -133,6 +134,23 @@ _.extend(CallStack.prototype, {
         }
 
         return call.getCurrentClass();
+    },
+
+    /**
+     * Fetches the class that defines the current function being executed
+     * or the current value being evaluated, if any.
+     *
+     * @returns {Trait|null}
+     */
+    getCurrentTrait: function () {
+        var chain = this,
+            call = chain.getCurrent();
+
+        if (!call) {
+            return null;
+        }
+
+        return call.getCurrentTrait();
     },
 
     /**

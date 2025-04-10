@@ -16,7 +16,8 @@ module.exports = {
     'en_GB': {
         'core': {
             'constant_already_defined': 'Constant ${name} already defined',
-            'only_references_returned_by_reference': 'Only variable references should be returned by reference'
+            'only_references_returned_by_reference': 'Only variable references should be returned by reference',
+            'only_variables_assigned_by_reference': 'Only variables should be assigned by reference'
         }
     }
 };

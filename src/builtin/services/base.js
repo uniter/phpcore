@@ -21,9 +21,9 @@ var phpCommon = require('phpcommon'),
     CallStack = require('../../CallStack'),
     Chainifier = require('../../Control/Chain/Chainifier'),
     ClassAutoloader = require('../../ClassAutoloader').sync(),
-    ClassDefiner = require('../../Class/ClassDefiner'),
-    ClassFactory = require('../../Class/ClassFactory'),
-    ClassPromoter = require('../../Class/ClassPromoter'),
+    ClassDefiner = require('../../OOP/Class/ClassDefiner'),
+    ClassFactory = require('../../OOP/Class/ClassFactory'),
+    ClassPromoter = require('../../OOP/Class/ClassPromoter'),
     ClassTypeProvider = require('../../Type/Provider/Spec/ClassTypeProvider'),
     Closure = require('../../Closure').sync(),
     ClosureFactory = require('../../ClosureFactory').sync(),
@@ -49,13 +49,14 @@ var phpCommon = require('phpcommon'),
     IterableTypeProvider = require('../../Type/Provider/Spec/IterableTypeProvider'),
     LoopStructureOpcode = require('../../Core/Opcode/Opcode/LoopStructureOpcode'),
     LoopStructureOpcodeFetcher = require('../../Core/Opcode/Fetcher/LoopStructureOpcodeFetcher'),
-    MethodPromoter = require('../../Class/MethodPromoter'),
+    MethodPromoter = require('../../OOP/Class/MethodPromoter'),
     MethodSpec = require('../../MethodSpec'),
     MixedTypeProvider = require('../../Type/Provider/Spec/MixedTypeProvider'),
     Namespace = require('../../Namespace').sync(),
     NamespaceFactory = require('../../NamespaceFactory'),
-    NativeDefinitionBuilder = require('../../Class/Definition/NativeDefinitionBuilder'),
-    NativeMethodDefinitionBuilder = require('../../Class/Definition/NativeMethodDefinitionBuilder'),
+    NativeClassDefinitionBuilder = require('../../OOP/Class/Definition/NativeDefinitionBuilder'),
+    NativeMethodDefinitionBuilder = require('../../OOP/NativeMethodDefinitionBuilder'),
+    NativeTraitDefinitionBuilder = require('../../OOP/Trait/Definition/NativeDefinitionBuilder'),
     NullTypeProvider = require('../../Type/Provider/Spec/NullTypeProvider'),
     ObjectTypeProvider = require('../../Type/Provider/Spec/ObjectTypeProvider'),
     OpcodeExecutor = require('../../Core/Opcode/Handler/OpcodeExecutor'),
@@ -75,6 +76,7 @@ var phpCommon = require('phpcommon'),
     OutputFactory = require('../../Output/OutputFactory'),
     OverloadedFunctionDefiner = require('../../Function/Overloaded/OverloadedFunctionDefiner'),
     Present = require('../../Control/Present'),
+    PromiseBridge = require('../../Control/PromiseBridge'),
     Reference = require('../../Reference/Reference'),
     ReturnTypeProvider = require('../../Function/ReturnTypeProvider'),
     ScalarTypeProvider = require('../../Type/Provider/Spec/ScalarTypeProvider'),
@@ -82,13 +84,17 @@ var phpCommon = require('phpcommon'),
     SpecTypeProvider = require('../../Type/Provider/Spec/SpecTypeProvider'),
     StdoutBuffer = require('../../Output/StdoutBuffer'),
     Trace = require('../../Control/Trace'),
+    TraitDefiner = require('../../OOP/Trait/TraitDefiner'),
+    TraitFactory = require('../../OOP/Trait/TraitFactory'),
+    TraitPromoter = require('../../OOP/Trait/TraitPromoter'),
     Translator = phpCommon.Translator,
     TypeFactory = require('../../Type/TypeFactory'),
     TypedOpcodeHandlerFactory = require('../../Core/Opcode/Handler/TypedOpcodeHandlerFactory'),
     UnionTypeProvider = require('../../Type/Provider/Spec/UnionTypeProvider'),
     UnpausedSentinel = require('../../Core/Opcode/Handler/UnpausedSentinel'),
     UntracedOpcode = require('../../Core/Opcode/Opcode/UntracedOpcode'),
-    UserlandDefinitionBuilder = require('../../Class/Definition/UserlandDefinitionBuilder'),
+    UserlandClassDefinitionBuilder = require('../../OOP/Class/Definition/UserlandDefinitionBuilder'),
+    UserlandTraitDefinitionBuilder = require('../../OOP/Trait/Definition/UserlandDefinitionBuilder'),
     Value = require('../../Value').sync(),
     ValueProvider = require('../../Value/ValueProvider'),
     Variable = require('../../Variable').sync(),
@@ -130,6 +136,7 @@ var phpCommon = require('phpcommon'),
     NAMESPACE_FACTORY = 'namespace_factory',
     NATIVE_CLASS_DEFINITION_BUILDER = 'native_class_definition_builder',
     NATIVE_METHOD_DEFINITION_BUILDER = 'native_method_definition_builder',
+    NATIVE_TRAIT_DEFINITION_BUILDER = 'native_trait_definition_builder',
     OPCODE_EXECUTOR = 'opcode_executor',
     OPCODE_FACTORY = 'opcode_factory',
     OPCODE_FETCHER_REPOSITORY = 'opcode_fetcher_repository',
@@ -142,18 +149,23 @@ var phpCommon = require('phpcommon'),
     OUTPUT_FACTORY = 'output_factory',
     OVERLOADED_FUNCTION_DEFINER = 'overloaded_function_definer',
     PAUSE_FACTORY = 'pause_factory',
+    PROMISE_BRIDGE = 'promise_bridge',
     REFERENCE_FACTORY = 'reference_factory',
     SCOPE_FACTORY = 'scope_factory',
     SPEC_TYPE_PROVIDER = 'spec_type_provider',
     STDERR = 'stderr',
     STDOUT = 'stdout',
     STDOUT_BUFFER = 'stdout_buffer',
+    TRAIT_DEFINER = 'trait_definer',
+    TRAIT_FACTORY = 'trait_factory',
+    TRAIT_PROMOTER = 'trait_promoter',
     TRANSLATOR = 'translator',
     TYPE_FACTORY = 'type_factory',
     TYPED_OPCODE_HANDLER_FACTORY = 'typed_opcode_handler_factory',
     UNPAUSED_SENTINEL = 'unpaused_sentinel',
     USERLAND = 'userland',
     USERLAND_CLASS_DEFINITION_BUILDER = 'userland_class_definition_builder',
+    USERLAND_TRAIT_DEFINITION_BUILDER = 'userland_trait_definition_builder',
     VALUE_FACTORY = 'value_factory',
     VALUE_PROVIDER = 'value_provider';
 
@@ -239,7 +251,7 @@ module.exports = function (internals) {
         },
 
         'control_bridge': function () {
-            return new ControlBridge(Future, Present, Reference, Value, Variable);
+            return new ControlBridge(Future, Present, Reference, Value, Variable, get(PROMISE_BRIDGE));
         },
 
         'control_factory': function () {
@@ -354,12 +366,13 @@ module.exports = function (internals) {
                 get(OVERLOADED_FUNCTION_DEFINER),
                 get(VALUE_FACTORY),
                 get(CLASS_AUTOLOADER),
-                get(CLASS_DEFINER)
+                get(CLASS_DEFINER),
+                get(TRAIT_DEFINER)
             );
         },
 
         'native_class_definition_builder': function () {
-            return new NativeDefinitionBuilder(
+            return new NativeClassDefinitionBuilder(
                 get(VALUE_FACTORY),
                 get(FFI_FACTORY),
                 get(NATIVE_METHOD_DEFINITION_BUILDER)
@@ -368,6 +381,14 @@ module.exports = function (internals) {
 
         'native_method_definition_builder': function () {
             return new NativeMethodDefinitionBuilder(get(FUNCTION_SIGNATURE_PARSER));
+        },
+
+        'native_trait_definition_builder': function () {
+            return new NativeTraitDefinitionBuilder(
+                get(VALUE_FACTORY),
+                get(FFI_FACTORY),
+                get(NATIVE_METHOD_DEFINITION_BUILDER)
+            );
         },
 
         'opcode_executor': function () {
@@ -453,6 +474,10 @@ module.exports = function (internals) {
             );
         },
 
+        'promise_bridge': function () {
+            return new PromiseBridge();
+        },
+
         'return_type_provider': function () {
             return new ReturnTypeProvider(get(SPEC_TYPE_PROVIDER));
         },
@@ -477,6 +502,45 @@ module.exports = function (internals) {
             return new StdoutBuffer(get(STDOUT));
         },
 
+        'trait_definer': function () {
+            return new TraitDefiner(
+                get(FLOW),
+                get(FUTURE_FACTORY),
+                get(NATIVE_TRAIT_DEFINITION_BUILDER),
+                get(USERLAND_TRAIT_DEFINITION_BUILDER),
+                get(TRAIT_PROMOTER)
+            );
+        },
+
+        'trait_factory': function () {
+            return new TraitFactory(
+                get(VALUE_FACTORY),
+                get(VALUE_PROVIDER),
+                get(REFERENCE_FACTORY),
+                get(FUNCTION_FACTORY),
+                get(CALL_STACK),
+                get(FLOW),
+                get(FUTURE_FACTORY),
+                get(USERLAND),
+                get(FFI_FACTORY)
+            );
+        },
+
+        'trait_definition_builder': function () {
+            return new NativeTraitDefinitionBuilder(
+                get(VALUE_FACTORY),
+                get(FFI_FACTORY),
+                get(NATIVE_METHOD_DEFINITION_BUILDER)
+            );
+        },
+
+        'trait_promoter': function () {
+            return new TraitPromoter(
+                get(TRAIT_FACTORY),
+                get(INSTRUMENTATION_FACTORY)
+            );
+        },
+
         'translator': function () {
             return new Translator();
         },
@@ -496,7 +560,15 @@ module.exports = function (internals) {
         },
 
         'userland_class_definition_builder': function () {
-            return new UserlandDefinitionBuilder(
+            return new UserlandClassDefinitionBuilder(
+                get(CALL_STACK),
+                get(VALUE_FACTORY),
+                get(FFI_FACTORY)
+            );
+        },
+
+        'userland_trait_definition_builder': function () {
+            return new UserlandTraitDefinitionBuilder(
                 get(CALL_STACK),
                 get(VALUE_FACTORY),
                 get(FFI_FACTORY)

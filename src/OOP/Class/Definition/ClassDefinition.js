@@ -19,7 +19,8 @@ var _ = require('microdash'),
  * @param {NamespaceScope} namespaceScope
  * @param {Class|null} superClass
  * @param {Class[]} interfaces
- * @param {Object.<string, Function>} constants
+ * @param {Trait[]} traits
+ * @param {Object} constants
  * @param {string|null} constructorName
  * @param {Function} InternalClass
  * @param {Object} methodData
@@ -38,6 +39,7 @@ function ClassDefinition(
     namespaceScope,
     superClass,
     interfaces,
+    traits,
     constants,
     constructorName,
     InternalClass,
@@ -110,6 +112,10 @@ function ClassDefinition(
      * @type {Class|null}
      */
     this.superClass = superClass;
+    /**
+     * @type {Trait[]}
+     */
+    this.traits = traits;
     /**
      * @type {ValueCoercer}
      */
@@ -255,6 +261,15 @@ _.extend(ClassDefinition.prototype, {
      */
     getSuperClass: function () {
         return this.superClass;
+    },
+
+    /**
+     * Fetches the traits to be used by the class.
+     *
+     * @returns {Trait[]}
+     */
+    getTraits: function () {
+        return this.traits;
     },
 
     /**

@@ -10,7 +10,7 @@
 'use strict';
 
 var _ = require('microdash'),
-    Class = require('../Class').sync();
+    Trait = require('../Trait/Trait');
 
 /**
  * @param {ValueFactory} valueFactory
@@ -21,12 +21,10 @@ var _ = require('microdash'),
  * @param {Flow} flow
  * @param {FutureFactory} futureFactory
  * @param {Userland} userland
- * @param {ExportRepository} exportRepository
  * @param {FFIFactory} ffiFactory
- * @param {DestructibleObjectRepository} destructibleObjectRepository
  * @constructor
  */
-function ClassFactory(
+function TraitFactory(
     valueFactory,
     valueProvider,
     referenceFactory,
@@ -35,22 +33,12 @@ function ClassFactory(
     flow,
     futureFactory,
     userland,
-    exportRepository,
-    ffiFactory,
-    destructibleObjectRepository
+    ffiFactory
 ) {
     /**
      * @type {CallStack}
      */
     this.callStack = callStack;
-    /**
-     * @type {DestructibleObjectRepository}
-     */
-    this.destructibleObjectRepository = destructibleObjectRepository;
-    /**
-     * @type {ExportRepository}
-     */
-    this.exportRepository = exportRepository;
     /**
      * @type {FFIFactory}
      */
@@ -85,49 +73,38 @@ function ClassFactory(
     this.valueProvider = valueProvider;
 }
 
-_.extend(ClassFactory.prototype, {
+_.extend(TraitFactory.prototype, {
     /**
-     * Creates a Class, which is to be exposed to PHP-land
+     * Creates a Trait, which is to be exposed to PHP-land.
      *
-     * @param {string} name Class name relative to the namespace (ie. not fully-qualified)
+     * @param {string} name Class name relative to the namespace (i.e. not fully-qualified)
      * @param {Namespace} namespace
      * @param {NamespaceScope} namespaceScope
-     * @param {string} constructorName
-     * @param {boolean} hasDestructor
-     * @param {Function} InternalClass
-     * @param {Object} rootInternalPrototype
+     * @param {Trait[]} traits
+     * @param {Object.<string, Function>} constantToProviderMap
      * @param {Object} instanceProperties
      * @param {Object} staticProperties
-     * @param {Object.<string, Function>} constants
-     * @param {Class|null} superClass Parent class, if any
-     * @param {Class[]} interfaces Interfaces implemented by this class
+     * @param {Object.<string, Function>} methods
      * @param {ValueCoercer} valueCoercer
-     * @param {Function|null} methodCaller Custom method call handler
      * @param {CallInstrumentation} instrumentation
-     * @returns {Class} Returns the internal Class instance created
+     * @returns {Trait} Returns the internal Trait instance created
      */
-    createClass: function (
+    createTrait: function (
         name,
         namespace,
         namespaceScope,
-        constructorName,
-        hasDestructor,
-        InternalClass,
-        rootInternalPrototype,
+        traits,
+        constantToProviderMap,
         instanceProperties,
         staticProperties,
-        constants,
-        superClass,
-        interfaces,
+        methods,
         valueCoercer,
-        methodCaller,
         instrumentation
     ) {
         var factory = this;
 
-        return new Class(
+        return new Trait(
             factory.valueFactory,
-            factory.valueProvider,
             factory.referenceFactory,
             factory.functionFactory,
             factory.callStack,
@@ -135,24 +112,17 @@ _.extend(ClassFactory.prototype, {
             factory.futureFactory,
             factory.userland,
             name,
-            constructorName,
-            hasDestructor,
-            InternalClass,
-            rootInternalPrototype,
+            traits,
+            constantToProviderMap,
             instanceProperties,
             staticProperties,
-            constants,
-            superClass,
-            interfaces,
+            methods,
             namespaceScope,
-            factory.exportRepository,
             valueCoercer,
             factory.ffiFactory,
-            methodCaller,
-            instrumentation,
-            factory.destructibleObjectRepository
+            instrumentation
         );
     }
 });
 
-module.exports = ClassFactory;
+module.exports = TraitFactory;

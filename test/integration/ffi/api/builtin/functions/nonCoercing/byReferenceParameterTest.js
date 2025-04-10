@@ -52,13 +52,13 @@ EOS
         expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should provide ReferenceSnapshots of by-reference arguments', async function () {
+    it('should provide ReferenceSnapshots of by-reference arguments when needed', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
 
 $myVar = 21;
-add_one($myVar);
+add_one($myVar, $unusedValue = 'unused');
 
 return $myVar;
 EOS

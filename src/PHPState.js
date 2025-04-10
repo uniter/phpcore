@@ -881,7 +881,7 @@ module.exports = require('pauser')([
         createFFIResult: function (syncCallback, asyncCallback) {
             var state = this;
 
-            return new FFIResult(syncCallback, asyncCallback, state.valueFactory, state.mode);
+            return new FFIResult(syncCallback, asyncCallback, state.valueFactory, state.controlBridge, state.mode);
         },
 
         /**

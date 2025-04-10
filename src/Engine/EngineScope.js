@@ -49,6 +49,7 @@ _.extend(EngineScope.prototype, {
      * @param {Object.<string, Value>=} valueBindings
      * @param {boolean=} isStatic
      * @param {Object=} returnTypeSpec
+     * @param {boolean=} returnByReference
      * @param {number|null=} lineNumber
      * @returns {Closure}
      */
@@ -61,6 +62,7 @@ _.extend(EngineScope.prototype, {
         valueBindings,
         isStatic,
         returnTypeSpec,
+        returnByReference,
         lineNumber
     ) {
         return this.effectiveScope.createClosure(
@@ -72,6 +74,7 @@ _.extend(EngineScope.prototype, {
             valueBindings,
             isStatic,
             returnTypeSpec,
+            returnByReference,
             lineNumber
         );
     },
@@ -129,25 +132,6 @@ _.extend(EngineScope.prototype, {
     },
 
     /**
-     * Fetches the name of the current class, or an empty string if there is none
-     *
-     * @returns {StringValue}
-     */
-    getClassName: function () {
-        return this.effectiveScope.getClassName();
-    },
-
-    /**
-     * Fetches the name of the class in which this scope's function is defined
-     *
-     * @returns {StringValue}
-     * @throws {PHPFatalError} When there is no current class scope
-     */
-    getClassNameOrThrow: function () {
-        return this.effectiveScope.getClassNameOrThrow();
-    },
-
-    /**
      * Fetches the current Coroutine of this scope, if any.
      *
      * @returns {Coroutine|null}
@@ -163,6 +147,15 @@ _.extend(EngineScope.prototype, {
      */
     getCurrentClass: function () {
         return this.effectiveScope.getCurrentClass();
+    },
+
+    /**
+     * Fetches the current trait, if any.
+     *
+     * @returns {Trait|null}
+     */
+    getCurrentTrait: function () {
+        return null;
     },
 
     /**

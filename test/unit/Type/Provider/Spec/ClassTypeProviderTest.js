@@ -32,7 +32,7 @@ describe('ClassTypeProvider', function () {
 
         namespace.getPrefix.returns('My\\Absolute\\NamespacePathFor\\');
 
-        namespaceScope.resolveClass
+        namespaceScope.resolveName
             .withArgs('Relative\\NamespacePathFor\\MyClass')
             .returns({
                 namespace: namespace,

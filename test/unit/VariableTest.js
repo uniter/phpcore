@@ -20,6 +20,7 @@ var expect = require('chai').expect,
     Reference = require('../../src/Reference/Reference'),
     ReferenceSlot = require('../../src/Reference/ReferenceSlot'),
     StringValue = require('../../src/Value/String').sync(),
+    Value = require('../../src/Value').sync(),
     Variable = require('../../src/Variable').sync();
 
 describe('Variable', function () {
@@ -63,14 +64,25 @@ describe('Variable', function () {
     });
 
     describe('asArrayElement()', function () {
-        it('should return the value of the variable', function () {
-            var value;
+        it('should return the value of the variable when a value is set', function () {
             variable.setValue(valueFactory.createInteger(1234));
 
-            value = variable.asArrayElement();
+            const result = variable.asArrayElement();
 
-            expect(value.getType()).to.equal('int');
-            expect(value.getNative()).to.equal(1234);
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(1234);
+        });
+
+        it('should handle futures being fetched from an assigned reference', async function () {
+            var originalValue = sinon.createStubInstance(Value),
+                assignmentValue = valueFactory.createString('assigned value');
+            originalValue.getForAssignment.returns(assignmentValue);
+            originalValue.next.yields(originalValue);
+            variable.setReference(referenceFactory.createAccessor(
+                sinon.stub().returns(originalValue)
+            ));
+
+            expect(await variable.asArrayElement().toPromise()).to.equal(assignmentValue);
         });
     });
 

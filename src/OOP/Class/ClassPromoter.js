@@ -46,35 +46,66 @@ _.extend(ClassPromoter.prototype, {
      * @returns {Class} Returns the internal Class instance created
      */
     promoteDefinition: function (classDefinition) {
-        var promoter = this,
+        var constants = {},
+            promoter = this,
             InternalClass = classDefinition.getInternalClass(),
             sharedMethodData = classDefinition.getMethodData(),
             namespaceScope = classDefinition.getNamespaceScope(),
+            instanceProperties = {},
             instrumentation = classDefinition.getInstrumentation() ||
                 promoter.instrumentationFactory.createCallInstrumentation(null),
-            classObject = promoter.classFactory.createClass(
-                classDefinition.getName(),
-                classDefinition.getNamespace(),
-                namespaceScope,
-                classDefinition.getConstructorName(),
-                classDefinition.hasDestructor(),
-                InternalClass,
-                classDefinition.getRootInternalPrototype(),
-                classDefinition.getInstanceProperties(),
-                classDefinition.getStaticProperties(),
-                classDefinition.getConstants(),
-                classDefinition.getSuperClass(),
-                classDefinition.getInterfaces(),
-                classDefinition.getValueCoercer(),
-                classDefinition.getMethodCaller(),
-                instrumentation
-            );
+            classObject,
+            staticProperties = {};
+
+        _.each(classDefinition.getTraits(), function (traitObject) {
+            // Mix the trait's members into the class.
+            Object.assign(constants, traitObject.getConstants());
+            Object.assign(staticProperties, traitObject.getStaticProperties());
+            Object.assign(instanceProperties, traitObject.getInstanceProperties());
+        });
+
+        Object.assign(constants, classDefinition.getConstants());
+        Object.assign(staticProperties, classDefinition.getStaticProperties());
+        Object.assign(instanceProperties, classDefinition.getInstanceProperties());
+
+        classObject = promoter.classFactory.createClass(
+            classDefinition.getName(),
+            classDefinition.getNamespace(),
+            namespaceScope,
+            classDefinition.getConstructorName(),
+            classDefinition.hasDestructor(),
+            InternalClass,
+            classDefinition.getRootInternalPrototype(),
+            instanceProperties,
+            staticProperties,
+            constants,
+            classDefinition.getSuperClass(),
+            classDefinition.getInterfaces(),
+            classDefinition.getValueCoercer(),
+            classDefinition.getMethodCaller(),
+            instrumentation
+        );
+
+        _.each(classDefinition.getTraits(), function (traitObject) {
+            // Mix the trait's methods into the class.
+            _.forOwn(traitObject.getMethods(), function (methodDefinition, methodName) {
+                InternalClass.prototype[methodName] = promoter.methodPromoter.promote(
+                    methodName,
+                    methodDefinition,
+                    classObject,
+                    traitObject,
+                    namespaceScope,
+                    sharedMethodData
+                );
+            });
+        });
 
         _.forOwn(classDefinition.getMethods(), function (methodDefinition, methodName) {
             InternalClass.prototype[methodName] = promoter.methodPromoter.promote(
                 methodName,
                 methodDefinition,
                 classObject,
+                null, // No trait for this method.
                 namespaceScope,
                 sharedMethodData
             );

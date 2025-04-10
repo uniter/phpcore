@@ -19,12 +19,16 @@ var expect = require('chai').expect,
 
 describe('FFIResult (async mode)', function () {
     var asyncCallback,
+        controlBridge,
+        hostScheduler,
         state,
         syncCallback,
         valueFactory;
 
     beforeEach(function () {
         state = tools.createIsolatedState();
+        controlBridge = state.getControlBridge();
+        hostScheduler = state.getHostScheduler();
         valueFactory = state.getValueFactory();
 
         asyncCallback = sinon.stub();
@@ -39,7 +43,7 @@ describe('FFIResult (async mode)', function () {
                 return Promise.resolve(101);
             });
 
-            result = new Result(syncCallback, asyncCallback, valueFactory, 'async');
+            result = new Result(syncCallback, asyncCallback, valueFactory, controlBridge, 'async');
 
             return expect(result.getAsync()).to.eventually.equal(101);
         });
@@ -51,7 +55,7 @@ describe('FFIResult (async mode)', function () {
                 return 'I am not a promise';
             });
 
-            result = new Result(syncCallback, asyncCallback, valueFactory, 'async');
+            result = new Result(syncCallback, asyncCallback, valueFactory, controlBridge, 'async');
 
             expect(function () {
                 result.getAsync();
@@ -60,14 +64,23 @@ describe('FFIResult (async mode)', function () {
                 'Async callback did not return a Promise'
             );
         });
+
+        it('should fall back to sync callback when no async callback is provided', function () {
+            var result;
+            syncCallback.returns(42);
+
+            result = new Result(syncCallback, null, valueFactory, controlBridge, 'async');
+
+            return expect(result.getAsync()).to.eventually.equal(42);
+        });
     });
 
     describe('resolve()', function () {
         it('should return the result from the Promise returned by .getAsync(), coerced to a Value object', async function () {
-            var ffiResult = new Result(syncCallback, asyncCallback, valueFactory, 'async'),
+            var ffiResult = new Result(syncCallback, asyncCallback, valueFactory, controlBridge, 'async'),
                 resultValue;
             asyncCallback.returns(new Promise(function (resolve) {
-                setImmediate(function () {
+                hostScheduler.queueMacrotask(function () {
                     resolve(21);
                 });
             }));
@@ -76,6 +89,18 @@ describe('FFIResult (async mode)', function () {
 
             expect(resultValue.getType()).to.equal('int');
             expect(resultValue.getNative()).to.equal(21);
+        });
+
+        it('should handle Promise rejection by propagating the error', async function () {
+            var ffiResult = new Result(syncCallback, asyncCallback, valueFactory, controlBridge, 'async'),
+                error = new Error('Test error');
+            asyncCallback.returns(new Promise(function (resolve, reject) {
+                hostScheduler.queueMacrotask(function () {
+                    reject(error);
+                });
+            }));
+
+            await expect(ffiResult.resolve().toPromise()).to.be.rejectedWith(error);
         });
     });
 });

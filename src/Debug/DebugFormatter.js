@@ -117,7 +117,7 @@ _.extend(DebugFormatter.prototype, {
         }
 
         if (!debugVariable.isDefined()) {
-            return ['span', {'style': 'text-style: italic; color: gray;'}, '<undefined>'];
+            return ['span', {'style': 'font-style: italic; color: gray;'}, '<undefined>'];
         }
 
         value = debugVariable.getValue();

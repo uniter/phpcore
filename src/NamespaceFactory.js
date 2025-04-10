@@ -23,6 +23,7 @@ var _ = require('microdash');
  * @param {ValueFactory} valueFactory
  * @param {ClassAutoloader} classAutoloader
  * @param {ClassDefiner} classDefiner
+ * @param {TraitDefiner} traitDefiner
  * @constructor
  */
 function NamespaceFactory(
@@ -34,7 +35,8 @@ function NamespaceFactory(
     overloadedFunctionDefiner,
     valueFactory,
     classAutoloader,
-    classDefiner
+    classDefiner,
+    traitDefiner
 ) {
     /**
      * @type {CallStack}
@@ -69,6 +71,10 @@ function NamespaceFactory(
      */
     this.overloadedFunctionDefiner = overloadedFunctionDefiner;
     /**
+     * @type {TraitDefiner}
+     */
+    this.traitDefiner = traitDefiner;
+    /**
      * @type {ValueFactory}
      */
     this.valueFactory = valueFactory;
@@ -95,6 +101,7 @@ _.extend(NamespaceFactory.prototype, {
             factory.overloadedFunctionDefiner,
             factory.classAutoloader,
             factory.classDefiner,
+            factory.traitDefiner,
             parentNamespace || null,
             name || ''
         );

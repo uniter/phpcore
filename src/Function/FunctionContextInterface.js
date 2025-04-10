@@ -49,6 +49,13 @@ _.extend(FunctionContextInterface.prototype, {
     getTraceFrameName: throwUnimplemented('getTraceFrameName'),
 
     /**
+     * Fetches the trait object that this method belongs to, or null if it belongs to a class directly.
+     *
+     * @returns {Trait|null}
+     */
+    getTrait: throwUnimplemented('getTrait'),
+
+    /**
      * Fetches the name of the function, without any qualifying namespace and/or class prefix
      * (eg. as used by __FUNCTION__)
      *

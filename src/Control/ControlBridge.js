@@ -17,9 +17,10 @@ var _ = require('microdash');
  * @param {class} Reference
  * @param {class} Value
  * @param {class} Variable
+ * @param {PromiseBridge} promiseBridge
  * @constructor
  */
-function ControlBridge(Future, Present, Reference, Value, Variable) {
+function ControlBridge(Future, Present, Reference, Value, Variable, promiseBridge) {
     /**
      * @type {class}
      */
@@ -28,6 +29,10 @@ function ControlBridge(Future, Present, Reference, Value, Variable) {
      * @type {class}
      */
     this.Present = Present;
+    /**
+     * @type {PromiseBridge}
+     */
+    this.promiseBridge = promiseBridge;
     /**
      * @type {class}
      */
@@ -74,6 +79,16 @@ _.extend(ControlBridge.prototype, {
         //       to speed up this test by replacing it with a single lookup.
 
         return value instanceof bridge.Future || value instanceof bridge.Present;
+    },
+
+    /**
+     * Determines whether the given value is a Promise.
+     *
+     * @param {*} value
+     * @returns {boolean}
+     */
+    isPromise: function (value) {
+        return this.promiseBridge.isPromise(value);
     },
 
     /**

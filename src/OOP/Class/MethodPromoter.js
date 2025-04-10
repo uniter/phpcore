@@ -46,6 +46,7 @@ _.extend(MethodPromoter.prototype, {
      * @param {string} methodName
      * @param {Object} methodDefinition Definition of the method
      * @param {Class} classObject
+     * @param {Trait|null} traitObject Trait object if this is a trait method, null otherwise.
      * @param {NamespaceScope} namespaceScope
      * @param {Object} sharedMethodData Method data object shared between all methods of a class
      * @returns {Function} Returns the wrapped method function created
@@ -54,6 +55,7 @@ _.extend(MethodPromoter.prototype, {
         methodName,
         methodDefinition,
         classObject,
+        traitObject,
         namespaceScope,
         sharedMethodData
     ) {
@@ -64,13 +66,13 @@ _.extend(MethodPromoter.prototype, {
             methodIsStatic = methodDefinition[IS_STATIC],
             // Parameter spec data may only be provided for PHP-transpiled functions.
             parametersSpecData = methodDefinition.args || [],
-            // TODO: Userland return-by-reference (only NativeMethodDefinitionBuilder uses this at the moment).
             returnByReference = Boolean(methodDefinition.ref),
             returnTypeSpecData = methodDefinition.ret || null;
 
         functionSpec = promoter.functionSpecFactory.createMethodSpec(
             namespaceScope,
             classObject,
+            traitObject,
             methodName,
             parametersSpecData,
             methodDefinition.method,

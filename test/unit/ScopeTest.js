@@ -158,23 +158,31 @@ describe('Scope', function () {
             thisObject.next.yields(thisObject);
 
             namespaceScope.getFilePath.returns('/path/to/my_module.php');
-
-            whenCurrentClass();
-            whenCurrentFunction();
-            createScope(thisObject);
         });
 
         it('should return the Closure from the ClosureFactory', function () {
+            whenCurrentClass();
+            whenCurrentFunction();
+            createScope(thisObject);
+
             expect(scope.createClosure(namespaceScope, func)).to.equal(closure);
         });
 
         it('should create one Closure with the ClosureFactory', function () {
+            whenCurrentClass();
+            whenCurrentFunction();
+            createScope(thisObject);
+
             scope.createClosure(namespaceScope, func);
 
             expect(closureFactory.create).to.have.been.calledOnce;
         });
 
         it('should pass the scope to the ClosureFactory', function () {
+            whenCurrentClass();
+            whenCurrentFunction();
+            createScope(thisObject);
+
             scope.createClosure(namespaceScope, func);
 
             expect(closureFactory.create).to.have.been.calledWith(
@@ -183,6 +191,10 @@ describe('Scope', function () {
         });
 
         it('should pass the NamespaceScope to the ClosureFactory', function () {
+            whenCurrentClass();
+            whenCurrentFunction();
+            createScope(thisObject);
+
             scope.createClosure(namespaceScope, func);
 
             expect(closureFactory.create).to.have.been.calledWith(
@@ -192,6 +204,10 @@ describe('Scope', function () {
         });
 
         it('should pass the class to the ClosureFactory', function () {
+            whenCurrentClass();
+            whenCurrentFunction();
+            createScope(thisObject);
+
             scope.createClosure(namespaceScope, func);
 
             expect(closureFactory.create).to.have.been.calledWith(
@@ -202,6 +218,10 @@ describe('Scope', function () {
         });
 
         it('should fetch and bind the closure to the `$this` object from the current scope', function () {
+            whenCurrentClass();
+            whenCurrentFunction();
+            createScope(thisObject);
+
             scope.createClosure(namespaceScope, func);
 
             expect(closureFactory.create).to.have.been.calledWith(
@@ -213,6 +233,10 @@ describe('Scope', function () {
         });
 
         it('should not bind the closure to an object when it is static', function () {
+            whenCurrentClass();
+            whenCurrentFunction();
+            createScope(thisObject);
+
             scope.createClosure(namespaceScope, func, [], {}, {}, {}, true);
 
             expect(closureFactory.create).to.have.been.calledWith(
@@ -223,19 +247,24 @@ describe('Scope', function () {
             );
         });
 
-        it('should pass a correctly constructed closure FunctionSpec to the ClosureFactory', function () {
+        it('should pass a correctly constructed closure FunctionSpec to the ClosureFactory when inside a non-trait function', function () {
             var closureFunctionSpec = sinon.createStubInstance(FunctionSpec),
                 referenceBinding = sinon.createStubInstance(ReferenceSlot),
                 valueBinding = valueFactory.createString('my string');
+            whenCurrentClass();
+            whenCurrentFunction();
+            createScope(thisObject);
+            currentFunction.functionSpec.getTrait.returns(null);
             functionSpecFactory.createClosureSpec
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     sinon.match.same(currentClass),
+                    null,
                     sinon.match.same(thisObject),
                     [],
                     sinon.match.same(func),
                     {type: 'iterable'}, // Return type.
-                    false, // TODO: Implement userland return-by-reference.
+                    false,
                     {'myRefBinding': sinon.match.same(referenceBinding)},
                     {'myValueBinding': sinon.match.same(valueBinding)},
                     '/path/to/my_module.php',
@@ -252,6 +281,54 @@ describe('Scope', function () {
                 {'myValueBinding': valueBinding},
                 false,
                 {type: 'iterable'},
+                false,
+                1234
+            );
+
+            expect(closureFactory.create).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.any,
+                sinon.match.same(closureFunctionSpec)
+            );
+        });
+
+        it('should pass true when the closure is return-by-reference', function () {
+            var closureFunctionSpec = sinon.createStubInstance(FunctionSpec),
+                referenceBinding = sinon.createStubInstance(ReferenceSlot),
+                valueBinding = valueFactory.createString('my string');
+            whenCurrentClass();
+            whenCurrentFunction();
+            createScope(thisObject);
+            currentFunction.functionSpec.getTrait.returns(null);
+            functionSpecFactory.createClosureSpec
+                .withArgs(
+                    sinon.match.same(namespaceScope),
+                    sinon.match.same(currentClass),
+                    null,
+                    sinon.match.same(thisObject),
+                    [],
+                    sinon.match.same(func),
+                    {type: 'iterable'}, // Return type.
+                    true,
+                    {'myRefBinding': sinon.match.same(referenceBinding)},
+                    {'myValueBinding': sinon.match.same(valueBinding)},
+                    '/path/to/my_module.php',
+                    1234
+                )
+                .returns(closureFunctionSpec);
+
+            scope.createClosure(
+                namespaceScope,
+                func,
+                [],
+                {},
+                {'myRefBinding': referenceBinding},
+                {'myValueBinding': valueBinding},
+                false,
+                {type: 'iterable'},
+                true, // Return-by-reference.
                 1234
             );
 
@@ -379,42 +456,6 @@ describe('Scope', function () {
 
             expect(value.getType()).to.equal('int');
             expect(value.getNative()).to.equal(4567);
-        });
-    });
-
-    describe('getClassName()', function () {
-        it('should return the name of the current class when present', function () {
-            whenCurrentClass();
-            whenCurrentFunction();
-            currentClass.getName.returns('MyClass');
-            createScope();
-
-            expect(scope.getClassName().getNative()).to.equal('MyClass');
-        });
-
-        it('should return the empty string when there is no current class', function () {
-            createScope();
-
-            expect(scope.getClassName().getNative()).to.equal('');
-        });
-    });
-
-    describe('getClassNameOrThrow()', function () {
-        it('should return the name of the current class when present', function () {
-            whenCurrentClass();
-            whenCurrentFunction();
-            currentClass.getName.returns('My\\Scope\\MyClass');
-            createScope();
-
-            expect(scope.getClassNameOrThrow().getNative()).to.equal('My\\Scope\\MyClass');
-        });
-
-        it('should throw when there is no current class', function () {
-            createScope();
-
-            expect(function () {
-                scope.getClassNameOrThrow();
-            }).to.throw('PHP Fatal error: [core.cannot_access_when_no_active_class] {"className":"self"}');
         });
     });
 
@@ -900,6 +941,42 @@ describe('Scope', function () {
         });
     });
 
+    describe('suppressErrors()', function () {
+        it('should suppress errors for this and descendant scopes', function () {
+            createScope();
+
+            scope.suppressErrors();
+
+            expect(scope.suppressesErrors()).to.be.true;
+        });
+    });
+
+    describe('suppressOwnErrors()', function () {
+        it('should suppress errors only for this scope', function () {
+            createScope();
+
+            scope.suppressOwnErrors();
+
+            expect(scope.suppressesOwnErrors()).to.be.true;
+        });
+    });
+
+    describe('suppressesErrors()', function () {
+        it('should return false by default', function () {
+            createScope();
+
+            expect(scope.suppressesErrors()).to.be.false;
+        });
+    });
+
+    describe('suppressesOwnErrors()', function () {
+        it('should return false by default', function () {
+            createScope();
+
+            expect(scope.suppressesOwnErrors()).to.be.false;
+        });
+    });
+
     describe('updateCoroutine()', function () {
         it('should update the current Coroutine for the Scope', function () {
             var newCoroutine = sinon.createStubInstance(Coroutine);
@@ -908,6 +985,28 @@ describe('Scope', function () {
             scope.updateCoroutine(newCoroutine);
 
             expect(scope.getCoroutine()).to.equal(newCoroutine);
+        });
+    });
+
+    describe('unsuppressErrors()', function () {
+        it('should unsuppress errors for this and descendant scopes', function () {
+            createScope();
+            scope.suppressErrors();
+
+            scope.unsuppressErrors();
+
+            expect(scope.suppressesErrors()).to.be.false;
+        });
+    });
+
+    describe('unsuppressOwnErrors()', function () {
+        it('should unsuppress errors only for this scope', function () {
+            createScope();
+            scope.suppressOwnErrors();
+
+            scope.unsuppressOwnErrors();
+
+            expect(scope.suppressesOwnErrors()).to.be.false;
         });
     });
 });

@@ -16,14 +16,15 @@ var _ = require('microdash'),
     FunctionContextInterface = require('./FunctionContextInterface');
 
 /**
- * Represents a PHP method function
+ * Represents a PHP method function.
  *
  * @param {Class} classObject
- * @param {string|null} name
+ * @param {Trait|null} traitObject Trait object if this is a trait method, null otherwise.
+ * @param {string} name
  * @constructor
  * @implements {FunctionContextInterface}
  */
-function MethodContext(classObject, name) {
+function MethodContext(classObject, traitObject, name) {
     /**
      * @type {Class}
      */
@@ -32,6 +33,10 @@ function MethodContext(classObject, name) {
      * @type {string|null}
      */
     this.name = name;
+    /**
+     * @type {Trait|null}
+     */
+    this.traitObject = traitObject;
 }
 
 util.inherits(MethodContext, FunctionContextInterface);
@@ -64,6 +69,13 @@ _.extend(MethodContext.prototype, {
      */
     getTraceFrameName: function (isStaticCall) {
         return this.getName(isStaticCall);
+    },
+
+    /**
+     * @inheritDoc
+     */
+    getTrait: function () {
+        return this.traitObject;
     },
 
     /**

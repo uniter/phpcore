@@ -15,31 +15,40 @@ var expect = require('chai').expect,
     NamespaceScope = require('../../../src/NamespaceScope').sync();
 
 describe('FunctionContext', function () {
+    var context,
+        namespaceScope;
+
     beforeEach(function () {
-        this.namespaceScope = sinon.createStubInstance(NamespaceScope);
+        namespaceScope = sinon.createStubInstance(NamespaceScope);
 
-        this.namespaceScope.getNamespacePrefix.returns('My\\Lib\\MyNamespace\\');
+        namespaceScope.getNamespacePrefix.returns('My\\Lib\\MyNamespace\\');
 
-        this.context = new FunctionContext(this.namespaceScope, 'myFunction');
+        context = new FunctionContext(namespaceScope, 'myFunction');
     });
 
     describe('getName()', function () {
         it('should return the correct string including the namespace prefix', function () {
-            expect(this.context.getName()).to.equal('My\\Lib\\MyNamespace\\myFunction');
+            expect(context.getName()).to.equal('My\\Lib\\MyNamespace\\myFunction');
         });
     });
 
     describe('getTraceFrameName()', function () {
         it('should return the correct string including the namespace prefix', function () {
             // NB: This is intentionally identical to the result of .getName()
-            expect(this.context.getTraceFrameName()).to.equal('My\\Lib\\MyNamespace\\myFunction');
+            expect(context.getTraceFrameName()).to.equal('My\\Lib\\MyNamespace\\myFunction');
+        });
+    });
+
+    describe('getTrait()', function () {
+        it('should return null', function () {
+            expect(context.getTrait()).to.be.null;
         });
     });
 
     describe('getUnprefixedName()', function () {
         it('should return the correct string including the namespace prefix', function () {
             // NB: This is also intentionally identical to the result of .getName()
-            expect(this.context.getUnprefixedName()).to.equal('My\\Lib\\MyNamespace\\myFunction');
+            expect(context.getUnprefixedName()).to.equal('My\\Lib\\MyNamespace\\myFunction');
         });
     });
 });

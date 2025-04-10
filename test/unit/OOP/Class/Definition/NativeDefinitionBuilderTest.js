@@ -11,16 +11,17 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
-    tools = require('../../tools'),
-    Class = require('../../../../src/Class').sync(),
-    ClassDefinition = require('../../../../src/Class/Definition/ClassDefinition'),
-    FFIFactory = require('../../../../src/FFI/FFIFactory'),
-    Namespace = require('../../../../src/Namespace').sync(),
-    NamespaceScope = require('../../../../src/NamespaceScope').sync(),
-    NativeDefinitionBuilder = require('../../../../src/Class/Definition/NativeDefinitionBuilder'),
-    NativeMethodDefinitionBuilder = require('../../../../src/Class/Definition/NativeMethodDefinitionBuilder'),
-    ObjectValue = require('../../../../src/Value/Object').sync(),
-    ValueCoercer = require('../../../../src/FFI/Value/ValueCoercer');
+    tools = require('../../../tools'),
+    Class = require('../../../../../src/Class').sync(),
+    ClassDefinition = require('../../../../../src/OOP/Class/Definition/ClassDefinition'),
+    FFIFactory = require('../../../../../src/FFI/FFIFactory'),
+    Namespace = require('../../../../../src/Namespace').sync(),
+    NamespaceScope = require('../../../../../src/NamespaceScope').sync(),
+    NativeDefinitionBuilder = require('../../../../../src/OOP/Class/Definition/NativeDefinitionBuilder'),
+    NativeMethodDefinitionBuilder = require('../../../../../src/OOP/NativeMethodDefinitionBuilder'),
+    ObjectValue = require('../../../../../src/Value/Object').sync(),
+    Trait = require('../../../../../src/OOP/Trait/Trait'),
+    ValueCoercer = require('../../../../../src/FFI/Value/ValueCoercer');
 
 describe('NativeDefinitionBuilder', function () {
     var builder,
@@ -56,13 +57,16 @@ describe('NativeDefinitionBuilder', function () {
             definition,
             definitionFunction,
             firstInterface,
+            firstTrait,
             interfaces,
             methodCaller,
             myConstantFactoryFunction,
             namespace,
             namespaceScope,
             secondInterface,
-            superClass;
+            secondTrait,
+            superClass,
+            traits;
 
         beforeEach(function () {
             myConstantFactoryFunction = function () {};
@@ -72,12 +76,15 @@ describe('NativeDefinitionBuilder', function () {
             };
             definitionFunction.prototype.myMethod = sinon.stub();
             firstInterface = sinon.createStubInstance(Class);
-            secondInterface = sinon.createStubInstance(Class);
-            interfaces = [firstInterface, secondInterface];
+            firstTrait = sinon.createStubInstance(Trait);
             methodCaller = sinon.stub();
             namespace = sinon.createStubInstance(Namespace);
             namespaceScope = sinon.createStubInstance(NamespaceScope);
+            secondInterface = sinon.createStubInstance(Class);
+            secondTrait = sinon.createStubInstance(Trait);
             superClass = sinon.createStubInstance(Class);
+            interfaces = [firstInterface, secondInterface];
+            traits = [firstTrait, secondTrait];
 
             namespace.getPrefix.returns('My\\Stuff\\');
 
@@ -91,6 +98,7 @@ describe('NativeDefinitionBuilder', function () {
                     namespace,
                     namespaceScope,
                     interfaces,
+                    traits,
                     Boolean(autoCoercionEnabled),
                     methodCaller
                 );
@@ -98,7 +106,7 @@ describe('NativeDefinitionBuilder', function () {
         });
 
         it('should throw when the definition is not a function (ensure a userland definition was not given in error)', function () {
-            definitionFunction = {my: 'object'}; // Not a valid native definition
+            definitionFunction = {my: 'object'}; // Not a valid native definition.
 
             expect(function () {
                 callBuildDefinition('MyInvalidThrowable');
@@ -146,10 +154,18 @@ describe('NativeDefinitionBuilder', function () {
                 expect(definition.getInterfaces()[1]).to.equal(secondInterface);
             });
 
+            it('should have the correct traits', function () {
+                callBuildDefinition();
+
+                expect(definition.getTraits()).to.have.length(2);
+                expect(definition.getTraits()[0]).to.equal(firstTrait);
+                expect(definition.getTraits()[1]).to.equal(secondTrait);
+            });
+
             it('should have the constants of the class definition', function () {
                 callBuildDefinition();
 
-                expect(definition.getConstants().MY_CONST).to.equal(myConstantFactoryFunction);
+                expect(definition.getConstants().MY_CONST.value).to.equal(myConstantFactoryFunction);
             });
 
             it('should have __construct for class constructor name', function () {
@@ -275,6 +291,22 @@ describe('NativeDefinitionBuilder', function () {
                         expect(definitionFunction).to.have.been.calledOnce;
                         expect(definitionFunction).to.have.been.calledOn(sinon.match.same(objectValue));
                         expect(definitionFunction).to.have.been.calledWith(sinon.match.same(arg1), sinon.match.same(arg2));
+                    });
+
+                    it('should await any Future returned from the original native constructor when non-coercing', async function () {
+                        var completed = false;
+                        definitionFunction.callsFake(function () {
+                            return futureFactory.createFuture(function (resolve) {
+                                hostScheduler.queueMacrotask(function () {
+                                    completed = true;
+                                    resolve();
+                                });
+                            });
+                        });
+
+                        await callProxyConstructor('MyClass', false).toPromise();
+
+                        expect(completed).to.be.true;
                     });
 
                     it('should call a __construct() method on the definition function correctly when non-coercing', function () {

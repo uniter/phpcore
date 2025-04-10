@@ -11,14 +11,14 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
-    tools = require('../../tools'),
-    NativeMethodDefinitionBuilder = require('../../../../src/Class/Definition/NativeMethodDefinitionBuilder'),
-    ObjectValue = require('../../../../src/Value/Object').sync(),
-    Scope = require('../../../../src/Scope').sync(),
-    Signature = require('../../../../src/Function/Signature/Signature'),
-    SignatureParser = require('../../../../src/Function/Signature/SignatureParser'),
-    TypedFunction = require('../../../../src/Function/TypedFunction'),
-    ValueCoercer = require('../../../../src/FFI/Value/ValueCoercer');
+    tools = require('../tools'),
+    NativeMethodDefinitionBuilder = require('../../../src/OOP/NativeMethodDefinitionBuilder'),
+    ObjectValue = require('../../../src/Value/Object').sync(),
+    Scope = require('../../../src/Scope').sync(),
+    Signature = require('../../../src/Function/Signature/Signature'),
+    SignatureParser = require('../../../src/Function/Signature/SignatureParser'),
+    TypedFunction = require('../../../src/Function/TypedFunction'),
+    ValueCoercer = require('../../../src/FFI/Value/ValueCoercer');
 
 describe('NativeMethodDefinitionBuilder', function () {
     var builder,

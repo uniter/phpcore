@@ -14,7 +14,7 @@ var expect = require('chai').expect,
     tools = require('../tools');
 
 describe('PHP magic constant integration', function () {
-    it('should support the __CLASS__ magic constant', function () {
+    it('should support the __CLASS__ magic constant', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 namespace My\App;
@@ -24,8 +24,19 @@ function myFunction()
     return __CLASS__;
 }
 
+trait MyTrait
+{
+    const MY_TRAIT_CONST = __CLASS__;
+}
+
 class MyClass
 {
+    use MyTrait;
+
+    const MY_CLASS_CONST = __CLASS__;
+    public $myInstanceProp = __CLASS__;
+    public static $myStaticProp = __CLASS__;
+
     public static function myStaticMethod()
     {
         return __CLASS__;
@@ -37,26 +48,35 @@ class MyClass
     }
 }
 
-$result = array(__CLASS__);
-$result[] = myFunction();
-$result[] = MyClass::myStaticMethod();
-$result[] = (new MyClass())->myInstanceMethod();
+$result = ['global scope' => __CLASS__];
+$result['normal function'] = myFunction();
+$result['class constant'] = MyClass::MY_CLASS_CONST;
+$result['trait constant'] = MyClass::MY_TRAIT_CONST;
+$result['static class property'] = MyClass::$myStaticProp;
+$result['instance class property'] = (new MyClass)->myInstanceProp;
+$result['static class method'] = MyClass::myStaticMethod();
+$result['instance class method'] = (new MyClass())->myInstanceMethod();
 
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
-            '', // No current class when in global scope
-            '', // No current class when inside a normal function
-            'My\\App\\MyClass', // From a static method
-            'My\\App\\MyClass'  // From a instance method
-        ]);
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'global scope': '', // No current class when in global scope.
+            'normal function': '', // No current class when inside a normal function.
+            'class constant': 'My\\App\\MyClass',
+            'trait constant': 'My\\App\\MyClass', // Fetches the class that the trait is used in.
+            'static class property': 'My\\App\\MyClass',
+            'instance class property': 'My\\App\\MyClass',
+            'static class method': 'My\\App\\MyClass',
+            'instance class method': 'My\\App\\MyClass'
+        });
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should support the __DIR__ magic constant for a script inside a subfolder', function () {
+    it('should support the __DIR__ magic constant for a script inside a subfolder', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 namespace My\App;
@@ -87,18 +107,19 @@ $result[] = (new MyClass())->myInstanceMethod();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('path/to/the/dir/of_my_module', php),
+            module = tools.asyncTranspile('path/to/the/dir/of_my_module', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             'path/to/the/dir',
             'path/to/the/dir',
             'path/to/the/dir',
             'path/to/the/dir'
         ]);
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should support the __DIR__ magic constant for a script inside the root folder', function () {
+    it('should support the __DIR__ magic constant for a script inside the root folder', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];
@@ -107,15 +128,16 @@ $result[] = __DIR__;
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('my_root_script.php', php),
+            module = tools.asyncTranspile('my_root_script.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             ''
         ]);
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should support the __FILE__ magic constant', function () {
+    it('should support the __FILE__ magic constant', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 namespace My\App;
@@ -146,18 +168,19 @@ $result[] = (new MyClass())->myInstanceMethod();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('path/to/my_module', php),
+            module = tools.asyncTranspile('path/to/my_module', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             'path/to/my_module',
             'path/to/my_module',
             'path/to/my_module',
             'path/to/my_module'
         ]);
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should support the __LINE__ magic constant', function () {
+    it('should support the __LINE__ magic constant', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 namespace My\App;
@@ -188,18 +211,19 @@ $result[] = (new MyClass())->myInstanceMethod();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             22,
             6,
             13,
             18
         ]);
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should support the __FUNCTION__ magic constant', function () {
+    it('should support the __FUNCTION__ magic constant', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 namespace My\App;
@@ -242,10 +266,10 @@ $result[] = MyClass::callClosure();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             '', // No current function when in global scope
             'My\\App\\myFunction',  // Normal functions are prefixed with the namespace
             'myStaticMethod',       // Static methods are not prefixed with the class name or namespace
@@ -253,9 +277,10 @@ EOS
             'My\\App\\{closure}',   // Closure defined outside of class or function
             'My\\App\\{closure}'    // Closure defined inside static method
         ]);
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should support the __METHOD__ magic constant', function () {
+    it('should support the __METHOD__ magic constant', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 namespace My\App;
@@ -298,10 +323,10 @@ $result[] = MyClass::callClosure();
 return $result;
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             // No current method when in global scope
             '',
             // Normal functions are still supported and are prefixed with the namespace
@@ -315,9 +340,10 @@ EOS
             // Closure defined inside static method
             'My\\App\\{closure}'
         ]);
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 
-    it('should support the __NAMESPACE__ magic constant', function () {
+    it('should support the __NAMESPACE__ magic constant', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -357,15 +383,116 @@ namespace {
 }
 EOS
 */;}), //jshint ignore:line
-            module = tools.syncTranspile('/path/to/my_module.php', php),
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
 
-        expect(engine.execute().getNative()).to.deep.equal([
+        expect((await engine.execute()).getNative()).to.deep.equal([
             '',         // Global namespace has no name
             'My\\App',  // Normal functions
             'My\\App',  // Static methods
             'My\\App',  // Instance methods
             'My\\App'   // Closures
         ]);
+        expect(engine.getStderr().readAll()).to.equal('');
+    });
+
+    it('should support the __TRAIT__ magic constant', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+namespace My\App;
+
+function myFunction()
+{
+    return __TRAIT__;
+}
+
+trait MyTrait
+{
+    const MY_TRAIT_CONST = __TRAIT__;
+
+    public static $myInstanceTraitProp = 'hello from instance trait property: ' . __TRAIT__;
+    public static $myStaticTraitProp = 'hello from static trait property: ' . __TRAIT__;
+
+    public static function myStaticTraitMethod()
+    {
+        return __TRAIT__;
+    }
+
+    public function myInstanceTraitMethod()
+    {
+        return __TRAIT__;
+    }
+
+    public static function myTraitMethodInvokingClosure()
+    {
+        $closure = function () {
+            return __TRAIT__;
+        };
+        return $closure();
+    }
+}
+
+class MyClass
+{
+    const MY_CLASS_CONST = __TRAIT__;
+
+    use MyTrait;
+
+    public static $myInstanceClassProp = __TRAIT__;
+    public static $myStaticClassProp = __TRAIT__;
+
+    public static function myStaticClassMethod()
+    {
+        return __TRAIT__;
+    }
+
+    public function myInstanceClassMethod()
+    {
+        return __TRAIT__;
+    }
+}
+
+$myClosure = function () {
+    return __TRAIT__;
+};
+
+$result = ['global scope' => __TRAIT__];
+$result['normal function'] = myFunction();
+$result['closure'] = $myClosure();
+$result['class constant'] = MyClass::MY_CLASS_CONST;
+$result['trait constant'] = MyClass::MY_TRAIT_CONST;
+$result['static class property'] = MyClass::$myStaticClassProp;
+$result['instance class property'] = MyClass::$myInstanceClassProp;
+$result['static class method'] = MyClass::myStaticClassMethod();
+$result['instance class method'] = (new MyClass())->myInstanceClassMethod();
+$result['static trait property'] = MyClass::$myStaticTraitProp;
+$result['instance trait property'] = MyClass::$myInstanceTraitProp;
+$result['static trait method'] = MyClass::myStaticTraitMethod();
+$result['instance trait method'] = (new MyClass())->myInstanceTraitMethod();
+$result['static trait method invoking closure'] = MyClass::myTraitMethodInvokingClosure();
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'global scope': '', // No current trait when in global scope.
+            'closure': '', // No current trait when inside a closure.
+            'normal function': '', // No current trait when inside a normal function.
+            'class constant': '', // No current trait when inside a class constant.
+            'trait constant': 'My\\App\\MyTrait',
+            'static class property': '', // No current trait when inside a static class property.
+            'instance class property': '', // No current trait when inside a class property.
+            'static class method': '', // No current trait when inside a static method.
+            'instance class method': '',  // No current trait when inside an instance method.
+            'static trait property': 'hello from static trait property: My\\App\\MyTrait',
+            'instance trait property': 'hello from instance trait property: My\\App\\MyTrait',
+            'static trait method': 'My\\App\\MyTrait',
+            'instance trait method': 'My\\App\\MyTrait',
+            'static trait method invoking closure': 'My\\App\\MyTrait'
+        });
+        expect(engine.getStderr().readAll()).to.equal('');
     });
 });

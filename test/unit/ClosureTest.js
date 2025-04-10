@@ -17,6 +17,7 @@ var expect = require('chai').expect,
     FunctionSpec = require('../../src/Function/FunctionSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
+    Reference = require('../../src/Reference/Reference'),
     Scope = require('../../src/Scope').sync(),
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
@@ -165,7 +166,7 @@ describe('Closure', function () {
             );
         });
 
-        it('should call the wrapped function with the provided arguments', function () {
+        it('should call the wrapped function with the provided Value arguments', function () {
             var arg1 = sinon.createStubInstance(Value),
                 arg2 = sinon.createStubInstance(Value);
 
@@ -177,13 +178,44 @@ describe('Closure', function () {
             );
         });
 
-        it('should return the coerced result from the wrapped function', function () {
-            var coercedResultValue = sinon.createStubInstance(Value),
-                resultValue = sinon.createStubInstance(Value);
-            wrappedFunction.returns(resultValue);
-            valueFactory.coerce.withArgs(sinon.match.same(resultValue)).returns(coercedResultValue);
+        it('should call the wrapped function with the provided Reference arguments', function () {
+            var arg1 = sinon.createStubInstance(Reference),
+                arg2 = sinon.createStubInstance(Reference);
 
-            expect(closure.invoke([])).to.equal(coercedResultValue);
+            closure.invoke([arg1, arg2]);
+
+            expect(wrappedFunction).to.have.been.calledWith(
+                sinon.match.same(arg1),
+                sinon.match.same(arg2)
+            );
+        });
+
+        it('should handle a mix of Value and Reference arguments', function () {
+            var arg1 = sinon.createStubInstance(Value),
+                arg2 = sinon.createStubInstance(Reference);
+
+            closure.invoke([arg1, arg2]);
+
+            expect(wrappedFunction).to.have.been.calledWith(
+                sinon.match.same(arg1),
+                sinon.match.same(arg2)
+            );
+        });
+
+        it('should return the result from the wrapped function when it returns a Value', function () {
+            var resultValue = sinon.createStubInstance(Value);
+            wrappedFunction.returns(resultValue);
+
+            var result = closure.invoke([]);
+
+            expect(result).to.equal(resultValue);
+        });
+
+        it('should return the result from the wrapped function when it returns a Reference', function () {
+            var resultReference = sinon.createStubInstance(Reference);
+            wrappedFunction.returns(resultReference);
+
+            expect(closure.invoke([])).to.equal(resultReference);
         });
     });
 });

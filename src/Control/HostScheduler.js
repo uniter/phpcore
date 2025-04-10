@@ -10,13 +10,9 @@
 'use strict';
 
 var _ = require('microdash'),
-    queueMacrotask = typeof requestIdleCallback !== 'undefined' ?
-        function (callback) {
-            requestIdleCallback(callback, {timeout: 0});
-        } :
-        function (callback) {
-            setTimeout(callback, 1);
-        },
+    queueMacrotask = function (callback) {
+        setTimeout(callback, 0);
+    },
     queueMicrotask = require('core-js-pure/actual/queue-microtask');
 
 /**

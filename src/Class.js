@@ -12,10 +12,12 @@
 module.exports = require('pauser')([
     require('microdash'),
     require('phpcommon'),
+    require('./OOP/Class/IsolatedScope'),
     require('es6-weak-map')
 ], function (
     _,
     phpCommon,
+    IsolatedScope,
     WeakMap
 ) {
     var IS_STATIC = 'isStatic',
@@ -26,6 +28,7 @@ module.exports = require('pauser')([
         UNDEFINED_CLASS_CONSTANT = 'core.undefined_class_constant',
         UNDEFINED_METHOD = 'core.undefined_method',
 
+        TRAIT_OBJECT = 'traitObject',
         VALUE = 'value',
         VISIBILITY = 'visibility',
         hasOwn = {}.hasOwnProperty,
@@ -79,7 +82,7 @@ module.exports = require('pauser')([
      * @param {Object} rootInternalPrototype
      * @param {Object} instancePropertiesData
      * @param {Object} staticPropertiesData
-     * @param {Object.<string, Function>} constantToProviderMap Map of constant names to value provider functions
+     * @param {Object} constantsData
      * @param {Class|null} superClass Parent class, if any
      * @param {Class[]} interfaces Interfaces implemented by this class
      * @param {NamespaceScope} namespaceScope
@@ -107,7 +110,7 @@ module.exports = require('pauser')([
         rootInternalPrototype,
         instancePropertiesData,
         staticPropertiesData,
-        constantToProviderMap,
+        constantsData,
         superClass,
         interfaces,
         namespaceScope,
@@ -128,7 +131,7 @@ module.exports = require('pauser')([
         /**
          * @type {Object<string, Function>}
          */
-        this.constantToProviderMap = constantToProviderMap;
+        this.constantsData = constantsData;
         /**
          * @type {boolean}
          */
@@ -516,7 +519,8 @@ module.exports = require('pauser')([
         getConstantByName: function (name) {
             var classObject = this,
                 getValue = function () {
-                    var value = null;
+                    var data,
+                        value = null;
 
                     if (hasOwn.call(classObject.constantValues, name)) {
                         // Constant has already been initialised; just return its value.
@@ -529,15 +533,21 @@ module.exports = require('pauser')([
                         return classObject.valueFactory.createString(classObject.getName());
                     }
 
-                    if (hasOwn.call(classObject.constantToProviderMap, name)) {
+                    if (hasOwn.call(classObject.constantsData, name)) {
+                        data = classObject.constantsData[name];
+
                         // Allow for the constant value to be loaded asynchronously,
                         // eg. if it references a constant of a different, asynchronously autoloaded class
                         return classObject.userland.enterIsolated(
                             function () {
-                                return classObject.constantToProviderMap[name](classObject);
+                                return data[VALUE](classObject);
                             },
-                            classObject.namespaceScope,
-                            classObject.instrumentation
+                            new IsolatedScope(
+                                classObject.namespaceScope,
+                                classObject.instrumentation,
+                                classObject,
+                                data[TRAIT_OBJECT] || null
+                            )
                         );
                     }
 
@@ -812,7 +822,7 @@ module.exports = require('pauser')([
             }
 
             return classObject.flow.eachAsync(
-                Object.keys(classObject.constantToProviderMap),
+                Object.keys(classObject.constantsData),
                 function (name) {
                     // Note that this could return a Future, e.g. if the constant references
                     // a class that needs to be autoloaded asynchronously.
@@ -853,18 +863,23 @@ module.exports = require('pauser')([
                 return classObject.flow.eachAsync(
                     Object.keys(classObject.instancePropertiesData),
                     function (propertyName) {
-                        var data = classObject.instancePropertiesData[propertyName];
+                        var data = classObject.instancePropertiesData[propertyName],
+                            isolatedScope = new IsolatedScope(
+                                classObject.namespaceScope,
+                                classObject.instrumentation,
+                                classObject,
+                                data.traitObject || null
+                            );
 
                         // Allow for the initial value to be loaded asynchronously,
                         // eg. if it references a constant of a different, asynchronously autoloaded class.
                         return classObject.userland.enterIsolated(
                             function () {
-                                // Pass the class object to the property initialiser (if any),
-                                // so that it may refer to other properties/constants of this class with self::*
-                                return data[VALUE](classObject);
+                                // Pass the class scope to the property initialiser (if any),
+                                // so that it may refer to other properties/constants of this class with self::*.
+                                return data[VALUE]();
                             },
-                            classObject.namespaceScope,
-                            classObject.instrumentation
+                            isolatedScope
                         ).next(function (initialValue) {
                             if (initialValue === null) {
                                 // If a property has no initialiser then its initial value is NULL
@@ -906,7 +921,13 @@ module.exports = require('pauser')([
             return classObject.flow.eachAsync(
                 Object.keys(classObject.staticPropertiesData),
                 function (propertyName) {
-                    var data = classObject.staticPropertiesData[propertyName];
+                    var data = classObject.staticPropertiesData[propertyName],
+                        isolatedScope = new IsolatedScope(
+                            classObject.namespaceScope,
+                            classObject.instrumentation,
+                            classObject,
+                            data.traitObject || null
+                        );
 
                     // Allow for the initial value to be loaded asynchronously,
                     // eg. if it references a constant of a different, asynchronously autoloaded class
@@ -914,10 +935,9 @@ module.exports = require('pauser')([
                         function () {
                             // Pass the class object to the property initialiser (if any),
                             // so that it may refer to other properties/constants of this class with self::*
-                            return data[VALUE](classObject);
+                            return data[VALUE]();
                         },
-                        classObject.namespaceScope,
-                        classObject.instrumentation
+                        isolatedScope
                     ).next(function (initialValue) {
                         if (initialValue === null) {
                             // If a property has no initialiser then its initial value is NULL

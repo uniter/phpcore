@@ -195,7 +195,7 @@ describe('DebugFormatter', function () {
 
             expect(formatter.header(debugVariable)).to.deep.equal([
                 'span',
-                {'style': 'text-style: italic; color: gray;'},
+                {'style': 'font-style: italic; color: gray;'},
                 '<undefined>'
             ]);
         });
