@@ -100,7 +100,7 @@ EOS
         ]);
     });
 
-    it('should support the standard superglobals', function () {
+    it('should support the standard superglobal $GLOBALS', function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -121,10 +121,42 @@ EOS
             engine = module();
 
         expect(engine.execute().getNative()).to.deep.equal([
-            21, // Ensure global variables can be accessed
-            21, // $GLOBALS should have a reference to itself
-            27  // Allow superglobals' values to be overwritten
+            21, // Ensure global variables can be accessed.
+            21, // $GLOBALS should have a reference to itself.
+            27  // Allow superglobals' values to be overwritten.
         ]);
+    });
+
+    it('should define the other standard superglobals as empty arrays by default', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+$result = [];
+
+$result['_COOKIE'] = $_COOKIE;
+$result['_ENV'] = $_ENV;
+$result['_FILES'] = $_FILES;
+$result['_GET'] = $_GET;
+$result['_POST'] = $_POST;
+$result['_REQUEST'] = $_REQUEST;
+$result['_SERVER'] = $_SERVER;
+$result['_SESSION'] = $_SESSION;
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            '_COOKIE': [],
+            '_ENV': [],
+            '_FILES': [],
+            '_GET': [],
+            '_POST': [],
+            '_REQUEST': [],
+            '_SERVER': [],
+            '_SESSION': []
+        });
     });
 
     it('should support defining a new global via the superglobal $GLOBALS', function () {

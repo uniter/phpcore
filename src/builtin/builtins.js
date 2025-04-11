@@ -15,6 +15,7 @@ module.exports = require('pauser')([
     require('./functions/optionsAndInfo/config'),
     require('./opcodes/controlExpression'),
     require('./opcodes/controlStructure'),
+    require('./initialisers/superglobal'),
     require('./constants/errorHandling'),
     require('./ini/errorHandling'),
     require('./messages/error.en_GB'),
@@ -51,6 +52,7 @@ module.exports = require('pauser')([
     configOptionsAndInfoFunctions,
     controlExpressionOpcodeGroup,
     controlStructureOpcodeGroup,
+    superglobalInitialiserGroup,
     errorHandlingConstants,
     errorHandlingDefaultINIOptions,
     errorMessages,
@@ -113,6 +115,9 @@ module.exports = require('pauser')([
         defaultINIGroups: [
             errorHandlingDefaultINIOptions,
             resourceDefaultINIOptions
+        ],
+        initialiserGroups: [
+            superglobalInitialiserGroup
         ],
         opcodeGroups: [
             calculationOpcodeGroup,
