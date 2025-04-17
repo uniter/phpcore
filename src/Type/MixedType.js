@@ -54,6 +54,13 @@ _.extend(MixedType.prototype, {
     /**
      * {@inheritdoc}
      */
+    createEmptyScalarValue: function () {
+        return null;
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     getDisplayName: function () {
         return 'mixed';
     },

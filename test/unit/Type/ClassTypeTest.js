@@ -119,6 +119,12 @@ describe('ClassType', function () {
         });
     });
 
+    describe('createEmptyScalarValue()', function () {
+        it('should return null', function () {
+            expect(type.createEmptyScalarValue()).to.be.null;
+        });
+    });
+
     describe('getDisplayName()', function () {
         it('should return the FQCN', function () {
             expect(type.getDisplayName()).to.equal('My\\Fqcn\\ToMyClass');

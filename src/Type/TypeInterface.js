@@ -55,6 +55,16 @@ _.extend(TypeInterface.prototype, {
     coerceValue: throwUnimplemented('coerceValue'),
 
     /**
+     * Creates an empty value of this type. Used by the deprecated behaviour of built-in functions
+     * that accept a non-nullable type, but were called with null in coercive types mode.
+     *
+     * Returns null when the type is unable to be coerced to a scalar value.
+     *
+     * @returns {Value|null}
+     */
+    createEmptyScalarValue: throwUnimplemented('createEmptyValue'),
+
+    /**
      * Fetches the display name for this type (eg. "string" or "My\Lib\MyClass")
      *
      * @returns {string}

@@ -183,6 +183,22 @@ describe('UnionType', function () {
         });
     });
 
+    describe('createEmptyScalarValue()', function () {
+        it('should return an empty value of the first scalar type when available', function () {
+            var emptyValue = valueFactory.createFloat(0);
+            scalarFloatSubType.createEmptyScalarValue.returns(emptyValue);
+
+            expect(type.createEmptyScalarValue()).to.equal(emptyValue);
+        });
+
+        it('should return null if no scalar types are available', function () {
+            scalarBooleanSubType.createEmptyScalarValue.returns(null);
+            scalarFloatSubType.createEmptyScalarValue.returns(null);
+
+            expect(type.createEmptyScalarValue()).to.be.null;
+        });
+    });
+
     describe('getDisplayName()', function () {
         it('should return the correct concatenated display string', function () {
             expect(type.getDisplayName()).to.equal('MyClass|callable|float|bool');

@@ -69,6 +69,12 @@ describe('ObjectType', function () {
         });
     });
 
+    describe('createEmptyScalarValue()', function () {
+        it('should return null since objects are not scalar types', function () {
+            expect(type.createEmptyScalarValue()).to.be.null;
+        });
+    });
+
     describe('getDisplayName()', function () {
         it('should return "object"', function () {
             expect(type.getDisplayName()).to.equal('object');

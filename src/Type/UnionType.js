@@ -191,6 +191,25 @@ _.extend(UnionType.prototype, {
     /**
      * {@inheritdoc}
      */
+    createEmptyScalarValue: function () {
+        var emptyValue = null;
+
+        _.each(this.scalarSubTypesByPriority, function (subType) {
+            var typeEmptyValue = subType.createEmptyScalarValue();
+
+            if (typeEmptyValue !== null) {
+                emptyValue = typeEmptyValue;
+
+                return false;
+            }
+        });
+
+        return emptyValue;
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     getDisplayName: function () {
         var displayName,
             typeNames,

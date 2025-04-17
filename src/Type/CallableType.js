@@ -73,6 +73,13 @@ _.extend(CallableType.prototype, {
     /**
      * {@inheritdoc}
      */
+    createEmptyScalarValue: function () {
+        return null;
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     getDisplayName: function () {
         return 'callable';
     },

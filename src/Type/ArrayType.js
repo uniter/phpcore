@@ -69,6 +69,13 @@ _.extend(ArrayType.prototype, {
     /**
      * {@inheritdoc}
      */
+    createEmptyScalarValue: function () {
+        return null;
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     getDisplayName: function () {
         return 'array';
     },

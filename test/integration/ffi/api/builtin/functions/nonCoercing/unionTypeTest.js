@@ -177,8 +177,10 @@ EOS
                 'throwable': 'with_bool_or_int(): Argument #1 ($myParam) must be of type int|bool, stdClass given'
             },
             'with disallowed null': {
-                'result': null,
-                'throwable': 'with_bool_or_int(): Argument #1 ($myParam) must be of type int|bool, null given'
+                // Note that this is deprecated but actually allowed
+                // as per https://wiki.php.net/rfc/deprecate_null_to_scalar_internal_arg.
+                'result': 'int: 0',
+                'throwable': null
             }
         });
     });

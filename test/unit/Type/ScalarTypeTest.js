@@ -31,14 +31,14 @@ describe('ScalarType', function () {
         valueFactory = state.getValueFactory();
 
         createType = function (scalarType) {
-            type = new ScalarType(futureFactory, scalarType, false);
+            type = new ScalarType(valueFactory, futureFactory, scalarType, false);
         };
         createType('int');
     });
 
     describe('allowsNull()', function () {
         it('should return true when set', function () {
-            type = new ScalarType(futureFactory, 'boolean', true);
+            type = new ScalarType(valueFactory, futureFactory, 'boolean', true);
 
             expect(type.allowsNull()).to.be.true;
         });
@@ -136,7 +136,7 @@ describe('ScalarType', function () {
         });
 
         it('should return true when null given and null is allowed', async function () {
-            type = new ScalarType(futureFactory, 'float', true);
+            type = new ScalarType(valueFactory, futureFactory, 'float', true);
 
             expect(await type.allowsValue(valueFactory.createNull()).toPromise()).to.be.true;
         });
@@ -193,6 +193,52 @@ describe('ScalarType', function () {
             expect(function () {
                 type.coerceValue(originalValue);
             }).to.throw('Unknown scalar type "invalidtype"');
+        });
+    });
+
+    describe('createEmptyScalarValue()', function () {
+        it('should return false for boolean type', function () {
+            const type = new ScalarType(valueFactory, futureFactory, 'bool', false);
+
+            const result = type.createEmptyScalarValue();
+
+            expect(result.getType()).to.equal('boolean');
+            expect(result.getNative()).to.be.false;
+        });
+
+        it('should return 0.0 for float type', function () {
+            const type = new ScalarType(valueFactory, futureFactory, 'float', false);
+
+            const result = type.createEmptyScalarValue();
+
+            expect(result.getType()).to.equal('float');
+            expect(result.getNative()).to.equal(0);
+        });
+
+        it('should return 0 for integer type', function () {
+            const type = new ScalarType(valueFactory, futureFactory, 'int', false);
+
+            const result = type.createEmptyScalarValue();
+
+            expect(result.getType()).to.equal('int');
+            expect(result.getNative()).to.equal(0);
+        });
+
+        it('should return empty string for string type', function () {
+            const type = new ScalarType(valueFactory, futureFactory, 'string', false);
+
+            const result = type.createEmptyScalarValue();
+
+            expect(result.getType()).to.equal('string');
+            expect(result.getNative()).to.equal('');
+        });
+
+        it('should throw an error for an invalid scalar type', function () {
+            const type = new ScalarType(valueFactory, futureFactory, 'invalid', false);
+
+            expect(function () {
+                type.createEmptyScalarValue();
+            }).to.throw('Unknown scalar type "invalid"');
         });
     });
 

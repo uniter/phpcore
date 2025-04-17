@@ -68,6 +68,12 @@ describe('ArrayType', function () {
         });
     });
 
+    describe('createEmptyScalarValue()', function () {
+        it('should return null since arrays are not scalar types', function () {
+            expect(type.createEmptyScalarValue()).to.be.null;
+        });
+    });
+
     describe('getDisplayName()', function () {
         it('should return "array"', function () {
             expect(type.getDisplayName()).to.equal('array');

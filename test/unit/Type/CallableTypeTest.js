@@ -88,6 +88,12 @@ describe('CallableType', function () {
         });
     });
 
+    describe('createEmptyScalarValue()', function () {
+        it('should return null', function () {
+            expect(type.createEmptyScalarValue()).to.be.null;
+        });
+    });
+
     describe('getDisplayName()', function () {
         it('should return "callable"', function () {
             expect(type.getDisplayName()).to.equal('callable');

@@ -546,7 +546,7 @@ module.exports = function (internals) {
         },
 
         'type_factory': function () {
-            return new TypeFactory(get(FUTURE_FACTORY), get(FLOW));
+            return new TypeFactory(get(VALUE_FACTORY), get(FUTURE_FACTORY), get(FLOW));
         },
 
         'typed_opcode_handler_factory': function () {

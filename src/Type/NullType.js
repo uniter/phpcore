@@ -54,6 +54,13 @@ _.extend(NullType.prototype, {
     /**
      * {@inheritdoc}
      */
+    createEmptyScalarValue: function () {
+        return null;
+    },
+
+    /**
+     * {@inheritdoc}
+     */
     getDisplayName: function () {
         return 'null';
     },

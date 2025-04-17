@@ -20,6 +20,7 @@ var expect = require('chai').expect,
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     Parameter = require('../../../src/Function/Parameter'),
     ParameterFactory = require('../../../src/Function/ParameterFactory'),
+    PHPError = phpCommon.PHPError,
     Reference = require('../../../src/Reference/Reference'),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
     Scope = require('../../../src/Scope').sync(),
@@ -66,40 +67,46 @@ describe('Parameter', function () {
         callStack.getCallerLastLine.returns(null);
         callStack.isStrictTypesMode.returns(false);
         callStack.isUserland.returns(false);
-        callStack.raiseTranslatedError.callsFake(function (
-            level,
-            translationKey,
-            placeholderVariables,
-            errorClass,
-            reportsOwnContext,
-            filePath,
-            lineNumber,
-            contextTranslationKey,
-            contextPlaceholderVariables,
-            skipCurrentStackFrame
-        ) {
-            throw new Error(
-                'Fake PHP ' + level + ' [' + errorClass +
-                '] for #' + translationKey +
-                ' with ' + JSON.stringify(placeholderVariables || {}) +
-                ' reportsOwnContext=' + (reportsOwnContext ? 'yes' : 'no') +
-                (
-                    contextTranslationKey ?
-                        ' context(#' + contextTranslationKey +
-                        ' with ' + JSON.stringify(contextPlaceholderVariables || {}) +
-                        ')' :
-                        ''
-                ) +
-                ' skipCurrentStackFrame=' + (skipCurrentStackFrame ? 'yes' : 'no') +
-                ' @ ' + filePath + ':' + lineNumber
-            );
-        });
+        callStack.raiseTranslatedError
+            .withArgs(PHPError.E_ERROR)
+            .callsFake(function (
+                level,
+                translationKey,
+                placeholderVariables,
+                errorClass,
+                reportsOwnContext,
+                filePath,
+                lineNumber,
+                contextTranslationKey,
+                contextPlaceholderVariables,
+                skipCurrentStackFrame
+            ) {
+                throw new Error(
+                    'Fake PHP ' + level + ' [' + errorClass +
+                    '] for #' + translationKey +
+                    ' with ' + JSON.stringify(placeholderVariables || {}) +
+                    ' reportsOwnContext=' + (reportsOwnContext ? 'yes' : 'no') +
+                    (
+                        contextTranslationKey ?
+                            ' context(#' + contextTranslationKey +
+                            ' with ' + JSON.stringify(contextPlaceholderVariables || {}) +
+                            ')' :
+                            ''
+                    ) +
+                    ' skipCurrentStackFrame=' + (skipCurrentStackFrame ? 'yes' : 'no') +
+                    ' @ ' + filePath + ':' + lineNumber
+                );
+            });
         translator.translate.callsFake(function (translationKey, placeholderVariables) {
             return '[Translated] ' + translationKey + ' ' + JSON.stringify(placeholderVariables || {});
         });
         userland.enterIsolated.callsFake(function (executor) {
             return flow.maybeFuturise(executor);
         });
+        namespaceScope.isGlobal.returns(true);
+        typeObject.allowsNull.returns(false);
+        typeObject.getExpectedMessage.returns('of type mytype');
+        typeObject.createEmptyScalarValue.returns(valueFactory.createString(''));
 
         createParameter = function (passedByReference, variadic) {
             parameter = new Parameter(
@@ -186,6 +193,94 @@ describe('Parameter', function () {
 
             expect(await parameter.coerceArgument(variable).toPromise()).to.equal(value);
             expect(typeObject.coerceValue).not.to.have.been.called;
+        });
+
+        it('should raise a deprecation notice and create an empty scalar value when null is passed to a non-nullable parameter in coercive types mode', async function () {
+            var emptyValue = valueFactory.createString(''),
+                nullValue = valueFactory.createNull(),
+                variable = sinon.createStubInstance(Variable);
+            context.getName.returns('do_something');
+            typeObject.getExpectedMessage.returns('string');
+            typeObject.coerceValue
+                .withArgs(sinon.match.same(nullValue))
+                .returns(futureFactory.createPresent(nullValue));
+            typeObject.createEmptyScalarValue.returns(emptyValue);
+            variable.getValue.returns(nullValue);
+            createParameter(false);
+
+            expect(await parameter.coerceArgument(variable).toPromise()).to.equal(emptyValue);
+            expect(typeObject.createEmptyScalarValue).to.have.been.calledOnce;
+            expect(callStack.raiseTranslatedError).to.have.been.calledOnce;
+            expect(callStack.raiseTranslatedError).to.have.been.calledWith(
+                PHPError.E_DEPRECATED,
+                'core.null_passed_to_non_nullable_builtin',
+                {
+                    index: 7,
+                    context: ' ($myParam)',
+                    func: 'do_something',
+                    expectedType: 'string'
+                }
+            );
+        });
+
+        it('should not raise a deprecation notice when null is passed to a nullable parameter in coercive types mode', async function () {
+            var nullValue = valueFactory.createNull(),
+                variable = sinon.createStubInstance(Variable);
+            typeObject.allowsNull.returns(true);
+            typeObject.coerceValue
+                .withArgs(sinon.match.same(nullValue))
+                .returns(futureFactory.createPresent(nullValue));
+            variable.getValue.returns(nullValue);
+            createParameter(false);
+
+            expect(await parameter.coerceArgument(variable).toPromise()).to.equal(nullValue);
+            expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            expect(typeObject.createEmptyScalarValue).not.to.have.been.called;
+        });
+
+        it('should not raise a deprecation notice when null is passed to a non-nullable parameter in strict types mode', async function () {
+            var nullValue = valueFactory.createNull(),
+                variable = sinon.createStubInstance(Variable);
+            callStack.isStrictTypesMode.returns(true);
+            typeObject.coerceValue
+                .withArgs(sinon.match.same(nullValue))
+                .returns(futureFactory.createPresent(nullValue));
+            variable.getValue.returns(nullValue);
+            createParameter(false);
+
+            expect(await parameter.coerceArgument(variable).toPromise()).to.equal(nullValue);
+            expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            expect(typeObject.createEmptyScalarValue).not.to.have.been.called;
+        });
+
+        it('should not raise a deprecation notice when null is passed to a non-nullable parameter of a non-builtin function', async function () {
+            var nullValue = valueFactory.createNull(),
+                variable = sinon.createStubInstance(Variable);
+            namespaceScope.isGlobal.returns(false);
+            typeObject.coerceValue
+                .withArgs(sinon.match.same(nullValue))
+                .returns(futureFactory.createPresent(nullValue));
+            variable.getValue.returns(nullValue);
+            createParameter(false);
+
+            expect(await parameter.coerceArgument(variable).toPromise()).to.equal(nullValue);
+            expect(callStack.raiseTranslatedError).not.to.have.been.called;
+            expect(typeObject.createEmptyScalarValue).not.to.have.been.called;
+        });
+
+        it('should not raise a deprecation notice when null is passed to a non-scalar non-nullable parameter of a builtin function', async function () {
+            var nullValue = valueFactory.createNull(),
+                variable = sinon.createStubInstance(Variable);
+            namespaceScope.isGlobal.returns(true);
+            typeObject.coerceValue
+                .withArgs(sinon.match.same(nullValue))
+                .returns(futureFactory.createPresent(nullValue));
+            typeObject.createEmptyScalarValue.returns(null);
+            variable.getValue.returns(nullValue);
+            createParameter(false);
+
+            expect(await parameter.coerceArgument(variable).toPromise()).to.equal(nullValue);
+            expect(callStack.raiseTranslatedError).not.to.have.been.called;
         });
     });
 
@@ -452,6 +547,7 @@ describe('Parameter', function () {
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
                     '"context":" ($myParam)",' +
+                    '"expectedType":"of type mytype",' +
                     '"actualType":"string",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345' +
@@ -480,6 +576,7 @@ describe('Parameter', function () {
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_userland with {' +
                     '"index":7,' +
                     '"context":" ($myParam)",' +
+                    '"expectedType":"of type mytype",' +
                     '"actualType":"string",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345' +
@@ -526,6 +623,7 @@ describe('Parameter', function () {
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
                     '"context":" ($myParam)",' +
+                    '"expectedType":"of type mytype",' +
                     '"actualType":"string",' +
                     '"callerFile":"[Translated] core.unknown {}",' +
                     '"callerLine":"[Translated] core.unknown {}"' +
@@ -570,6 +668,7 @@ describe('Parameter', function () {
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
                     '"context":" ($myParam)",' +
+                    '"expectedType":"of type mytype",' +
                     '"actualType":"null",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345' +
@@ -616,6 +715,7 @@ describe('Parameter', function () {
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
                     '"context":" ($myParam)",' +
+                    '"expectedType":"of type mytype",' +
                     '"actualType":"null",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345' +
@@ -643,6 +743,7 @@ describe('Parameter', function () {
                     'Fake PHP Fatal error [TypeError] for #core.invalid_value_for_type_builtin with {' +
                     '"index":7,' +
                     '"context":" ($myParam)",' +
+                    '"expectedType":"of type mytype",' +
                     '"actualType":"null",' +
                     '"callerFile":"/my/caller/module.php",' +
                     '"callerLine":12345' +

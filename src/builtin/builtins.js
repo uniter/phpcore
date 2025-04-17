@@ -15,6 +15,7 @@ module.exports = require('pauser')([
     require('./functions/optionsAndInfo/config'),
     require('./opcodes/controlExpression'),
     require('./opcodes/controlStructure'),
+    require('./messages/deprecation.en_GB'),
     require('./initialisers/superglobal'),
     require('./constants/errorHandling'),
     require('./ini/errorHandling'),
@@ -52,6 +53,7 @@ module.exports = require('pauser')([
     configOptionsAndInfoFunctions,
     controlExpressionOpcodeGroup,
     controlStructureOpcodeGroup,
+    deprecationMessages,
     superglobalInitialiserGroup,
     errorHandlingConstants,
     errorHandlingDefaultINIOptions,
@@ -132,6 +134,7 @@ module.exports = require('pauser')([
             semanticsServiceGroup
         ],
         translationCatalogues: [
+            deprecationMessages,
             errorMessages,
             noticeMessages,
             miscellaneousMessages,

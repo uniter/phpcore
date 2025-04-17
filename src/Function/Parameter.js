@@ -17,6 +17,7 @@ var _ = require('microdash'),
 
     CALL_TO_BUILTIN = 'core.call_to_builtin',
     DEFINED_IN_USERLAND = 'core.defined_in_userland',
+    DEPRECATED_NULL_PASSED_TO_NON_NULLABLE_BUILTIN = 'core.null_passed_to_non_nullable_builtin',
     INSTANCE_OF_TYPE_ACTUAL = 'core.instance_of_type_actual',
     INVALID_BY_REFERENCE_ARGUMENT = 'core.invalid_by_reference_argument',
     INVALID_VALUE_FOR_TYPE_BUILTIN = 'core.invalid_value_for_type_builtin',
@@ -150,9 +151,10 @@ _.extend(Parameter.prototype, {
                 // .getValueOrNull() will return a NullValue (with no notice raised) in that scenario.
                 argumentReference.getValueOrNull() :
                 // Otherwise use .getValue() to ensure a notice is raised on undefined variable or reference.
-                argumentReference.getValue();
+                argumentReference.getValue(),
+            isStrictTypesMode = parameter.callStack.isStrictTypesMode();
 
-        if (parameter.callStack.isStrictTypesMode()) {
+        if (isStrictTypesMode) {
             // No value coercion to perform in strict-types mode.
             return value;
         }
@@ -165,6 +167,36 @@ _.extend(Parameter.prototype, {
              */
             return parameter.typeObject.coerceValue(presentValue)
                 .next(function (coercedValue) {
+                    // See https://wiki.php.net/rfc/deprecate_null_to_scalar_internal_arg.
+                    if (!isStrictTypesMode &&
+                        coercedValue.getType() === 'null' &&
+                        parameter.namespaceScope.isGlobal() &&
+                        !parameter.typeObject.allowsNull()
+                    ) {
+
+                        const emptyValue = parameter.typeObject.createEmptyScalarValue();
+
+                        if (emptyValue !== null) {
+                            const expectedType = parameter.typeObject.getExpectedMessage(parameter.translator);
+
+                            // Deprecated: null was passed to a non-nullable scalar-accepting parameter of a built-in function
+                            // in coercive types mode.
+                            parameter.callStack.raiseTranslatedError(
+                                PHPError.E_DEPRECATED,
+                                DEPRECATED_NULL_PASSED_TO_NON_NULLABLE_BUILTIN,
+                                {
+                                    index: parameter.index + 1,
+                                    // Variadic parameters' names are not displayed.
+                                    context: parameter.variadic ? '' : ' ($' + parameter.name + ')',
+                                    func: parameter.context.getName(),
+                                    expectedType: expectedType
+                                }
+                            );
+
+                            coercedValue = emptyValue;
+                        }
+                    }
+
                     // Write the coerced argument value back to the reference if needed.
                     if (
                         parameter.passedByReference &&

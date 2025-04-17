@@ -24,11 +24,12 @@ var _ = require('microdash'),
 /**
  * Creates objects related to Types.
  *
+ * @param {ValueFactory} valueFactory
  * @param {FutureFactory} futureFactory
  * @param {Flow} flow
  * @constructor
  */
-function TypeFactory(futureFactory, flow) {
+function TypeFactory(valueFactory, futureFactory, flow) {
     /**
      * @type {Flow}
      */
@@ -37,6 +38,10 @@ function TypeFactory(futureFactory, flow) {
      * @type {FutureFactory}
      */
     this.futureFactory = futureFactory;
+    /**
+     * @type {ValueFactory}
+     */
+    this.valueFactory = valueFactory;
 }
 
 _.extend(TypeFactory.prototype, {
@@ -118,7 +123,7 @@ _.extend(TypeFactory.prototype, {
      * @returns {ScalarType}
      */
     createScalarType: function (scalarType, nullIsAllowed) {
-        return new ScalarType(this.futureFactory, scalarType, Boolean(nullIsAllowed));
+        return new ScalarType(this.valueFactory, this.futureFactory, scalarType, Boolean(nullIsAllowed));
     },
 
     /**
