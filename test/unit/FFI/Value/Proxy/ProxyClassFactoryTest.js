@@ -103,6 +103,11 @@ describe('FFI ProxyClassFactory', function () {
                     InternalSuperClass.prototype.firstMethod = firstOriginalMethod;
                     InternalClass.prototype.secondMethod = secondOriginalMethod;
 
+                    classObject.getMethodCallables.returns({
+                        firstMethod: firstOriginalMethod,
+                        secondMethod: secondOriginalMethod
+                    });
+
                     proxyMemberFactory.createProxyMethod
                         .withArgs('firstMethod')
                         .returns(firstProxyMethod);
@@ -148,6 +153,13 @@ describe('FFI ProxyClassFactory', function () {
                     // First method is inherited from a super JS class of the super PHP class
                     SuperClassInternalSuperClass.prototype.firstMethod = firstOriginalMethod;
                     SuperClassInternalClass.prototype.secondMethod = secondOriginalMethod;
+
+                    classObject.getMethodCallables.returns({
+                        secondMethod: secondOriginalMethod
+                    });
+                    superClass.getMethodCallables.returns({
+                        firstMethod: firstOriginalMethod
+                    });
 
                     proxyMemberFactory.createProxyMethod
                         .withArgs('firstMethod')

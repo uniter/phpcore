@@ -15,6 +15,7 @@ var expect = require('chai').expect,
     tools = require('../tools'),
     ArrayIterator = require('../../../src/Iterator/ArrayIterator'),
     ArrayValue = require('../../../src/Value/Array').sync(),
+    Callable = require('../../../src/Function/Callable'),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
     ElementReference = require('../../../src/Reference/Element'),
@@ -22,7 +23,6 @@ var expect = require('chai').expect,
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyReferencePair = require('../../../src/KeyReferencePair'),
     KeyValuePair = require('../../../src/KeyValuePair'),
-    MethodSpec = require('../../../src/MethodSpec'),
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
@@ -1139,13 +1139,13 @@ describe('ArrayValue', function () {
     describe('isCallable()', function () {
         it('should return true for a valid instance method name of a given object', async function () {
             var classObject = sinon.createStubInstance(Class),
-                methodSpec = sinon.createStubInstance(MethodSpec),
+                methodCallable = sinon.createStubInstance(Callable),
                 objectValue = sinon.createStubInstance(ObjectValue);
             objectValue.getClass.returns(classObject);
             objectValue.getType.returns('object');
-            classObject.getMethodSpec
+            classObject.getMethodCallable
                 .withArgs('myStaticMethod')
-                .returns(methodSpec);
+                .returns(methodCallable);
             globalNamespace.hasClass
                 .withArgs('My\\Fqcn')
                 .returns(true);
@@ -1167,10 +1167,10 @@ describe('ArrayValue', function () {
 
         it('should return true for a valid static method name of a given class', async function () {
             var classObject = sinon.createStubInstance(Class),
-                methodSpec = sinon.createStubInstance(MethodSpec);
-            classObject.getMethodSpec
+                methodCallable = sinon.createStubInstance(Callable);
+            classObject.getMethodCallable
                 .withArgs('myStaticMethod')
-                .returns(methodSpec);
+                .returns(methodCallable);
             globalNamespace.hasClass
                 .withArgs('My\\Fqcn')
                 .returns(true);
@@ -1236,7 +1236,7 @@ describe('ArrayValue', function () {
                 objectValue = sinon.createStubInstance(ObjectValue);
             objectValue.getClass.returns(classObject);
             objectValue.getType.returns('object');
-            classObject.getMethodSpec
+            classObject.getMethodCallable
                 .withArgs('myNonExistentStaticMethod')
                 .returns(null);
             globalNamespace.hasClass
@@ -1260,7 +1260,7 @@ describe('ArrayValue', function () {
 
         it('should return true for a non-existent static method', async function () {
             var classObject = sinon.createStubInstance(Class);
-            classObject.getMethodSpec
+            classObject.getMethodCallable
                 .withArgs('myNonExistentStaticMethod')
                 .returns(null);
             globalNamespace.hasClass

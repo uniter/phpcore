@@ -60,11 +60,11 @@ function OverloadedFunctionSpec(
 
 _.extend(OverloadedFunctionSpec.prototype, {
     /**
-     * Creates a new function (and its FunctionSpec) for an alias of the current OverloadedFunctionSpec.
+     * Creates a new callable (and its FunctionSpec) for an alias of the current OverloadedFunctionSpec.
      *
      * @param {string} aliasName
      * @param {FunctionFactory} functionFactory
-     * @return {Function}
+     * @return {Callable}
      */
     createAliasFunction: function (aliasName, functionFactory) {
         var spec = this,
@@ -84,7 +84,7 @@ _.extend(OverloadedFunctionSpec.prototype, {
             spec.maximumParameterCount
         );
 
-        return functionFactory.create(
+        return functionFactory.createCallable(
             spec.namespaceScope,
             // Class will always be null for 'normal' functions
             // as defining a function inside a class will define it

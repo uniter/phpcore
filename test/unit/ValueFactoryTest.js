@@ -72,16 +72,16 @@ describe('ValueFactory', function () {
             'future_factory': function (set, get) {
                 var futureFactory;
 
-                function TrackedFuture() {
-                    Future.apply(this, arguments);
+                function TrackedFuture(...args) {
+                    Future.apply(this, args);
 
                     futuresCreated++;
                 }
 
                 util.inherits(TrackedFuture, Future);
 
-                function TrackedPresent() {
-                    Present.apply(this, arguments);
+                function TrackedPresent(...args) {
+                    Present.apply(this, args);
 
                     presentsCreated++;
                 }
@@ -467,7 +467,7 @@ describe('ValueFactory', function () {
                 .withArgs('Closure')
                 .returns(futureFactory.createPresent(closureClassObject));
             closureClassObject.instantiateWithInternals
-                .withArgs(sinon.match.any, {
+                .withArgs(sinon.match.any, null, {
                     closure: sinon.match.same(closure)
                 })
                 .returns(objectValue);
@@ -483,7 +483,7 @@ describe('ValueFactory', function () {
                 .withArgs('Closure')
                 .returns(futureFactory.createPresent(closureClassObject));
             closureClassObject.instantiateWithInternals
-                .withArgs(sinon.match.any, {
+                .withArgs(sinon.match.any, null, {
                     closure: sinon.match.same(closure)
                 })
                 .returns(objectValue);
@@ -575,6 +575,7 @@ describe('ValueFactory', function () {
 
             expect(myClassObject.instantiate).to.have.been.calledWith(
                 sinon.match.any,
+                null,
                 [
                     'my context',
                     sinon.match.any
@@ -599,6 +600,7 @@ describe('ValueFactory', function () {
 
             expect(myClassObject.instantiate).to.have.been.calledWith(
                 sinon.match.any,
+                null,
                 [
                     sinon.match.any,
                     true
@@ -779,7 +781,6 @@ describe('ValueFactory', function () {
                 .callsFake(function (instance) {
                     return instance.getObject();
                 });
-            JSObjectClass.getMethodSpec.withArgs('__get').returns({});
             JSObjectClass.getName.returns('JSObject');
             JSObjectClass.getSuperClass.returns(null);
             JSObjectClass.is.withArgs('JSObject').returns(true);
@@ -972,7 +973,7 @@ describe('ValueFactory', function () {
                 .returns(objectValue);
 
             expect(factory.createGeneratorObject(call, innerFunction)).to.equal(objectValue);
-            iterator = generatorClassObject.instantiateWithInternals.args[0][1].iterator;
+            iterator = generatorClassObject.instantiateWithInternals.args[0][2].iterator;
             expect(iterator).to.be.an.instanceOf(GeneratorIterator);
             expect(iterator.getInnerFunction()).to.equal(innerFunction);
             expect(iterator.getFunctionCall()).to.equal(call);

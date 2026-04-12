@@ -53,8 +53,8 @@ describe('Flow', function () {
             'future_factory': function (set, get) {
                 var futureFactory;
 
-                function TrackedFuture() {
-                    RealFuture.apply(this, arguments);
+                function TrackedFuture(...args) {
+                    RealFuture.apply(this, args);
 
                     futuresCreated++;
                 }
@@ -63,8 +63,8 @@ describe('Flow', function () {
 
                 Future = sinon.spy(TrackedFuture);
 
-                function TrackedPresent() {
-                    RealPresent.apply(this, arguments);
+                function TrackedPresent(...args) {
+                    RealPresent.apply(this, args);
 
                     presentsCreated++;
                 }

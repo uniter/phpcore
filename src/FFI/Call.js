@@ -14,14 +14,19 @@ var _ = require('microdash'),
     Exception = phpCommon.Exception;
 
 /**
- * @param {Value[]} args
+ @param {Reference[]|Value[]|Variable[]} positionalArgs
+ @param {Object.<string, Reference|Value|Variable>|null} namedArgs
  * @constructor
  */
-function Call(args) {
+function Call(positionalArgs, namedArgs) {
     /**
      * @type {Reference[]|Value[]|Variable[]}
      */
-    this.args = args;
+    this.args = positionalArgs;
+    /**
+     * @type {Object<string, Reference|Value|Variable>|null}
+     */
+    this.namedArgs = namedArgs;
 }
 
 _.extend(Call.prototype, {
@@ -93,6 +98,15 @@ _.extend(Call.prototype, {
      */
     getModule: function () {
         return null;
+    },
+
+    /**
+     * Fetches the named arguments passed to the called function, or null if none.
+     *
+     * @returns {Object.<string, Value>|null}
+     */
+    getNamedArgs: function () {
+        return this.namedArgs;
     },
 
     /**

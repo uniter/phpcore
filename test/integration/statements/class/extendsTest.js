@@ -234,8 +234,8 @@ EOS
             returnedClosure = (await engine.execute()).getNative();
 
         engine.defineClass('MyJSClass', function (internals) {
-            function MyJSClass() {
-                return internals.callSuperConstructor(this, arguments);
+            function MyJSClass(...args) {
+                return internals.callSuperConstructor(this, args);
             }
 
             internals.extendClass('MyPHPClass');

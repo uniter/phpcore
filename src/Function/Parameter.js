@@ -255,6 +255,15 @@ _.extend(Parameter.prototype, {
     },
 
     /**
+     * Fetches the zero-based position of this parameter in the signature.
+     *
+     * @returns {number}
+     */
+    getPosition: function () {
+        return this.index;
+    },
+
+    /**
      * Fetches this parameter's type.
      *
      * @returns {TypeInterface}

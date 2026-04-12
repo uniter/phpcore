@@ -4,9 +4,9 @@
  * @deprecated Remove this.
  */
 module.exports = function (done, callback) {
-    return function () {
+    return function (...args) {
         try {
-            callback.apply(this, arguments);
+            callback.apply(this, args);
             done();
         } catch (error) {
             done(error);

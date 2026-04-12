@@ -423,6 +423,55 @@ EOS
         });
     });
 
+    it('should support named arguments of constructor parameters', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass {
+    public $first;
+    public $second;
+    public $third;
+
+    public function __construct($first, $second, $third) {
+        $this->first = $first;
+        $this->second = $second;
+        $this->third = $third;
+    }
+
+    public function getNumbers() {
+        return 'first: ' . $this->first . ', second: ' . $this->second . ', third: ' . $this->third;
+    }
+}
+
+$result = [];
+
+$result['from bareword, named arguments only, in different order'] = new MyClass(second: 27, first: 21, third: 100)->getNumbers();
+$result['from bareword, named and positional arguments'] = new MyClass(121, third: 200, second: 127)->getNumbers();
+
+$myClassName = 'MyClass';
+$result['from string, named arguments only, in different order'] = new $myClassName(second: 27, first: 21, third: 100)->getNumbers();
+$result['from string, named and positional arguments'] = new $myClassName(121, third: 200, second: 127)->getNumbers();
+
+$myInstance = new MyClass(1, 2, 3);
+$result['from existing instance, named arguments only, in different order'] = new $myInstance(second: 27, first: 21, third: 100)->getNumbers();
+$result['from existing instance, named and positional arguments'] = new $myInstance(121, third: 200, second: 127)->getNumbers();
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'from bareword, named arguments only, in different order': 'first: 21, second: 27, third: 100',
+            'from bareword, named and positional arguments': 'first: 121, second: 127, third: 200',
+            'from string, named arguments only, in different order': 'first: 21, second: 27, third: 100',
+            'from string, named and positional arguments': 'first: 121, second: 127, third: 200',
+            'from existing instance, named arguments only, in different order': 'first: 21, second: 27, third: 100',
+            'from existing instance, named and positional arguments': 'first: 121, second: 127, third: 200'
+        });
+    });
+
     it('should raise a fatal error on attempting to instantiate an undefined class', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

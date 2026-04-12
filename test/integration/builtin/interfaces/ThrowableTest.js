@@ -67,6 +67,52 @@ EOS
         expect(engine.getStdout().readAll()).to.equal('');
     });
 
+    it('should allow a userland interface to extend Throwable', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace My\Awesome\Lib;
+
+interface MyThrowable extends \ThrowABLe {} // Use different case to test case-insensitivity.
+
+return 'success';
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        // Interfaces ARE allowed to extend Throwable - no error expected.
+        expect((await engine.execute()).getNative()).to.equal('success');
+
+        expect(engine.getStderr().readAll()).to.equal('');
+        expect(engine.getStdout().readAll()).to.equal('');
+    });
+
+    it('should allow a class to implement a userland interface that extends Throwable', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace My\Awesome\Lib;
+
+interface MyThrowable extends \ThrowABLe {} // Use different case to test case-insensitivity.
+
+class MyException extends \Exception implements MyThrowable {}
+
+$exception = new MyException('My message');
+
+return $exception->getMessage();
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        // Classes ARE allowed to indirectly implement Throwable - no error expected.
+        expect((await engine.execute()).getNative()).to.equal('My message');
+
+        expect(engine.getStderr().readAll()).to.equal('');
+        expect(engine.getStdout().readAll()).to.equal('');
+    });
+
     it('should correctly trap a userland class attempting to implement Throwable', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

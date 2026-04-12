@@ -39,7 +39,7 @@ _.extend(OverloadedFunctionDefiner.prototype, {
      * @param {string} name
      * @param {OverloadedFunctionVariant[]} variants
      * @param {NamespaceScope} namespaceScope
-     * @returns {Function}
+     * @returns {Callable}
      */
     defineFunction: function (
         name,
@@ -100,7 +100,7 @@ _.extend(OverloadedFunctionDefiner.prototype, {
             namespaceScope
         );
 
-        return definer.functionFactory.create(
+        return definer.functionFactory.createCallable(
             namespaceScope,
             // Class will always be null for 'normal' functions
             // as defining a function inside a class will define it

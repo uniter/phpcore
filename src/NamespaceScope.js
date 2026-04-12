@@ -251,6 +251,12 @@ module.exports = require('pauser')([
             return this.module.getFilePath();
         },
 
+        /**
+         * Fetches the Callable representing the specified global function in this namespace.
+         *
+         * @param {string} name
+         * @returns {Callable}
+         */
         getFunction: function (name) {
             var match,
                 scope = this,

@@ -39,6 +39,31 @@ EOS
         expect((await engine.execute()).getNative()).to.equal('myUndefinedMethod :: 42');
     });
 
+    it('should pass named arguments to __call(...) method', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+class MyClass
+{
+    public function aMethod() {}
+
+    public function __call($name, $args)
+    {
+        return $name . ' :: ' . ($args[0] + $args['secondArg'] * $args['thirdArg']);
+    }
+}
+
+$object = new MyClass;
+
+return $object->myUndefinedMethod(21, secondArg: 101, thirdArg: 2);
+EOS
+*/;}),//jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+
+        expect((await engine.execute()).getNative()).to.equal('myUndefinedMethod :: 223');
+    });
+
     it('magic __call(...) should override __callStatic(...) when both present for static call in object context', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php

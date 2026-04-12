@@ -11,7 +11,6 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
-    slice = [].slice,
     Exception = phpCommon.Exception;
 
 /**
@@ -48,9 +47,8 @@ _.extend(TypedOpcodeHandlerFactory.prototype, {
         }
 
         typedHandler = variadicParameter ?
-            function withVariadicParameter() {
+            function withVariadicParameter(...args) {
                 var argIndex = 0,
-                    args = slice.call(arguments),
                     argCount = args.length,
                     coercedArgs = [],
                     variadicArg = [];
@@ -126,9 +124,8 @@ _.extend(TypedOpcodeHandlerFactory.prototype, {
 
                 return coerceArgs();
             } :
-            function withoutVariadicParameter() {
+            function withoutVariadicParameter(...args) {
                 var argIndex = 0,
-                    args = slice.call(arguments),
                     argCount = args.length,
                     coercedArgs = [];
 

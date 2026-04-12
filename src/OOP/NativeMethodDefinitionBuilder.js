@@ -10,7 +10,6 @@
 'use strict';
 
 var _ = require('microdash'),
-    slice = [].slice,
     IS_STATIC = 'isStatic',
     TypedFunction = require('../Function/TypedFunction');
 
@@ -67,9 +66,8 @@ _.extend(NativeMethodDefinitionBuilder.prototype, {
             line: null,
             args: parametersSpecData,
             isStatic: isStatic,
-            method: function () {
-                var args = slice.call(arguments),
-                    scope = this,
+            method: function (...args) {
+                var scope = this,
                     objectValue = scope.getThisObject();
 
                 return valueCoercer.coerceArguments(args).next(function (effectiveArguments) {

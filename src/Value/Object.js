@@ -214,29 +214,38 @@ module.exports = require('pauser')([
          * Calls the specified method of this object
          *
          * @param {string} name
-         * @param {Value[]?} args
+         * @param {Reference[]|Value[]|Variable[]} positionalArgs
+         * @param {Object.<string, Reference|Value|Variable>|null} namedArgs
          * @returns {Value} Returns the result of the method if it exists
          * @throws {PHPFatalError} Throws when the method does not exist
          */
-        callMethod: function (name, args) {
+        callMethod: function (name, positionalArgs, namedArgs) {
             var value = this;
 
-            return value.classObject.callMethod(name, args, value);
+            return value.classObject.callMethod(name, positionalArgs, namedArgs, value);
         },
 
         /**
-         * Calls a static method of the class this object is an instance of
+         * Calls a static method of the class this object is an instance of.
          *
          * @param {StringValue} nameValue
-         * @param {Value[]} args
+         * @param {Reference[]|Value[]|Variable[]} positionalArgs
+         * @param {Object.<string, Reference|Value|Variable>|null} namedArgs
          * @param {bool} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
          * @returns {Value}
          */
-        callStaticMethod: function (nameValue, args, isForwarding) {
+        callStaticMethod: function (nameValue, positionalArgs, namedArgs, isForwarding) {
             // Could be a static call in object context, in which case we want to pass
             // the object value through.
             // This will be handled by a fetch of `callStack.getThisObject()` inside `.callMethod(...)`
-            return this.classObject.callMethod(nameValue.getNative(), args, null, null, null, isForwarding);
+            return this.classObject.callMethod(
+                nameValue.getNative(),
+                positionalArgs,
+                namedArgs,
+                null,
+                null,
+                isForwarding
+            );
         },
 
         /**
@@ -1308,12 +1317,13 @@ module.exports = require('pauser')([
          * Creates a new instance of the class of this object for a normal PHP object.
          * For a JSObject, if the wrapped object is a function then it will create
          * a new instance of the wrapped JS class instead,
-         * returning the resulting new JSObject instance
+         * returning the resulting new JSObject instance.
          *
-         * @param {Value[]} args
+         * @param {Reference[]|Value[]} constructorPositionalArgs The wrapped value objects or references to pass as arguments to the constructor.
+         * @param {Object.<string, Reference|Value|Variable>|null} constructorNamedArgs The named arguments.
          * @returns {ChainableInterface<ObjectValue>}
          */
-        instantiate: function (args) {
+        instantiate: function (constructorPositionalArgs, constructorNamedArgs) {
             var value = this,
                 nativeObject,
                 unwrappedArgs;
@@ -1321,17 +1331,21 @@ module.exports = require('pauser')([
             if (value.getClassName() !== 'JSObject') {
                 // A normal PHP object is being instantiated as a class -
                 // we just need to create a new instance of this object's class
-                return value.classObject.instantiate(args);
+                return value.classObject.instantiate(constructorPositionalArgs, constructorNamedArgs);
             }
 
-            // A JS function is being instantiated as a class from PHP (bridge integration)
+            // A JS function is being instantiated as a class from PHP (bridge integration).
 
             if (!_.isFunction(value.value)) {
                 throw new Error('Cannot create a new instance of a non-function JSObject');
             }
 
-            // Unwrap the arguments to native values (as the constructor will be native JS)
-            unwrappedArgs = _.map(args, function (argValue) {
+            if (constructorNamedArgs) {
+                throw new Error('Cannot pass named arguments when instantiating a JSObject');
+            }
+
+            // Unwrap the arguments to native values (as the constructor will be native JS).
+            unwrappedArgs = _.map(constructorPositionalArgs, function (argValue) {
                 return argValue.getNative();
             });
 
@@ -1363,7 +1377,7 @@ module.exports = require('pauser')([
 
             closure = value.getInternalProperty('closure');
 
-            return closure.invoke(args);
+            return closure.invoke(args, null, undefined);
         },
 
         /**
@@ -1436,7 +1450,7 @@ module.exports = require('pauser')([
          * @returns {boolean}
          */
         isMethodDefined: function (methodName) {
-            return this.classObject.getMethodSpec(methodName) !== null;
+            return this.classObject.getMethodCallable(methodName) !== null;
         },
 
         /**

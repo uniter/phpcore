@@ -81,7 +81,7 @@ describe('PHP builtin Closure class', function () {
         InternalClosureClass = closureClassFactory(internals);
         closureClass = sinon.createStubInstance(Class);
         closureClass.getName.returns('Closure');
-        closureClass.instantiateWithInternals.callsFake(function (args, internals) {
+        closureClass.instantiateWithInternals.callsFake(function (positionalArgs, namedArgs, internals) {
             var objectValue = valueFactory.createObject({}, closureClass);
 
             _.forOwn(internals, function (value, name) {
@@ -370,6 +370,7 @@ describe('PHP builtin Closure class', function () {
                 expect(closure.invoke).to.have.been.calledOnce;
                 expect(closure.invoke).to.have.been.calledWith(
                     sinon.match.any,
+                    null,
                     sinon.match.same(coercedThisObject)
                 );
             });
@@ -458,6 +459,7 @@ describe('PHP builtin Closure class', function () {
                     expect(closure.invoke).to.have.been.calledOnce;
                     expect(closure.invoke).to.have.been.calledWith(
                         sinon.match.any,
+                        null,
                         sinon.match.same(coercedThisObject)
                     );
                 });
@@ -536,6 +538,7 @@ describe('PHP builtin Closure class', function () {
                     expect(closure.invoke).to.have.been.calledOnce;
                     expect(closure.invoke).to.have.been.calledWith(
                         sinon.match.any,
+                        null,
                         sinon.match.same(coercedThisObject)
                     );
                 });

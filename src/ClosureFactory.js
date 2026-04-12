@@ -75,7 +75,7 @@ module.exports = require('pauser')([
                 staticClass = null;
             }
 
-            wrappedFunction = factory.functionFactory.create(
+            wrappedFunction = factory.functionFactory.createCallable(
                 namespaceScope,
                 scopeClass,
                 null,

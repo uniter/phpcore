@@ -658,7 +658,7 @@ module.exports = require('pauser')([
             }
 
             return classObjectFuture.next(function (classObject) {
-                return classObject.getMethodSpec(methodNameValue.getNative()) !== null;
+                return classObject.getMethodCallable(methodNameValue.getNative()) !== null;
             }, function () {
                 // TODO: Ensure that the error swallowed here cannot be something important
 

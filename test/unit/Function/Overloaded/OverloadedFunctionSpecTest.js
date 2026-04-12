@@ -69,7 +69,7 @@ describe('OverloadedFunctionSpec', function () {
                     5
                 )
                 .returns(aliasFunctionSpec);
-            functionFactory.create
+            functionFactory.createCallable
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     null,

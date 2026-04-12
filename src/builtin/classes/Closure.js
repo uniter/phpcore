@@ -111,8 +111,8 @@ module.exports = function (internals) {
          *
          * @returns {Value}
          */
-        '__invoke': function () {
-            return this.invokeClosure([].slice.call(arguments));
+        '__invoke': function (...args) {
+            return this.invokeClosure(args);
         }
     });
 
@@ -129,24 +129,24 @@ module.exports = function (internals) {
         // Unwrap PHP Closures to native JS functions that may be called
         // just like any other (with arguments coerced from JS->PHP
         // and the return value coerced from PHP->JS automatically)
-        return function __uniterInboundStackMarker__() {
+        return function __uniterInboundStackMarker__(...args) {
             var maybeFuture,
                 // Wrap thisObj in *Value object
                 thisObj = valueFactory.coerceObject(this),
                 // Wrap all native JS values in *Value objects
-                args = valueFactory.coerceList(arguments);
+                positionalArgs = valueFactory.coerceList(args);
 
             // We are entering PHP-land from JS-land.
             controlScope.enterCoroutine();
 
             // Push an FFI call onto the stack, representing the call from JavaScript-land
-            callStack.push(callFactory.createFFICall(args));
+            callStack.push(callFactory.createFFICall(positionalArgs));
 
             function popFFICall() {
                 callStack.pop();
             }
 
-            maybeFuture = closure.invoke.apply(closure, [args, thisObj])
+            maybeFuture = closure.invoke(positionalArgs, null, thisObj)
                 // Pop the call off the stack _before_ returning, to mirror sync mode's behaviour
                 .finally(popFFICall)
                 .catch(function (error) {

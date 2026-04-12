@@ -47,8 +47,8 @@ EOS
                         function () {
                             return {
                                 'SecondClass': function (internals) {
-                                    function SecondClass() {
-                                        internals.callSuperConstructor(this, arguments);
+                                    function SecondClass(...args) {
+                                        internals.callSuperConstructor(this, args);
                                     }
 
                                     internals.extendClass('FirstClass');

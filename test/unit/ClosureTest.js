@@ -11,6 +11,7 @@
 
 var expect = require('chai').expect,
     sinon = require('sinon'),
+    Callable = require('../../src/Function/Callable'),
     Class = require('../../src/Class').sync(),
     Closure = require('../../src/Closure').sync(),
     ClosureFactory = require('../../src/ClosureFactory').sync(),
@@ -39,7 +40,7 @@ describe('Closure', function () {
         namespaceScope = sinon.createStubInstance(NamespaceScope);
         thisObject = sinon.createStubInstance(ObjectValue);
         valueFactory = sinon.createStubInstance(ValueFactory);
-        wrappedFunction = sinon.stub();
+        wrappedFunction = sinon.createStubInstance(Callable);
 
         closure = new Closure(
             closureFactory,
@@ -145,23 +146,27 @@ describe('Closure', function () {
         it('should call the wrapped function once', function () {
             closure.invoke([]);
 
-            expect(wrappedFunction).to.have.been.calledOnce;
+            expect(wrappedFunction.call).to.have.been.calledOnce;
         });
 
         it('should use the provided `this` object for the wrapped function', function () {
             var thisObject = sinon.createStubInstance(ObjectValue);
 
-            closure.invoke([], thisObject);
+            closure.invoke([], null, thisObject);
 
-            expect(wrappedFunction).to.have.been.calledOn(
+            expect(wrappedFunction.call).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
                 sinon.match.same(thisObject)
             );
         });
 
         it('should use the Closure\'s `this` object for the wrapped function when not provided', function () {
-            closure.invoke([]);
+            closure.invoke([], null);
 
-            expect(wrappedFunction).to.have.been.calledOn(
+            expect(wrappedFunction.call).to.have.been.calledWith(
+                sinon.match.any,
+                sinon.match.any,
                 sinon.match.same(thisObject)
             );
         });
@@ -170,11 +175,12 @@ describe('Closure', function () {
             var arg1 = sinon.createStubInstance(Value),
                 arg2 = sinon.createStubInstance(Value);
 
-            closure.invoke([arg1, arg2]);
+            closure.invoke([arg1, arg2], null);
 
-            expect(wrappedFunction).to.have.been.calledWith(
-                sinon.match.same(arg1),
-                sinon.match.same(arg2)
+            expect(wrappedFunction.call).to.have.been.calledWith(
+                sinon.match(function (args) {
+                    return args.length === 2 && args[0] === arg1 && args[1] === arg2;
+                })
             );
         });
 
@@ -182,11 +188,12 @@ describe('Closure', function () {
             var arg1 = sinon.createStubInstance(Reference),
                 arg2 = sinon.createStubInstance(Reference);
 
-            closure.invoke([arg1, arg2]);
+            closure.invoke([arg1, arg2], null);
 
-            expect(wrappedFunction).to.have.been.calledWith(
-                sinon.match.same(arg1),
-                sinon.match.same(arg2)
+            expect(wrappedFunction.call).to.have.been.calledWith(
+                sinon.match(function (args) {
+                    return args.length === 2 && args[0] === arg1 && args[1] === arg2;
+                })
             );
         });
 
@@ -194,17 +201,18 @@ describe('Closure', function () {
             var arg1 = sinon.createStubInstance(Value),
                 arg2 = sinon.createStubInstance(Reference);
 
-            closure.invoke([arg1, arg2]);
+            closure.invoke([arg1, arg2], null);
 
-            expect(wrappedFunction).to.have.been.calledWith(
-                sinon.match.same(arg1),
-                sinon.match.same(arg2)
+            expect(wrappedFunction.call).to.have.been.calledWith(
+                sinon.match(function (args) {
+                    return args.length === 2 && args[0] === arg1 && args[1] === arg2;
+                })
             );
         });
 
         it('should return the result from the wrapped function when it returns a Value', function () {
             var resultValue = sinon.createStubInstance(Value);
-            wrappedFunction.returns(resultValue);
+            wrappedFunction.call.returns(resultValue);
 
             var result = closure.invoke([]);
 
@@ -213,7 +221,7 @@ describe('Closure', function () {
 
         it('should return the result from the wrapped function when it returns a Reference', function () {
             var resultReference = sinon.createStubInstance(Reference);
-            wrappedFunction.returns(resultReference);
+            wrappedFunction.call.returns(resultReference);
 
             expect(closure.invoke([])).to.equal(resultReference);
         });

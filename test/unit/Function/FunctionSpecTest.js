@@ -128,25 +128,39 @@ describe('FunctionSpec', function () {
         createSpec(false);
     });
 
-    describe('coerceArguments()', function () {
+    describe('coercePositionalArguments()', function () {
         var argument1,
             argument2,
+            argument3,
+            argument4,
             coercedArgument1,
             coercedArgument2,
+            coercedArgument3,
+            coercedArgument4,
             snapshot1,
-            snapshot2;
+            snapshot2,
+            snapshot3,
+            snapshot4;
 
         beforeEach(function () {
             argument1 = sinon.createStubInstance(Reference);
             argument2 = sinon.createStubInstance(Reference);
+            argument3 = sinon.createStubInstance(Reference);
+            argument4 = sinon.createStubInstance(Reference);
             snapshot1 = sinon.createStubInstance(ReferenceSnapshot);
             snapshot2 = sinon.createStubInstance(ReferenceSnapshot);
+            snapshot3 = sinon.createStubInstance(ReferenceSnapshot);
+            snapshot4 = sinon.createStubInstance(ReferenceSnapshot);
 
             argument1.getValue.returns(valueFactory.createString('first uncoerced'));
             argument2.getValue.returns(valueFactory.createString('second uncoerced'));
+            argument3.getValue.returns(valueFactory.createString('third uncoerced'));
+            argument4.getValue.returns(valueFactory.createString('fourth uncoerced'));
 
             coercedArgument1 = valueFactory.createString('first coerced');
             coercedArgument2 = valueFactory.createString('second coerced');
+            coercedArgument3 = valueFactory.createString('third coerced');
+            coercedArgument4 = valueFactory.createString('fourth coerced');
 
             parameter1.coerceArgument
                 .withArgs(sinon.match.same(argument1))
@@ -161,10 +175,16 @@ describe('FunctionSpec', function () {
             referenceFactory.createSnapshot
                 .withArgs(argument2, coercedArgument2)
                 .returns(snapshot2);
+            referenceFactory.createSnapshot
+                .withArgs(argument3, coercedArgument3)
+                .returns(snapshot3);
+            referenceFactory.createSnapshot
+                .withArgs(argument4, coercedArgument4)
+                .returns(snapshot4);
         });
 
         it('should return a new array of the coerced arguments', async function () {
-            var result = await spec.coerceArguments([argument1, argument2]).toPromise();
+            var result = await spec.coercePositionalArguments([argument1, argument2]).toPromise();
 
             expect(result).to.have.length(2);
             expect(result[0].getNative()).to.equal('first coerced');
@@ -173,13 +193,13 @@ describe('FunctionSpec', function () {
 
         it('should skip any parameters whose specs are missing', async function () {
             var result;
-            parameterList[0] = null; // Missing parameter spec, eg. due to bundle size optimisations.
+            parameterList[0] = null; // Missing parameter spec, e.g. due to bundle size optimisations.
             createSpec(false);
 
-            result = await spec.coerceArguments([argument1, argument2]).toPromise();
+            result = await spec.coercePositionalArguments([argument1, argument2]).toPromise();
 
             expect(result).to.have.length(2);
-            expect(result[0].getNative()).to.equal('first uncoerced');
+            expect(result[0].getNative()).to.equal('first uncoerced'); // Not coerced, as parameter spec is missing.
             expect(result[1].getNative()).to.equal('second coerced');
         });
 
@@ -189,7 +209,7 @@ describe('FunctionSpec', function () {
             // at this stage (should be handled later on, when validating)
             parameter2.isRequired.returns(true);
 
-            result = await spec.coerceArguments([argument1]).toPromise();
+            result = await spec.coercePositionalArguments([argument1]).toPromise();
 
             expect(result).to.have.length(1);
             expect(result[0].getNative()).to.equal('first coerced');
@@ -201,7 +221,7 @@ describe('FunctionSpec', function () {
             argumentReferences = [argument1, argument2];
             parameter1.isPassedByReference.returns(true);
 
-            result = await spec.coerceArguments(argumentReferences).toPromise();
+            result = await spec.coercePositionalArguments(argumentReferences).toPromise();
 
             expect(result).to.have.length(2);
             expect(result[0].getNative()).to.equal('first coerced');
@@ -217,7 +237,7 @@ describe('FunctionSpec', function () {
                 result;
             argumentReferences = [argument1, argument2];
 
-            result = await spec.coerceArguments(argumentReferences).toPromise();
+            result = await spec.coercePositionalArguments(argumentReferences).toPromise();
 
             expect(result).to.have.length(2);
             expect(result[0].getNative()).to.equal('first coerced');
@@ -225,6 +245,99 @@ describe('FunctionSpec', function () {
             expect(argumentReferences).to.have.length(2);
             expect(argumentReferences[0].getNative()).to.equal('first coerced');
             expect(argumentReferences[1].getNative()).to.equal('second coerced');
+        });
+
+        describe('with a by-value variadic parameter', function () {
+            var variadicParameter;
+
+            beforeEach(function () {
+                variadicParameter = sinon.createStubInstance(Parameter);
+                variadicParameter.isPassedByReference.returns(false);
+                variadicParameter.isVariadic.returns(true);
+                variadicParameter.coerceArgument
+                    .withArgs(sinon.match.same(argument3))
+                    .returns(coercedArgument3);
+                variadicParameter.coerceArgument
+                    .withArgs(sinon.match.same(argument4))
+                    .returns(coercedArgument4);
+                parameterList.push(variadicParameter);
+                createSpec(false);
+            });
+
+            it('should collect the extra argument into an array value when there is one', async function () {
+                var result = await spec.coercePositionalArguments([argument1, argument2, argument3]).toPromise();
+
+                expect(result).to.have.length(3);
+                expect(result[0].getNative()).to.equal('first coerced');
+                expect(result[1].getNative()).to.equal('second coerced');
+                expect(result[2].getType()).to.equal('array');
+                expect(result[2].getNative()).to.deep.equal(['third coerced']);
+            });
+
+            it('should collect the extra arguments into an array value when there are two', async function () {
+                var result = await spec.coercePositionalArguments([argument1, argument2, argument3, argument4]).toPromise();
+
+                expect(result).to.have.length(3);
+                expect(result[0].getNative()).to.equal('first coerced');
+                expect(result[1].getNative()).to.equal('second coerced');
+                expect(result[2].getType()).to.equal('array');
+                expect(result[2].getNative()).to.deep.equal(['third coerced', 'fourth coerced']);
+            });
+        });
+
+        describe('with a by-reference variadic parameter', function () {
+            var variadicParameter;
+
+            beforeEach(function () {
+                variadicParameter = sinon.createStubInstance(Parameter);
+                variadicParameter.isPassedByReference.returns(true);
+                variadicParameter.isVariadic.returns(true);
+                variadicParameter.coerceArgument
+                    .withArgs(sinon.match.same(argument3))
+                    .returns(coercedArgument3);
+                variadicParameter.coerceArgument
+                    .withArgs(sinon.match.same(argument4))
+                    .returns(coercedArgument4);
+                parameterList.push(variadicParameter);
+                createSpec(false);
+            });
+
+            it('should collect the extra argument into both a value ArrayValue and a reference ArrayValue when there is one', async function () {
+                var argumentReferences = [argument1, argument2, argument3],
+                    result = await spec.coercePositionalArguments(argumentReferences).toPromise();
+
+                // Array of coerced arguments.
+                expect(result).to.have.length(3);
+                expect(result[0].getNative()).to.equal('first coerced');
+                expect(result[1].getNative()).to.equal('second coerced');
+                expect(result[2].getType()).to.equal('array');
+                expect(result[2].getNative()).to.deep.equal(['third coerced']);
+                // Array of references to the snapshotted arguments.
+                expect(argumentReferences).to.have.length(3);
+                expect(argumentReferences[0].getValue().getNative()).to.equal('first coerced');
+                expect(argumentReferences[1].getValue().getNative()).to.equal('second coerced');
+                expect(argumentReferences[2].getValue().getType()).to.equal('array');
+                expect(argumentReferences[2].getValue().getElementByIndex(0).getReference()).to.equal(snapshot3);
+            });
+
+            it('should collect the extra argument into both a value ArrayValue and a reference ArrayValue when there are two', async function () {
+                var argumentReferences = [argument1, argument2, argument3, argument4],
+                    result = await spec.coercePositionalArguments(argumentReferences).toPromise();
+
+                // Array of coerced arguments.
+                expect(result).to.have.length(3);
+                expect(result[0].getNative()).to.equal('first coerced');
+                expect(result[1].getNative()).to.equal('second coerced');
+                expect(result[2].getType()).to.equal('array');
+                expect(result[2].getNative()).to.deep.equal(['third coerced', 'fourth coerced']);
+                // Array of references to the snapshotted arguments.
+                expect(argumentReferences).to.have.length(3);
+                expect(argumentReferences[0].getValue().getNative()).to.equal('first coerced');
+                expect(argumentReferences[1].getValue().getNative()).to.equal('second coerced');
+                expect(argumentReferences[2].getValue().getType()).to.equal('array');
+                expect(argumentReferences[2].getValue().getElementByIndex(0).getReference()).to.equal(snapshot3);
+                expect(argumentReferences[2].getValue().getElementByIndex(1).getReference()).to.equal(snapshot4);
+            });
         });
     });
 
@@ -297,7 +410,7 @@ describe('FunctionSpec', function () {
             functionFactory = sinon.createStubInstance(FunctionFactory);
             originalFunction = sinon.stub();
 
-            functionFactory.create
+            functionFactory.createCallable
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     null, // Class (always null for normal functions).
@@ -401,36 +514,32 @@ describe('FunctionSpec', function () {
 
         it('should correctly load the arguments for all parameters when one is variadic', function () {
             var argumentReference1 = sinon.createStubInstance(Reference),
+                // Variadic arguments are pre-packed into a single array reference by the caller.
                 argumentReference2 = sinon.createStubInstance(Reference),
-                argumentReference3 = sinon.createStubInstance(Reference),
                 firstParameterVariable = sinon.createStubInstance(Variable),
                 secondParameterVariable = sinon.createStubInstance(Variable),
-                variadicArrayValue;
+                variadicArrayValue = valueFactory.createArray([
+                    valueFactory.createString('my first variadic arg'),
+                    valueFactory.createString('my second variadic arg')
+                ]);
             parameter2.isVariadic.returns(true);
+            parameter2.getPosition.returns(1);
             scope.getVariable.withArgs('myFirstParam').returns(firstParameterVariable);
             scope.getVariable.withArgs('mySecondParam').returns(secondParameterVariable);
-            argumentReference2.getValue.returns(valueFactory.createString('my first variadic arg'));
-            argumentReference3.getValue.returns(valueFactory.createString('my second variadic arg'));
-            parameter2.loadArgument.callsFake(function (argumentReference, reference) {
-                reference.setValue(argumentReference.getValue());
-            });
+            // The pre-packed array value is provided at the variadic parameter's position.
+            argumentReference2.getValue.returns(variadicArrayValue);
             createSpec(false);
 
-            spec.loadArguments([argumentReference1, argumentReference2, argumentReference3], scope);
+            spec.loadArguments([argumentReference1, argumentReference2], scope);
 
             expect(parameter1.loadArgument).to.have.been.calledOnce;
             expect(parameter1.loadArgument).to.have.been.calledWith(
                 sinon.match.same(argumentReference1),
                 sinon.match.same(firstParameterVariable)
             );
-            expect(parameter2.loadArgument).to.have.been.calledTwice;
+            expect(parameter2.loadArgument).not.to.have.been.called;
             expect(secondParameterVariable.setValue).to.have.been.calledOnce;
-            variadicArrayValue = secondParameterVariable.setValue.args[0][0];
-            expect(variadicArrayValue.getType()).to.equal('array');
-            expect(variadicArrayValue.getNative()).to.deep.equal([
-                'my first variadic arg',
-                'my second variadic arg'
-            ]);
+            expect(secondParameterVariable.setValue.args[0][0]).to.equal(variadicArrayValue);
         });
     });
 

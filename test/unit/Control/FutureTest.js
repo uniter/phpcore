@@ -47,16 +47,16 @@ describe('Future', function () {
             'call_stack': callStack,
             'control_scope': controlScope,
             'future_factory': function (set, get) {
-                function TrackedFuture() {
-                    Future.apply(this, arguments);
+                function TrackedFuture(...args) {
+                    Future.apply(this, args);
 
                     futuresCreated++;
                 }
 
                 util.inherits(TrackedFuture, Future);
 
-                function TrackedPresent() {
-                    Present.apply(this, arguments);
+                function TrackedPresent(...args) {
+                    Present.apply(this, args);
 
                     presentsCreated++;
                 }

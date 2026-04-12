@@ -15,7 +15,7 @@ var expect = require('chai').expect,
     tools = require('../../../../../tools'),
     PHPFatalError = phpCommon.PHPFatalError;
 
-describe('PHP builtin FFI function non-coercion variadic parameter integration', function () {
+describe('PHP builtin FFI function auto-coercion variadic parameter integration', function () {
     it('should support functions with only a variadic parameter', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
@@ -25,16 +25,16 @@ EOS
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module(),
             resultValue;
-        engine.defineNonCoercingFunction(
+        engine.defineCoercingFunction(
             'my_sum',
-            function (myNumbersValue) {
+            function (myNumbers) {
                 var sum = 0;
 
-                myNumbersValue.getValues().forEach(function (numberValue) {
-                    sum += numberValue.getNative();
+                myNumbers.forEach(function (number) {
+                    sum += number;
                 });
 
-                return this.valueFactory.createInteger(sum);
+                return sum;
             },
             'int ...$myNumbers : int'
         );
@@ -56,16 +56,16 @@ EOS
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module(),
             resultValue;
-        engine.defineNonCoercingFunction(
+        engine.defineCoercingFunction(
             'my_sum',
-            function (myFirstNumberValue, myOtherNumbersValue) {
-                var sum = myFirstNumberValue.getNative();
+            function (myFirstNumber, myOtherNumbers) {
+                var sum = myFirstNumber;
 
-                myOtherNumbersValue.getValues().forEach(function (numberValue) {
-                    sum += numberValue.getNative();
+                myOtherNumbers.forEach(function (number) {
+                    sum += number;
                 });
 
-                return this.valueFactory.createInteger(sum);
+                return sum;
             },
             'int $myFirstNumber, int ...$myOtherNumbers : int'
         );
@@ -74,61 +74,6 @@ EOS
 
         expect(resultValue.getType()).to.equal('int');
         expect(resultValue.getNative()).to.equal(7);
-    });
-
-    it('should support by-reference variadic parameters', async function () {
-        var php = nowdoc(function () {/*<<<EOS
-<?php
-
-$first = 10;
-$second = 12;
-$third = 14;
-$fourth = 16;
-
-double_them($first, $second, $third, $fourth);
-
-return [
-    'first * 2' => $first,
-    'second * 2' => $second,
-    'third * 2' => $third,
-    'fourth * 2' => $fourth
-];
-EOS
-*/;}), //jshint ignore:line
-            module = tools.asyncTranspile('/path/to/my_module.php', php),
-            engine = module(),
-            resultValue;
-        engine.defineNonCoercingFunction(
-            'double_them',
-            function (myFirstNumberReference, myOtherNumberReferences) {
-                var flow = this.flow,
-                    valueFactory = this.valueFactory;
-
-                return myFirstNumberReference.getValue().next(function (myFirstNumberValue) {
-                    myFirstNumberReference.setValue(valueFactory.createInteger(myFirstNumberValue.getNative() * 2));
-
-                    return myOtherNumberReferences.getValue().next(function (numberReferencesValue) {
-                        return flow.eachAsync(numberReferencesValue.getValueReferences(), function (myOtherNumberReference) {
-                            return myOtherNumberReference.getValue().next(function (myOtherNumberValue) {
-                                myOtherNumberReference.setValue(
-                                    valueFactory.createInteger(myOtherNumberValue.getNative() * 2)
-                                );
-                            });
-                        });
-                    });
-                });
-            },
-            'int &$myFirstNumber, int &...$myOtherNumbers : void'
-        );
-
-        resultValue = await engine.execute();
-
-        expect(resultValue.getNative()).to.deep.equal({
-            'first * 2': 20,
-            'second * 2': 24,
-            'third * 2': 28,
-            'fourth * 2': 32
-        });
     });
 
     it('should support variadic parameters following parameters with default arguments', async function () {
@@ -147,16 +92,16 @@ EOS
 */;}), //jshint ignore:line
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
-        engine.defineNonCoercingFunction(
+        engine.defineCoercingFunction(
             'my_sum',
-            function (myFirstNumberValue, mySecondNumberValue, myOtherNumbersValue) {
-                var sum = myFirstNumberValue.getNative() + mySecondNumberValue.getNative();
+            function (myFirstNumber, mySecondNumber, myOtherNumbers) {
+                var sum = myFirstNumber + mySecondNumber;
 
-                myOtherNumbersValue.getValues().forEach(function (numberValue) {
-                    sum += numberValue.getNative();
+                myOtherNumbers.forEach(function (number) {
+                    sum += number;
                 });
 
-                return this.valueFactory.createInteger(sum);
+                return sum;
             },
             'int $myFirstNumber, int $mySecondNumber = 1, int ...$myOtherNumbers : int'
         );
@@ -178,16 +123,16 @@ EOS
 */;}), //jshint ignore:line
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
-        engine.defineNonCoercingFunction(
+        engine.defineCoercingFunction(
             'my_sum',
-            function (...myNumberValues) {
+            function (myNumbers) {
                 var sum = 0;
 
-                myNumberValues.forEach(function (numberValue) {
-                    sum += numberValue.getNative();
+                myNumbers.forEach(function (number) {
+                    sum += number;
                 });
 
-                return this.valueFactory.createInteger(sum);
+                return sum;
             },
             'int ...$myNumbers : int'
         );
@@ -216,16 +161,16 @@ EOS
 */;}), //jshint ignore:line
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
-        engine.defineNonCoercingFunction(
+        engine.defineCoercingFunction(
             'my_sum',
-            function (...myNumberValues) {
+            function (myNumbers) {
                 var sum = 0;
 
-                myNumberValues.forEach(function (numberValue) {
-                    sum += numberValue.getNative();
+                myNumbers.forEach(function (number) {
+                    sum += number;
                 });
 
-                return this.valueFactory.createInteger(sum);
+                return sum;
             },
             'int &...$myNumbers : int'
         );
@@ -260,7 +205,7 @@ EOS
         );
     });
 
-    it('should support unknown named arguments with variadic parameter', async function () {
+    it('should support unknown named arguments of variadic parameter', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 
@@ -274,22 +219,16 @@ EOS
 */;}), //jshint ignore:line
             module = tools.asyncTranspile('/path/to/my_module.php', php),
             engine = module();
-        engine.defineNonCoercingFunction(
+        engine.defineCoercingFunction(
             'my_func',
-            function (firstValue, secondValue, thirdValue, othersValue) {
-                var othersNative = othersValue.getNative(),
-                    othersText = '',
-                    valueFactory = this.valueFactory;
+            function (first, second, third, others) {
+                var othersText = '';
 
-                Object.keys(othersNative).forEach(function (name) {
-                    othersText += '(' + name + '=' + othersNative[name] + ')';
+                Object.keys(others).forEach(function (name) {
+                    othersText += '(' + name + '=' + others[name] + ')';
                 });
 
-                return valueFactory.createString(
-                    'my_func(' + firstValue.getNative() + ', ' +
-                    secondValue.getNative() + ', ' +
-                    thirdValue.getNative() + ', ...: ' + othersText + ')'
-                );
+                return 'my_func(' + first + ', ' + second + ', ' + third + ', ...: ' + othersText + ')';
             },
             'mixed $first, mixed $second, mixed $third, mixed ...$others : string'
         );

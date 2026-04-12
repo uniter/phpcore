@@ -18,7 +18,7 @@ module.exports = require('pauser')([
      * @param {ClosureFactory} closureFactory
      * @param {ValueFactory} valueFactory
      * @param {NamespaceScope} namespaceScope
-     * @param {Function} wrappedFunction
+     * @param {Callable} callable
      * @param {Scope} enclosingScope
      * @param {ObjectValue|null} thisObject
      * @param {FunctionSpec} functionSpec
@@ -29,7 +29,7 @@ module.exports = require('pauser')([
         valueFactory,
         namespaceScope,
         enclosingScope,
-        wrappedFunction,
+        callable,
         thisObject,
         functionSpec
     ) {
@@ -58,9 +58,9 @@ module.exports = require('pauser')([
          */
         this.valueFactory = valueFactory;
         /**
-         * @type {Function}
+         * @type {Callable}
          */
-        this.wrappedFunction = wrappedFunction;
+        this.callable = callable;
     }
 
     _.extend(Closure.prototype, {
@@ -87,15 +87,21 @@ module.exports = require('pauser')([
         /**
          * Invokes this closure with the provided arguments, returning its result.
          *
-         * @param {Reference[]|Value[]} args
+         * @param {Reference[]|Value[]|Variable[]} positionalArguments
+         * @param {Object.<string, Reference|Value|Variable>|null} namedArguments
          * @param {ObjectValue|undefined} thisObject
          * @returns {ChainableInterface<Reference|Value>}
          */
-        invoke: function (args, thisObject) {
+        invoke: function (positionalArguments, namedArguments, thisObject) {
             var closure = this;
 
-            // Note that the wrapped function could return a Future for async handling.
-            return closure.wrappedFunction.apply(thisObject || closure.thisObject, args);
+            // Note that the callable could return a Future for async handling.
+            return closure.callable.call(
+                positionalArguments,
+                namedArguments || null,
+                thisObject || closure.thisObject,
+                null // newStaticClass.
+            );
         }
     });
 

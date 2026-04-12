@@ -9,8 +9,7 @@
 
 'use strict';
 
-var _ = require('microdash'),
-    slice = [].slice;
+var _ = require('microdash');
 
 /**
  * @param {ControlBridge} controlBridge
@@ -68,9 +67,8 @@ _.extend(OpcodeHandlerFactory.prototype, {
             opcodeFetcher = wrapper.opcodeFetcherRepository.getFetcher(opcodeFetcherType),
             tracedOpcodeHandler;
 
-        tracedOpcodeHandler = function () {
+        tracedOpcodeHandler = function (...args) {
             var trace = wrapper.callStack.getCurrentTrace(),
-                args = slice.call(arguments),
                 // Note that Opcode objects are pooled to minimise GC pressure.
                 opcode = trace.fetchOpcode(opcodeFetcher, opcodeHandler, args),
                 resumeValue = opcode.resume(),

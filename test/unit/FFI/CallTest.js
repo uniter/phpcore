@@ -19,6 +19,8 @@ describe('FFI Call', function () {
     var arg1,
         arg2,
         call,
+        namedArg1,
+        namedArg2,
         state,
         valueFactory;
 
@@ -28,8 +30,13 @@ describe('FFI Call', function () {
 
         arg1 = valueFactory.createString('first arg');
         arg2 = valueFactory.createString('second arg');
+        namedArg1 = valueFactory.createString('first named arg');
+        namedArg2 = valueFactory.createString('second named arg');
 
-        call = new Call([arg1, arg2]);
+        call = new Call([arg1, arg2], {
+            'firstParam': namedArg1,
+            'secondParam': namedArg2
+        });
     });
 
     describe('enableStrictTypes()', function () {
@@ -82,6 +89,15 @@ describe('FFI Call', function () {
     describe('getModule()', function () {
         it('should return null', function () {
             expect(call.getModule()).to.be.null;
+        });
+    });
+
+    describe('getNamedArgs()', function () {
+        it('should return the named arguments passed to the constructor', function () {
+            expect(call.getNamedArgs()).to.deep.equal({
+                'firstParam': namedArg1,
+                'secondParam': namedArg2
+            });
         });
     });
 

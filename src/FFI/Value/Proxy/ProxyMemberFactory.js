@@ -46,7 +46,7 @@ function ProxyMemberFactory(
 
 _.extend(ProxyMemberFactory.prototype, {
     /**
-     * Creates a proxying method for the ProxyClass for a method of a PHP class
+     * Creates a proxying method for the ProxyClass for a method of a PHP class.
      *
      * @param {string} methodName
      * @returns {Function}
@@ -54,9 +54,9 @@ _.extend(ProxyMemberFactory.prototype, {
     createProxyMethod: function (methodName) {
         var factory = this;
 
-        return function __uniterInboundStackMarker__() {
+        return function __uniterInboundStackMarker__(...argNatives) {
             // Arguments will be from JS-land, so coerce any to internal PHP value objects
-            var args = _.map(arguments, function (arg) {
+            var args = _.map(argNatives, function (arg) {
                     return factory.valueFactory.coerce(arg);
                 }),
                 privates = factory.valueStorage.getPrivatesForNativeProxy(this),
@@ -66,7 +66,7 @@ _.extend(ProxyMemberFactory.prototype, {
             // We are entering PHP-land from JS-land.
             factory.controlScope.enterCoroutine();
 
-            return factory.nativeCaller.callMethod(objectValue, methodName, args, useSyncApiAlthoughPsync);
+            return factory.nativeCaller.callMethod(objectValue, methodName, args, null, useSyncApiAlthoughPsync);
         };
     }
 });

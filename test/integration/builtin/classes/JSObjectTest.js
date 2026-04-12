@@ -358,4 +358,49 @@ EOS
             'final array': [21, 101, 'my pushed value']
         });
     });
+
+    it('should create and wrap a native instance when using PHP `new` with a JS class function', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+// Instantiate the JS class from PHP using `new`.
+$object = new $myJSClass('Sally', 34);
+
+// Ensure a JSObject wrapper is returned with properties from the native JS instance.
+$result['wrapped as JSObject'] = $object instanceof JSObject;
+$result['instanceof $myJSClass'] = $object instanceof $myJSClass;
+$result['->nameProp set by constructor'] = $object->nameProp;
+$result['->numProp set by constructor'] = $object->numProp;
+$result['->isMyClassInstance'] = $object->isMyClassInstance;
+
+return $result;
+
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/my/test/module.php', php, {
+                // Capture offsets of all nodes for line tracking.
+                phpToAST: {captureAllBounds: true},
+                // Record line numbers for statements/expressions.
+                phpToJS: {lineNumbers: true}
+            }),
+            engine = module();
+
+        // Provide a JS "class" constructor function to PHP-land.
+        engine.defineGlobal('myJSClass', function Person(name, age) {
+            this.nameProp = name;
+            this.numProp = age;
+            // Verify that construction occurred as a real instance of Person.
+            this.isMyClassInstance = (this instanceof Person);
+        });
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'wrapped as JSObject': true,
+            'instanceof $myJSClass': true,
+            '->nameProp set by constructor': 'Sally',
+            '->numProp set by constructor': 34,
+            '->isMyClassInstance': true // Ensure we have a native instance of Person (proper prototype).
+        });
+    });
 });

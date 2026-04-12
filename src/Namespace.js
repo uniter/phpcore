@@ -105,7 +105,7 @@ module.exports = require('pauser')([
          */
         this.functionSpecFactory = functionSpecFactory;
         /**
-         * @type {Object.<string, Function>}
+         * @type {Object.<string, Callable>}
          */
         this.functions = {};
         /**
@@ -311,7 +311,7 @@ module.exports = require('pauser')([
                 lineNumber || null
             );
 
-            namespace.functions[lowerName] = namespace.functionFactory.create(
+            namespace.functions[lowerName] = namespace.functionFactory.createCallable(
                 namespaceScope,
                 // Class will always be null for 'normal' functions
                 // as defining a function inside a class will define it
@@ -435,7 +435,7 @@ module.exports = require('pauser')([
                 return namespace.flow.chainify(parsed.namespace.classes[lowerName]);
             }
 
-            // Otherwise the class must be successfully autoloaded or we fail.
+            // Otherwise the class must be successfully autoloaded, or we fail.
 
             return namespace.flow.chainifyCallbackFrom(function (resolve) {
                 if (autoload !== false) {
@@ -522,7 +522,7 @@ module.exports = require('pauser')([
          * to the global namespace. Raises an error if the function is not defined at all
          *
          * @param {string|Function} name
-         * @returns {Function}
+         * @returns {Callable}
          */
         getFunction: function (name) {
             var globalNamespace,
@@ -532,6 +532,7 @@ module.exports = require('pauser')([
                 subNamespace;
 
             if (_.isFunction(name)) {
+                // TODO: Remove this behaviour.
                 return name;
             }
 
@@ -664,7 +665,7 @@ module.exports = require('pauser')([
                 return namespace.flow.chainify(parsed.namespace.traits[lowerName]);
             }
 
-            // Otherwise the trait must be successfully autoloaded or we fail.
+            // Otherwise the trait must be successfully autoloaded, or we fail.
 
             return namespace.flow.chainifyCallbackFrom(function (resolve) {
                 if (autoload !== false) {

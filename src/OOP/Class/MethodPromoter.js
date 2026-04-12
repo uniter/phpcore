@@ -49,7 +49,7 @@ _.extend(MethodPromoter.prototype, {
      * @param {Trait|null} traitObject Trait object if this is a trait method, null otherwise.
      * @param {NamespaceScope} namespaceScope
      * @param {Object} sharedMethodData Method data object shared between all methods of a class
-     * @returns {Function} Returns the wrapped method function created
+     * @returns {Callable} Returns the wrapped method function created.
      */
     promote: function (
         methodName,
@@ -82,7 +82,7 @@ _.extend(MethodPromoter.prototype, {
             lineNumber || null
         );
 
-        method = promoter.functionFactory.create(
+        method = promoter.functionFactory.createCallable(
             namespaceScope,
             classObject,
             null, // Current object only applies to Closures, so nothing to set here.
@@ -90,10 +90,8 @@ _.extend(MethodPromoter.prototype, {
             functionSpec
         );
 
-        method[IS_STATIC] = methodIsStatic;
-
-        // TODO: Remove this and just use method.functionSpec in Class instead?
-        method.data = sharedMethodData;
+        method[IS_STATIC] = methodIsStatic; // FIXME: Should not be adding expando properties in this way.
+        method.data = sharedMethodData; // FIXME: As above.
 
         return method;
     }

@@ -33,30 +33,38 @@ module.exports = require('pauser')([
     _.extend(NativeCaller.prototype, {
         /**
          * Encapsulates calling a PHP-land method from JS-land using the FFI API,
-         * unwrapping the result to a native value
+         * unwrapping the result to a native value.
          *
          * @param {ObjectValue} objectValue
          * @param {string} methodName
-         * @param {Value[]} args
+         * @param {Reference[]|Value[]|Variable[]} positionalArgs
+         * @param {Object.<string, Reference|Value|Variable>|null|boolean} namedArgs
+         *        If a boolean is passed here it will be treated as useSyncApiAlthoughPsync.
          * @param {boolean=} useSyncApiAlthoughPsync
          * @returns {Promise<*>|*}
          */
-        callMethod: function (objectValue, methodName, args, useSyncApiAlthoughPsync) {
+        callMethod: function (objectValue, methodName, positionalArgs, namedArgs, useSyncApiAlthoughPsync) {
             var nativeCaller = this,
                 result;
 
-            // Push an FFI call onto the stack, representing the call from JavaScript-land
-            nativeCaller.caller.pushFFICall(args);
+            // Support calling with signature (objectValue, methodName, positionalArgs, useSyncApiAlthoughPsync)
+            if (typeof namedArgs === 'boolean') {
+                useSyncApiAlthoughPsync = namedArgs;
+                namedArgs = null;
+            }
+
+            // Push an FFI call onto the stack, representing the call from JavaScript-land.
+            nativeCaller.caller.pushFFICall(positionalArgs, namedArgs);
 
             if (nativeCaller.mode === 'async') {
-                return nativeCaller.caller.callMethodAsync(objectValue, methodName, args)
+                return nativeCaller.caller.callMethodAsync(objectValue, methodName, positionalArgs, namedArgs)
                     .then(function (resultValue) {
                         return resultValue.getNative();
                     });
             }
 
-            // Otherwise we're in sync or psync mode
-            result = nativeCaller.caller.callMethodSyncLike(objectValue, methodName, args, useSyncApiAlthoughPsync);
+            // Otherwise we're in sync or psync mode.
+            result = nativeCaller.caller.callMethodSyncLike(objectValue, methodName, positionalArgs, namedArgs, useSyncApiAlthoughPsync);
 
             return nativeCaller.mode === 'psync' && !useSyncApiAlthoughPsync ?
                 result.then(function (resultValue) {

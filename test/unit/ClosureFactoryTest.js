@@ -58,7 +58,7 @@ describe('ClosureFactory', function () {
             unwrappedFunction = sinon.stub();
             wrappedFunction = sinon.stub();
 
-            functionFactory.create.returns(wrappedFunction);
+            functionFactory.createCallable.returns(wrappedFunction);
             thisObject.getClass.returns(thisObjectClass);
 
             callCreate = function (dontUseScopeClass, dontUseThisObject) {
@@ -75,8 +75,8 @@ describe('ClosureFactory', function () {
         it('should pass the NamespaceScope to the FunctionFactory', function () {
             callCreate();
 
-            expect(functionFactory.create).to.have.been.calledOnce;
-            expect(functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.createCallable).to.have.been.calledOnce;
+            expect(functionFactory.createCallable).to.have.been.calledWith(
                 sinon.match.same(namespaceScope)
             );
         });
@@ -84,8 +84,8 @@ describe('ClosureFactory', function () {
         it('should pass the scope Class to the FunctionFactory when provided', function () {
             callCreate();
 
-            expect(functionFactory.create).to.have.been.calledOnce;
-            expect(functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.createCallable).to.have.been.calledOnce;
+            expect(functionFactory.createCallable).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.same(scopeClass)
             );
@@ -99,8 +99,8 @@ describe('ClosureFactory', function () {
                 thisObject
             );
 
-            expect(functionFactory.create).to.have.been.calledOnce;
-            expect(functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.createCallable).to.have.been.calledOnce;
+            expect(functionFactory.createCallable).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.same(thisObjectClass)
             );
@@ -114,8 +114,8 @@ describe('ClosureFactory', function () {
                 null
             );
 
-            expect(functionFactory.create).to.have.been.calledOnce;
-            expect(functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.createCallable).to.have.been.calledOnce;
+            expect(functionFactory.createCallable).to.have.been.calledWith(
                 sinon.match.any,
                 null
             );
@@ -129,8 +129,8 @@ describe('ClosureFactory', function () {
                 valueFactory.createNull()
             );
 
-            expect(functionFactory.create).to.have.been.calledOnce;
-            expect(functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.createCallable).to.have.been.calledOnce;
+            expect(functionFactory.createCallable).to.have.been.calledWith(
                 sinon.match.any,
                 null
             );
@@ -139,8 +139,8 @@ describe('ClosureFactory', function () {
         it('should pass null as the $this object to FunctionFactory - will be specified on invocation', function () {
             callCreate();
 
-            expect(functionFactory.create).to.have.been.calledOnce;
-            expect(functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.createCallable).to.have.been.calledOnce;
+            expect(functionFactory.createCallable).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 null
@@ -154,8 +154,8 @@ describe('ClosureFactory', function () {
 
             callCreate();
 
-            expect(functionFactory.create).to.have.been.calledOnce;
-            expect(functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.createCallable).to.have.been.calledOnce;
+            expect(functionFactory.createCallable).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -170,8 +170,8 @@ describe('ClosureFactory', function () {
 
             callCreate();
 
-            expect(functionFactory.create).to.have.been.calledOnce;
-            expect(functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.createCallable).to.have.been.calledOnce;
+            expect(functionFactory.createCallable).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -182,8 +182,8 @@ describe('ClosureFactory', function () {
         it('should pass the scope class as the static class to the FunctionFactory, if set', function () {
             callCreate();
 
-            expect(functionFactory.create).to.have.been.calledOnce;
-            expect(functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.createCallable).to.have.been.calledOnce;
+            expect(functionFactory.createCallable).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -194,8 +194,8 @@ describe('ClosureFactory', function () {
         it('should pass the $this object\'s class as the scope class if none explicitly provided', function () {
             callCreate(true);
 
-            expect(functionFactory.create).to.have.been.calledOnce;
-            expect(functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.createCallable).to.have.been.calledOnce;
+            expect(functionFactory.createCallable).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -206,8 +206,8 @@ describe('ClosureFactory', function () {
         it('should pass null as the static class to the FunctionFactory if there is not one nor a $this', function () {
             callCreate(true, true);
 
-            expect(functionFactory.create).to.have.been.calledOnce;
-            expect(functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.createCallable).to.have.been.calledOnce;
+            expect(functionFactory.createCallable).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
@@ -218,8 +218,8 @@ describe('ClosureFactory', function () {
         it('should pass the FunctionSpec to the FunctionFactory', function () {
             callCreate(true, true);
 
-            expect(functionFactory.create).to.have.been.calledOnce;
-            expect(functionFactory.create).to.have.been.calledWith(
+            expect(functionFactory.createCallable).to.have.been.calledOnce;
+            expect(functionFactory.createCallable).to.have.been.calledWith(
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,

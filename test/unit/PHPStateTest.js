@@ -136,8 +136,8 @@ describe('PHPState', function () {
                 {
                     classes: {
                         'Some\\Stuff\\AClass': function (internals) {
-                            function AClass() {
-                                internals.callSuperConstructor(this, arguments).yieldSync();
+                            function AClass(...args) {
+                                internals.callSuperConstructor(this, args).yieldSync();
                             }
 
                             return AClass;
@@ -630,11 +630,10 @@ describe('PHPState', function () {
             expect(
                 (
                     await state.getFunction('My\\Stuff\\myAliasFunc')
-                        .call(
-                            null,
+                        .call([
                             valueFactory.createInteger(21),
                             valueFactory.createInteger(4)
-                        )
+                        ])
                         .toPromise()
                 )
                 .getNative()
@@ -660,9 +659,9 @@ describe('PHPState', function () {
                 return numberToDouble * 2;
             });
 
-            resultValue = await state.getFunction('double_it')(
+            resultValue = await state.getFunction('double_it').call([
                 valueFactory.createInteger(21)
-            ).toPromise();
+            ]).toPromise();
 
             expect(resultValue.getType()).to.equal('int');
             expect(resultValue.getNative()).to.equal(42);
@@ -677,9 +676,9 @@ describe('PHPState', function () {
 
             // Explicitly fetch via the namespace, to ensure we aren't just erroneously
             // allowing function names to contain backslashes
-            resultValue = await namespace.getFunction('double_it')(
+            resultValue = await namespace.getFunction('double_it').call([
                 valueFactory.createInteger(21)
-            ).toPromise();
+            ]).toPromise();
 
             expect(resultValue.getType()).to.equal('int');
             expect(resultValue.getNative()).to.equal(42);
@@ -730,7 +729,10 @@ describe('PHPState', function () {
             });
             func = state.getFunction('My\\Stuff\\my_multiplier');
 
-            resultValue = await func(valueFactory.createInteger(4), valueFactory.createInteger(3)).toPromise();
+            resultValue = await func.call([
+                valueFactory.createInteger(4),
+                valueFactory.createInteger(3)
+            ]).toPromise();
 
             expect(resultValue.getType()).to.equal('int');
             expect(resultValue.getNative()).to.equal(12);
@@ -748,7 +750,10 @@ describe('PHPState', function () {
             });
             func = state.getFunction('My\\Stuff\\my_multiplier');
 
-            resultValue = await func(valueFactory.createInteger(4), valueFactory.createInteger(3)).toPromise();
+            resultValue = await func.call([
+                valueFactory.createInteger(4),
+                valueFactory.createInteger(3)
+            ]).toPromise();
 
             expect(resultValue.getType()).to.equal('int');
             expect(resultValue.getNative()).to.equal(12);
@@ -833,9 +838,9 @@ describe('PHPState', function () {
                 return numberToDoubleReference.getValue().getNative() * 2;
             });
 
-            resultValue = await state.getFunction('double_it')(
+            resultValue = await state.getFunction('double_it').call([
                 valueFactory.createInteger(21)
-            ).toPromise();
+            ]).toPromise();
 
             expect(resultValue.getType()).to.equal('int');
             expect(resultValue.getNative()).to.equal(42);
@@ -850,9 +855,9 @@ describe('PHPState', function () {
 
             // Explicitly fetch via the namespace, to ensure we aren't just erroneously
             // allowing function names to contain backslashes
-            resultValue = await namespace.getFunction('double_it')(
+            resultValue = await namespace.getFunction('double_it').call([
                 valueFactory.createInteger(21)
-            ).toPromise();
+            ]).toPromise();
 
             expect(resultValue.getType()).to.equal('int');
             expect(resultValue.getNative()).to.equal(42);
@@ -907,8 +912,13 @@ describe('PHPState', function () {
                 });
             });
             func = state.getFunction('My\\Stuff\\my_overloaded_func');
-            resultValue1 = await func(valueFactory.createInteger(4)).toPromise();
-            resultValue2 = await func(valueFactory.createString('this'), valueFactory.createString('that')).toPromise();
+            resultValue1 = await func.call([
+                valueFactory.createInteger(4)
+            ]).toPromise();
+            resultValue2 = await func.call([
+                valueFactory.createString('this'),
+                valueFactory.createString('that')
+            ]).toPromise();
 
             expect(resultValue1.getType()).to.equal('string');
             expect(resultValue1.getNative()).to.equal('My number was: 4');
@@ -935,8 +945,13 @@ describe('PHPState', function () {
                 });
             });
             func = state.getFunction('My\\Stuff\\my_overloaded_func');
-            resultValue1 = await func(valueFactory.createInteger(4)).toPromise();
-            resultValue2 = await func(valueFactory.createString('this'), valueFactory.createString('that')).toPromise();
+            resultValue1 = await func.call([
+                valueFactory.createInteger(4)
+            ]).toPromise();
+            resultValue2 = await func.call([
+                valueFactory.createString('this'),
+                valueFactory.createString('that')
+            ]).toPromise();
 
             expect(resultValue1.getType()).to.equal('string');
             expect(resultValue1.getNative()).to.equal('My number was: 4');
@@ -1089,11 +1104,10 @@ describe('PHPState', function () {
             expect(
                 (
                     await state.getFunction('My\\Stuff\\myFunc')
-                        .call(
-                            null,
+                        .call([
                             valueFactory.createInteger(10),
                             valueFactory.createInteger(7)
-                        )
+                        ])
                         .toPromise()
                 )
                 .getNative()

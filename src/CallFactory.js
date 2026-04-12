@@ -63,14 +63,15 @@ _.extend(CallFactory.prototype, {
     },
 
     /**
-     * Creates a new FFI Call
+     * Creates a new FFI Call.
      *
-     * @param {Value[]=} args
+     * @param {Reference[]|Value[]|Variable[]=} positionalArgs
+     * @param {Object.<string, Reference|Value|Variable>=} namedArgs
      */
-    createFFICall: function (args) {
+    createFFICall: function (positionalArgs, namedArgs) {
         var factory = this;
 
-        return new factory.FFICall(args || []);
+        return new factory.FFICall(positionalArgs || [], namedArgs || null);
     },
 
     /**

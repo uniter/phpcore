@@ -19,10 +19,10 @@ module.exports = function (internals) {
      * @see {@link https://secure.php.net/manual/en/class.parseerror.php}
      * @constructor
      */
-    function ParseError() {
+    function ParseError(...args) {
         // Synchronously await the superconstructor: should be fine as it should always be defined
         // and not require autoloading.
-        internals.callSuperConstructor(this, arguments).yieldSync();
+        internals.callSuperConstructor(this, args).yieldSync();
     }
 
     internals.extendClass('CompileError');

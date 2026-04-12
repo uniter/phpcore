@@ -52,16 +52,17 @@ module.exports = require('pauser')([
          * where asynchronous (blocking) operation is possible.
          *
          * @param {string} methodName
+         * @param {*[]} argNatives
          * @returns {Promise<*>|*}
          */
-        callMethod: function (methodName) {
+        callMethod: function (methodName, ...argNatives) {
             var phpObject = this,
                 // Arguments will be from JS-land, so coerce any to internal PHP value objects
-                args = _.map([].slice.call(arguments, 1), function (arg) {
+                positionalArgs = _.map(argNatives, function (arg) {
                     return phpObject.valueFactory.coerce(arg);
                 });
 
-            return phpObject.nativeCaller.callMethod(phpObject.objectValue, methodName, args);
+            return phpObject.nativeCaller.callMethod(phpObject.objectValue, methodName, positionalArgs);
         },
 
         /**
