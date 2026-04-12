@@ -1726,4 +1726,81 @@ describe('ArrayValue', function () {
             );
         });
     });
+
+    describe('unshift()', function () {
+        it('should return the new count of elements in the array', function () {
+            expect(value.unshift([factory.createString('new element')])).to.equal(3);
+        });
+
+        it('should return the new count when unshifting multiple values', function () {
+            expect(value.unshift([
+                factory.createString('first new'),
+                factory.createString('second new')
+            ])).to.equal(4);
+        });
+
+        it('should increase the length of the array by the number of unshifted values', function () {
+            value.unshift([factory.createString('new element')]);
+
+            expect(value.getLength()).to.equal(3);
+        });
+
+        it('should prepend multiple values, increasing the length accordingly', function () {
+            value.unshift([
+                factory.createString('first new'),
+                factory.createString('second new')
+            ]);
+
+            expect(value.getLength()).to.equal(4);
+        });
+
+        it('should renumber existing numeric keys to follow the new elements', function () {
+            elements.length = 0;
+            elements.push(createKeyValuePair(factory.createInteger(5), factory.createString('numeric el')));
+            elements.push(createKeyValuePair(factory.createString('strKey'), factory.createString('string el')));
+            createValue();
+
+            value.unshift([factory.createString('new element')]);
+
+            // Existing numeric key (5) should be renumbered to 1 (after the new element at 0).
+            expect(value.getKeyByIndex(0).getNative()).to.equal(0);
+            expect(value.getElementByIndex(0).getValue().getNative()).to.equal('new element');
+            expect(value.getKeyByIndex(1).getNative()).to.equal(1);
+            expect(value.getElementByIndex(1).getValue().getNative()).to.equal('numeric el');
+            expect(value.getKeyByIndex(2).getNative()).to.equal('strKey');
+            expect(value.getElementByIndex(2).getValue().getNative()).to.equal('string el');
+        });
+
+        it('should preserve string keys unchanged', function () {
+            value.unshift([factory.createString('new element')]);
+
+            expect(value.getKeyByIndex(1).getNative()).to.equal('firstEl');
+            expect(value.getKeyByIndex(2).getNative()).to.equal('secondEl');
+        });
+
+        it('should place the new element at index 0', function () {
+            var newValue = factory.createString('new element');
+
+            value.unshift([newValue]);
+
+            expect(value.getElementByIndex(0).getValue()).to.equal(newValue);
+        });
+
+        it('should reset the internal pointer to the start of the array', function () {
+            value.setPointer(1);
+
+            value.unshift([factory.createString('new element')]);
+
+            expect(value.getPointer()).to.equal(0);
+        });
+
+        it('should increase the length by 1 when the array was empty', function () {
+            elements.length = 0;
+            createValue();
+
+            value.unshift([factory.createString('new element')]);
+
+            expect(value.getLength()).to.equal(1);
+        });
+    });
 });
