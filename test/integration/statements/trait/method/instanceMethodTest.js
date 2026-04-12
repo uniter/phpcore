@@ -57,4 +57,44 @@ EOS
         });
         expect(engine.getStderr().readAll()).to.equal('');
     });
+
+    it('should support traits with abstract instance methods', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+namespace My\Space {
+    trait MyTrait {
+        abstract public function myMethod(): string;
+    }
+}
+
+namespace Your\Stuff {
+    use My\Space\MyTrait;
+
+    class YourClass {
+        use MyTrait;
+
+        public function myMethod(): string {
+            return 'hello from myMethod';
+        }
+    }
+}
+
+namespace {
+    $object = new \Your\Stuff\YourClass();
+    $result = [];
+    $result['myMethod()'] = $object->myMethod();
+
+    return $result;
+}
+EOS
+*/;}),//jshint ignore:line
+        module = tools.asyncTranspile('/path/to/my_module.php', php),
+        engine = module();
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'myMethod()': 'hello from myMethod'
+        });
+        expect(engine.getStderr().readAll()).to.equal('');
+    });
 });
