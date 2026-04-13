@@ -117,9 +117,9 @@ _.extend(FunctionInternalsClassFactory.prototype, {
 
                 namespace.defineFunction(
                     name,
-                    function () {
+                    function (...args) {
                         // Unwrap args from PHP-land to JS-land to native values if/as appropriate.
-                        return valueCoercer.coerceArguments(arguments).next(function __uniterOutboundStackMarker__(effectiveArguments) {
+                        return valueCoercer.coerceArguments(args).next(function __uniterOutboundStackMarker__(effectiveArguments) {
                             return func.apply(internals, effectiveArguments);
                         });
                     },

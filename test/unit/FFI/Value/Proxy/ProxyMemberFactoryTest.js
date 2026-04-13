@@ -93,6 +93,7 @@ describe('FFI ProxyMemberFactory', function () {
                     sinon.match.same(objectValue),
                     'myMethod',
                     sinon.match.any, // Arguments array: see below assertion
+                    null,
                     true
                 );
                 expect(factory.nativeCaller.callMethod.args[0][2][0].getType()).to.equal('string');
@@ -116,6 +117,7 @@ describe('FFI ProxyMemberFactory', function () {
                     sinon.match.any, // ObjectValue
                     sinon.match.any, // Method name
                     sinon.match.any, // Arguments array
+                    null,
                     false
                 );
             });

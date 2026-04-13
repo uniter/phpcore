@@ -36,7 +36,7 @@ EOS
         expect((await engine.execute()).getNative()).to.deep.equal([0, 1, 3, 'end']);
     });
 
-    it('should be able jump to the next iteration of an outer loop', async function () {
+    it('should be able to jump to the next iteration of an outer loop', async function () {
         var php = nowdoc(function () {/*<<<EOS
 <?php
 $result = [];

@@ -66,14 +66,11 @@ _.extend(InvalidOverloadedFunctionSpec.prototype, {
      * @param {Reference[]|Value[]|Variable[]} argumentReferenceList
      * @returns {FutureInterface<Value[]>} Returns all arguments resolved to values
      */
-    coerceArguments: function (argumentReferenceList) {
-        var coercedArguments = [],
-            spec = this;
+    coercePositionalArguments: function (argumentReferenceList) {
+        var spec = this;
 
-        return spec.flow.eachAsync(argumentReferenceList, function (argumentReference, index) {
-            coercedArguments[index] = argumentReference.getValueOrNull();
-        }).next(function () {
-            return coercedArguments;
+        return spec.flow.mapAsync(argumentReferenceList, function (argumentReference) {
+            return argumentReference.getValue();
         });
     },
 
@@ -275,47 +272,49 @@ _.extend(InvalidOverloadedFunctionSpec.prototype, {
             maximumParameterCount = spec.overloadedFunctionSpec.getMaximumParameterCount(),
             minimumParameterCount = spec.overloadedFunctionSpec.getMinimumParameterCount();
 
-        if (spec.argumentCount < minimumParameterCount) {
+        return spec.flow.chainifyResultOf(function () {
+            if (spec.argumentCount < minimumParameterCount) {
+                spec.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    minimumParameterCount === 1 ? WRONG_ARG_COUNT_BUILTIN_SINGLE : WRONG_ARG_COUNT_BUILTIN,
+                    {
+                        func: spec.overloadedFunctionSpec.getName(),
+                        bound: spec.translator.translate(AT_LEAST),
+                        expectedCount: minimumParameterCount,
+                        actualCount: spec.argumentCount,
+                        callerFile: '(' + spec.translator.translate(UNKNOWN) + ')',
+                        callerLine: '(' + spec.translator.translate(UNKNOWN) + ')'
+                    },
+                    'ArgumentCountError'
+                );
+            }
+
+            if (spec.argumentCount > maximumParameterCount) {
+                spec.callStack.raiseTranslatedError(
+                    PHPError.E_ERROR,
+                    maximumParameterCount === 1 ? WRONG_ARG_COUNT_BUILTIN_SINGLE : WRONG_ARG_COUNT_BUILTIN,
+                    {
+                        func: spec.overloadedFunctionSpec.getName(),
+                        bound: spec.translator.translate(AT_MOST),
+                        expectedCount: maximumParameterCount,
+                        actualCount: spec.argumentCount,
+                        callerFile: '(' + spec.translator.translate(UNKNOWN) + ')',
+                        callerLine: '(' + spec.translator.translate(UNKNOWN) + ')'
+                    },
+                    'ArgumentCountError'
+                );
+            }
+
             spec.callStack.raiseTranslatedError(
                 PHPError.E_ERROR,
-                minimumParameterCount === 1 ? WRONG_ARG_COUNT_BUILTIN_SINGLE : WRONG_ARG_COUNT_BUILTIN,
+                NO_OVERLOAD_VARIANT_FOR_PARAMETER_COUNT,
                 {
                     func: spec.overloadedFunctionSpec.getName(),
-                    bound: spec.translator.translate(AT_LEAST),
-                    expectedCount: minimumParameterCount,
-                    actualCount: spec.argumentCount,
-                    callerFile: '(' + spec.translator.translate(UNKNOWN) + ')',
-                    callerLine: '(' + spec.translator.translate(UNKNOWN) + ')'
+                    parameterCount: spec.argumentCount
                 },
                 'ArgumentCountError'
             );
-        }
-
-        if (spec.argumentCount > maximumParameterCount) {
-            spec.callStack.raiseTranslatedError(
-                PHPError.E_ERROR,
-                maximumParameterCount === 1 ? WRONG_ARG_COUNT_BUILTIN_SINGLE : WRONG_ARG_COUNT_BUILTIN,
-                {
-                    func: spec.overloadedFunctionSpec.getName(),
-                    bound: spec.translator.translate(AT_MOST),
-                    expectedCount: maximumParameterCount,
-                    actualCount: spec.argumentCount,
-                    callerFile: '(' + spec.translator.translate(UNKNOWN) + ')',
-                    callerLine: '(' + spec.translator.translate(UNKNOWN) + ')'
-                },
-                'ArgumentCountError'
-            );
-        }
-
-        spec.callStack.raiseTranslatedError(
-            PHPError.E_ERROR,
-            NO_OVERLOAD_VARIANT_FOR_PARAMETER_COUNT,
-            {
-                func: spec.overloadedFunctionSpec.getName(),
-                parameterCount: spec.argumentCount
-            },
-            'ArgumentCountError'
-        );
+        });
     },
 
     /**

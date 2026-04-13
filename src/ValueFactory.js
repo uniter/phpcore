@@ -542,7 +542,7 @@ module.exports = require('pauser')([
                 factory.closureClass = closureClass;
             }
 
-            return closureClass.instantiateWithInternals([], {
+            return closureClass.instantiateWithInternals([], null, {
                 'closure': closure
             });
         },
@@ -580,7 +580,7 @@ module.exports = require('pauser')([
                         factory.createString(message || ''),
                         factory.createInteger(code || 0),
                         previousThrowable || factory.createNull()
-                    ], [
+                    ], null, [
                         context,
                         Boolean(skipCurrentStackFrame)
                     ]);
@@ -830,7 +830,7 @@ module.exports = require('pauser')([
                 factory.generatorClass = generatorClass;
             }
 
-            return generatorClass.instantiateWithInternals([], {
+            return generatorClass.instantiateWithInternals([], null, {
                 'iterator': iterator
             });
         },
@@ -1121,18 +1121,20 @@ module.exports = require('pauser')([
          * Creates an ObjectValue instance of the specified class.
          *
          * @param {string} className
-         * @param {Array} constructorArgNatives
+         * @param {Array} constructorPositionalArgNatives
          * @returns {ChainableInterface<ObjectValue>}
          */
-        instantiateObject: function (className, constructorArgNatives) {
+        instantiateObject: function (className, constructorPositionalArgNatives) {
             var factory = this,
-                constructorArgValues = _.map(constructorArgNatives, function (argNative) {
+                constructorPositionalArgValues = _.map(constructorPositionalArgNatives, function (argNative) {
                     return factory.coerce(argNative);
                 });
 
+            // TODO: Consider supporting named arguments here too?
+
             return factory.globalNamespace.getClass(className)
                 .next(function (classObject) {
-                    return classObject.instantiate(constructorArgValues);
+                    return classObject.instantiate(constructorPositionalArgValues);
                 });
         },
 

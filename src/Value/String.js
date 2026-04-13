@@ -88,28 +88,29 @@ module.exports = require('pauser')([
                 methodNameValue = value.factory.createString(match[2]);
 
                 // Note that this may return a Future-wrapped Value due to autoloading.
-                return classNameValue.callStaticMethod(methodNameValue, args);
+                return classNameValue.callStaticMethod(methodNameValue, args, null, false);
             }
 
             // Otherwise must just be the name of a function
-            return value.globalNamespace.getFunction(value.value).apply(null, args);
+            return value.globalNamespace.getFunction(value.value).call(args, null, null, null);
         },
 
         /**
          * Calls a static method of the class this string refers to.
          *
          * @param {StringValue} nameValue
-         * @param {Value[]} args
+         * @param {Reference[]|Value[]|Variable[]} positionalArgs
+         * @param {Object.<string, Reference|Value|Variable>|null} namedArgs
          * @param {bool=} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
          * @returns {ChainableInterface<Reference|Value|Variable>}
          */
-        callStaticMethod: function (nameValue, args, isForwarding) {
+        callStaticMethod: function (nameValue, positionalArgs, namedArgs, isForwarding) {
             var value = this;
 
             // Note that this may pause due to autoloading.
             return value.globalNamespace.getClass(value.value)
                 .next(function (classObject) {
-                    return classObject.callMethod(nameValue.getNative(), args, null, null, null, !!isForwarding);
+                    return classObject.callMethod(nameValue.getNative(), positionalArgs, namedArgs, null, null, Boolean(isForwarding));
                 });
         },
 
@@ -503,18 +504,19 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Creates an instance of the class this string contains the FQCN of
+         * Creates an instance of the class this string contains the FQCN of.
          *
-         * @param {Value[]} args
+         * @param {Reference[]|Value[]} constructorPositionalArgs The wrapped value objects or references to pass as arguments to the constructor.
+         * @param {Object.<string, Reference|Value|Variable>|null} constructorNamedArgs The named arguments.
          * @returns {ChainableInterface<ObjectValue>}
          */
-        instantiate: function (args) {
+        instantiate: function (constructorPositionalArgs, constructorNamedArgs) {
             var value = this;
 
-            // Note that this may pause due to autoloading
+            // Note that this may pause due to autoloading.
             return value.globalNamespace.getClass(value.value)
                 .next(function (classObject) {
-                    return classObject.instantiate(args);
+                    return classObject.instantiate(constructorPositionalArgs, constructorNamedArgs);
                 });
         },
 
@@ -551,7 +553,7 @@ module.exports = require('pauser')([
                 classObjectFuture = globalNamespace.getClass(className);
 
                 return classObjectFuture.next(function (classObject) {
-                    return classObject.getMethodSpec(methodName) !== null;
+                    return classObject.getMethodCallable(methodName) !== null;
                 }, function () {
                     return false; // Class could not be found, so method must be uncallable.
                 });

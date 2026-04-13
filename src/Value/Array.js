@@ -658,7 +658,7 @@ module.exports = require('pauser')([
             }
 
             return classObjectFuture.next(function (classObject) {
-                return classObject.getMethodSpec(methodNameValue.getNative()) !== null;
+                return classObject.getMethodCallable(methodNameValue.getNative()) !== null;
             }, function () {
                 // TODO: Ensure that the error swallowed here cannot be something important
 
@@ -869,6 +869,52 @@ module.exports = require('pauser')([
             value.value = newElements;
 
             return elements[0].getValue();
+        },
+
+        /**
+         * Prepends one or more elements to the beginning of the array,
+         * renumbering any numeric keys and resetting the internal pointer.
+         *
+         * @param {Value[]} newValues
+         * @returns {IntegerValue}
+         */
+        unshift: function (newValues) {
+            var value = this,
+                newElements = [],
+                newKeysToElements = {},
+                nextNumericKey = 0;
+
+            // Add the new values to the front, each with a sequential numeric key.
+            _.each(newValues, function (newValue) {
+                var nativeKey = nextNumericKey++,
+                    key = value.factory.createInteger(nativeKey),
+                    element = value.elementProvider.createElement(value.factory, value.callStack, value, key, newValue);
+
+                newKeysToElements[sanitiseKey(nativeKey)] = element;
+                newElements.push(element);
+            });
+
+            // Process existing elements, renumbering any numeric keys.
+            _.each(value.value, function (element) {
+                var key = element.getKey(),
+                    nativeKey = key.getNative();
+
+                if (isFinite(nativeKey)) {
+                    nativeKey = nextNumericKey++;
+                    key = value.factory.createInteger(nativeKey);
+                    element.setKey(key);
+                }
+
+                newKeysToElements[sanitiseKey(nativeKey)] = element;
+                newElements.push(element);
+            });
+
+            // Internal array pointer needs to be reset to the start of the array
+            value.pointer = 0;
+            value.keysToElements = newKeysToElements;
+            value.value = newElements;
+
+            return newElements.length;
         },
 
         sort: function (callback) {

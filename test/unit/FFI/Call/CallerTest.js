@@ -145,7 +145,7 @@ describe('Caller', function () {
                 expect(function () {
                     caller.callMethodSyncLike(objectValue, 'myMethod', [
                         valueFactory.createInteger(21)
-                    ]);
+                    ], null);
                 }).to.throw(Exception, 'callMethodSyncLike() :: Cannot call in async mode');
             });
         });
@@ -162,7 +162,7 @@ describe('Caller', function () {
                 resultValue = caller.callMethodSyncLike(objectValue, 'myMethod', [
                     valueFactory.createInteger(21),
                     valueFactory.createInteger(23)
-                ]);
+                ], null);
 
                 expect(resultValue.getType()).to.equal('string');
                 expect(resultValue.getNative()).to.equal('my synchronous result');
@@ -172,7 +172,7 @@ describe('Caller', function () {
                 objectValue.callMethod.returns(futureFactory.createRejection(new TypeError('A type error occurred')));
 
                 expect(function () {
-                    caller.callMethodSyncLike(objectValue, 'myMethod', []);
+                    caller.callMethodSyncLike(objectValue, 'myMethod', [], null);
                 }).to.throw(TypeError, 'A type error occurred');
             });
 
@@ -186,7 +186,7 @@ describe('Caller', function () {
                 objectValue.callMethod.returns(errorValue);
 
                 expect(function () {
-                    caller.callMethodSyncLike(objectValue, 'myMethod', []);
+                    caller.callMethodSyncLike(objectValue, 'myMethod', [], null);
                 }).to.throw(Error, 'My error, coerced from a PHP exception');
             });
         });
@@ -200,7 +200,7 @@ describe('Caller', function () {
                 expect(caller.callMethodSyncLike(objectValue, 'myMethod', [
                     valueFactory.createInteger(21),
                     valueFactory.createInteger(23)
-                ]))
+                ], null))
                     .to.be.an.instanceOf(Promise);
             });
 
@@ -211,7 +211,7 @@ describe('Caller', function () {
                 promise = caller.callMethodSyncLike(objectValue, 'myMethod', [
                     valueFactory.createInteger(21),
                     valueFactory.createInteger(23)
-                ]);
+                ], null);
 
                 return promise.then(function (resultValue) {
                     expect(resultValue.getType()).to.equal('string');
@@ -232,7 +232,7 @@ describe('Caller', function () {
                 resultValue = caller.callMethodSyncLike(objectValue, 'myMethod', [
                     valueFactory.createInteger(21),
                     valueFactory.createInteger(23)
-                ], true);
+                ], null, true);
 
                 expect(resultValue.getType()).to.equal('string');
                 expect(resultValue.getNative()).to.equal('my synchronous result');

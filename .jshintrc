@@ -2,7 +2,7 @@
     "bitwise": true,
     "curly": true,
     "eqeqeq": true,
-    "esversion": 9,
+    "esversion": 11,
     "forin": true,
     "globals": {
         "requestIdleCallback": false

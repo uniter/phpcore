@@ -114,9 +114,9 @@ _.extend(OverloadedFunctionInternalsClassFactory.prototype, {
 
                     return new OverloadedFunctionVariant(
                         signature,
-                        function () {
+                        function (...args) {
                             // Unwrap args from PHP-land to JS-land to native values if/as appropriate.
-                            return valueCoercer.coerceArguments(arguments)
+                            return valueCoercer.coerceArguments(args)
                                 .next(function __uniterOutboundStackMarker__(effectiveArguments) {
                                     return func.apply(internals, effectiveArguments);
                                 });

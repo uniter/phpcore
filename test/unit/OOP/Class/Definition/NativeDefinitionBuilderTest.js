@@ -20,6 +20,7 @@ var expect = require('chai').expect,
     NativeDefinitionBuilder = require('../../../../../src/OOP/Class/Definition/NativeDefinitionBuilder'),
     NativeMethodDefinitionBuilder = require('../../../../../src/OOP/NativeMethodDefinitionBuilder'),
     ObjectValue = require('../../../../../src/Value/Object').sync(),
+    Scope = require('../../../../../src/Scope').sync(),
     Trait = require('../../../../../src/OOP/Trait/Trait'),
     ValueCoercer = require('../../../../../src/FFI/Value/ValueCoercer');
 
@@ -237,12 +238,16 @@ describe('NativeDefinitionBuilder', function () {
 
                     beforeEach(function () {
                         callProxyConstructor = function (name, autoCoercionEnabled) {
+                            var scope;
                             callInternalConstructor(name, autoCoercionEnabled);
 
                             arg1 = valueFactory.createString('arg 1');
                             arg2 = valueFactory.createString('arg 2');
 
-                            return definition.getInternalClass().prototype.__construct.apply(objectValue, [arg1, arg2]);
+                            scope = sinon.createStubInstance(Scope);
+                            scope.getThisObject.returns(objectValue);
+
+                            return definition.getMethods().__construct.method.call(scope, arg1, arg2);
                         };
                     });
 

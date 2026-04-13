@@ -38,7 +38,6 @@ _.extend(ProxyClassFactory.prototype, {
      */
     create: function (classObject) {
         var currentClass,
-            currentPrototype,
             factory = this,
             methodNamesProxied = {};
 
@@ -70,37 +69,20 @@ _.extend(ProxyClassFactory.prototype, {
         currentClass = classObject;
 
         /*
-         * Iterate up the class hierarchy, proxying methods as we go. Note that
-         * in most cases the first class' prototype chain is probably all we need
-         * to process, however some classes in the hierarchy may have non-standard
-         * native objects (eg. JSObject) and so we need to process each one's
-         * prototype chain just in case.
-         *
-         * TODO: Remove the need for this duplication by handling the special JSObject case
-         *       in that class alone.
+         * Iterate up the class hierarchy, proxying methods as we go.
          */
         while (currentClass) {
-            currentPrototype = currentClass.getInternalClass().prototype;
+            /*jshint loopfunc: true */
+            _.forOwn(currentClass.getMethodCallables(), function (callable, methodName) {
+                if (methodNamesProxied[methodName] === true) {
+                    // Only proxy each method once.
+                    return;
+                }
 
-            while (currentPrototype !== null && currentPrototype !== Object.prototype) {
-                /*jshint loopfunc: true */
-                _.forOwn(currentPrototype, function (property, propertyName) {
-                    if (
-                        // Only proxy methods
-                        typeof property !== 'function' ||
-                        // Only proxy each method once
-                        methodNamesProxied[propertyName] === true
-                    ) {
-                        return;
-                    }
+                defineProxyMethod(methodName);
 
-                    defineProxyMethod(propertyName);
-
-                    methodNamesProxied[propertyName] = true;
-                });
-
-                currentPrototype = Object.getPrototypeOf(currentPrototype);
-            }
+                methodNamesProxied[methodName] = true;
+            });
 
             currentClass = currentClass.getSuperClass();
         }

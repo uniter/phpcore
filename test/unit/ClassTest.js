@@ -14,6 +14,7 @@ var _ = require('microdash'),
     hasOwn = {}.hasOwnProperty,
     sinon = require('sinon'),
     tools = require('./tools'),
+    Callable = require('../../src/Function/Callable'),
     CallInstrumentation = require('../../src/Instrumentation/CallInstrumentation'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
@@ -21,7 +22,6 @@ var _ = require('microdash'),
     ExportRepository = require('../../src/FFI/Export/ExportRepository'),
     FFIFactory = require('../../src/FFI/FFIFactory'),
     FunctionFactory = require('../../src/FunctionFactory').sync(),
-    MethodSpec = require('../../src/MethodSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
     ObjectValue = require('../../src/Value/Object').sync(),
     PHPObject = require('../../src/FFI/Value/PHPObject').sync(),
@@ -40,6 +40,7 @@ describe('Class', function () {
         classObject,
         constructorMethod,
         createClass,
+        defineMethod,
         destructibleObjectRepository,
         exportRepository,
         ffiFactory,
@@ -195,6 +196,22 @@ describe('Class', function () {
                 destructibleObjectRepository
             );
         };
+        defineMethod = function (methodName, methodFunction) {
+            var callable = sinon.createStubInstance(Callable);
+            callable.call.callsFake(function (positionalArgs, namedArgs, objectValue) {
+                return flow.maybeFuturise(function () {
+                    return methodFunction.apply(objectValue ? objectValue.getObject() : null, positionalArgs);
+                });
+            });
+            callable.data = {
+                classObject: classObject
+            };
+            callable.isStatic = false;
+            classObject.defineMethod(methodName, callable);
+
+            return callable;
+        };
+
         createClass('__construct', null);
     });
 
@@ -213,8 +230,8 @@ describe('Class', function () {
                     return classObject.callMethod(
                         methodName,
                         args,
-                        objectValue,
                         null,
+                        objectValue,
                         null,
                         !!isForwardingStaticCall
                     );
@@ -226,8 +243,7 @@ describe('Class', function () {
 
                 beforeEach(function () {
                     methodFunction = sinon.stub();
-                    InternalClass.prototype.myMethod = methodFunction;
-                    createClass('__construct', null);
+                    defineMethod('myMethod', methodFunction);
                 });
 
                 it('should be called and the result returned when auto coercion is disabled', async function () {
@@ -257,30 +273,27 @@ describe('Class', function () {
                 });
 
                 describe('for a forwarding static call', function () {
-                    it('should not pass along the static class', async function () {
-                        var resultValue = valueFactory.createString('my result');
-                        methodFunction.returns(resultValue);
-                        valueCoercer.isAutoCoercionEnabled.returns(false);
+                    it('should pass null as the static class to Callable.call()', async function () {
+                        var callable = defineMethod('myMethod', methodFunction);
+                        methodFunction.returns(valueFactory.createString('result'));
 
                         await callMethod('myMethod', [], true).toPromise();
 
-                        expect(functionFactory.setNewStaticClassIfWrapped).not.to.have.been.called;
+                        expect(callable.call).to.have.been.calledOnce;
+                        expect(callable.call.args[0][3]).to.be.null; // 4th argument should be null for forwarding.
                     });
                 });
 
                 describe('for a non-forwarding static call', function () {
-                    it('should pass along the static class', async function () {
-                        var resultValue = valueFactory.createString('my result');
-                        methodFunction.returns(resultValue);
-                        valueCoercer.isAutoCoercionEnabled.returns(false);
+                    it('should pass the current class as the static class to Callable.call()', async function () {
+                        var callable = defineMethod('myMethod', methodFunction);
+                        methodFunction.returns(valueFactory.createString('my result'));
 
-                        await callMethod('myMethod', [], false).toPromise();
-
-                        expect(functionFactory.setNewStaticClassIfWrapped).to.have.been.calledOnce;
-                        expect(functionFactory.setNewStaticClassIfWrapped).to.have.been.calledWith(
-                            sinon.match.same(methodFunction),
-                            sinon.match.same(classObject)
-                        );
+                        expect((await callMethod('myMethod', [], false).toPromise()).getNative())
+                            .to.equal('my result');
+                        expect(callable.call).to.have.been.calledOnce;
+                        // 4th argument should be classObject for non-forwarding.
+                        expect(callable.call.args[0][3]).to.equal(classObject);
                     });
                 });
             });
@@ -290,8 +303,7 @@ describe('Class', function () {
 
                 beforeEach(function () {
                     methodFunction = sinon.stub();
-                    InternalClass.prototype.myMethodWITHWRONGcase = methodFunction;
-                    createClass('__construct', null);
+                    defineMethod('myMethodWITHWRONGcase', methodFunction);
                 });
 
                 it('should be called and the result returned when auto coercion is disabled', async function () {
@@ -326,9 +338,8 @@ describe('Class', function () {
 
                 beforeEach(function () {
                     methodFunction = sinon.stub();
-                    InternalClass.prototype.myMethod = methodFunction;
-                    nativeObject.myMethod = sinon.stub(); // Should be ignored
-                    createClass('__construct', null);
+                    defineMethod('myMethod', methodFunction);
+                    nativeObject.myMethod = sinon.stub(); // Should be ignored.
                 });
 
                 it('should ignore the property and call the method when auto coercion is disabled', async function () {
@@ -360,8 +371,6 @@ describe('Class', function () {
 
             describe('when the method is not defined', function () {
                 it('should throw a PHPFatalError', async function () {
-                    createClass('__construct', null);
-
                     await expect(callMethod('myMissingMethod', []).toPromise()).to.eventually.be.rejectedWith(
                         'Fake PHP Fatal error for #core.undefined_method with {"className":"My\\\\Class\\\\Path\\\\Here","methodName":"myMissingMethod"}'
                     );
@@ -383,6 +392,7 @@ describe('Class', function () {
                     return classObject.callMethod(
                         methodName,
                         args,
+                        null,
                         objectValue
                     );
                 };
@@ -393,8 +403,7 @@ describe('Class', function () {
 
                 beforeEach(function () {
                     methodFunction = sinon.stub();
-                    InternalClass.prototype.myMethod = methodFunction;
-                    createClass('__construct', null);
+                    defineMethod('myMethod', methodFunction);
                 });
 
                 it('should be called and the result returned when auto coercion is disabled', async function () {
@@ -429,8 +438,7 @@ describe('Class', function () {
 
                 beforeEach(function () {
                     methodFunction = sinon.stub();
-                    InternalClass.prototype.myMethodWITHWRONGcase = methodFunction;
-                    createClass('__construct', null);
+                    defineMethod('myMethodWITHWRONGcase', methodFunction);
                 });
 
                 it('should be called and the result returned when auto coercion is disabled', async function () {
@@ -465,9 +473,8 @@ describe('Class', function () {
 
                 beforeEach(function () {
                     methodFunction = sinon.stub();
-                    InternalClass.prototype.myMethod = methodFunction;
-                    nativeObject.myMethod = sinon.stub(); // Should be ignored
-                    createClass('__construct', null);
+                    defineMethod('myMethod', methodFunction);
+                    nativeObject.myMethod = sinon.stub(); // Should be ignored.
                 });
 
                 it('should ignore the property and call the method when auto coercion is disabled', async function () {
@@ -499,8 +506,6 @@ describe('Class', function () {
 
             describe('when the method is not defined', function () {
                 it('should throw a PHPFatalError', async function () {
-                    createClass('__construct', null);
-
                     await expect(callMethod('myMissingMethod', []).toPromise()).to.eventually.be.rejectedWith(
                         'Fake PHP Fatal error for #core.undefined_method with {"className":"My\\\\Class\\\\Path\\\\Here","methodName":"myMissingMethod"}'
                     );
@@ -511,11 +516,14 @@ describe('Class', function () {
         describe('when a custom method caller is given', function () {
             var argReference1,
                 argFutureValue2,
+                methodFunction,
                 objectValue;
 
             beforeEach(function () {
                 methodCaller = sinon.stub();
                 createClass('__construct', null);
+                methodFunction = sinon.stub();
+                defineMethod('myMethod', methodFunction);
 
                 objectValue = sinon.createStubInstance(ObjectValue);
                 argReference1 = sinon.createStubInstance(Reference);
@@ -524,7 +532,7 @@ describe('Class', function () {
             });
 
             it('should invoke the method caller with arguments resolved to present values', async function () {
-                await classObject.callMethod('myMethod', [argReference1, argFutureValue2], objectValue).toPromise();
+                await classObject.callMethod('myMethod', [argReference1, argFutureValue2], null, objectValue).toPromise();
 
                 expect(methodCaller).to.have.been.calledOnce;
                 expect(methodCaller).to.have.been.calledOn(objectValue);
@@ -534,6 +542,14 @@ describe('Class', function () {
                 expect(methodCaller.args[0][1][0].getNative()).to.equal('my first future arg');
                 expect(methodCaller.args[0][1][1].getType()).to.equal('string');
                 expect(methodCaller.args[0][1][1].getNative()).to.equal('my second future arg');
+            });
+
+            it('should throw when named arguments are given', function () {
+                var namedArgs = {myArg: valueFactory.createString('my value')};
+
+                expect(function () {
+                    classObject.callMethod('myMethod', [], namedArgs, objectValue);
+                }).to.throw('Cannot use named arguments with custom method caller');
             });
         });
     });
@@ -551,6 +567,7 @@ describe('Class', function () {
         describe('when this class defines a constructor', function () {
             beforeEach(function () {
                 createClass('__construct', superClass);
+                defineMethod('__construct', constructorMethod);
             });
 
             it('should not call the superclass\' constructor', function () {
@@ -738,12 +755,11 @@ describe('Class', function () {
         });
     });
 
-    describe('getMethodSpec()', function () {
-        var methodSpec;
+    describe('getMethodCallable()', function () {
+        var methodCallable;
 
         beforeEach(function () {
-            methodSpec = sinon.createStubInstance(MethodSpec);
-            functionFactory.createMethodSpec.returns(methodSpec);
+            methodCallable = sinon.createStubInstance(Callable);
         });
 
         describe('when the object is an instance of the native constructor', function () {
@@ -757,74 +773,39 @@ describe('Class', function () {
             });
 
             describe('when the method is defined with the same case', function () {
-                var methodFunction;
-
                 beforeEach(function () {
-                    methodFunction = sinon.stub();
-                    InternalClass.prototype.myMethod = methodFunction;
-                    createClass('__construct', null);
+                    classObject.defineMethod('myMethod', methodCallable);
                 });
 
-                it('should create and return a MethodSpec with the correct info', function () {
-                    expect(classObject.getMethodSpec('myMethod')).to.equal(methodSpec);
-                    expect(functionFactory.createMethodSpec).to.have.been.calledOnce;
-                    expect(functionFactory.createMethodSpec).to.have.been.calledWith(
-                        sinon.match.same(classObject),
-                        sinon.match.same(classObject),
-                        'myMethod',
-                        sinon.match.same(methodFunction)
-                    );
+                it('should return the callable for the method', function () {
+                    expect(classObject.getMethodCallable('myMethod')).to.equal(methodCallable);
                 });
             });
 
             describe('when the method is defined with differing case', function () {
-                var methodFunction;
-
                 beforeEach(function () {
-                    methodFunction = sinon.stub();
-                    InternalClass.prototype.myMethodWITHWRONGcase = methodFunction;
-                    createClass('__construct', null);
+                    classObject.defineMethod('myMethodWITHWRONGcase', methodCallable);
                 });
 
-                it('should create and return a MethodSpec with the correct info', function () {
-                    expect(classObject.getMethodSpec('myMethodWithWrongCase')).to.equal(methodSpec);
-                    expect(functionFactory.createMethodSpec).to.have.been.calledOnce;
-                    expect(functionFactory.createMethodSpec).to.have.been.calledWith(
-                        sinon.match.same(classObject),
-                        sinon.match.same(classObject),
-                        'myMethodWithWrongCase',
-                        sinon.match.same(methodFunction)
-                    );
+                it('should return the callable for the method', function () {
+                    expect(classObject.getMethodCallable('myMethodWithWrongCase')).to.equal(methodCallable);
                 });
             });
 
             describe('when an own property is defined with the same name as the method', function () {
-                var methodFunction;
-
                 beforeEach(function () {
-                    methodFunction = sinon.stub();
-                    InternalClass.prototype.myMethod = methodFunction;
-                    nativeObject.myMethod = sinon.stub(); // Should be ignored
-                    createClass('__construct', null);
+                    classObject.defineMethod('myMethod', methodCallable);
+                    nativeObject.myMethod = sinon.stub(); // Should be ignored.
                 });
 
-                it('should ignore the property and create and return a MethodSpec with the correct info', function () {
-                    expect(classObject.getMethodSpec('myMethod')).to.equal(methodSpec);
-                    expect(functionFactory.createMethodSpec).to.have.been.calledOnce;
-                    expect(functionFactory.createMethodSpec).to.have.been.calledWith(
-                        sinon.match.same(classObject),
-                        sinon.match.same(classObject),
-                        'myMethod',
-                        sinon.match.same(methodFunction)
-                    );
+                it('should ignore the property and return the callable for the method', function () {
+                    expect(classObject.getMethodCallable('myMethod')).to.equal(methodCallable);
                 });
             });
 
             describe('when the method is not defined', function () {
                 it('should return null', function () {
-                    createClass('__construct', null);
-
-                    expect(classObject.getMethodSpec('myMethod')).to.be.null;
+                    expect(classObject.getMethodCallable('myMethod')).to.be.null;
                 });
             });
         });
@@ -844,19 +825,15 @@ describe('Class', function () {
 
                 beforeEach(function () {
                     methodFunction = sinon.stub();
-                    InternalClass.prototype.myMethod = methodFunction;
-                    createClass('__construct', null);
+                    defineMethod('myMethod', methodFunction);
                 });
 
-                it('should create and return a MethodSpec with the correct info', function () {
-                    expect(classObject.getMethodSpec('myMethod')).to.equal(methodSpec);
-                    expect(functionFactory.createMethodSpec).to.have.been.calledOnce;
-                    expect(functionFactory.createMethodSpec).to.have.been.calledWith(
-                        sinon.match.same(classObject),
-                        sinon.match.same(classObject),
-                        'myMethod',
-                        sinon.match.same(methodFunction)
-                    );
+                it('should return the callable for the method', function () {
+                    var callable = classObject.getMethodCallable('myMethod');
+
+                    expect(callable).to.not.be.null;
+                    expect(callable).to.have.property('call');
+                    expect(callable.data.classObject).to.equal(classObject);
                 });
             });
 
@@ -865,51 +842,98 @@ describe('Class', function () {
 
                 beforeEach(function () {
                     methodFunction = sinon.stub();
-                    InternalClass.prototype.myMethodWITHWRONGcase = methodFunction;
-                    createClass('__construct', null);
+                    defineMethod('myMethodWITHWRONGcase', methodFunction);
                 });
 
-                it('should create and return a MethodSpec with the correct info', function () {
-                    expect(classObject.getMethodSpec('myMethodWithWrongCase')).to.equal(methodSpec);
-                    expect(functionFactory.createMethodSpec).to.have.been.calledOnce;
-                    expect(functionFactory.createMethodSpec).to.have.been.calledWith(
-                        sinon.match.same(classObject),
-                        sinon.match.same(classObject),
-                        'myMethodWithWrongCase',
-                        sinon.match.same(methodFunction)
-                    );
+                it('should return the callable for the method', function () {
+                    var callable = classObject.getMethodCallable('myMethodWithWrongCase');
+
+                    expect(callable).to.not.be.null;
+                    expect(callable).to.have.property('call');
+                    expect(callable.data.classObject).to.equal(classObject);
                 });
             });
 
             describe('when an own property is defined with the same name as the method', function () {
-                var methodFunction;
-
                 beforeEach(function () {
-                    methodFunction = sinon.stub();
-                    InternalClass.prototype.myMethod = methodFunction;
-                    nativeObject.myMethod = sinon.stub(); // Should be ignored
-                    createClass('__construct', null);
+                    classObject.defineMethod('myMethod', methodCallable);
+                    nativeObject.myMethod = sinon.stub(); // Should be ignored.
                 });
 
-                it('should create and return a MethodSpec with the correct info', function () {
-                    expect(classObject.getMethodSpec('myMethod')).to.equal(methodSpec);
-                    expect(functionFactory.createMethodSpec).to.have.been.calledOnce;
-                    expect(functionFactory.createMethodSpec).to.have.been.calledWith(
-                        sinon.match.same(classObject),
-                        sinon.match.same(classObject),
-                        'myMethod',
-                        sinon.match.same(methodFunction)
-                    );
+                it('should return the callable for the method', function () {
+                    expect(classObject.getMethodCallable('myMethod')).to.equal(methodCallable);
                 });
             });
 
             describe('when the method is not defined', function () {
                 it('should return null', function () {
-                    createClass('__construct', null);
-
-                    expect(classObject.getMethodSpec('myMethod')).to.be.null;
+                    expect(classObject.getMethodCallable('myMethod')).to.be.null;
                 });
             });
+        });
+    });
+
+    describe('getMethodCallables()', function () {
+        it('should return an empty object when no methods are defined', function () {
+            var callables = classObject.getMethodCallables();
+
+            expect(callables).to.be.an('object');
+            expect(Object.keys(callables)).to.have.length(0);
+        });
+
+        it('should return an object containing all defined methods indexed by their actual names', function () {
+            var callable1 = sinon.createStubInstance(Callable),
+                callable2 = sinon.createStubInstance(Callable),
+                callable3 = sinon.createStubInstance(Callable),
+                callables;
+            classObject.defineMethod('myFirstMethod', callable1);
+            classObject.defineMethod('mySecondMethod', callable2);
+            classObject.defineMethod('myThirdMethod', callable3);
+
+            callables = classObject.getMethodCallables();
+
+            expect(callables).to.be.an('object');
+            expect(Object.keys(callables)).to.have.length(3);
+            expect(callables.myFirstMethod).to.equal(callable1);
+            expect(callables.mySecondMethod).to.equal(callable2);
+            expect(callables.myThirdMethod).to.equal(callable3);
+        });
+
+        it('should preserve the original case of method names', function () {
+            var callable1 = sinon.createStubInstance(Callable),
+                callable2 = sinon.createStubInstance(Callable),
+                callables;
+            classObject.defineMethod('myMethodWithMixedCase', callable1);
+            classObject.defineMethod('ANOTHER_METHOD', callable2);
+
+            callables = classObject.getMethodCallables();
+
+            expect(callables).to.have.property('myMethodWithMixedCase');
+            expect(callables).to.have.property('ANOTHER_METHOD');
+            expect(callables).not.to.have.property('mymethodwithmixedcase');
+            expect(callables).not.to.have.property('another_method');
+        });
+
+        it('should include static methods', function () {
+            var staticCallable = sinon.createStubInstance(Callable),
+                callables;
+            staticCallable.isStatic = true;
+            classObject.defineMethod('myStaticMethod', staticCallable);
+
+            callables = classObject.getMethodCallables();
+
+            expect(callables.myStaticMethod).to.equal(staticCallable);
+        });
+
+        it('should include instance methods', function () {
+            var instanceCallable = sinon.createStubInstance(Callable),
+                callables;
+            instanceCallable.isStatic = false;
+            classObject.defineMethod('myInstanceMethod', instanceCallable);
+
+            callables = classObject.getMethodCallables();
+
+            expect(callables.myInstanceMethod).to.equal(instanceCallable);
         });
     });
 
@@ -1170,6 +1194,8 @@ describe('Class', function () {
             sinon.stub(valueFactory, 'createObject').returns(objectValue);
 
             createClass('__construct', superClass);
+            // Define a default constructor.
+            defineMethod('__construct', constructorMethod);
 
             objectValue.declareProperty
                 .withArgs(sinon.match.any, sinon.match(function (givenClass) {
@@ -1191,7 +1217,7 @@ describe('Class', function () {
             arg1.getNative.returns(21);
             arg2.getNative.returns('second');
 
-            await classObject.instantiate([arg1, arg2], ['first', 'second']).toPromise();
+            await classObject.instantiate([arg1, arg2], null, ['first', 'second']).toPromise();
 
             expect(InternalClass).to.have.been.calledOnce;
             expect(InternalClass).to.have.been.calledWith('first', 'second');
@@ -1203,7 +1229,7 @@ describe('Class', function () {
                 constructor = sinon.stub().returns(valueFactory.createNull());
             arg1.getNative.returns(21);
             arg2.getNative.returns('second');
-            InternalClass.prototype.__construct = constructor;
+            defineMethod('__construct', constructor);
 
             await classObject.instantiate([arg1, arg2]).toPromise();
 
@@ -1335,6 +1361,8 @@ describe('Class', function () {
             objectValue = sinon.createStubInstance(ObjectValue);
             sinon.stub(valueFactory, 'createObject').returns(objectValue);
             createClass('__construct', superClass);
+            // Define a default constructor.
+            defineMethod('__construct', constructorMethod);
 
             objectValue.declareProperty
                 .withArgs(sinon.match.any, sinon.match(function (givenClass) {
@@ -1350,7 +1378,7 @@ describe('Class', function () {
                 });
 
             doCall = function () {
-                return classObject.instantiateWithInternals([], {
+                return classObject.instantiateWithInternals([], null, {
                     myInternal: 'my value'
                 }).toPromise();
             };
@@ -1469,8 +1497,10 @@ describe('Class', function () {
         });
 
         it('should register the ObjectValue with the DestructibleObjectRepository when the class has a destructor', async function () {
-            InternalClass.prototype.__destruct = sinon.stub();
+            var destructor = sinon.stub();
+            InternalClass.prototype.__destruct = destructor;
             createClass('__construct', null);
+            defineMethod('__destruct', destructor);
             await classObject.initialiseInstancePropertyDefaults();
 
             await classObject.internalConstruct(objectValue);

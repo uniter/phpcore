@@ -113,7 +113,7 @@ describe('Namespace', function () {
             return futureFactory.createPresent(traitObject);
         });
 
-        functionFactory.create.callsFake(function (namespace, currentClass, currentObject, staticClass, functionSpec) {
+        functionFactory.createCallable.callsFake(function (namespace, currentClass, currentObject, staticClass, functionSpec) {
             var wrapperFunc = sinon.stub();
             wrapperFunc.testArgs = {
                 namespace: namespace,
@@ -170,7 +170,7 @@ describe('Namespace', function () {
                     123
                 )
                 .returns(functionSpec);
-            functionFactory.create
+            functionFactory.createCallable
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     null,
@@ -370,7 +370,7 @@ describe('Namespace', function () {
                     123
                 )
                 .returns(functionSpec);
-            functionFactory.create
+            functionFactory.createCallable
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     null,
@@ -415,7 +415,7 @@ describe('Namespace', function () {
                     123
                 )
                 .returns(functionSpec);
-            functionFactory.create
+            functionFactory.createCallable
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     null,
@@ -474,7 +474,7 @@ describe('Namespace', function () {
                     123
                 )
                 .returns(functionSpec);
-            functionFactory.create
+            functionFactory.createCallable
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     null,
@@ -531,7 +531,7 @@ describe('Namespace', function () {
                     123
                 )
                 .returns(functionSpec);
-            functionFactory.create
+            functionFactory.createCallable
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     null,

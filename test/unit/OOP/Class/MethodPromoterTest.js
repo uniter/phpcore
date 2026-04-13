@@ -77,7 +77,7 @@ describe('MethodPromoter', function () {
                 )
                 .returns(functionSpec);
 
-            functionFactory.create
+            functionFactory.createCallable
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     sinon.match.same(classObject),

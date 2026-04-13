@@ -149,7 +149,7 @@ describe('BarewordStringValue', function () {
             namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(futureFactory.createPresent(classObject));
             createValue('My\\Space\\MyClass');
 
-            result = await value.callStaticMethod(methodNameValue, [argValue], false).toPromise();
+            result = await value.callStaticMethod(methodNameValue, [argValue], null, false).toPromise();
 
             expect(result).to.equal(resultValue);
             expect(classObject.callMethod).to.have.been.calledOnce;
@@ -173,7 +173,7 @@ describe('BarewordStringValue', function () {
             namespaceScope.getClass.withArgs('My\\Space\\MyClass').returns(futureFactory.createPresent(classObject));
             createValue('My\\Space\\MyClass');
 
-            result = await value.callStaticMethod(methodNameValue, [argValue], true).toPromise();
+            result = await value.callStaticMethod(methodNameValue, [argValue], null, true).toPromise();
 
             expect(result).to.equal(resultValue);
             expect(classObject.callMethod).to.have.been.calledOnce;

@@ -11,7 +11,6 @@
 
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
-    slice = [].slice,
 
     MAGIC_CONSTRUCT = '__construct',
     ORIGINAL_MAGIC_CONSTRUCTOR = '__@_original_construct',
@@ -74,6 +73,7 @@ _.extend(NativeDefinitionBuilder.prototype, {
             constructorName = null,
             hasMagicConstructor = false,
             methodData = {},
+            methods = {},
             proxyConstructor,
             rootInternalPrototype,
             InternalClass,
@@ -89,9 +89,8 @@ _.extend(NativeDefinitionBuilder.prototype, {
         // the original if the derived class does not call parent::__construct(...)
         // - Unless the class defines the special `shadowConstructor` property, which
         //   is always called regardless of whether the parent constructor is called explicitly.
-        InternalClass = function () {
-            var objectValue = this,
-                shadowConstructorArgs = slice.call(arguments);
+        InternalClass = function (...shadowConstructorArgs) {
+            var objectValue = this;
 
             if (definition.shadowConstructor) {
                 definition.shadowConstructor.apply(
@@ -104,27 +103,26 @@ _.extend(NativeDefinitionBuilder.prototype, {
             }
         };
         InternalClass.prototype = Object.create(definition.prototype);
-        proxyConstructor = function () {
-            var args = arguments,
-                objectValue = this,
+        proxyConstructor = function (...positionalArgs) {
+            var objectValue = this.getThisObject(),
                 // Will be the native object as the `this` object inside the (shadow) constructor
                 // if auto-coercion is enabled, otherwise use the ObjectValue.
                 unwrappedThisObject = autoCoercionEnabled ?
                     objectValue.getObject() :
                     objectValue;
 
-            return valueCoercer.coerceArguments(args)
-                .next(function (unwrappedArgs) {
+            return valueCoercer.coerceArguments(positionalArgs)
+                .next(function (unwrappedPositionalArgs) {
                     // Call the original native constructor, returning its result
                     // in case a Future is returned so that it may be awaited.
-                    return definition.apply(unwrappedThisObject, unwrappedArgs);
+                    return definition.apply(unwrappedThisObject, unwrappedPositionalArgs);
                 })
                 .next(function () {
                     // Call magic __construct method if defined for the original native class.
                     if (hasMagicConstructor) {
                         // Note that although constructors' return values are discarded, it may pause, in which case
                         // a Future would be returned, which we then need to return in order to await.
-                        return objectValue.callMethod(ORIGINAL_MAGIC_CONSTRUCTOR, args);
+                        return objectValue.callMethod(ORIGINAL_MAGIC_CONSTRUCTOR, positionalArgs/*, namedArgs*/);
                     }
 
                     return builder.valueFactory.createNull();
@@ -132,7 +130,6 @@ _.extend(NativeDefinitionBuilder.prototype, {
                 .asValue();
         };
         proxyConstructor.data = methodData;
-        InternalClass.prototype[MAGIC_CONSTRUCT] = proxyConstructor;
         constructorName = MAGIC_CONSTRUCT;
 
         // Record the prototype object that we should stop at when walking up the chain
@@ -167,6 +164,15 @@ _.extend(NativeDefinitionBuilder.prototype, {
                 methods[methodName] = method;
             }
 
+            methods[MAGIC_CONSTRUCT] = {
+                line: null,
+                args: null,
+                isStatic: false,
+                method: proxyConstructor,
+                ref: false,
+                ret: null
+            };
+
             return methods;
         }
 
@@ -175,6 +181,8 @@ _.extend(NativeDefinitionBuilder.prototype, {
                 value: valueProvider
             };
         });
+
+        methods = buildMethods();
 
         return new ClassDefinition(
             name,
@@ -187,7 +195,7 @@ _.extend(NativeDefinitionBuilder.prototype, {
             constructorName,
             InternalClass,
             methodData,
-            buildMethods(),
+            methods,
             rootInternalPrototype,
             {},
             {},

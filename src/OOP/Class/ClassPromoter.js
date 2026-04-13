@@ -89,26 +89,26 @@ _.extend(ClassPromoter.prototype, {
         _.each(classDefinition.getTraits(), function (traitObject) {
             // Mix the trait's methods into the class.
             _.forOwn(traitObject.getMethods(), function (methodDefinition, methodName) {
-                InternalClass.prototype[methodName] = promoter.methodPromoter.promote(
+                classObject.defineMethod(methodName, promoter.methodPromoter.promote(
                     methodName,
                     methodDefinition,
                     classObject,
                     traitObject,
                     namespaceScope,
                     sharedMethodData
-                );
+                ));
             });
         });
 
         _.forOwn(classDefinition.getMethods(), function (methodDefinition, methodName) {
-            InternalClass.prototype[methodName] = promoter.methodPromoter.promote(
+            classObject.defineMethod(methodName, promoter.methodPromoter.promote(
                 methodName,
                 methodDefinition,
                 classObject,
                 null, // No trait for this method.
                 namespaceScope,
                 sharedMethodData
-            );
+            ));
         });
 
         // Enable fetching the original class object (which may be different from the current class,

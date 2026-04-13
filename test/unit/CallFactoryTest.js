@@ -119,7 +119,7 @@ describe('CallFactory', function () {
                 sinon.match.any,
                 sinon.match.any,
                 sinon.match.any,
-                sinon.match([])
+                []
             );
         });
 
@@ -159,7 +159,7 @@ describe('CallFactory', function () {
             expect(factory.createFFICall()).to.be.an.instanceOf(FFICall);
         });
 
-        it('should pass the argument values to the Call constructor if specified', function () {
+        it('should pass the positional argument values to the FFICall constructor if specified', function () {
             var argValue1 = sinon.createStubInstance(Value),
                 argValue2 = sinon.createStubInstance(Value);
 
@@ -171,11 +171,31 @@ describe('CallFactory', function () {
             );
         });
 
-        it('should pass an empty array of argument values to the Call constructor if none specified', function () {
+        it('should pass the named argument values to the FFICall constructor if specified', function () {
+            var argValue1 = sinon.createStubInstance(Value),
+                argValue2 = sinon.createStubInstance(Value);
+
+            factory.createFFICall(null, {arg1: argValue1, arg2: argValue2});
+
+            expect(FFICall).to.have.been.calledOnce;
+            expect(FFICall).to.have.been.calledWith(
+                [],
+                sinon.match({arg1: sinon.match.same(argValue1), arg2: sinon.match.same(argValue2)})
+            );
+        });
+
+        it('should pass an empty array of positional argument values to the FFICall constructor if none specified', function () {
             factory.createFFICall();
 
             expect(FFICall).to.have.been.calledOnce;
-            expect(FFICall).to.have.been.calledWith(sinon.match([]));
+            expect(FFICall).to.have.been.calledWith([]);
+        });
+
+        it('should null as named argument values to the FFICall constructor if none specified', function () {
+            factory.createFFICall();
+
+            expect(FFICall).to.have.been.calledOnce;
+            expect(FFICall).to.have.been.calledWith([], null);
         });
     });
 });

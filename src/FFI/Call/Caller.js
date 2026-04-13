@@ -69,10 +69,11 @@ module.exports = require('pauser')([
          *
          * @param {ObjectValue} objectValue
          * @param {string} methodName
-         * @param {Value[]} args
+         * @param {Reference[]|Value[]|Variable[]} positionalArgs
+         * @param {Object.<string, Reference|Value|Variable>|null} namedArgs
          * @returns {Promise<Value>}
          */
-        callMethodAsync: function (objectValue, methodName, args) {
+        callMethodAsync: function (objectValue, methodName, positionalArgs, namedArgs) {
             var caller = this;
 
             if (caller.mode !== 'async') {
@@ -80,7 +81,7 @@ module.exports = require('pauser')([
             }
 
             // Call the method - note that it may return a Future-wrapped Value for async operation.
-            return objectValue.callMethod(methodName, args)
+            return objectValue.callMethod(methodName, positionalArgs, namedArgs)
                 // Pop the call off the stack _before_ returning, to mirror sync mode's behaviour.
                 .finally(caller.popFFICall.bind(caller))
                 .catch(function (error) {
@@ -102,11 +103,12 @@ module.exports = require('pauser')([
          *
          * @param {ObjectValue} objectValue
          * @param {string} methodName
-         * @param {Value[]} args
+         * @param {Reference[]|Value[]|Variable[]} positionalArgs
+         * @param {Object.<string, Reference|Value|Variable>|null} namedArgs
          * @param {boolean=} useSyncApiAlthoughPsync
          * @returns {Promise<Value>|Value}
          */
-        callMethodSyncLike: function (objectValue, methodName, args, useSyncApiAlthoughPsync) {
+        callMethodSyncLike: function (objectValue, methodName, positionalArgs, namedArgs, useSyncApiAlthoughPsync) {
             var caller = this;
 
             if (caller.mode === 'async') {
@@ -115,7 +117,7 @@ module.exports = require('pauser')([
 
             function invoke() {
                 try {
-                    return objectValue.callMethod(methodName, args).yieldSync();
+                    return objectValue.callMethod(methodName, positionalArgs, namedArgs).yieldSync();
                 } catch (error) {
                     if (error instanceof Value && error.getType() === 'object') {
                         // Method threw a PHP Exception, so throw a native JS error for it
@@ -145,15 +147,16 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Pushes an FFI call onto the call stack
+         * Pushes an FFI call onto the call stack.
          *
-         * @param {Value[]} args
+         * @param {Reference[]|Value[]|Variable[]} positionalArgs
+         * @param {Object.<string, Reference|Value|Variable>|null} namedArgs
          */
-        pushFFICall: function (args) {
+        pushFFICall: function (positionalArgs, namedArgs) {
             var caller = this;
 
-            // Push an FFI call onto the stack, representing the call from JavaScript-land
-            caller.callStack.push(caller.callFactory.createFFICall(args));
+            // Push an FFI call onto the stack, representing the call from JavaScript-land.
+            caller.callStack.push(caller.callFactory.createFFICall(positionalArgs, namedArgs));
         },
 
         /**

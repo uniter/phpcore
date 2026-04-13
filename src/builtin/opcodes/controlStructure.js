@@ -75,9 +75,10 @@ module.exports = function (internals) {
             function (name, definition) {
                 var namespaceScope = callStack.getEffectiveNamespaceScope();
 
-                // TODO: Note that we currently make no distinction between classes and interfaces,
-                //       which is required by things like interface_exists(...).
-                return namespaceScope.defineClass(name, definition);
+                // Mark the definition as an interface so that downstream handling (e.g. the
+                // Throwable-implements check) can behave differently from a class definition.
+                // TODO: Model interfaces separately from classes.
+                return namespaceScope.defineClass(name, Object.assign({isInterface: true}, definition));
             }
         ),
 

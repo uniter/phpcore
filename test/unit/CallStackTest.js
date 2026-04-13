@@ -1044,6 +1044,8 @@ describe('CallStack', function () {
                             return arg.getNative() === null;
                         })
                     ],
+                    // Named arguments.
+                    null,
                     // Shadow constructor arguments.
                     [
                         '', // No context given.
@@ -1101,6 +1103,8 @@ describe('CallStack', function () {
                             return arg.getNative() === null;
                         })
                     ],
+                    // Named arguments.
+                    null,
                     // Shadow constructor arguments.
                     [
                         'My translated contextual message', // Context given.

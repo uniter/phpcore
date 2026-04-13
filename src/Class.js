@@ -12,13 +12,13 @@
 module.exports = require('pauser')([
     require('microdash'),
     require('phpcommon'),
-    require('./OOP/Class/IsolatedScope'),
-    require('es6-weak-map')
+    require('./Function/Callable'),
+    require('./OOP/Class/IsolatedScope')
 ], function (
     _,
     phpCommon,
-    IsolatedScope,
-    WeakMap
+    Callable,
+    IsolatedScope
 ) {
     var IS_STATIC = 'isStatic',
         MAGIC_CALL = '__call',
@@ -33,39 +33,10 @@ module.exports = require('pauser')([
         VISIBILITY = 'visibility',
         hasOwn = {}.hasOwnProperty,
         Exception = phpCommon.Exception,
-        PHPError = phpCommon.PHPError,
-        methodLookupMap = new WeakMap(),
-        /**
-         * Fetches a method from the specified object
-         *
-         * TODO: Build method map when class is initialised rather than resolving at runtime like this
-         *
-         * @param {Object} object
-         * @param {string} methodName
-         * @returns {Function|null}
-         */
-        getMethod = function (object, methodName) {
-            var methods;
-
-            if (methodLookupMap.has(object)) {
-                methods = methodLookupMap.get(object);
-            } else {
-                methods = Object.create(null);
-
-                _.forOwn(object, function (value, propertyName) {
-                    if (_.isFunction(value)) {
-                        methods[propertyName.toLowerCase()] = value;
-                    }
-                });
-
-                methodLookupMap.set(object, methods);
-            }
-
-            return methods[methodName.toLowerCase()] || null;
-        };
+        PHPError = phpCommon.PHPError;
 
     /**
-     * Represents a class exposed to PHP-land
+     * Represents a class exposed to PHP-land.
      *
      * @param {ValueFactory} valueFactory
      * @param {ValueProvider} valueProvider
@@ -193,15 +164,21 @@ module.exports = require('pauser')([
          */
         this.InternalClass = InternalClass;
         /**
+         * Method callables, indexed by actual name.
+         *
+         * @type {Object.<string, Callable>}
+         */
+        this.methodCallables = {};
+        /**
+         * Method callables, indexed by lowercase name to handle case-insensitivity.
+         *
+         * @type {Object.<string, Callable>}
+         */
+        this.methodCallablesByLowerCase = {};
+        /**
          * @type {Function|null}
          */
         this.methodCaller = methodCaller;
-        /**
-         * Looked up method specs, indexed by lowercase name to handle case-insensitivity
-         *
-         * @type {Object.<string, MethodSpec>}
-         */
-        this.methodSpecCache = Object.create(null);
         /**
          * @type {string}
          */
@@ -285,22 +262,21 @@ module.exports = require('pauser')([
          * Omit both `objectValue` and `currentNativeObject` for a static call.
          *
          * @param {string} methodName The name of the method to call
-         * @param {Reference[]|Value[]} args The wrapped value objects or references to pass as arguments to the method
+         * @param {Reference[]|Value[]} positionalArgs The wrapped value objects or references to pass as arguments to the method
+         * @param {Object.<string, Reference|Value|Variable>|null} namedArgs The named arguments
          * @param {ObjectValue|null} objectValue The wrapped ObjectValue for this instance
-         * @param {object|null} currentNativeObject The current native JS object on the prototype chain to search for the method
          * @param {Class|null} currentClass The original called class (this function is called recursively for inherited methods)
          * @param {bool} isForwardingStaticCall eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
          * @returns {ChainableInterface<Reference|Value|Variable>} Returns the result of the method if it is defined
          * @throws {PHPFatalError} Throws when the method is not defined
          */
-        callMethod: function (methodName, args, objectValue, currentNativeObject, currentClass, isForwardingStaticCall) {
+        callMethod: function (methodName, positionalArgs, namedArgs, objectValue, currentClass, isForwardingStaticCall) {
             var classObject = this,
-                nativeObject = objectValue ? objectValue.getObject() : null,
                 result,
                 thisObject = classObject.callStack.getThisObject();
 
-            function callMethod(currentObject, methodName, args) {
-                var method = getMethod(currentObject, methodName);
+            function callMethod(methodName, positionalArgs, namedArgs) {
+                var method = classObject.methodCallablesByLowerCase[methodName.toLowerCase()] || null;
 
                 if (method !== null) {
                     if (!objectValue && !method[IS_STATIC]) {
@@ -324,48 +300,36 @@ module.exports = require('pauser')([
                         }
                     }
 
-                    // For a non-forwarding static call, pass the new static class through.
-                    // (For a forwarding static call, we will pass `null` through as the "new static class"
-                    // inside FunctionFactory, because we just want to use the one the caller has.)
-                    if (!isForwardingStaticCall) {
-                        classObject.functionFactory.setNewStaticClassIfWrapped(method, currentClass);
-                    }
-
                     /*
                      * Method may return a Value, Future-wrapped Reference or Variable etc.
                      * If the method returns undefined (eg. userland and there was no return statement)
                      * then the wrapper from FunctionFactory will ensure it is coerced to a NullValue for example.
                      */
-                    return method.apply(objectValue, args);
+                    return method.call(positionalArgs, namedArgs, objectValue, isForwardingStaticCall ? null : currentClass);
                 }
 
-                if (
-                    currentObject === classObject.rootInternalPrototype &&
-                    classObject.superClass
-                ) {
+                if (classObject.superClass) {
                     return classObject.superClass.callMethod(
                         methodName,
-                        args,
+                        positionalArgs,
+                        namedArgs,
                         objectValue,
-                        Object.getPrototypeOf(currentObject),
                         currentClass,
                         isForwardingStaticCall
                     );
                 }
 
-                currentObject = Object.getPrototypeOf(currentObject);
-
-                if (!currentObject) {
-                    return null;
-                }
-
-                return callMethod(currentObject, methodName, args);
+                return null;
             }
 
             if (classObject.methodCaller) {
                 // A custom method caller/accelerator is installed, call it directly instead.
                 // Used by e.g. JSObject to avoid additional magic method calls per native call.
-                return classObject.valueProvider.createFutureList(args)
+                if (namedArgs) {
+                    throw new Exception('Cannot use named arguments with custom method caller');
+                }
+
+                return classObject.valueProvider.createFutureList(positionalArgs)
                     .next(function (presentArgs) {
                         return classObject.methodCaller.call(
                             objectValue,
@@ -382,29 +346,13 @@ module.exports = require('pauser')([
                     .asValue();
             }
 
-            isForwardingStaticCall = !!isForwardingStaticCall;
-
-            if (!currentNativeObject) {
-                // Walk up the prototype chain from the native object
-                currentNativeObject = nativeObject;
-            }
+            isForwardingStaticCall = Boolean(isForwardingStaticCall);
 
             if (!currentClass) {
                 currentClass = classObject;
             }
 
-            if (nativeObject instanceof classObject.InternalClass) {
-                // Ignore own properties of the native object when searching for methods
-                if (currentNativeObject === nativeObject) {
-                    currentNativeObject = Object.getPrototypeOf(currentNativeObject);
-                }
-            } else {
-                // For some special classes (eg. JSObject, Closure) the native object may not actually
-                // be an instance of the InternalClass, so fake inheritance of the native class
-                currentNativeObject = classObject.InternalClass.prototype;
-            }
-
-            result = callMethod(currentNativeObject, methodName, args);
+            result = callMethod(methodName, positionalArgs, namedArgs);
 
             if (result !== null) {
                 return result;
@@ -416,14 +364,30 @@ module.exports = require('pauser')([
              * Resolve all arguments (references or values) to present values and wrap them in an ArrayValue
              * so that we can pass it in as the second argument to the magic method.
              */
-            return classObject.valueProvider.createFutureArray(args)
-                .next(function (argsArray) {
+            return classObject.valueProvider.createFutureArray(positionalArgs)
+                .next(function (positionalArgsArray) {
+                    if (!namedArgs) {
+                        return positionalArgsArray;
+                    }
+
+                    return classObject.flow
+                        .eachAsync(Object.keys(namedArgs), function (argName) {
+                            return namedArgs[argName].getValue().next(function (presentArg) {
+                                return positionalArgsArray.getElementByKey(classObject.valueFactory.createString(argName))
+                                    .setValue(presentArg);
+                            });
+                        })
+                        .next(function () {
+                            return positionalArgsArray;
+                        });
+                })
+                .next(function (positionalArgsArray) {
                     if (!objectValue && thisObject) {
                         // Magic __call(...) should override __callStatic(...)
                         // when both are present for static call in object context.
-                        result = callMethod(thisObject.getObject(), MAGIC_CALL, [
+                        result = callMethod(MAGIC_CALL, [
                             classObject.valueFactory.createString(methodName),
-                            argsArray
+                            positionalArgsArray
                         ]);
 
                         if (result !== null) {
@@ -432,11 +396,10 @@ module.exports = require('pauser')([
                     }
 
                     result = callMethod(
-                        currentNativeObject,
                         objectValue ? MAGIC_CALL : MAGIC_CALL_STATIC,
                         [
                             classObject.valueFactory.createString(methodName),
-                            argsArray
+                            positionalArgsArray
                         ]
                     );
 
@@ -456,10 +419,11 @@ module.exports = require('pauser')([
          * Calls the userland constructor for the provided object.
          *
          * @param {ObjectValue} objectValue
-         * @param {Value[]} args
+         * @param {Reference[]|Value[]} positionalArgs The wrapped value objects or references to pass as arguments to the constructor
+         * @param {Object.<string, Reference|Value|Variable>|null} namedArgs The named arguments
          * @returns {ChainableInterface<ObjectValue>}
          */
-        construct: function (objectValue, args) {
+        construct: function (objectValue, positionalArgs, namedArgs) {
             var classObject = this;
 
             if (!classObject.constructorName) {
@@ -467,7 +431,7 @@ module.exports = require('pauser')([
                 // if it has one, otherwise do nothing.
                 if (classObject.superClass) {
                     // Note that this may return a Future if the constructor paused.
-                    return classObject.superClass.construct(objectValue, args);
+                    return classObject.superClass.construct(objectValue, positionalArgs, namedArgs);
                 }
 
                 return objectValue;
@@ -475,7 +439,7 @@ module.exports = require('pauser')([
 
             // Call the constructor for the current class and not via the object value,
             // as the method may have been overridden by descendant classes.
-            return classObject.callMethod(classObject.constructorName, args, objectValue)
+            return classObject.callMethod(classObject.constructorName, positionalArgs, namedArgs, objectValue)
                 /*
                  * Discard the result value of the constructor method and return the new ObjectValue.
                  * Note that if a pause occurs inside the constructor, a Future will
@@ -484,6 +448,17 @@ module.exports = require('pauser')([
                 .next(function () {
                     return objectValue;
                 });
+        },
+
+        /**
+         * Defines a method on this class.
+         *
+         * @param {string} methodName
+         * @param {Callable} callable
+         */
+        defineMethod: function (methodName, callable) {
+            this.methodCallables[methodName] = callable;
+            this.methodCallablesByLowerCase[methodName.toLowerCase()] = callable;
         },
 
         /**
@@ -587,7 +562,7 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches the internal native JS class for this class exposed to PHP
+         * Fetches the internal native JS class for this class exposed to PHP.
          *
          * @returns {Function}
          */
@@ -596,83 +571,22 @@ module.exports = require('pauser')([
         },
 
         /**
-         * Fetches the spec for an instance or static method
+         * Fetches the Callable for an instance or static method if defined, returning null otherwise.
          *
-         * TODO: Merge/replace MethodSpec with FunctionSpec/MethodContext etc.?
-         *
-         * @param {string} methodName The name of the method to fetch the spec for
-         * @param {ObjectValue=null} objectValue The wrapped ObjectValue for this instance
-         * @param {object=null} currentNativeObject The current native JS object on the prototype chain to search for the method
-         * @param {Class=null} originalClass The original class (this function is called recursively for inherited methods)
-         * @returns {MethodSpec|null} Returns the spec of the method if it exists, or null if it does not
+         * @param {string} methodName
+         * @returns {Callable|null}
          */
-        getMethodSpec: function (methodName, objectValue, currentNativeObject, originalClass) {
-            var classObject = this,
-                lowercaseMethodName = methodName.toLowerCase(),
-                methodSpec,
-                nativeObject;
+        getMethodCallable: function (methodName) {
+            return this.methodCallablesByLowerCase[methodName.toLowerCase()] || null;
+        },
 
-            function getMethodSpec(currentObject, methodName) {
-                var method = getMethod(currentObject, methodName);
-
-                if (method !== null) {
-                    return classObject.functionFactory.createMethodSpec(originalClass, classObject, methodName, method);
-                }
-
-                if (
-                    currentObject === classObject.rootInternalPrototype &&
-                    classObject.superClass
-                ) {
-                    return classObject.superClass.getMethodSpec(
-                        methodName,
-                        objectValue,
-                        Object.getPrototypeOf(currentObject),
-                        originalClass
-                    );
-                }
-
-                currentObject = Object.getPrototypeOf(currentObject);
-
-                if (!currentObject) {
-                    return null;
-                }
-
-                return getMethodSpec(currentObject, methodName);
-            }
-
-            // Fetch spec from cache if possible
-            if (classObject.methodSpecCache[lowercaseMethodName]) {
-                return classObject.methodSpecCache[lowercaseMethodName];
-            }
-
-            nativeObject = objectValue ? objectValue.getObject() : null;
-
-            if (!currentNativeObject) {
-                // Walk up the prototype chain from the native object
-                currentNativeObject = nativeObject;
-            }
-
-            if (!originalClass) {
-                originalClass = classObject;
-            }
-
-            if (nativeObject instanceof classObject.InternalClass) {
-                // Ignore own properties of the native object when searching for methods
-                if (currentNativeObject === nativeObject) {
-                    currentNativeObject = Object.getPrototypeOf(currentNativeObject);
-                }
-            } else {
-                // For some special classes (eg. JSObject, Closure) the native object may not actually
-                // be an instance of the InternalClass, so fake inheritance of the native class
-                currentNativeObject = classObject.InternalClass.prototype;
-            }
-
-            methodSpec = getMethodSpec(currentNativeObject, methodName);
-
-            // Cache the spec for speed next time
-            classObject.methodSpecCache[lowercaseMethodName] = methodSpec;
-
-            return methodSpec;
+        /**
+         * Fetches the map of Callables for both instance and static methods defined for the class.
+         *
+         * @returns {Object.<string, Callable>}
+         */
+        getMethodCallables: function () {
+            return this.methodCallables;
         },
 
         /**
@@ -955,16 +869,16 @@ module.exports = require('pauser')([
         /**
          * Creates a new instance of this class.
          *
-         * @param {Value[]=} constructorArgs
+         * @param {Reference[]|Value[]} constructorPositionalArgs The wrapped value objects or references to pass as arguments to the constructor.
+         * @param {Object.<string, Reference|Value|Variable>=} constructorNamedArgs The named arguments.
          * @param {*[]=} shadowConstructorArgs
          * @returns {ChainableInterface<ObjectValue>}
          */
-        instantiate: function (constructorArgs, shadowConstructorArgs) {
+        instantiate: function (constructorPositionalArgs, constructorNamedArgs, shadowConstructorArgs) {
             var classObject = this;
 
-            if (!constructorArgs) {
-                constructorArgs = [];
-            }
+            constructorPositionalArgs ??= []; // jshint ignore:line
+            constructorNamedArgs ??= null; // jshint ignore:line
 
             return classObject.initialiseConstants()
                 .next(function () {
@@ -978,7 +892,7 @@ module.exports = require('pauser')([
 
                     // Call the userland constructor. Note that the return value of .construct(...)
                     // may in fact be a Future if there was a pause inside the userland __construct()or.
-                    return classObject.construct(objectValue, constructorArgs);
+                    return classObject.construct(objectValue, constructorPositionalArgs, constructorNamedArgs);
                 });
         },
 
@@ -994,7 +908,7 @@ module.exports = require('pauser')([
                 nativeObject = Object.create(classObject.InternalClass.prototype),
                 objectValue = classObject.valueFactory.createObject(nativeObject, classObject);
 
-            classObject.internalConstruct(objectValue, shadowConstructorArgs);
+            classObject.internalConstruct(objectValue, shadowConstructorArgs || []);
 
             return objectValue;
         },
@@ -1002,14 +916,15 @@ module.exports = require('pauser')([
         /**
          * Creates a new instance of this class and also sets the given internal properties (shorthand).
          *
-         * @param {Value[]} args
+         * @param {Reference[]|Value[]} positionalArgs The wrapped value objects or references to pass as arguments to the constructor
+         * @param {Object.<string, Reference|Value|Variable>|null} namedArgs The named arguments
          * @param {Object.<string, *>} internals
          * @return {ChainableInterface<ObjectValue>}
          */
-        instantiateWithInternals: function (args, internals) {
+        instantiateWithInternals: function (positionalArgs, namedArgs, internals) {
             var classObject = this;
 
-            return classObject.instantiate(args).next(function (objectValue) {
+            return classObject.instantiate(positionalArgs, namedArgs).next(function (objectValue) {
                 _.forOwn(internals, function (value, name) {
                     objectValue.setInternalProperty(name, value);
                 });

@@ -74,13 +74,11 @@ describe('InvalidOverloadedFunctionSpec', function () {
     });
 
     describe('validateArguments()', function () {
-        it('should raise an error when the argument count is below the minimum (<> 1)', function () {
+        it('should raise an error when the argument count is below the minimum (<> 1)', async function () {
             overloadedFunctionSpec.getMinimumParameterCount.returns(4);
             overloadedFunctionSpec.getMaximumParameterCount.returns(6);
 
-            expect(function () {
-                functionSpec.validateArguments();
-            }).to.throw(
+            await expect(functionSpec.validateArguments().toPromise()).to.eventually.be.rejectedWith(
                 'Fake PHP Fatal error (ArgumentCountError) for #core.wrong_arg_count_builtin ' +
                 'with {' +
                 '"bound":"[Translated] core.at_least {}",' +
@@ -92,14 +90,12 @@ describe('InvalidOverloadedFunctionSpec', function () {
             );
         });
 
-        it('should raise an error when the argument count is below the minimum (of 1)', function () {
+        it('should raise an error when the argument count is below the minimum (of 1)', async function () {
             createFunctionSpec(0);
             overloadedFunctionSpec.getMinimumParameterCount.returns(1);
             overloadedFunctionSpec.getMaximumParameterCount.returns(3);
 
-            expect(function () {
-                functionSpec.validateArguments();
-            }).to.throw(
+            await expect(functionSpec.validateArguments().toPromise()).to.eventually.be.rejectedWith(
                 'Fake PHP Fatal error (ArgumentCountError) for #core.wrong_arg_count_builtin_single ' +
                 'with {' +
                 '"bound":"[Translated] core.at_least {}",' +
@@ -111,13 +107,11 @@ describe('InvalidOverloadedFunctionSpec', function () {
             );
         });
 
-        it('should raise an error when the argument count is above the maximum (<> 1)', function () {
+        it('should raise an error when the argument count is above the maximum (<> 1)', async function () {
             overloadedFunctionSpec.getMinimumParameterCount.returns(0);
             overloadedFunctionSpec.getMaximumParameterCount.returns(2);
 
-            expect(function () {
-                functionSpec.validateArguments();
-            }).to.throw(
+            await expect(functionSpec.validateArguments().toPromise()).to.eventually.be.rejectedWith(
                 'Fake PHP Fatal error (ArgumentCountError) for #core.wrong_arg_count_builtin ' +
                 'with {' +
                 '"bound":"[Translated] core.at_most {}",' +
@@ -129,13 +123,11 @@ describe('InvalidOverloadedFunctionSpec', function () {
             );
         });
 
-        it('should raise an error when the argument count is above the maximum (of 1)', function () {
+        it('should raise an error when the argument count is above the maximum (of 1)', async function () {
             overloadedFunctionSpec.getMinimumParameterCount.returns(0);
             overloadedFunctionSpec.getMaximumParameterCount.returns(1);
 
-            expect(function () {
-                functionSpec.validateArguments();
-            }).to.throw(
+            await expect(functionSpec.validateArguments().toPromise()).to.be.rejectedWith(
                 'Fake PHP Fatal error (ArgumentCountError) for #core.wrong_arg_count_builtin_single ' +
                 'with {' +
                 '"bound":"[Translated] core.at_most {}",' +
@@ -149,13 +141,11 @@ describe('InvalidOverloadedFunctionSpec', function () {
 
         // This can happen when there are overloads defined for argument counts 1 and 3,
         // but no variant defined for an argument count of 2, for example.
-        it('should raise an error when the argument count is between min and max', function () {
+        it('should raise an error when the argument count is between min and max', async function () {
             overloadedFunctionSpec.getMinimumParameterCount.returns(1);
             overloadedFunctionSpec.getMaximumParameterCount.returns(4);
 
-            expect(function () {
-                functionSpec.validateArguments();
-            }).to.throw(
+            await expect(functionSpec.validateArguments().toPromise()).to.be.rejectedWith(
                 'Fake PHP Fatal error (ArgumentCountError) for #core.no_overload_variant_for_parameter_count ' +
                 'with {"parameterCount":3}'
             );

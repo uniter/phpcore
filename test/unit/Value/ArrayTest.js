@@ -15,6 +15,7 @@ var expect = require('chai').expect,
     tools = require('../tools'),
     ArrayIterator = require('../../../src/Iterator/ArrayIterator'),
     ArrayValue = require('../../../src/Value/Array').sync(),
+    Callable = require('../../../src/Function/Callable'),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
     ElementReference = require('../../../src/Reference/Element'),
@@ -22,7 +23,6 @@ var expect = require('chai').expect,
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyReferencePair = require('../../../src/KeyReferencePair'),
     KeyValuePair = require('../../../src/KeyValuePair'),
-    MethodSpec = require('../../../src/MethodSpec'),
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ObjectValue = require('../../../src/Value/Object').sync(),
@@ -1139,13 +1139,13 @@ describe('ArrayValue', function () {
     describe('isCallable()', function () {
         it('should return true for a valid instance method name of a given object', async function () {
             var classObject = sinon.createStubInstance(Class),
-                methodSpec = sinon.createStubInstance(MethodSpec),
+                methodCallable = sinon.createStubInstance(Callable),
                 objectValue = sinon.createStubInstance(ObjectValue);
             objectValue.getClass.returns(classObject);
             objectValue.getType.returns('object');
-            classObject.getMethodSpec
+            classObject.getMethodCallable
                 .withArgs('myStaticMethod')
-                .returns(methodSpec);
+                .returns(methodCallable);
             globalNamespace.hasClass
                 .withArgs('My\\Fqcn')
                 .returns(true);
@@ -1167,10 +1167,10 @@ describe('ArrayValue', function () {
 
         it('should return true for a valid static method name of a given class', async function () {
             var classObject = sinon.createStubInstance(Class),
-                methodSpec = sinon.createStubInstance(MethodSpec);
-            classObject.getMethodSpec
+                methodCallable = sinon.createStubInstance(Callable);
+            classObject.getMethodCallable
                 .withArgs('myStaticMethod')
-                .returns(methodSpec);
+                .returns(methodCallable);
             globalNamespace.hasClass
                 .withArgs('My\\Fqcn')
                 .returns(true);
@@ -1236,7 +1236,7 @@ describe('ArrayValue', function () {
                 objectValue = sinon.createStubInstance(ObjectValue);
             objectValue.getClass.returns(classObject);
             objectValue.getType.returns('object');
-            classObject.getMethodSpec
+            classObject.getMethodCallable
                 .withArgs('myNonExistentStaticMethod')
                 .returns(null);
             globalNamespace.hasClass
@@ -1260,7 +1260,7 @@ describe('ArrayValue', function () {
 
         it('should return true for a non-existent static method', async function () {
             var classObject = sinon.createStubInstance(Class);
-            classObject.getMethodSpec
+            classObject.getMethodCallable
                 .withArgs('myNonExistentStaticMethod')
                 .returns(null);
             globalNamespace.hasClass
@@ -1724,6 +1724,83 @@ describe('ArrayValue', function () {
                 'Fake PHP Fatal error (TypeError) for #core.unsupported_operand_types ' +
                 'with {"left":"array","operator":"-","right":"int"}'
             );
+        });
+    });
+
+    describe('unshift()', function () {
+        it('should return the new count of elements in the array', function () {
+            expect(value.unshift([factory.createString('new element')])).to.equal(3);
+        });
+
+        it('should return the new count when unshifting multiple values', function () {
+            expect(value.unshift([
+                factory.createString('first new'),
+                factory.createString('second new')
+            ])).to.equal(4);
+        });
+
+        it('should increase the length of the array by the number of unshifted values', function () {
+            value.unshift([factory.createString('new element')]);
+
+            expect(value.getLength()).to.equal(3);
+        });
+
+        it('should prepend multiple values, increasing the length accordingly', function () {
+            value.unshift([
+                factory.createString('first new'),
+                factory.createString('second new')
+            ]);
+
+            expect(value.getLength()).to.equal(4);
+        });
+
+        it('should renumber existing numeric keys to follow the new elements', function () {
+            elements.length = 0;
+            elements.push(createKeyValuePair(factory.createInteger(5), factory.createString('numeric el')));
+            elements.push(createKeyValuePair(factory.createString('strKey'), factory.createString('string el')));
+            createValue();
+
+            value.unshift([factory.createString('new element')]);
+
+            // Existing numeric key (5) should be renumbered to 1 (after the new element at 0).
+            expect(value.getKeyByIndex(0).getNative()).to.equal(0);
+            expect(value.getElementByIndex(0).getValue().getNative()).to.equal('new element');
+            expect(value.getKeyByIndex(1).getNative()).to.equal(1);
+            expect(value.getElementByIndex(1).getValue().getNative()).to.equal('numeric el');
+            expect(value.getKeyByIndex(2).getNative()).to.equal('strKey');
+            expect(value.getElementByIndex(2).getValue().getNative()).to.equal('string el');
+        });
+
+        it('should preserve string keys unchanged', function () {
+            value.unshift([factory.createString('new element')]);
+
+            expect(value.getKeyByIndex(1).getNative()).to.equal('firstEl');
+            expect(value.getKeyByIndex(2).getNative()).to.equal('secondEl');
+        });
+
+        it('should place the new element at index 0', function () {
+            var newValue = factory.createString('new element');
+
+            value.unshift([newValue]);
+
+            expect(value.getElementByIndex(0).getValue()).to.equal(newValue);
+        });
+
+        it('should reset the internal pointer to the start of the array', function () {
+            value.setPointer(1);
+
+            value.unshift([factory.createString('new element')]);
+
+            expect(value.getPointer()).to.equal(0);
+        });
+
+        it('should increase the length by 1 when the array was empty', function () {
+            elements.length = 0;
+            createValue();
+
+            value.unshift([factory.createString('new element')]);
+
+            expect(value.getLength()).to.equal(1);
         });
     });
 });

@@ -15,12 +15,12 @@ var expect = require('chai').expect,
     tools = require('../tools'),
     ArrayValue = require('../../../src/Value/Array').sync(),
     BooleanValue = require('../../../src/Value/Boolean').sync(),
+    Callable = require('../../../src/Function/Callable'),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
     Exception = phpCommon.Exception,
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyValuePair = require('../../../src/KeyValuePair'),
-    MethodSpec = require('../../../src/MethodSpec'),
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     NumericParse = require('../../../src/Semantics/NumericParse'),
@@ -363,18 +363,18 @@ describe('StringValue', function () {
     describe('call()', function () {
         it('should call the function and return its result when string only contains a function name', async function () {
             var argValue = sinon.createStubInstance(Value),
+                callable = sinon.createStubInstance(Callable),
                 result,
-                resultValue = factory.createString('my result'),
-                func = sinon.stub().returns(resultValue);
-            globalNamespace.getFunction.withArgs('My\\Space\\my_function').returns(func);
+                resultValue = factory.createString('my result');
+            callable.call.returns(resultValue);
+            globalNamespace.getFunction.withArgs('My\\Space\\my_function').returns(callable);
             createValue('My\\Space\\my_function');
 
             result = await value.call([argValue], namespaceScope).toPromise();
 
             expect(result).to.equal(resultValue);
-            expect(func).to.have.been.calledOnce;
-            expect(func).to.have.been.calledOn(null);
-            expect(func).to.have.been.calledWith(sinon.match.same(argValue));
+            expect(callable.call).to.have.been.calledOnce;
+            expect(callable.call).to.have.been.calledWith([sinon.match.same(argValue)], null, null, null);
         });
 
         it('should call the static method and return its result when string contains [class]::[method]', async function () {
@@ -427,7 +427,7 @@ describe('StringValue', function () {
                 .returns(futureFactory.createPresent(classObject));
             createValue('\\My\\Space\\MyClass');
 
-            result = await value.callStaticMethod(methodNameValue, [argValue], false).toPromise();
+            result = await value.callStaticMethod(methodNameValue, [argValue], null, false).toPromise();
 
             expect(result).to.equal(resultValue);
             expect(classObject.callMethod).to.have.been.calledOnce;
@@ -452,7 +452,7 @@ describe('StringValue', function () {
                 .returns(futureFactory.createPresent(classObject));
             createValue('\\My\\Space\\MyClass');
 
-            result = await value.callStaticMethod(methodNameValue, [argValue], true).toPromise();
+            result = await value.callStaticMethod(methodNameValue, [argValue], null, true).toPromise();
 
             expect(result).to.equal(resultValue);
             expect(classObject.callMethod).to.have.been.calledOnce;
@@ -1529,16 +1529,16 @@ describe('StringValue', function () {
 
         it('should return true for a static method name that exists', async function () {
             var classObject = sinon.createStubInstance(Class),
-                methodSpec = sinon.createStubInstance(MethodSpec);
+                methodCallable = sinon.createStubInstance(Callable);
             globalNamespace.getClass
                 .withArgs('My\\Fqcn')
                 .returns(futureFactory.createPresent(classObject));
             globalNamespace.hasClass
                 .withArgs('My\\Fqcn')
                 .returns(true);
-            classObject.getMethodSpec
+            classObject.getMethodCallable
                 .withArgs('myMethod')
-                .returns(methodSpec);
+                .returns(methodCallable);
             createValue('My\\Fqcn::myMethod');
 
             expect(await value.isCallable(globalNamespace).toPromise()).to.be.true;
@@ -1561,7 +1561,7 @@ describe('StringValue', function () {
             globalNamespace.hasClass
                 .withArgs('My\\Fqcn')
                 .returns(true);
-            classObject.getMethodSpec
+            classObject.getMethodCallable
                 .withArgs('myMethod')
                 .returns(null);
             createValue('My\\Fqcn::myMethod');

@@ -85,17 +85,24 @@ _.extend(UserlandDefinitionBuilder.prototype, {
 
         valueCoercer = builder.ffiFactory.createValueCoercer(false);
 
-        // Ensure the class does not attempt to implement Throwable directly
-        _.each(interfaces, function (interfaceObject) {
-            if (interfaceObject.is('Throwable')) {
-                builder.callStack.raiseUncatchableFatalError(
-                    CANNOT_IMPLEMENT_THROWABLE,
-                    {
-                        className: namespace.getPrefix() + name
-                    }
-                );
-            }
-        });
+        /*
+         * Ensure classes do not attempt to implement Throwable directly.
+         * Note that interfaces _are_ allowed to extend Throwable, and classes _are_ allowed
+         * to implement a userland interface that extends Throwable, so only check for
+         * direct implementation of the Throwable interface itself (not subinterfaces).
+         */
+        if (!definition.isInterface) {
+            _.each(interfaces, function (interfaceObject) {
+                if (interfaceObject.getName().toLowerCase() === 'throwable') {
+                    builder.callStack.raiseUncatchableFatalError(
+                        CANNOT_IMPLEMENT_THROWABLE,
+                        {
+                            className: namespace.getPrefix() + name
+                        }
+                    );
+                }
+            });
+        }
 
         InternalClass = function () {};
 

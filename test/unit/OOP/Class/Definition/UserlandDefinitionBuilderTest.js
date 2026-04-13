@@ -103,6 +103,8 @@ describe('UserlandDefinitionBuilder', function () {
             namespaceScope = sinon.createStubInstance(NamespaceScope);
             superClass = sinon.createStubInstance(Class);
 
+            firstInterface.getName.returns('FirstInterface');
+            secondInterface.getName.returns('SecondInterface');
             namespace.getPrefix.returns('My\\Stuff\\');
 
             superClass.getInternalClass.returns(function () {});
@@ -255,9 +257,7 @@ describe('UserlandDefinitionBuilder', function () {
         });
 
         it('should raise an uncatchable fatal error when a PHP-defined class attempts to implement Throwable', function () {
-            firstInterface.is
-                .withArgs('Throwable')
-                .returns(true);
+            firstInterface.getName.returns('Throwable');
 
             expect(function () {
                 callBuildDefinition('MyInvalidThrowable');
@@ -265,6 +265,23 @@ describe('UserlandDefinitionBuilder', function () {
                 'PHP Fatal error: Fake uncatchable fatal error for #core.cannot_implement_throwable ' +
                 'with {"className":"My\\\\Stuff\\\\MyInvalidThrowable"} in /path/to/my_module.php on line 1234'
             );
+        });
+
+        it('should not raise an error when a PHP-defined class implements a userland interface that extends Throwable', function () {
+            firstInterface.getName.returns('MyThrowable'); // Not Throwable itself.
+
+            expect(function () {
+                callBuildDefinition('MyException');
+            }).not.to.throw();
+        });
+
+        it('should not raise an error when a PHP-defined interface extends Throwable', function () {
+            firstInterface.getName.returns('Throwable');
+            definitionStructure.isInterface = true;
+
+            expect(function () {
+                callBuildDefinition('MyThrowable');
+            }).not.to.throw();
         });
     });
 });

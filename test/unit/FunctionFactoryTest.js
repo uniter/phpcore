@@ -10,24 +10,19 @@
 'use strict';
 
 var expect = require('chai').expect,
-    phpCommon = require('phpcommon'),
     sinon = require('sinon'),
     tools = require('./tools'),
     Call = require('../../src/Call'),
+    Callable = require('../../src/Function/Callable'),
     CallFactory = require('../../src/CallFactory'),
     CallStack = require('../../src/CallStack'),
     Class = require('../../src/Class').sync(),
     ControlScope = require('../../src/Control/ControlScope'),
-    Exception = phpCommon.Exception,
     FunctionFactory = require('../../src/FunctionFactory').sync(),
     FunctionSpec = require('../../src/Function/FunctionSpec'),
     NamespaceScope = require('../../src/NamespaceScope').sync(),
-    OverloadedFunctionSpec = require('../../src/Function/Overloaded/OverloadedFunctionSpec'),
-    Reference = require('../../src/Reference/Reference'),
     Scope = require('../../src/Scope').sync(),
-    ScopeFactory = require('../../src/ScopeFactory'),
-    Value = require('../../src/Value').sync(),
-    Variable = require('../../src/Variable').sync();
+    ScopeFactory = require('../../src/ScopeFactory');
 
 describe('FunctionFactory', function () {
     var call,
@@ -76,6 +71,7 @@ describe('FunctionFactory', function () {
         scopeFactory.create.returns(scope);
 
         factory = new FunctionFactory(
+            Callable,
             MethodSpec,
             scopeFactory,
             callFactory,
@@ -87,391 +83,49 @@ describe('FunctionFactory', function () {
         );
     });
 
-    describe('create()', function () {
-        var callCreate,
-            overloadedFunctionSpec,
-            variantFunctionSpec;
-
-        beforeEach(function () {
-            overloadedFunctionSpec = sinon.createStubInstance(OverloadedFunctionSpec);
-            variantFunctionSpec = sinon.createStubInstance(FunctionSpec);
-
-            variantFunctionSpec.coerceArguments
-                .callsFake(function (argumentReferences) {
-                    return futureFactory.createAsyncPresent(
-                        argumentReferences.map(function (argumentReference) {
-                            return valueFactory.coerce(argumentReference);
-                        })
-                    );
-                });
-            variantFunctionSpec.coerceReturnReference.callsFake(function (returnReference) {
-                return futureFactory.createPresent(returnReference);
-            });
-            variantFunctionSpec.populateDefaultArguments.returnsArg(0);
-            variantFunctionSpec.getFunction.returns(originalFunc);
-            variantFunctionSpec.getFunctionName.returns(name);
-            variantFunctionSpec.isReturnByReference.returns(false);
-            variantFunctionSpec.isUserland.returns(false);
-            overloadedFunctionSpec.resolveFunctionSpec.returns(variantFunctionSpec);
-
-            variantFunctionSpec.validateArguments
-                .callsFake(function () {
-                    return futureFactory.createPresent();
-                });
-            variantFunctionSpec.validateReturnReference
-                .callsFake(function (returnReference, returnValue) {
-                    return futureFactory.createPresent(returnValue);
-                });
-
-            callCreate = function (currentObject, staticClass) {
-                return factory.create(
+    describe('createCallable()', function () {
+        it('should return a Callable instance', function () {
+            var functionSpec = sinon.createStubInstance(FunctionSpec),
+                result = factory.createCallable(
                     namespaceScope,
                     currentClass,
-                    currentObject || null,
-                    staticClass || null,
-                    overloadedFunctionSpec
+                    null,
+                    null,
+                    functionSpec
                 );
-            };
+
+            expect(result).to.be.an.instanceOf(Callable);
         });
 
-        it('should return a wrapper function', function () {
-            expect(callCreate()).to.be.a('function');
-        });
-
-        describe('the wrapper function returned', function () {
-            it('should return the eventual result from the wrapped function coerced to a Value when return-by-value', async function () {
-                var result,
-                    resultValue;
-                originalFunc.returns(123);
-
-                result = callCreate()();
-                resultValue = await result.toPromise();
-
-                expect(resultValue).to.be.an.instanceOf(Value);
-                expect(resultValue.getType()).to.equal('int');
-                expect(resultValue.getNative()).to.equal(123);
-            });
-
-            it('should throw an Exception if a built-in function enacts a Pause directly rather than returning a Future', async function () {
-                originalFunc.callsFake(function () {
-                    var pause = pauseFactory.createPause(function () {});
-
-                    pause.now();
-                });
-
-                await expect(callCreate()().toPromise()).to.eventually.be.rejectedWith(
-                    Exception,
-                    'FunctionFactory :: A built-in function enacted a Pause, did you mean to return a Future instead?'
-                );
-            });
-
-            describe('when return-by-reference', function () {
-                var resultVariable;
-
-                beforeEach(function () {
-                    resultVariable = sinon.createStubInstance(Variable);
-                    resultVariable.next.callsArgWith(0, resultVariable);
-                    variantFunctionSpec.isReturnByReference.returns(true);
-                    originalFunc.returns(resultVariable);
-                });
-
-                it('should return the eventual result from the wrapped function', async function () {
-                    expect(await callCreate()().toPromise()).to.equal(resultVariable);
-                });
-
-                it('should validate the eventual result Variable/reference via .validateReturnReference()', async function () {
-                    await callCreate()().toPromise();
-
-                    expect(variantFunctionSpec.validateReturnReference).to.have.been.calledOnce;
-                    expect(variantFunctionSpec.validateReturnReference).to.have.been.calledWith(
-                        sinon.match.same(resultVariable)
-                    );
-                });
-
-                it('should validate the eventual result Value via .validateReturnReference()', async function () {
-                    await callCreate()().toPromise();
-
-                    expect(variantFunctionSpec.validateReturnReference).to.have.been.calledOnce;
-                    expect(variantFunctionSpec.validateReturnReference).to.have.been.calledWith(
-                        sinon.match.any,
-                        sinon.match.same(resultVariable)
-                    );
-                });
-            });
-
-            it('should pass the current Class to the ScopeFactory', async function () {
-                await callCreate()().toPromise();
-
-                expect(scopeFactory.create).to.have.been.calledOnce;
-                expect(scopeFactory.create).to.have.been.calledWith(
-                    sinon.match.same(currentClass)
-                );
-            });
-
-            it('should pass the wrapper function to the ScopeFactory', async function () {
-                var wrapperFunction = callCreate();
-
-                await wrapperFunction().toPromise();
-
-                expect(scopeFactory.create).to.have.been.calledOnce;
-                expect(scopeFactory.create).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.same(wrapperFunction)
-                );
-            });
-
-            it('should pass the `$this` object to the ScopeFactory when provided', async function () {
-                var currentObject = sinon.createStubInstance(Value);
-
-                await callCreate(currentObject)().toPromise();
-
-                expect(scopeFactory.create).to.have.been.calledOnce;
-                expect(scopeFactory.create).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.same(currentObject)
-                );
-            });
-
-            it('should pass the Scope to the CallFactory', async function () {
-                var currentObject = sinon.createStubInstance(Value);
-
-                await callCreate(currentObject)().toPromise();
-
-                expect(callFactory.create).to.have.been.calledOnce;
-                expect(callFactory.create).to.have.been.calledWith(
-                    sinon.match.same(scope)
-                );
-            });
-
-            it('should pass the NamespaceScope to the CallFactory', async function () {
-                var currentObject = sinon.createStubInstance(Value);
-
-                await callCreate(currentObject)().toPromise();
-
-                expect(callFactory.create).to.have.been.calledOnce;
-                expect(callFactory.create).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.same(namespaceScope)
-                );
-            });
-
-            it('should pass the arguments to the CallFactory', async function () {
-                var callArgs,
-                    currentObject = sinon.createStubInstance(Value);
-                overloadedFunctionSpec.resolveFunctionSpec.resetBehavior();
-                overloadedFunctionSpec.resolveFunctionSpec
-                    .withArgs(2)
-                    .returns(variantFunctionSpec);
-
-                await callCreate(currentObject)(21, 27).toPromise();
-
-                expect(callFactory.create).to.have.been.calledOnce;
-                callArgs = callFactory.create.args[0][2];
-                expect(callArgs).to.have.length(2);
-                expect(callArgs[0].getType()).to.equal('int');
-                expect(callArgs[0].getNative()).to.equal(21);
-                expect(callArgs[1].getType()).to.equal('int');
-                expect(callArgs[1].getNative()).to.equal(27);
-            });
-
-            it('should pass any "next" static class set', async function () {
-                var newStaticClass = sinon.createStubInstance(Class),
-                    wrappedFunc = callCreate();
-                factory.setNewStaticClassIfWrapped(wrappedFunc, newStaticClass);
-
-                await wrappedFunc().toPromise();
-
-                expect(callFactory.create).to.have.been.calledOnce;
-                expect(callFactory.create).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.same(newStaticClass)
-                );
-            });
-
-            it('should pass any explicit static class set', async function () {
-                var explicitStaticClass = sinon.createStubInstance(Class);
-
-                await callCreate(null, explicitStaticClass)().toPromise();
-
-                expect(callFactory.create).to.have.been.calledOnce;
-                expect(callFactory.create).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.same(explicitStaticClass)
-                );
-            });
-
-            it('should pass null as the new static class when no explicit or "next" one is set', async function () {
-                await callCreate()().toPromise();
-
-                expect(callFactory.create).to.have.been.calledOnce;
-                expect(callFactory.create).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.any,
-                    null
-                );
-            });
-
-            it('should pass the (JS) `this` object as the (PHP) `$this` object when not provided', async function () {
-                var jsThisObjectValue = sinon.createStubInstance(Value);
-
-                await callCreate(null).call(jsThisObjectValue).toPromise();
-
-                expect(scopeFactory.create).to.have.been.calledOnce;
-                expect(scopeFactory.create).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.any,
-                    sinon.match.same(jsThisObjectValue)
-                );
-            });
-
-            it('should pass null as the `$this` object when not provided and a non-Value (JS) `this` object was used', async function () {
-                var nonValueThisObject = {};
-
-                await callCreate(null).call(nonValueThisObject).toPromise();
-
-                expect(scopeFactory.create).to.have.been.calledOnce;
-                expect(scopeFactory.create).to.have.been.calledWith(
-                    sinon.match.any,
-                    sinon.match.any,
-                    null
-                );
-            });
-
-            it('should coerce parameter arguments as required', async function () {
-                var argValue1 = valueFactory.createInteger(21),
-                    argValue2 = valueFactory.createInteger(101),
-                    wrappedFunc = callCreate();
-
-                await wrappedFunc(argValue1, argValue2).toPromise();
-
-                expect(originalFunc).to.have.been.calledOnce;
-                expect(originalFunc.args[0][0].getType()).to.equal('int');
-                expect(originalFunc.args[0][0].getNative()).to.equal(21);
-                expect(originalFunc.args[0][1].getType()).to.equal('int');
-                expect(originalFunc.args[0][1].getNative()).to.equal(101);
-            });
-
-            it('should push the call onto the stack', async function () {
-                await callCreate()().toPromise();
-
-                expect(callStack.push).to.have.been.calledOnce;
-                expect(callStack.push).to.have.been.calledWith(sinon.match.same(call));
-            });
-
-            it('should validate parameter arguments at the right point', async function () {
-                var argValue1 = valueFactory.createInteger(21),
-                    argValue2 = valueFactory.createInteger(101),
-                    wrappedFunc = callCreate();
-
-                await wrappedFunc(argValue1, argValue2).toPromise();
-
-                expect(variantFunctionSpec.validateArguments).to.have.been.calledOnce;
-                expect(variantFunctionSpec.validateArguments).to.have.been.calledWith([
-                    sinon.match.same(argValue1),
-                    sinon.match.same(argValue2)
-                ]);
-                expect(variantFunctionSpec.validateArguments)
-                    .to.have.been.calledAfter(variantFunctionSpec.coerceArguments);
-            });
-
-            it('should pop the call off the stack even when the argument validation throws', function () {
-                var error = new Error('argh');
-                variantFunctionSpec.validateArguments.returns(futureFactory.createRejection(error));
-
-                return expect(callCreate()().toPromise())
-                    .to.eventually.be.rejectedWith(error)
-                    .then(function () {
-                        expect(callStack.pop).to.have.been.calledOnce;
-                    });
-            });
-
-            it('should populate default argument values at the right point', async function () {
-                var argValue1 = valueFactory.createInteger(21),
-                    argValue2 = valueFactory.createInteger(101),
-                    wrappedFunc = callCreate();
-
-                await wrappedFunc(argValue1, argValue2).toPromise();
-
-                expect(variantFunctionSpec.populateDefaultArguments).to.have.been.calledOnce;
-                expect(variantFunctionSpec.populateDefaultArguments).to.have.been.calledWith([
-                    sinon.match.same(argValue1),
-                    sinon.match.same(argValue2)
-                ]);
-                expect(variantFunctionSpec.populateDefaultArguments)
-                    .to.have.been.calledAfter(variantFunctionSpec.validateArguments);
-                expect(variantFunctionSpec.populateDefaultArguments)
-                    .to.have.been.calledBefore(callStack.pop);
-            });
-
-            it('should pop the call off the stack when the wrapped function returns', async function () {
-                await callCreate()().toPromise();
-
-                expect(callStack.pop).to.have.been.calledOnce;
-            });
-
-            it('should pop the call off the stack even when the wrapped function throws', function () {
-                var error = new Error('argh');
-                originalFunc.throws(error);
-
-                return expect(callCreate()().toPromise())
-                    .to.eventually.be.rejectedWith(error)
-                    .then(function () {
-                        expect(callStack.pop).to.have.been.calledOnce;
-                    });
-            });
-
-            it('should pass the scope as the thisObject when calling the wrapped function', async function () {
-                await callCreate()().toPromise();
-
-                expect(originalFunc).to.have.been.calledOn(sinon.match.same(scope));
-            });
-
-            it('should pass arguments through to a wrapped native function', async function () {
-                var argValue1 = valueFactory.createInteger(123),
-                    argValue2 = valueFactory.createString('second'),
-                    argValue3 = valueFactory.createString('another');
-
-                await callCreate()(argValue1, argValue2, argValue3).toPromise();
-
-                expect(originalFunc).to.have.been.calledOnce;
-                expect(originalFunc).to.have.been.calledWith(
-                    sinon.match.same(argValue1),
-                    sinon.match.same(argValue2),
-                    sinon.match.same(argValue3)
-                );
-            });
-
-            it('should load arguments via the FunctionSpec for a userland PHP function', async function () {
-                var argValue1 = valueFactory.createString('my first arg'),
-                    argReference2 = sinon.createStubInstance(Reference);
-                variantFunctionSpec.isUserland.returns(true);
-                argReference2.getValue.returns(valueFactory.createString('my second arg'));
-
-                await callCreate()(argValue1, argReference2).toPromise();
-
-                expect(originalFunc).to.have.been.calledOnce;
-                expect(originalFunc.args[0]).to.deep.equal([]);
-                expect(originalFunc).to.have.been.calledOn(undefined);
-                expect(variantFunctionSpec.loadArguments).to.have.been.calledOnce;
-                expect(variantFunctionSpec.loadArguments).to.have.been.calledWith(
-                    [sinon.match.same(argValue1), sinon.match.same(argReference2)],
-                    sinon.match.same(scope)
-                );
-            });
-
-            it('should have the FunctionSpec stored against it', function () {
-                expect(callCreate().functionSpec).to.equal(overloadedFunctionSpec);
-            });
-
-            it('should have the isPHPCoreWrapped flag set against it', function () {
-                expect(callCreate().isPHPCoreWrapped).to.be.true;
-            });
+        it('should pass the correct arguments to the Callable constructor', function () {
+            var functionSpec = sinon.createStubInstance(FunctionSpec),
+                currentObject = valueFactory.createObject({}, currentClass),
+                staticClass = sinon.createStubInstance(Class),
+                // Wrap the real Callable as a spy so we can assert on constructor calls.
+                CallableSpy = sinon.spy(factory.Callable);
+            factory.Callable = CallableSpy;
+
+            factory.createCallable(
+                namespaceScope,
+                currentClass,
+                currentObject,
+                staticClass,
+                functionSpec
+            );
+
+            expect(CallableSpy).to.have.been.calledOnce;
+            expect(CallableSpy).to.have.been.calledWith(
+                sinon.match.same(scopeFactory),
+                sinon.match.same(callFactory),
+                sinon.match.same(valueFactory),
+                sinon.match.same(callStack),
+                sinon.match.same(flow),
+                sinon.match.same(namespaceScope),
+                sinon.match.same(currentClass),
+                sinon.match.same(currentObject),
+                sinon.match.same(staticClass),
+                sinon.match.same(functionSpec)
+            );
         });
     });
 

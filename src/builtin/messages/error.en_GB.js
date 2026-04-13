@@ -58,6 +58,7 @@ module.exports = {
             'undefined_constant': 'Undefined constant \'${name}\'',
             'undefined_method': 'Call to undefined method ${className}::${methodName}()',
             'undefined_property': 'Undefined property: ${className}::$${propertyName}',
+            'unknown_named_parameter': 'Unknown named parameter $${name}',
             'unsupported_operand_types': 'Unsupported operand types: ${left} ${operator} ${right}',
             'used_this_outside_object_context': 'Using $this when not in object context',
             'value_not_callable': 'Value of type ${type} is not callable',

@@ -37,23 +37,24 @@ module.exports = require('pauser')([
          *
          * @param {ObjectValue} objectValue
          * @param {string} methodName
-         * @param {Value[]} args
+         * @param {Reference[]|Value[]|Variable[]} positionalArgs
+         * @param {Object.<string, Reference|Value|Variable>|null} namedArgs
          * @param {boolean=} useSyncApiAlthoughPsync
          * @returns {Promise<Value>|Value}
          */
-        callMethod: function (objectValue, methodName, args, useSyncApiAlthoughPsync) {
+        callMethod: function (objectValue, methodName, positionalArgs, namedArgs, useSyncApiAlthoughPsync) {
             var valueCaller = this;
 
-            // Push an FFI call onto the stack, representing the call from JavaScript-land
-            valueCaller.caller.pushFFICall(args);
+            // Push an FFI call onto the stack, representing the call from JavaScript-land.
+            valueCaller.caller.pushFFICall(positionalArgs, namedArgs);
 
             if (valueCaller.mode === 'async') {
                 // Unlike NativeCaller, do not coerce to native here
-                return valueCaller.caller.callMethodAsync(objectValue, methodName, args);
+                return valueCaller.caller.callMethodAsync(objectValue, methodName, positionalArgs, namedArgs);
             }
 
             // Otherwise we're in sync or psync mode
-            return valueCaller.caller.callMethodSyncLike(objectValue, methodName, args, useSyncApiAlthoughPsync);
+            return valueCaller.caller.callMethodSyncLike(objectValue, methodName, positionalArgs, namedArgs, useSyncApiAlthoughPsync);
         }
     });
 

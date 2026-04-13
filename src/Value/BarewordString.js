@@ -76,27 +76,41 @@ module.exports = require('pauser')([
          */
         call: function (args) {
             var value = this,
-                func = value.namespaceScope.getFunction(value.value);
+                callable = value.namespaceScope.getFunction(value.value);
 
-            return func.apply(null, args);
+            return callable.apply(null, args);
         },
 
         /**
          * Calls a static method of the class this string refers to.
          *
          * @param {StringValue} nameValue
-         * @param {Value[]} args
+         * @param {Reference[]|Value[]|Variable[]} positionalArgs
+         * @param {Object.<string, Reference|Value|Variable>|null} namedArgs
          * @param {bool} isForwarding eg. self::f() is forwarding, MyParentClass::f() is non-forwarding
          * @returns {ChainableInterface<Reference|Value|Variable>}
          */
-        callStaticMethod: function (nameValue, args, isForwarding) {
+        callStaticMethod: function (nameValue, positionalArgs, namedArgs, isForwarding) {
             var value = this;
 
             // Note that this may pause due to autoloading.
             return value.namespaceScope.getClass(value.value)
                 .next(function (classObject) {
-                    return classObject.callMethod(nameValue.getNative(), args, null, null, null, !!isForwarding);
+                    return classObject.callMethod(nameValue.getNative(), positionalArgs, namedArgs, null, null, Boolean(isForwarding));
                 });
+        },
+
+        /**
+         * Fetches the Callable representing the global function this bareword references.
+         *
+         * Note that as functions cannot be autoloaded, the Callable can simply be returned synchronously.
+         *
+         * @returns {Callable}
+         */
+        getCallable: function () {
+            var value = this;
+
+            return value.namespaceScope.getFunction(value.value);
         },
 
         /**
@@ -163,15 +177,16 @@ module.exports = require('pauser')([
          * Creates an instance of the class this string contains the name of,
          * relative to the current namespace.
          *
-         * @param {Value[]} args
+         * @param {Reference[]|Value[]} constructorPositionalArgs The wrapped value objects or references to pass as arguments to the constructor.
+         * @param {Object.<string, Reference|Value|Variable>=} constructorNamedArgs The named arguments.
          * @returns {ChainableInterface<ObjectValue>}
          */
-        instantiate: function (args) {
+        instantiate: function (constructorPositionalArgs, constructorNamedArgs) {
             var value = this;
 
             return value.namespaceScope.getClass(value.value)
                 .next(function (classObject) {
-                    return classObject.instantiate(args);
+                    return classObject.instantiate(constructorPositionalArgs, constructorNamedArgs);
                 });
         },
 

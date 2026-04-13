@@ -16,6 +16,7 @@ var expect = require('chai').expect,
     ArrayIterator = require('../../../src/Iterator/ArrayIterator'),
     ArrayValue = require('../../../src/Value/Array').sync(),
     BooleanValue = require('../../../src/Value/Boolean').sync(),
+    Callable = require('../../../src/Function/Callable'),
     CallStack = require('../../../src/CallStack'),
     Class = require('../../../src/Class').sync(),
     Closure = require('../../../src/Closure').sync(),
@@ -24,7 +25,6 @@ var expect = require('chai').expect,
     GeneratorIterator = require('../../../src/Iterator/GeneratorIterator'),
     IntegerValue = require('../../../src/Value/Integer').sync(),
     KeyValuePair = require('../../../src/KeyValuePair'),
-    MethodSpec = require('../../../src/MethodSpec'),
     Namespace = require('../../../src/Namespace').sync(),
     NamespaceScope = require('../../../src/NamespaceScope').sync(),
     ObjectElement = require('../../../src/Reference/ObjectElement'),
@@ -67,7 +67,7 @@ describe('ObjectValue', function () {
         globalNamespace = sinon.createStubInstance(Namespace);
         referenceFactory = state.getReferenceFactory();
         classObject = sinon.createStubInstance(Class);
-        classObject.getMethodSpec.returns(null);
+        classObject.getMethodCallable.returns(null);
         classObject.getName.returns('My\\Space\\AwesomeClass');
         classObject.getSuperClass.returns(null);
         classObject.isAutoCoercionEnabled.returns(false);
@@ -403,6 +403,7 @@ describe('ObjectValue', function () {
                 expect(classObject.callMethod).to.have.been.calledWith(
                     '__invoke',
                     [sinon.match.same(argValue)],
+                    sinon.match.any,
                     sinon.match.same(value)
                 );
             });
@@ -420,6 +421,7 @@ describe('ObjectValue', function () {
             expect(classObject.callMethod).to.have.been.calledWith(
                 'myMethod',
                 [sinon.match.same(argValue)],
+                sinon.match.any,
                 sinon.match.same(value)
             );
         });
@@ -432,7 +434,7 @@ describe('ObjectValue', function () {
                 resultValue = sinon.createStubInstance(Value);
             classObject.callMethod.returns(resultValue);
 
-            expect(value.callStaticMethod(methodNameValue, [argValue], false)).to.equal(resultValue);
+            expect(value.callStaticMethod(methodNameValue, [argValue], null, false)).to.equal(resultValue);
             expect(classObject.callMethod).to.have.been.calledOnce;
             expect(classObject.callMethod).to.have.been.calledWith(
                 'myMethod',
@@ -450,7 +452,7 @@ describe('ObjectValue', function () {
                 resultValue = sinon.createStubInstance(Value);
             classObject.callMethod.returns(resultValue);
 
-            expect(value.callStaticMethod(methodNameValue, [argValue], true)).to.equal(resultValue);
+            expect(value.callStaticMethod(methodNameValue, [argValue], null, true)).to.equal(resultValue);
             expect(classObject.callMethod).to.have.been.calledOnce;
             expect(classObject.callMethod).to.have.been.calledWith(
                 'myMethod',
@@ -896,9 +898,9 @@ describe('ObjectValue', function () {
             classObject.callMethod
                 .withArgs('__toString')
                 .returns(factory.createString('hello '));
-            classObject.getMethodSpec
+            classObject.getMethodCallable
                 .withArgs('__toString')
-                .returns(sinon.createStubInstance(MethodSpec));
+                .returns(sinon.createStubInstance(Callable));
 
             result = await value.concat(factory.createFloat(7.2)).toPromise();
 
@@ -911,9 +913,9 @@ describe('ObjectValue', function () {
             classObject.callMethod
                 .withArgs('__toString')
                 .returns(factory.createPresent(factory.createString('hello ')));
-            classObject.getMethodSpec
+            classObject.getMethodCallable
                 .withArgs('__toString')
-                .returns(sinon.createStubInstance(MethodSpec));
+                .returns(sinon.createStubInstance(Callable));
 
             result = await value.concat(factory.createFloat(123.4)).toPromise();
 
@@ -946,9 +948,9 @@ describe('ObjectValue', function () {
             classObject.callMethod
                 .withArgs('__toString')
                 .returns(factory.createString('hello from my object'));
-            classObject.getMethodSpec
+            classObject.getMethodCallable
                 .withArgs('__toString')
-                .returns(sinon.createStubInstance(MethodSpec));
+                .returns(sinon.createStubInstance(Callable));
 
             result = await value.convertForStringType().toPromise();
 
@@ -1241,7 +1243,7 @@ describe('ObjectValue', function () {
                 elementValue = factory.createString('my value'),
                 keyValue = factory.createString('my key');
             classObject.callMethod
-                .withArgs('offsetGet', [keyValue], sinon.match.same(value))
+                .withArgs('offsetGet', [keyValue], sinon.match.any, sinon.match.same(value))
                 .returns(elementValue);
             classObject.is
                 .withArgs('ArrayAccess')
@@ -2136,7 +2138,7 @@ describe('ObjectValue', function () {
 
     describe('isCallable()', function () {
         beforeEach(function () {
-            classObject.getMethodSpec
+            classObject.getMethodCallable
                 .returns(null);
             classObject.is
                 .withArgs('Closure')
@@ -2152,10 +2154,9 @@ describe('ObjectValue', function () {
         });
 
         it('should return true for an instance of a non-Closure class implementing ->__invoke()', async function () {
-            var methodSpec = sinon.createStubInstance(MethodSpec);
-            classObject.getMethodSpec
+            classObject.getMethodCallable
                 .withArgs('__invoke')
-                .returns(methodSpec);
+                .returns(sinon.createStubInstance(Callable));
 
             expect(await value.isCallable().toPromise()).to.be.true;
         });
@@ -2191,13 +2192,13 @@ describe('ObjectValue', function () {
 
     describe('isMethodDefined()', function () {
         it('should return true when the method is defined', function () {
-            classObject.getMethodSpec.withArgs('myMethod').returns(sinon.createStubInstance(MethodSpec));
+            classObject.getMethodCallable.withArgs('myMethod').returns(sinon.createStubInstance(Callable));
 
             expect(value.isMethodDefined('myMethod')).to.be.true;
         });
 
         it('should return false when the method is not defined', function () {
-            classObject.getMethodSpec.withArgs('myMethod').returns(null);
+            classObject.getMethodCallable.withArgs('myMethod').returns(null);
 
             expect(value.isMethodDefined('myMethod')).to.be.false;
         });

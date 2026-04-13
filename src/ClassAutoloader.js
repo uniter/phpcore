@@ -97,7 +97,7 @@ module.exports = require('pauser')([
             magicAutoloadFunction = globalNamespace.getOwnFunction(MAGIC_AUTOLOAD_FUNCTION);
 
             if (magicAutoloadFunction) {
-                return magicAutoloadFunction(autoloader.valueFactory.createString(name))
+                return magicAutoloadFunction.call([autoloader.valueFactory.createString(name)])
                     .asValue();
             }
 

@@ -112,7 +112,7 @@ describe('OverloadedFunctionDefiner', function () {
                 )
                 .returns(overloadedFunctionSpec);
 
-            functionFactory.create
+            functionFactory.createCallable
                 .withArgs(
                     sinon.match.same(namespaceScope),
                     null,

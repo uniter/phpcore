@@ -56,14 +56,15 @@ module.exports = require('pauser')([
          * Calls the specified method of this object
          *
          * @param {string} methodName
-         * @param {Value[]?} args
+         * @param {Reference[]|Value[]|Variable[]} positionalArgs
+         * @param {Object.<string, Reference|Value|Variable>|null} namedArgs
          * @returns {Promise<Value>} Returns the result of the method
          * @throws {PHPFatalError} Throws when the method does not exist
          */
-        callMethod: function (methodName, args) {
+        callMethod: function (methodName, positionalArgs, namedArgs) {
             var value = this;
 
-            return value.valueCaller.callMethod(value.wrappedObjectValue, methodName, args);
+            return value.valueCaller.callMethod(value.wrappedObjectValue, methodName, positionalArgs, namedArgs);
         }
     });
 

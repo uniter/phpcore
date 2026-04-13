@@ -152,9 +152,27 @@ module.exports = function (internals) {
             'string name, slot ...argReferences : slot',
             function (name, argReferences) {
                 var namespaceScope = callStack.getEffectiveNamespaceScope(),
-                    barewordString = valueFactory.createBarewordString(name, namespaceScope);
+                    callable = namespaceScope.getFunction(name);
 
-                return barewordString.call(argReferences);
+                return callable.call(argReferences, null, null, null);
+            }
+        ),
+
+        /**
+         * Calls a PHP function where the name is known statically, returning its result
+         * as a Value if it returns by-value or as a Reference if it returns by-reference.
+         *
+         * Used by "my_function(myParam: 21)" syntax.
+         */
+        callFunctionNamed: internals.typeHandler(
+            // Note that arguments are snapshotted by FunctionSpec.coerceArguments(...)
+            // later on, as at that point we know whether a parameter is by-reference.
+            'string name, any namedArgReferences, slot ...positionalArgReferences : slot',
+            function (name, namedArgReferences, positionalArgReferences) {
+                var namespaceScope = callStack.getEffectiveNamespaceScope(),
+                    callable = namespaceScope.getFunction(name);
+
+                return callable.call(positionalArgReferences, namedArgReferences, null, null);
             }
         ),
 
@@ -172,6 +190,19 @@ module.exports = function (internals) {
         ),
 
         /**
+         * Calls a PHP instance method where the name is known statically with named arguments,
+         * returning its result as a Value if it returns by-value or as a Reference if it returns by-reference.
+         *
+         * Used by "$myObject->myMethod(myParam: 21)" syntax.
+         */
+        callInstanceMethodNamed: internals.typeHandler(
+            'val object, string method, any namedArgReferences, slot ...positionalArgReferences : slot',
+            function (objectValue, methodName, namedArgReferences, positionalArgReferences) {
+                return objectValue.callMethod(methodName, positionalArgReferences, namedArgReferences);
+            }
+        ),
+
+        /**
          * Calls a static method of a class.
          *
          * Used by "MyClass::myMethod(...)" syntax.
@@ -182,7 +213,22 @@ module.exports = function (internals) {
                 // TODO: Remove need for wrapping this as a *Value
                 var methodValue = valueFactory.createString(methodName);
 
-                return classValue.callStaticMethod(methodValue, argReferences, isForwarding);
+                return classValue.callStaticMethod(methodValue, argReferences, null, isForwarding);
+            }
+        ),
+
+        /**
+         * Calls a static method of a class with named arguments.
+         *
+         * Used by "MyClass::myMethod(myParam: 21)" syntax.
+         */
+        callStaticMethodNamed: internals.typeHandler(
+            'val class, string method, bool isForwarding, any namedArgReferences, slot ...positionalArgReferences : slot',
+            function (classValue, methodName, isForwarding, namedArgReferences, positionalArgReferences) {
+                // TODO: Remove need for wrapping this as a *Value.
+                var methodValue = valueFactory.createString(methodName);
+
+                return classValue.callStaticMethod(methodValue, positionalArgReferences, namedArgReferences, isForwarding);
             }
         ),
 
@@ -225,7 +271,7 @@ module.exports = function (internals) {
         callVariableStaticMethod: internals.typeHandler(
             'val class, val methodName, bool isForwarding, slot ...argReferences : slot',
             function (classNameValue, methodNameValue, isForwarding, argReferences) {
-                return classNameValue.callStaticMethod(methodNameValue, argReferences, isForwarding);
+                return classNameValue.callStaticMethod(methodNameValue, argReferences, null, isForwarding);
             }
         ),
 
@@ -426,6 +472,16 @@ module.exports = function (internals) {
             'val className, slot ...args : val',
             function (classNameValue, args) {
                 return classNameValue.instantiate(args);
+            }
+        ),
+
+        /**
+         * Used by transpiled PHP `new MyClass(myParam: 21)` expressions.
+         */
+        createInstanceNamed: internals.typeHandler(
+            'val className, any namedArgReferences, slot ...positionalArgReferences : val',
+            function (classNameValue, namedArgReferences, positionalArgReferences) {
+                return classNameValue.instantiate(positionalArgReferences, namedArgReferences);
             }
         ),
 

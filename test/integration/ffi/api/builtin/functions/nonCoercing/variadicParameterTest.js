@@ -27,10 +27,10 @@ EOS
             resultValue;
         engine.defineNonCoercingFunction(
             'my_sum',
-            function (...myNumberValues) {
+            function (myNumbersValue) {
                 var sum = 0;
 
-                myNumberValues.forEach(function (numberValue) {
+                myNumbersValue.getValues().forEach(function (numberValue) {
                     sum += numberValue.getNative();
                 });
 
@@ -58,10 +58,10 @@ EOS
             resultValue;
         engine.defineNonCoercingFunction(
             'my_sum',
-            function (myFirstNumberValue, ...myOtherNumberValues) {
+            function (myFirstNumberValue, myOtherNumbersValue) {
                 var sum = myFirstNumberValue.getNative();
 
-                myOtherNumberValues.forEach(function (numberValue) {
+                myOtherNumbersValue.getValues().forEach(function (numberValue) {
                     sum += numberValue.getNative();
                 });
 
@@ -100,18 +100,20 @@ EOS
             resultValue;
         engine.defineNonCoercingFunction(
             'double_them',
-            function (myFirstNumberReference, ...myOtherNumberReferences) {
+            function (myFirstNumberReference, myOtherNumberReferences) {
                 var flow = this.flow,
                     valueFactory = this.valueFactory;
 
                 return myFirstNumberReference.getValue().next(function (myFirstNumberValue) {
                     myFirstNumberReference.setValue(valueFactory.createInteger(myFirstNumberValue.getNative() * 2));
 
-                    return flow.eachAsync(myOtherNumberReferences, function (myOtherNumberReference) {
-                        return myOtherNumberReference.getValue().next(function (myOtherNumberValue) {
-                            myOtherNumberReference.setValue(
-                                valueFactory.createInteger(myOtherNumberValue.getNative() * 2)
-                            );
+                    return myOtherNumberReferences.getValue().next(function (numberReferencesValue) {
+                        return flow.eachAsync(numberReferencesValue.getValueReferences(), function (myOtherNumberReference) {
+                            return myOtherNumberReference.getValue().next(function (myOtherNumberValue) {
+                                myOtherNumberReference.setValue(
+                                    valueFactory.createInteger(myOtherNumberValue.getNative() * 2)
+                                );
+                            });
                         });
                     });
                 });
@@ -147,10 +149,10 @@ EOS
             engine = module();
         engine.defineNonCoercingFunction(
             'my_sum',
-            function (myFirstNumberValue, mySecondNumberValue, ...myOtherNumberValues) {
+            function (myFirstNumberValue, mySecondNumberValue, myOtherNumbersValue) {
                 var sum = myFirstNumberValue.getNative() + mySecondNumberValue.getNative();
 
-                myOtherNumberValues.forEach(function (numberValue) {
+                myOtherNumbersValue.getValues().forEach(function (numberValue) {
                     sum += numberValue.getNative();
                 });
 
@@ -256,5 +258,45 @@ Stack trace:
 EOS
 */;}) //jshint ignore:line
         );
+    });
+
+    it('should support unknown named arguments with variadic parameter', async function () {
+        var php = nowdoc(function () {/*<<<EOS
+<?php
+
+$result = [];
+
+$result['defined named arguments only'] = my_func(second: 42, first: 21, third: 100); // Note arguments in different order.
+$result['both known and unknown named arguments'] = my_func(21, third: 100, second: 42, another: 101, andAnother: 202);
+
+return $result;
+EOS
+*/;}), //jshint ignore:line
+            module = tools.asyncTranspile('/path/to/my_module.php', php),
+            engine = module();
+        engine.defineNonCoercingFunction(
+            'my_func',
+            function (firstValue, secondValue, thirdValue, othersValue) {
+                var othersNative = othersValue.getNative(),
+                    othersText = '',
+                    valueFactory = this.valueFactory;
+
+                Object.keys(othersNative).forEach(function (name) {
+                    othersText += '(' + name + '=' + othersNative[name] + ')';
+                });
+
+                return valueFactory.createString(
+                    'my_func(' + firstValue.getNative() + ', ' +
+                    secondValue.getNative() + ', ' +
+                    thirdValue.getNative() + ', ...: ' + othersText + ')'
+                );
+            },
+            'mixed $first, mixed $second, mixed $third, mixed ...$others : string'
+        );
+
+        expect((await engine.execute()).getNative()).to.deep.equal({
+            'defined named arguments only': 'my_func(21, 42, 100, ...: )',
+            'both known and unknown named arguments': 'my_func(21, 42, 100, ...: (another=101)(andAnother=202))'
+        });
     });
 });

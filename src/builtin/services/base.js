@@ -15,6 +15,7 @@ var phpCommon = require('phpcommon'),
     CalculationOpcode = require('../../Core/Opcode/Opcode/CalculationOpcode'),
     CalculationOpcodeFetcher = require('../../Core/Opcode/Fetcher/CalculationOpcodeFetcher'),
     Call = require('../../Call'),
+    Callable = require('../../Function/Callable'),
     CallableTypeProvider = require('../../Type/Provider/Spec/CallableTypeProvider'),
     CallFactory = require('../../CallFactory'),
     CallInstrumentation = require('../../Instrumentation/CallInstrumentation'),
@@ -299,6 +300,7 @@ module.exports = function (internals) {
 
         'function_factory': function () {
             return new FunctionFactory(
+                Callable,
                 MethodSpec,
                 get(SCOPE_FACTORY),
                 get(CALL_FACTORY),

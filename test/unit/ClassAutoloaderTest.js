@@ -13,6 +13,7 @@ var expect = require('chai').expect,
     queueMicrotask = require('core-js-pure/actual/queue-microtask'),
     sinon = require('sinon'),
     tools = require('./tools'),
+    Callable = require('../../src/Function/Callable'),
     ClassAutoloader = require('../../src/ClassAutoloader').sync(),
     Namespace = require('../../src/Namespace').sync(),
     Value = require('../../src/Value').sync();
@@ -87,16 +88,18 @@ describe('ClassAutoloader', function () {
         });
 
         it('should call the magic __autoload(...) function when defined', function () {
-            var resultValue;
+            var autoloadCallable = sinon.createStubInstance(Callable),
+                resultValue;
+            autoloadCallable.call
+                .withArgs(
+                    sinon.match(function (args) {
+                        return args.length === 1 && args[0].getNative() === 'My\\Stuff\\MyClass';
+                    })
+                )
+                .returns(valueFactory.createString('my result'));
             globalNamespace.getOwnFunction
                 .withArgs('__autoload')
-                .returns(function (nameValue) {
-                    if (nameValue.getNative() === 'My\\Stuff\\MyClass') {
-                        return valueFactory.createString('my result');
-                    }
-
-                    throw new Error('Unexpected argument to __autoload(...)');
-                });
+                .returns(autoloadCallable);
 
             resultValue = classAutoloader.autoloadClass('My\\Stuff\\MyClass');
 
