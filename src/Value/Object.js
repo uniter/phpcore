@@ -640,9 +640,11 @@ module.exports = require('pauser')([
          * @param {string} name
          * @param {Class} classObject The class in the hierarchy that defines the property
          * @param {string} visibility "private", "protected" or "public"
+         * @param {boolean} readonly
+         * @param {TypeInterface|null} typeObject
          * @returns {PropertyReference}
          */
-        declareProperty: function (name, classObject, visibility) {
+        declareProperty: function (name, classObject, visibility, readonly, typeObject) {
             var value = this,
                 propertyReference;
 
@@ -652,7 +654,9 @@ module.exports = require('pauser')([
                     value.factory.coerce(name),
                     classObject,
                     visibility,
-                    value.nextPropertyIndex++
+                    value.nextPropertyIndex++,
+                    readonly,
+                    typeObject || null
                 );
             }
 

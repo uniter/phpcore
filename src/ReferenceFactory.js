@@ -23,6 +23,7 @@ module.exports = require('pauser')([
      * @param {class} ReferenceSlot
      * @param {class} ReferenceSnapshot
      * @param {class} StaticPropertyReference
+     * @param {class} TypedReferenceSlot
      * @param {class} UndeclaredStaticPropertyReference
      * @param {ValueFactory} valueFactory
      * @param {FutureFactory} futureFactory
@@ -39,6 +40,7 @@ module.exports = require('pauser')([
         ReferenceSlot,
         ReferenceSnapshot,
         StaticPropertyReference,
+        TypedReferenceSlot,
         UndeclaredStaticPropertyReference,
         valueFactory,
         futureFactory,
@@ -89,6 +91,10 @@ module.exports = require('pauser')([
          * @type {class}
          */
         this.StaticPropertyReference = StaticPropertyReference;
+        /**
+         * @type {class}
+         */
+        this.TypedReferenceSlot = TypedReferenceSlot;
         /**
          * @type {class}
          */
@@ -229,6 +235,8 @@ module.exports = require('pauser')([
          * @param {Class} classObject Class in the hierarchy that defines the property - may be an ancestor
          * @param {string} visibility "private", "protected" or "public"
          * @param {number} index
+         * @param {boolean} readonly
+         * @param {TypeInterface|null} typeObject
          * @returns {PropertyReference}
          */
         createProperty: function (
@@ -236,7 +244,9 @@ module.exports = require('pauser')([
             keyValue,
             classObject,
             visibility,
-            index
+            index,
+            readonly,
+            typeObject
         ) {
             var factory = this;
 
@@ -250,7 +260,9 @@ module.exports = require('pauser')([
                 keyValue,
                 classObject,
                 visibility,
-                index
+                index,
+                readonly,
+                typeObject || null
             );
         },
 
@@ -267,6 +279,32 @@ module.exports = require('pauser')([
                 factory,
                 factory.futureFactory,
                 factory.flow
+            );
+        },
+
+        /**
+         * Creates a TypedReferenceSlot that enforces the given type on write.
+         *
+         * @param {CallStack} callStack
+         * @param {Class} classObject
+         * @param {string} propertyName
+         * @param {TypeInterface} typeObject
+         * @param {Value|null} initialValue Pre-validated value to store without type-checking
+         * @returns {TypedReferenceSlot}
+         */
+        createTypedReferenceSlot: function (callStack, classObject, propertyName, typeObject, initialValue) {
+            var factory = this;
+
+            return new factory.TypedReferenceSlot(
+                factory.valueFactory,
+                factory,
+                factory.futureFactory,
+                callStack,
+                factory.flow,
+                classObject,
+                propertyName,
+                typeObject,
+                initialValue || null
             );
         },
 
@@ -301,12 +339,14 @@ module.exports = require('pauser')([
          * @param {string} name
          * @param {Class} classObject Class in the hierarchy that defines the property - may be an ancestor
          * @param {string} visibility "private", "protected" or "public"
+         * @param {TypeInterface|null} typeObject
          * @returns {StaticPropertyReference}
          */
         createStaticProperty: function (
             name,
             classObject,
-            visibility
+            visibility,
+            typeObject
         ) {
             var factory = this;
 
@@ -318,7 +358,8 @@ module.exports = require('pauser')([
                 factory.flow,
                 classObject,
                 name,
-                visibility
+                visibility,
+                typeObject || null
             );
         },
 

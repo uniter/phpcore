@@ -18,6 +18,7 @@ var expect = require('chai').expect,
     Namespace = require('../../../../../src/Namespace').sync(),
     NamespaceScope = require('../../../../../src/NamespaceScope').sync(),
     Trait = require('../../../../../src/OOP/Trait/Trait'),
+    TypeInterface = require('../../../../../src/Type/TypeInterface'),
     UserlandDefinitionBuilder = require('../../../../../src/OOP/Trait/Definition/UserlandDefinitionBuilder'),
     ValueCoercer = require('../../../../../src/FFI/Value/ValueCoercer');
 
@@ -27,6 +28,7 @@ describe('UserlandDefinitionBuilder', function () {
         ffiFactory,
         namespace,
         namespaceScope,
+        specTypeProvider,
         state,
         valueCoercer,
         valueFactory;
@@ -37,6 +39,7 @@ describe('UserlandDefinitionBuilder', function () {
         ffiFactory = sinon.createStubInstance(FFIFactory);
         namespace = sinon.createStubInstance(Namespace);
         namespaceScope = sinon.createStubInstance(NamespaceScope);
+        specTypeProvider = {createType: sinon.stub()};
         valueCoercer = sinon.createStubInstance(ValueCoercer);
         valueFactory = state.getValueFactory();
 
@@ -48,7 +51,8 @@ describe('UserlandDefinitionBuilder', function () {
         builder = new UserlandDefinitionBuilder(
             callStack,
             valueFactory,
-            ffiFactory
+            ffiFactory,
+            specTypeProvider
         );
     });
 
@@ -221,5 +225,102 @@ describe('UserlandDefinitionBuilder', function () {
             expect(result.getTraits()).to.deep.equal(traits);
             expect(result.getValueCoercer()).to.equal(valueCoercer);
         });
+
+        it('should attach a typeObject to an instance property that has a type spec', function () {
+            var typeObject = sinon.createStubInstance(TypeInterface),
+                result;
+            specTypeProvider.createType.returns(typeObject);
+            definition = {
+                constants: {},
+                properties: {
+                    myTypedProp: {visibility: 'public', type: {type: 'scalar', scalarType: 'int'}}
+                },
+                staticProperties: {},
+                methods: {}
+            };
+
+            result = builder.buildDefinition(
+                'MyTrait',
+                definition,
+                namespace,
+                namespaceScope,
+                traits
+            );
+
+            expect(specTypeProvider.createType).to.have.been.calledOnce;
+            expect(specTypeProvider.createType).to.have.been.calledWith(
+                {type: 'scalar', scalarType: 'int'},
+                sinon.match.same(namespaceScope)
+            );
+            expect(result.getInstanceProperties().myTypedProp.typeObject).to.equal(typeObject);
+        });
+
+        it('should not attach a typeObject to an instance property without a type spec', function () {
+            var result;
+            definition = {
+                constants: {},
+                properties: {
+                    myUntypedProp: {visibility: 'public'}
+                },
+                staticProperties: {},
+                methods: {}
+            };
+
+            result = builder.buildDefinition(
+                'MyTrait',
+                definition,
+                namespace,
+                namespaceScope,
+                traits
+            );
+
+            expect(result.getInstanceProperties().myUntypedProp).not.to.have.property('typeObject');
+        });
+
+        it('should attach a typeObject to a static property that has a type spec', function () {
+            var typeObject = sinon.createStubInstance(TypeInterface),
+                result;
+            specTypeProvider.createType.returns(typeObject);
+            definition = {
+                constants: {},
+                properties: {},
+                staticProperties: {
+                    myTypedStatic: {visibility: 'public', type: {type: 'scalar', scalarType: 'string'}}
+                },
+                methods: {}
+            };
+
+            result = builder.buildDefinition(
+                'MyTrait',
+                definition,
+                namespace,
+                namespaceScope,
+                traits
+            );
+
+            expect(result.getStaticProperties().myTypedStatic.typeObject).to.equal(typeObject);
+        });
+
+        it('should not attach a typeObject to a static property without a type spec', function () {
+            var result;
+            definition = {
+                constants: {},
+                properties: {},
+                staticProperties: {
+                    myUntypedStatic: {visibility: 'public'}
+                },
+                methods: {}
+            };
+
+            result = builder.buildDefinition(
+                'MyTrait',
+                definition,
+                namespace,
+                namespaceScope,
+                traits
+            );
+
+            expect(result.getStaticProperties().myUntypedStatic).not.to.have.property('typeObject');
+        });
     });
-}); 
+});

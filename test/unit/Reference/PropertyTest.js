@@ -23,12 +23,16 @@ var expect = require('chai').expect,
     Present = require('../../../src/Control/Present'),
     Reference = require('../../../src/Reference/Reference'),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
+    TypedReferenceSlot = require('../../../src/Reference/TypedReferenceSlot'),
+    TypeInterface = require('../../../src/Type/TypeInterface'),
     Variable = require('../../../src/Variable').sync();
 
 describe('PropertyReference', function () {
     var callStack,
         classObject,
         createProperty,
+        createReadonlyProperty,
+        createTypedProperty,
         flow,
         futureFactory,
         keyValue,
@@ -36,6 +40,7 @@ describe('PropertyReference', function () {
         property,
         propertyValue,
         state,
+        typeObject,
         valueFactory;
 
     beforeEach(function () {
@@ -57,6 +62,18 @@ describe('PropertyReference', function () {
 
         classObject.getName.returns('My\\AwesomeClass');
 
+        typeObject = sinon.createStubInstance(TypeInterface);
+        typeObject.allowsValue.returns(state.getFutureFactory().createPresent(true));
+        typeObject.getDisplayName.returns('int');
+
+        callStack.getLastFilePath.returns('/path/to/my_module.php');
+        callStack.getLastLine.returns(9);
+        callStack.raiseTranslatedError.callsFake(function (level, translationKey, placeholderVariables) {
+            throw new Error(
+                'Fake PHP ' + level + ' for #' + translationKey + ' with ' + JSON.stringify(placeholderVariables || {})
+            );
+        });
+
         createProperty = function (visibility) {
             property = new PropertyReference(
                 valueFactory,
@@ -69,6 +86,37 @@ describe('PropertyReference', function () {
                 classObject,
                 visibility || 'public',
                 21
+            );
+        };
+        createReadonlyProperty = function () {
+            property = new PropertyReference(
+                valueFactory,
+                state.getReferenceFactory(),
+                state.getFutureFactory(),
+                callStack,
+                flow,
+                objectValue,
+                keyValue,
+                classObject,
+                'public',
+                21,
+                true   // readonly
+            );
+        };
+        createTypedProperty = function () {
+            property = new PropertyReference(
+                valueFactory,
+                state.getReferenceFactory(),
+                state.getFutureFactory(),
+                callStack,
+                flow,
+                objectValue,
+                keyValue,
+                classObject,
+                'public',
+                21,
+                false, // Not readonly.
+                typeObject
             );
         };
         createProperty();
@@ -188,6 +236,46 @@ describe('PropertyReference', function () {
             referenceSlot.setValue(value);
 
             expect(property.getValue()).to.equal(value);
+        });
+
+        describe('when the property has a type object', function () {
+            beforeEach(function () {
+                createTypedProperty();
+            });
+
+            it('should assign a TypedReferenceSlot rather than a plain ReferenceSlot', function () {
+                expect(property.getReference()).to.be.an.instanceOf(TypedReferenceSlot);
+            });
+
+            it('should return the same TypedReferenceSlot on subsequent calls', function () {
+                var slot = property.getReference();
+
+                expect(property.getReference()).to.equal(slot);
+            });
+
+            it('should carry any existing property value into the TypedReferenceSlot', function () {
+                var existingValue = valueFactory.createInteger(10);
+                property.setValue(existingValue);
+
+                var slot = property.getReference();
+
+                expect(slot.getValue()).to.equal(existingValue);
+            });
+        });
+
+        describe('when the property is readonly', function () {
+            beforeEach(function () {
+                createReadonlyProperty();
+            });
+
+            it('should raise a fatal error', function () {
+                expect(function () {
+                    property.getReference();
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.cannot_indirectly_modify_readonly_property with ' +
+                    '{"className":"My\\\\AwesomeClass","propertyName":"my_property"}'
+                );
+            });
         });
     });
 
@@ -594,6 +682,73 @@ describe('PropertyReference', function () {
     describe('toPromise()', function () {
         it('should return a Promise that resolves to the PropertyReference', async function () {
             expect(await property.toPromise()).to.equal(property);
+        });
+    });
+
+    describe('typed property behaviour', function () {
+        beforeEach(function () {
+            createTypedProperty();
+        });
+
+        describe('setValue()', function () {
+            it('should store the value when the type check passes', async function () {
+                var newValue = valueFactory.createInteger(42);
+                typeObject.allowsValue.returns(state.getFutureFactory().createPresent(true));
+
+                await property.setValue(newValue).toPromise();
+
+                expect(property.getValue()).to.equal(newValue);
+            });
+
+            it('should raise a TypeError when the value fails the type check', async function () {
+                var stringValue = valueFactory.createString('not an int');
+                typeObject.allowsValue.returns(state.getFutureFactory().createPresent(false));
+
+                await expect(property.setValue(stringValue).toPromise()).to.eventually.be.rejectedWith(
+                    'Fake PHP Fatal error for #core.cannot_assign_incompatible_property_type with ' +
+                    '{"className":"My\\\\AwesomeClass","propertyName":"my_property","expectedType":"int","actualType":"string"}'
+                );
+            });
+
+            it('should not store the value when the type check fails', async function () {
+                var existingValue = valueFactory.createInteger(10),
+                    stringValue = valueFactory.createString('not an int');
+                property.initialise(existingValue);
+                typeObject.allowsValue.returns(state.getFutureFactory().createPresent(false));
+
+                await property.setValue(stringValue).toPromise().catch(function () {});
+
+                expect(property.getValue()).to.equal(existingValue);
+            });
+        });
+    });
+
+    describe('readonly property behaviour', function () {
+        beforeEach(function () {
+            createReadonlyProperty();
+        });
+
+        describe('setValue()', function () {
+            it('should allow a first assignment', async function () {
+                var newValue = valueFactory.createInteger(99);
+
+                await property.setValue(newValue).toPromise();
+
+                expect(property.getValue()).to.equal(newValue);
+            });
+
+            it('should raise a fatal error when attempting to modify after the first assignment', async function () {
+                var firstValue = valueFactory.createInteger(1),
+                    secondValue = valueFactory.createInteger(2);
+                await property.setValue(firstValue).toPromise();
+
+                expect(function () {
+                    property.setValue(secondValue);
+                }).to.throw(
+                    'Fake PHP Fatal error for #core.cannot_modify_readonly_property with ' +
+                    '{"className":"My\\\\AwesomeClass","propertyName":"my_property"}'
+                );
+            });
         });
     });
 

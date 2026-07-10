@@ -238,7 +238,8 @@ module.exports = require('pauser')([
             staticProperties[name] = referenceFactory.createStaticProperty(
                 name,
                 classObject,
-                data[VISIBILITY]
+                data[VISIBILITY],
+                data.typeObject || null
             );
         });
 
@@ -952,7 +953,13 @@ module.exports = require('pauser')([
 
             // Go through and declare the properties on the object from the class definition.
             _.forOwn(classObject.instancePropertiesData, function (propertyData, name) {
-                properties[name] = objectValue.declareProperty(name, classObject, propertyData.visibility);
+                properties[name] = objectValue.declareProperty(
+                    name,
+                    classObject,
+                    propertyData.visibility,
+                    propertyData.readonly,
+                    propertyData.typeObject || null
+                );
             });
 
             if (classObject.superClass) {

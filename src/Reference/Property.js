@@ -12,6 +12,9 @@
 var _ = require('microdash'),
     phpCommon = require('phpcommon'),
     util = require('util'),
+    CANNOT_ASSIGN_INCOMPATIBLE_PROPERTY_TYPE = 'core.cannot_assign_incompatible_property_type',
+    CANNOT_INDIRECTLY_MODIFY_READONLY_PROPERTY = 'core.cannot_indirectly_modify_readonly_property',
+    CANNOT_MODIFY_READONLY_PROPERTY = 'core.cannot_modify_readonly_property',
     MAGIC_GET = '__get',
     MAGIC_SET = '__set',
     MAGIC_UNSET = '__unset',
@@ -29,6 +32,8 @@ var _ = require('microdash'),
  * @param {Class} classObject Class in the hierarchy that defines the property - may be an ancestor
  * @param {string} visibility "private", "protected" or "public"
  * @param {number} index
+ * @param {boolean} readonly
+ * @param {TypeInterface|null} typeObject
  * @constructor
  */
 function PropertyReference(
@@ -41,7 +46,9 @@ function PropertyReference(
     key,
     classObject,
     visibility,
-    index
+    index,
+    readonly,
+    typeObject
 ) {
     Reference.call(this, referenceFactory, futureFactory, flow);
 
@@ -58,6 +65,12 @@ function PropertyReference(
      */
     this.index = index;
     /**
+     * Whether this property has been explicitly assigned at least once (for readonly enforcement).
+     *
+     * @type {boolean}
+     */
+    this.initialized = false;
+    /**
      * @type {Value}
      */
     this.key = key;
@@ -66,9 +79,17 @@ function PropertyReference(
      */
     this.objectValue = objectValue;
     /**
+     * @type {boolean}
+     */
+    this.readonly = Boolean(readonly);
+    /**
      * @type {Reference|null}
      */
     this.reference = null;
+    /**
+     * @type {TypeInterface|null}
+     */
+    this.typeObject = typeObject || null;
     /**
      * Value of this property - a native null value indicates that the property is not defined
      *
@@ -136,17 +157,40 @@ _.extend(PropertyReference.prototype, {
     getReference: function () {
         var property = this;
 
+        if (property.readonly) {
+            property.callStack.raiseTranslatedError(
+                PHPError.E_ERROR,
+                CANNOT_INDIRECTLY_MODIFY_READONLY_PROPERTY,
+                {
+                    className: property.classObject.getName(),
+                    propertyName: property.key.getNative()
+                }
+            );
+        }
+
         if (property.reference) {
             // This property already refers to something else, so return its target
             return property.reference;
         }
 
-        // Implicitly define a "slot" to contain this property's value
-        property.reference = property.referenceFactory.createReferenceSlot();
+        if (property.typeObject) {
+            // Use a TypedReferenceSlot so that writes through the reference are type-checked.
+            property.reference = property.referenceFactory.createTypedReferenceSlot(
+                property.callStack,
+                property.classObject,
+                property.key.getNative(),
+                property.typeObject,
+                property.value // Pass existing value directly to bypass re-validation.
+            );
+            property.value = null;
+        } else {
+            // Implicitly define a plain slot to contain this property's value.
+            property.reference = property.referenceFactory.createReferenceSlot();
 
-        if (property.value) {
-            property.reference.setValue(property.value).yieldSync();
-            property.value = null; // This property now has a reference (to the slot) and not a value
+            if (property.value) {
+                property.reference.setValue(property.value).yieldSync();
+                property.value = null; // This property now has a reference (to the slot) and not a value.
+            }
         }
 
         return property.reference;
@@ -349,7 +393,7 @@ _.extend(PropertyReference.prototype, {
      * otherwise the property will be dynamically defined on the object.
      *
      * @param {Value} value
-     * @returns {Value}
+     * @returns {ChainableInterface<Value>}
      */
     setValue: function (value) {
         var property = this,
@@ -358,6 +402,17 @@ _.extend(PropertyReference.prototype, {
         if (property.reference) {
             // Note that we don't call .getForAssignment() here as the eventual reference will do so.
             return property.reference.setValue(value);
+        }
+
+        if (property.readonly && property.initialized) {
+            property.callStack.raiseTranslatedError(
+                PHPError.E_ERROR,
+                CANNOT_MODIFY_READONLY_PROPERTY,
+                {
+                    className: property.classObject.getName(),
+                    propertyName: property.key.getNative()
+                }
+            );
         }
 
         valueForAssignment = value.getForAssignment();
@@ -374,7 +429,31 @@ _.extend(PropertyReference.prototype, {
             }
         }
 
+        if (property.typeObject) {
+            return property.typeObject.allowsValue(valueForAssignment).next(function (allowed) {
+                if (!allowed) {
+                    property.callStack.raiseTranslatedError(
+                        PHPError.E_ERROR,
+                        CANNOT_ASSIGN_INCOMPATIBLE_PROPERTY_TYPE,
+                        {
+                            className: property.classObject.getName(),
+                            propertyName: property.key.getNative(),
+                            expectedType: property.typeObject.getDisplayName(),
+                            actualType: valueForAssignment.getDisplayType()
+                        },
+                        'TypeError'
+                    );
+                }
+
+                property.initialized = true;
+                property.value = valueForAssignment;
+
+                return valueForAssignment;
+            });
+        }
+
         // No magic setter is defined - store the value of this property directly on itself.
+        property.initialized = true;
         property.value = valueForAssignment;
 
         return valueForAssignment;

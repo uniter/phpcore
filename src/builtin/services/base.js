@@ -565,7 +565,8 @@ module.exports = function (internals) {
             return new UserlandClassDefinitionBuilder(
                 get(CALL_STACK),
                 get(VALUE_FACTORY),
-                get(FFI_FACTORY)
+                get(FFI_FACTORY),
+                get(SPEC_TYPE_PROVIDER)
             );
         },
 
@@ -573,7 +574,8 @@ module.exports = function (internals) {
             return new UserlandTraitDefinitionBuilder(
                 get(CALL_STACK),
                 get(VALUE_FACTORY),
-                get(FFI_FACTORY)
+                get(FFI_FACTORY),
+                get(SPEC_TYPE_PROVIDER)
             );
         },
 

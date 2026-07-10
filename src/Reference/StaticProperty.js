@@ -15,6 +15,7 @@ var _ = require('microdash'),
     PHPError = phpCommon.PHPError,
     Reference = require('./Reference'),
 
+    CANNOT_ASSIGN_INCOMPATIBLE_PROPERTY_TYPE = 'core.cannot_assign_incompatible_property_type',
     CANNOT_UNSET_STATIC_PROPERTY = 'core.cannot_unset_static_property';
 
 /**
@@ -26,6 +27,7 @@ var _ = require('microdash'),
  * @param {Class} classObject
  * @param {string} name
  * @param {string} visibility "private", "protected" or "public"
+ * @param {TypeInterface|null} typeObject
  * @constructor
  */
 function StaticPropertyReference(
@@ -36,7 +38,8 @@ function StaticPropertyReference(
     flow,
     classObject,
     name,
-    visibility
+    visibility,
+    typeObject
 ) {
     Reference.call(this, referenceFactory, futureFactory, flow);
 
@@ -56,6 +59,10 @@ function StaticPropertyReference(
      * @type {Reference|null}
      */
     this.reference = null;
+    /**
+     * @type {TypeInterface|null}
+     */
+    this.typeObject = typeObject || null;
     /**
      * Static properties' values are initialised lazily - see Class.getStaticPropertyByName(...)
      *
@@ -173,6 +180,29 @@ _.extend(StaticPropertyReference.prototype, {
         }
 
         assignedValue = value.getForAssignment();
+
+        if (property.typeObject) {
+            return property.typeObject.allowsValue(assignedValue).next(function (allowed) {
+                if (!allowed) {
+                    property.callStack.raiseTranslatedError(
+                        PHPError.E_ERROR,
+                        CANNOT_ASSIGN_INCOMPATIBLE_PROPERTY_TYPE,
+                        {
+                            className: property.classObject.getName(),
+                            propertyName: property.name,
+                            expectedType: property.typeObject.getDisplayName(),
+                            actualType: assignedValue.getDisplayType()
+                        },
+                        'TypeError'
+                    );
+                }
+
+                property.value = assignedValue;
+
+                return assignedValue;
+            });
+        }
+
         property.value = assignedValue;
 
         return assignedValue;

@@ -16,7 +16,8 @@ var expect = require('chai').expect,
     Class = require('../../../src/Class').sync(),
     Reference = require('../../../src/Reference/Reference'),
     ReferenceSlot = require('../../../src/Reference/ReferenceSlot'),
-    StaticPropertyReference = require('../../../src/Reference/StaticProperty');
+    StaticPropertyReference = require('../../../src/Reference/StaticProperty'),
+    TypeInterface = require('../../../src/Type/TypeInterface');
 
 describe('StaticPropertyReference', function () {
     var callStack,
@@ -26,6 +27,7 @@ describe('StaticPropertyReference', function () {
         propertyValue,
         property,
         state,
+        typeObject,
         valueFactory;
 
     beforeEach(function () {
@@ -46,6 +48,10 @@ describe('StaticPropertyReference', function () {
         });
 
         classObject.getName.returns('My\\Namespaced\\ClassName');
+
+        typeObject = sinon.createStubInstance(TypeInterface);
+        typeObject.allowsValue.returns(futureFactory.createPresent(true));
+        typeObject.getDisplayName.returns('int');
 
         property = new StaticPropertyReference(
             valueFactory,
@@ -264,6 +270,53 @@ describe('StaticPropertyReference', function () {
             expect(resultValue.getNative()).to.equal('my val for reference');
             expect(reference.setValue).to.have.been.calledOnce;
             expect(reference.setValue).to.have.been.calledWith(sinon.match.same(value));
+        });
+
+        describe('when the property has a type object', function () {
+            var typedProperty;
+
+            beforeEach(function () {
+                typedProperty = new StaticPropertyReference(
+                    valueFactory,
+                    state.getReferenceFactory(),
+                    futureFactory,
+                    callStack,
+                    flow,
+                    classObject,
+                    'myProp',
+                    'public',
+                    typeObject
+                );
+            });
+
+            it('should store the value when the type check passes', async function () {
+                var intValue = valueFactory.createInteger(42);
+                typeObject.allowsValue.returns(futureFactory.createPresent(true));
+
+                await typedProperty.setValue(intValue).toPromise();
+
+                expect(typedProperty.getValue()).to.equal(intValue);
+            });
+
+            it('should return the value when the type check passes', async function () {
+                var intValue = valueFactory.createInteger(42),
+                    result;
+                typeObject.allowsValue.returns(futureFactory.createPresent(true));
+
+                result = await typedProperty.setValue(intValue).toPromise();
+
+                expect(result).to.equal(intValue);
+            });
+
+            it('should raise a TypeError when the value fails the type check', async function () {
+                var stringValue = valueFactory.createString('not an int');
+                typeObject.allowsValue.returns(futureFactory.createPresent(false));
+
+                await expect(typedProperty.setValue(stringValue).toPromise()).to.eventually.be.rejectedWith(
+                    'Fake PHP Fatal error for #core.cannot_assign_incompatible_property_type with ' +
+                    '{"className":"My\\\\Namespaced\\\\ClassName","propertyName":"myProp","expectedType":"int","actualType":"string"}'
+                );
+            });
         });
     });
 

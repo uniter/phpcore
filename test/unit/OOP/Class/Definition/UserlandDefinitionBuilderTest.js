@@ -22,6 +22,7 @@ var expect = require('chai').expect,
     NamespaceScope = require('../../../../../src/NamespaceScope').sync(),
     PHPError = phpCommon.PHPError,
     PHPFatalError = phpCommon.PHPFatalError,
+    TypeInterface = require('../../../../../src/Type/TypeInterface'),
     UserlandDefinitionBuilder = require('../../../../../src/OOP/Class/Definition/UserlandDefinitionBuilder'),
     ValueCoercer = require('../../../../../src/FFI/Value/ValueCoercer');
 
@@ -31,6 +32,7 @@ describe('UserlandDefinitionBuilder', function () {
         currentInstrumentation,
         ffiFactory,
         flow,
+        specTypeProvider,
         state,
         valueFactory;
 
@@ -42,6 +44,7 @@ describe('UserlandDefinitionBuilder', function () {
         currentInstrumentation = sinon.createStubInstance(CallInstrumentation);
         ffiFactory = sinon.createStubInstance(FFIFactory);
         flow = state.getFlow();
+        specTypeProvider = {createType: sinon.stub()};
         valueFactory = state.getValueFactory();
 
         callStack.getCurrentInstrumentation.returns(currentInstrumentation);
@@ -60,7 +63,8 @@ describe('UserlandDefinitionBuilder', function () {
         builder = new UserlandDefinitionBuilder(
             callStack,
             valueFactory,
-            ffiFactory
+            ffiFactory,
+            specTypeProvider
         );
     });
 
@@ -235,6 +239,55 @@ describe('UserlandDefinitionBuilder', function () {
                 expect(definition.getStaticProperties()).to.deep.equal({
                     myStaticProperty: myStaticProperty
                 });
+            });
+
+            it('should attach a typeObject to an instance property that has a type spec', function () {
+                var typeObject = sinon.createStubInstance(TypeInterface);
+                specTypeProvider.createType.returns(typeObject);
+                definitionStructure.properties = {
+                    myTypedProp: {visibility: 'public', type: {type: 'scalar', scalarType: 'int'}}
+                };
+
+                callBuildDefinition();
+
+                expect(specTypeProvider.createType).to.have.been.calledOnce;
+                expect(specTypeProvider.createType).to.have.been.calledWith(
+                    {type: 'scalar', scalarType: 'int'},
+                    sinon.match.same(namespaceScope)
+                );
+                expect(definition.getInstanceProperties().myTypedProp.typeObject).to.equal(typeObject);
+            });
+
+            it('should not attach a typeObject to an instance property without a type spec', function () {
+                definitionStructure.properties = {
+                    myUntypedProp: {visibility: 'public'}
+                };
+
+                callBuildDefinition();
+
+                expect(definition.getInstanceProperties().myUntypedProp).not.to.have.property('typeObject');
+            });
+
+            it('should attach a typeObject to a static property that has a type spec', function () {
+                var typeObject = sinon.createStubInstance(TypeInterface);
+                specTypeProvider.createType.returns(typeObject);
+                definitionStructure.staticProperties = {
+                    myTypedStatic: {visibility: 'public', type: {type: 'scalar', scalarType: 'string'}}
+                };
+
+                callBuildDefinition();
+
+                expect(definition.getStaticProperties().myTypedStatic.typeObject).to.equal(typeObject);
+            });
+
+            it('should not attach a typeObject to a static property without a type spec', function () {
+                definitionStructure.staticProperties = {
+                    myUntypedStatic: {visibility: 'public'}
+                };
+
+                callBuildDefinition();
+
+                expect(definition.getStaticProperties().myUntypedStatic).not.to.have.property('typeObject');
             });
 
             it('should have a non-coercing ValueCoercer', function () {

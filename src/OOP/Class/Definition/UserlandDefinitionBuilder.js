@@ -24,12 +24,14 @@ var _ = require('microdash'),
  * @param {CallStack} callStack
  * @param {ValueFactory} valueFactory
  * @param {FFIFactory} ffiFactory
+ * @param {SpecTypeProvider} specTypeProvider
  * @constructor
  */
 function UserlandDefinitionBuilder(
     callStack,
     valueFactory,
-    ffiFactory
+    ffiFactory,
+    specTypeProvider
 ) {
     /**
      * @type {CallStack}
@@ -39,6 +41,10 @@ function UserlandDefinitionBuilder(
      * @type {FFIFactory}
      */
     this.ffiFactory = ffiFactory;
+    /**
+     * @type {SpecTypeProvider}
+     */
+    this.specTypeProvider = specTypeProvider;
     /**
      * @type {ValueFactory}
      */
@@ -132,8 +138,25 @@ _.extend(UserlandDefinitionBuilder.prototype, {
             methods[methodName] = data;
         });
 
-        instanceProperties = definition.properties;
-        staticProperties = definition.staticProperties;
+        // TODO: Add to interfaces formally rather than extending like this.
+
+        instanceProperties = {};
+        _.forOwn(definition.properties, function (propertyData, name) {
+            instanceProperties[name] = propertyData.type ?
+                _.extend({}, propertyData, {
+                    typeObject: builder.specTypeProvider.createType(propertyData.type, namespaceScope)
+                }) :
+                propertyData;
+        });
+
+        staticProperties = {};
+        _.forOwn(definition.staticProperties, function (propertyData, name) {
+            staticProperties[name] = propertyData.type ?
+                _.extend({}, propertyData, {
+                    typeObject: builder.specTypeProvider.createType(propertyData.type, namespaceScope)
+                }) :
+                propertyData;
+        });
 
         _.forOwn(definition.constants, function (valueProvider, constantName) {
             constants[constantName] = {

@@ -19,6 +19,7 @@ var expect = require('chai').expect,
     ObjectValue = require('../../src/Value/Object').sync(),
     Reference = require('../../src/Reference/Reference'),
     ReferenceFactory = require('../../src/ReferenceFactory').sync(),
+    TypeInterface = require('../../src/Type/TypeInterface'),
     Value = require('../../src/Value').sync(),
     ValueFactory = require('../../src/ValueFactory').sync();
 
@@ -35,6 +36,7 @@ describe('ReferenceFactory', function () {
         ReferenceSlot,
         ReferenceSnapshot,
         StaticPropertyReference,
+        TypedReferenceSlot,
         UndeclaredStaticPropertyReference,
         valueFactory;
 
@@ -50,6 +52,7 @@ describe('ReferenceFactory', function () {
         ReferenceSlot = sinon.stub();
         ReferenceSnapshot = sinon.stub();
         StaticPropertyReference = sinon.stub();
+        TypedReferenceSlot = sinon.stub();
         UndeclaredStaticPropertyReference = sinon.stub();
         valueFactory = sinon.createStubInstance(ValueFactory);
 
@@ -62,6 +65,7 @@ describe('ReferenceFactory', function () {
             ReferenceSlot,
             ReferenceSnapshot,
             StaticPropertyReference,
+            TypedReferenceSlot,
             UndeclaredStaticPropertyReference,
             valueFactory,
             futureFactory,
@@ -450,6 +454,41 @@ describe('ReferenceFactory', function () {
 
             expect(factory.createStaticProperty('myProp', classObject, 'private'))
                 .to.equal(reference);
+        });
+    });
+
+    describe('createTypedReferenceSlot()', function () {
+        var classObject,
+            typeObject;
+
+        beforeEach(function () {
+            classObject = sinon.createStubInstance(Class);
+            typeObject = sinon.createStubInstance(TypeInterface);
+        });
+
+        it('should create the TypedReferenceSlot correctly', function () {
+            factory.createTypedReferenceSlot(callStack, classObject, 'myProp', typeObject, null);
+
+            expect(TypedReferenceSlot).to.have.been.calledOnce;
+            expect(TypedReferenceSlot).to.have.been.calledWith(
+                sinon.match.same(valueFactory),
+                sinon.match.same(factory),
+                sinon.match.same(futureFactory),
+                sinon.match.same(callStack),
+                sinon.match.same(flow),
+                sinon.match.same(classObject),
+                'myProp',
+                sinon.match.same(typeObject),
+                null
+            );
+        });
+
+        it('should return the created TypedReferenceSlot', function () {
+            var slot = sinon.createStubInstance(TypedReferenceSlot);
+            TypedReferenceSlot.returns(slot);
+
+            expect(factory.createTypedReferenceSlot(callStack, classObject, 'myProp', typeObject, null))
+                .to.equal(slot);
         });
     });
 
