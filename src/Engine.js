@@ -404,6 +404,14 @@ _.extend(Engine.prototype, {
             return userland
                 .enterTopLevel(topLevel, topLevelNamespaceScope)
                 .then(function (resultValue) {
+                    /*
+                     * Ensure the coroutine this Engine's top-level scope actually belongs to
+                     * is the one current before touching the call stack - other, unrelated
+                     * coroutine activity may have run (and left a different one current)
+                     * during the async gap between userland settling and this callback firing.
+                     */
+                    topLevelScope.enterCoroutine();
+
                     // Pop the top-level scope (of the include, if this module was included) off the stack
                     // regardless of whether an error occurred
                     callStack.pop();
@@ -412,6 +420,14 @@ _.extend(Engine.prototype, {
                 })
                 .catch(function (error) {
                     var result;
+
+                    /*
+                     * Ensure the coroutine this Engine's top-level scope actually belongs to
+                     * is the one current before touching the call stack - other, unrelated
+                     * coroutine activity may have run (and left a different one current)
+                     * during the async gap between userland settling and this callback firing.
+                     */
+                    topLevelScope.enterCoroutine();
 
                     // Pop the top-level scope (of the include, if this module was included) off the stack
                     // regardless of whether an error occurred

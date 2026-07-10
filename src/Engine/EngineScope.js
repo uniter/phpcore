@@ -350,15 +350,6 @@ _.extend(EngineScope.prototype, {
      */
     unsuppressOwnErrors: function () {
         this.effectiveScope.unsuppressOwnErrors();
-    },
-
-    /**
-     * Updates the Coroutine for this Scope.
-     *
-     * @param {Coroutine} coroutine
-     */
-    updateCoroutine: function (coroutine) {
-        this.coroutine = coroutine;
     }
 });
 

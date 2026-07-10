@@ -641,15 +641,6 @@ module.exports = require('pauser')([
          */
         unsuppressOwnErrors: function () {
             this.ownErrorsSuppressed = false;
-        },
-
-        /**
-         * Updates the coroutine for this scope.
-         *
-         * @param {Coroutine} coroutine
-         */
-        updateCoroutine: function (coroutine) {
-            this.coroutine = coroutine;
         }
     });
 

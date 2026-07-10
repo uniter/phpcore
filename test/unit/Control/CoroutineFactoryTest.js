@@ -14,14 +14,12 @@ var expect = require('chai').expect,
     tools = require('../tools'),
     CallStack = require('../../../src/CallStack'),
     CoroutineFactory = require('../../../src/Control/CoroutineFactory'),
-    RealCoroutine = require('../../../src/Control/Coroutine'),
-    Scope = require('../../../src/Scope').sync();
+    RealCoroutine = require('../../../src/Control/Coroutine');
 
 describe('CoroutineFactory', function () {
     var callStack,
         Coroutine,
         factory,
-        scope,
         state;
 
     beforeEach(function () {
@@ -30,9 +28,6 @@ describe('CoroutineFactory', function () {
             'call_stack': callStack
         });
         Coroutine = sinon.stub();
-        scope = sinon.createStubInstance(Scope);
-
-        callStack.getCurrentScope.returns(scope);
 
         factory = new CoroutineFactory(Coroutine, callStack);
     });
@@ -56,21 +51,6 @@ describe('CoroutineFactory', function () {
 
         it('should return the created Coroutine', function () {
             expect(factory.createCoroutine()).to.equal(createdCoroutine);
-        });
-
-        it('should update the Scope with the created Coroutine when there is a current one', function () {
-            factory.createCoroutine();
-
-            expect(scope.updateCoroutine).to.have.been.calledOnce;
-            expect(scope.updateCoroutine).to.have.been.calledWith(sinon.match.same(createdCoroutine));
-        });
-
-        it('should not throw when there is no current Scope', function () {
-            callStack.getCurrentScope.returns(null);
-
-            expect(function () {
-                factory.createCoroutine();
-            }).not.to.throw();
         });
     });
 });

@@ -977,17 +977,6 @@ describe('Scope', function () {
         });
     });
 
-    describe('updateCoroutine()', function () {
-        it('should update the current Coroutine for the Scope', function () {
-            var newCoroutine = sinon.createStubInstance(Coroutine);
-            createScope();
-
-            scope.updateCoroutine(newCoroutine);
-
-            expect(scope.getCoroutine()).to.equal(newCoroutine);
-        });
-    });
-
     describe('unsuppressErrors()', function () {
         it('should unsuppress errors for this and descendant scopes', function () {
             createScope();

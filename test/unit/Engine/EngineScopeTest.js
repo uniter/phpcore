@@ -306,13 +306,4 @@ describe('EngineScope', function () {
         });
     });
 
-    describe('updateCoroutine()', function () {
-        it('should update the current Coroutine for the Scope', function () {
-            const newCoroutine = sinon.createStubInstance(Coroutine);
-
-            scope.updateCoroutine(newCoroutine);
-
-            expect(scope.getCoroutine()).to.equal(newCoroutine);
-        });
-    });
 });

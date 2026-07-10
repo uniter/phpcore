@@ -347,15 +347,6 @@ _.extend(LoadScope.prototype, {
      */
     unsuppressOwnErrors: function () {
         this.effectiveScope.unsuppressOwnErrors();
-    },
-
-    /**
-     * Updates the coroutine for this scope.
-     *
-     * @param {Coroutine} coroutine
-     */
-    updateCoroutine: function (coroutine) {
-        this.effectiveScope.updateCoroutine(coroutine);
     }
 });
 

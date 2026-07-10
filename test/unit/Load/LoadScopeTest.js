@@ -309,16 +309,4 @@ describe('LoadScope', function () {
         });
     });
 
-    describe('updateCoroutine()', function () {
-        it('should update the effective scope with the new Coroutine', function () {
-            var newCoroutine = sinon.createStubInstance(Coroutine);
-
-            loadScope.updateCoroutine(newCoroutine);
-
-            expect(effectiveScope.updateCoroutine).to.have.been.calledOnce;
-            expect(effectiveScope.updateCoroutine).to.have.been.calledWith(
-                sinon.match.same(newCoroutine)
-            );
-        });
-    });
 });

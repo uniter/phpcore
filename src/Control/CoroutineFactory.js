@@ -34,15 +34,7 @@ _.extend(CoroutineFactory.prototype, {
      * @returns {Coroutine}
      */
     createCoroutine: function () {
-        var factory = this,
-            coroutine = new factory.Coroutine(factory.callStack),
-            currentScope = factory.callStack.getCurrentScope();
-
-        if (currentScope) {
-            currentScope.updateCoroutine(coroutine);
-        }
-
-        return coroutine;
+        return new this.Coroutine(this.callStack);
     }
 });
 
